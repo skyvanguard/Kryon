@@ -437,6 +437,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ### **Core Documentation**
 - 📖 [README.md](README.md) - Framework overview (you are here)
+- 🔐 [CLEARANCE_LEVELS.md](docs/CLEARANCE_LEVELS.md) - Security clearance system & agent hierarchy
 - 🔄 [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) - Migration from CAI to SKYNET
 - 📊 [SKYNET_ANALYSIS_AND_IMPROVEMENTS.md](SKYNET_ANALYSIS_AND_IMPROVEMENTS.md) - Framework analysis & roadmap
 - 🧹 [CLEANUP_PLAN.md](CLEANUP_PLAN.md) - Code cleanup strategy
