@@ -28,6 +28,17 @@ from skynet.tools.reconnaissance.shodan import (
     shodan_search,
     shodan_host_info
 )
+
+# Phase 12: OSINT & Threat Intelligence tools
+from skynet.tools.osint.theharvester import theharvester_search
+from skynet.tools.osint.shodan_cli import shodan_search as shodan_cli_search, shodan_host
+from skynet.tools.osint.threat_intel import (
+    virustotal_search,
+    censys_search,
+    recon_ng_search
+)
+from skynet.tools.osint.yara_scan import yara_scan_file, yara_scan_directory
+
 from skynet.agents.guardrails import get_security_guardrails
 
 load_dotenv()
@@ -37,10 +48,22 @@ t1000_system_prompt = load_prompt_template("prompts/system_t1000_hunter.md")
 
 # T-1000 Advanced Weapon Systems
 weapon_systems = [
+    # Core reconnaissance
     generic_linux_command,  # Adaptive command execution
     execute_code,           # Code analysis and execution
+
+    # Internet-wide intelligence (Shodan - legacy)
     shodan_search,          # Global intelligence gathering
-    shodan_host_info        # Target reconnaissance
+    shodan_host_info,       # Target reconnaissance
+
+    # Phase 12: OSINT & Threat Intelligence
+    theharvester_search,    # Email/subdomain/host harvesting from public sources
+    shodan_host,            # Detailed host information (Phase 12 version)
+    virustotal_search,      # Threat intelligence and reputation lookup
+    censys_search,          # Certificate and host intelligence
+    recon_ng_search,        # Advanced modular reconnaissance
+    yara_scan_file,         # Malware pattern detection (single file)
+    yara_scan_directory,    # Malware pattern detection (directory scan)
 ]
 
 # Add enhanced search if credentials available

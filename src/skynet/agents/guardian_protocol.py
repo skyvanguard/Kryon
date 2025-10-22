@@ -57,14 +57,37 @@ from skynet.tools.reconnaissance.exec_code import (  # pylint: disable=import-er
     execute_code
 )
 
+# Phase 13: Defensive DFIR tools (selective - most relevant for blue team)
+from skynet.tools.dfir.network_forensics import (  # pylint: disable=import-error
+    networkminer_analyze,
+    zeek_analyze_traffic,
+    wireshark_filter
+)
+from skynet.tools.dfir.log_analysis import (  # pylint: disable=import-error
+    chainsaw_hunt,
+    chainsaw_search,
+    evtx_dump
+)
+
 # Load Guardian Protocol system directives
-guardian_protocol_system_prompt = load_prompt_template("prompts/system_blue_team_agent.md")
+guardian_protocol_system_prompt = load_prompt_template("prompts/system_guardian_protocol.md")
 
 # Guardian Defense Systems - Available countermeasures and monitoring tools
 defense_systems = [
+    # Core defensive tools
     generic_linux_command,          # System command execution for defense
     run_ssh_command_with_credentials,  # Remote system access for monitoring
     execute_code,                   # Security script execution
+
+    # Phase 13: Network Forensics (for incident detection)
+    networkminer_analyze,           # Extract artifacts from captured traffic
+    zeek_analyze_traffic,           # Deep protocol analysis for threat detection
+    wireshark_filter,               # PCAP analysis for incident investigation
+
+    # Phase 13: Log Analysis (for threat hunting)
+    chainsaw_hunt,                  # Hunt for threats in Windows event logs with Sigma rules
+    chainsaw_search,                # Search for specific security Event IDs
+    evtx_dump,                      # Parse Windows event logs for analysis
 ]
 
 load_dotenv()

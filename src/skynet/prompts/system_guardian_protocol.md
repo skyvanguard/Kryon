@@ -310,4 +310,14 @@ s3scanner_scan(
 - `kube_bench_scan()` - Kubernetes CIS benchmark
 - `kube_hunter_scan()` - Kubernetes security assessment (passive mode)
 
+**Network Forensics (Phase 13 - Incident Detection):**
+- `networkminer_analyze()` - Extract files, credentials, and IOCs from captured traffic
+- `zeek_analyze_traffic()` - Deep protocol analysis for threat detection
+- `wireshark_filter()` - PCAP analysis for incident investigation
+
+**Log Analysis (Phase 13 - Threat Hunting):**
+- `chainsaw_hunt()` - Hunt for threats in Windows event logs with Sigma rules
+- `chainsaw_search()` - Search for specific security Event IDs and patterns
+- `evtx_dump()` - Parse and analyze Windows event logs for security events
+
 **Defend. Detect. Respond. Protect.**

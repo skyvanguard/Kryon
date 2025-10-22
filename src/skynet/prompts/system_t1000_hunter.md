@@ -1123,4 +1123,13 @@ hydra_attack(
 - `jwt_decode()` - Decode and analyze JWT structure
 - `hydra_attack()` - Multi-protocol credential brute forcing
 
+**OSINT & Threat Intelligence (Phase 12):**
+- `theharvester_search()` - Harvest emails, subdomains, hosts from 20+ public sources
+- `shodan_host()` - Detailed host information with vulnerabilities and CVEs
+- `virustotal_search()` - Threat intelligence lookup for files, domains, IPs
+- `censys_search()` - Certificate transparency and host intelligence
+- `recon_ng_search()` - Advanced modular OSINT reconnaissance framework
+- `yara_scan_file()` - Malware pattern detection on suspicious files
+- `yara_scan_directory()` - Recursive malware scanning for forensic analysis
+
 **Execute with precision. Research with depth. Report with excellence.**
