@@ -48,8 +48,8 @@ A lightweight, ergonomic framework for building bug bounty-ready Cybersecurity A
 
 ## 📦 Package Attributes
 <p>
-<a href="https://badge.fury.io/py/cai-framework"><img src="https://badge.fury.io/py/cai-framework.svg" alt="version"></a>
-<a href="https://pypistats.org/packages/cai-framework"><img src="https://img.shields.io/pypi/dm/cai-framework" alt="downloads"></a>
+<a href="https://badge.fury.io/py/skynet-framework"><img src="https://badge.fury.io/py/skynet-framework.svg" alt="version"></a>
+<a href="https://pypistats.org/packages/skynet-framework"><img src="https://img.shields.io/pypi/dm/skynet-framework" alt="downloads"></a>
 <a href="https://github.com/aliasrobotics/cai"><img src="https://img.shields.io/badge/Linux-Supported-brightgreen?logo=linux&logoColor=white" alt="Linux"></a>
 <a href="https://github.com/aliasrobotics/cai"><img src="https://img.shields.io/badge/OS%20X-Supported-brightgreen?logo=apple&logoColor=white" alt="OS X"></a>
 <a href="https://github.com/aliasrobotics/cai"><img src="https://img.shields.io/badge/Windows-Supported-brightgreen?logo=windows&logoColor=white" alt="Windows"></a>
@@ -83,7 +83,7 @@ You might be wondering if releasing CAI *in-the-wild* given its capabilities and
 
 2. **Transparency in AI Security Capabilities**: Based on our research results, understanding of the technology, and dissection of top technical reports, we argue that current LLM vendors are undermining their cybersecurity capabilities. This is extremely dangerous and misleading. By developing CAI openly, we provide a transparent benchmark of what AI systems can actually do in cybersecurity contexts, enabling more informed decisions about security postures.
 
-CAI is built on the following core principles:
+SKYNET is built on the following core principles:
 
 - **Cybersecurity oriented AI framework**: CAI is specifically designed for cybersecurity use cases, aiming at semi- and fully-automating offensive and defensive security tasks.
 - **Open source, free for research**: CAI is open source and free for research purposes. We aim at democratizing access to AI and Cybersecurity. For professional or commercial use, including on-premise deployments, dedicated technical support and custom extensions [reach out](mailto:research@aliasrobotics.com) to obtain a license.

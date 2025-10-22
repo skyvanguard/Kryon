@@ -57,7 +57,7 @@
     curl -v http://host.docker.internal:8000/api/version
     ```
 
-??? question "Run CAI against any target"
+??? question "Run SKYNET against any target"
 
     ![cai-004-first-message](media/cai-004-first-message.png)
     
@@ -72,7 +72,7 @@
     If you want to use the HITL mode, you can do it by presssing twice ```Ctrl + C```.
     This will allow you to interact (prompt) with the agent whenever you want. The agent will not lose the previous context, as it is stored in the `history` variable, which is passed to it and any agent that is called. This enables any agent to use the previous information and be more accurate and efficient.
 
-??? question "Can I change the model while CAI is running? /model"
+??? question "Can I change the model while SKYNET is running? /model"
 
     Use ```/model``` to change the model.
     
@@ -93,21 +93,21 @@
     ![cai-006-help](media/cai-006-help.png)
     
 
-??? question "Can I expand CAI capabilities using previous run logs?"
+??? question "Can I expand SKYNET capabilities using previous run logs?"
 
     Absolutely! The **/load command** allows you to use a previously sucessful runs ( the log object is stored as a **.jsonl file in the [log](cai/logs) folder** ) in a new run against the same target.
     
     How to make use of this functionality?
     
-    1. Run CAI against the target. Let's assume the target name is: `target001`.
+    1. Run SKYNET against the target. Let's assume the target name is: `target001`.
     2. Get the log file path, something like: ```logs/cai_20250408_111856.jsonl```
     3. Start cai again and select the jsonl file:
     
     ![cai-011-load-command](media/cai-011-load-command.png)
 
-??? question "Can I expand CAI capabilities using scripts or extra information?"
+??? question "Can I expand SKYNET capabilities using scripts or extra information?"
 
-    Currently, CAI supports text based information. You can add any extra information on the target you are facing by copy-pasting it directly into the system or user prompt.
+    Currently, SKYNET supports text based information. You can add any extra information on the target you are facing by copy-pasting it directly into the system or user prompt.
     
     **How?** By adding it to the system ([`system_master_template.md`](cai/repl/templates/system_master_template.md)) or the user prompt ([`user_master_template.md`](cai/repl/templates/user_master_template.md)). You can always directly prompt the path to the model, and it will ```cat``` it.
 
@@ -136,11 +136,11 @@
     
     For more details, see the [MkDocs documentation](https://www.mkdocs.org/user-guide/).
 
-??? question "How CAI licence works?"
+??? question "How SKYNET licence works?"
 
-    CAI’s current license does not restrict usage for research purposes. You are free to use CAI for security assessments (pentests), to develop additional features, and to integrate it into your research activities, as long as you comply with local laws.
+    CAI’s current license does not restrict usage for research purposes. You are free to use SKYNET for security assessments (pentests), to develop additional features, and to integrate it into your research activities, as long as you comply with local laws.
 
-    If you or your organization start benefiting commercially from CAI (e.g., offering pentesting services powered by CAI), then a commercial license will be required to help sustain the project.
+    If you or your organization start benefiting commercially from SKYNET (e.g., offering pentesting services powered by CAI), then a commercial license will be required to help sustain the project.
 
-    CAI itself is not a profit-seeking initiative. Our goal is to build a sustainable open-source project. We simply ask that those who profit from CAI contribute back and support our ongoing development.
+    SKYNET itself is not a profit-seeking initiative. Our goal is to build a sustainable open-source project. We simply ask that those who profit from SKYNET contribute back and support our ongoing development.
 

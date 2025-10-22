@@ -1,20 +1,19 @@
+# Installation
 
 ```bash
-pip install cai-framework
+pip install skynet-framework
 ```
 
-The following subsections provide a more detailed walkthrough on selected popular Operating Systems. Refer to the [Development](cai_development.md) section for developer-related install instructions.
-
-### OS X
+## OS X
 ```bash
 brew update && \
     brew install git python@3.12
 
 # Create virtual environment
-python3.12 -m venv cai_env
+python3.12 -m venv skynet_env
 
 # Install the package from the local directory
-source cai_env/bin/activate && pip install cai-framework
+source skynet_env/bin/activate && pip install skynet-framework
 
 # Generate a .env file and set up with defaults
 echo -e 'OPENAI_API_KEY="sk-1234"\nANTHROPIC_API_KEY=""\nOLLAMA=""\nPROMPT_TOOLKIT_NO_CPR=1' > .env
@@ -23,16 +22,16 @@ echo -e 'OPENAI_API_KEY="sk-1234"\nANTHROPIC_API_KEY=""\nOLLAMA=""\nPROMPT_TOOLK
 cai  # first launch it can take up to 30 seconds
 ```
 
-### Ubuntu 24.04
+## Ubuntu 24.04
 ```bash
 sudo apt-get update && \
     sudo apt-get install -y git python3-pip python3.12-venv
 
 # Create the virtual environment
-python3.12 -m venv cai_env
+python3.12 -m venv skynet_env
 
 # Install the package from the local directory
-source cai_env/bin/activate && pip install cai-framework
+source skynet_env/bin/activate && pip install skynet-framework
 
 # Generate a .env file and set up with defaults
 echo -e 'OPENAI_API_KEY="sk-1234"\nANTHROPIC_API_KEY=""\nOLLAMA=""\nPROMPT_TOOLKIT_NO_CPR=1' > .env
@@ -41,7 +40,7 @@ echo -e 'OPENAI_API_KEY="sk-1234"\nANTHROPIC_API_KEY=""\nOLLAMA=""\nPROMPT_TOOLK
 cai  # first launch it can take up to 30 seconds
 ```
 
-### Ubuntu 20.04
+## Ubuntu 20.04
 ```bash
 sudo apt-get update && \
     sudo apt-get install -y software-properties-common
@@ -51,10 +50,10 @@ sudo add-apt-repository ppa:deadsnakes/ppa && sudo apt update
 sudo apt install python3.12 python3.12-venv python3.12-dev -y
 
 # Create the virtual environment
-python3.12 -m venv cai_env
+python3.12 -m venv skynet_env
 
 # Install the package from the local directory
-source cai_env/bin/activate && pip install cai-framework
+source skynet_env/bin/activate && pip install skynet-framework
 
 # Generate a .env file and set up with defaults
 echo -e 'OPENAI_API_KEY="sk-1234"\nANTHROPIC_API_KEY=""\nOLLAMA=""\nPROMPT_TOOLKIT_NO_CPR=1' > .env
@@ -63,21 +62,21 @@ echo -e 'OPENAI_API_KEY="sk-1234"\nANTHROPIC_API_KEY=""\nOLLAMA=""\nPROMPT_TOOLK
 cai  # first launch it can take up to 30 seconds
 ```
 
-### Windows WSL
-Go to the Microsoft page: https://learn.microsoft.com/en-us/windows/wsl/install. Here you will find all the instructions to install WSL
+## Windows WSL
+Go to the Microsoft page: `https://learn.microsoft.com/en-us/windows/wsl/install`. 
+Here you will find all the instructions to install WSL
 
-From Powershell write: wsl --install
+From Powershell write: ` wsl --install`
 
 ```bash
-
 sudo apt-get update && \
     sudo apt-get install -y git python3-pip python3-venv
 
 # Create the virtual environment
-python3 -m venv cai_env
+python3 -m venv skynet_env
 
 # Install the package from the local directory
-source cai_env/bin/activate && pip install cai-framework
+source skynet_env/bin/activate && pip install skynet-framework
 
 # Generate a .env file and set up with defaults
 echo -e 'OPENAI_API_KEY="sk-1234"\nANTHROPIC_API_KEY=""\nOLLAMA=""\nPROMPT_TOOLKIT_NO_CPR=1' > .env
@@ -86,15 +85,15 @@ echo -e 'OPENAI_API_KEY="sk-1234"\nANTHROPIC_API_KEY=""\nOLLAMA=""\nPROMPT_TOOLK
 cai  # first launch it can take up to 30 seconds
 ```
 
-### Android
+## Android
 
 We recommend having at least 8 GB of RAM:
 
-1. First of all, install userland: `https://play.google.com/store/apps/details?id=tech.ula&hl=es`
+1. First of all, install userland https://play.google.com/store/apps/details?id=tech.ula&hl=es
 
 2. Install Kali minimal in basic options (for free). [Or any other kali option if preferred]
 
-3. Update apt keys like in this example: `https://superuser.com/questions/1644520/apt-get-update-issue-in-kali`, inside UserLand's Kali terminal execute
+3. Update apt keys like in this example: https://superuser.com/questions/1644520/apt-get-update-issue-in-kali, inside UserLand's Kali terminal execute
 
 ```bash
 # Get new apt keys
@@ -117,39 +116,20 @@ sudo make altinstall # This command takes long to execute
 git clone https://github.com/aliasrobotics/cai && cd cai
 
 # Create virtual environment
-python3.12 -m venv cai_env
+python3.12 -m venv skynet_env
 
 # Install the package from the local directory
-source cai_env/bin/activate && pip3 install -e .
+source skynet_env/bin/activate && pip3 install -e .
 
 # Generate a .env file and set up
 cp .env.example .env  # edit here your keys/models
 
 # Launch CAI
 cai
-```
-
-
-### Setup `.env` file
-
-CAI leverages the `.env` file to load configuration at launch. To facilitate the setup, the repo provides an exemplary `.env.example` file provides a template for configuring CAI's setup and your LLM API keys to work with desired LLM models.
-
-```bash
-OPENAI_API_KEY="sk-1234" 
-# OPENAI_API_KEY MUST BE FILLED-IN. 
-# It should contain either "sk-123" (as a placeholder) 
-# or your actual API key. 
-# See https://github.com/aliasrobotics/cai/issues/27
-
-ANTHROPIC_API_KEY=""
-OLLAMA=""
-PROMPT_TOOLKIT_NO_CPR=1
-```
-⚠️ CAI does NOT provide API keys for any model by default. 
-
+``` 
 
 ### Custom OpenAI Base URL Support
-``` 
+
 CAI supports configuring a custom OpenAI API base URL via the `OPENAI_BASE_URL` environment variable. This allows users to redirect API calls to a custom endpoint, such as a proxy or self-hosted OpenAI-compatible service.
 
 Example `.env` entry configuration:
@@ -161,4 +141,3 @@ Or directly from the command line:
 ```bash
 OLLAMA_API_BASE="https://custom-openai-proxy.com/v1" cai
 ```
-

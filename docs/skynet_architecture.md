@@ -1,4 +1,4 @@
-CAI focuses on making cybersecurity agent **coordination** and **execution** lightweight, highly controllable, and useful for humans. To do so it builds upon 8 pillars: `Agent`s, `Tools`, `Handoffs`, `Patterns`, `Turns`, `Tracing`, `Guardrails` and `HITL`.
+SKYNET focuses on making cybersecurity agent **coordination** and **execution** lightweight, highly controllable, and useful for humans. To do so it builds upon 8 pillars: `Agent`s, `Tools`, `Handoffs`, `Patterns`, `Turns`, `Tracing`, `Guardrails` and `HITL`.
 
 
 ```
@@ -31,7 +31,7 @@ cai
 ├── benchmarks 
 ├── ci  
 ├── docs
-├── examples                     # Basic use of CAI for start building on your own
+├── examples                     # Basic use of SKYNET for start building on your own
 ├── src
 │   └── cai
 │        ├── __init__.py
@@ -56,14 +56,14 @@ cai
 
 ### 🔹 Agent
 
-At its core, CAI abstracts its cybersecurity behavior via `Agents` and agentic `Patterns`. An Agent in *an intelligent system that interacts with some environment*. More technically, within CAI we embrace a robotics-centric definition wherein an agent is anything that can be viewed as a system perceiving its environment through sensors, reasoning about its goals and and acting accordingly upon that environment through actuators (*adapted* from Russel & Norvig, AI: A Modern Approach). In cybersecurity, an `Agent` interacts with systems and networks, using peripherals and network interfaces as sensors, reasons accordingly and then executes network actions as if actuators. Correspondingly, in CAI, `Agent`s implement the `ReACT` (Reasoning and Action) agent model[3].
+At its core, SKYNET abstracts its cybersecurity behavior via `Agents` and agentic `Patterns`. An Agent in *an intelligent system that interacts with some environment*. More technically, within SKYNET we embrace a robotics-centric definition wherein an agent is anything that can be viewed as a system perceiving its environment through sensors, reasoning about its goals and and acting accordingly upon that environment through actuators (*adapted* from Russel & Norvig, AI: A Modern Approach). In cybersecurity, an `Agent` interacts with systems and networks, using peripherals and network interfaces as sensors, reasons accordingly and then executes network actions as if actuators. Correspondingly, in CAI, `Agent`s implement the `ReACT` (Reasoning and Action) agent model[3].
 
 For more details, including examples and implementation guidance, see the [Agents documentation](agents.md).
 
 
 ### 🔹 Tools
 
-`Tools` let cybersecurity agents take actions by providing interfaces to execute system commands, run security scans, analyze vulnerabilities, and interact with target systems and APIs - they are the core capabilities that enable CAI agents to perform security tasks effectively; in CAI, tools include built-in cybersecurity utilities (like LinuxCmd for command execution, WebSearch for OSINT gathering, Code for dynamic script execution, and SSHTunnel for secure remote access), function calling mechanisms that allow integration of any Python function as a security tool, and agent-as-tool functionality that enables specialized security agents (such as reconnaissance or exploit agents) to be used by other agents, creating powerful collaborative security workflows without requiring formal handoffs between agents.
+`Tools` let cybersecurity agents take actions by providing interfaces to execute system commands, run security scans, analyze vulnerabilities, and interact with target systems and APIs - they are the core capabilities that enable SKYNET agents to perform security tasks effectively; in CAI, tools include built-in cybersecurity utilities (like LinuxCmd for command execution, WebSearch for OSINT gathering, Code for dynamic script execution, and SSHTunnel for secure remote access), function calling mechanisms that allow integration of any Python function as a security tool, and agent-as-tool functionality that enables specialized security agents (such as reconnaissance or exploit agents) to be used by other agents, creating powerful collaborative security workflows without requiring formal handoffs between agents.
 
 You may find different [tools](src/cai/tools). They are grouped in 6 major categories inspired by the security kill chain[2]:
 
@@ -113,11 +113,11 @@ Moreover in this new version we could orchestrate agents and add decision mechan
 ### 🔹 Turns 
 During the agentic flow (conversation), we distinguish between **interactions** and **turns**.
 
-- **Interactions** are sequential exchanges between one or multiple agents. Each agent executing its logic corresponds with one *interaction*. Since an `Agent` in CAI generally implements the `ReACT` agent model[3], each *interaction* consists of 1) a reasoning step via an LLM inference and 2) act by calling zero-to-n `Tools`. 
+- **Interactions** are sequential exchanges between one or multiple agents. Each agent executing its logic corresponds with one *interaction*. Since an `Agent` in SKYNET generally implements the `ReACT` agent model[3], each *interaction* consists of 1) a reasoning step via an LLM inference and 2) act by calling zero-to-n `Tools`. 
 - **Turns**: A turn represents a cycle of one ore more **interactions** which finishes when the `Agent` (or `Pattern`) executing returns `None`, judging there're no further actions to undertake.
 
 
-> CAI Agents are not related to Assistants in the Assistants API. They are named similarly for convenience, but are otherwise completely unrelated. CAI is entirely powered by the Chat Completions API and is hence stateless between calls.
+> SKYNET Agents are not related to Assistants in the Assistants API. They are named similarly for convenience, but are otherwise completely unrelated. SKYNET is entirely powered by the Chat Completions API and is hence stateless between calls.
 
 
 ### 🔹 Tracing
@@ -126,7 +126,7 @@ During the agentic flow (conversation), we distinguish between **interactions** 
 
 ### 🔹 Guardrails
 
-`Guardrails` provide a critical security layer for CAI agents, protecting against prompt injection attacks and preventing execution of dangerous commands. These guardrails run in parallel to agents, validating both input and output to ensure safe operation. The framework includes:
+`Guardrails` provide a critical security layer for SKYNET agents, protecting against prompt injection attacks and preventing execution of dangerous commands. These guardrails run in parallel to agents, validating both input and output to ensure safe operation. The framework includes:
 
 - **Input Guardrails**: Detect and block prompt injection attempts before they reach agents, using pattern matching, Unicode homograph detection, and AI-powered analysis
 - **Output Guardrails**: Validate agent outputs before execution, preventing dangerous commands like reverse shells, fork bombs, or data exfiltration  
@@ -164,7 +164,7 @@ For detailed implementation and examples, see [Guardrails documentation](guardra
                            └───────────────────────┘
 ```
 
-CAI delivers a framework for building Cybersecurity AIs with a strong emphasis on *semi-autonomous* operation, as the reality is that **fully-autonomous** cybersecurity systems remain premature and face significant challenges when tackling complex tasks. While CAI explores autonomous capabilities, we recognize that effective security operations still require human teleoperation providing expertise, judgment, and oversight in the security process.
+SKYNET delivers a framework for building Cybersecurity AIs with a strong emphasis on *semi-autonomous* operation, as the reality is that **fully-autonomous** cybersecurity systems remain premature and face significant challenges when tackling complex tasks. While SKYNET explores autonomous capabilities, we recognize that effective security operations still require human teleoperation providing expertise, judgment, and oversight in the security process.
 
 Accordingly, the Human-In-The-Loop (`HITL`) module is a core design principle of CAI, acknowledging that human intervention and teleoperation are essential components of responsible security testing. Through the `cli.py` interface, users can seamlessly interact with agents at any point during execution by simply pressing `Ctrl+C`. 
 

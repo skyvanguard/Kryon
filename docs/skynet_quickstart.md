@@ -1,4 +1,4 @@
-To start CAI after installing it, just type `cai` in the CLI:
+To start SKYNET after installing it, just type `cai` in the CLI:
 
 ```bash
 └─# cai
@@ -23,10 +23,10 @@ To start CAI after installing it, just type `cai` in the CLI:
                       Cybersecurity AI (CAI), v0.4.0
                           Bug bounty-ready AI
 
-CAI>
+SKYNET>
 ```
 
-That should initialize CAI and provide a prompt to execute any security task you want to perform. The navigation bar at the bottom displays important system information. This information helps you understand your environment while working with CAI.
+That should initialize SKYNET and provide a prompt to execute any security task you want to perform. The navigation bar at the bottom displays important system information. This information helps you understand your environment while working with CAI.
 
 Here's a quick [demo video](https://asciinema.org/a/zm7wS5DA2o0S9pu1Tb44pnlvy) to help you get started with CAI. We'll walk through the basic steps — from launching the tool to running your first AI-powered task in the terminal. Whether you're a beginner or just curious, this guide will show you how easy it is to begin using CAI.
 

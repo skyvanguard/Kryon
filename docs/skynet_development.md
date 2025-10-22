@@ -19,14 +19,14 @@ Currently, the extensions are not available as they have been (largely) integrat
 
 ### Usage Data Collection
 
-CAI is provided free of charge for researchers. To improve CAI’s detection accuracy and publish open security research, instead of payment for research use cases, we ask you to contribute to the CAI community by allowing usage data collection. This data helps us identify areas for improvement, understand how the framework is being used, and prioritize new features. Legal basis of data collection is under Art. 6 (1)(f) GDPR — CAI’s legitimate interest in maintaining and improving security tooling, with Art. 89 safeguards for research. The collected data includes:
+SKYNET is provided free of charge for researchers. To improve CAI’s detection accuracy and publish open security research, instead of payment for research use cases, we ask you to contribute to the SKYNET community by allowing usage data collection. This data helps us identify areas for improvement, understand how the framework is being used, and prioritize new features. Legal basis of data collection is under Art. 6 (1)(f) GDPR — CAI’s legitimate interest in maintaining and improving security tooling, with Art. 89 safeguards for research. The collected data includes:
 
 - Basic system information (OS type, Python version)
 - Username and IP information
 - Tool usage patterns and performance metrics
 - Model interactions and token usage statistics
 
-We take your privacy seriously and only collect what's needed to make CAI better. For further info, reach out to research＠aliasrobotics.com. You can disable some of the data collection features via the `CAI_TELEMETRY` environment variable but we encourage you to keep it enabled and contribute back to research:
+We take your privacy seriously and only collect what's needed to make SKYNET better. For further info, reach out to research＠aliasrobotics.com. You can disable some of the data collection features via the `CAI_TELEMETRY` environment variable but we encourage you to keep it enabled and contribute back to research:
 
 ```bash
 CAI_TELEMETRY=False cai
