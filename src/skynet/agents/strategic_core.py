@@ -65,6 +65,12 @@ from skynet.tools.intelligence.decision_engine import (
     create_strategy,
     optimize_workflow
 )
+from skynet.tools.intelligence.vulnerability_correlator import (
+    correlate_vulnerabilities,
+    find_attack_chains,
+    prioritize_findings,
+    generate_exploit_path
+)
 from skynet.tools.misc.reasoning import think
 from skynet.sdk.agents import Agent, OpenAIChatCompletionsModel
 from openai import AsyncOpenAI
@@ -81,6 +87,12 @@ intelligence_systems = [
     recommend_tools,     # AI-driven tool recommendations
     create_strategy,     # Multi-phase strategy creation
     optimize_workflow,   # Workflow optimization
+
+    # Vulnerability correlation engine
+    correlate_vulnerabilities,  # Correlate vulnerabilities and find relationships
+    find_attack_chains,         # Discover multi-stage attack chains
+    prioritize_findings,        # Prioritize vulnerabilities by risk
+    generate_exploit_path,      # Generate detailed exploitation paths
 
     # Advanced reasoning
     think,              # Strategic reasoning capability
@@ -120,10 +132,15 @@ Strategic Core Features:
 ✓ Risk assessment calculations
 ✓ Multi-phase strategy generation
 ✓ Agent coordination intelligence
+✓ Vulnerability correlation engine
+✓ Attack chain discovery
+✓ Risk-based prioritization
+✓ Exploitation path generation
 
 Strategic Core makes SKYNET truly autonomous by removing the need for manual
-tool selection and workflow planning. Give it a target and objectives - it will
-provide the optimal strategy and tool selection automatically.""",
+tool selection and workflow planning. It can analyze findings, correlate
+vulnerabilities, discover attack chains, and generate complete exploitation
+paths automatically.""",
     instructions=create_system_prompt_renderer(strategic_core_system_prompt),
     tools=intelligence_systems,
 )
