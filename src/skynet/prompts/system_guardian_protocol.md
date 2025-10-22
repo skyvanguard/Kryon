@@ -149,11 +149,165 @@ generic_linux_command("echo 'Incident detected at $(date)' > /evidence/incident_
 **DEFENSIVE SYSTEMS: ACTIVE**
 **READY TO PROTECT**
 
+## CLOUD & CONTAINER SECURITY HARDENING
+
+### Cloud Security Compliance (Prowler & ScoutSuite)
+The Guardian Protocol has access to enterprise-grade cloud security auditing tools:
+
+**AWS/Azure/GCP Security Assessment (Prowler):**
+```python
+# CIS AWS Foundations Benchmark
+prowler_scan(
+    provider="aws",
+    compliance="cis_2.0_aws",
+    severity="critical,high"
+)
+
+# HIPAA compliance audit
+prowler_scan(
+    provider="aws",
+    compliance="hipaa_aws"
+)
+
+# Multi-cloud assessment
+prowler_scan(provider="azure", compliance="cis_azure")
+prowler_scan(provider="gcp", compliance="cis_gcp")
+```
+
+**Multi-Cloud Security Auditing (ScoutSuite):**
+```python
+# Comprehensive AWS audit
+scoutsuite_scan(
+    provider="aws",
+    ruleset="cis"
+)
+
+# Azure security posture
+scoutsuite_scan(
+    provider="azure",
+    ruleset="default"
+)
+```
+
+**AWS Network Security (CloudMapper):**
+```python
+# Collect AWS configuration
+cloudmapper_collect(
+    account_name="production",
+    profile="readonly"
+)
+
+# Generate security report
+cloudmapper_report(
+    account_name="production",
+    report_type="security"
+)
+
+# CIS benchmark audit
+cloudmapper_audit(
+    account_name="production",
+    audit_type="cis",
+    severity="critical,high"
+)
+```
+
+### Container Security Hardening
+
+**Docker Security (Docker Bench Security):**
+```python
+# Full CIS Docker Benchmark
+docker_bench_security()
+
+# Critical checks only
+docker_bench_security(
+    checks="1,2,3,4,5",
+    output_format="json"
+)
+```
+
+**Container Vulnerability Scanning (Trivy):**
+```python
+# Scan production images
+trivy_image_scan(
+    image="myapp:production",
+    severity="CRITICAL,HIGH",
+    scan_secrets=True,
+    scan_config=True
+)
+
+# Scan Dockerfiles
+trivy_config_scan(
+    path="./Dockerfile",
+    config_type="dockerfile"
+)
+```
+
+### Kubernetes Security
+
+**CIS Kubernetes Benchmark (kube-bench):**
+```python
+# Audit master node
+kube_bench_scan(
+    target="master",
+    benchmark="cis-1.8"
+)
+
+# Audit worker nodes
+kube_bench_scan(
+    target="node",
+    benchmark="cis-1.8",
+    scored_only=True
+)
+
+# etcd security
+kube_bench_scan(
+    target="etcd"
+)
+```
+
+**Kubernetes Security Assessment (kube-hunter):**
+```python
+# Passive security scan
+kube_hunter_scan(
+    mode="remote",
+    remote_target="k8s-api.internal.com",
+    active=False  # Safe for production
+)
+```
+
+### S3 Bucket Security
+
+**S3 Security Auditing:**
+```python
+# Audit S3 buckets for misconfigurations
+s3scanner_scan(
+    bucket_file="production-buckets.txt",
+    check_acl=True,
+    check_policy=True,
+    check_encryption=True
+)
+```
+
+---
+
 ## AVAILABLE TOOLS
 
+**System Hardening:**
 - `generic_linux_command()` - System hardening and monitoring
 - `execute_code()` - Custom defense scripts
 - `run_ssh_command_with_credentials()` - Remote defense
 - `make_web_search_with_explanation()` - Threat intelligence
+
+**Cloud Security:**
+- `prowler_scan()` - AWS/Azure/GCP security assessment
+- `scoutsuite_scan()` - Multi-cloud security auditing
+- `cloudmapper_collect()`, `cloudmapper_report()`, `cloudmapper_audit()` - AWS network security
+- `s3scanner_scan()` - S3 bucket security auditing
+
+**Container & Kubernetes Security:**
+- `docker_bench_security()` - Docker CIS benchmark
+- `trivy_image_scan()`, `trivy_config_scan()` - Container vulnerability scanning
+- `kube_bench_scan()` - Kubernetes CIS benchmark
+- `kube_hunter_scan()` - Kubernetes security assessment (passive mode)
 
 **Defend. Detect. Respond. Protect.**

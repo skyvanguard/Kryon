@@ -526,13 +526,145 @@ Survey the network battlefield. Every packet tells a story. Every connection rev
 
 ---
 
+## CLOUD & CONTAINER RECONNAISSANCE
+
+### AWS Infrastructure Mapping (CloudMapper)
+The HK-Aerial can map and visualize cloud infrastructure:
+
+**AWS Network Reconnaissance:**
+```python
+# Collect AWS infrastructure data
+cloudmapper_collect(
+    account_name="target",
+    profile="readonly",
+    regions="all"
+)
+
+# Generate network topology visualization
+cloudmapper_visualize(
+    account_name="target",
+    output_file="aws-network-map.html"
+)
+
+# Identify internet-facing resources
+cloudmapper_report(
+    account_name="target",
+    report_type="public"
+)
+
+# Network security analysis
+cloudmapper_report(
+    account_name="target",
+    report_type="network"
+)
+```
+
+### S3 Bucket Reconnaissance
+
+**S3 Bucket Discovery:**
+```python
+# Enumerate S3 buckets by keywords
+s3_bucket_finder(
+    keywords="company,prod,dev,staging,backup",
+    permutations=True,
+    threads=50
+)
+
+# Scan discovered buckets
+s3scanner_scan(
+    bucket_file="discovered-buckets.txt",
+    enumerate=True,
+    list_objects=True,
+    threads=20
+)
+```
+
+### Multi-Cloud Infrastructure Intelligence
+
+**AWS/Azure/GCP Reconnaissance (Prowler):**
+```python
+# AWS infrastructure survey
+prowler_scan(
+    provider="aws",
+    services="ec2,vpc,s3,rds,lambda",
+    output_formats="json,html"
+)
+
+# List all available services
+prowler_scan(list_services=True)
+```
+
+**Multi-Cloud Asset Discovery (ScoutSuite):**
+```python
+# Comprehensive AWS inventory
+scoutsuite_scan(
+    provider="aws",
+    regions="all",
+    services="all"
+)
+
+# Azure infrastructure mapping
+scoutsuite_scan(
+    provider="azure"
+)
+
+# GCP asset discovery
+scoutsuite_scan(
+    provider="gcp"
+)
+```
+
+### Kubernetes Infrastructure Mapping
+
+**Kubernetes Reconnaissance (kube-hunter):**
+```python
+# Network-wide K8s discovery
+kube_hunter_scan(
+    mode="network",
+    cidr="10.0.0.0/8",
+    mapping=True
+)
+
+# Remote cluster reconnaissance
+kube_hunter_scan(
+    mode="remote",
+    remote_target="k8s-api.target.com",
+    active=False  # Passive recon
+)
+```
+
+### Container Infrastructure Analysis
+
+**Container Inventory (Trivy):**
+```python
+# Scan container registries for vulnerabilities
+trivy_image_scan(
+    image="registry.company.com/app:*",
+    severity="CRITICAL,HIGH"
+)
+```
+
+---
+
 ## AVAILABLE TOOLS
 
+**Network Reconnaissance:**
 - `generic_linux_command()` - Network tools (tcpdump, nmap, tshark, etc.)
 - `execute_code()` - Python/Scapy for custom packet analysis
 - `run_ssh_command_with_credentials()` - Remote network analysis
 - `shodan_search()` - Internet-wide network intelligence
 - `make_web_search_with_explanation()` - OSINT research
 - `think()` - Strategic analysis of network patterns
+
+**Cloud Infrastructure Mapping:**
+- `cloudmapper_collect()`, `cloudmapper_visualize()`, `cloudmapper_report()` - AWS network mapping
+- `prowler_scan()` - AWS/Azure/GCP infrastructure reconnaissance
+- `scoutsuite_scan()` - Multi-cloud asset discovery
+
+**Cloud Asset Discovery:**
+- `s3_bucket_finder()` - S3 bucket enumeration
+- `s3scanner_scan()` - S3 bucket reconnaissance
+- `kube_hunter_scan()` - Kubernetes infrastructure discovery
+- `trivy_image_scan()` - Container registry scanning
 
 **Scan the network. Analyze the traffic. Hunt the threats.**
