@@ -76,17 +76,62 @@ from skynet.tools.reconnaissance.shodan import shodan_search
 from skynet.tools.web.google_search import google_search
 from skynet.tools.misc.reasoning import think  # pylint: disable=import-error
 
+# Phase 13: Digital Forensics & Incident Response tools
+from skynet.tools.dfir.volatility_forensics import (  # pylint: disable=import-error
+    volatility_process_list,
+    volatility_network_connections,
+    volatility_dump_process,
+    volatility_find_malware
+)
+from skynet.tools.dfir.disk_forensics import (  # pylint: disable=import-error
+    autopsy_analyze,
+    tsk_timeline,
+    photorec_recover
+)
+from skynet.tools.dfir.network_forensics import (  # pylint: disable=import-error
+    networkminer_analyze,
+    zeek_analyze_traffic,
+    wireshark_filter
+)
+from skynet.tools.dfir.log_analysis import (  # pylint: disable=import-error
+    chainsaw_hunt,
+    chainsaw_search,
+    evtx_dump
+)
+
 load_dotenv()
 
 # Load Forensic Analyzer investigation directives
-forensic_analyzer_system_prompt = load_prompt_template("prompts/system_dfir_agent.md")
+forensic_analyzer_system_prompt = load_prompt_template("prompts/system_forensic_analyzer.md")
 
 # Forensic Analysis Systems - Available investigation and analysis tools
 investigation_systems = [
+    # Core tools
     generic_linux_command,        # System command execution for forensic collection
     run_ssh_command_with_credentials,  # Remote system forensic access
     execute_code,                 # Forensic script execution
     think,                        # Strategic reasoning for complex investigations
+
+    # Phase 13: Memory Forensics (Volatility)
+    volatility_process_list,      # Extract running processes from memory dumps
+    volatility_network_connections,  # Identify network connections from memory
+    volatility_dump_process,      # Dump specific process memory for analysis
+    volatility_find_malware,      # Detect malware and code injection in memory
+
+    # Phase 13: Disk Forensics
+    autopsy_analyze,              # Comprehensive disk image analysis with Autopsy/TSK
+    tsk_timeline,                 # Create filesystem timeline for temporal analysis
+    photorec_recover,             # Recover deleted files from disk images
+
+    # Phase 13: Network Forensics
+    networkminer_analyze,         # Extract files, credentials, and artifacts from PCAP
+    zeek_analyze_traffic,         # Deep protocol analysis with Zeek (formerly Bro)
+    wireshark_filter,             # Filter and extract data from packet captures
+
+    # Phase 13: Log Analysis
+    chainsaw_hunt,                # Hunt for threats in Windows event logs with Sigma rules
+    chainsaw_search,              # Search for specific Event IDs and patterns
+    evtx_dump,                    # Parse and convert Windows EVTX logs for analysis
 ]
 
 # Enhanced intelligence gathering if Perplexity API available
