@@ -433,6 +433,30 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ---
 
+## 📚 Documentation
+
+### **Core Documentation**
+- 📖 [README.md](README.md) - Framework overview (you are here)
+- 🔄 [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) - Migration from CAI to SKYNET
+- 📊 [SKYNET_ANALYSIS_AND_IMPROVEMENTS.md](SKYNET_ANALYSIS_AND_IMPROVEMENTS.md) - Framework analysis & roadmap
+- 🧹 [CLEANUP_PLAN.md](CLEANUP_PLAN.md) - Code cleanup strategy
+- 🎯 [CLAUDE.md](CLAUDE.md) - Claude Code integration
+
+### **Development Sessions**
+📁 [docs/sessions/](docs/sessions/) - All development session documentation
+- Session 3-9: Foundation through Validation
+- **Session 10: HexStrike Integration** (5 phases, 35 files, ~8,300 lines)
+  - Phase 1: Tool Integration (45+ security tools)
+  - Phase 2: Intelligent Decision Engine
+  - Phase 3: Vulnerability Correlation Engine
+  - Phase 4: Browser Automation (Chrome Infiltrator)
+  - Phase 5: Smart Caching System
+
+### **Historical Archive**
+📁 [docs/archive/](docs/archive/) - Legacy documentation and transformation history
+
+---
+
 ## 📞 Contact & Support
 
 - **GitHub Issues**: [https://github.com/skynet-ai/skynet-framework/issues](https://github.com/skynet-ai/skynet-framework/issues)
