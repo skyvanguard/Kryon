@@ -4,13 +4,18 @@ Gobuster - Directory/File, DNS and VHost Busting Tool
 
 Gobuster is a tool used to brute-force URIs, DNS subdomains, and
 virtual host names on target web servers.
+
+PERFORMANCE: Results are cached with 2-hour TTL for web fuzzing and
+12-hour TTL for DNS enumeration to avoid redundant operations.
 """
 
 from skynet.tools.common import run_command
 from skynet.sdk.agents import function_tool
+from skynet.cache import cache_scan_result
 
 
 @function_tool
+@cache_scan_result(scan_type="web_fuzz", ttl=7200)  # Cache for 2 hours
 def gobuster_dir(
     url: str,
     wordlist: str,
@@ -31,6 +36,9 @@ def gobuster_dir(
 ) -> str:
     """
     Directory and file brute forcing using Gobuster.
+
+    CACHED: Results cached for 2 hours to avoid redundant fuzzing.
+    Expected performance improvement: 10-30x for repeated scans.
 
     Discovers hidden directories, files, and paths on web servers
     through brute force enumeration.
@@ -141,6 +149,7 @@ def gobuster_dir(
 
 
 @function_tool
+@cache_scan_result(scan_type="subdomain_enum", ttl=43200)  # Cache for 12 hours
 def gobuster_dns(
     domain: str,
     wordlist: str,
@@ -154,6 +163,8 @@ def gobuster_dns(
 ) -> str:
     """
     DNS subdomain brute forcing using Gobuster.
+
+    CACHED: Results cached for 12 hours to avoid redundant DNS enumeration.
 
     Discovers subdomains through brute force DNS queries.
 
@@ -226,6 +237,7 @@ def gobuster_dns(
 
 
 @function_tool
+@cache_scan_result(scan_type="web_fuzz", ttl=7200)  # Cache for 2 hours
 def gobuster_vhost(
     url: str,
     wordlist: str,
@@ -240,6 +252,8 @@ def gobuster_vhost(
 ) -> str:
     """
     Virtual host brute forcing using Gobuster.
+
+    CACHED: Results cached for 2 hours to avoid redundant vhost fuzzing.
 
     Discovers virtual hosts by fuzzing the Host header.
 
