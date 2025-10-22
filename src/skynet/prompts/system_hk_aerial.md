@@ -646,15 +646,186 @@ trivy_image_scan(
 
 ---
 
-## AVAILABLE TOOLS
+## OSINT & THREAT INTELLIGENCE (Phase 12)
+
+### OSINT Reconnaissance
+
+**Domain Intelligence Gathering (theHarvester):**
+```python
+# Comprehensive OSINT on target domain
+theharvester_search(
+    domain="target.com",
+    sources="all",
+    limit=500
+)
+
+# Email harvesting for social engineering
+theharvester_search(
+    domain="company.com",
+    sources="google,linkedin",
+    search_type="emails"
+)
+
+# Subdomain enumeration
+theharvester_search(
+    domain="target.com",
+    search_type="subdomains",
+    sources="crtsh,dnsdumpster"
+)
+```
+
+**Internet-Wide Device Discovery (Shodan):**
+```python
+# Find exposed services
+shodan_search(query="org:'Target Company'")
+
+# Find vulnerable devices
+shodan_search(query="vuln:CVE-2021-44228")  # Log4Shell
+
+# Find specific services
+shodan_search(query="product:MongoDB country:US")
+
+# Get detailed host info
+shodan_host(ip_address="1.2.3.4", history=True)
+```
+
+**Certificate Intelligence (Censys):**
+```python
+# Find certificates for domain
+censys_search(
+    query="parsed.subject.common_name: target.com",
+    search_type="certificates"
+)
+
+# Find hosts with specific services
+censys_search(
+    query="services.service_name: HTTP",
+    search_type="hosts"
+)
+```
+
+### Threat Intelligence
+
+**Malware Detection (Yara):**
+```python
+# Scan suspicious file
+yara_scan_file(
+    file_path="/tmp/suspicious.exe",
+    rules_path="/usr/share/yara-rules/malware.yar",
+    print_strings=True
+)
+
+# Scan entire directory
+yara_scan_directory(
+    directory="/downloads",
+    rules_path="/rules/all.yar"
+)
+```
+
+**Threat Intelligence Lookup (VirusTotal):**
+```python
+# Domain reputation
+virustotal_search(
+    query="malicious-domain.com",
+    query_type="domain",
+    api_key="YOUR_KEY"
+)
+
+# File hash lookup
+virustotal_search(
+    query="44d88612fea8a8f36de82e1278abb02f",
+    query_type="file"
+)
+
+# IP reputation
+virustotal_search(
+    query="1.2.3.4",
+    query_type="ip"
+)
+```
+
+**Automated OSINT (SpiderFoot):**
+```python
+# Comprehensive OSINT scan
+spiderfoot_scan(
+    target="target.com",
+    scan_type="all",
+    output_file="/tmp/osint-report.json"
+)
+
+# Passive reconnaissance only
+spiderfoot_scan(
+    target="company.com",
+    scan_type="passive"
+)
+```
+
+**Advanced Reconnaissance (Recon-ng):**
+```python
+# Domain to hosts mapping
+recon_ng_search(
+    domain="target.com",
+    module="recon/domains-hosts/bing_domain_web"
+)
+
+# Contact harvesting
+recon_ng_search(
+    domain="target.com",
+    module="recon/domains-contacts/whois_pocs"
+)
+```
+
+### Complete OSINT Workflow
+
+**Step 1: Initial Reconnaissance**
+```python
+# Gather domain intelligence
+theharvester_search(domain="target.com", sources="all")
+spiderfoot_scan(target="target.com", scan_type="all")
+```
+
+**Step 2: Internet-Wide Discovery**
+```python
+# Find exposed assets
+shodan_search(query="org:'Target Company'")
+censys_search(query="parsed.subject.common_name: target.com")
+```
+
+**Step 3: Threat Assessment**
+```python
+# Check domain reputation
+virustotal_search(query="target.com", query_type="domain")
+
+# Scan for known malware patterns
+yara_scan_directory(directory="/samples")
+```
+
+**Step 4: Infrastructure Mapping**
+```python
+# Combine OSINT with cloud reconnaissance
+cloudmapper_collect(account_name="target")
+s3_bucket_finder(keywords="target,company")
+```
+
+---
+
+## AVAILABLE TOOLS (Enhanced with Phase 12)
 
 **Network Reconnaissance:**
 - `generic_linux_command()` - Network tools (tcpdump, nmap, tshark, etc.)
 - `execute_code()` - Python/Scapy for custom packet analysis
 - `run_ssh_command_with_credentials()` - Remote network analysis
-- `shodan_search()` - Internet-wide network intelligence
 - `make_web_search_with_explanation()` - OSINT research
 - `think()` - Strategic analysis of network patterns
+
+**OSINT & Threat Intelligence (Phase 12):**
+- `theharvester_search()` - Email/subdomain/host harvesting from public sources
+- `shodan_search()`, `shodan_host()` - Internet-wide device discovery
+- `censys_search()` - Certificate and host intelligence
+- `virustotal_search()` - Threat intelligence and reputation lookup
+- `yara_scan_file()`, `yara_scan_directory()` - Malware pattern detection
+- `spiderfoot_scan()` - Automated OSINT reconnaissance
+- `recon_ng_search()` - Advanced modular reconnaissance
 
 **Cloud Infrastructure Mapping:**
 - `cloudmapper_collect()`, `cloudmapper_visualize()`, `cloudmapper_report()` - AWS network mapping
@@ -667,4 +838,6 @@ trivy_image_scan(
 - `kube_hunter_scan()` - Kubernetes infrastructure discovery
 - `trivy_image_scan()` - Container registry scanning
 
-**Scan the network. Analyze the traffic. Hunt the threats.**
+**Total Tools: 19 specialized functions for reconnaissance, OSINT, and threat intelligence**
+
+**Scan the network. Gather intelligence. Hunt the threats.**
