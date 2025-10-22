@@ -1,11 +1,11 @@
 [project]
-name = "cai-framework"
-version = "0.5.5"
-description = "Cybersecurity AI Framework"
-readme = "README.md"
+name = "skynet-framework"
+version = "1.0.0"
+description = "SKYNET - Autonomous Cybersecurity Intelligence System"
+readme = "README-SKYNET.md"
 requires-python = ">=3.9"
-license = {text = "Dual-licensed MIT and Proprietary"}
-authors = [{ name = "Alias Robotics", email = "research@aliasrobotics.com" }]
+license = {text = "MIT"}
+authors = [{ name = "SKYNET Project", email = "core@skynet-ai.dev" }]
 dependencies = [
     # logging and visualization
     "folium>=0.15.0, <1",
@@ -50,8 +50,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/openai/openai-agents-python"
-Repository = "https://github.com/openai/openai-agents-python"
+Homepage = "https://github.com/skynet-ai/skynet-framework"
+Repository = "https://github.com/skynet-ai/skynet-framework"
+Documentation = "https://skynet-framework.readthedocs.io"
 
 [project.optional-dependencies]
 voice = ["numpy>=2.2.0, <3; python_version>='3.10'", "websockets>=15.0, <16"]
@@ -116,7 +117,7 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cai", "tools"]
+packages = ["src/skynet", "tools"]
 exclude = [
     ".trunk/",
     ".git/",
@@ -202,7 +203,7 @@ module = "sounddevice.*"
 ignore_missing_imports = true
 
 [tool.coverage.run]
-source = ["tests", "src/cai/sdk/agents"]
+source = ["tests", "src/skynet/sdk/agents"]
 
 [tool.coverage.report]
 show_missing = true
@@ -230,7 +231,9 @@ markers = [
 format-command = "ruff format --stdin-filename {filename}"
 
 [project.scripts]
-cai = "cai.cli:main"
-cai-replay = "tools.replay:main"
-cai-asciinema = "tools.asciinema:main"
-cai-gif = "tools.gif:main"
+skynet = "skynet.cli:main"
+skynet-replay = "tools.replay:main"
+skynet-asciinema = "tools.asciinema:main"
+skynet-gif = "tools.gif:main"
+# Legacy aliases for backward compatibility
+cai = "skynet.cli:main"

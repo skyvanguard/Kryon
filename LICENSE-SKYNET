@@ -1,0 +1,82 @@
+MIT License
+
+Copyright (c) 2025 SKYNET Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+===============================================================================
+
+ATTRIBUTION AND ACKNOWLEDGMENTS
+
+This project (SKYNET Framework) is built upon and incorporates components from:
+
+1. OpenAI Agents Python Library
+   - Original Repository: https://github.com/openai/openai-agents-python
+   - License: MIT License
+   - Copyright: OpenAI
+   - Components: Base agent architecture in src/skynet/sdk/agents/
+
+2. CAI (Cybersecurity AI) Framework
+   - Original Repository: https://github.com/aliasrobotics/cai
+   - License: MIT License (base components) + Proprietary (extensions)
+   - Copyright: Alias Robotics S.L.
+   - Components: Cybersecurity-specific agents, tools, and architectural patterns
+
+We acknowledge and thank the original authors for their excellent work. The
+original MIT licenses are preserved and can be found in:
+- LICENSE-MIT (OpenAI components)
+- The original CAI project documentation
+
+===============================================================================
+
+DISCLAIMER
+
+This software is designed for AUTHORIZED SECURITY TESTING ONLY. Users must:
+
+1. Only test systems they own or have explicit written permission to test
+2. Comply with all applicable laws and regulations
+3. Use the framework ethically and responsibly
+4. Report discovered vulnerabilities responsibly
+
+The authors and contributors of SKYNET are NOT responsible for any misuse of
+this software. Unauthorized access to computer systems is illegal and
+unethical.
+
+BY USING THIS SOFTWARE, YOU ACKNOWLEDGE THAT:
+- You will use it only for lawful purposes
+- You will not use it to attack systems without authorization
+- You accept full responsibility for your actions
+- You understand the legal and ethical implications of security testing
+
+===============================================================================
+
+ADDITIONAL TERMS
+
+1. NO WARRANTY: This software is provided "as is" without any warranties
+2. LIMITATION OF LIABILITY: In no event shall the authors be liable for any
+   damages arising from the use of this software
+3. COMPLIANCE: Users must comply with all applicable laws in their jurisdiction
+4. RESPONSIBLE DISCLOSURE: Vulnerabilities found using this tool should be
+   reported responsibly to affected parties
+
+===============================================================================
+
+For questions about licensing, attribution, or usage:
+- Email: core@skynet-ai.dev
+- GitHub: https://github.com/skynet-ai/skynet-framework
