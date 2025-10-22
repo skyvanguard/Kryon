@@ -1,5 +1,5 @@
 """
-Memory agent for CAI.
+Memory agent for SKYNET.
 
 Leverages Retrieval Augmented Generation (RAG) to
 store long-term memory experiences across security
@@ -69,7 +69,7 @@ Semantic Memory (Single Global Collection "_all_"):
 Environment Variables enabling the episodic memory store
 --------------------------------------------------------
 
-   SKYNET_MEMORY: Enables the use of memory functionality in CAI
+   SKYNET_MEMORY: Enables the use of memory functionality in SKYNET
     can adopt values:
     - episodic: for episodic memory store
     - semantic: for semantic memory store

@@ -1,11 +1,11 @@
 """
 A Coding Agent (CodeAgent)
 
-A re-interpretation for CAI of the original CodeAct concept
+A re-interpretation for SKYNET of the original CodeAct concept
 from the paper "Executable Code Actions Elicit Better LLM Agents"
 at https://arxiv.org/pdf/2402.01030.
 
-Briefly, the CodeAgent CAI Agent uses executable Python code to
+Briefly, the CodeAgent SKYNET Agent uses executable Python code to
 consolidate LLM agents' actions into a unified action space
 (CodeAct). Integrated with a Python interpreter, CodeAct can
 execute code actions and dynamically revise prior actions or
@@ -407,7 +407,7 @@ I'll execute your code and show you the results.
 
         Args:
             cai_instance (object):
-                The CAI instance that is calling the CodeAgent
+                The SKYNET instance that is calling the CodeAgent
             messages (List[Dict]):
                 List of messages in the conversation
             context_variables (Dict, optional):
@@ -479,7 +479,7 @@ I'll execute your code and show you the results.
 
         Args:
             cai_instance (object):
-                The CAI instance that is calling the CodeAgent
+                The SKYNET instance that is calling the CodeAgent
             messages (List[Dict]):
                 List of messages in the conversation
             debug (bool, optional):

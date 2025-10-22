@@ -1,5 +1,5 @@
 """
-Agent patterns for CAI.
+Agent patterns for SKYNET.
 
 This module exports both swarm patterns (for handoff-based collaboration)
 and parallel patterns (for simultaneous execution).

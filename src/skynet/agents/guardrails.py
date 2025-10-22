@@ -1,5 +1,5 @@
 """
-Prompt Injection Guardrails for CAI Agents
+Prompt Injection Guardrails for SKYNET Agents
 
 This module implements guardrails to protect against prompt injection attacks
 when agents interact with untrusted external content (web pages, server responses, etc).
