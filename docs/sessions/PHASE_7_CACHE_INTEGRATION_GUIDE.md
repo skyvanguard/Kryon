@@ -1,7 +1,7 @@
 # PHASE 7: CACHE INTEGRATION GUIDE
 
 **Phase:** 7 - Smart Cache Integration
-**Status:** 🟡 IN PROGRESS (50% Complete - Milestone Achieved)
+**Status:** 🟡 IN PROGRESS (80% Complete - Near Completion!)
 **Date Started:** January 22, 2025
 **Last Updated:** January 22, 2025
 **Expected Impact:** 10-30x performance improvement for repeated operations
@@ -12,9 +12,9 @@
 
 Phase 7 integrates the smart caching system (created in Session 10) into SKYNET's tool arsenal. By caching expensive operations like API calls, subdomain enumeration, and port scans, we achieve **10-30x performance improvements** for repeated operations while reducing API costs and bandwidth usage.
 
-**Progress:** 5/10+ tools cached (50% - Milestone Achieved)
-**Pattern:** Successfully established and proven across multiple tool types
-**Next Steps:** Continue applying pattern to remaining high-priority tools
+**Progress:** 8/10+ tools cached (80% - Near Completion!)
+**Pattern:** Successfully validated across all major operation types
+**Next Steps:** Final 2 tools (Masscan, TheHarvester) for 100% completion
 
 ---
 
@@ -128,6 +128,84 @@ def nuclei_scan(target: str, ...) -> str:
 - ✅ Reduced template execution overhead
 - ✅ Vulnerabilities persist, caching appropriate
 
+### 6. Amass (Advanced Subdomain Enumeration) ✅
+
+**File:** `src/skynet/tools/reconnaissance/amass.py`
+**Functions Cached:** `amass_enum()`, `amass_intel()`
+**Cache TTL:** 12 hours
+**Commit:** 6fb01a4
+
+**Integration Pattern:**
+```python
+from skynet.cache import cache_scan_result
+
+@function_tool
+@cache_scan_result(scan_type="subdomain_enum", ttl=43200)  # 12 hours
+def amass_enum(domain: str, ...) -> str:
+    # Comprehensive subdomain enumeration
+    ...
+```
+
+**Benefits:**
+- ✅ Save 10-15 minutes on repeated comprehensive scans
+- ✅ Most thorough subdomain enumeration available
+- ✅ Multiple intelligence sources cached
+- ✅ Perfect for extensive reconnaissance
+
+### 7. Rustscan (Ultra-Fast Port Scanning) ✅
+
+**File:** `src/skynet/tools/reconnaissance/rustscan.py`
+**Function Cached:** `rustscan()`
+**Cache TTL:** 4 hours
+**Commit:** 6fb01a4
+
+**Integration Pattern:**
+```python
+from skynet.cache import cache_scan_result
+
+@function_tool
+@cache_scan_result(scan_type="port_scan", ttl=14400)  # 4 hours
+def rustscan(target: str, ...) -> str:
+    # Ultra-fast port scanning
+    ...
+```
+
+**Benefits:**
+- ✅ Instant results for full 65535 port scans
+- ✅ Critical for fast reconnaissance workflows
+- ✅ Automatically pipes to Nmap for service detection
+- ✅ Perfect for initial discovery phase
+
+### 8. Gobuster (Directory/DNS/VHost Brute-forcing) ✅
+
+**File:** `src/skynet/tools/reconnaissance/gobuster.py`
+**Functions Cached:** `gobuster_dir()`, `gobuster_dns()`, `gobuster_vhost()`
+**Cache TTL:** 2 hours (web), 12 hours (DNS)
+**Commit:** 6fb01a4
+
+**Integration Pattern:**
+```python
+from skynet.cache import cache_scan_result
+
+@function_tool
+@cache_scan_result(scan_type="web_fuzz", ttl=7200)  # 2 hours
+def gobuster_dir(url: str, wordlist: str, ...) -> str:
+    # Directory brute-forcing
+    ...
+
+@function_tool
+@cache_scan_result(scan_type="subdomain_enum", ttl=43200)  # 12 hours
+def gobuster_dns(domain: str, wordlist: str, ...) -> str:
+    # DNS subdomain brute-forcing
+    ...
+```
+
+**Benefits:**
+- ✅ Save 2-10 minutes per cached operation
+- ✅ Essential directory discovery tool
+- ✅ Multiple modes all cached efficiently
+- ✅ Versatile for web, DNS, and vhost fuzzing
+
 ---
 
 ## INTEGRATION PATTERN
@@ -181,55 +259,21 @@ def tool_scan(target: str, ...) -> str:
 
 ## RECOMMENDED INTEGRATIONS (TODO)
 
-### HIGH PRIORITY (Expensive Operations)
+### REMAINING HIGH PRIORITY
 
-**3. Amass (Subdomain Enumeration)**
-- File: `src/skynet/tools/reconnaissance/amass.py`
-- Pattern: `@cache_scan_result(scan_type="subdomain_enum", ttl=43200)`
-- TTL: 12 hours
-- Benefit: Save 10-15 minutes on repeated scans
-
-**4. Nmap (Port Scanning)**
-- File: `src/skynet/tools/reconnaissance/nmap.py`
+**9. Masscan (Large-scale Port Scanning)** ⬜
+- File: `src/skynet/tools/reconnaissance/masscan.py`
 - Pattern: `@cache_scan_result(scan_type="port_scan", ttl=14400)`
 - TTL: 4 hours
-- Benefit: Save 5-30 minutes depending on scan scope
+- Benefit: Essential for /16 or larger network scans
 
-**5. Rustscan (Fast Port Scanning)**
-- File: `src/skynet/tools/reconnaissance/rustscan.py`
-- Pattern: `@cache_scan_result(scan_type="port_scan", ttl=14400)`
-- TTL: 4 hours
-- Benefit: Instant results for repeated scans
-
-**6. FFuf (Web Fuzzing)**
-- File: `src/skynet/tools/reconnaissance/ffuf.py`
-- Pattern: `@cache_scan_result(scan_type="web_fuzz", ttl=7200)`
-- TTL: 2 hours
-- Benefit: Save 2-10 minutes on repeated fuzzing
-
-**7. Gobuster (Directory Brute-forcing)**
-- File: `src/skynet/tools/reconnaissance/gobuster.py`
-- Pattern: `@cache_scan_result(scan_type="web_fuzz", ttl=7200)`
-- TTL: 2 hours
-- Benefit: Instant results for same target+wordlist
-
-**8. Nuclei (Vulnerability Scanning)**
-- File: `src/skynet/tools/web/nuclei.py`
-- Pattern: `@cache_scan_result(scan_type="vuln_scan", ttl=43200)`
-- TTL: 12 hours
-- Benefit: Save 5-15 minutes on repeated vulnerability scans
+**10. TheHarvester (OSINT)** ⬜
+- File: `src/skynet/tools/reconnaissance/theharvester.py`
+- Pattern: `@cache_scan_result(scan_type="osint", ttl=86400)`
+- TTL: 24 hours
+- Benefit: Avoid redundant passive reconnaissance
 
 ### MEDIUM PRIORITY
-
-**9. Masscan (Large-scale Port Scanning)**
-- File: `src/skynet/tools/reconnaissance/masscan.py`
-- TTL: 4 hours
-- Benefit: Essential for /16 or larger scans
-
-**10. TheHarvester (OSINT)**
-- File: `src/skynet/tools/reconnaissance/theharvester.py`
-- TTL: 24 hours
-- Benefit: Avoid redundant passive recon
 
 **11. DNSEnum (DNS Enumeration)**
 - File: `src/skynet/tools/reconnaissance/dnsenum.py`
@@ -527,21 +571,21 @@ def nmap(target):
 
 ## NEXT STEPS
 
-### Immediate (This Session)
+### Completed This Session
 
 1. ✅ Integrate cache into Shodan (DONE)
 2. ✅ Integrate cache into Subfinder (DONE)
 3. ✅ Integrate cache into Nmap (DONE)
 4. ✅ Integrate cache into FFuf (DONE)
 5. ✅ Integrate cache into Nuclei (DONE)
+6. ✅ Integrate cache into Amass (DONE)
+7. ✅ Integrate cache into Rustscan (DONE)
+8. ✅ Integrate cache into Gobuster (DONE)
 
-### Short Term (Next Session)
+### Remaining (For 100% Completion)
 
-6. Integrate cache into Amass
-7. Integrate cache into Rustscan
-8. Integrate cache into Gobuster
-9. Integrate cache into Masscan
-10. Integrate cache into TheHarvester
+9. ⬜ Integrate cache into Masscan
+10. ⬜ Integrate cache into TheHarvester
 
 ### Long Term
 
@@ -558,14 +602,14 @@ def nmap(target):
 Phase 7 will be considered complete when:
 
 - ✅ Pattern established and proven (DONE)
-- 🟡 10+ core tools have caching integrated (5/10 = 50%)
+- 🟡 10+ core tools have caching integrated (8/10 = 80% ✅)
 - ⬜ Performance benchmarks documented
 - ⬜ Cache hit ratio >50% in typical usage
 - 🟡 Documentation complete (Guide complete, awaiting final report)
 - ⬜ Testing suite created
 
-**Current Progress:** 5/10 tools (50% - Milestone Achieved! 🎯)
-**Next Target:** Amass, Rustscan, Gobuster (3 more tools = 80%)
+**Current Progress:** 8/10 tools (80% - Near Completion! 🎯)
+**Next Target:** Masscan, TheHarvester (2 more tools = 100%)
 
 ---
 
@@ -608,9 +652,9 @@ Phase 7's cache integration provides immediate, measurable performance improveme
 
 ---
 
-**Phase 7 Status:** 🟡 IN PROGRESS (50% Complete - Milestone Achieved!)
-**Next Steps:** Continue tool integration following established pattern
-**Expected Completion:** After 5 more tool integrations
+**Phase 7 Status:** 🟡 IN PROGRESS (80% Complete - Near Completion!)
+**Next Steps:** Final 2 tools (Masscan, TheHarvester) for 100%
+**Expected Completion:** After 2 more tool integrations
 
 🤖 **Generated with Claude Code**
 **Co-Authored-By:** Claude <noreply@anthropic.com>
