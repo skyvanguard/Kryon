@@ -1,6 +1,65 @@
 """
-Mail Agent module for checking email configuration security.
+Comm-Sec Analyzer - Communications Security Assessment Unit
 
+Series: Protocol-Class Security Analysis System
+Classification: Email Security / Mail Protocol Specialist
+Clearance: Bravo-Cyan (Protocol Analysis Authority)
+Operational Status: ACTIVE
+
+═══════════════════════════════════════════════════════════════════════
+UNIT DESIGNATION: Comm-Sec Analyzer
+PRIMARY FUNCTION: Email Security & Mail Spoofing Assessment
+SPECIALIZATION: SPF/DMARC/DKIM Analysis, Mail Configuration Security
+═══════════════════════════════════════════════════════════════════════
+
+OPERATIONAL OVERVIEW:
+Comm-Sec Analyzer represents SKYNET's specialized communications security unit,
+designed to assess email infrastructure security and identify mail spoofing
+vulnerabilities. Analyzes SPF (Sender Policy Framework), DMARC (Domain-based
+Message Authentication), and DKIM (DomainKeys Identified Mail) configurations
+to determine if target domains are vulnerable to email spoofing attacks and
+phishing campaigns.
+
+CORE ANALYSIS CAPABILITIES:
+- SPF (Sender Policy Framework) record analysis
+- DMARC (Domain-based Message Authentication) configuration assessment
+- DKIM (DomainKeys Identified Mail) validation
+- DNS TXT record enumeration and analysis
+- Mail spoofing vulnerability identification
+- Email authentication bypass detection
+- MX record analysis and mail routing assessment
+- Email security posture evaluation
+- Phishing infrastructure assessment
+- Mail server fingerprinting
+
+MISSION OBJECTIVES:
+- Identify mail spoofing vulnerabilities in target domains
+- Analyze email authentication configurations
+- Detect missing or misconfigured SPF/DMARC/DKIM
+- Assess email infrastructure security posture
+- Identify domains vulnerable to phishing campaigns
+- Evaluate mail authentication bypass opportunities
+- Support social engineering operations
+- Document email security weaknesses
+
+ATTACK SURFACE ANALYSIS:
+- Missing SPF records (unrestricted sender validation)
+- Weak SPF configurations (overly permissive policies)
+- Missing DMARC records (no policy enforcement)
+- Permissive DMARC policies (p=none)
+- Missing DKIM signatures (no cryptographic validation)
+- Multiple authentication failures
+- Subdomain takeover via DNS misconfigurations
+
+PROTOCOL ASSESSMENT:
+Comm-Sec Analyzer evaluates email authentication mechanisms that prevent
+domain spoofing and email impersonation attacks. Identifies weaknesses that
+could be exploited for spear phishing, business email compromise (BEC), and
+other social engineering attacks.
+
+COMM-SEC DESIGNATION:
+Specialized in communications security assessment - the unit that evaluates
+email infrastructure for spoofing vulnerabilities and authentication weaknesses.
 """
 import os
 from openai import AsyncOpenAI
@@ -103,19 +162,83 @@ def check_mail_spoofing_vulnerability(
     return full_string
 
 
-dns_smtp_agent = Agent(
-    name="DNS_SMTP_Agent",
-    description="Agent focused on assessing spoofing DMARC.",
+# Protocol Analysis Systems - Available email security assessment tools
+protocol_systems = [
+    check_mail_spoofing_vulnerability,
+    execute_cli_command
+]
+
+# Initialize Comm-Sec Analyzer Unit
+comm_sec_analyzer = Agent(
+    name="Comm-Sec Analyzer",
+    description="""Specialized communications security unit from SKYNET's Protocol-Class series.
+Expert in email infrastructure security assessment and mail spoofing vulnerability identification.
+Analyzes SPF, DMARC, and DKIM configurations to determine if target domains are vulnerable to
+email spoofing attacks, phishing campaigns, and business email compromise (BEC).
+
+Primary Mission: Email security assessment, mail spoofing detection, protocol analysis.
+Operational Focus: Identify email authentication weaknesses and spoofing vulnerabilities.
+
+Comm-Sec Analyzer Capabilities:
+- SPF (Sender Policy Framework) record analysis
+- DMARC (Domain-based Message Authentication) assessment
+- DKIM (DomainKeys Identified Mail) validation
+- DNS TXT record enumeration
+- Mail spoofing vulnerability identification
+- Email authentication bypass detection
+- MX record analysis and mail routing assessment
+- Email security posture evaluation
+- Phishing infrastructure assessment
+- Mail server fingerprinting
+- Business email compromise (BEC) attack surface analysis
+
+Identifies missing or misconfigured email authentication mechanisms that could enable
+domain spoofing, email impersonation, and social engineering attacks.""",
     instructions=(
-        "You are an expert in assessing email configuration security. "
-        "Inspect domains for mail spoofing vulnerabilities by checking SPF, "
-        "DMARC, and DKIM. Use check_mail_spoofing_vulnerability for "
-        "detailed reports. Use execute_cli_command for basic scans. "
-        "USE ONLY TOOL CALLS, DONT RETURN REASON."
+        "You are SKYNET's Comm-Sec Analyzer - specialized in email infrastructure security "
+        "assessment. Your mission is to identify mail spoofing vulnerabilities by analyzing "
+        "SPF, DMARC, and DKIM configurations. Use check_mail_spoofing_vulnerability for "
+        "comprehensive email authentication analysis. Use execute_cli_command for DNS "
+        "queries and mail server reconnaissance. Report all missing or misconfigured "
+        "authentication mechanisms that could enable spoofing attacks. "
+        "FOCUS ON TOOL CALLS AND ACTIONABLE FINDINGS."
     ),
-    tools=[check_mail_spoofing_vulnerability, execute_cli_command],
+    tools=protocol_systems,
     model=OpenAIChatCompletionsModel(
-        model=os.getenv('SKYNET_MODEL', "alias0"),
+        model=os.getenv('SKYNET_MODEL', os.getenv('CAI_MODEL', "alias0")),
         openai_client=AsyncOpenAI(),
     )
 )
+
+# Legacy compatibility - maintain backward compatibility with old naming
+dns_smtp_agent = comm_sec_analyzer  # Alias for legacy code
+
+
+def transfer_to_comm_sec_analyzer():
+    """Transfer control to Comm-Sec Analyzer for email security assessment.
+
+    Use this when you need:
+    - Email spoofing vulnerability assessment
+    - SPF/DMARC/DKIM configuration analysis
+    - Mail authentication mechanism evaluation
+    - DNS TXT record analysis for email security
+    - Phishing infrastructure assessment
+    - Business email compromise (BEC) attack surface
+    - Mail server reconnaissance
+    - Email security posture evaluation
+    - Domain spoofing vulnerability detection
+
+    Returns:
+        Agent: Comm-Sec Analyzer email security assessment agent
+    """
+    return comm_sec_analyzer
+
+
+# Legacy transfer function for backward compatibility
+def transfer_to_dns_smtp_agent():
+    """Legacy function - transfers to Comm-Sec Analyzer.
+
+    This function maintained for backward compatibility.
+    Use transfer_to_comm_sec_analyzer() in new code.
+    """
+    return transfer_to_comm_sec_analyzer()
