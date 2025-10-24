@@ -172,3 +172,29 @@ venv*
 
 .claude
 data/
+
+# SKYNET specific files
+# Knowledge base and cache directories
+.skynet_knowledge/
+.skynet_cache/
+src/.skynet_knowledge/
+src/.skynet_cache/
+
+# Large dataset files
+*.csv
+exploitdb_import_stats.json
+
+# Test result files
+python313_failures.txt
+python314_failures.txt
+only_python313_failures.txt
+
+# Operation results
+results/
+
+# Temporary test files
+test_rag_*.py
+populate_knowledge_quick.py
+
+# Python 3.13 venv
+.venv313/
