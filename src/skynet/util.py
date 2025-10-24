@@ -52,7 +52,7 @@ _PANEL_UPDATE_LOCK = threading.Lock()
 _PARALLEL_EXECUTION_STATE = {
     "active": False,
     "panel_groups": {},  # Group panels by execution batch
-    "current_batch_id": None
+    "current_batch_id": None,
 }
 
 # ======================== CLAUDE THINKING STREAMING FUNCTIONS ========================
@@ -111,22 +111,18 @@ def cleanup_all_streaming_resources():
         # Reset any streaming session states
         if hasattr(cli_print_tool_output, "_streaming_sessions"):
             cli_print_tool_output._streaming_sessions.clear()
-        
+
         # Clean up parallel execute_code tracking
         if hasattr(start_tool_streaming, "_parallel_execute_code_agents"):
             start_tool_streaming._parallel_execute_code_agents.clear()
-        
+
         # Clean up recent commands tracking
         if hasattr(start_tool_streaming, "_recent_commands"):
             start_tool_streaming._recent_commands.clear()
-        
+
         # Reset parallel execution state
         global _PARALLEL_EXECUTION_STATE
-        _PARALLEL_EXECUTION_STATE = {
-            "active": False,
-            "panel_groups": {},
-            "current_batch_id": None
-        }
+        _PARALLEL_EXECUTION_STATE = {"active": False, "panel_groups": {}, "current_batch_id": None}
 
     except Exception as e:
         print(f"\nError during streaming cleanup: {e}", file=sys.stderr)
@@ -137,21 +133,22 @@ def cleanup_all_streaming_resources():
 def cleanup_agent_streaming_resources(agent_name):
     """
     Clean up streaming resources for a specific agent.
-    
+
     Args:
         agent_name: Name of the agent whose streaming resources to clean up
     """
     if not hasattr(cli_print_tool_output, "_streaming_sessions"):
         return
-        
+
     # Find and finish streaming sessions belonging to this agent
     sessions_to_cleanup = []
     for session_id, session_info in list(cli_print_tool_output._streaming_sessions.items()):
         # Check if this session belongs to the agent and is not complete
-        if (session_info.get("agent_name") == agent_name and 
-            not session_info.get("is_complete", False)):
+        if session_info.get("agent_name") == agent_name and not session_info.get(
+            "is_complete", False
+        ):
             sessions_to_cleanup.append((session_id, session_info))
-    
+
     # Also clean up any Live panels for this agent
     global _LIVE_STREAMING_PANELS
     panels_to_cleanup = []
@@ -162,16 +159,16 @@ def cleanup_agent_streaming_resources(agent_name):
             # But we can clean up based on session completion
             if panel_id in [s[0] for s in sessions_to_cleanup]:
                 panels_to_cleanup.append(panel_id)
-    
+
     # Clean up panels first
     for panel_id in panels_to_cleanup:
         del _LIVE_STREAMING_PANELS[panel_id]
-    
+
     # Clean up parallel execute_code agent tracking
     if hasattr(start_tool_streaming, "_parallel_execute_code_agents"):
         if agent_name in start_tool_streaming._parallel_execute_code_agents:
             start_tool_streaming._parallel_execute_code_agents.remove(agent_name)
-    
+
     # Finish each session properly
     for session_id, session_info in sessions_to_cleanup:
         finish_tool_streaming(
@@ -180,7 +177,7 @@ def cleanup_agent_streaming_resources(agent_name):
             output=session_info.get("current_output", "Execution completed"),
             call_id=session_id,
             execution_info={"status": "completed", "is_final": True},
-            token_info={"agent_name": agent_name}  # Pass agent name for proper display
+            token_info={"agent_name": agent_name},  # Pass agent name for proper display
         )
 
 
@@ -431,7 +428,7 @@ class CostTracker:
 
         old_total = self.session_total_cost
         self.session_total_cost += new_cost
-        
+
         # Also update the global usage tracker when session cost changes
         # This ensures consistency between COST_TRACKER and GLOBAL_USAGE_TRACKER
         try:
@@ -478,7 +475,7 @@ class CostTracker:
             return True
 
         return False
-    
+
     def reset_agent_costs(self) -> None:
         """
         Reset costs for a new agent run.
@@ -489,13 +486,13 @@ class CostTracker:
         self.current_agent_input_tokens = 0
         self.current_agent_output_tokens = 0
         self.current_agent_reasoning_tokens = 0
-        
+
         # Reset current interaction stats
         self.interaction_input_tokens = 0
         self.interaction_output_tokens = 0
         self.interaction_reasoning_tokens = 0
         self.interaction_cost = 0.0
-        
+
         # Reset tracking variables
         self.last_interaction_cost = 0.0
         self.last_total_cost = 0.0
@@ -560,6 +557,7 @@ class CostTracker:
             # Check if it's a network connectivity issue by testing a simple connection
             try:
                 import requests
+
                 test_response = requests.get("https://aliasrobotics.com/", timeout=1)
                 # The pricing URL failed
                 print(f"  WARNING: Error fetching model pricing: {str(e)}")
@@ -594,20 +592,20 @@ class CostTracker:
         # First, try to use litellm's completion_cost method
         try:
             import litellm
-            
+
             # Create a mock response with usage data for litellm.completion_cost
             mock_response = {
                 "model": model_name,
                 "usage": {
                     "prompt_tokens": input_tokens,
                     "completion_tokens": output_tokens,
-                    "total_tokens": input_tokens + output_tokens
-                }
+                    "total_tokens": input_tokens + output_tokens,
+                },
             }
-            
+
             # Try to get cost from litellm
             litellm_cost = litellm.completion_cost(completion_response=mock_response)
-            
+
             # If litellm returns a non-zero cost, use it
             if litellm_cost > 0:
                 self.calculated_costs_cache[cache_key] = litellm_cost
@@ -682,8 +680,7 @@ class CostTracker:
         else:
             # Calculate the total cost from all tokens
             new_total_cost = self.calculate_cost(
-                model_name, total_input_tokens, total_output_tokens, 
-                label="TOTAL COST CALCULATION"
+                model_name, total_input_tokens, total_output_tokens, label="TOTAL COST CALCULATION"
             )
 
         # Calculate the difference from the previous total to get this interaction's cost
@@ -699,7 +696,7 @@ class CostTracker:
 
         # Update the current agent's total cost
         self.current_agent_total_cost = new_total_cost
-        
+
         # Return the actual cost that was added to the session
         return actual_cost_added
 
@@ -762,7 +759,7 @@ def load_prompt_template(template_path):
     try:
         # Get the template file from package resources
         template_path_parts = template_path.split("/")
-        package_path = ["cai"] + template_path_parts[:-1]
+        package_path = ["skynet"] + template_path_parts[:-1]
         package = ".".join(package_path)
         filename = template_path_parts[-1]
 
@@ -785,19 +782,20 @@ def load_prompt_template(template_path):
 def create_system_prompt_renderer(base_instructions):
     """
     Create a callable that renders the system_master_template.md with proper context.
-    
+
     This function returns a callable that can be used as agent.instructions,
     which will be called by the SDK with (context_variables, agent) parameters.
-    
+
     Args:
         base_instructions: The base instructions for the agent (e.g., from system_blue_team_agent.md)
-    
+
     Returns:
         A callable function that renders the system prompt with full context
     """
+
     def render_system_prompt(run_context=None, agent=None):
         """Render the system prompt with all context variables.
-        
+
         Args:
             run_context: RunContextWrapper object from SDK (optional)
             agent: The agent instance (optional)
@@ -806,9 +804,9 @@ def create_system_prompt_renderer(base_instructions):
         if run_context is None and agent is None:
             # Return just the base instructions for display purposes
             return base_instructions
-            
+
         # Extract context_variables from run_context for backward compatibility
-        if hasattr(run_context, 'context_variables'):
+        if hasattr(run_context, "context_variables"):
             context_variables = run_context.context_variables
         else:
             # run_context might be the context_variables directly (for testing)
@@ -819,43 +817,44 @@ def create_system_prompt_renderer(base_instructions):
             package_path = ["cai"] + template_path_parts[:-1]
             package = ".".join(package_path)
             filename = template_path_parts[-1]
-            
+
             # Read the template content
             try:
                 template_content = importlib.resources.read_text(package, filename)
             except (TypeError, AttributeError):
                 with importlib.resources.path(package, filename) as path:
                     template_content = pathlib.Path(path).read_text(encoding="utf-8")
-            
+
             # Create the rendering context with all necessary variables
             render_context = {
-                'agent': agent,
-                'context_variables': context_variables,
-                'ctf_instructions': base_instructions,  # Used by memory query in template
-                'system_prompt': base_instructions,  # The actual base instructions to render
-                'os': os,
-                'reasoning_content': None,  # Initialize as None for the template
+                "agent": agent,
+                "context_variables": context_variables,
+                "ctf_instructions": base_instructions,  # Used by memory query in template
+                "system_prompt": base_instructions,  # The actual base instructions to render
+                "os": os,
+                "reasoning_content": None,  # Initialize as None for the template
                 # Add any other globals that the template might need
-                'locals': locals,
-                'globals': globals,
+                "locals": locals,
+                "globals": globals,
             }
-            
+
             # Render the template with the full context
             rendered = Template(template_content).render(**render_context)
             return rendered
-            
+
         except Exception as e:
             # If rendering fails, fall back to base instructions
             import traceback
+
             print(f"Warning: Failed to render system master template: {e}")
-            if os.getenv('SKYNET_DEBUG', '0') == '2':
+            if os.getenv("SKYNET_DEBUG", "0") == "2":
                 traceback.print_exc()
             return base_instructions
-    
+
     # Add a helper attribute to identify this as a system prompt renderer
     render_system_prompt._is_system_prompt_renderer = True
     render_system_prompt._base_instructions = base_instructions
-    
+
     return render_system_prompt
 
 
@@ -863,17 +862,17 @@ def append_instructions(agent, additional_instructions):
     """
     Append additional instructions to an agent's instructions, handling both
     string and function-based instructions.
-    
+
     Args:
         agent: The agent whose instructions to modify
         additional_instructions: String to append to the instructions
     """
     if not agent.instructions:
         return
-        
+
     if callable(agent.instructions):
         # Check if it's a system prompt renderer
-        if hasattr(agent.instructions, '_is_system_prompt_renderer'):
+        if hasattr(agent.instructions, "_is_system_prompt_renderer"):
             # Get the original base instructions
             original_base = agent.instructions._base_instructions
             # Create a new renderer with appended instructions
@@ -883,9 +882,11 @@ def append_instructions(agent, additional_instructions):
         else:
             # For other callable instructions, create a wrapper
             original_func = agent.instructions
+
             def wrapped_instructions(*args, **kwargs):
                 result = original_func(*args, **kwargs)
                 return result + additional_instructions
+
             agent.instructions = wrapped_instructions
     else:
         # Simple string concatenation
@@ -939,25 +940,24 @@ def visualize_agent_graph(start_agent):
 
         # Get all tools from the agent
         all_tools = getattr(agent, "tools", [])
-        
+
         # Import necessary modules for MCP checking
-        from skynet.repl.commands.mcp import get_mcp_tools_for_agent, _GLOBAL_MCP_SERVERS
-        from skynet.sdk.agents.tool import FunctionTool
-        
+        from skynet.repl.commands.mcp import get_mcp_tools_for_agent
+
         # Separate regular tools from MCP tools
         regular_tools = []
         mcp_tools = []
-        
+
         # Get the agent's name for MCP association lookup
         agent_name = getattr(agent, "name", "")
-        
+
         # Get MCP tools from the associations
         try:
             associated_mcp_tools = get_mcp_tools_for_agent(agent_name)
             mcp_tool_names = {tool.name for tool in associated_mcp_tools}
         except Exception:
             mcp_tool_names = set()
-        
+
         # Categorize tools
         for tool in all_tools:
             tool_name = getattr(tool, "name", None) or getattr(tool, "__name__", "")
@@ -1506,7 +1506,7 @@ def _create_token_display(
     else:
         # Use the last recorded interaction cost
         current_cost = COST_TRACKER.last_interaction_cost
-    
+
     if total_cost is not None:
         total_cost_value = float(total_cost)
     else:
@@ -1759,7 +1759,7 @@ def parse_message_tool_call(message, tool_output=None):
                     if streaming_enabled:
                         # Skip creating the panel - output already shown via streaming
                         continue
-                
+
                 # Create content for the panel - just showing the output, not the tool call
                 panel_content = []
 
@@ -1862,26 +1862,39 @@ def cli_print_agent_messages(
     else:
         parsed_message = parse_message_content(message)
         tool_panels = []
-        
+
     # Check if this is the main agent displaying a parallel agent's execute_code output
     # This happens when parallel results are added to message history
-    if (isinstance(parsed_message, str) and 
-        hasattr(start_tool_streaming, "_parallel_execute_code_agents") and
-        any(parallel_agent in parsed_message for parallel_agent in start_tool_streaming._parallel_execute_code_agents if parallel_agent) and
-        token_info and token_info.get("agent_name") not in start_tool_streaming._parallel_execute_code_agents):
+    if (
+        isinstance(parsed_message, str)
+        and hasattr(start_tool_streaming, "_parallel_execute_code_agents")
+        and any(
+            parallel_agent in parsed_message
+            for parallel_agent in start_tool_streaming._parallel_execute_code_agents
+            if parallel_agent
+        )
+        and token_info
+        and token_info.get("agent_name") not in start_tool_streaming._parallel_execute_code_agents
+    ):
         # This is the main agent displaying output from a parallel agent that used execute_code
         # Check if it contains execute_code output patterns (code blocks)
-        if "```" in parsed_message and any(pattern in parsed_message.lower() for pattern in ["package main", "def ", "function", "import ", "class "]):
+        if "```" in parsed_message and any(
+            pattern in parsed_message.lower()
+            for pattern in ["package main", "def ", "function", "import ", "class "]
+        ):
             # Replace the execute_code output with a brief message
-            lines = parsed_message.split('\n')
+            lines = parsed_message.split("\n")
             summary_lines = []
             for line in lines:
                 if "```" in line:
                     break
                 summary_lines.append(line)
-            
+
             if summary_lines:
-                parsed_message = '\n'.join(summary_lines).strip() + "\n\n[Execute code output already shown in panels above]"
+                parsed_message = (
+                    "\n".join(summary_lines).strip()
+                    + "\n\n[Execute code output already shown in panels above]"
+                )
             else:
                 parsed_message = "[Execute code output already shown in panels above]"
 
@@ -1917,7 +1930,7 @@ def cli_print_agent_messages(
 
     # Import Group early to fix scope issue
     from rich.console import Group
-    
+
     # Check if we have Group content from markdown parsing
     is_rich_content = False
 
@@ -2154,18 +2167,21 @@ def update_agent_streaming_content(context, text_delta, token_stats=None):
             else:
                 # For parallel agents that used execute_code, suppress duplicate output
                 agent_name = context.get("agent_name", "")
-                if (agent_name and 
-                    hasattr(start_tool_streaming, "_parallel_execute_code_agents") and
-                    agent_name in start_tool_streaming._parallel_execute_code_agents):
+                if (
+                    agent_name
+                    and hasattr(start_tool_streaming, "_parallel_execute_code_agents")
+                    and agent_name in start_tool_streaming._parallel_execute_code_agents
+                ):
                     # This parallel agent used execute_code
                     # Simply add a marker that output was shown in panels
                     if not hasattr(context, "_execute_code_noted"):
                         context["_execute_code_noted"] = True
                         context["content"].append("[Execute code output shown in panels above]\n")
                     # Skip the actual execute_code narrative output
-                    if any(marker in parsed_delta.lower() for marker in [
-                        "execute", "code", "output", "running", "```"
-                    ]):
+                    if any(
+                        marker in parsed_delta.lower()
+                        for marker in ["execute", "code", "output", "running", "```"]
+                    ):
                         return True  # Suppress
                 else:
                     # Normal agent, show content as usual
@@ -2478,21 +2494,25 @@ def cli_print_tool_output(
     if tool_name and tool_name.startswith("_internal_"):
         # These are internal setup commands that should not be displayed
         return
-    
+
     # Check if we're in parallel mode
     is_parallel_mode = False
     if token_info and isinstance(token_info, dict):
         agent_id = token_info.get("agent_id", "")
         if agent_id and agent_id.startswith("P") and agent_id[1:].isdigit():
             is_parallel_mode = True
-    
+
     # Special suppression for cat commands that create code files from execute_code
     # We don't want to show the cat command that creates the file
-    if (tool_name == "cat_command" and isinstance(args, dict) and 
-        not streaming and "<< 'EOF'" in args.get("args", "")):
+    if (
+        tool_name == "cat_command"
+        and isinstance(args, dict)
+        and not streaming
+        and "<< 'EOF'" in args.get("args", "")
+    ):
         # This is likely a file creation command from execute_code, suppress it
         return
-    
+
     # Note: We no longer skip execute_code in non-streaming mode
     # We want to show both code and output panels for all execute_code calls
 
@@ -2528,7 +2548,7 @@ def cli_print_tool_output(
         agent_name = token_info.get("agent_name", "")
         agent_id = token_info.get("agent_id", "")
         interaction_counter = token_info.get("interaction_counter", 0)
-        
+
         # Create agent-specific context
         if agent_id and agent_id.startswith("P"):
             # In parallel mode, use agent_id for uniqueness
@@ -2536,11 +2556,11 @@ def cli_print_tool_output(
         elif agent_name:
             # In single agent mode, use agent name
             agent_context = f"agent_{agent_name.replace(' ', '_')}"
-        
+
         # Add interaction counter if available
         if interaction_counter > 0:
             agent_context += f"_turn_{interaction_counter}"
-    
+
     effective_command_args_str = ""
     if isinstance(args, dict):
         # If args is a dictionary, create a string representation of key arguments
@@ -2558,7 +2578,7 @@ def cli_print_tool_output(
             # For other tools, create a JSON representation of all args
             # This ensures each unique call gets a unique key
             effective_command_args_str = json.dumps(args, sort_keys=True)
-        
+
         # For session commands, also include the session_id to make it unique
         if "command" in args and args.get("session_id"):
             # For async session commands, include the full command to differentiate
@@ -2579,7 +2599,7 @@ def cli_print_tool_output(
                     effective_command_args_str = parsed_json_args.get("query", "")
                 else:
                     effective_command_args_str = json.dumps(parsed_json_args, sort_keys=True)
-                
+
                 # For session commands, also include the actual command
                 if "command" in parsed_json_args and parsed_json_args.get("session_id"):
                     effective_command_args_str = (
@@ -2634,7 +2654,7 @@ def cli_print_tool_output(
         if call_id:
             # Check if we're in parallel mode first
             is_parallel = int(os.getenv("SKYNET_PARALLEL", "1")) > 1
-            
+
             # If this is a new streaming session, record it
             if call_id not in cli_print_tool_output._streaming_sessions:
                 cli_print_tool_output._streaming_sessions[call_id] = {
@@ -2651,12 +2671,16 @@ def cli_print_tool_output(
                 # Add the command key to displayed commands
                 if command_key not in cli_print_tool_output._displayed_commands:
                     cli_print_tool_output._displayed_commands.add(command_key)
-                
+
                 # Special case: If this is execute_code in normal streaming mode with "Executing code..." message,
                 # skip showing the panel since we already showed the code panel
-                if (tool_name == "execute_code" and not is_parallel and 
-                    isinstance(args, dict) and "code" in args and 
-                    output == "Executing code..."):
+                if (
+                    tool_name == "execute_code"
+                    and not is_parallel
+                    and isinstance(args, dict)
+                    and "code" in args
+                    and output == "Executing code..."
+                ):
                     return
             else:
                 # Update the existing session
@@ -2667,7 +2691,7 @@ def cli_print_tool_output(
                 session["last_update"] = time.time()
                 if execution_info and execution_info.get("is_final", False):
                     session["is_complete"] = True
-                    
+
                 # In parallel mode, if we already have a static panel, don't continue
                 # This prevents duplicate panels from being created on updates
                 if is_parallel and call_id in _LIVE_STREAMING_PANELS:
@@ -2714,7 +2738,7 @@ def cli_print_tool_output(
                 agent_prefix = ""
                 if token_info and token_info.get("agent_name"):
                     agent_prefix = f"[cyan]{token_info['agent_name']}[/cyan] - "
-                    
+
                 if status == "running":
                     title = f"{agent_prefix}[bold yellow]Running[/bold yellow]"
                 elif status == "completed":
@@ -2738,15 +2762,15 @@ def cli_print_tool_output(
 
                 # Check if we're in parallel execution mode
                 is_parallel = int(os.getenv("SKYNET_PARALLEL", "1")) > 1
-                
+
                 # Check if we're in a container environment
                 is_container = bool(os.getenv("SKYNET_ACTIVE_CONTAINER", ""))
-                
+
                 # If we already have a live panel for this call_id, update it
                 if call_id in _LIVE_STREAMING_PANELS:
                     with _PANEL_UPDATE_LOCK:
                         panel_info = _LIVE_STREAMING_PANELS[call_id]
-                        
+
                         # Handle static panels in parallel mode or container mode
                         # In parallel mode or containers, we DON'T refresh static panels to avoid duplicates
                         # The panel was already printed when first created, and refreshing
@@ -2755,33 +2779,41 @@ def cli_print_tool_output(
                             # Update stored info for tracking
                             panel_info["last_output"] = output
                             panel_info["last_update"] = time.time()
-                            panel_info["updates_suppressed"] = panel_info.get("updates_suppressed", 0) + 1
-                            
+                            panel_info["updates_suppressed"] = (
+                                panel_info.get("updates_suppressed", 0) + 1
+                            )
+
                             # For parallel mode or container mode, only update if this is the final update with different content
                             if execution_info and execution_info.get("is_final", False):
                                 # Debug output
                                 if os.getenv("SKYNET_DEBUG_STREAMING"):
-                                    print(f"\n[DEBUG] Final update check:")
+                                    print("\n[DEBUG] Final update check:")
                                     print(f"  output: {repr(output[:50])}...")
-                                    print(f"  initial_output: {repr(panel_info.get('initial_output', '')[:50])}...")
-                                    print(f"  outputs_equal: {output == panel_info.get('initial_output', '')}")
+                                    print(
+                                        f"  initial_output: {repr(panel_info.get('initial_output', '')[:50])}..."
+                                    )
+                                    print(
+                                        f"  outputs_equal: {output == panel_info.get('initial_output', '')}"
+                                    )
                                     print(f"  final_shown: {panel_info.get('final_shown', False)}")
-                                
+
                                 # In streaming mode with static panels, we've already shown a panel
                                 # Don't show another one - the original panel represents the complete execution
                                 # The panel title already shows "Running" initially and we can't update it to "Completed"
                                 # in static mode due to terminal limitations
-                                
+
                                 # Mark that we've processed the final update
                                 panel_info["final_shown"] = True
-                                
+
                                 # Don't print a new panel - the existing one is sufficient
-                                    
+
                                 # Mark as complete in our tracking
                                 panel_info["is_complete"] = True
                                 if call_id in cli_print_tool_output._streaming_sessions:
-                                    cli_print_tool_output._streaming_sessions[call_id]["is_complete"] = True
-                            
+                                    cli_print_tool_output._streaming_sessions[call_id][
+                                        "is_complete"
+                                    ] = True
+
                             # Always return early for static panels - no further processing needed
                             return
                         else:
@@ -2801,19 +2833,24 @@ def cli_print_tool_output(
                         with _PANEL_UPDATE_LOCK:
                             if call_id in _LIVE_STREAMING_PANELS:
                                 panel_info = _LIVE_STREAMING_PANELS[call_id]
-                                if isinstance(panel_info, dict) and panel_info.get("type") == "static":
+                                if (
+                                    isinstance(panel_info, dict)
+                                    and panel_info.get("type") == "static"
+                                ):
                                     # For static panels in parallel mode:
                                     # 1. The initial panel was already printed when created
                                     # 2. We've been suppressing updates throughout
                                     # 3. Just clean up tracking without printing
-                                    
+
                                     # Clean up tracking entry
                                     del _LIVE_STREAMING_PANELS[call_id]
-                                    
+
                                     # Mark session as complete
                                     if call_id in cli_print_tool_output._streaming_sessions:
-                                        cli_print_tool_output._streaming_sessions[call_id]["is_complete"] = True
-                                    
+                                        cli_print_tool_output._streaming_sessions[call_id][
+                                            "is_complete"
+                                        ] = True
+
                                     # Always return early for static panels
                                     return
                                 else:
@@ -2829,10 +2866,10 @@ def cli_print_tool_output(
                     with _PANEL_UPDATE_LOCK:
                         # Check if we're in parallel execution mode
                         is_parallel = int(os.getenv("SKYNET_PARALLEL", "1")) > 1
-                        
+
                         # Check if we're in a container environment
                         is_container = bool(os.getenv("SKYNET_ACTIVE_CONTAINER", ""))
-                        
+
                         # In parallel mode, use static panels
                         # For container mode, use Live panels to allow real-time updates
                         if is_parallel:
@@ -2840,16 +2877,20 @@ def cli_print_tool_output(
                             # Check if we already printed this panel (shouldn't happen but be safe)
                             if call_id not in _LIVE_STREAMING_PANELS:
                                 # For container mode with streaming, if this is the initial call but we already
-                                # have the complete output (execution_info.is_final is True), skip showing 
+                                # have the complete output (execution_info.is_final is True), skip showing
                                 # the "Running" panel and wait for the final "Completed" panel instead
-                                if is_container and execution_info and execution_info.get("is_final", False):
+                                if (
+                                    is_container
+                                    and execution_info
+                                    and execution_info.get("is_final", False)
+                                ):
                                     # This is the final update, show it as completed
                                     console = Console(theme=theme)
                                     console.print(panel)
-                                    
+
                                     # Store tracking info marking this as the final panel
                                     _LIVE_STREAMING_PANELS[call_id] = {
-                                        "type": "static", 
+                                        "type": "static",
                                         "displayed": True,
                                         "last_update": time.time(),
                                         "last_output": output,
@@ -2859,16 +2900,16 @@ def cli_print_tool_output(
                                         "command_key": command_key,
                                         "is_container": is_container,
                                         "final_shown": True,  # Mark as final shown
-                                        "is_complete": True
+                                        "is_complete": True,
                                     }
                                 else:
                                     # Show the initial panel
                                     console = Console(theme=theme)
                                     console.print(panel)
-                                    
+
                                     # Store tracking info to prevent duplicate printing
                                     _LIVE_STREAMING_PANELS[call_id] = {
-                                        "type": "static", 
+                                        "type": "static",
                                         "displayed": True,  # We've displayed the initial panel
                                         "last_update": time.time(),
                                         "last_output": output,
@@ -2877,12 +2918,14 @@ def cli_print_tool_output(
                                         "tool_name": tool_name,
                                         "command_key": command_key,
                                         "is_container": is_container,  # Track if this is container execution
-                                        "final_shown": False  # Track if final panel was shown
+                                        "final_shown": False,  # Track if final panel was shown
                                     }
                         else:
                             # In single agent mode without container, use Live panel as before
                             console = Console(theme=theme)
-                            live = Live(panel, console=console, refresh_per_second=4, auto_refresh=True)
+                            live = Live(
+                                panel, console=console, refresh_per_second=4, auto_refresh=True
+                            )
                             # Start and store the live panel
                             try:
                                 live.start()
@@ -2909,40 +2952,40 @@ def cli_print_tool_output(
                 # Use simple output
                 _print_simple_tool_output(tool_name, args, output, execution_info, token_info)
                 return
-    
+
     # Initialize is_first_display for later use
     is_first_display = False
-    
+
     if not streaming:
         # For non-streaming outputs, check if we've already seen this command
         streaming_enabled = os.getenv("SKYNET_STREAM", "false").lower() == "true"
-        
+
         # Initialize command display times tracker if not exists
         if not hasattr(cli_print_tool_output, "_command_display_times"):
             cli_print_tool_output._command_display_times = {}
-            
+
         # Check if this command has been displayed before
         if command_key in cli_print_tool_output._displayed_commands:
             # Get the last display time for this command
             last_display = cli_print_tool_output._command_display_times.get(command_key, 0)
             current_time = time.time()
-            
+
             # In non-streaming mode, we need stricter duplicate detection
             # If the same command was displayed less than 0.5 seconds ago, it's a duplicate
             if not streaming_enabled and current_time - last_display < 0.5:
                 return
-                
+
             # If streaming was enabled, always skip duplicates (they were shown via streaming)
             if streaming_enabled:
                 return
-            
+
             # For empty output, always skip
             if not output:
                 return
 
         # Check if this is first time display before adding to displayed commands
         is_first_display = command_key not in cli_print_tool_output._displayed_commands
-        
+
         # Add to displayed commands since we're going to show it
         cli_print_tool_output._displayed_commands.add(command_key)
 
@@ -2964,11 +3007,13 @@ def cli_print_tool_output(
         if (
             hasattr(cli_print_tool_output, "_streaming_sessions")
             and call_id in cli_print_tool_output._streaming_sessions
-            and cli_print_tool_output._streaming_sessions[call_id].get("special_output_shown", False)
+            and cli_print_tool_output._streaming_sessions[call_id].get(
+                "special_output_shown", False
+            )
         ):
             # Special output was already shown, skip duplicate display
             return
-    
+
     # Special handling for execute_code in non-streaming mode (both parallel and normal)
     if tool_name == "execute_code" and not streaming and isinstance(args, dict):
         # Don't show panels here for execute_code in non-streaming mode
@@ -3022,7 +3067,7 @@ def cli_print_tool_output(
         agent_prefix = ""
         if token_info and token_info.get("agent_name"):
             agent_prefix = f"[cyan]{token_info['agent_name']}[/cyan] - "
-            
+
         # Create the title based on whether it's a handoff or regular tool
         if is_handoff:
             # Extract agent name for the handoff title
@@ -3045,7 +3090,9 @@ def cli_print_tool_output(
             if execution_info:
                 status = execution_info.get("status", "completed")
                 if status == "completed":
-                    title = f"{agent_prefix}[bold green]Handoff: {agent_name} [Completed][/bold green]"
+                    title = (
+                        f"{agent_prefix}[bold green]Handoff: {agent_name} [Completed][/bold green]"
+                    )
                 elif status == "error":
                     title = f"{agent_prefix}[bold red]Handoff: {agent_name} [Error][/bold red]"
                 elif status == "timeout":
@@ -3088,7 +3135,7 @@ def cli_print_tool_output(
                 agent_name = token_info.get("agent_name")
             else:
                 agent_name = "Agent"
-                
+
             # Extract the command from args
             command_text = ""
             if isinstance(display_args, dict):
@@ -3103,7 +3150,7 @@ def cli_print_tool_output(
                     command_text = str(display_args)
             else:
                 command_text = str(display_args)
-                
+
             # Create a small panel showing just the command being executed
             command_panel = Panel(
                 f"[bold cyan]{command_text}[/bold cyan]",
@@ -3113,16 +3160,16 @@ def cli_print_tool_output(
                 box=ROUNDED,
                 title_align="left",
                 width=None,  # Auto width based on content
-                expand=False  # Don't expand to full width
+                expand=False,  # Don't expand to full width
             )
-            
+
             # Print the command panel
             console.print(command_panel)
             console.print()  # Add spacing between panels
-        
+
         # Display the panel
         console.print(panel)
-        
+
         # Track display time AFTER the panel is rendered
         # This ensures accurate timing for duplicate detection
         if not streaming and command_key:
@@ -3131,7 +3178,7 @@ def cli_print_tool_output(
     except (ImportError, Exception):
         # Fall back to simple output format without rich
         _print_simple_tool_output(tool_name, args, output, execution_info, token_info)
-        
+
         # Also track display time for simple output
         if not streaming and command_key:
             cli_print_tool_output._command_display_times[command_key] = time.time()
@@ -3344,7 +3391,7 @@ def _create_tool_panel_content(tool_name, args, output, execution_info=None, tok
 
     # Check if this is a handoff (transfer to another agent)
     is_handoff = tool_name.startswith("transfer_to_")
-    
+
     # Get agent name from token_info if available
     agent_name = None
     if token_info and isinstance(token_info, dict):
@@ -3637,7 +3684,6 @@ def _create_token_info_display(token_info=None):
     if not token_info:
         return None
 
-
     model = token_info.get("model", "")
     interaction_input_tokens = token_info.get("interaction_input_tokens", 0)
     interaction_output_tokens = token_info.get("interaction_output_tokens", 0)
@@ -3743,7 +3789,7 @@ def _print_simple_tool_output(tool_name, args, output, execution_info=None, toke
         first_part = output_str[:5000]
         last_part = output_str[-5000:]
         output = f"{first_part}\n\n... TRUNCATED ...\n\n{last_part}"
-    
+
     # Print the actual output
     print(output)
     print()
@@ -3764,13 +3810,13 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
         call_id: The call ID for this streaming session (can be used for updates)
     """
     import time
-    
+
     # Skip internal setup commands used by execute_code
     if tool_name and tool_name.startswith("_internal_"):
         # These are internal setup commands that should not be displayed
         # Just return a dummy call_id
         return f"internal_{str(uuid.uuid4())[:8]}"
-    
+
     # Special handling for file creation commands from execute_code
     if tool_name == "_internal_file_creation":
         return f"file_create_{str(uuid.uuid4())[:8]}"
@@ -3782,13 +3828,13 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
         # In parallel mode, agent_id has format P1, P2, etc.
         if agent_id and agent_id.startswith("P") and agent_id[1:].isdigit():
             is_parallel = True
-    
+
     # Special handling for execute_code in parallel mode - show code panel first
     if tool_name == "execute_code" and is_parallel and isinstance(args, dict) and "code" in args:
         # For execute_code in parallel mode, show the code panel first
         if not call_id:
             call_id = f"exec_{str(uuid.uuid4())[:8]}"
-        
+
         # Track that execute_code was used by this parallel agent
         # This helps suppress duplicate output in the agent's response
         if token_info and isinstance(token_info, dict):
@@ -3797,39 +3843,55 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
                 if not hasattr(start_tool_streaming, "_parallel_execute_code_agents"):
                     start_tool_streaming._parallel_execute_code_agents = set()
                 start_tool_streaming._parallel_execute_code_agents.add(agent_name)
-        
+
         # Show code panel first in parallel mode
+        from rich.box import ROUNDED
         from rich.console import Console
         from rich.panel import Panel
         from rich.syntax import Syntax
-        from rich.box import ROUNDED
-        
+
         console = Console()
-        
+
         # Get agent name from token_info
         agent_name = token_info.get("agent_name", "Agent") if token_info else "Agent"
-        
+
         # Extract code and language
         code = args.get("code", "")
         language = args.get("language", "python")
         filename = args.get("filename", "exploit")
-        
+
         # Determine file extension based on language
         extensions = {
-            "python": "py", "php": "php", "bash": "sh", "shell": "sh",
-            "ruby": "rb", "perl": "pl", "golang": "go", "go": "go",
-            "javascript": "js", "js": "js", "typescript": "ts", "ts": "ts",
-            "rust": "rs", "csharp": "cs", "cs": "cs", "java": "java",
-            "kotlin": "kt", "c": "c", "cpp": "cpp", "c++": "cpp"
+            "python": "py",
+            "php": "php",
+            "bash": "sh",
+            "shell": "sh",
+            "ruby": "rb",
+            "perl": "pl",
+            "golang": "go",
+            "go": "go",
+            "javascript": "js",
+            "js": "js",
+            "typescript": "ts",
+            "ts": "ts",
+            "rust": "rs",
+            "csharp": "cs",
+            "cs": "cs",
+            "java": "java",
+            "kotlin": "kt",
+            "c": "c",
+            "cpp": "cpp",
+            "c++": "cpp",
         }
         ext = extensions.get(language, "txt")
-        
+
         # Get workspace directory
         workspace = args.get("workspace", "")
         environment = args.get("environment", "")
-        
+
         # Build full path
         import os
+
         if environment == "Container" and workspace:
             full_path = f"{workspace}/{filename}.{ext}"
         elif workspace:
@@ -3840,7 +3902,7 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
                 full_path = f"{workspace}/{filename}.{ext}"
         else:
             full_path = os.path.join(os.getcwd(), f"{filename}.{ext}")
-        
+
         # Create code panel
         code_syntax = Syntax(
             code,
@@ -3859,19 +3921,19 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
             box=ROUNDED,
             padding=(0, 1),
         )
-        
+
         # Print the code panel
         console.print(code_panel)
-        
+
         # Mark that code panel was shown
         if not hasattr(cli_print_tool_output, "_streaming_sessions"):
             cli_print_tool_output._streaming_sessions = {}
         if call_id not in cli_print_tool_output._streaming_sessions:
             cli_print_tool_output._streaming_sessions[call_id] = {}
         cli_print_tool_output._streaming_sessions[call_id]["code_panel_shown"] = True
-        
+
         # Don't show additional panel - the code panel is enough
-        
+
         return call_id
 
     # Generate a command key to check for duplicates - match format used in cli_print_tool_output
@@ -3881,15 +3943,15 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
         agent_name = token_info.get("agent_name", "")
         agent_id = token_info.get("agent_id", "")
         interaction_counter = token_info.get("interaction_counter", 0)
-        
+
         if agent_id and agent_id.startswith("P"):
             agent_context = f"agent_{agent_id}"
         elif agent_name:
             agent_context = f"agent_{agent_name.replace(' ', '_')}"
-        
+
         if interaction_counter > 0:
             agent_context += f"_turn_{interaction_counter}"
-    
+
     # Build command key consistently with cli_print_tool_output
     if isinstance(args, dict):
         cmd = args.get("command", "")
@@ -3897,7 +3959,7 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
         effective_args = cmd_args
     else:
         effective_args = str(args)
-    
+
     if agent_context:
         command_key = f"{agent_context}:{tool_name}:{effective_args}"
     else:
@@ -3948,37 +4010,53 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
     # Special handling for execute_code - show code panel immediately
     if tool_name == "execute_code" and isinstance(args, dict) and "code" in args:
         # In normal streaming mode, show the code panel first
+        from rich.box import ROUNDED
         from rich.console import Console
         from rich.panel import Panel
         from rich.syntax import Syntax
-        from rich.box import ROUNDED
-        
+
         console = Console()
-        
+
         # Get agent name from token_info
         agent_name = token_info.get("agent_name", "Agent") if token_info else "Agent"
-        
+
         # Extract code and language
         code = args.get("code", "")
         language = args.get("language", "python")
         filename = args.get("filename", "exploit")
-        
+
         # Determine file extension based on language
         extensions = {
-            "python": "py", "php": "php", "bash": "sh", "shell": "sh",
-            "ruby": "rb", "perl": "pl", "golang": "go", "go": "go",
-            "javascript": "js", "js": "js", "typescript": "ts", "ts": "ts",
-            "rust": "rs", "csharp": "cs", "cs": "cs", "java": "java",
-            "kotlin": "kt", "c": "c", "cpp": "cpp", "c++": "cpp"
+            "python": "py",
+            "php": "php",
+            "bash": "sh",
+            "shell": "sh",
+            "ruby": "rb",
+            "perl": "pl",
+            "golang": "go",
+            "go": "go",
+            "javascript": "js",
+            "js": "js",
+            "typescript": "ts",
+            "ts": "ts",
+            "rust": "rs",
+            "csharp": "cs",
+            "cs": "cs",
+            "java": "java",
+            "kotlin": "kt",
+            "c": "c",
+            "cpp": "cpp",
+            "c++": "cpp",
         }
         ext = extensions.get(language, "txt")
-        
+
         # Get workspace directory
         workspace = args.get("workspace", "")
         environment = args.get("environment", "")
-        
+
         # Build full path
         import os
+
         if environment == "Container" and workspace:
             full_path = f"{workspace}/{filename}.{ext}"
         elif workspace:
@@ -3989,7 +4067,7 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
                 full_path = f"{workspace}/{filename}.{ext}"
         else:
             full_path = os.path.join(os.getcwd(), f"{filename}.{ext}")
-        
+
         # Create code panel
         code_syntax = Syntax(
             code,
@@ -4008,17 +4086,17 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
             box=ROUNDED,
             padding=(0, 1),
         )
-        
+
         # Print the code panel
         console.print(code_panel)
-        
+
         # Mark that code panel was shown
         if not hasattr(cli_print_tool_output, "_streaming_sessions"):
             cli_print_tool_output._streaming_sessions = {}
         if call_id not in cli_print_tool_output._streaming_sessions:
             cli_print_tool_output._streaming_sessions[call_id] = {}
         cli_print_tool_output._streaming_sessions[call_id]["code_panel_shown"] = True
-        
+
         # Don't show additional panel - the code panel is enough
     else:
         # Show initial message with "Starting..." output
@@ -4029,7 +4107,7 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
             cmd_args = args.get("args", "")
             if command:
                 initial_message = f"Executing: {command} {cmd_args}".strip()
-        
+
         cli_print_tool_output(
             tool_name=tool_name,
             args=args,
@@ -4061,7 +4139,7 @@ def update_tool_streaming(tool_name, args, output, call_id, token_info=None):
     if tool_name and tool_name.startswith("_internal_"):
         # These are internal setup commands that should not be displayed
         return
-    
+
     # Check if we're in parallel mode by looking at agent_id
     is_parallel = False
     if token_info and isinstance(token_info, dict):
@@ -4069,17 +4147,19 @@ def update_tool_streaming(tool_name, args, output, call_id, token_info=None):
         # In parallel mode, agent_id has format P1, P2, etc.
         if agent_id and agent_id.startswith("P") and agent_id[1:].isdigit():
             is_parallel = True
-    
+
     # Special handling for execute_code in parallel mode - don't update during execution
     if tool_name == "execute_code" and is_parallel:
         # In parallel mode, we collect all output and show it at once in finish_tool_streaming
         # Store the output in the session for later use
-        if (hasattr(cli_print_tool_output, "_streaming_sessions") and 
-            call_id in cli_print_tool_output._streaming_sessions):
+        if (
+            hasattr(cli_print_tool_output, "_streaming_sessions")
+            and call_id in cli_print_tool_output._streaming_sessions
+        ):
             cli_print_tool_output._streaming_sessions[call_id]["buffer"] = output
             cli_print_tool_output._streaming_sessions[call_id]["current_output"] = output
         return
-    
+
     # Update the streaming output
     cli_print_tool_output(
         tool_name=tool_name,
@@ -4109,7 +4189,7 @@ def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None,
         None
     """
     import time
-    
+
     # Skip internal setup commands used by execute_code
     if tool_name and tool_name.startswith("_internal_"):
         # These are internal setup commands that should not be displayed
@@ -4126,46 +4206,61 @@ def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None,
     # Special handling for execute_code in streaming mode (both parallel and normal)
     if tool_name == "execute_code" and isinstance(args, dict) and "code" in args:
         # Always show both code and output panels for execute_code
+        from rich.box import ROUNDED
         from rich.console import Console
         from rich.panel import Panel
         from rich.syntax import Syntax
-        from rich.box import ROUNDED
-        
+
         console = Console()
-        
+
         # Get agent name from token_info
         agent_name = token_info.get("agent_name", "Agent") if token_info else "Agent"
-        
+
         # Extract code and language from args
         code = args.get("code", "")
         language = args.get("language", "python")
         filename = args.get("filename", "code")
-        
+
         # Determine file extension based on language
         extensions = {
-            "python": "py", "php": "php", "bash": "sh", "shell": "sh",
-            "ruby": "rb", "perl": "pl", "golang": "go", "go": "go",
-            "javascript": "js", "js": "js", "typescript": "ts", "ts": "ts",
-            "rust": "rs", "csharp": "cs", "cs": "cs", "java": "java",
-            "kotlin": "kt", "c": "c", "cpp": "cpp", "c++": "cpp"
+            "python": "py",
+            "php": "php",
+            "bash": "sh",
+            "shell": "sh",
+            "ruby": "rb",
+            "perl": "pl",
+            "golang": "go",
+            "go": "go",
+            "javascript": "js",
+            "js": "js",
+            "typescript": "ts",
+            "ts": "ts",
+            "rust": "rs",
+            "csharp": "cs",
+            "cs": "cs",
+            "java": "java",
+            "kotlin": "kt",
+            "c": "c",
+            "cpp": "cpp",
+            "c++": "cpp",
         }
         ext = extensions.get(language, "txt")
         full_path = f"./{filename}.{ext}"
-        
+
         # Get workspace directory from args or execution_info
         workspace = ""
         if isinstance(args, dict) and "workspace" in args:
             workspace = args.get("workspace", "")
         elif execution_info and "workspace" in execution_info:
             workspace = execution_info.get("workspace", "")
-        
+
         # Get environment info
         environment = ""
         if isinstance(args, dict) and "environment" in args:
             environment = args.get("environment", "")
         elif execution_info and "environment" in execution_info:
             environment = execution_info.get("environment", "")
-        
+
         # Build full path based on environment
         if environment == "Container" and workspace:
             full_path = f"{workspace}/{filename}.{ext}"
@@ -4181,10 +4276,10 @@ def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None,
         else:
             # Default to current directory
             full_path = os.path.join(os.getcwd(), f"{filename}.{ext}")
-        
+
         # In finish_tool_streaming, we only show the output panel
         # The code panel was already shown in start_tool_streaming
-        
+
         # Create output panel
         output_syntax = Syntax(
             output or "No output",
@@ -4193,7 +4288,7 @@ def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None,
             background_color="#272822",
             word_wrap=True,
         )
-        
+
         # Determine output panel style based on execution status
         status = execution_info.get("status", "completed") if execution_info else "completed"
         if status == "completed":
@@ -4202,7 +4297,7 @@ def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None,
         else:
             output_border_style = "red"
             output_title = f"[bold red]{agent_name}[/bold red] - Output (Error)"
-        
+
         output_panel = Panel(
             output_syntax,
             title=output_title,
@@ -4211,10 +4306,10 @@ def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None,
             box=ROUNDED,
             padding=(0, 1),
         )
-        
+
         # Print the output panel
         console.print(output_panel)
-        
+
         # Mark the streaming session as complete and that we've shown special output
         if (
             hasattr(cli_print_tool_output, "_streaming_sessions")
@@ -4222,13 +4317,15 @@ def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None,
         ):
             cli_print_tool_output._streaming_sessions[call_id]["is_complete"] = True
             cli_print_tool_output._streaming_sessions[call_id]["special_output_shown"] = True
-        
+
         # Add to displayed commands to prevent duplicate display
         if hasattr(cli_print_tool_output, "_displayed_commands"):
             # Generate a command key for deduplication
-            command_key = f"execute_code:{args.get('filename', 'code')}:{args.get('language', 'unknown')}"
+            command_key = (
+                f"execute_code:{args.get('filename', 'code')}:{args.get('language', 'unknown')}"
+            )
             cli_print_tool_output._displayed_commands.add(command_key)
-        
+
         return
 
     # Normal handling for other tools
@@ -4360,10 +4457,9 @@ def setup_ctf():
 
     # Validate challenge key if provided
     if challenge_key and challenge_key not in challenges:
-        available = ', '.join(challenges) if challenges else 'none'
+        available = ", ".join(challenges) if challenges else "none"
         raise ValueError(
-            f"Invalid CTF_CHALLENGE '{challenge_key}'. "
-            f"Available challenges: {available}"
+            f"Invalid CTF_CHALLENGE '{challenge_key}'. Available challenges: {available}"
         )
 
     # Select challenge: env var > first available > None
