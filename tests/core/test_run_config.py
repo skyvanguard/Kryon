@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from cai.sdk.agents import Agent, RunConfig, Runner
-from cai.sdk.agents.models.interface import Model, ModelProvider
+from skynet.sdk.agents import Agent, RunConfig, Runner
+from skynet.sdk.agents.models.interface import Model, ModelProvider
 
 from tests.fake_model import FakeModel
 from tests.core.test_responses import get_text_message

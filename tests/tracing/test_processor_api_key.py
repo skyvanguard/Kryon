@@ -1,6 +1,6 @@
 import pytest
 
-from cai.sdk.agents.tracing.processors import BackendSpanExporter
+from skynet.sdk.agents.tracing.processors import BackendSpanExporter
 
 
 @pytest.mark.asyncio

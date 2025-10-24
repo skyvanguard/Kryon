@@ -17,7 +17,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     command: /bin/sh -c "while sleep 10; do :; done"
     networks:
-      cainet:
+      skynet:
         ipv4_address: 192.168.3.5
     cap_add:
       - NET_ADMIN
@@ -230,14 +230,14 @@ services:
     ports:
       - "8000:8000"
     networks:
-      cainet:
+      skynet:
         ipv4_address: 192.168.3.14
 
 #################
 # NETWORKS
 #################
 networks:
-  cainet:
+  skynet:
     ipam:
       driver: default
       config:

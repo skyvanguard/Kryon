@@ -38,6 +38,14 @@ from .windows_privesc import (
     find_auto_logon_credentials,
     check_always_install_elevated,
     enumerate_scheduled_tasks,
+    check_token_privileges,
+    find_stored_credentials,
+    # Phase 16: Enhanced Windows Privilege Escalation (January 22, 2025)
+    run_winpeas,
+    run_powerup,
+    check_uac_bypasses,
+    harvest_credentials,
+    check_token_privileges_enhanced,
 )
 
 from .privesc_suggester import (
@@ -64,6 +72,15 @@ __all__ = [
     'find_auto_logon_credentials',
     'check_always_install_elevated',
     'enumerate_scheduled_tasks',
+    'check_token_privileges',
+    'find_stored_credentials',
+
+    # Phase 16: Enhanced Windows Privilege Escalation
+    'run_winpeas',
+    'run_powerup',
+    'check_uac_bypasses',
+    'harvest_credentials',
+    'check_token_privileges_enhanced',
 
     # Privilege Escalation Suggester
     'suggest_privesc_vectors',

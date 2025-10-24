@@ -17,10 +17,10 @@ from openai.types.responses import (
     ResponseOutputText,
 )
 
-from cai.sdk.agents.model_settings import ModelSettings
-from cai.sdk.agents.models.interface import ModelTracing
-from cai.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
-from cai.sdk.agents.models.openai_provider import OpenAIProvider
+from skynet.sdk.agents.model_settings import ModelSettings
+from skynet.sdk.agents.models.interface import ModelTracing
+from skynet.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
+from skynet.sdk.agents.models.openai_provider import OpenAIProvider
 
 import os
 cai_model = os.getenv('CAI_MODEL', "qwen2.5:14b")

@@ -359,7 +359,62 @@ def get_scan_cache() -> ScanCache:
     return _global_scan_cache
 
 
-def cache_scan_result(
+def cache_scan_result(scan_type: Optional[str] = None, ttl: int = 7200):
+    """
+    Decorator factory for caching scan tool results.
+
+    Usage:
+        @cache_scan_result(scan_type="port_scan", ttl=14400)
+        def my_tool(args: str, target: str, ctf=None) -> str:
+            # tool implementation
+            pass
+
+    Args:
+        scan_type: Type of scan (e.g., "port_scan", "vuln_scan")
+        ttl: Time-to-live in seconds (default: 7200 = 2 hours)
+
+    Returns:
+        Decorator function
+    """
+    from functools import wraps
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Extract target from kwargs or args
+            target = kwargs.get('target')
+            if target is None and len(args) >= 2:
+                target = args[1]  # Second arg is usually target
+
+            # Extract params
+            params = {
+                'scan_type': scan_type,
+                'args': args[0] if len(args) > 0 else None,
+                **kwargs
+            }
+
+            # Try to get from cache
+            if target:
+                scan_cache = get_scan_cache()
+                cached = scan_cache.get_scan(func.__name__, target, params)
+                if cached is not None:
+                    return cached
+
+            # Execute function
+            result = func(*args, **kwargs)
+
+            # Cache result
+            if target:
+                scan_cache = get_scan_cache()
+                scan_cache.cache_scan(func.__name__, target, result, params, ttl)
+
+            return result
+
+        return wrapper
+    return decorator
+
+
+def cache_scan(
     tool: str,
     target: str,
     result: Any,
@@ -367,7 +422,7 @@ def cache_scan_result(
     ttl: int = 7200
 ) -> str:
     """
-    Cache scan result (convenience function).
+    Cache scan result directly (convenience function).
 
     Args:
         tool: Tool name

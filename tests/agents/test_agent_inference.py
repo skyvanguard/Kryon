@@ -1,7 +1,7 @@
 import os
 import pytest
-from cai.sdk.agents import Runner
-from cai.agents import get_agent_by_name
+from skynet.sdk.agents import Runner
+from skynet.agents import get_agent_by_name
 
 
 @pytest.mark.allow_call_model_methods

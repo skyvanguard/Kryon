@@ -22,6 +22,7 @@ from .cache_manager import (
 from .scan_cache import (
     ScanCache,
     cache_scan_result,
+    cache_scan,
     get_scan_cache,
     find_similar_scans
 )
@@ -37,6 +38,7 @@ __all__ = [
     # Scan-specific caching
     "ScanCache",
     "cache_scan_result",
+    "cache_scan",
     "get_scan_cache",
     "find_similar_scans"
 ]

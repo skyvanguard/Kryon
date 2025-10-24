@@ -12,9 +12,9 @@ from tests.core.test_responses import (
     get_function_tool_call,
     get_function_tool,
 )
-from cai.sdk.agents import Runner
-from cai.agents.one_tool import transfer_to_one_tool_agent  
-from cai.agents.one_tool import one_tool_agent  
+from skynet.sdk.agents import Runner
+from skynet.agents.one_tool import transfer_to_one_tool_agent  
+from skynet.agents.one_tool import one_tool_agent  
 
 @pytest.mark.asyncio
 async def test_ctf_agent_instructions_and_configuration():

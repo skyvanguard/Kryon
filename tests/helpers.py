@@ -5,7 +5,7 @@ from typing import Any
 from mcp import Tool as MCPTool
 from mcp.types import CallToolResult, TextContent
 
-from cai.sdk.agents.mcp import MCPServer
+from skynet.sdk.agents.mcp import MCPServer
 
 tee = shutil.which("tee") or ""
 assert tee, "tee not found"

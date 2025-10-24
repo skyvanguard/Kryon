@@ -13,10 +13,10 @@ from unittest.mock import patch, Mock, MagicMock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 
                                 '..', '..', 'src'))
 
-from cai.repl.commands.config import (
+from skynet.repl.commands.config import (
     ConfigCommand, ENV_VARS, get_env_var_value, set_env_var
 )
-from cai.repl.commands.base import Command
+from skynet.repl.commands.base import Command
 
 
 class TestConfigCommand:

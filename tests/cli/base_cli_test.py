@@ -20,8 +20,8 @@ from openai.types.chat.chat_completion_message_tool_call import (
 )
 from openai.types.completion_usage import CompletionUsage
 
-from cai.sdk.agents import Agent, ModelResponse, OpenAIChatCompletionsModel
-from cai.sdk.agents.models.openai_chatcompletions import (
+from skynet.sdk.agents import Agent, ModelResponse, OpenAIChatCompletionsModel
+from skynet.sdk.agents.models.openai_chatcompletions import (
     get_agent_message_history,
     get_all_agent_histories,
     ACTIVE_MODEL_INSTANCES,
@@ -196,7 +196,7 @@ class BaseCLITest:
         self, content: str = "Test response", items: Optional[List] = None
     ) -> ModelResponse:
         """Create a mock ModelResponse for Runner.run."""
-        from cai.sdk.agents.usage import Usage
+        from skynet.sdk.agents.usage import Usage
 
         return ModelResponse(
             output=items or [],
@@ -363,7 +363,7 @@ class BaseCLITest:
         ]
 
         # Apply all patches and run simulation
-        from cai.cli import run_cai_cli
+        from skynet.cli import run_cai_cli
 
         def apply_patches_and_run():
             with (

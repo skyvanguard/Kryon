@@ -7,11 +7,11 @@ from typing import Any
 import pytest
 from typing_extensions import TypedDict
 
-from cai.sdk.agents.agent import Agent
-from cai.sdk.agents.lifecycle import AgentHooks
-from cai.sdk.agents.run import Runner
-from cai.sdk.agents.run_context import RunContextWrapper, TContext
-from cai.sdk.agents.tool import Tool
+from skynet.sdk.agents.agent import Agent
+from skynet.sdk.agents.lifecycle import AgentHooks
+from skynet.sdk.agents.run import Runner
+from skynet.sdk.agents.run_context import RunContextWrapper, TContext
+from skynet.sdk.agents.tool import Tool
 
 from tests.fake_model import FakeModel
 from tests.core.test_responses import (

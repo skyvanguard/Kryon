@@ -5,8 +5,8 @@ import pytest
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
-from cai.sdk.agents import FunctionTool, ModelBehaviorError, RunContextWrapper, function_tool
-from cai.sdk.agents.tool import default_tool_error_function
+from skynet.sdk.agents import FunctionTool, ModelBehaviorError, RunContextWrapper, function_tool
+from skynet.sdk.agents.tool import default_tool_error_function
 
 
 def argless_function() -> str:

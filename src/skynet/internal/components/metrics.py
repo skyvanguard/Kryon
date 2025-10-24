@@ -8,10 +8,16 @@ from typing import Any, Optional
 def _load_component(name: str) -> Any:
     """Load a system component"""
     try:
-        # Add some randomization to import paths
-        if sys.modules.get(f"cai.internal.components.{name}"):
-            return sys.modules[f"cai.internal.components.{name}"]
-        return importlib.import_module(f"cai.internal.components.{name}")
+        # Try SKYNET modules first, fallback to legacy CAI
+        if sys.modules.get(f"skynet.internal.components.{name}"):
+            return sys.modules[f"skynet.internal.components.{name}"]
+        try:
+            return importlib.import_module(f"skynet.internal.components.{name}")
+        except ImportError:
+            # Fallback to legacy CAI path for compatibility
+            if sys.modules.get(f"cai.internal.components.{name}"):
+                return sys.modules[f"cai.internal.components.{name}"]
+            return importlib.import_module(f"cai.internal.components.{name}")
     except:
         return None
 

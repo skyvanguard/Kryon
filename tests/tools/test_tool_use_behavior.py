@@ -7,7 +7,7 @@ from typing import cast
 import pytest
 from openai.types.responses.response_input_item_param import FunctionCallOutput
 
-from cai.sdk.agents import (
+from skynet.sdk.agents import (
     Agent,
     FunctionToolResult,
     RunConfig,
@@ -16,7 +16,7 @@ from cai.sdk.agents import (
     ToolsToFinalOutputResult,
     UserError,
 )
-from cai.sdk.agents._run_impl import RunImpl
+from skynet.sdk.agents._run_impl import RunImpl
 
 from tests.core.test_responses import get_function_tool
 

@@ -9,9 +9,9 @@ import numpy as np
 import pytest
 
 try:
-    from cai.sdk.agents.voice import OpenAISTTTranscriptionSession, StreamedAudioInput, STTModelSettings
-    from cai.sdk.agents.voice.exceptions import STTWebsocketConnectionError
-    from cai.sdk.agents.voice.models.openai_stt import EVENT_INACTIVITY_TIMEOUT
+    from skynet.sdk.agents.voice import OpenAISTTTranscriptionSession, StreamedAudioInput, STTModelSettings
+    from skynet.sdk.agents.voice.exceptions import STTWebsocketConnectionError
+    from skynet.sdk.agents.voice.models.openai_stt import EVENT_INACTIVITY_TIMEOUT
 
     from tests.voice.fake_models import FakeStreamedAudioInput
 except ImportError:

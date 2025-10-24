@@ -25,7 +25,7 @@ except ImportError:
 # Add the src directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from cai.util import COST_TRACKER, calculate_model_cost
+from skynet.util import COST_TRACKER, calculate_model_cost
 
 
 if PYTEST_AVAILABLE:

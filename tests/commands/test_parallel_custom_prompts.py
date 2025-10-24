@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import MagicMock, patch
-from cai.repl.commands.parallel import ParallelCommand, PARALLEL_CONFIGS, ParallelConfig
+from skynet.repl.commands.parallel import ParallelCommand, PARALLEL_CONFIGS, ParallelConfig
 from rich.console import Console
 
 
@@ -151,7 +151,7 @@ class TestParallelCustomPrompts:
     def test_parallel_history_persistence_on_interrupt(self):
         """Test that parallel agents' histories are saved when interrupted."""
         # This test verifies the configuration for history persistence
-        from cai.sdk.agents.parallel_isolation import PARALLEL_ISOLATION
+        from skynet.sdk.agents.parallel_isolation import PARALLEL_ISOLATION
         
         # Setup parallel configs
         config1 = ParallelConfig("redteam_agent")

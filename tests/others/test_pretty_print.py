@@ -4,9 +4,9 @@ import pytest
 from inline_snapshot import snapshot
 from pydantic import BaseModel
 
-from cai.sdk.agents import Agent, Runner
-from cai.sdk.agents.agent_output import _WRAPPER_DICT_KEY
-from cai.sdk.agents.util._pretty_print import pretty_print_result, pretty_print_run_result_streaming
+from skynet.sdk.agents import Agent, Runner
+from skynet.sdk.agents.agent_output import _WRAPPER_DICT_KEY
+from skynet.sdk.agents.util._pretty_print import pretty_print_result, pretty_print_run_result_streaming
 from tests.fake_model import FakeModel
 
 from tests.core.test_responses import get_final_output_message, get_text_message

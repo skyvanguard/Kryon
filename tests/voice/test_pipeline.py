@@ -5,7 +5,7 @@ import numpy.typing as npt
 import pytest
 
 try:
-    from cai.sdk.agents.voice import AudioInput, TTSModelSettings, VoicePipeline, VoicePipelineConfig
+    from skynet.sdk.agents.voice import AudioInput, TTSModelSettings, VoicePipeline, VoicePipelineConfig
 
     from tests.voice.fake_models import FakeStreamedAudioInput, FakeSTT, FakeTTS, FakeWorkflow
     from tests.mcp.helpers import extract_events

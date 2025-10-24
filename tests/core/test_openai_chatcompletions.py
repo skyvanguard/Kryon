@@ -22,7 +22,7 @@ from openai.types.responses import (
     ResponseOutputText,
 )
 
-from cai.sdk.agents import (
+from skynet.sdk.agents import (
     ModelResponse,
     ModelSettings,
     ModelTracing,
@@ -30,7 +30,7 @@ from cai.sdk.agents import (
     OpenAIProvider,
     generation_span,
 )
-from cai.sdk.agents.models.fake_id import FAKE_RESPONSES_ID
+from skynet.sdk.agents.models.fake_id import FAKE_RESPONSES_ID
 import os
 cai_model = os.getenv('CAI_MODEL', "qwen2.5:14b")
 

@@ -14,8 +14,8 @@ import pytest
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from cai.repl.commands.base import Command
-from cai.repl.commands.load import LoadCommand
+from skynet.repl.commands.base import Command
+from skynet.repl.commands.load import LoadCommand
 
 
 class TestLoadCommand:
@@ -335,7 +335,7 @@ class TestLoadCommand:
     @patch("cai.repl.commands.load.get_all_agent_histories")
     def test_handle_all_with_configured_agents_no_history(self, mock_get_all, mock_get_available, load_command):
         """Test 'all' subcommand shows configured agents even without history."""
-        from cai.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
+        from skynet.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
         
         # Mock available agents
         mock_agent = MagicMock()
@@ -433,7 +433,7 @@ class TestLoadCommand:
         self, mock_load_jsonl, mock_get_available, mock_agent_manager, mock_input, load_command
     ):
         """Test 'parallel' subcommand loads messages matching configured agents."""
-        from cai.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
+        from skynet.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
         
         # Mock available agents
         mock_agent1 = MagicMock()
@@ -492,7 +492,7 @@ class TestLoadCommand:
         self, mock_load_jsonl, mock_get_available, mock_agent_manager, mock_input, load_command
     ):
         """Test 'parallel' subcommand fails when JSONL has no agent names."""
-        from cai.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
+        from skynet.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
         
         # Mock messages without agent names
         messages_no_agents = [
@@ -528,7 +528,7 @@ class TestLoadCommand:
         self, mock_load_jsonl, load_command
     ):
         """Test 'parallel' subcommand with specific file."""
-        from cai.repl.commands.parallel import PARALLEL_CONFIGS
+        from skynet.repl.commands.parallel import PARALLEL_CONFIGS
         
         # Save original configs and clear
         original_configs = PARALLEL_CONFIGS[:]
@@ -615,7 +615,7 @@ class TestLoadCommandIntegration:
     @patch("cai.repl.commands.load.load_history_from_jsonl")
     def test_load_by_agent_id(self, mock_load_jsonl, mock_get_available, mock_agent_manager, mock_input):
         """Test loading into agent by ID."""
-        from cai.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
+        from skynet.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
         
         # Mock agent
         mock_agent = MagicMock()

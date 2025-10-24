@@ -4,7 +4,7 @@ import os
 import time
 import pytest
 from unittest.mock import patch
-from cai.util import cli_print_tool_output
+from skynet.util import cli_print_tool_output
 
 
 @pytest.fixture(autouse=True)

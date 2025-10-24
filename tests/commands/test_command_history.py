@@ -15,8 +15,8 @@ import pytest
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from cai.repl.commands.base import Command
-from cai.repl.commands.history import HistoryCommand
+from skynet.repl.commands.base import Command
+from skynet.repl.commands.history import HistoryCommand
 
 
 class TestHistoryCommand:
@@ -775,7 +775,7 @@ class TestHistoryCommandIntegration:
     @patch("cai.agents.get_available_agents")
     def test_handle_agent_with_id(self, mock_get_available_agents, mock_agent_manager):
         """Test showing history for agent by ID."""
-        from cai.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
+        from skynet.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
         
         # Mock agent
         mock_agent = MagicMock()
@@ -818,7 +818,7 @@ class TestHistoryCommandIntegration:
         self, mock_get_available_agents, mock_parallel_configs, mock_get_all_histories
     ):
         """Test control panel shows configured agents even without history."""
-        from cai.repl.commands.parallel import ParallelConfig
+        from skynet.repl.commands.parallel import ParallelConfig
         
         # Mock agents
         mock_agent1 = MagicMock()
@@ -860,7 +860,7 @@ class TestHistoryCommandIntegration:
         self, mock_get_available_agents, mock_agent_manager
     ):
         """Test handling numbered agents (duplicates) with IDs."""
-        from cai.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
+        from skynet.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
         
         # Mock agent
         mock_agent = MagicMock()

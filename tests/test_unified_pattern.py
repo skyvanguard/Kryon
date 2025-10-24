@@ -3,7 +3,7 @@ Tests for the unified Pattern class with type-based behavior.
 """
 
 import pytest
-from cai.agents.patterns.pattern import (
+from skynet.agents.patterns.pattern import (
     Pattern,
     PatternType,
     parallel_pattern,
@@ -12,7 +12,7 @@ from cai.agents.patterns.pattern import (
     sequential_pattern,
     conditional_pattern
 )
-from cai.repl.commands.parallel import ParallelConfig
+from skynet.repl.commands.parallel import ParallelConfig
 
 class TestPatternType:
     """Test PatternType enum."""

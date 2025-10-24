@@ -11,8 +11,8 @@ import pytest
 from rich.panel import Panel
 from rich.table import Table
 
-from cai.repl.commands.base import Command
-from cai.repl.commands.help import HelpCommand
+from skynet.repl.commands.base import Command
+from skynet.repl.commands.help import HelpCommand
 
 
 class TestHelpCommand:
@@ -307,7 +307,7 @@ class TestHelpCommand:
 
     def test_create_styled_table_function(self):
         """Test create_styled_table helper function."""
-        from cai.repl.commands.help import create_styled_table
+        from skynet.repl.commands.help import create_styled_table
 
         headers = [("Command", "yellow"), ("Description", "white")]
         table = create_styled_table("Test Table", headers)
@@ -317,7 +317,7 @@ class TestHelpCommand:
 
     def test_create_notes_panel_function(self):
         """Test create_notes_panel helper function."""
-        from cai.repl.commands.help import create_notes_panel
+        from skynet.repl.commands.help import create_notes_panel
 
         notes = ["Note 1", "Note 2", "Note 3"]
         panel = create_notes_panel(notes, "Test Notes")

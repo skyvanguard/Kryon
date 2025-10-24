@@ -1,5 +1,5 @@
 try:
-    from cai.sdk.agents.voice import StreamedAudioResult
+    from skynet.sdk.agents.voice import StreamedAudioResult
 except ImportError:
     pass
 

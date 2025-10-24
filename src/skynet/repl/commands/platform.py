@@ -9,7 +9,7 @@ from typing import (
 from rich.console import Console  # pylint: disable=import-error
 from rich.panel import Panel  # pylint: disable=import-error
 
-from cai import is_caiextensions_platform_available
+from skynet.compat import is_caiextensions_platform_available
 from skynet.repl.commands.base import Command, register_command
 
 console = Console()

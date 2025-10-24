@@ -21,7 +21,7 @@ from openai.types.responses.response_computer_tool_call import (
     ResponseComputerToolCall,
 )
 
-from cai.sdk.agents import (
+from skynet.sdk.agents import (
     Agent,
     AgentHooks,
     AsyncComputer,
@@ -31,8 +31,8 @@ from cai.sdk.agents import (
     RunContextWrapper,
     RunHooks,
 )
-from cai.sdk.agents._run_impl import ComputerAction, ToolRunComputerAction
-from cai.sdk.agents.items import ToolCallOutputItem
+from skynet.sdk.agents._run_impl import ComputerAction, ToolRunComputerAction
+from skynet.sdk.agents.items import ToolCallOutputItem
 
 
 class LoggingComputer(Computer):

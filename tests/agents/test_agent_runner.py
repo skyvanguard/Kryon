@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from typing_extensions import TypedDict
 
-from cai.sdk.agents import (
+from skynet.sdk.agents import (
     Agent,
     GuardrailFunctionOutput,
     Handoff,
@@ -23,8 +23,8 @@ from cai.sdk.agents import (
     UserError,
     handoff,
 )
-from cai.sdk.agents.agent import ToolsToFinalOutputResult
-from cai.sdk.agents.tool import FunctionToolResult, function_tool
+from skynet.sdk.agents.agent import ToolsToFinalOutputResult
+from skynet.sdk.agents.tool import FunctionToolResult, function_tool
 
 from tests.fake_model import FakeModel
 from tests.core.test_responses import (

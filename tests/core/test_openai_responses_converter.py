@@ -27,7 +27,7 @@ import pytest
 from openai import NOT_GIVEN
 from pydantic import BaseModel
 
-from cai.sdk.agents import (
+from skynet.sdk.agents import (
     Agent,
     AgentOutputSchema,
     Computer,
@@ -40,7 +40,7 @@ from cai.sdk.agents import (
     function_tool,
     handoff,
 )
-from cai.sdk.agents.models.openai_responses import Converter
+from skynet.sdk.agents.models.openai_responses import Converter
 
 
 def test_convert_tool_choice_standard_values():

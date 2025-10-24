@@ -13,8 +13,8 @@ import pytest
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from cai.repl.commands.agent import AgentCommand
-from cai.repl.commands.base import Command
+from skynet.repl.commands.agent import AgentCommand
+from skynet.repl.commands.base import Command
 
 
 class TestAgentCommand:
@@ -279,7 +279,7 @@ class TestAgentCommand:
     @patch("cai.repl.commands.agent.get_available_agents")
     def test_handle_current_parallel_mode(self, mock_get_agents, agent_command):
         """Test handle_current for parallel mode."""
-        from cai.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
+        from skynet.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
         
         # Save original configs
         original_configs = PARALLEL_CONFIGS[:]

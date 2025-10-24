@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from cai.repl.commands.cost import CostCommand
-from cai.sdk.agents.global_usage_tracker import GlobalUsageTracker
+from skynet.repl.commands.cost import CostCommand
+from skynet.sdk.agents.global_usage_tracker import GlobalUsageTracker
 
 
 class TestCostCommand:

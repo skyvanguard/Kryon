@@ -8,7 +8,7 @@ import pytest
 from inline_snapshot import snapshot
 from typing_extensions import TypedDict
 
-from cai.sdk.agents import (
+from skynet.sdk.agents import (
     Agent,
     GuardrailFunctionOutput,
     InputGuardrail,

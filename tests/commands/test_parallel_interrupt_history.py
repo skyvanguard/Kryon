@@ -3,9 +3,9 @@
 import asyncio
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
-from cai.repl.commands.parallel import ParallelCommand, PARALLEL_CONFIGS, ParallelConfig, PARALLEL_AGENT_INSTANCES
-from cai.sdk.agents.parallel_isolation import PARALLEL_ISOLATION
-from cai.sdk.agents import Agent, OpenAIChatCompletionsModel
+from skynet.repl.commands.parallel import ParallelCommand, PARALLEL_CONFIGS, ParallelConfig, PARALLEL_AGENT_INSTANCES
+from skynet.sdk.agents.parallel_isolation import PARALLEL_ISOLATION
+from skynet.sdk.agents import Agent, OpenAIChatCompletionsModel
 from openai import AsyncOpenAI
 import os
 
@@ -151,8 +151,8 @@ class TestParallelInterruptHistory:
     
     def test_history_command_shows_saved_histories(self):
         """Test that /history command can access saved parallel agent histories."""
-        from cai.sdk.agents.simple_agent_manager import AGENT_MANAGER
-        from cai.repl.commands.history import HistoryCommand
+        from skynet.sdk.agents.simple_agent_manager import AGENT_MANAGER
+        from skynet.repl.commands.history import HistoryCommand
         
         # Setup parallel mode with some history
         PARALLEL_ISOLATION._parallel_mode = True

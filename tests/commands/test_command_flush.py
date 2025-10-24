@@ -13,8 +13,8 @@ import pytest
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from cai.repl.commands.base import Command
-from cai.repl.commands.flush import FlushCommand
+from skynet.repl.commands.base import Command
+from skynet.repl.commands.flush import FlushCommand
 
 
 class TestFlushCommand:
@@ -325,7 +325,7 @@ class TestFlushCommandIntegration:
     @patch("cai.agents.get_available_agents")
     def test_handle_with_agent_id(self, mock_get_available_agents, mock_parallel_isolation, mock_clear_agent, mock_get_history):
         """Test flushing agent by ID."""
-        from cai.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
+        from skynet.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
         
         # Mock agent
         mock_agent = MagicMock()
@@ -361,7 +361,7 @@ class TestFlushCommandIntegration:
     @patch("cai.agents.get_available_agents")
     def test_handle_numbered_agent_with_id(self, mock_get_available_agents, mock_parallel_isolation, mock_clear_agent, mock_get_history):
         """Test flushing numbered agents with IDs."""
-        from cai.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
+        from skynet.repl.commands.parallel import ParallelConfig, PARALLEL_CONFIGS
         
         # Mock agent
         mock_agent = MagicMock()
@@ -404,7 +404,7 @@ class TestFlushCommandIntegration:
     @patch("cai.agents.get_available_agents")
     def test_handle_invalid_id(self, mock_get_available_agents, mock_parallel_configs, mock_parallel_isolation, mock_clear_agent, mock_get_history):
         """Test handling invalid agent ID."""
-        from cai.repl.commands.parallel import ParallelConfig
+        from skynet.repl.commands.parallel import ParallelConfig
         
         # Mock agent
         mock_agent = MagicMock()

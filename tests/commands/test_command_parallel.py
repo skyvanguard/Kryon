@@ -13,9 +13,9 @@ from unittest.mock import patch, Mock, MagicMock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 
                                 '..', '..', 'src'))
 
-from cai.repl.commands.parallel import ParallelCommand, ParallelConfig
-import cai.repl.commands.parallel as parallel_module
-from cai.repl.commands.base import Command
+from skynet.repl.commands.parallel import ParallelCommand, ParallelConfig
+import skynet.repl.commands.parallel as parallel_module
+from skynet.repl.commands.base import Command
 
 
 class TestParallelCommand:

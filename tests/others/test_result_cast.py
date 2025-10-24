@@ -3,7 +3,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from cai.sdk.agents import Agent, RunResult
+from skynet.sdk.agents import Agent, RunResult
 
 
 def create_run_result(final_output: Any) -> RunResult:

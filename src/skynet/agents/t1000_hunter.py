@@ -39,6 +39,15 @@ from skynet.tools.osint.threat_intel import (
 )
 from skynet.tools.osint.yara_scan import yara_scan_file, yara_scan_directory
 
+# Phase 22: RAG Knowledge Base Integration
+from skynet.tools.knowledge import (
+    query_knowledge_base,
+    search_vulnerabilities,
+    get_exploit_techniques,
+    get_security_tools,
+    get_knowledge_stats
+)
+
 from skynet.agents.guardrails import get_security_guardrails
 
 load_dotenv()
@@ -64,6 +73,13 @@ weapon_systems = [
     recon_ng_search,        # Advanced modular reconnaissance
     yara_scan_file,         # Malware pattern detection (single file)
     yara_scan_directory,    # Malware pattern detection (directory scan)
+
+    # Phase 22: RAG Knowledge Base Access
+    query_knowledge_base,   # Query SKYNET knowledge base (103 CVEs + security tools)
+    search_vulnerabilities, # Search for specific CVEs by technology/version
+    get_exploit_techniques, # Get exploitation techniques for attack types
+    get_security_tools,     # Find security tools from GitHub knowledge
+    get_knowledge_stats,    # Get knowledge base statistics
 ]
 
 # Add enhanced search if credentials available

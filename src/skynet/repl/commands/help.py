@@ -23,7 +23,7 @@ try:
 except ImportError:
     HAS_PLATFORM_EXTENSIONS = False
 
-from cai import is_caiextensions_platform_available
+from skynet.compat import is_caiextensions_platform_available
 
 console = Console()
 

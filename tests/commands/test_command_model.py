@@ -14,8 +14,8 @@ from unittest.mock import patch, Mock, MagicMock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 
                                 '..', '..', 'src'))
 
-from cai.repl.commands.model import ModelCommand, ModelShowCommand
-from cai.repl.commands.base import Command
+from skynet.repl.commands.model import ModelCommand, ModelShowCommand
+from skynet.repl.commands.base import Command
 
 
 class TestModelCommand:

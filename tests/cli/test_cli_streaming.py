@@ -13,7 +13,7 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 
-from cai.sdk.agents.models.openai_chatcompletions import (
+from skynet.sdk.agents.models.openai_chatcompletions import (
     get_agent_message_history,
     get_all_agent_histories,
     ACTIVE_MODEL_INSTANCES,
@@ -34,8 +34,8 @@ class TestCLIStreaming(unittest.TestCase):
     def tearDownClass(cls):
         """Clean up after tests."""
         # Import here to avoid circular imports
-        from cai.sdk.agents.models.openai_chatcompletions import PERSISTENT_MESSAGE_HISTORIES
-        from cai.sdk.agents.simple_agent_manager import AGENT_MANAGER
+        from skynet.sdk.agents.models.openai_chatcompletions import PERSISTENT_MESSAGE_HISTORIES
+        from skynet.sdk.agents.simple_agent_manager import AGENT_MANAGER
         
         # Clear all active model instances
         ACTIVE_MODEL_INSTANCES.clear()
@@ -54,11 +54,11 @@ class TestCLIStreaming(unittest.TestCase):
         self._test_model = None
         
         # Clear any existing message histories
-        from cai.sdk.agents.models.openai_chatcompletions import (
+        from skynet.sdk.agents.models.openai_chatcompletions import (
             OpenAIChatCompletionsModel,
             PERSISTENT_MESSAGE_HISTORIES
         )
-        from cai.sdk.agents.simple_agent_manager import AGENT_MANAGER
+        from skynet.sdk.agents.simple_agent_manager import AGENT_MANAGER
         
         # Clear persistent message histories to ensure clean state
         PERSISTENT_MESSAGE_HISTORIES.clear()
@@ -76,8 +76,8 @@ class TestCLIStreaming(unittest.TestCase):
     def tearDown(self):
         """Clean up after each test."""
         # Import here to avoid circular imports
-        from cai.sdk.agents.models.openai_chatcompletions import PERSISTENT_MESSAGE_HISTORIES
-        from cai.sdk.agents.simple_agent_manager import AGENT_MANAGER
+        from skynet.sdk.agents.models.openai_chatcompletions import PERSISTENT_MESSAGE_HISTORIES
+        from skynet.sdk.agents.simple_agent_manager import AGENT_MANAGER
         
         # Clear all active model instances
         ACTIVE_MODEL_INSTANCES.clear()
@@ -100,8 +100,8 @@ class TestCLIStreaming(unittest.TestCase):
     def add_to_test_message_history(self, msg):
         """Add a message to the test agent's history."""
         # Create a mock model instance for testing
-        from cai.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
-        from cai.sdk.agents.simple_agent_manager import AGENT_MANAGER
+        from skynet.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
+        from skynet.sdk.agents.simple_agent_manager import AGENT_MANAGER
         from openai import AsyncOpenAI
         import os
         
@@ -231,7 +231,7 @@ class TestCLIStreaming(unittest.TestCase):
                     pending_calls.append(call_info.get("name", "unknown"))
 
             # Apply message list fixes like the real system does
-            from cai.util import fix_message_list
+            from skynet.util import fix_message_list
 
             try:
                 fixed_messages = fix_message_list(
@@ -279,7 +279,7 @@ class TestCLIStreaming(unittest.TestCase):
 
     def test_fix_message_list_with_interrupted_tools(self):
         """Test fix_message_list handles interrupted tool sequences correctly."""
-        from cai.util import fix_message_list
+        from skynet.util import fix_message_list
         
         # No need for _Converter cleanup since it's now instance-based
 

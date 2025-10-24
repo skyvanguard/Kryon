@@ -3,7 +3,7 @@ import json
 import pytest
 from pydantic import BaseModel
 
-from cai.sdk.agents import Agent, ModelBehaviorError, Runner, UserError
+from skynet.sdk.agents import Agent, ModelBehaviorError, Runner, UserError
 
 from tests.fake_model import FakeModel
 from tests.core.test_responses import get_function_tool_call, get_text_message

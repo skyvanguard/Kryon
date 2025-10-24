@@ -6,8 +6,8 @@ import pytest
 import asyncio
 import os
 from unittest.mock import Mock, patch, AsyncMock
-from cai.repl.commands.compact import CompactCommand
-from cai.sdk.agents.models.openai_chatcompletions import get_agent_message_history, get_all_agent_histories
+from skynet.repl.commands.compact import CompactCommand
+from skynet.sdk.agents.models.openai_chatcompletions import get_agent_message_history, get_all_agent_histories
 
 class TestCompactCommand:
     """Test the CompactCommand class."""

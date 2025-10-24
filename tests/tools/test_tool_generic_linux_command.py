@@ -7,8 +7,8 @@ from unittest.mock import MagicMock
 # Set test environment variables to avoid OpenAI client initialization errors
 os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 
-from cai.tools.reconnaissance.generic_linux_command import generic_linux_command
-from cai.sdk.agents import RunContextWrapper
+from skynet.tools.reconnaissance.generic_linux_command import generic_linux_command
+from skynet.sdk.agents import RunContextWrapper
 
 
 @pytest.mark.asyncio

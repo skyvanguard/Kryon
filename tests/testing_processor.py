@@ -4,7 +4,7 @@ import threading
 from datetime import datetime
 from typing import Any, Literal
 
-from cai.sdk.agents.tracing import Span, Trace, TracingProcessor
+from skynet.sdk.agents.tracing import Span, Trace, TracingProcessor
 
 TestSpanProcessorEvent = Literal["trace_start", "trace_end", "span_start", "span_end"]
 

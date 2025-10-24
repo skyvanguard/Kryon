@@ -3,7 +3,7 @@ import os
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
-from cai.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
+from skynet.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
 
 
 class TestAutoCompact:
@@ -195,8 +195,8 @@ class TestAutoCompact:
         from openai import AsyncOpenAI
         from openai.types.chat import ChatCompletion, ChatCompletionMessage
         from openai.types.chat.chat_completion import Choice, CompletionUsage
-        from cai.sdk.agents.model_settings import ModelSettings
-        from cai.sdk.agents.models.interface import ModelTracing
+        from skynet.sdk.agents.model_settings import ModelSettings
+        from skynet.sdk.agents.models.interface import ModelTracing
         
         client = AsyncMock(spec=AsyncOpenAI)
         client.base_url = "https://api.openai.com"

@@ -3,8 +3,8 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
-from cai.agents import get_agent_by_name
-from cai.repl.commands.mcp import (
+from skynet.agents import get_agent_by_name
+from skynet.repl.commands.mcp import (
     MCPCommand,
     _GLOBAL_MCP_SERVERS,
     _AGENT_MCP_ASSOCIATIONS,
@@ -12,8 +12,8 @@ from cai.repl.commands.mcp import (
     get_mcp_servers_for_agent,
     get_mcp_tools_for_agent,
 )
-from cai.sdk.agents import Agent
-from cai.sdk.agents.tool import FunctionTool
+from skynet.sdk.agents import Agent
+from skynet.sdk.agents.tool import FunctionTool
 
 
 class TestMCPPersistence:

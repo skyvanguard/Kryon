@@ -6,12 +6,19 @@ inside or outside of virtual containers.
 import subprocess  # nosec B404
 import threading
 import os
-import pty
 import signal
 import time
 import uuid
 import sys
 import shlex
+import platform
+
+# Platform-specific imports
+if platform.system() != 'Windows':
+    import pty
+    PTY_AVAILABLE = True
+else:
+    PTY_AVAILABLE = False
 from wasabi import color  # pylint: disable=import-error
 from skynet.util import format_time, start_active_timer, stop_active_timer, start_idle_timer, stop_idle_timer, cli_print_tool_output
 
@@ -197,7 +204,11 @@ class ShellSession:  # pylint: disable=too-many-instance-attributes
         # --- Start in Container ---
         if self.container_id:
             try:
-                self.master, self.slave = pty.openpty()
+                if PTY_AVAILABLE:
+                    self.master, self.slave = pty.openpty()
+                else:
+                    # Windows fallback - use PIPE instead of PTY
+                    self.master, self.slave = None, subprocess.PIPE
                 docker_cmd_list = [
                     "docker", "exec", "-i", "-t",  # allocate a TTY inside the container
                     "-w", self.workspace_dir,
@@ -205,14 +216,17 @@ class ShellSession:  # pylint: disable=too-many-instance-attributes
                     "sh", "-c",
                     self.command,
                 ]
-                self.process = subprocess.Popen(
-                    docker_cmd_list,
-                    stdin=self.slave,
-                    stdout=self.slave,
-                    stderr=self.slave,
-                    preexec_fn=os.setsid,
-                    universal_newlines=True,
-                )
+                popen_kwargs = {
+                    "stdin": self.slave,
+                    "stdout": self.slave,
+                    "stderr": self.slave,
+                    "universal_newlines": True,
+                }
+                # preexec_fn is Unix-only
+                if PTY_AVAILABLE:
+                    popen_kwargs["preexec_fn"] = os.setsid
+
+                self.process = subprocess.Popen(docker_cmd_list, **popen_kwargs)
                 self.is_running = True
                 self.output_buffer.append(
                     f"[Session {self.session_id}] Started in container {self.container_id[:12]}: "
@@ -245,16 +259,26 @@ class ShellSession:  # pylint: disable=too-many-instance-attributes
 
         # --- Start Locally (Host) ---
         try:
-            self.master, self.slave = pty.openpty()
+            if PTY_AVAILABLE:
+                self.master, self.slave = pty.openpty()
+            else:
+                # Windows fallback - use PIPE instead of PTY
+                self.master, self.slave = None, subprocess.PIPE
+            popen_kwargs = {
+                "shell": True,  # nosec B602
+                "stdin": self.slave,
+                "stdout": self.slave,
+                "stderr": self.slave,
+                "cwd": self.workspace_dir,
+                "universal_newlines": True,
+            }
+            # preexec_fn is Unix-only
+            if PTY_AVAILABLE:
+                popen_kwargs["preexec_fn"] = os.setsid
+
             self.process = subprocess.Popen(  # pylint: disable=subprocess-popen-preexec-fn
                 self.command,
-                shell=True,  # nosec B602
-                stdin=self.slave,
-                stdout=self.slave,
-                stderr=self.slave,
-                cwd=self.workspace_dir,
-                preexec_fn=os.setsid,
-                universal_newlines=True,
+                **popen_kwargs
             )
             self.is_running = True
             self.output_buffer.append(f"[Session {self.session_id}] Started: {self.command}")
