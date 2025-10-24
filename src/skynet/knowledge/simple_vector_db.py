@@ -275,6 +275,8 @@ class VectorDatabase:
         """Initialize with automatic fallback."""
         self.backend = None
         self.backend_type = None
+        self._client = None
+        self._collection = None
 
         try:
             # Try ChromaDB first
@@ -284,15 +286,16 @@ class VectorDatabase:
             persist_path = Path(persist_directory)
             persist_path.mkdir(parents=True, exist_ok=True)
 
-            client = chromadb.Client(Settings(
+            self._client = chromadb.Client(Settings(
                 persist_directory=str(persist_path),
                 anonymized_telemetry=False
             ))
 
-            self.backend = client.get_or_create_collection(
+            self._collection = self._client.get_or_create_collection(
                 name="skynet_knowledge",
                 metadata={"description": "SKYNET knowledge base"}
             )
+            self.backend = self._collection
             self.backend_type = "chromadb"
             print("✅ Using ChromaDB backend")
 
@@ -301,7 +304,19 @@ class VectorDatabase:
             print(f"⚠️  ChromaDB unavailable ({e}), using simple vector database")
             self.backend = SimpleVectorDatabase(persist_directory.replace("chromadb", "simple_db"))
             self.backend_type = "simple"
+            self._client = None  # Simple backend doesn't have client
+            self._collection = None  # Simple backend doesn't have collection
             print("✅ Using SimpleVectorDatabase backend")
+
+    @property
+    def client(self):
+        """Get ChromaDB client (or None for simple backend)."""
+        return self._client
+
+    @property
+    def collection(self):
+        """Get ChromaDB collection (or None for simple backend)."""
+        return self._collection
 
     def add_documents(self, documents: List[str], metadatas: Optional[List[Dict]] = None, ids: Optional[List[str]] = None) -> int:
         """Add documents to backend."""

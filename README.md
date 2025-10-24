@@ -97,14 +97,43 @@ SKYNET deploys specialized autonomous units for different security missions:
 ### Installation
 
 ```bash
-# Install SKYNET framework
+# Install SKYNET framework (basic installation)
 pip install skynet-framework
+
+# Install with optional features
+pip install skynet-framework[rag]       # RAG knowledge system
+pip install skynet-framework[tracing]   # OpenTelemetry tracing
+pip install skynet-framework[viz]       # Graphviz visualization
+pip install skynet-framework[voice]     # Voice input/output
+
+# Full installation (all features)
+pip install skynet-framework[rag,tracing,viz,voice]
 
 # Or install from source
 git clone https://github.com/skynet-ai/skynet-framework.git
 cd skynet-framework
-pip install -e .
+pip install -e .[rag,tracing,viz]
 ```
+
+#### RAG Knowledge System
+
+The RAG (Retrieval-Augmented Generation) system provides intelligent knowledge base capabilities for vulnerability data, exploit patterns, and security intelligence:
+
+```bash
+# Install RAG dependencies
+pip install skynet-framework[rag]
+
+# Required packages (installed automatically):
+# - chromadb>=1.2.0          (vector database)
+# - schedule>=1.2.0          (task scheduling)
+# - sentence-transformers>=5.0.0  (embeddings)
+```
+
+**Features:**
+- Semantic search across security knowledge base
+- Automatic vulnerability correlation
+- Exploit pattern recognition
+- ~150MB additional disk space (includes PyTorch)
 
 ### Configuration
 
