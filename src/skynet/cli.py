@@ -283,7 +283,7 @@ suppress_aiohttp_warnings()
 from openai import AsyncOpenAI
 from rich.console import Console
 
-from cai import is_pentestperf_available
+from skynet.compat import is_pentestperf_available
 
 # CAI agents and metrics imports
 from skynet.agents import get_agent_by_name
@@ -434,8 +434,6 @@ def run_cai_cli(
     Returns:
         None
     """
-    ACTIVE_TIME = 0  # TODO: review this variable
-
     agent = starting_agent
     turn_count = 0
     idle_time = 0

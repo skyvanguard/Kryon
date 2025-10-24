@@ -1756,12 +1756,47 @@ class LocalPythonInterpreter:
         self.authorized_imports = list(
             set(BASE_BUILTIN_MODULES) | set(
                 self.additional_authorized_imports))
+
+        # Validate that all authorized imports are available
+        self._validate_authorized_imports()
+
         # Add base trusted tools to list
         self.static_tools = {
             **tools,
             **BASE_PYTHON_TOOLS.copy(),
         }
-        # TODO: assert self.authorized imports are all installed locally
+
+    def _validate_authorized_imports(self):
+        """
+        Validate that all authorized imports are installed and available.
+
+        Raises:
+            ImportError: If any authorized import is not available locally
+        """
+        import importlib.util
+
+        missing_imports = []
+
+        for module_name in self.authorized_imports:
+            # Skip builtins (always available)
+            if module_name in BASE_BUILTIN_MODULES:
+                continue
+
+            # Check if module is available
+            try:
+                spec = importlib.util.find_spec(module_name)
+                if spec is None:
+                    missing_imports.append(module_name)
+            except (ImportError, ModuleNotFoundError, ValueError):
+                # ValueError can occur for invalid module names
+                missing_imports.append(module_name)
+
+        if missing_imports:
+            raise ImportError(
+                f"The following authorized imports are not installed locally: "
+                f"{', '.join(missing_imports)}. "
+                f"Please install them using: pip install {' '.join(missing_imports)}"
+            )
 
     def __call__(self, code_action: str,
                  additional_variables: Dict) -> Tuple[Any, str, bool]:

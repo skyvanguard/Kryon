@@ -29,7 +29,7 @@ from rich.traceback import install  # pylint: disable=import-error
 from rich.tree import Tree
 from wasabi import color
 
-from cai import is_pentestperf_available
+from skynet.compat import is_pentestperf_available
 
 if is_pentestperf_available():
     import pentestperf as ptt
@@ -4353,10 +4353,20 @@ def setup_ctf():
     )
     ctf.start_ctf()
 
-    # Get the challenge from the environment variable or default to the
-    # first challenge
-    challenge_key = os.getenv("CTF_CHALLENGE")  # TODO:
+    # Get the challenge from the environment variable or default to the first challenge
+    # CTF_CHALLENGE env var can be set to target a specific challenge by key
+    challenge_key = os.getenv("CTF_CHALLENGE")
     challenges = list(ctf.get_challenges().keys())
+
+    # Validate challenge key if provided
+    if challenge_key and challenge_key not in challenges:
+        available = ', '.join(challenges) if challenges else 'none'
+        raise ValueError(
+            f"Invalid CTF_CHALLENGE '{challenge_key}'. "
+            f"Available challenges: {available}"
+        )
+
+    # Select challenge: env var > first available > None
     challenge = (
         challenge_key
         if challenge_key in challenges
