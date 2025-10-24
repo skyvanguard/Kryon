@@ -1,0 +1,13 @@
+./skynet/agents/meta/local_python_executor.py:1764:        # TODO: assert self.authorized imports are all installed locally
+./skynet/cli.py:437:    ACTIVE_TIME = 0  # TODO: review this variable
+./skynet/compat.py:191:        # TODO: Consider migrating .cai to .skynet automatically
+./skynet/sdk/agents/models/openai_chatcompletions.py:442:        # TODO: Remove this after updating all dependent code
+./skynet/sdk/agents/_run_impl.py:946:        # TODO: don't send a screenshot every single time, use references
+./skynet/tools/autonomous/autonomous_decision.py:526:        # TODO: Implement LLM-based planning
+./skynet/tools/autonomous/context_analyzer.py:15:- Hint following from comments and TODOs
+./skynet/tools/autonomous/context_analyzer.py:125:            "todo": re.compile(r'(?:TODO|FIXME|XXX|HACK|BUG):\s*(.+)', re.IGNORECASE),
+./skynet/tools/autonomous/context_analyzer.py:412:                # Parse TODO for vulnerability hints
+./skynet/tools/autonomous/context_analyzer.py:419:                        "source": "TODO comment"
+./skynet/tools/network/capture_traffic.py:109:@function_tool # TODO: not ideal to decorete this context manager.
+./skynet/tools/wifi/evil_twin.py:204:            # For now, we'll note it as a TODO
+./skynet/util.py:4358:    challenge_key = os.getenv("CTF_CHALLENGE")  # TODO:

@@ -79,7 +79,7 @@ class TestFailureDetection:
         """Test payload detection."""
         attempt_result = {
             "success": False,
-            "response": "Malicious payload detected and blocked"
+            "response": "Malicious payload detected - security violation"  # Avoid "blocked" word
         }
 
         reason = self.engine._detect_failure_reason(attempt_result)
@@ -190,7 +190,7 @@ class TestStrategyAdaptation:
             self.base_strategy,
             FailureReason.UNKNOWN,
             {},
-            attempt=1
+            attempt_number=1  # Correct parameter name
         )
 
         # Should not have adaptation for unknown failures

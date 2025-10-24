@@ -447,9 +447,10 @@ class TestEdgeCases:
 class TestPerformance:
     """Test performance characteristics."""
 
+    @patch('skynet.tools.autonomous.auto_recon._enumerate_web')  # Correct function name
     @patch('skynet.tools.autonomous.auto_recon._quick_port_scan')
     @patch('skynet.tools.autonomous.auto_recon._detect_services')
-    def test_timeout_respected(self, mock_detect, mock_scan):
+    def test_timeout_respected(self, mock_detect, mock_scan, mock_web):
         """Test that timeout is respected."""
         import time
 
@@ -460,6 +461,7 @@ class TestPerformance:
         }
 
         mock_detect.return_value = {"services": []}
+        mock_web.return_value = {"directories": [], "files": []}  # Mock web enum to avoid gobuster
 
         start = time.time()
         result = full_auto_enumeration("10.10.10.5", timeout=2)

@@ -1,0 +1,391 @@
+# SKYNET - Configuración Rápida: Ollama + Kali Container
+
+Guía de inicio rápido para usar SKYNET con Ollama (LLM local) y contenedor Kali para herramientas de seguridad.
+
+---
+
+## Arquitectura
+
+```
+┌─────────────────┐         ┌──────────────────┐         ┌─────────────────┐
+│   Windows/Mac   │         │  Ollama Server   │         │  Kali Container │
+│   SKYNET CLI    │ ───────▶│  qwen2.5:7b      │         │  Security Tools │
+│   Orchestrator  │ ◀───────│  :11434          │         │  nmap, metasploit│
+│   T-800 Agent   │         └──────────────────┘         │  sqlmap, etc.   │
+│                 │ ────────────────────────────────────▶│  :22 (SSH)      │
+└─────────────────┘         Genera decisiones             └─────────────────┘
+   Orquestación              autónomas                     Ejecuta comandos
+```
+
+---
+
+## Paso 1: Instalar Ollama
+
+### Windows / MacOS
+
+1. Descargar de: https://ollama.com/download
+2. Instalar el ejecutable
+3. Verificar instalación:
+   ```bash
+   ollama --version
+   ```
+
+### Linux
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+---
+
+## Paso 2: Descargar Modelo Recomendado
+
+El modelo **qwen2.5:7b** está optimizado para operaciones autónomas (razonamiento, decisiones tácticas):
+
+```bash
+ollama pull qwen2.5:7b
+```
+
+**Alternativas** (menor rendimiento autónomo):
+- `llama3:8b` - General purpose, más rápido pero menos razonamiento
+- `mistral:7b` - Bueno para tool calling
+- `deepseek-coder:6.7b` - Especializado en código
+
+**Requerimientos**:
+- qwen2.5:7b: ~5GB RAM, ~4.7GB disco
+- Tiempo de descarga: 2-5 min (depende de conexión)
+
+---
+
+## Paso 3: Iniciar Ollama Server
+
+Ollama se ejecuta automáticamente como servicio en Windows/Mac. Verificar:
+
+```bash
+ollama list
+# Debería mostrar: qwen2.5:7b
+```
+
+**Puerto por defecto**: `http://localhost:11434/v1` (compatible OpenAI API)
+
+---
+
+## Paso 4: Configurar Kali Container
+
+### Opción A: Docker Compose (Recomendado)
+
+Crear `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+services:
+  kali:
+    image: kalilinux/kali-rolling
+    container_name: skynet-kali
+    network_mode: bridge
+    ports:
+      - "2222:22"  # SSH
+    volumes:
+      - ./results:/root/results  # Compartir resultados
+    command: >
+      /bin/bash -c "
+      apt-get update &&
+      apt-get install -y openssh-server nmap metasploit-framework sqlmap nuclei &&
+      service ssh start &&
+      tail -f /dev/null
+      "
+    restart: unless-stopped
+```
+
+Iniciar:
+```bash
+docker-compose up -d
+```
+
+### Opción B: Docker run directo
+
+```bash
+docker run -d \
+  --name skynet-kali \
+  -p 2222:22 \
+  -v $(pwd)/results:/root/results \
+  kalilinux/kali-rolling \
+  bash -c "apt-get update && apt-get install -y openssh-server nmap && service ssh start && tail -f /dev/null"
+```
+
+### Configurar SSH (Opcional - para acceso directo)
+
+```bash
+# Dentro del contenedor
+docker exec -it skynet-kali bash
+passwd root  # Establecer contraseña
+```
+
+Desde Windows, conectar:
+```bash
+ssh root@localhost -p 2222
+```
+
+---
+
+## Paso 5: Configurar SKYNET
+
+### Variables de Entorno
+
+Crear `.env` en `C:\Users\admin\Documents\cai\`:
+
+```bash
+# Ollama Configuration
+OPENAI_BASE_URL=http://localhost:11434/v1
+SKYNET_MODEL=qwen2.5:7b
+OPENAI_API_KEY=ollama  # Dummy key requerido
+
+# Agent Configuration
+SKYNET_AGENT_TYPE=t800_infiltrator  # Agente ofensivo con autonomía
+SKYNET_GUARDRAILS=true              # Seguridad habilitada
+SKYNET_DEBUG=1                       # Logs informativos
+
+# Autonomous Features
+SKYNET_LEARNING=true                 # Learning Engine activo
+SKYNET_ADAPTIVE=true                 # Adaptive Strategy activo
+
+# CTF/Lab Configuration (opcional)
+CTF_SUBNET=192.168.3.0/24
+CTF_IP=192.168.3.100
+CTF_INSIDE=true  # Ejecutar desde dentro del contenedor
+```
+
+### Instalar SKYNET (si no está instalado)
+
+```bash
+cd C:\Users\admin\Documents\cai
+.venv313\Scripts\activate  # O tu virtualenv preferido
+pip install -e .
+```
+
+---
+
+## Paso 6: Primera Operación Autónoma
+
+### Test de Conectividad
+
+```bash
+# Verificar Ollama
+ollama list
+
+# Verificar Kali
+docker ps | grep skynet-kali
+
+# Verificar SKYNET import
+python -c "from skynet.agents.t800_infiltrator import t800_infiltrator; print('T-800 READY')"
+```
+
+### Lanzar T-800 Infiltrator
+
+```bash
+# Con variables de entorno cargadas
+skynet
+
+# O especificar directamente
+OPENAI_BASE_URL=http://localhost:11434/v1 SKYNET_MODEL=qwen2.5:7b SKYNET_AGENT_TYPE=t800_infiltrator skynet
+```
+
+### Ejemplo de Uso - Reconocimiento Autónomo
+
+Una vez en el REPL de SKYNET:
+
+```
+You: Necesito reconocer el objetivo 192.168.3.100, es una máquina TryHackMe
+
+[T-800 automáticamente]:
+1. Ejecuta nmap con parámetros óptimos
+2. Analiza resultados (extract_credentials, analyze_context)
+3. Busca exploits conocidos (get_learned_recommendations)
+4. Si falla, adapta técnica (execute_with_adaptation)
+5. Registra aprendizaje (record_operation)
+```
+
+---
+
+## Verificación del Sistema
+
+### Script de Diagnóstico
+
+```python
+# scripts/verify_ollama_kali.py
+import os
+import requests
+from skynet.agents.t800_infiltrator import t800_infiltrator
+
+def verify_ollama():
+    """Verificar Ollama está funcionando"""
+    try:
+        resp = requests.get("http://localhost:11434/api/tags")
+        models = [m['name'] for m in resp.json().get('models', [])]
+        print(f"✓ Ollama running. Models: {models}")
+        return 'qwen2.5:7b' in ' '.join(models)
+    except:
+        print("✗ Ollama not accessible")
+        return False
+
+def verify_t800():
+    """Verificar T-800 carga correctamente"""
+    try:
+        tools = len(t800_infiltrator.tools)
+        model = t800_infiltrator.model.model
+        print(f"✓ T-800 loaded: {tools} tools, model={model}")
+        return tools >= 8
+    except Exception as e:
+        print(f"✗ T-800 failed: {e}")
+        return False
+
+def verify_kali():
+    """Verificar Kali container"""
+    import subprocess
+    result = subprocess.run(['docker', 'ps', '--filter', 'name=skynet-kali'],
+                          capture_output=True, text=True)
+    running = 'skynet-kali' in result.stdout
+    print(f"{'✓' if running else '✗'} Kali container {'running' if running else 'not found'}")
+    return running
+
+if __name__ == "__main__":
+    print("SKYNET System Verification")
+    print("=" * 50)
+
+    checks = [
+        ("Ollama Server", verify_ollama()),
+        ("T-800 Agent", verify_t800()),
+        ("Kali Container", verify_kali()),
+    ]
+
+    passed = sum(1 for _, result in checks if result)
+    print("=" * 50)
+    print(f"Result: {passed}/3 checks passed")
+
+    if passed == 3:
+        print("\n✓ System ready for autonomous operations!")
+    else:
+        print("\n✗ System not ready. Fix issues above.")
+```
+
+Ejecutar:
+```bash
+python scripts/verify_ollama_kali.py
+```
+
+---
+
+## Capacidades Autónomas del T-800
+
+### 1. Learning Engine
+- **Qué hace**: Registra cada operación en SQLite local (`.skynet_knowledge/operations.db`)
+- **Beneficio**: Aprende qué exploits funcionan contra qué targets
+- **Uso automático**: `get_learned_recommendations()` sugiere exploits basados en historial
+
+### 2. Adaptive Strategy
+- **Qué hace**: Detecta 10 tipos de fallo (WAF, IPS, rate limit, timeout, etc.)
+- **Beneficio**: Auto-adapta exploits con encoding, obfuscación, delays
+- **Uso automático**: `execute_with_adaptation()` reintenta hasta 5 veces con ajustes
+
+### 3. Context Analyzer
+- **Qué hace**: Extrae credenciales (20+ patrones), hints, vulnerabilidades de cualquier texto
+- **Beneficio**: No pierde información valiosa en logs/banners
+- **Uso automático**: `analyze_context()` + `extract_credentials()` + `follow_hints()`
+
+---
+
+## Troubleshooting
+
+### Ollama no responde
+
+```bash
+# Windows
+Get-Process ollama
+# Si no aparece:
+ollama serve
+
+# Linux/Mac
+systemctl status ollama
+systemctl start ollama
+```
+
+### Modelo qwen2.5:7b no encontrado
+
+```bash
+ollama pull qwen2.5:7b
+# Esperar descarga (4.7GB)
+ollama list  # Verificar
+```
+
+### Kali container sin herramientas
+
+```bash
+docker exec -it skynet-kali bash
+apt-get update
+apt-get install -y nmap metasploit-framework sqlmap nuclei gobuster ffuf
+```
+
+### Error "No module named 'skynet.agents.t800_infiltrator'"
+
+```bash
+# Reinstalar en modo desarrollo
+cd C:\Users\admin\Documents\cai
+pip install -e .
+```
+
+### Guardrails bloquean operaciones legítimas
+
+```bash
+# Deshabilitar SOLO para entornos de prueba autorizados
+export SKYNET_GUARDRAILS=false
+skynet
+```
+
+---
+
+## Rendimiento y Optimización
+
+### Modelos Recomendados por Caso de Uso
+
+| Caso de Uso | Modelo Recomendado | RAM Req | Velocidad | Autonomía |
+|-------------|-------------------|---------|-----------|-----------|
+| **CTF/TryHackMe** | `qwen2.5:7b` | 5GB | Media | ★★★★★ |
+| **Bug Bounty** | `qwen2.5:14b` | 9GB | Lenta | ★★★★★ |
+| **Pentesting Rápido** | `llama3:8b` | 6GB | Rápida | ★★★☆☆ |
+| **Análisis Código** | `deepseek-coder:6.7b` | 5GB | Media | ★★★★☆ |
+| **Recursos Limitados** | `phi3:mini` | 2GB | Muy rápida | ★★☆☆☆ |
+
+### Parámetros de Ollama para mejor autonomía
+
+Crear `~/.ollama/models/qwen2.5-autonomous.json`:
+
+```json
+{
+  "model": "qwen2.5:7b",
+  "temperature": 0.3,
+  "top_p": 0.9,
+  "top_k": 40,
+  "repeat_penalty": 1.1,
+  "num_ctx": 8192
+}
+```
+
+Usar:
+```bash
+export SKYNET_MODEL=qwen2.5-autonomous
+```
+
+---
+
+## Próximos Pasos
+
+1. **Explorar Agentes**: `/agent` en REPL para ver todos los agentes disponibles
+2. **Configurar CTF Master**: Agente especializado en CTFs con orquestación multi-tool
+3. **Configurar Knowledge Base**: Inicializar base de datos de vulnerabilidades
+4. **Habilitar Tracing**: Visualizar decisiones autónomas con OpenTelemetry
+
+Ver: `docs/AUTONOMY_GUIDE.md` para detalles completos del sistema autónomo.
+
+---
+
+**SKYNET T-800 OPERATIONAL** 🤖🔥
