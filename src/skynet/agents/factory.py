@@ -19,7 +19,7 @@ def create_generic_agent_factory(
     Create a generic factory function for any agent.
 
     Args:
-        agent_module_path: Full module path to the agent (e.g., 'cai.agents.t600_scout')
+        agent_module_path: Full module path to the agent (e.g., 'skynet.agents.t600_scout')
         agent_var_name: Name of the agent variable in the module (e.g., 't600_scout')
 
     Returns:
@@ -112,7 +112,7 @@ def discover_agent_factories() -> Dict[str, Callable[[], Agent]]:
 
     # Scan the agents module for all agent definitions
     for importer, modname, ispkg in pkgutil.iter_modules(
-        cai.agents.__path__, cai.agents.__name__ + "."
+        skynet.agents.__path__, skynet.agents.__name__ + "."
     ):
         if ispkg:
             continue  # Skip packages like 'patterns' and 'meta'
@@ -137,10 +137,10 @@ def discover_agent_factories() -> Dict[str, Callable[[], Agent]]:
             continue
 
     # Also scan patterns subdirectory
-    patterns_path = os.path.join(os.path.dirname(cai.agents.__file__), "patterns")
+    patterns_path = os.path.join(os.path.dirname(skynet.agents.__file__), "patterns")
     if os.path.exists(patterns_path):
         for importer, modname, ispkg in pkgutil.iter_modules(
-            [patterns_path], cai.agents.__name__ + ".patterns."
+            [patterns_path], skynet.agents.__name__ + ".patterns."
         ):
             if ispkg:
                 continue
