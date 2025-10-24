@@ -14,6 +14,8 @@
 9. **Test Failures Investigation** - Investigados 13 tests adicionales en Python 3.13
 10. **RAG Dependencies** - Instalados chromadb, schedule, sentence-transformers
 11. **pyproject.toml Update** - Agregado [rag] optional dependencies
+12. **VectorDatabase Bug Fix** - Fixed client/collection attributes missing
+13. **README Update** - Agregadas instrucciones de instalación RAG
 
 ### 🎯 Decisión Final: Python 3.13.0 (RECOMENDADO)
 
@@ -21,12 +23,15 @@
 - **Python 3.14**: 696 passed (64.9%), 314 failed
 - **Python 3.13 (inicial)**: 680 passed (63.4%), 327 failed (-16 tests)
 - **Python 3.13 (con RAG deps)**: 694 passed (64.7%), 313 failed (+14 tests fixed!)
+- **Python 3.13 (con VectorDatabase fix)**: 695 passed (64.8%), 312 failed (+15 tests fixed!)
 - **Decisión**: Usar Python 3.13 por estabilidad LTS y compatibilidad completa
 
-**Investigación Completada:**
+**Investigación y Fixes Completados:**
 - 15 tests fallaban solo en Python 3.13 (todos RAG-related)
-- Causa raíz: Missing dependencies (chromadb, schedule, sentence-transformers)
+- Causa raíz 1: Missing dependencies (chromadb, schedule, sentence-transformers) → Fixed 14 tests
+- Causa raíz 2: VectorDatabase.client attribute missing → Fixed 1 test
 - Solución: Agregados a `pyproject.toml` como `[rag]` optional dependencies
+- Bug fix: `simple_vector_db.py` con properties client/collection
 - Ver `PYTHON313_INVESTIGATION_REPORT.md` para detalles completos
 
 **Documentación Creada:**
