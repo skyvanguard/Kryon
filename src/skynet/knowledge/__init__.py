@@ -67,6 +67,19 @@ from .async_rag_engine import (
     get_async_knowledge_stats
 )
 
+from .async_vector_db import (
+    AsyncVectorDatabase,
+    get_async_vector_db,
+    add_documents_async,
+    query_async
+)
+
+from .streaming_rag import (
+    StreamingRAGEngine,
+    get_streaming_rag_engine,
+    query_knowledge_stream
+)
+
 __all__ = [
     # RAG Engine
     "query_knowledge",
@@ -80,9 +93,18 @@ __all__ = [
     "query_knowledge_async",
     "query_knowledge_batch",
     "get_async_knowledge_stats",
+    # Streaming RAG Engine
+    "StreamingRAGEngine",
+    "get_streaming_rag_engine",
+    "query_knowledge_stream",
     # Vector Database
     "VectorDatabase",
     "get_vector_db",
+    # Async Vector Database
+    "AsyncVectorDatabase",
+    "get_async_vector_db",
+    "add_documents_async",
+    "query_async",
     # Auto-updater
     "auto_update_knowledge",
     "start_auto_updater",

@@ -50,7 +50,8 @@ class AsyncRAGEngine:
         self,
         vector_db=None,
         llm_config: Optional[Dict] = None,
-        max_concurrent_llm_calls: int = 3
+        max_concurrent_llm_calls: int = 3,
+        use_async_vector_db: bool = True
     ):
         """
         Initialize Async RAG engine.
@@ -59,10 +60,17 @@ class AsyncRAGEngine:
             vector_db: Vector database instance (auto-created if None)
             llm_config: LLM configuration (loads from file if None)
             max_concurrent_llm_calls: Max parallel LLM calls (default: 3)
+            use_async_vector_db: Use async vector DB (default: True)
         """
-        from .vector_db import get_vector_db
+        if use_async_vector_db:
+            from .async_vector_db import get_async_vector_db
+            self.vector_db = vector_db or get_async_vector_db()
+            self.is_async_db = True
+        else:
+            from .vector_db import get_vector_db
+            self.vector_db = vector_db or get_vector_db()
+            self.is_async_db = False
 
-        self.vector_db = vector_db or get_vector_db()
         self.llm_config = llm_config or self._load_llm_config()
         self.max_concurrent_llm_calls = max_concurrent_llm_calls
 
@@ -114,17 +122,25 @@ class AsyncRAGEngine:
         if source_filter:
             filter_metadata = {"source": source_filter}
 
-        # Retrieve relevant documents (sync for now - vector_db is sync)
-        # TODO: Make vector_db async in future phase
-        loop = asyncio.get_event_loop()
-        retrieved_docs = await loop.run_in_executor(
-            None,
-            lambda: self.vector_db.query(
+        # Retrieve relevant documents
+        if self.is_async_db:
+            # True async query (no executor needed!)
+            retrieved_docs = await self.vector_db.query_async(
                 query_text=question,
                 top_k=top_k,
                 filter_metadata=filter_metadata
             )
-        )
+        else:
+            # Fallback to sync with executor
+            loop = asyncio.get_event_loop()
+            retrieved_docs = await loop.run_in_executor(
+                None,
+                lambda: self.vector_db.query(
+                    query_text=question,
+                    top_k=top_k,
+                    filter_metadata=filter_metadata
+                )
+            )
 
         # Build context from retrieved documents
         context = self._build_context(retrieved_docs)
