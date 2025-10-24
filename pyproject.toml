@@ -60,6 +60,11 @@ Documentation = "https://skynet-framework.readthedocs.io"
 voice = ["numpy>=2.2.0, <3; python_version>='3.10'", "websockets>=15.0, <16"]
 viz = ["graphviz>=0.17"]
 tracing = ["openinference-instrumentation-openai>=0.1.22; python_version<'3.14'"]
+rag = [
+    "chromadb>=1.2.0",
+    "schedule>=1.2.0",
+    "sentence-transformers>=5.0.0",
+]
 
 [dependency-groups]
 dev = [

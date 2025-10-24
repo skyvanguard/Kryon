@@ -11,13 +11,23 @@
 6. **Python 3.13 Installation** - Instalado y configurado venv313
 7. **Version Comparison** - Análisis completo Python 3.13 vs 3.14
 8. **Documentation** - Creados reportes y guías de integración con Kali
+9. **Test Failures Investigation** - Investigados 13 tests adicionales en Python 3.13
+10. **RAG Dependencies** - Instalados chromadb, schedule, sentence-transformers
+11. **pyproject.toml Update** - Agregado [rag] optional dependencies
 
 ### 🎯 Decisión Final: Python 3.13.0 (RECOMENDADO)
 
 **Resultados de Tests:**
 - **Python 3.14**: 696 passed (64.9%), 314 failed
-- **Python 3.13**: 680 passed (63.4%), 327 failed
+- **Python 3.13 (inicial)**: 680 passed (63.4%), 327 failed (-16 tests)
+- **Python 3.13 (con RAG deps)**: 694 passed (64.7%), 313 failed (+14 tests fixed!)
 - **Decisión**: Usar Python 3.13 por estabilidad LTS y compatibilidad completa
+
+**Investigación Completada:**
+- 15 tests fallaban solo en Python 3.13 (todos RAG-related)
+- Causa raíz: Missing dependencies (chromadb, schedule, sentence-transformers)
+- Solución: Agregados a `pyproject.toml` como `[rag]` optional dependencies
+- Ver `PYTHON313_INVESTIGATION_REPORT.md` para detalles completos
 
 **Documentación Creada:**
 - `TEST_EXECUTION_REPORT.md` - Reporte completo Python 3.14
