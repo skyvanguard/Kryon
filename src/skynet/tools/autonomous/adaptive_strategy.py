@@ -18,10 +18,11 @@ Features:
 - Learning from failures
 """
 
+import hashlib
 import random
 import time
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 class FailureReason(Enum):
@@ -64,13 +65,17 @@ class AdaptiveStrategy:
         self.attempt_history = []
         self.defenses_detected = set()
 
+        # Performance optimization: cache adaptation strategies
+        self._adaptation_cache: dict[str, dict[str, Any]] = {}
+        self._failure_pattern_cache: dict[str, FailureReason] = {}
+
     def adaptive_exploit_execution(
         self,
         target_ip: str,
-        exploit: Dict[str, Any],
-        service: Dict[str, Any],
-        initial_strategy: Optional[Dict] = None,
-    ) -> Dict[str, Any]:
+        exploit: dict[str, Any],
+        service: dict[str, Any],
+        initial_strategy: Optional[dict] = None,
+    ) -> dict[str, Any]:
         """
         Execute exploit with adaptive retry logic.
 
@@ -158,9 +163,11 @@ class AdaptiveStrategy:
 
         return results
 
-    def _detect_failure_reason(self, attempt_result: Dict[str, Any]) -> FailureReason:
+    def _detect_failure_reason(self, attempt_result: dict[str, Any]) -> FailureReason:
         """
         Detect why an exploit attempt failed.
+
+        Performance: Caches failure patterns to avoid redundant regex matching.
 
         Args:
             attempt_result: Result of exploit attempt
@@ -168,9 +175,21 @@ class AdaptiveStrategy:
         Returns:
             FailureReason enum
         """
+        # Generate cache key from error message + response + status code
         error_msg = str(attempt_result.get("error", "")).lower()
         response = str(attempt_result.get("response", "")).lower()
         status_code = attempt_result.get("status_code", 0)
+
+        cache_key = hashlib.md5(
+            f"{error_msg}:{response}:{status_code}".encode()
+        ).hexdigest()
+
+        # Check cache first
+        if cache_key in self._failure_pattern_cache:
+            return self._failure_pattern_cache[cache_key]
+
+        # Determine failure reason
+        failure_reason = FailureReason.UNKNOWN
 
         # WAF detection
         if any(
@@ -187,23 +206,23 @@ class AdaptiveStrategy:
                 "modsecurity",
             ]
         ):
-            return FailureReason.WAF_BLOCKED
+            failure_reason = FailureReason.WAF_BLOCKED
 
         # IPS detection
-        if any(
+        elif any(
             indicator in error_msg for indicator in ["intrusion", "ips", "ids", "snort", "suricata"]
         ):
-            return FailureReason.IPS_BLOCKED
+            failure_reason = FailureReason.IPS_BLOCKED
 
         # Rate limiting
-        if status_code == 429 or any(
+        elif status_code == 429 or any(
             indicator in error_msg or indicator in response
             for indicator in ["rate limit", "too many requests", "429", "throttle", "slow down"]
         ):
-            return FailureReason.RATE_LIMITED
+            failure_reason = FailureReason.RATE_LIMITED
 
         # Authentication required
-        if (
+        elif (
             status_code == 401
             or status_code == 403
             or any(
@@ -217,10 +236,10 @@ class AdaptiveStrategy:
                 ]
             )
         ):
-            return FailureReason.AUTH_REQUIRED
+            failure_reason = FailureReason.AUTH_REQUIRED
 
         # Service crashed
-        if any(
+        elif any(
             indicator in error_msg
             for indicator in [
                 "connection refused",
@@ -231,38 +250,40 @@ class AdaptiveStrategy:
                 "503",
             ]
         ):
-            return FailureReason.SERVICE_CRASHED
+            failure_reason = FailureReason.SERVICE_CRASHED
 
         # Timeout
-        if "timeout" in error_msg or "timed out" in error_msg:
-            return FailureReason.TIMEOUT
+        elif "timeout" in error_msg or "timed out" in error_msg:
+            failure_reason = FailureReason.TIMEOUT
 
         # Payload detected
-        if any(
+        elif any(
             indicator in response
             for indicator in ["malicious", "attack detected", "suspicious", "security violation"]
         ):
-            return FailureReason.PAYLOAD_DETECTED
+            failure_reason = FailureReason.PAYLOAD_DETECTED
 
         # Permission denied
-        if "permission denied" in error_msg or "access denied" in error_msg:
-            return FailureReason.PERMISSION_DENIED
+        elif "permission denied" in error_msg or "access denied" in error_msg:
+            failure_reason = FailureReason.PERMISSION_DENIED
 
         # Network errors
-        if any(
+        elif any(
             indicator in error_msg for indicator in ["network", "dns", "unreachable", "connection"]
         ):
-            return FailureReason.NETWORK_ERROR
+            failure_reason = FailureReason.NETWORK_ERROR
 
-        return FailureReason.UNKNOWN
+        # Cache the result for future use
+        self._failure_pattern_cache[cache_key] = failure_reason
+        return failure_reason
 
     def _adapt_strategy(
         self,
-        current_strategy: Dict,
+        current_strategy: dict,
         failure_reason: FailureReason,
-        attempt_result: Dict,
+        attempt_result: dict,
         attempt_number: int,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """
         Adapt strategy based on failure reason.
 
@@ -292,7 +313,7 @@ class AdaptiveStrategy:
 
         return None
 
-    def _adapt_for_waf(self, strategy: Dict, result: Dict, attempt: int) -> Dict[str, Any]:
+    def _adapt_for_waf(self, strategy: dict, result: dict, attempt: int) -> dict[str, Any]:
         """Adapt strategy to bypass WAF using Evasion Autonomy v3.1."""
         adapted = strategy.copy()
         adapted["description"] = "WAF bypass attempt (Evasion Autonomy v3.1)"
@@ -300,6 +321,7 @@ class AdaptiveStrategy:
         # Get evasion recommendations from new evasion module
         try:
             from skynet.tools.autonomous.evasion_autonomy import get_evasion_recommendations
+
             evasion_recs = get_evasion_recommendations("waf")
             adapted["evasion_techniques"] = evasion_recs.get("recommended_techniques", [])
         except ImportError:
@@ -329,7 +351,7 @@ class AdaptiveStrategy:
 
         return adapted
 
-    def _adapt_for_ips(self, strategy: Dict, result: Dict, attempt: int) -> Dict[str, Any]:
+    def _adapt_for_ips(self, strategy: dict, result: dict, attempt: int) -> dict[str, Any]:
         """Adapt strategy to evade IPS."""
         adapted = strategy.copy()
         adapted["description"] = "IPS evasion attempt"
@@ -345,7 +367,7 @@ class AdaptiveStrategy:
 
         return adapted
 
-    def _adapt_for_rate_limit(self, strategy: Dict, result: Dict, attempt: int) -> Dict[str, Any]:
+    def _adapt_for_rate_limit(self, strategy: dict, result: dict, attempt: int) -> dict[str, Any]:
         """Adapt strategy for rate limiting."""
         adapted = strategy.copy()
         adapted["description"] = "Rate limit evasion"
@@ -366,7 +388,7 @@ class AdaptiveStrategy:
 
         return adapted
 
-    def _adapt_for_auth(self, strategy: Dict, result: Dict, attempt: int) -> Dict[str, Any]:
+    def _adapt_for_auth(self, strategy: dict, result: dict, attempt: int) -> dict[str, Any]:
         """Adapt strategy for authentication requirements."""
         adapted = strategy.copy()
         adapted["description"] = "Authentication bypass attempt"
@@ -391,7 +413,7 @@ class AdaptiveStrategy:
 
         return adapted
 
-    def _adapt_for_crash(self, strategy: Dict, result: Dict, attempt: int) -> Dict[str, Any]:
+    def _adapt_for_crash(self, strategy: dict, result: dict, attempt: int) -> dict[str, Any]:
         """Adapt strategy when service crashes."""
         adapted = strategy.copy()
         adapted["description"] = "Service recovery wait"
@@ -407,7 +429,7 @@ class AdaptiveStrategy:
 
         return adapted
 
-    def _adapt_for_timeout(self, strategy: Dict, result: Dict, attempt: int) -> Dict[str, Any]:
+    def _adapt_for_timeout(self, strategy: dict, result: dict, attempt: int) -> dict[str, Any]:
         """Adapt strategy for timeouts."""
         adapted = strategy.copy()
         adapted["description"] = "Timeout mitigation"
@@ -423,8 +445,8 @@ class AdaptiveStrategy:
         return adapted
 
     def _adapt_for_payload_detection(
-        self, strategy: Dict, result: Dict, attempt: int
-    ) -> Dict[str, Any]:
+        self, strategy: dict, result: dict, attempt: int
+    ) -> dict[str, Any]:
         """Adapt strategy when payload is detected."""
         adapted = strategy.copy()
         adapted["description"] = "Payload obfuscation"
@@ -442,8 +464,8 @@ class AdaptiveStrategy:
         return adapted
 
     def _adapt_for_permission_denied(
-        self, strategy: Dict, result: Dict, attempt: int
-    ) -> Dict[str, Any]:
+        self, strategy: dict, result: dict, attempt: int
+    ) -> dict[str, Any]:
         """Adapt strategy for permission denied errors."""
         adapted = strategy.copy()
         adapted["description"] = "Permission escalation attempt"
@@ -460,7 +482,7 @@ class AdaptiveStrategy:
 
         return adapted
 
-    def _create_initial_strategy(self, exploit: Dict, service: Dict) -> Dict[str, Any]:
+    def _create_initial_strategy(self, exploit: dict, service: dict) -> dict[str, Any]:
         """Create initial execution strategy."""
         return {
             "description": "Standard execution",
@@ -474,8 +496,8 @@ class AdaptiveStrategy:
         }
 
     def _execute_exploit_attempt(
-        self, target_ip: str, exploit: Dict, service: Dict, strategy: Dict
-    ) -> Dict[str, Any]:
+        self, target_ip: str, exploit: dict, service: dict, strategy: dict
+    ) -> dict[str, Any]:
         """
         Execute single exploit attempt (mock implementation).
 
@@ -520,8 +542,8 @@ class AdaptiveStrategy:
 
 # Convenience function
 def execute_with_adaptation(
-    target_ip: str, exploit: Dict[str, Any], service: Dict[str, Any], max_attempts: int = 5
-) -> Dict[str, Any]:
+    target_ip: str, exploit: dict[str, Any], service: dict[str, Any], max_attempts: int = 5
+) -> dict[str, Any]:
     """
     Execute exploit with automatic adaptation.
 

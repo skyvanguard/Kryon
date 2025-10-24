@@ -382,7 +382,7 @@ class LearningEngine:
         data = f"{operation_data.get('target_ip', '')}{time.time()}"
         return hashlib.sha256(data.encode()).hexdigest()[:16]
 
-    def _extract_target_profile(self, operation_data: dict) -> Dict:
+    def _extract_target_profile(self, operation_data: dict) -> dict:
         """Extract target characteristics for pattern matching."""
         return {
             "os": operation_data.get("target_type", "unknown"),
@@ -391,14 +391,14 @@ class LearningEngine:
             "difficulty": operation_data.get("difficulty", "medium"),
         }
 
-    def _extract_exploit_history(self, results: dict) -> Dict:
+    def _extract_exploit_history(self, results: dict) -> dict:
         """Extract exploit attempt history."""
         return {
             "attempted": results.get("exploits_attempted", []),
             "successful": results.get("exploits_successful", []),
         }
 
-    def _create_pattern_from_exploit(self, operation: dict, exploit: dict, success: bool) -> Dict:
+    def _create_pattern_from_exploit(self, operation: dict, exploit: dict, success: bool) -> dict:
         """Create a pattern from an exploit attempt."""
         target_chars = {
             "os": operation["target_os"],
