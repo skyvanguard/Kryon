@@ -24,7 +24,7 @@ import time
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 
 class LearningEngine:
@@ -138,10 +138,32 @@ class LearningEngine:
             ON patterns(success_rate DESC)
         """)
 
+        # Additional performance indices for common queries
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_operations_target_os_success
+            ON operations(target_os, success)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_operations_timestamp
+            ON operations(timestamp DESC)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_patterns_confidence
+            ON patterns(confidence_score DESC)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_service_vulns_service
+            ON service_vulns(service_name, service_version)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_patterns_last_used
+            ON patterns(last_used DESC)
+        """)
+
         conn.commit()
         conn.close()
 
-    def record_operation(self, operation_data: Dict[str, Any], results: Dict[str, Any]) -> str:
+    def record_operation(self, operation_data: dict[str, Any], results: dict[str, Any]) -> str:
         """
         Record a complete operation for learning.
 
@@ -197,7 +219,7 @@ class LearningEngine:
 
         return operation_id
 
-    def learn_from_operation(self, operation_id: str) -> Dict[str, Any]:
+    def learn_from_operation(self, operation_id: str) -> dict[str, Any]:
         """
         Extract patterns and update knowledge base from an operation.
 
@@ -271,8 +293,8 @@ class LearningEngine:
         }
 
     def get_learned_recommendations(
-        self, target_profile: Dict[str, Any], top_n: int = 5, min_confidence: float = 0.5
-    ) -> Dict[str, Any]:
+        self, target_profile: dict[str, Any], top_n: int = 5, min_confidence: float = 0.5
+    ) -> dict[str, Any]:
         """
         Get intelligent recommendations based on learned patterns.
 
@@ -355,12 +377,12 @@ class LearningEngine:
         conn.close()
         return recommendations
 
-    def _generate_operation_id(self, operation_data: Dict, results: Dict) -> str:
+    def _generate_operation_id(self, operation_data: dict, results: dict) -> str:
         """Generate unique operation ID."""
         data = f"{operation_data.get('target_ip', '')}{time.time()}"
         return hashlib.sha256(data.encode()).hexdigest()[:16]
 
-    def _extract_target_profile(self, operation_data: Dict) -> Dict:
+    def _extract_target_profile(self, operation_data: dict) -> Dict:
         """Extract target characteristics for pattern matching."""
         return {
             "os": operation_data.get("target_type", "unknown"),
@@ -369,14 +391,14 @@ class LearningEngine:
             "difficulty": operation_data.get("difficulty", "medium"),
         }
 
-    def _extract_exploit_history(self, results: Dict) -> Dict:
+    def _extract_exploit_history(self, results: dict) -> Dict:
         """Extract exploit attempt history."""
         return {
             "attempted": results.get("exploits_attempted", []),
             "successful": results.get("exploits_successful", []),
         }
 
-    def _create_pattern_from_exploit(self, operation: Dict, exploit: Dict, success: bool) -> Dict:
+    def _create_pattern_from_exploit(self, operation: dict, exploit: dict, success: bool) -> Dict:
         """Create a pattern from an exploit attempt."""
         target_chars = {
             "os": operation["target_os"],
@@ -397,7 +419,7 @@ class LearningEngine:
             "time_taken": operation["time_to_first_shell"],
         }
 
-    def _update_pattern(self, pattern: Dict):
+    def _update_pattern(self, pattern: dict):
         """Update pattern in database with new observation."""
         conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
@@ -488,7 +510,7 @@ class LearningEngine:
         conn.close()
 
     def _update_exploit_stats(
-        self, exploit: Dict, success: bool, time_taken: float, target_type: str
+        self, exploit: dict, success: bool, time_taken: float, target_type: str
     ):
         """Update global exploit statistics."""
         conn = sqlite3.connect(str(self.db_path))
@@ -564,7 +586,7 @@ class LearningEngine:
         conn.close()
 
     def _update_service_vuln(
-        self, service: Dict, exploit: Dict, success_rate: float, time_taken: float
+        self, service: dict, exploit: dict, success_rate: float, time_taken: float
     ):
         """Update service vulnerability mapping."""
         conn = sqlite3.connect(str(self.db_path))
@@ -593,7 +615,7 @@ class LearningEngine:
         conn.commit()
         conn.close()
 
-    def _find_similar_operations(self, cursor, target_profile: Dict, limit: int = 10) -> List[Dict]:
+    def _find_similar_operations(self, cursor, target_profile: dict, limit: int = 10) -> list[dict]:
         """Find similar past operations."""
         # Simple similarity based on OS and service overlap
         target_os = target_profile.get("os", "unknown")
@@ -611,7 +633,7 @@ class LearningEngine:
         columns = [desc[0] for desc in cursor.description]
         return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
-    def _find_matching_patterns(self, cursor, target_profile: Dict) -> List[Dict]:
+    def _find_matching_patterns(self, cursor, target_profile: dict) -> list[dict]:
         """Find patterns matching target characteristics."""
         cursor.execute("""
             SELECT * FROM patterns
@@ -632,7 +654,7 @@ class LearningEngine:
 
         return matching
 
-    def _matches_target(self, pattern_chars: Dict, target_profile: Dict) -> bool:
+    def _matches_target(self, pattern_chars: dict, target_profile: dict) -> bool:
         """Check if pattern characteristics match target."""
         # Simple matching - can be enhanced with fuzzy matching
         if pattern_chars.get("os") != target_profile.get("os"):
@@ -665,7 +687,7 @@ class LearningEngine:
         else:
             return 0.4
 
-    def _extract_strategies(self, similar_ops: List[Dict]) -> List[str]:
+    def _extract_strategies(self, similar_ops: list[dict]) -> list[str]:
         """Extract common strategies from similar operations."""
         strategies = []
 
@@ -678,7 +700,7 @@ class LearningEngine:
 
         return strategies
 
-    def export_knowledge(self, export_path: str) -> Dict[str, Any]:
+    def export_knowledge(self, export_path: str) -> dict[str, Any]:
         """Export learned knowledge to file for sharing."""
         conn = sqlite3.connect(str(self.db_path))
 
@@ -741,18 +763,18 @@ def get_learning_engine() -> LearningEngine:
 
 
 # Convenience functions
-def record_operation(operation_data: Dict[str, Any], results: Dict[str, Any]) -> str:
+def record_operation(operation_data: dict[str, Any], results: dict[str, Any]) -> str:
     """Record an operation for learning."""
     return get_learning_engine().record_operation(operation_data, results)
 
 
 def get_learned_recommendations(
-    target_profile: Dict[str, Any], top_n: int = 5, min_confidence: float = 0.5
-) -> Dict[str, Any]:
+    target_profile: dict[str, Any], top_n: int = 5, min_confidence: float = 0.5
+) -> dict[str, Any]:
     """Get learned recommendations for a target."""
     return get_learning_engine().get_learned_recommendations(target_profile, top_n, min_confidence)
 
 
-def export_learned_knowledge(export_path: str = "skynet_knowledge_export.json") -> Dict[str, Any]:
+def export_learned_knowledge(export_path: str = "skynet_knowledge_export.json") -> dict[str, Any]:
     """Export learned knowledge to file."""
     return get_learning_engine().export_knowledge(export_path)

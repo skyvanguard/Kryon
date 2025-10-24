@@ -5,16 +5,16 @@ LRU-based cache with TTL support, persistent storage, and automatic cleanup.
 Optimizes SKYNET operations by caching expensive scan results and preventing duplicates.
 """
 
-import json
 import hashlib
-import time
+import json
 import pickle
-import os
+import threading
+import time
+import zlib
 from collections import OrderedDict
-from typing import Any, Optional, Dict, Callable
 from functools import wraps
 from pathlib import Path
-import threading
+from typing import Any, Callable, Optional
 
 
 class CacheManager:
@@ -35,7 +35,7 @@ class CacheManager:
         max_size: int = 1000,
         default_ttl: int = 3600,  # 1 hour default
         cache_dir: str = ".skynet_cache",
-        enable_persistence: bool = True
+        enable_persistence: bool = True,
     ):
         """
         Initialize cache manager.
@@ -52,15 +52,10 @@ class CacheManager:
         self.enable_persistence = enable_persistence
 
         # LRU cache: OrderedDict maintains insertion order
-        self._cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+        self._cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
 
         # Statistics
-        self._stats = {
-            "hits": 0,
-            "misses": 0,
-            "evictions": 0,
-            "expirations": 0
-        }
+        self._stats = {"hits": 0, "misses": 0, "evictions": 0, "expirations": 0}
 
         # Thread safety
         self._lock = threading.RLock()
@@ -74,14 +69,11 @@ class CacheManager:
 
     def _generate_key(self, *args, **kwargs) -> str:
         """Generate cache key from function arguments."""
-        key_data = {
-            "args": args,
-            "kwargs": kwargs
-        }
+        key_data = {"args": args, "kwargs": kwargs}
         key_string = json.dumps(key_data, sort_keys=True, default=str)
         return hashlib.sha256(key_string.encode()).hexdigest()
 
-    def _is_expired(self, entry: Dict[str, Any]) -> bool:
+    def _is_expired(self, entry: dict[str, Any]) -> bool:
         """Check if cache entry is expired."""
         if entry.get("ttl") is None:
             return False
@@ -159,7 +151,7 @@ class CacheManager:
             entry = {
                 "value": value,
                 "timestamp": time.time(),
-                "ttl": ttl if ttl is not None else self.default_ttl
+                "ttl": ttl if ttl is not None else self.default_ttl,
             }
 
             # Store in cache (will be moved to end automatically)
@@ -190,19 +182,14 @@ class CacheManager:
         """Clear all cache entries."""
         with self._lock:
             self._cache.clear()
-            self._stats = {
-                "hits": 0,
-                "misses": 0,
-                "evictions": 0,
-                "expirations": 0
-            }
+            self._stats = {"hits": 0, "misses": 0, "evictions": 0, "expirations": 0}
 
             # Clear disk cache
             if self.enable_persistence and self.cache_dir.exists():
                 for file in self.cache_dir.glob("*.cache"):
                     file.unlink()
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get cache statistics.
 
@@ -221,22 +208,25 @@ class CacheManager:
                 "evictions": self._stats["evictions"],
                 "expirations": self._stats["expirations"],
                 "hit_ratio": round(hit_ratio, 3),
-                "total_requests": total_requests
+                "total_requests": total_requests,
             }
 
     def cleanup(self):
         """Perform cleanup: remove expired entries."""
         self._remove_expired()
 
-    def _save_to_disk(self, key: str, entry: Dict[str, Any]):
-        """Save cache entry to disk."""
+    def _save_to_disk(self, key: str, entry: dict[str, Any]):
+        """Save cache entry to disk with compression."""
         if not self.enable_persistence:
             return
 
         try:
             cache_file = self.cache_dir / f"{key}.cache"
+            # Serialize and compress for better performance
+            pickled_data = pickle.dumps(entry, protocol=pickle.HIGHEST_PROTOCOL)
+            compressed_data = zlib.compress(pickled_data, level=6)  # Balance speed/compression
             with open(cache_file, "wb") as f:
-                pickle.dump(entry, f)
+                f.write(compressed_data)
         except Exception:
             # Silently fail on persistence errors
             pass
@@ -254,7 +244,7 @@ class CacheManager:
             pass
 
     def _load_from_disk(self):
-        """Load cache entries from disk."""
+        """Load cache entries from disk with decompression."""
         if not self.enable_persistence or not self.cache_dir.exists():
             return
 
@@ -262,7 +252,16 @@ class CacheManager:
             for cache_file in self.cache_dir.glob("*.cache"):
                 try:
                     with open(cache_file, "rb") as f:
-                        entry = pickle.load(f)
+                        compressed_data = f.read()
+
+                    # Decompress and deserialize
+                    try:
+                        # Try compressed format first (new)
+                        pickled_data = zlib.decompress(compressed_data)
+                        entry = pickle.loads(pickled_data)
+                    except zlib.error:
+                        # Fallback to old uncompressed format
+                        entry = pickle.loads(compressed_data)
 
                     # Check if expired
                     if not self._is_expired(entry):
@@ -299,7 +298,7 @@ def clear_cache():
     cache.clear()
 
 
-def cache_stats() -> Dict[str, Any]:
+def cache_stats() -> dict[str, Any]:
     """Get global cache statistics."""
     cache = get_cache()
     return cache.get_stats()
@@ -319,6 +318,7 @@ def cache_result(ttl: Optional[int] = None, key_prefix: str = ""):
             # Expensive operation
             return result
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -345,10 +345,11 @@ def cache_result(ttl: Optional[int] = None, key_prefix: str = ""):
         wrapper.cache_key = lambda *args, **kwargs: hashlib.sha256(
             f"{key_prefix}:{func.__name__}:{args}:{kwargs}".encode()
         ).hexdigest()
-        wrapper.cache_clear = lambda: cache.clear()
-        wrapper.cache_stats = lambda: cache.get_stats()
+        wrapper.cache_clear = lambda: get_cache().clear()
+        wrapper.cache_stats = lambda: get_cache().get_stats()
 
         return wrapper
+
     return decorator
 
 
@@ -365,6 +366,7 @@ def cache_by_key(cache_key: str, ttl: Optional[int] = None) -> Callable:
         def scan_network():
             return result
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -387,6 +389,7 @@ def cache_by_key(cache_key: str, ttl: Optional[int] = None) -> Callable:
             return result
 
         return wrapper
+
     return decorator
 
 

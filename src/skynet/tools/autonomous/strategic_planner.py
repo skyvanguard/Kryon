@@ -39,8 +39,10 @@ class StrategicPlanner:
         """Initialize strategic planner."""
         self.attack_path_database = self._build_attack_path_database()
         self.objective_dependencies = self._build_objective_dependencies()
+        # Performance optimization: cache topological sorts
+        self._topo_sort_cache = {}
 
-    def _build_attack_path_database(self) -> Dict[str, List[Dict]]:
+    def _build_attack_path_database(self) -> Dict[str, list[dict]]:
         """
         Build database of known attack paths.
 
@@ -191,7 +193,7 @@ class StrategicPlanner:
             ],
         }
 
-    def _build_objective_dependencies(self) -> Dict[str, List[str]]:
+    def _build_objective_dependencies(self) -> Dict[str, list[str]]:
         """
         Build dependency graph of objectives.
 
@@ -212,10 +214,10 @@ class StrategicPlanner:
     def autonomous_mission_planner(
         self,
         target_network: str,
-        objectives: List[str],
-        constraints: Optional[Dict[str, Any]] = None,
-        resources: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        objectives: list[str],
+        constraints: Optional[dict[str, Any]] = None,
+        resources: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         Generate comprehensive mission plan with multiple objectives.
 
@@ -269,9 +271,11 @@ class StrategicPlanner:
 
         return result
 
-    def _order_objectives_by_dependencies(self, objectives: List[str]) -> List[str]:
+    def _order_objectives_by_dependencies(self, objectives: list[str]) -> list[str]:
         """
         Order objectives based on dependencies using topological sort.
+
+        Performance: Uses cached results for repeated objective sets.
 
         Args:
             objectives: List of objective names
@@ -279,6 +283,11 @@ class StrategicPlanner:
         Returns:
             Ordered list of objectives
         """
+        # Performance optimization: check cache first
+        cache_key = tuple(sorted(objectives))
+        if cache_key in self._topo_sort_cache:
+            return self._topo_sort_cache[cache_key]
+
         # Build dependency graph for requested objectives
         graph = {obj: [] for obj in objectives}
         in_degree = {obj: 0 for obj in objectives}
@@ -305,18 +314,22 @@ class StrategicPlanner:
 
         # If cycle detected, return original order
         if len(ordered) != len(objectives):
-            return objectives
+            result = objectives
+        else:
+            result = ordered
 
-        return ordered
+        # Cache result for future use
+        self._topo_sort_cache[cache_key] = result
+        return result
 
     def _generate_single_plan(
         self,
         target_network: str,
-        objectives: List[str],
-        constraints: Dict[str, Any],
-        resources: Dict[str, Any],
+        objectives: list[str],
+        constraints: dict[str, Any],
+        resources: dict[str, Any],
         plan_variant: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Generate a single plan variant.
 
@@ -402,7 +415,7 @@ class StrategicPlanner:
 
         return plan
 
-    def _rank_plans(self, plans: List[Dict], constraints: Dict[str, Any]) -> List[Dict]:
+    def _rank_plans(self, plans: list[dict], constraints: dict[str, Any]) -> list[dict]:
         """
         Rank plans by composite score considering multiple factors.
 
@@ -455,7 +468,7 @@ class StrategicPlanner:
         # Sort by score (descending)
         return sorted(plans, key=lambda p: p["composite_score"], reverse=True)
 
-    def _identify_critical_dependencies(self, plan: Dict) -> List[Dict]:
+    def _identify_critical_dependencies(self, plan: Dict) -> list[dict]:
         """
         Identify critical dependencies in the plan.
 
@@ -479,7 +492,7 @@ class StrategicPlanner:
 
         return dependencies
 
-    def _assess_risks(self, plan: Dict, constraints: Dict[str, Any]) -> Dict[str, Any]:
+    def _assess_risks(self, plan: Dict, constraints: dict[str, Any]) -> dict[str, Any]:
         """
         Assess risks associated with the plan.
 
@@ -538,10 +551,10 @@ class StrategicPlanner:
 
     def dynamic_plan_adjustment(
         self,
-        current_plan: Dict[str, Any],
-        current_progress: Dict[str, Any],
-        new_discoveries: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        current_plan: dict[str, Any],
+        current_progress: dict[str, Any],
+        new_discoveries: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         Dynamically adjust plan based on current progress and new discoveries.
 
@@ -651,8 +664,8 @@ class StrategicPlanner:
         return adjustments
 
     def calculate_attack_paths(
-        self, target_profile: Dict[str, Any], vulnerabilities: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, target_profile: dict[str, Any], vulnerabilities: List[dict[str, Any]]
+    ) -> List[dict[str, Any]]:
         """
         Calculate all possible attack paths based on target profile and vulnerabilities.
 
@@ -725,7 +738,7 @@ class StrategicPlanner:
 
         return min(0.95, max(0.10, base_prob))
 
-    def _determine_required_tools(self, vuln: Dict) -> List[str]:
+    def _determine_required_tools(self, vuln: Dict) -> list[str]:
         """Determine tools required for exploiting vulnerability."""
         tools = []
 
@@ -753,7 +766,7 @@ class StrategicPlanner:
         else:
             return "high"
 
-    def _generate_service_paths(self, service: Dict, target_os: str) -> List[Dict]:
+    def _generate_service_paths(self, service: Dict, target_os: str) -> list[dict]:
         """Generate attack paths for a specific service."""
         paths = []
 
@@ -795,7 +808,7 @@ class StrategicPlanner:
 
         return paths
 
-    def _deduplicate_paths(self, paths: List[Dict]) -> List[Dict]:
+    def _deduplicate_paths(self, paths: list[dict]) -> list[dict]:
         """Remove duplicate paths."""
         seen = set()
         unique_paths = []
@@ -814,10 +827,10 @@ class StrategicPlanner:
 # Convenience functions
 def plan_autonomous_mission(
     target_network: str,
-    objectives: List[str],
-    constraints: Optional[Dict[str, Any]] = None,
-    resources: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    objectives: list[str],
+    constraints: Optional[dict[str, Any]] = None,
+    resources: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
     """
     Plan autonomous mission with strategic planner.
 
@@ -835,10 +848,10 @@ def plan_autonomous_mission(
 
 
 def adjust_plan_dynamically(
-    current_plan: Dict[str, Any],
-    current_progress: Dict[str, Any],
-    new_discoveries: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    current_plan: dict[str, Any],
+    current_progress: dict[str, Any],
+    new_discoveries: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
     """
     Adjust plan based on current execution state.
 
@@ -855,8 +868,8 @@ def adjust_plan_dynamically(
 
 
 def calculate_all_attack_paths(
-    target_profile: Dict[str, Any], vulnerabilities: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+    target_profile: dict[str, Any], vulnerabilities: List[dict[str, Any]]
+) -> List[dict[str, Any]]:
     """
     Calculate all possible attack paths for target.
 
