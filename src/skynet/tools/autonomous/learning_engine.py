@@ -48,11 +48,57 @@ class LearningEngine:
         """
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Performance optimization: reusable connection with WAL mode
+        self._conn = None
         self._init_database()
+
+    def close(self):
+        """Close database connection. Call this when done with the engine."""
+        if self._conn is not None:
+            try:
+                self._conn.close()
+            except Exception:
+                pass
+            self._conn = None
+
+    def __del__(self):
+        """Cleanup on deletion."""
+        self.close()
+
+    def _get_connection(self) -> sqlite3.Connection:
+        """
+        Get or create reusable database connection.
+
+        Performance: Reuses connection instead of creating new ones.
+        Uses WAL mode for better concurrent access.
+        """
+        # Check if connection exists and is not closed
+        try:
+            if self._conn is not None:
+                # Test if connection is alive
+                self._conn.execute("SELECT 1")
+                return self._conn
+        except (sqlite3.ProgrammingError, sqlite3.OperationalError):
+            # Connection is closed or invalid, create new one
+            self._conn = None
+
+        # Create new connection
+        self._conn = sqlite3.connect(
+            str(self.db_path),
+            check_same_thread=False,  # Allow multi-thread access
+            timeout=30.0,  # Longer timeout for concurrent ops
+        )
+        # Enable WAL mode for better concurrency (2-3x faster writes)
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        # Optimize for performance
+        self._conn.execute("PRAGMA synchronous=NORMAL")  # Faster than FULL, still safe
+        self._conn.execute("PRAGMA cache_size=-64000")  # 64MB cache
+        return self._conn
 
     def _init_database(self):
         """Initialize database schema if not exists."""
-        conn = sqlite3.connect(str(self.db_path))
+        conn = self._get_connection()
         cursor = conn.cursor()
 
         # Operations table - stores complete operation history
@@ -161,7 +207,7 @@ class LearningEngine:
         """)
 
         conn.commit()
-        conn.close()
+        # Connection is reused, don't close it
 
     def record_operation(self, operation_data: dict[str, Any], results: dict[str, Any]) -> str:
         """
@@ -181,7 +227,7 @@ class LearningEngine:
         target_profile = self._extract_target_profile(operation_data)
         exploit_history = self._extract_exploit_history(results)
 
-        conn = sqlite3.connect(str(self.db_path))
+        conn = self._get_connection()
         cursor = conn.cursor()
 
         cursor.execute(
@@ -212,7 +258,7 @@ class LearningEngine:
         )
 
         conn.commit()
-        conn.close()
+        # Connection is reused, don't close it
 
         # Trigger pattern learning from this operation
         self.learn_from_operation(operation_id)
@@ -229,7 +275,7 @@ class LearningEngine:
         Returns:
             Dictionary with learning results
         """
-        conn = sqlite3.connect(str(self.db_path))
+        conn = self._get_connection()
         cursor = conn.cursor()
 
         # Fetch operation details
@@ -306,7 +352,7 @@ class LearningEngine:
         Returns:
             Dictionary with recommended exploits and strategies
         """
-        conn = sqlite3.connect(str(self.db_path))
+        conn = self._get_connection()
         cursor = conn.cursor()
 
         # Find similar past operations
@@ -421,7 +467,7 @@ class LearningEngine:
 
     def _update_pattern(self, pattern: dict):
         """Update pattern in database with new observation."""
-        conn = sqlite3.connect(str(self.db_path))
+        conn = self._get_connection()
         cursor = conn.cursor()
 
         # Check if pattern exists
@@ -507,13 +553,13 @@ class LearningEngine:
             )
 
         conn.commit()
-        conn.close()
+        # Connection is reused, don't close it
 
     def _update_exploit_stats(
         self, exploit: dict, success: bool, time_taken: float, target_type: str
     ):
         """Update global exploit statistics."""
-        conn = sqlite3.connect(str(self.db_path))
+        conn = self._get_connection()
         cursor = conn.cursor()
 
         exploit_name = exploit.get("name", "unknown")
@@ -583,13 +629,13 @@ class LearningEngine:
             )
 
         conn.commit()
-        conn.close()
+        # Connection is reused, don't close it
 
     def _update_service_vuln(
         self, service: dict, exploit: dict, success_rate: float, time_taken: float
     ):
         """Update service vulnerability mapping."""
-        conn = sqlite3.connect(str(self.db_path))
+        conn = self._get_connection()
         cursor = conn.cursor()
 
         service_name = service.get("name", "unknown")
@@ -613,7 +659,7 @@ class LearningEngine:
         )
 
         conn.commit()
-        conn.close()
+        # Connection is reused, don't close it
 
     def _find_similar_operations(self, cursor, target_profile: dict, limit: int = 10) -> list[dict]:
         """Find similar past operations."""
