@@ -1,8 +1,8 @@
 import os
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
-from cai.sdk.agents import OpenAIChatCompletionsModel,Agent,Runner
-from cai.sdk.agents import set_default_openai_client, set_tracing_disabled
+from skynet.sdk.agents import OpenAIChatCompletionsModel,Agent,Runner
+from skynet.sdk.agents import set_default_openai_client, set_tracing_disabled
 from openai.types.responses import ResponseTextDeltaEvent
 
 # Load environment variables from .env file

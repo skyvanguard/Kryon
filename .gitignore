@@ -6,6 +6,8 @@ AGENTS.md
 CLAUDE.md
 GEMINI.md
 AGENTS*.md
+# Windows null device file
+nul
 # Byte-compiled / optimized / DLL files
 __pycache__/
 **/__pycache__/
