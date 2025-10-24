@@ -1,4 +1,16 @@
-site_name: CAI
+site_name: SKYNET - AI-Powered Pentesting Framework
+site_description: Advanced autonomous penetration testing system with multi-agent architecture and RAG knowledge base
+site_author: SKYNET Development Team
+site_url: https://skynet-docs.io
+
+# Repository
+repo_name: skynet-ai/skynet
+repo_url: https://github.com/skynet-ai/skynet
+edit_uri: edit/main/docs/
+
+# Copyright
+copyright: Copyright &copy; 2025 SKYNET Project - Omega-Strategic Clearance
+
 theme:
   name: material
   features:
@@ -14,10 +26,45 @@ theme:
     - navigation.expand
     # Enables annotations in code blocks
     - content.code.annotate
+    # Navigation tabs at top
+    - navigation.tabs
+    - navigation.tabs.sticky
+    # Table of contents integration
+    - toc.follow
+    - toc.integrate
+    # Search enhancements
+    - search.suggest
+    - search.highlight
+    - search.share
+    # Navigation enhancements
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - navigation.footer
+    # Content features
+    - content.tabs.link
   palette:
-    primary: black
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
   logo: assets/imago.png
   favicon: assets/imago.png
+  font:
+    text: Roboto
+    code: Roboto Mono
 nav:
   - Intro: index.md
   - Installation: cai_installation.md
@@ -136,23 +183,51 @@ extra:
   generator: false
 
 markdown_extensions:
+  # Python Markdown
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+      title: On this page
+
+  # Python Markdown Extensions
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      auto_append:
+        - includes/abbreviations.md
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
           class: mermaid
-          format: pymdownx.superfences.fence_code_format
-  - admonition
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
   - codehilite
-  - pymdownx.details
-  - attr_list
-  - md_in_html
-  - pymdownx.highlight:
-      line_spans: __span
-      pygments_lang_class: true
-  - pymdownx.inlinehilite
-  - pymdownx.snippets
-  - pymdownx.superfences
-  - pymdownx.details
 
 validation:
   omitted_files: warn
@@ -167,3 +242,7 @@ extra_css:
 
 watch:
   - "src/cai/sdk/agents"
+  - "src/skynet"
+  - "src/skynet/agents"
+  - "src/skynet/knowledge"
+  - "src/skynet/tools"

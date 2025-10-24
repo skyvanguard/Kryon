@@ -59,6 +59,14 @@ from .exploitdb_scraper import (
     get_exploitdb_stats
 )
 
+from .async_rag_engine import (
+    AsyncRAGEngine,
+    get_async_rag_engine,
+    query_knowledge_async,
+    query_knowledge_batch,
+    get_async_knowledge_stats
+)
+
 __all__ = [
     # RAG Engine
     "query_knowledge",
@@ -66,6 +74,12 @@ __all__ = [
     "get_knowledge_stats",
     "RAGEngine",
     "get_rag_engine",
+    # Async RAG Engine
+    "AsyncRAGEngine",
+    "get_async_rag_engine",
+    "query_knowledge_async",
+    "query_knowledge_batch",
+    "get_async_knowledge_stats",
     # Vector Database
     "VectorDatabase",
     "get_vector_db",
