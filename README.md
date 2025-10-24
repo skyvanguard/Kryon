@@ -16,7 +16,7 @@
 <div align="center">
 
 [![version](https://img.shields.io/badge/version-1.0.0-red.svg)](https://github.com/skynet-ai/skynet-framework)
-[![Python](https://img.shields.io/badge/python-3.9+-red.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.13-red.svg)](https://www.python.org/downloads/release/python-3130/)
 [![License](https://img.shields.io/badge/license-MIT-red.svg)](LICENSE-SKYNET)
 [![Framework](https://img.shields.io/badge/framework-autonomous-red.svg)](https://github.com/skynet-ai/skynet-framework)
 
