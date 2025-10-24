@@ -234,8 +234,8 @@ async def test_statistics():
     cache_stats = stats['llm_cache']
     print(f"  - Cache hits: {cache_stats['hits']}")
     print(f"  - Cache misses: {cache_stats['misses']}")
-    print(f"  - Hit rate: {cache_stats['hit_rate']:.1f}%")
-    print(f"  - Time saved: {cache_stats['total_time_saved']:.2f}s")
+    print(f"  - Hit rate: {cache_stats['hit_rate']}")  # Already formatted as string
+    print(f"  - Time saved: {cache_stats['total_time_saved']}")  # Already formatted as string
 
     # Verify stats structure
     assert 'total_knowledge_items' in stats

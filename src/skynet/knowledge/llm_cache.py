@@ -297,8 +297,11 @@ class LLMResponseCache:
     def __del__(self):
         """Save cache on destruction."""
         try:
-            self._save_to_disk()
+            # Check if builtin 'open' is still available (shutdown issue in Python 3.14)
+            if 'open' in dir(__builtins__) or hasattr(__builtins__, 'open'):
+                self._save_to_disk()
         except:
+            # Silently fail during interpreter shutdown
             pass
 
 
