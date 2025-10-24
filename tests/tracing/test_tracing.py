@@ -17,7 +17,6 @@ from skynet.sdk.agents.tracing import (
     trace,
 )
 from skynet.sdk.agents.tracing.spans import SpanError
-
 from tests.testing_processor import (
     SPAN_PROCESSOR_TESTING,
     assert_no_traces,
@@ -365,6 +364,7 @@ async def test_start_and_end_called_async_ctxmanager():
     ]
 
 
+@pytest.mark.asyncio
 async def test_noop_span_doesnt_record():
     with trace(workflow_name="test", disabled=True) as t:
         with custom_span(name="span_1") as span:
@@ -379,6 +379,7 @@ async def test_noop_span_doesnt_record():
     assert span.error is None
 
 
+@pytest.mark.asyncio
 async def test_multiple_span_start_finish_doesnt_crash():
     with trace(workflow_name="test", trace_id="123", group_id="456"):
         with custom_span(name="span_1") as span:
@@ -387,6 +388,7 @@ async def test_multiple_span_start_finish_doesnt_crash():
         span.finish()
 
 
+@pytest.mark.asyncio
 async def test_noop_parent_is_noop_child():
     tr = trace(workflow_name="test", disabled=True)
 
