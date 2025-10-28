@@ -1,0 +1,277 @@
+# Cryptography and Encoding Techniques
+
+## Common Encodings
+
+### Base64
+```
+Decode: base64 -d file.txt
+Encode: base64 file.txt
+Python: import base64; base64.b64decode('...')
+```
+
+### Hexadecimal
+```
+To hex: xxd -p file
+From hex: xxd -r -p file
+Python: bytes.fromhex('68656c6c6f')
+```
+
+### URL Encoding
+```
+Python: import urllib.parse; urllib.parse.unquote('%48%65%6c%6c%6f')
+```
+
+### ROT13
+```
+Python: import codecs; codecs.decode('uryyb', 'rot_13')
+Online: rot13.com
+```
+
+## Classical Ciphers
+
+### Caesar Cipher
+Shift alphabet by N positions. Try all 25 shifts:
+```python
+for i in range(26):
+    print(''.join(chr((ord(c) - 65 + i) % 26 + 65) for c in text.upper()))
+```
+
+### Vigenere Cipher
+Polyalphabetic cipher with keyword
+- Use frequency analysis to find key length
+- Tools: https://www.dcode.fr/vigenere-cipher
+
+### Substitution Cipher
+One-to-one letter mapping
+- Frequency analysis: E, T, A, O, I, N most common
+- Look for common words: THE, AND, FOR
+
+### Atbash Cipher
+Reverse alphabet (A=Z, B=Y, etc.)
+
+## Hash Identification
+
+### By Length
+- MD5: 32 hex characters
+- SHA-1: 40 hex characters
+- SHA-256: 64 hex characters
+- SHA-512: 128 hex characters
+- NTLM: 32 hex characters
+
+### Format Recognition
+- `$1$`: MD5
+- `$2a$` or `$2y$`: bcrypt
+- `$5$`: SHA-256
+- `$6$`: SHA-512
+- `{SSHA}`: Salted SHA
+- `$P$`: phpass
+
+## Hash Cracking
+
+### John the Ripper
+```bash
+john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
+john --show hash.txt
+john --format=raw-md5 hash.txt
+```
+
+### Hashcat
+```bash
+hashcat -m 0 hash.txt rockyou.txt     # MD5
+hashcat -m 100 hash.txt rockyou.txt   # SHA1
+hashcat -m 1000 hash.txt rockyou.txt  # NTLM
+hashcat -m 1800 hash.txt rockyou.txt  # SHA-512(Unix)
+```
+
+### Hash Mode Numbers (Hashcat)
+- 0: MD5
+- 100: SHA1
+- 1000: NTLM
+- 1400: SHA256
+- 1700: SHA512
+- 1800: sha512crypt
+- 3200: bcrypt
+
+### Online Resources
+- CrackStation.net
+- HashKiller.io
+- MD5Decrypt.net
+
+## RSA Attacks
+
+### Small Exponent Attack (e=3)
+If e is small and message is small:
+```python
+import gmpy2
+c = ciphertext
+e = 3
+m = gmpy2.iroot(c, e)[0]
+```
+
+### Common Modulus Attack
+If same message encrypted with same N but different e values
+
+### Wiener's Attack
+If d is small (d < N^0.25)
+```python
+from Crypto.PublicKey import RSA
+from sympy import continued_fraction_convergents
+# Use owiener library
+```
+
+### Factorization
+- Factor N if it's small
+- Use factordb.com
+- Use msieve, yafu tools
+
+### Common Prime Attack
+If multiple N share a prime:
+```python
+import math
+p = math.gcd(N1, N2)
+```
+
+## XOR
+
+### Single-byte XOR
+```python
+def single_byte_xor(data, key):
+    return bytes([b ^ key for b in data])
+
+# Brute force all 256 keys
+for key in range(256):
+    result = single_byte_xor(ciphertext, key)
+    if b'flag' in result or result.isascii():
+        print(result)
+```
+
+### Repeating-key XOR
+```python
+def repeating_xor(data, key):
+    return bytes([data[i] ^ key[i % len(key)] for i in range(len(data))])
+```
+
+### XOR with Known Plaintext
+If you know plaintext and ciphertext:
+```python
+key = bytes([p ^ c for p, c in zip(plaintext, ciphertext)])
+```
+
+## Block Cipher Attacks
+
+### ECB Mode Detection
+Look for repeated blocks in ciphertext
+
+### ECB Cut-and-Paste
+Rearrange encrypted blocks
+
+### CBC Padding Oracle
+Use padding errors to decrypt
+- Tool: padbuster
+
+### CBC Bit Flipping
+Modify ciphertext to change plaintext in next block
+
+## Random Number Generation
+
+### Weak PRNG
+- Linear Congruential Generator (LCG)
+- MT19937 (Mersenne Twister) - predictable if you have output
+- Check for insecure seed
+
+### Predictable Seeds
+- Time-based seeds
+- PID-based seeds
+
+## Modern Crypto Attacks
+
+### AES
+- Side-channel attacks
+- Padding oracle
+- Weak key schedule
+
+### Diffie-Hellman
+- Small subgroup attack
+- MITM if no authentication
+
+### Elliptic Curve
+- Invalid curve attack
+- Small order points
+
+## Steganography
+
+### Images
+```bash
+# Check metadata
+exiftool image.jpg
+
+# Check LSB
+zsteg image.png
+stegsolve image.jpg
+
+# Extract hidden data
+steghide extract -sf image.jpg
+binwalk -e image.jpg
+foremost image.jpg
+```
+
+### Audio
+```bash
+# Spectrograms
+audacity (view spectrogram)
+sonic-visualiser
+
+# LSB
+stegpy
+```
+
+### Text
+- Whitespace steganography
+- Unicode steganography
+- Zero-width characters
+
+## Tools and Resources
+
+### Online Decoders
+- CyberChef (gchq.github.io/CyberChef)
+- dcode.fr
+- cryptii.com
+
+### Python Libraries
+```python
+from Crypto.Cipher import AES, DES
+from Crypto.PublicKey import RSA
+from Crypto.Util.number import *
+import hashlib
+import base64
+```
+
+### Frequency Analysis
+English letter frequency (approximate %):
+- E: 12.7%, T: 9.1%, A: 8.2%, O: 7.5%
+- I: 7.0%, N: 6.7%, S: 6.3%, H: 6.1%
+- R: 6.0%, D: 4.3%, L: 4.0%, C: 2.8%
+
+## Common CTF Crypto Challenges
+
+### Multi-stage Encoding
+Often need to decode multiple times:
+Base64 → Hex → Base64 → ROT13
+
+### Custom Cipher
+Read the code carefully for implementation mistakes
+
+### Known Plaintext
+Use format strings like "flag{" to recover key
+
+### Meet-in-the-Middle
+For double encryption, try both halves separately
+
+## Quick Reference
+
+### Identify Unknown
+1. Check length (hash?)
+2. All printable? (encoding)
+3. Random-looking? (encryption)
+4. Frequency analysis (substitution?)
+5. Patterns? (XOR, Vigenere)

