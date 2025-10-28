@@ -74,30 +74,34 @@ skynet/
 
 ### Install Skynet
 
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/skynet.git
-cd skynet
+**Para instalación en tu notebook/máquina local, ver: [NOTEBOOK_SETUP.md](NOTEBOOK_SETUP.md)** ⭐
 
-# Install dependencies
+```bash
+# 1. Clone the repository
+git clone https://github.com/skyvanguard/Skynet.git
+cd Skynet
+
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# Or install in development mode
-pip install -e .
+# 3. Verify installation
+python scripts/verify_installation.py
 
-# Set up environment variables
-cp .env.example .env
-# Edit .env and add your API keys
+# 4. Initialize knowledge base
+python scripts/init_knowledge.py
 ```
 
-### Configuration
+### Configuration (Optional)
 
-Create a `.env` file with your API keys:
+Las API keys son **opcionales** - solo necesarias si usas embeddings de OpenAI:
 
 ```bash
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here  # Optional
+cp .env.example .env
+# Edit .env only if using OpenAI
+OPENAI_API_KEY=your_key_here  # Optional
 ```
+
+**Nota**: Skynet funciona perfectamente sin API keys usando herramientas locales.
 
 ## Quick Start
 
