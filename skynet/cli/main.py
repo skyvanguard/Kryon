@@ -14,6 +14,7 @@ from ..agents.recon_agent import ReconAgent
 from ..agents.web_agent import WebAgent
 from ..agents.crypto_agent import CryptoAgent
 from ..agents.forensics_agent import ForensicsAgent
+from ..agents.exploit_agent import ExploitAgent
 from ..rag.retriever import get_retriever
 
 
@@ -26,6 +27,7 @@ def setup_agents():
     manager.register_agent_class("web", WebAgent)
     manager.register_agent_class("crypto", CryptoAgent)
     manager.register_agent_class("forensics", ForensicsAgent)
+    manager.register_agent_class("exploit", ExploitAgent)
 
 
 def cmd_run(args):
@@ -114,7 +116,7 @@ def cmd_interactive(args):
     setup_agents()
     manager = get_agent_manager()
 
-    print("\nAvailable agents: recon, web, crypto, forensics")
+    print("\nAvailable agents: recon, web, crypto, forensics, exploit")
     print("Commands: /help, /stats, /exit\n")
 
     while True:
@@ -163,7 +165,7 @@ Example:
 
             agent_type, task = parts
 
-            if agent_type not in ["recon", "web", "crypto", "forensics"]:
+            if agent_type not in ["recon", "web", "crypto", "forensics", "exploit"]:
                 print(f"Error: Unknown agent type '{agent_type}'")
                 continue
 
@@ -264,7 +266,7 @@ def main():
 
     # Run command
     run_parser = subparsers.add_parser('run', help='Run a CTF challenge')
-    run_parser.add_argument('agent_type', choices=['recon', 'web', 'crypto', 'forensics'],
+    run_parser.add_argument('agent_type', choices=['recon', 'web', 'crypto', 'forensics', 'exploit'],
                            help='Type of agent to use')
     run_parser.add_argument('task', help='Task description')
     run_parser.add_argument('--target', help='Target IP or hostname')

@@ -3,15 +3,23 @@
 ![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+> **⚡ Diseñado para Claude Code** - No necesita API calls, funciona directamente con tu terminal
+
 **Skynet** is a powerful CTF (Capture The Flag) automation framework that combines specialized AI agents with Retrieval-Augmented Generation (RAG) for solving security challenges. Inspired by [CAI](https://github.com/aliasrobotics/cai), Skynet provides a modular, agent-based architecture optimized for Claude Code integration.
 
-## Features
+## 🎯 Key Features
 
 - **Specialized AI Agents**: Multiple expert agents for different CTF categories
   - 🔍 **ReconAgent**: Network reconnaissance and enumeration
   - 🌐 **WebAgent**: Web application exploitation
   - 🔐 **CryptoAgent**: Cryptography and cryptanalysis
   - 🔬 **ForensicsAgent**: Digital forensics and file analysis
+  - 💥 **ExploitAgent**: Binary exploitation and pwn challenges
+
+- **🚩 Automatic Flag Detection**: Auto-detects and logs flags in all outputs
+  - Supports HTB, CTFd, PicoCTF, and custom formats
+  - Persistent flag tracking
+  - Never lose a flag again!
 
 - **RAG System**: Knowledge base with semantic search for CTF techniques
   - Store and retrieve previous CTF solutions
@@ -93,6 +101,35 @@ OPENAI_API_KEY=your_openai_api_key_here  # Optional
 
 ## Quick Start
 
+### 🚀 Quick Commands for Claude Code
+
+Estos comandos devuelven JSON para fácil parsing:
+
+```bash
+# Port scan rápido
+python -m skynet.cli.quick scan 10.0.0.1
+
+# Web enumeration
+python -m skynet.cli.quick enum-web http://target.com
+
+# File analysis
+python -m skynet.cli.quick analyze suspicious.bin
+
+# Search knowledge
+python -m skynet.cli.quick search "sql injection"
+
+# Crack hash
+python -m skynet.cli.quick crack abc123...
+
+# View flags
+python -m skynet.cli.quick flags list
+
+# Check binary security
+python -m skynet.cli.quick exploit-check ./binary
+```
+
+📖 **Ver [CLAUDE_CODE_GUIDE.md](CLAUDE_CODE_GUIDE.md) para más ejemplos**
+
 ### Interactive Mode
 
 ```bash
@@ -106,6 +143,7 @@ skynet> recon Scan 192.168.1.1 for open ports
 skynet> web Test http://example.com for SQL injection
 skynet> crypto Crack MD5 hash: 5d41402abc4b2a76b9719d911017c592
 skynet> forensics Analyze file suspicious.png
+skynet> exploit Analyze ./challenge binary
 ```
 
 ### Command-Line Mode
