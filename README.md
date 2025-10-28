@@ -64,6 +64,18 @@ skynet/
 
 ## Installation
 
+### 🪟 Windows Users (OpenVPN Setup)
+
+**Si usas Windows con OpenVPN para CTFs**, empieza aquí:
+
+→ **[README_WINDOWS.md](README_WINDOWS.md)** - Quick guide para Windows + OpenVPN
+→ **[CHECKLIST.md](CHECKLIST.md)** - Instalación paso a paso con checkboxes
+→ **[WINDOWS_SETUP.md](WINDOWS_SETUP.md)** - Guía completa de Windows
+
+**TL;DR:** Necesitas WSL2 + Kali Linux. Skynet funciona perfectamente con OpenVPN. No necesitas APIs de HTB/TryHackMe.
+
+---
+
 ### Prerequisites
 
 - Python 3.8+
