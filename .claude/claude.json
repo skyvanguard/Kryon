@@ -1,0 +1,22 @@
+{
+  "name": "SKYNET CTF Master",
+  "description": "Advanced Claude Code configuration for CTF challenges with web research and creative problem-solving",
+  "version": "1.0.0",
+  "features": {
+    "webSearch": true,
+    "codeExecution": true,
+    "fileAccess": true,
+    "creativity": "high"
+  },
+  "settings": {
+    "thinkingMode": "creative",
+    "researchMode": "enabled",
+    "autonomy": "high",
+    "persistence": "aggressive"
+  },
+  "integrations": {
+    "kali": true,
+    "rag": true,
+    "exploitdb": true
+  }
+}

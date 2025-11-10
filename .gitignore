@@ -170,7 +170,7 @@ pentestperf
 # python venvs
 venv*
 
-.claude
+# .claude  # Uncommented to include SKYNET CTF Master configuration
 data/
 
 # SKYNET specific files
