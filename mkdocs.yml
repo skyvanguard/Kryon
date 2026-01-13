@@ -1,0 +1,158 @@
+site_name: SKYNET
+site_description: Autonomous Cybersecurity Intelligence Platform
+site_author: skyvanguard
+
+repo_name: skyvanguard/Skynet
+repo_url: https://github.com/skyvanguard/Skynet
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2025 SKYNET Project
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - content.code.select
+    - navigation.path
+    - navigation.sections
+    - navigation.expand
+    - content.code.annotate
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - navigation.footer
+    - content.tabs.link
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+      - Configuration: getting-started/configuration.md
+  - Guides:
+      - Agents: guides/agents.md
+      - Tools: guides/tools.md
+      - Autonomy: guides/autonomy.md
+      - RAG System: guides/rag.md
+      - Guardrails: guides/guardrails.md
+      - Models: guides/models.md
+      - Tracing: guides/tracing.md
+      - MCP: guides/mcp.md
+      - Multi-Agent: guides/multi_agent.md
+      - Handoffs: guides/handoffs.md
+      - Streaming: guides/streaming.md
+      - Security Tools: guides/security-tools.md
+  - Tutorials:
+      - TryHackMe: tutorials/tryhackme.md
+      - Ollama + Kali: tutorials/ollama-kali.md
+      - CTF Guide: tutorials/ctf-guide.md
+  - Providers:
+      - OpenRouter: providers/openrouter.md
+      - Ollama: providers/ollama.md
+      - Azure OpenAI: providers/azure.md
+  - API Reference:
+      - Overview: api-reference/index.md
+      - Agent: api-reference/agent.md
+      - Tool: api-reference/tool.md
+      - Run: api-reference/run.md
+      - Result: api-reference/result.md
+      - Exceptions: api-reference/exceptions.md
+      - Guardrail: api-reference/guardrail.md
+      - Handoffs: api-reference/handoffs.md
+      - Models:
+          - Interface: api-reference/models/interface.md
+          - OpenAI: api-reference/models/openai_chatcompletions.md
+      - Extensions:
+          - Handoff Filters: api-reference/extensions/handoff_filters.md
+          - Handoff Prompt: api-reference/extensions/handoff_prompt.md
+  - More:
+      - Architecture: architecture.md
+      - FAQ: faq.md
+      - Troubleshooting: troubleshooting.md
+
+plugins:
+  - search
+  - autorefs
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: ["src"]
+          options:
+            docstring_style: google
+            signature_crossrefs: true
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+            heading_level: 3
+            inherited_members: true
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+  - codehilite
+
+extra:
+  generator: false
+
+extra_css:
+  - stylesheets/extra.css
+
+dev_addr: localhost:8088
+
+watch:
+  - "src/skynet"

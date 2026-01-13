@@ -1,0 +1,422 @@
+"""
+SKYNET Simple Vector Database
+==============================
+
+Lightweight vector database implementation for Python 3.14 compatibility.
+Falls back when ChromaDB is unavailable.
+
+Clearance Level: Omega-Strategic
+Classification: RESTRICTED
+"""
+
+import json
+import pickle
+import sys
+import time
+from pathlib import Path
+from typing import Any, Optional
+
+import numpy as np
+
+# Fix encoding for Windows
+if sys.platform == "win32":
+    import codecs
+
+    if hasattr(sys.stdout, "buffer"):
+        sys.stdout = codecs.getwriter("utf-8")(sys.stdout.buffer, "strict")
+    if hasattr(sys.stderr, "buffer"):
+        sys.stderr = codecs.getwriter("utf-8")(sys.stderr.buffer, "strict")
+
+
+class SimpleVectorDatabase:
+    """
+    Simple file-based vector database.
+
+    Uses JSON for metadata and pickle for vectors.
+    Provides semantic search via cosine similarity.
+    """
+
+    def __init__(self, persist_directory: str = ".skynet_knowledge/simple_db"):
+        """
+        Initialize simple vector database.
+
+        Args:
+            persist_directory: Directory to persist database
+        """
+        self.persist_directory = Path(persist_directory)
+        self.persist_directory.mkdir(parents=True, exist_ok=True)
+
+        self.metadata_file = self.persist_directory / "metadata.json"
+        self.vectors_file = self.persist_directory / "vectors.pkl"
+
+        # Load or initialize
+        self.documents = {}  # id -> document text
+        self.metadatas = {}  # id -> metadata
+        self.vectors = {}  # id -> embedding vector
+
+        self._load()
+        self._embedding_model = None
+
+    def _load(self):
+        """Load database from disk."""
+        if self.metadata_file.exists():
+            with open(self.metadata_file, encoding="utf-8") as f:
+                data = json.load(f)
+                self.documents = data.get("documents", {})
+                self.metadatas = data.get("metadatas", {})
+
+        if self.vectors_file.exists():
+            with open(self.vectors_file, "rb") as f:
+                self.vectors = pickle.load(f)
+
+    def _save(self):
+        """Save database to disk."""
+        # Save metadata and documents
+        with open(self.metadata_file, "w", encoding="utf-8") as f:
+            json.dump(
+                {"documents": self.documents, "metadatas": self.metadatas},
+                f,
+                indent=2,
+                ensure_ascii=False,
+            )
+
+        # Save vectors
+        with open(self.vectors_file, "wb") as f:
+            pickle.dump(self.vectors, f)
+
+    def _get_embedding_model(self):
+        """Get or initialize embedding model."""
+        if self._embedding_model is None:
+            try:
+                from sentence_transformers import SentenceTransformer
+
+                self._embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+            except ImportError:
+                print("⚠️  sentence-transformers not installed")
+                print("Install with: pip install sentence-transformers")
+                raise
+        return self._embedding_model
+
+    def _generate_embedding(self, text: str) -> np.ndarray:
+        """Generate embedding for text."""
+        model = self._get_embedding_model()
+        return model.encode(text, convert_to_numpy=True)
+
+    def _cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
+        """Compute cosine similarity between two vectors."""
+        dot_product = np.dot(vec1, vec2)
+        norm_product = np.linalg.norm(vec1) * np.linalg.norm(vec2)
+        return dot_product / norm_product if norm_product > 0 else 0.0
+
+    def add_documents(
+        self,
+        documents: list[str],
+        metadatas: Optional[list[dict[str, Any]]] = None,
+        ids: Optional[list[str]] = None,
+    ) -> int:
+        """
+        Add documents to vector database.
+
+        Performance: Uses batch embedding generation for 3-5x speedup.
+
+        Args:
+            documents: List of text documents
+            metadatas: Optional metadata for each document
+            ids: Optional IDs for each document
+
+        Returns:
+            Number of documents added
+        """
+        # Generate IDs if not provided
+        if ids is None:
+            ids = [f"doc_{int(time.time() * 1000)}_{i}" for i in range(len(documents))]
+
+        # Ensure metadatas
+        if metadatas is None:
+            metadatas = [{"timestamp": time.time()} for _ in documents]
+
+        # Performance optimization: batch embedding generation
+        # This is 3-5x faster than one-by-one encoding
+        model = self._get_embedding_model()
+        embeddings = model.encode(documents, convert_to_numpy=True, show_progress_bar=False)
+
+        # Add each document with pre-computed embeddings
+        for i, doc_id in enumerate(ids):
+            self.documents[doc_id] = documents[i]
+            self.metadatas[doc_id] = metadatas[i]
+            self.vectors[doc_id] = embeddings[i]
+
+        # Save to disk
+        self._save()
+
+        return len(documents)
+
+    def query(self, query_text: str, top_k: int = 5, filter_metadata: Optional[dict] = None) -> list[dict[str, Any]]:
+        """
+        Query vector database with semantic search.
+
+        Args:
+            query_text: Query text
+            top_k: Number of results to return
+            filter_metadata: Optional metadata filter
+
+        Returns:
+            List of results with documents, metadata, and scores
+        """
+        if not self.vectors:
+            return []
+
+        # Generate query embedding
+        query_vector = self._generate_embedding(query_text)
+
+        # Compute similarities
+        results = []
+        for doc_id, doc_vector in self.vectors.items():
+            # Apply metadata filter if provided
+            if filter_metadata:
+                match = all(self.metadatas[doc_id].get(key) == value for key, value in filter_metadata.items())
+                if not match:
+                    continue
+
+            similarity = self._cosine_similarity(query_vector, doc_vector)
+            results.append(
+                {
+                    "id": doc_id,
+                    "content": self.documents[doc_id],
+                    "metadata": self.metadatas[doc_id],
+                    "score": float(similarity),
+                }
+            )
+
+        # Sort by similarity (descending) and return top_k
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return results[:top_k]
+
+    def delete_by_ids(self, ids: list[str]) -> int:
+        """
+        Delete documents by IDs.
+
+        Args:
+            ids: List of document IDs to delete
+
+        Returns:
+            Number of documents deleted
+        """
+        deleted = 0
+        for doc_id in ids:
+            if doc_id in self.documents:
+                del self.documents[doc_id]
+                del self.metadatas[doc_id]
+                del self.vectors[doc_id]
+                deleted += 1
+
+        self._save()
+        return deleted
+
+    def delete_by_filter(self, filter_metadata: dict) -> int:
+        """
+        Delete documents by metadata filter.
+
+        Args:
+            filter_metadata: Metadata filter
+
+        Returns:
+            Number of documents deleted
+        """
+        to_delete = []
+        for doc_id, metadata in self.metadatas.items():
+            match = all(metadata.get(key) == value for key, value in filter_metadata.items())
+            if match:
+                to_delete.append(doc_id)
+
+        return self.delete_by_ids(to_delete)
+
+    def count(self) -> int:
+        """Get total number of documents in database."""
+        return len(self.documents)
+
+    def get_stats(self) -> dict[str, Any]:
+        """
+        Get database statistics.
+
+        Returns:
+            Statistics dictionary
+        """
+        stats = {
+            "total_documents": self.count(),
+            "persist_directory": str(self.persist_directory),
+            "database_type": "simple_vector_db",
+        }
+
+        # Get source breakdown
+        if self.count() > 0:
+            sources = {}
+            for metadata in self.metadatas.values():
+                source = metadata.get("source", "unknown")
+                sources[source] = sources.get(source, 0) + 1
+            stats["sources"] = sources
+
+        return stats
+
+    def reset(self):
+        """Reset database (delete all documents)."""
+        self.documents = {}
+        self.metadatas = {}
+        self.vectors = {}
+        self._save()
+
+
+# Fallback wrapper that tries ChromaDB first, falls back to simple DB
+class VectorDatabase:
+    """
+    Vector database with automatic fallback.
+
+    Tries to use ChromaDB, falls back to SimpleVectorDatabase if unavailable.
+    """
+
+    def __init__(self, persist_directory: str = ".skynet_knowledge/chromadb"):
+        """Initialize with automatic fallback."""
+        self.backend = None
+        self.backend_type = None
+        self._client = None
+        self._collection = None
+
+        try:
+            # Try ChromaDB first
+            import chromadb
+            from chromadb.config import Settings
+
+            persist_path = Path(persist_directory)
+            persist_path.mkdir(parents=True, exist_ok=True)
+
+            self._client = chromadb.Client(Settings(persist_directory=str(persist_path), anonymized_telemetry=False))
+
+            self._collection = self._client.get_or_create_collection(
+                name="skynet_knowledge", metadata={"description": "SKYNET knowledge base"}
+            )
+            self.backend = self._collection
+            self.backend_type = "chromadb"
+            print("✅ Using ChromaDB backend")
+
+        except (ImportError, Exception) as e:
+            # Fall back to simple vector database
+            print(f"⚠️  ChromaDB unavailable ({e}), using simple vector database")
+            self.backend = SimpleVectorDatabase(persist_directory.replace("chromadb", "simple_db"))
+            self.backend_type = "simple"
+            self._client = None  # Simple backend doesn't have client
+            self._collection = None  # Simple backend doesn't have collection
+            print("✅ Using SimpleVectorDatabase backend")
+
+    @property
+    def client(self):
+        """Get ChromaDB client (or None for simple backend)."""
+        return self._client
+
+    @property
+    def collection(self):
+        """Get ChromaDB collection (or None for simple backend)."""
+        return self._collection
+
+    def add_documents(
+        self,
+        documents: list[str],
+        metadatas: Optional[list[dict]] = None,
+        ids: Optional[list[str]] = None,
+    ) -> int:
+        """Add documents to backend."""
+        if self.backend_type == "chromadb":
+            if ids is None:
+                ids = [f"doc_{int(time.time() * 1000)}_{i}" for i in range(len(documents))]
+            if metadatas is None:
+                metadatas = [{"timestamp": time.time()} for _ in documents]
+            self.backend.add(documents=documents, metadatas=metadatas, ids=ids)
+            return len(documents)
+        else:
+            return self.backend.add_documents(documents, metadatas, ids)
+
+    def query(self, query_text: str, top_k: int = 5, filter_metadata: Optional[dict] = None) -> list[dict]:
+        """Query backend."""
+        if self.backend_type == "chromadb":
+            results = self.backend.query(query_texts=[query_text], n_results=top_k, where=filter_metadata)
+            formatted_results = []
+            for i in range(len(results["documents"][0])):
+                formatted_results.append(
+                    {
+                        "id": results["ids"][0][i],
+                        "content": results["documents"][0][i],
+                        "metadata": results["metadatas"][0][i],
+                        "score": 1.0 - results["distances"][0][i],
+                    }
+                )
+            return formatted_results
+        else:
+            return self.backend.query(query_text, top_k, filter_metadata)
+
+    def delete_by_ids(self, ids: list[str]) -> int:
+        """Delete documents by IDs."""
+        if self.backend_type == "chromadb":
+            self.backend.delete(ids=ids)
+            return len(ids)
+        else:
+            return self.backend.delete_by_ids(ids)
+
+    def delete_by_filter(self, filter_metadata: dict) -> int:
+        """Delete documents by filter."""
+        if self.backend_type == "chromadb":
+            self.backend.delete(where=filter_metadata)
+            return 1
+        else:
+            return self.backend.delete_by_filter(filter_metadata)
+
+    def count(self) -> int:
+        """Get document count."""
+        if self.backend_type == "chromadb":
+            return self.backend.count()
+        else:
+            return self.backend.count()
+
+    def get_stats(self) -> dict[str, Any]:
+        """Get statistics."""
+        if self.backend_type == "chromadb":
+            stats = {"total_documents": self.count(), "backend_type": "chromadb"}
+            if self.count() > 0:
+                sample = self.backend.get(limit=100)
+                sources = {}
+                for metadata in sample["metadatas"]:
+                    source = metadata.get("source", "unknown")
+                    sources[source] = sources.get(source, 0) + 1
+                stats["sources"] = sources
+            return stats
+        else:
+            return self.backend.get_stats()
+
+    def reset(self):
+        """Reset database."""
+        if self.backend_type == "chromadb":
+            # Cannot easily reset chromadb collection
+            pass
+        else:
+            self.backend.reset()
+
+
+# Global instance
+_vector_db = None
+
+
+def get_vector_db(persist_directory: str = ".skynet_knowledge/chromadb") -> VectorDatabase:
+    """Get global vector database instance."""
+    global _vector_db
+    if _vector_db is None:
+        _vector_db = VectorDatabase(persist_directory)
+    return _vector_db
+
+
+# Convenience functions
+def add_documents(documents: list[str], **kwargs) -> int:
+    """Add documents to vector database."""
+    return get_vector_db().add_documents(documents, **kwargs)
+
+
+def query_db(query_text: str, **kwargs) -> list[dict]:
+    """Query vector database."""
+    return get_vector_db().query(query_text, **kwargs)
