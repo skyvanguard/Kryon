@@ -3,7 +3,7 @@ name = "skynet-framework"
 version = "1.0.0"
 description = "SKYNET - Autonomous Cybersecurity Intelligence System"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{ name = "skyvanguard" }]
 dependencies = [
@@ -39,7 +39,6 @@ classifiers = [
     "Typing :: Typed",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -72,6 +71,7 @@ dev = [
     "pytest-mock>=3.14.0",
     "pytest-cov",
     "coverage>=7.6.12",
+    "inline-snapshot>=0.20.7",
 ]
 
 [dependency-groups]
@@ -186,7 +186,7 @@ exclude = [
 
 [tool.ruff]
 line-length = 120
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = [
