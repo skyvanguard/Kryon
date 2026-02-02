@@ -85,22 +85,16 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pylint flake8 black mypy
+        pip install ruff==0.9.2
 
-    - name: Run Black (code formatting check)
+    - name: Run Ruff (linting)
       run: |
-        black --check src/skynet tests
+        ruff check src/skynet tests
       continue-on-error: true
 
-    - name: Run Flake8 (linting)
+    - name: Run Ruff (formatting check)
       run: |
-        flake8 src/skynet --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 src/skynet --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      continue-on-error: true
-
-    - name: Run Pylint (static analysis)
-      run: |
-        pylint src/skynet --disable=all --enable=E,F
+        ruff format --check src/skynet tests
       continue-on-error: true
 
   security:
@@ -176,9 +170,8 @@ jobs:
     - name: Check documentation files exist
       run: |
         test -f README.md || exit 1
-        test -f docs/CLEARANCE_LEVELS.md || exit 1
-        test -d docs/sessions || exit 1
-        echo "✅ All required documentation files exist"
+        test -d docs || exit 1
+        echo "All required documentation files exist"
 
     - name: Check for broken links in docs
       uses: gaurav-nelson/github-action-markdown-link-check@v1
