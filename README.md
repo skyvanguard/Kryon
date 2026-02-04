@@ -1,12 +1,12 @@
-# SKYNET
+# KRYON
 
 ```
-███████╗██╗  ██╗██╗   ██╗███╗   ██╗███████╗████████╗
-██╔════╝██║ ██╔╝╚██╗ ██╔╝████╗  ██║██╔════╝╚══██╔══╝
-███████╗█████╔╝  ╚████╔╝ ██╔██╗ ██║█████╗     ██║
-╚════██║██╔═██╗   ╚██╔╝  ██║╚██╗██║██╔══╝     ██║
-███████║██║  ██╗   ██║   ██║ ╚████║███████╗   ██║
-╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═══╝╚══════╝   ╚═╝
+██╗  ██╗██████╗ ██╗   ██╗ ██████╗ ███╗   ██╗
+██║ ██╔╝██╔══██╗╚██╗ ██╔╝██╔═══██╗████╗  ██║
+█████╔╝ ██████╔╝ ╚████╔╝ ██║   ██║██╔██╗ ██║
+██╔═██╗ ██╔══██╗  ╚██╔╝  ██║   ██║██║╚██╗██║
+██║  ██╗██║  ██║   ██║   ╚██████╔╝██║ ╚████║
+╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═══╝
 ```
 
 <div align="center">
@@ -23,14 +23,14 @@
 
 ---
 
-## What is SKYNET?
+## What is KRYON?
 
-SKYNET is an open-source platform for building and deploying autonomous AI agents specialized in cybersecurity operations. It combines:
+KRYON is an open-source platform for building and deploying autonomous AI agents specialized in cybersecurity operations. It combines:
 
 - **Autonomous Agents** - Pre-built agents (Terminator Units) for pentesting, forensics, and security research
 - **Multi-Model Support** - Works with 300+ LLMs including GPT-4, Claude, DeepSeek, Llama, and local models via Ollama
 - **Security Tools Integration** - Native integration with nmap, metasploit, nuclei, and 50+ security tools
-- **Agent SDK** - Build your own custom security agents with the SKYNET SDK
+- **Agent SDK** - Build your own custom security agents with the KRYON SDK
 - **Swarm Operations** - Deploy multiple agents working in parallel for complex missions
 
 ### Use Cases
@@ -55,17 +55,17 @@ SKYNET is an open-source platform for building and deploying autonomous AI agent
 
 ```bash
 # Basic installation
-pip install skynet-framework
+pip install kryon
 
 # With all features
-pip install skynet-framework[rag,tracing,viz,voice]
+pip install kryon[rag,tracing,viz,voice]
 ```
 
 ### Install from Source
 
 ```bash
-git clone https://github.com/skyvanguard/Skynet.git
-cd Skynet
+git clone https://github.com/skyvanguard/kryon.git
+cd kryon
 pip install -e .
 ```
 
@@ -75,7 +75,7 @@ Create a `.env` file:
 
 ```bash
 # Choose your AI model
-SKYNET_MODEL="gpt-4o"  # or claude-3-5-sonnet, deepseek-chat, ollama/qwen2.5
+KRYON_MODEL="gpt-4o"  # or claude-3-5-sonnet, deepseek-chat, ollama/qwen2.5
 
 # API Keys (add the ones you need)
 OPENAI_API_KEY="sk-..."
@@ -83,36 +83,36 @@ ANTHROPIC_API_KEY="sk-ant-..."
 DEEPSEEK_API_KEY="..."
 
 # Optional: Default agent
-SKYNET_AGENT=t800_infiltrator
+KRYON_AGENT=t800_infiltrator
 ```
 
 ---
 
 ## Quick Start
 
-### Launch SKYNET
+### Launch KRYON
 
 ```bash
-skynet
+kryon
 ```
 
 ### Select an Agent
 
 ```bash
-SKYNET> /agent t800_infiltrator
+KRYON> /agent t800_infiltrator
 ```
 
 ### Run a Security Assessment
 
 ```bash
-SKYNET> Scan 192.168.1.0/24 and identify vulnerabilities
+KRYON> Scan 192.168.1.0/24 and identify vulnerabilities
 ```
 
 ### Parallel Operations (Swarm Mode)
 
 ```bash
-SKYNET> /parallel 3
-SKYNET> Perform comprehensive assessment of target.com
+KRYON> /parallel 3
+KRYON> Perform comprehensive assessment of target.com
 ```
 
 ---
@@ -181,7 +181,7 @@ See [examples/](examples/) for more.
 ## Project Structure
 
 ```
-skynet/
+kryon/
 ├── src/skynet/
 │   ├── agents/          # Terminator units
 │   ├── sdk/             # Agent SDK
@@ -201,8 +201,8 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
 
 ```bash
 # Setup development environment
-git clone https://github.com/skyvanguard/Skynet.git
-cd Skynet
+git clone https://github.com/skyvanguard/kryon.git
+cd kryon
 pip install -e .[dev]
 
 # Run tests
@@ -217,7 +217,7 @@ ruff check --fix .
 
 ## Disclaimer
 
-**SKYNET is for authorized security testing only.**
+**KRYON is for authorized security testing only.**
 
 - Penetration testing with written permission
 - Bug bounty programs
@@ -238,8 +238,8 @@ MIT License - see [LICENSE](LICENSE)
 
 <div align="center">
 
-**SKYNET** - Autonomous Cybersecurity Intelligence
+**KRYON** - Autonomous Cybersecurity Intelligence
 
-[GitHub](https://github.com/skyvanguard/Skynet) | [Issues](https://github.com/skyvanguard/Skynet/issues)
+[GitHub](https://github.com/skyvanguard/kryon) | [Issues](https://github.com/skyvanguard/kryon/issues)
 
 </div>
