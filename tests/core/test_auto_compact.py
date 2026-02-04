@@ -15,9 +15,9 @@ class TestAutoCompact:
     async def test_auto_compact_triggers_at_threshold(self):
         """Test that auto-compact triggers when context exceeds threshold."""
         # Set up environment
-        os.environ["SKYNET_AUTO_COMPACT"] = "true"
-        os.environ["SKYNET_AUTO_COMPACT_THRESHOLD"] = "0.8"  # 80% threshold
-        os.environ["SKYNET_CONTEXT_USAGE"] = "0.0"
+        os.environ["KRYON_AUTO_COMPACT"] = "true"
+        os.environ["KRYON_AUTO_COMPACT_THRESHOLD"] = "0.8"  # 80% threshold
+        os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
 
         # Mock the internal auto_compact method directly
         model = MagicMock(spec=OpenAIChatCompletionsModel)
@@ -65,7 +65,7 @@ class TestAutoCompact:
     @pytest.mark.asyncio
     async def test_auto_compact_disabled(self):
         """Test that auto-compact doesn't trigger when disabled."""
-        os.environ["SKYNET_AUTO_COMPACT"] = "false"
+        os.environ["KRYON_AUTO_COMPACT"] = "false"
 
         from openai import AsyncOpenAI
 
@@ -91,8 +91,8 @@ class TestAutoCompact:
     @pytest.mark.asyncio
     async def test_auto_compact_below_threshold(self):
         """Test that auto-compact doesn't trigger below threshold."""
-        os.environ["SKYNET_AUTO_COMPACT"] = "true"
-        os.environ["SKYNET_AUTO_COMPACT_THRESHOLD"] = "0.8"
+        os.environ["KRYON_AUTO_COMPACT"] = "true"
+        os.environ["KRYON_AUTO_COMPACT_THRESHOLD"] = "0.8"
 
         from openai import AsyncOpenAI
 
@@ -117,8 +117,8 @@ class TestAutoCompact:
     @pytest.mark.asyncio
     async def test_auto_compact_with_custom_threshold(self):
         """Test auto-compact with custom threshold value."""
-        os.environ["SKYNET_AUTO_COMPACT"] = "true"
-        os.environ["SKYNET_AUTO_COMPACT_THRESHOLD"] = "0.5"  # 50% threshold
+        os.environ["KRYON_AUTO_COMPACT"] = "true"
+        os.environ["KRYON_AUTO_COMPACT_THRESHOLD"] = "0.5"  # 50% threshold
 
         from openai import AsyncOpenAI
 
@@ -154,8 +154,8 @@ class TestAutoCompact:
     @pytest.mark.asyncio
     async def test_auto_compact_error_handling(self):
         """Test that errors during auto-compact are handled gracefully."""
-        os.environ["SKYNET_AUTO_COMPACT"] = "true"
-        os.environ["SKYNET_AUTO_COMPACT_THRESHOLD"] = "0.8"
+        os.environ["KRYON_AUTO_COMPACT"] = "true"
+        os.environ["KRYON_AUTO_COMPACT_THRESHOLD"] = "0.8"
 
         from openai import AsyncOpenAI
 
@@ -190,8 +190,8 @@ class TestAutoCompact:
     @pytest.mark.allow_call_model_methods
     async def test_auto_compact_integration(self):
         """Integration test for auto-compact during get_response."""
-        os.environ["SKYNET_AUTO_COMPACT"] = "true"
-        os.environ["SKYNET_AUTO_COMPACT_THRESHOLD"] = "0.8"
+        os.environ["KRYON_AUTO_COMPACT"] = "true"
+        os.environ["KRYON_AUTO_COMPACT_THRESHOLD"] = "0.8"
 
         from openai import AsyncOpenAI
         from openai.types.chat import ChatCompletion, ChatCompletionMessage

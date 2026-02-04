@@ -1,5 +1,5 @@
 """
-Tests for SKYNET Strategic Planning Engine
+Tests for KRYON Strategic Planning Engine
 ==========================================
 
 Tests for autonomous mission planning, attack path calculation,

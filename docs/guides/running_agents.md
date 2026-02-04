@@ -91,5 +91,5 @@ The SDK raises exceptions in certain cases. The full list is in [`skynet.sdk.age
 -   [`AgentsException`][skynet.sdk.agents.exceptions.AgentsException] is the base class for all exceptions raised.
 -   [`MaxTurnsExceeded`][skynet.sdk.agents.exceptions.MaxTurnsExceeded] is raised when the run exceeds the `max_turns` passed to the run methods.
 -   [`ModelBehaviorError`][skynet.sdk.agents.exceptions.ModelBehaviorError] is raised when the model produces invalid outputs, e.g. malformed JSON or using non-existent tools.
--   [`UserError`][skynet.sdk.agents.exceptions.UserError] is raised when you (the person writing code using SKYNET) make an error using it .
+-   [`UserError`][skynet.sdk.agents.exceptions.UserError] is raised when you (the person writing code using KRYON) make an error using it .
 -   [`InputGuardrailTripwireTriggered`][skynet.sdk.agents.exceptions.InputGuardrailTripwireTriggered], [`OutputGuardrailTripwireTriggered`][skynet.sdk.agents.exceptions.OutputGuardrailTripwireTriggered] is raised when a [guardrail](guardrails.md) is tripped.

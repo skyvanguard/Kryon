@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 # All tests should run with guardrails enabled
 @pytest.fixture(autouse=True)
 def _enable_guardrails(monkeypatch):
-    monkeypatch.setenv("SKYNET_GUARDRAILS", "true")
+    monkeypatch.setenv("KRYON_GUARDRAILS", "true")
 
 
 @pytest.mark.asyncio

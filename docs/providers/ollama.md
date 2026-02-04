@@ -4,7 +4,7 @@
 For local models using Ollama, add the following to your .env:
 
 ```bash
-SKYNET_MODEL=qwen2.5:72b
+KRYON_MODEL=qwen2.5:72b
 OLLAMA_API_BASE=http://localhost:8000/v1 # note, maybe you have a different endpoint
 ```
 

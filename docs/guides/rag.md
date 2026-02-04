@@ -1,4 +1,4 @@
-# SKYNET RAG System Guide
+# KRYON RAG System Guide
 
 **Knowledge Enhancement with Retrieval-Augmented Generation**
 
@@ -6,14 +6,14 @@
 
 ## Overview
 
-**RAG (Retrieval-Augmented Generation)** enables SKYNET to access massive knowledge from multiple sources:
+**RAG (Retrieval-Augmented Generation)** enables KRYON to access massive knowledge from multiple sources:
 
 - **Exploit-DB**: 40,000+ exploits
 - **NVD**: National Vulnerability Database (CVEs)
 - **GitHub**: PoC exploits and tools
 - **CTF Writeups**: Techniques and methodologies
 
-SKYNET can now answer questions like:
+KRYON can now answer questions like:
 - "How to exploit Apache 2.4.49?"
 - "Linux privilege escalation techniques"
 - "PoC for CVE-2024-1234"
@@ -260,22 +260,22 @@ class TestAgent(RAGMixin):
 
 ```bash
 # Query knowledge
-skynet-knowledge query "How to exploit SQL injection?"
+kryon-knowledge query "How to exploit SQL injection?"
 
 # Add document
-skynet-knowledge add /path/to/document.pdf
+kryon-knowledge add /path/to/document.pdf
 
 # Show statistics
-skynet-knowledge stats
+kryon-knowledge stats
 
 # Update knowledge
-skynet-knowledge update exploit-db nvd github
+kryon-knowledge update exploit-db nvd github
 
 # Scrape specific source
-skynet-knowledge scrape github
+kryon-knowledge scrape github
 
 # Help
-skynet-knowledge help
+kryon-knowledge help
 ```
 
 ---
@@ -291,7 +291,7 @@ python scripts/validate_rag.py
 **Expected Output:**
 ```
 [ ] Dependencies
-[ ] SKYNET Modules
+[ ] KRYON Modules
 [ ] Vector Database
 [ ] Embeddings
 [ ] RAG Engine
@@ -385,7 +385,7 @@ processor = DocumentProcessor(
 
 ```
 +---------------------------------------------+
-|           SKYNET Knowledge Base             |
+|           KRYON Knowledge Base             |
 +---------------------------------------------+
 |                                             |
 |  Scrapers --> Processors --> ChromaDB       |
@@ -398,7 +398,7 @@ processor = DocumentProcessor(
 |                          Ollama (qwen)      |
 |                                  |          |
 |                                  v          |
-|                         SKYNET Agents       |
+|                         KRYON Agents       |
 +---------------------------------------------+
 ```
 
@@ -476,12 +476,12 @@ db.reset()
 
 1. **Start small**: Scrape 50-100 items per source initially
 2. **Use filters**: Query with `source_filter` for specific sources
-3. **Monitor size**: Check disk usage of `.skynet_knowledge/chromadb`
+3. **Monitor size**: Check disk usage of `.kryon_knowledge/chromadb`
 4. **GitHub token**: Set token to avoid rate limits
 5. **Chunk wisely**: Smaller chunks = more precise, larger = more context
 
 ---
 
-**SKYNET now has access to thousands of exploits, CVEs, and techniques!**
+**KRYON now has access to thousands of exploits, CVEs, and techniques!**
 
 *Last Updated: January 2025*

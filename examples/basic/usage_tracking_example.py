@@ -1,7 +1,7 @@
 """
 Example demonstrating global usage tracking functionality.
 
-This example shows how SKYNET tracks usage globally across all executions
+This example shows how KRYON tracks usage globally across all executions
 and saves the data to $HOME/.skynet/usage.json
 """
 
@@ -14,14 +14,14 @@ def display_usage_stats():
     usage_file = Path.home() / ".skynet" / "usage.json"
 
     if not usage_file.exists():
-        print("No usage data found yet. Run SKYNET to start tracking usage.")
+        print("No usage data found yet. Run KRYON to start tracking usage.")
         return
 
     try:
         with open(usage_file) as f:
             usage_data = json.load(f)
 
-        print("\n=== SKYNET Global Usage Statistics ===\n")
+        print("\n=== KRYON Global Usage Statistics ===\n")
 
         # Display global totals
         totals = usage_data.get("global_totals", {})
@@ -103,7 +103,7 @@ def reset_usage_stats():
         print("Reset cancelled.")
 
 
-def export_usage_report(output_file="skynet_usage_report.json"):
+def export_usage_report(output_file="kryon_usage_report.json"):
     """Export usage statistics to a file"""
     usage_file = Path.home() / ".skynet" / "usage.json"
 
@@ -125,7 +125,7 @@ if __name__ == "__main__":
         if command == "reset":
             reset_usage_stats()
         elif command == "export":
-            export_usage_report(sys.argv[2] if len(sys.argv) > 2 else "skynet_usage_report.json")
+            export_usage_report(sys.argv[2] if len(sys.argv) > 2 else "kryon_usage_report.json")
         else:
             print("Usage: python usage_tracking_example.py [reset|export [filename]]")
     else:

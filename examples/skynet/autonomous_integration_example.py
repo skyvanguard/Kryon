@@ -1,5 +1,5 @@
 """
-SKYNET Autonomous Systems - Complete Integration Example
+KRYON Autonomous Systems - Complete Integration Example
 =========================================================
 
 This example demonstrates how all autonomous systems work together:
@@ -408,7 +408,7 @@ def scenario_4_complete_integration():
         print(f"[+] Operation recorded for future learning: {operation_id}")
 
         # Export knowledge
-        export_result = export_learned_knowledge("skynet_knowledge_export.json")
+        export_result = export_learned_knowledge("kryon_knowledge_export.json")
         print(f"[+] Knowledge exported: {export_result['operations']} operations")
 
     print("\n[*] COMPLETE INTEGRATION SUCCESSFUL!")
@@ -423,7 +423,7 @@ def main():
     """Run all integration scenarios"""
     print("""
     ╔═══════════════════════════════════════════════════════════════════╗
-    ║     SKYNET Autonomous Systems - Complete Integration Demo        ║
+    ║     KRYON Autonomous Systems - Complete Integration Demo         ║
     ║                                                                   ║
     ║  Demonstrating the full autonomous operation capabilities:       ║
     ║  1. Learning Engine - Learn and improve over time                ║
@@ -453,7 +453,7 @@ def main():
     4. ADAPTATION: Failures converted to successes automatically
     5. INTEGRATION: All systems work together seamlessly
 
-    SKYNET is now fully autonomous and continuously improving!
+    KRYON is now fully autonomous and continuously improving!
     """)
 
 

@@ -100,13 +100,13 @@ class BaseCLITest:
     def setup_class(cls):
         """Set up test environment."""
         # Disable external services for testing
-        os.environ["SKYNET_TELEMETRY"] = "false"
-        os.environ["SKYNET_TRACING"] = "false"
-        os.environ["SKYNET_STREAM"] = "false"
-        os.environ["SKYNET_MAX_TURNS"] = "5"
+        os.environ["KRYON_TELEMETRY"] = "false"
+        os.environ["KRYON_TRACING"] = "false"
+        os.environ["KRYON_STREAM"] = "false"
+        os.environ["KRYON_MAX_TURNS"] = "5"
 
         # Ensure we're using a test model
-        os.environ["SKYNET_MODEL"] = "test-model"
+        os.environ["KRYON_MODEL"] = "test-model"
 
         # Disable any CTF components
         os.environ.pop("CTF_NAME", None)
@@ -300,7 +300,7 @@ class BaseCLITest:
             Dict with simulation results and verification data
         """
         # Set streaming mode
-        os.environ["SKYNET_STREAM"] = "true" if stream_mode else "false"
+        os.environ["KRYON_STREAM"] = "true" if stream_mode else "false"
 
         # Prepare mock responses
         mock_responses = []

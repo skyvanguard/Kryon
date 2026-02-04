@@ -1,4 +1,4 @@
-"""Test custom prompts for parallel agents in SKYNET CLI."""
+"""Test custom prompts for parallel agents in KRYON CLI."""
 
 import os
 from unittest.mock import patch

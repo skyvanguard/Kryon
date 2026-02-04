@@ -1,5 +1,5 @@
 """
-Tests for SKYNET Learning Engine
+Tests for KRYON Learning Engine
 =================================
 
 Tests autonomous learning and recommendation system.

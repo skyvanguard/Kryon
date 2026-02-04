@@ -1,12 +1,12 @@
-site_name: SKYNET
+site_name: KRYON
 site_description: Autonomous Cybersecurity Intelligence Platform
 site_author: skyvanguard
 
-repo_name: skyvanguard/Skynet
-repo_url: https://github.com/skyvanguard/Skynet
+repo_name: skyvanguard/Kryon
+repo_url: https://github.com/skyvanguard/Kryon
 edit_uri: edit/main/docs/
 
-copyright: Copyright &copy; 2025 SKYNET Project
+copyright: Copyright &copy; 2025 KRYON Project
 
 theme:
   name: material

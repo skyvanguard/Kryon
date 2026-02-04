@@ -1,9 +1,9 @@
 @echo off
-REM Script de configuración automática para Python 3.13
-REM Ejecutar después de instalar Python 3.13.0
+REM Script de configuracion automatica para Python 3.13
+REM Ejecutar despues de instalar Python 3.13.0
 
 echo ========================================
-echo SKYNET - Python 3.13 Setup
+echo KRYON - Python 3.13 Setup
 echo ========================================
 echo.
 
@@ -46,10 +46,10 @@ echo OK - pip actualizado
 echo.
 
 REM Instalar paquete con todas las dependencias
-echo [5/7] Instalando SKYNET con todas las dependencias...
+echo [5/7] Instalando KRYON con todas las dependencias...
 pip install -e .[tracing,viz,voice]
 if errorlevel 1 (
-    echo ERROR: Falló instalación del paquete
+    echo ERROR: Fallo instalacion del paquete
     pause
     exit /b 1
 )
@@ -67,9 +67,9 @@ if errorlevel 1 (
 echo OK - Dev dependencies instaladas
 echo.
 
-REM Verificar instalación
-echo [7/7] Verificando instalación...
-python -c "import skynet; print(f'SKYNET version: {skynet.__version__}')"
+REM Verificar instalacion
+echo [7/7] Verificando instalacion...
+python -c "import skynet; print(f'KRYON version: {skynet.__version__}')"
 python -c "import pytest; print(f'pytest version: {pytest.__version__}')"
 python -c "import sys; print(f'Python version: {sys.version}')"
 echo.

@@ -1,11 +1,11 @@
 #!/bin/bash
 #
-# SKYNET Framework - Structure Validation Script
+# KRYON Framework - Structure Validation Script
 # ===============================================
 # Validates all critical files and directories exist
 
 echo "======================================================================"
-echo "SKYNET FRAMEWORK - STRUCTURE VALIDATION"
+echo "KRYON FRAMEWORK - STRUCTURE VALIDATION"
 echo "======================================================================"
 echo ""
 
@@ -35,10 +35,10 @@ echo "TEST 1: CORE INFRASTRUCTURE"
 echo "======================================================================"
 echo ""
 
-check_exists "src/skynet/__init__.py" "Core SKYNET package"
-check_exists "src/skynet/sdk" "SKYNET SDK directory"
-check_exists "src/skynet/tools" "SKYNET Tools directory"
-check_exists "src/skynet/prompts" "SKYNET Prompts directory"
+check_exists "src/skynet/__init__.py" "Core KRYON package"
+check_exists "src/skynet/sdk" "KRYON SDK directory"
+check_exists "src/skynet/tools" "KRYON Tools directory"
+check_exists "src/skynet/prompts" "KRYON Prompts directory"
 check_exists "pyproject.toml" "Package configuration"
 
 echo ""
@@ -119,11 +119,11 @@ echo "TEST 7: DOCUMENTATION"
 echo "======================================================================"
 echo ""
 
-check_exists "README.md" "Primary README (SKYNET)"
-check_exists "docs/skynet" "SKYNET documentation directory"
-check_exists "docs/skynet_installation.md" "SKYNET installation guide"
-check_exists "docs/skynet_quickstart.md" "SKYNET quickstart guide"
-check_exists "docs/skynet_architecture.md" "SKYNET architecture docs"
+check_exists "README.md" "Primary README (KRYON)"
+check_exists "docs/skynet" "KRYON documentation directory"
+check_exists "docs/skynet_installation.md" "KRYON installation guide"
+check_exists "docs/skynet_quickstart.md" "KRYON quickstart guide"
+check_exists "docs/skynet_architecture.md" "KRYON architecture docs"
 
 echo ""
 echo "======================================================================"
@@ -151,12 +151,12 @@ echo "Failed: $FAILED"
 echo ""
 
 if [ $FAILED -eq 0 ]; then
-    echo "🎉 ALL TESTS PASSED! SKYNET Framework structure is complete!"
+    echo "ALL TESTS PASSED! KRYON Framework structure is complete!"
     exit 0
 elif [ $(echo "$PASS_RATE >= 90" | bc) -eq 1 ]; then
-    echo "✓ Most tests passed. SKYNET Framework structure is solid."
+    echo "Most tests passed. KRYON Framework structure is solid."
     exit 0
 else
-    echo "✗ Some tests failed. SKYNET Framework has structural issues."
+    echo "Some tests failed. KRYON Framework has structural issues."
     exit 1
 fi

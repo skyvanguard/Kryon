@@ -1,12 +1,12 @@
-## Legal disclaimer for SKYNET
+## Legal disclaimer for KRYON
 
 ### **1. Compliance & Intended Use**
-SKYNET is an AI-powered cybersecurity evaluation tool intended to assist in security assessments of robotic and other automated systems. It is designed to operate under a "human-on-the-loop" principle, ensuring oversight and mitigating risks associated with autonomous decision-making.
+KRYON is an AI-powered cybersecurity evaluation tool intended to assist in security assessments of robotic and other automated systems. It is designed to operate under a "human-on-the-loop" principle, ensuring oversight and mitigating risks associated with autonomous decision-making.
 
 The software is developed in alignment with **ethical AI principles** and is intended to support compliance with the **EU AI Act** and other applicable cybersecurity regulations. However, it is the sole responsibility of the user to ensure adherence to all relevant laws and standards when deploying or modifying this software.
 
 ### **2. Open Source Notice & Responsibility**
-This source code is provided under the license terms detailed in the accompanying `LICENSE` file. Portions of SKYNET are released as **open-source** to encourage transparency and community collaboration.
+This source code is provided under the license terms detailed in the accompanying `LICENSE` file. Portions of KRYON are released as **open-source** to encourage transparency and community collaboration.
 
 Please note:
 - The software is provided "**as is**", without warranty of any kind.
@@ -14,7 +14,7 @@ Please note:
 - Users must conduct **appropriate testing and validation** before deploying this software in any production or mission-critical environment.
 
 ### **3. Security & Ethical Use**
-- **Non-Disruptive Use Only:** SKYNET is intended for research, education, and evaluation purposes. It must **not** be used to disrupt, manipulate, or interfere with live production systems.
+- **Non-Disruptive Use Only:** KRYON is intended for research, education, and evaluation purposes. It must **not** be used to disrupt, manipulate, or interfere with live production systems.
 - **Authorized Access Required:** Cybersecurity assessments or testing using this tool must be conducted **only with explicit permission** from the system owner.
 - **Qualified Use:** This software should be used by **trained professionals** following industry best practices and applicable organizational security policies.
 
@@ -24,7 +24,7 @@ Please note:
 - Users are fully responsible for the consequences of how they apply or modify the code.
 
 ### **5. Contact & Contributions**
-We welcome community contributions to improve SKYNET. To contribute, report bugs, or request clarification on legal or compliance issues, please use [GitHub Issues/Support Email].
+We welcome community contributions to improve KRYON. To contribute, report bugs, or request clarification on legal or compliance issues, please use [GitHub Issues/Support Email].
 
 ---
 

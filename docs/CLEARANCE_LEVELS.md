@@ -1,10 +1,10 @@
-# SKYNET Clearance Levels
+# KRYON Clearance Levels
 
-This document describes the security clearance levels used in the SKYNET framework.
+This document describes the security clearance levels used in the KRYON framework.
 
 ## Overview
 
-SKYNET implements a tiered access control system to manage agent capabilities and tool access.
+KRYON implements a tiered access control system to manage agent capabilities and tool access.
 
 ## Clearance Levels
 

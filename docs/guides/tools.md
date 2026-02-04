@@ -1,14 +1,14 @@
 # Tools
 
-Tools let agents take actions: things like fetching data, running code, calling external APIs, and even using a computer. There are three classes of tools in the SKYNET Agents
+Tools let agents take actions: things like fetching data, running code, calling external APIs, and even using a computer. There are three classes of tools in the KRYON Agents
 
--   Hosted tools: these run on LLM servers alongside the AI models. SKYNET offers some [tools](src/skynet/tools)
+-   Hosted tools: these run on LLM servers alongside the AI models. KRYON offers some [tools](src/skynet/tools)
 -   Function calling: these allow you to use any Python function as a tool.
 -   Agents as tools: this allows you to use an agent as a tool, allowing Agents to call other agents without handing off to them.
 
 ## Hosted tools
 
-SKYNET offers a few built-in tools when using the [`OpenAIResponsesModel`][skynet.sdk.agents.models.openai_responses.OpenAIResponsesModel]. They are in [tools](src/skynet/tools) and grouped in 6 major categories inspired by the security kill chain[2]:
+KRYON offers a few built-in tools when using the [`OpenAIResponsesModel`][skynet.sdk.agents.models.openai_responses.OpenAIResponsesModel]. They are in [tools](src/skynet/tools) and grouped in 6 major categories inspired by the security kill chain[2]:
 
  
 1. Reconnaissance and weaponization - *reconnaissance*  (crypto, listing, etc)
@@ -42,7 +42,7 @@ async def main():
 
 ## Function tools
 
-You can use any Python function as a tool. The SKYNET will setup the tool automatically:
+You can use any Python function as a tool. The KRYON will setup the tool automatically:
 
 -   The name of the tool will be the name of the Python function (or you can provide a name)
 -   Tool description will be taken from the docstring of the function (or you can provide a description)

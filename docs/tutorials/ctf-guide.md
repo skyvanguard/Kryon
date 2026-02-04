@@ -1,4 +1,4 @@
-# SKYNET CTF Operations Guide
+# KRYON CTF Operations Guide
 
 **Complete Guide for Capture The Flag Operations**
 
@@ -6,7 +6,7 @@
 
 ## Overview
 
-This guide covers everything you need to know about running CTF operations with SKYNET, from pre-operation setup to post-operation analysis.
+This guide covers everything you need to know about running CTF operations with KRYON, from pre-operation setup to post-operation analysis.
 
 ---
 
@@ -14,7 +14,7 @@ This guide covers everything you need to know about running CTF operations with 
 
 ### 1. Core System Verification
 
-Ensure all SKYNET modules are operational:
+Ensure all KRYON modules are operational:
 
 - `skynet.tools.autonomous`
 - `autonomous.auto_recon`
@@ -30,7 +30,7 @@ Ensure all SKYNET modules are operational:
 #### Option A: Ollama (Recommended for Local)
 
 ```bash
-cat > ~/.skynet/config.json << 'EOF'
+cat > ~/.kryon/config.json << 'EOF'
 {
   "provider": "ollama",
   "base_url": "http://localhost:11434",
@@ -43,7 +43,7 @@ EOF
 #### Option B: OpenAI API
 
 ```bash
-cat > ~/.skynet/config.json << 'EOF'
+cat > ~/.kryon/config.json << 'EOF'
 {
   "provider": "openai",
   "api_key": "sk-...",
@@ -57,7 +57,7 @@ EOF
 #### Option C: Anthropic Claude
 
 ```bash
-cat > ~/.skynet/config.json << 'EOF'
+cat > ~/.kryon/config.json << 'EOF'
 {
   "provider": "anthropic",
   "api_key": "sk-ant-...",
@@ -71,12 +71,12 @@ EOF
 ### 3. Environment Variables
 
 ```bash
-export SKYNET_HOME=/workspace
-export SKYNET_CONFIG=~/.skynet/config.json
-export SKYNET_WORDLISTS=/usr/share/wordlists
-export SKYNET_EXPLOITS=/usr/share/exploitdb
-export SKYNET_LOG_LEVEL=INFO
-export SKYNET_OUTPUT_DIR=/workspace/results
+export KRYON_HOME=/workspace
+export KRYON_CONFIG=~/.kryon/config.json
+export KRYON_WORDLISTS=/usr/share/wordlists
+export KRYON_EXPLOITS=/usr/share/exploitdb
+export KRYON_LOG_LEVEL=INFO
+export KRYON_OUTPUT_DIR=/workspace/results
 ```
 
 ### 4. Network Connectivity
@@ -220,7 +220,7 @@ result = autonomous_pentest(
 
 ## Performance Metrics
 
-| Metric | Without SKYNET | With SKYNET | Improvement |
+| Metric | Without KRYON | With KRYON | Improvement |
 |--------|----------------|-------------|-------------|
 | Time to first shell | 25 min | 3 min | 88% faster |
 | Exploits attempted | 12 | 2 | 83% reduction |
@@ -292,7 +292,7 @@ ollama serve &
 ## Best Practices
 
 1. **Always start with recon** - Understand the target before attacking
-2. **Use learning mode** - Let SKYNET learn from each operation
+2. **Use learning mode** - Let KRYON learn from each operation
 3. **Set appropriate timeouts** - Don't cut operations short
 4. **Review results** - Check what worked and what didn't
 5. **Export knowledge** - Save learned patterns for future use
@@ -355,7 +355,7 @@ result = autonomous_ctf_solver(
 
 ### Honeypot Detection
 
-SKYNET automatically detects honeypots based on:
+KRYON automatically detects honeypots based on:
 - Too many open ports (>50)
 - Suspicious banners
 - Unusual service combinations
@@ -377,6 +377,6 @@ All operations are logged with:
 
 ---
 
-**SKYNET CTF Operations - Autonomous Security Testing**
+**KRYON CTF Operations - Autonomous Security Testing**
 
 *Last Updated: January 2025*

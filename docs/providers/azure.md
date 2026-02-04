@@ -1,6 +1,6 @@
 # Azure OpenAI configuration
 
-> This guide shows how to run SKYNET against Azure-hosted OpenAI's models
+> This guide shows how to run KRYON against Azure-hosted OpenAI's models
 
 ## Prerequisites
 - Azure subscription with **Azure OpenAI** access.
@@ -18,7 +18,7 @@ From **Deployments**, select your deployment and copy the endpoint in this form:
 `https://<your-resource>.openai.azure.com/openai/deployments/<deployment-name>/chat/completions?api-version=2025-01-01-preview`
 
 Set this value as `AZURE_API_BASE` in your `.env`.  
-**Note:** SKYNET uses the OpenAI SDK style `base_url + /chat/completions`. For Azure, providing the full endpoint above (including `chat/completions?api-version=...`) ensures correct routing.
+**Note:** KRYON uses the OpenAI SDK style `base_url + /chat/completions`. For Azure, providing the full endpoint above (including `chat/completions?api-version=...`) ensures correct routing.
 
 #### 3. Get your API key
 From your Azure OpenAI resource home page (it is displayed on the resource home page, along with the subscription ID, resource name, etc.). Put it in `.env` as `AZURE_API_KEY`.
@@ -40,11 +40,11 @@ OLLAMA=""
 PROMPT_TOOLKIT_NO_CPR=1
 ```
 
-#### 5. Start SKYNET and select the model
-Launch SKYNET and select the Azure model:
+#### 5. Start KRYON and select the model
+Launch KRYON and select the Azure model:
 
 ```vbnet
-SKYNET> /model azure/<model-name>
+KRYON> /model azure/<model-name>
 ╭─────────────────────────────────────────────────── Model Changed ────────────────────────────────────────────────────╮
 │ Model changed to: azure/<model-name>                                                                               │
 │ Note: This will take effect on the next agent interaction                                                                │
@@ -53,14 +53,14 @@ SKYNET> /model azure/<model-name>
 
 From this point you are interacting with your Azure-hosted OpenAI model.
 
-> ⚠️ Remember: you must select the model each time you start SKYNET.
+> ⚠️ Remember: you must select the model each time you start KRYON.
 
 
 > EXTRA configuration:
-You can set the variable `SKYNET_MODEL` to avoid the need for repeated model setup during initialization.
+You can set the variable `KRYON_MODEL` to avoid the need for repeated model setup during initialization.
 
 ```bash
-SKYNET_MODEL=azure/<model-name-deployed>
+KRYON_MODEL=azure/<model-name-deployed>
 ```
 
 ## Troubleshooting

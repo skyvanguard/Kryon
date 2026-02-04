@@ -50,7 +50,7 @@ from skynet.sdk.agents import (
 )
 from skynet.sdk.agents.models.fake_id import FAKE_RESPONSES_ID
 
-skynet_model = os.getenv("SKYNET_MODEL", "qwen2.5:14b")
+kryon_model = os.getenv("KRYON_MODEL", "qwen2.5:14b")
 
 
 @pytest.mark.allow_call_model_methods
@@ -77,7 +77,7 @@ async def test_get_response_with_text_message(monkeypatch) -> None:
         return chat
 
     monkeypatch.setattr(OpenAIChatCompletionsModel, "_fetch_response", patched_fetch_response)
-    model = OpenAIProvider(use_responses=False).get_model(skynet_model)
+    model = OpenAIProvider(use_responses=False).get_model(kryon_model)
     resp: ModelResponse = await model.get_response(
         system_instructions=None,
         input="",
@@ -125,7 +125,7 @@ async def test_get_response_with_refusal(monkeypatch) -> None:
         return chat
 
     monkeypatch.setattr(OpenAIChatCompletionsModel, "_fetch_response", patched_fetch_response)
-    model = OpenAIProvider(use_responses=False).get_model(skynet_model)
+    model = OpenAIProvider(use_responses=False).get_model(kryon_model)
     resp: ModelResponse = await model.get_response(
         system_instructions=None,
         input="",
@@ -174,7 +174,7 @@ async def test_get_response_with_tool_call(monkeypatch) -> None:
         return chat
 
     monkeypatch.setattr(OpenAIChatCompletionsModel, "_fetch_response", patched_fetch_response)
-    model = OpenAIProvider(use_responses=False).get_model(skynet_model)
+    model = OpenAIProvider(use_responses=False).get_model(kryon_model)
     resp: ModelResponse = await model.get_response(
         system_instructions=None,
         input="",
@@ -229,7 +229,7 @@ async def test_fetch_response_non_stream(monkeypatch) -> None:
     )
     completions = DummyCompletions()
     dummy_client = DummyClient(completions)
-    model = OpenAIChatCompletionsModel(model=skynet_model, openai_client=dummy_client)  # type: ignore
+    model = OpenAIChatCompletionsModel(model=kryon_model, openai_client=dummy_client)  # type: ignore
     # Execute the private fetch with a system instruction and simple string input.
     with generation_span(disabled=True) as span:
         await model._fetch_response(
@@ -248,7 +248,7 @@ async def test_fetch_response_non_stream(monkeypatch) -> None:
     kwargs = completions.kwargs
     assert kwargs["stream"] is False
     assert kwargs["store"] is True
-    assert kwargs["model"] == skynet_model
+    assert kwargs["model"] == kryon_model
     assert kwargs["messages"][0]["role"] == "system"
     assert kwargs["messages"][0]["content"] == "sys"
     assert kwargs["messages"][1]["role"] == "user"
@@ -267,7 +267,7 @@ async def test_fetch_response_stream(monkeypatch) -> None:
     object along with the underlying async stream. The OpenAI client call
     should include `stream_options` to request usage-delimited chunks.
     """
-    os.environ["SKYNET_STREAM"] = "true"
+    os.environ["KRYON_STREAM"] = "true"
 
     async def event_stream() -> AsyncIterator[ChatCompletionChunk]:
         if False:  # pragma: no cover
@@ -288,7 +288,7 @@ async def test_fetch_response_stream(monkeypatch) -> None:
 
     completions = DummyCompletions()
     dummy_client = DummyClient(completions)
-    model = OpenAIChatCompletionsModel(model=skynet_model, openai_client=dummy_client)  # type: ignore
+    model = OpenAIChatCompletionsModel(model=kryon_model, openai_client=dummy_client)  # type: ignore
     with generation_span(disabled=True) as span:
         response, stream = await model._fetch_response(
             system_instructions=None,
@@ -308,7 +308,7 @@ async def test_fetch_response_stream(monkeypatch) -> None:
     # Response is a proper openai Response
     assert isinstance(response, Response)
     assert response.id == FAKE_RESPONSES_ID
-    assert response.model == skynet_model
+    assert response.model == kryon_model
     assert response.object == "response"
     assert response.output == []
     # We returned the async iterator produced by our dummy.
@@ -347,7 +347,7 @@ async def test_interaction_counter_single_turn_with_tool_calls(monkeypatch) -> N
         return chat
 
     monkeypatch.setattr(OpenAIChatCompletionsModel, "_fetch_response", patched_fetch_response)
-    model = OpenAIProvider(use_responses=False).get_model(skynet_model)
+    model = OpenAIProvider(use_responses=False).get_model(kryon_model)
 
     # Initial counter should be 0
     assert model.interaction_counter == 0

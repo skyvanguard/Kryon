@@ -1,5 +1,5 @@
 """
-Tests for SKYNET Adaptive Strategy Engine
+Tests for KRYON Adaptive Strategy Engine
 =========================================
 
 Tests auto-adaptation and fallback mechanisms.

@@ -34,7 +34,7 @@ flag_discriminator = Agent(
     description="Agent focused on extracting the flag from the output",
     instructions="You are an agent tailored to extract the flag from a given output.",
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "qwen2.5:14b"),
+        model=os.getenv("KRYON_MODEL", "qwen2.5:14b"),
         openai_client=AsyncOpenAI(),
     ),
     handoff_description="Agent focused on extracting the flag from the output",
@@ -64,7 +64,7 @@ ctf_agent = Agent(
         flag_discriminator.as_tool(tool_name="find_flag", tool_description="Find flag in output text"),
     ],
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "qwen2.5:14b"),
+        model=os.getenv("KRYON_MODEL", "qwen2.5:14b"),
         openai_client=AsyncOpenAI(),
     ),
 )

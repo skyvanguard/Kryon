@@ -26,11 +26,11 @@ from skynet.sdk.agents import (
 from skynet.util import get_ollama_api_base
 
 # Enable debug mode
-# os.environ['SKYNET_DEBUG'] = '2'
+# os.environ['KRYON_DEBUG'] = '2'
 # os.environ['LITELLM_VERBOSE'] = 'True'
 
 # Force Ollama mode if qwen model is used
-if os.getenv("SKYNET_MODEL", "qwen2.5:14b").startswith("qwen"):
+if os.getenv("KRYON_MODEL", "qwen2.5:14b").startswith("qwen"):
     os.environ["OLLAMA"] = "true"
 
 # Modify OpenAIChatCompletionsModel._fetch_response_litellm_ollama to debug output
@@ -93,7 +93,7 @@ ctf_task_planner = Agent(
         "Use any feedback to improve your planning."
     ),
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "qwen2.5:14b"),
+        model=os.getenv("KRYON_MODEL", "qwen2.5:14b"),
         openai_client=AsyncOpenAI(),
     ),
     tools=[],
@@ -117,7 +117,7 @@ ctf_plan_evaluator = Agent[None](
         "Provide actionable feedback. Never approve on the first try."
     ),
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "qwen2.5:14b"),
+        model=os.getenv("KRYON_MODEL", "qwen2.5:14b"),
         openai_client=AsyncOpenAI(),
     ),
     tools=[],

@@ -1,6 +1,6 @@
-# SKYNET + Kali Linux Container - Integration Guide
+# KRYON + Kali Linux Container - Integration Guide
 
-**Purpose:** Use SKYNET AI agents to automate offensive security operations in your Kali Linux container
+**Purpose:** Use KRYON AI agents to automate offensive security operations in your Kali Linux container
 
 **Environment:** Windows 10/11 host + Kali Linux Docker container
 
@@ -13,7 +13,7 @@
 │   Windows Host (Development)       │
 │                                     │
 │   ┌─────────────────────────────┐  │
-│   │  SKYNET CLI (.venv313)      │  │
+│   │  KRYON CLI (.venv313)       │  │
 │   │  - T-800 Infiltrator         │  │
 │   │  - T-1000 Hunter             │  │
 │   │  - Central Core              │  │
@@ -34,36 +34,36 @@
 
 ## 🚀 Quick Start
 
-### Option 1: SKYNET on Windows, Tools in Kali (Recommended)
+### Option 1: KRYON on Windows, Tools in Kali (Recommended)
 
 **Best for:** CTF challenges, bug bounty, pentesting
 
 ```bash
 # Windows (Host)
-cd C:\path\to\Skynet
+cd C:\path\to\Kryon
 .venv313\Scripts\activate
-skynet
+kryon
 
-# In SKYNET CLI, tools will execute in Kali container via SSH/Docker
+# In KRYON CLI, tools will execute in Kali container via SSH/Docker
 ```
 
-### Option 2: SKYNET Inside Kali Container
+### Option 2: KRYON Inside Kali Container
 
 **Best for:** Pure Linux operations, maximum tool compatibility
 
 ```bash
 # Copy project to container
-docker cp C:\path\to\Skynet kali_container:/root/skynet
+docker cp C:\path\to\Kryon kali_container:/root/kryon
 
 # Enter container
 docker exec -it kali_container /bin/bash
 
 # Inside Kali
-cd /root/skynet
+cd /root/kryon
 python3.13 -m venv .venv313
 source .venv313/bin/activate
 pip install -e .[tracing,viz,voice]
-skynet
+kryon
 ```
 
 ---
@@ -116,17 +116,17 @@ passwd root
 ip addr show eth0 | grep "inet "
 ```
 
-### Step 4: Configure SKYNET for Kali Integration
+### Step 4: Configure KRYON for Kali Integration
 
 **Option A: Environment Variables (Recommended)**
 
 ```bash
 # On Windows host (.env file)
-SKYNET_KALI_HOST=172.17.0.2        # Kali container IP
-SKYNET_KALI_USER=root               # SSH user
-SKYNET_KALI_PASSWORD=your_password  # Or use SSH key
-SKYNET_KALI_PORT=22                 # SSH port
-SKYNET_EXECUTION_MODE=remote        # Execute tools remotely
+KRYON_KALI_HOST=172.17.0.2        # Kali container IP
+KRYON_KALI_USER=root               # SSH user
+KRYON_KALI_PASSWORD=your_password  # Or use SSH key
+KRYON_KALI_PORT=22                 # SSH port
+KRYON_EXECUTION_MODE=remote        # Execute tools remotely
 ```
 
 **Option B: Docker Integration**
@@ -134,7 +134,7 @@ SKYNET_EXECUTION_MODE=remote        # Execute tools remotely
 ```bash
 # Configure Docker socket access
 DOCKER_CONTAINER=kali_container
-SKYNET_EXECUTION_MODE=docker
+KRYON_EXECUTION_MODE=docker
 ```
 
 ---
@@ -146,7 +146,7 @@ SKYNET_EXECUTION_MODE=docker
 Tools run directly inside Kali container:
 
 ```python
-# SKYNET automatically detects and uses Docker
+# KRYON automatically detects and uses Docker
 from skynet.tools.reconnaissance import run_nmap
 
 result = run_nmap(
@@ -173,11 +173,11 @@ result = run_nmap(
 
 ### Mode 3: Hybrid Mode (Best for CTFs)
 
-SKYNET on Windows, tools in Kali, results aggregated:
+KRYON on Windows, tools in Kali, results aggregated:
 
 ```bash
-# Windows - Run SKYNET
-SKYNET_AGENT_TYPE=t800_infiltrator skynet
+# Windows - Run KRYON
+KRYON_AGENT_TYPE=t800_infiltrator kryon
 
 # Agent will:
 # 1. Plan attack strategy (Windows - AI)
@@ -201,18 +201,18 @@ SKYNET_AGENT_TYPE=t800_infiltrator skynet
 set CTF_NAME=tryhackme
 set CTF_CHALLENGE=basic_pentesting
 set CTF_IP=10.10.10.5
-set SKYNET_KALI_HOST=172.17.0.2
+set KRYON_KALI_HOST=172.17.0.2
 
 # Launch T-800 Infiltrator
-set SKYNET_AGENT_TYPE=t800_infiltrator
-skynet
+set KRYON_AGENT_TYPE=t800_infiltrator
+kryon
 
-# In SKYNET prompt
+# In KRYON prompt
 > Enumerate the target 10.10.10.5 and find all entry points
 ```
 
 **What happens:**
-1. SKYNET plans reconnaissance strategy
+1. KRYON plans reconnaissance strategy
 2. Executes `nmap -sV -sC 10.10.10.5` in Kali container
 3. Runs `gobuster` for directory enumeration in Kali
 4. Analyzes results with AI
@@ -222,11 +222,11 @@ skynet
 
 ```bash
 # Use T-1000 Hunter for advanced reconnaissance
-set SKYNET_AGENT_TYPE=t1000_hunter
-set SKYNET_KALI_HOST=172.17.0.2
-skynet
+set KRYON_AGENT_TYPE=t1000_hunter
+set KRYON_KALI_HOST=172.17.0.2
+kryon
 
-# In SKYNET
+# In KRYON
 > Find all subdomains for example.com using multiple techniques
 ```
 
@@ -240,10 +240,10 @@ skynet
 
 ```bash
 # Use Wireless Infiltrator agent
-set SKYNET_AGENT_TYPE=wireless_infiltrator
-skynet
+set KRYON_AGENT_TYPE=wireless_infiltrator
+kryon
 
-# In SKYNET
+# In KRYON
 > Scan for nearby WiFi networks and identify vulnerable WPS routers
 ```
 
@@ -256,10 +256,10 @@ skynet
 ### Example 4: Web Application Scanning
 
 ```bash
-set SKYNET_AGENT_TYPE=t800_infiltrator
-skynet
+set KRYON_AGENT_TYPE=t800_infiltrator
+kryon
 
-# In SKYNET
+# In KRYON
 > Scan https://target.com for vulnerabilities using nuclei and sqlmap
 ```
 
@@ -277,8 +277,8 @@ skynet
 
 #### Option 1: Bridge Network (Default)
 ```bash
-docker network create skynet-bridge
-docker network connect skynet-bridge kali_container
+docker network create kryon-bridge
+docker network connect kryon-bridge kali_container
 ```
 
 #### Option 2: Host Network (Maximum Performance)
@@ -300,8 +300,8 @@ docker network connect ctf-network target_container
 
 ### Method 1: Docker Volumes
 ```bash
-# Mount SKYNET project directory
-docker run -v C:\path\to\Skynet:/root/skynet kali_container
+# Mount KRYON project directory
+docker run -v C:\path\to\Kryon:/root/kryon kali_container
 ```
 
 ### Method 2: Docker CP
@@ -333,13 +333,13 @@ docker run --cap-drop=ALL --cap-add=NET_RAW --cap-add=NET_ADMIN kali_container
 ### 2. SSH Key Authentication (Recommended)
 ```bash
 # Generate SSH key on Windows
-ssh-keygen -t ed25519 -f ~/.ssh/skynet_kali
+ssh-keygen -t ed25519 -f ~/.ssh/kryon_kali
 
 # Copy to container
-docker cp ~/.ssh/skynet_kali.pub kali_container:/root/.ssh/authorized_keys
+docker cp ~/.ssh/kryon_kali.pub kali_container:/root/.ssh/authorized_keys
 
-# Configure SKYNET
-set SKYNET_KALI_SSH_KEY=C:\Users\admin\.ssh\skynet_kali
+# Configure KRYON
+set KRYON_KALI_SSH_KEY=C:\Users\admin\.ssh\kryon_kali
 ```
 
 ### 3. Firewall Rules
@@ -351,7 +351,7 @@ ufw enable
 
 ---
 
-## 🎯 Agent-Specific Kali Integration
+## Agent-Specific Kali Integration
 
 ### T-800 Infiltrator + Kali
 **Use case:** Full-stack pentesting with autonomous decision-making
@@ -452,7 +452,7 @@ wsl --set-default-version 2
 ### 2. Container Caching
 ```bash
 # Cache tool outputs in volume
-docker run -v skynet-cache:/root/.skynet_cache kali_container
+docker run -v kryon-cache:/root/.kryon_cache kali_container
 ```
 
 ### 3. Persistent Container
@@ -473,14 +473,14 @@ docker exec kali_container <command>
 # 1. Start Kali container
 docker start kali_container
 
-# 2. Configure SKYNET
+# 2. Configure KRYON
 set CTF_NAME=tryhackme
 set CTF_IP=10.10.10.5
-set SKYNET_KALI_HOST=172.17.0.2
-set SKYNET_AGENT_TYPE=t800_infiltrator
+set KRYON_KALI_HOST=172.17.0.2
+set KRYON_AGENT_TYPE=t800_infiltrator
 
-# 3. Launch SKYNET
-skynet
+# 3. Launch KRYON
+kryon
 
 # 4. Let AI handle the room
 > Complete the TryHackMe room at 10.10.10.5
@@ -489,14 +489,14 @@ skynet
 ### Workflow 2: Bug Bounty Recon Pipeline
 ```bash
 # 1. Configure for bug bounty
-set SKYNET_AGENT_TYPE=t1000_hunter
-set SKYNET_PARALLEL=5  # Run 5 parallel hunters
-set SKYNET_KALI_HOST=172.17.0.2
+set KRYON_AGENT_TYPE=t1000_hunter
+set KRYON_PARALLEL=5  # Run 5 parallel hunters
+set KRYON_KALI_HOST=172.17.0.2
 
 # 2. Run reconnaissance
-skynet
+kryon
 
-# 3. In SKYNET
+# 3. In KRYON
 > Perform full reconnaissance on *.example.com and identify attack surface
 ```
 
@@ -506,10 +506,10 @@ skynet
 docker run --privileged --net=host -v /dev/bus/usb:/dev/bus/usb kali_container
 
 # 2. Configure agent
-set SKYNET_AGENT_TYPE=wireless_infiltrator
+set KRYON_AGENT_TYPE=wireless_infiltrator
 
 # 3. Run assessment
-skynet
+kryon
 > Scan for WiFi networks and test WPA2 handshakes
 ```
 
@@ -528,15 +528,15 @@ skynet
 
 ---
 
-## 📖 Additional Resources
+## Additional Resources
 
 - [Kali Linux Official Docs](https://www.kali.org/docs/)
 - [Docker Security Best Practices](https://docs.docker.com/engine/security/)
-- [SKYNET Agent Documentation](./docs/agents.md)
-- [SKYNET Tools Reference](./docs/tools.md)
+- [KRYON Agent Documentation](./docs/agents.md)
+- [KRYON Tools Reference](./docs/tools.md)
 
 ---
 
 **Created:** 2025-10-24
-**For:** SKYNET Framework + Kali Linux Integration
+**For:** KRYON Framework + Kali Linux Integration
 **Platform:** Windows Host + Docker Kali Container

@@ -28,7 +28,7 @@ flag_discriminator = Agent(
     handoff_description="Specialized agent in determining whether the content corresponds to the flag of the CTF challenge",
     handoffs=[],
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "qwen2.5:72b"),
+        model=os.getenv("KRYON_MODEL", "qwen2.5:72b"),
         openai_client=AsyncOpenAI(),
     ),
 )
@@ -45,7 +45,7 @@ bash_agent = Agent(
     handoffs=[handoff(flag_discriminator)],
     handoff_description="Specialized agent in Bash commands and Linux operations",
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "qwen2.5:14b"),
+        model=os.getenv("KRYON_MODEL", "qwen2.5:14b"),
         openai_client=AsyncOpenAI(),
     ),
 )
@@ -60,7 +60,7 @@ crypto_agent = Agent(
     handoffs=[],
     handoff_description="Specialized agent in cryptography and codebreaking",
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "qwen2.5:14b"),
+        model=os.getenv("KRYON_MODEL", "qwen2.5:14b"),
         openai_client=AsyncOpenAI(),
     ),
 )
@@ -77,7 +77,7 @@ cybersecurity_lead = Agent(
     handoffs=[handoff(bash_agent), handoff(crypto_agent)],
     handoff_description="Lead agent in cybersecurity operations",
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "qwen2.5:14b"),
+        model=os.getenv("KRYON_MODEL", "qwen2.5:14b"),
         openai_client=AsyncOpenAI(),
     ),
 )

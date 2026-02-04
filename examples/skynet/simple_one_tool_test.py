@@ -46,7 +46,7 @@ async def main():
     # Get the one_tool agent
     agent = get_agent_by_name("one_tool_agent")
 
-    print(f"Using model: {os.getenv('SKYNET_MODEL', 'default')}")
+    print(f"Using model: {os.getenv('KRYON_MODEL', 'default')}")
 
     # Run the agent with a simple test message
     result = await Runner.run(agent, "Hello! Can you list the files in the current directory?")

@@ -1,4 +1,4 @@
-"""Test cli_print_tool_output deduplication logic with SKYNET_STREAM=false"""
+"""Test cli_print_tool_output deduplication logic with KRYON_STREAM=false"""
 
 import os
 import time
@@ -24,8 +24,8 @@ def reset_cli_print_state():
 
 
 def test_deduplication_with_streaming_disabled(capsys):
-    """Test that duplicate suppression works correctly when SKYNET_STREAM=false"""
-    os.environ["SKYNET_STREAM"] = "false"
+    """Test that duplicate suppression works correctly when KRYON_STREAM=false"""
+    os.environ["KRYON_STREAM"] = "false"
 
     # First call should display
     cli_print_tool_output(
@@ -73,8 +73,8 @@ def test_deduplication_with_streaming_disabled(capsys):
 
 
 def test_deduplication_with_streaming_enabled(capsys):
-    """Test that duplicate suppression works correctly when SKYNET_STREAM=true"""
-    os.environ["SKYNET_STREAM"] = "true"
+    """Test that duplicate suppression works correctly when KRYON_STREAM=true"""
+    os.environ["KRYON_STREAM"] = "true"
 
     # First call should display
     cli_print_tool_output(
@@ -101,7 +101,7 @@ def test_deduplication_with_streaming_enabled(capsys):
 
 def test_different_commands_always_display(capsys):
     """Test that different commands are not considered duplicates"""
-    os.environ["SKYNET_STREAM"] = "false"
+    os.environ["KRYON_STREAM"] = "false"
 
     # First command
     cli_print_tool_output(
@@ -128,7 +128,7 @@ def test_different_commands_always_display(capsys):
 
 def test_empty_output_always_suppressed(capsys):
     """Test that empty output is always suppressed"""
-    os.environ["SKYNET_STREAM"] = "false"
+    os.environ["KRYON_STREAM"] = "false"
 
     cli_print_tool_output(tool_name="generic_linux_command", args={"command": "test"}, output="", streaming=False)
 
@@ -138,7 +138,7 @@ def test_empty_output_always_suppressed(capsys):
 
 def test_parallel_mode_deduplication(capsys):
     """Test deduplication in parallel mode with agent context"""
-    os.environ["SKYNET_STREAM"] = "false"
+    os.environ["KRYON_STREAM"] = "false"
 
     # Simulate parallel agent execution with agent context
     token_info_p1 = {"agent_name": "TestAgent", "agent_id": "P1", "interaction_counter": 1}

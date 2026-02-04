@@ -185,7 +185,7 @@ class TestHelpCommand:
         assert hasattr(call_args, "renderable")
         panel_content = str(call_args.renderable)
         assert "Environment" in panel_content or "environment" in panel_content.lower()
-        assert "SKYNET_MODEL" in panel_content
+        assert "KRYON_MODEL" in panel_content
 
     def test_handle_aliases_subcommand(self, help_command, mock_console, mock_aliases_registry):
         """Test aliases subcommand help."""

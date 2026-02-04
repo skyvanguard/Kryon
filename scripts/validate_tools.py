@@ -1,5 +1,5 @@
 """
-SKYNET Tool Validation Script
+KRYON Tool Validation Script
 ==============================
 
 Validates that all required tools and dependencies are available.
@@ -30,7 +30,7 @@ def check_module(module_name, optional=False):
 
 def main():
     print("=" * 80)
-    print("SKYNET Tool Validation")
+    print("KRYON Tool Validation")
     print("=" * 80)
     print()
 
@@ -137,7 +137,7 @@ def main():
     else:
         print("[FAILURE] Some REQUIRED modules are missing")
         print()
-        print("Please ensure SKYNET is properly installed:")
+        print("Please ensure KRYON is properly installed:")
         print("  pip install -e .")
         return 1
 

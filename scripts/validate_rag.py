@@ -1,5 +1,5 @@
 """
-SKYNET RAG Validation Script
+KRYON RAG Validation Script
 ============================
 
 Interactive validation of RAG system components.
@@ -74,8 +74,8 @@ def check_dependencies():
 
 
 def check_skynet_modules():
-    """Check SKYNET knowledge modules."""
-    print_header("Checking SKYNET Knowledge Modules")
+    """Check KRYON knowledge modules."""
+    print_header("Checking KRYON Knowledge Modules")
 
     modules = [
         ("skynet.knowledge.vector_db", "Vector database"),
@@ -195,7 +195,7 @@ def check_llm_integration():
         import requests
 
         # Load config
-        config_path = Path.home() / ".skynet" / "config.json"
+        config_path = Path.home() / ".kryon" / "config.json"
         if config_path.exists():
             with open(config_path) as f:
                 config = json.load(f)
@@ -266,7 +266,7 @@ def check_disk_space():
     try:
         import shutil
 
-        knowledge_path = Path(".skynet_knowledge")
+        knowledge_path = Path(".kryon_knowledge")
         if knowledge_path.exists():
             # Get directory size
             total_size = sum(f.stat().st_size for f in knowledge_path.rglob("*") if f.is_file())
@@ -320,7 +320,7 @@ def validate_system():
     print("""
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
-║   SKYNET RAG System Validation                            ║
+║   KRYON RAG System Validation                             ║
 ║   ─────────────────────────────                           ║
 ║   Comprehensive check of all system components            ║
 ║                                                           ║
@@ -331,9 +331,9 @@ def validate_system():
 
     # Run all checks
     checks["Dependencies"] = check_dependencies()
-    checks["SKYNET Modules"] = check_skynet_modules()
+    checks["KRYON Modules"] = check_skynet_modules()
 
-    if checks["Dependencies"] and checks["SKYNET Modules"]:
+    if checks["Dependencies"] and checks["KRYON Modules"]:
         checks["Vector Database"] = check_vector_db()
         checks["Embeddings"] = check_embeddings()
         checks["RAG Engine"] = check_rag_engine()

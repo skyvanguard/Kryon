@@ -190,7 +190,7 @@ def generate_api_docs():
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(description="Build SKYNET documentation with MkDocs")
+    parser = argparse.ArgumentParser(description="Build KRYON documentation with MkDocs")
     parser.add_argument("--serve", action="store_true", help="Serve documentation locally after building")
     parser.add_argument("--strict", action="store_true", help="Build in strict mode (warnings are errors)")
     parser.add_argument("--clean", action="store_true", help="Clean previous build before building")
@@ -201,7 +201,7 @@ def main():
     args = parser.parse_args()
 
     print("\n" + "=" * 70)
-    print("SKYNET DOCUMENTATION BUILD SCRIPT")
+    print("KRYON DOCUMENTATION BUILD SCRIPT")
     print("=" * 70)
 
     # Coverage check only

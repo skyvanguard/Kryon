@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SKYNET Pre-Commit Validation Script
+KRYON Pre-Commit Validation Script
 
 Quick validation script to run before committing changes.
 Checks imports, runs fast tests, and validates code quality.
@@ -186,12 +186,12 @@ def check_agent_prompts():
 def main():
     """Run all validation checks"""
     print("""
-    ███████╗██╗  ██╗██╗   ██╗███╗   ██╗███████╗████████╗
-    ██╔════╝██║ ██╔╝╚██╗ ██╔╝████╗  ██║██╔════╝╚══██╔══╝
-    ███████╗█████╔╝  ╚████╔╝ ██╔██╗ ██║█████╗     ██║
-    ╚════██║██╔═██╗   ╚██╔╝  ██║╚██╗██║██╔══╝     ██║
-    ███████║██║  ██╗   ██║   ██║ ╚████║███████╗   ██║
-    ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═══╝╚══════╝   ╚═╝
+    ██╗  ██╗██████╗ ██╗   ██╗ ██████╗ ███╗   ██╗
+    ██║ ██╔╝██╔══██╗╚██╗ ██╔╝██╔═══██╗████╗  ██║
+    █████╔╝ ██████╔╝ ╚████╔╝ ██║   ██║██╔██╗ ██║
+    ██╔═██╗ ██╔══██╗  ╚██╔╝  ██║   ██║██║╚██╗██║
+    ██║  ██╗██║  ██║   ██║   ╚██████╔╝██║ ╚████║
+    ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═══╝
 
             PRE-COMMIT VALIDATION SUITE
     """)

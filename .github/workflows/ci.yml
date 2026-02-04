@@ -1,4 +1,4 @@
-name: SKYNET CI/CD Pipeline
+name: KRYON CI/CD Pipeline
 
 on:
   push:

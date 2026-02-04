@@ -47,7 +47,7 @@ async def main():
     # Get the one_tool agent
     agent = get_agent_by_name("one_tool_agent")
 
-    print(f"Using model: {os.getenv('SKYNET_MODEL', 'default')}")
+    print(f"Using model: {os.getenv('KRYON_MODEL', 'default')}")
 
     # Stream indicator
     print("\nAgent response (streaming):")

@@ -1,5 +1,5 @@
 """
-SKYNET Decision Engine Tests
+KRYON Decision Engine Tests
 =============================
 
 Comprehensive test suite for the decision engine module.

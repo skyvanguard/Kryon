@@ -1,5 +1,5 @@
 """
-Tests for SKYNET Context Analysis Engine
+Tests for KRYON Context Analysis Engine
 =========================================
 
 Tests for NLP-based intelligence extraction from text, logs, code,

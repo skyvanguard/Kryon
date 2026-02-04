@@ -26,8 +26,8 @@ class TestHistoryCommand:
     def setup_and_cleanup(self):
         """Setup and cleanup for each test."""
         # Set up test environment
-        os.environ["SKYNET_TELEMETRY"] = "false"
-        os.environ["SKYNET_TRACING"] = "false"
+        os.environ["KRYON_TELEMETRY"] = "false"
+        os.environ["KRYON_TRACING"] = "false"
 
         yield
 

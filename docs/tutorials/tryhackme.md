@@ -1,4 +1,4 @@
-# TryHackMe Quick Start Guide - SKYNET CTF Master
+# TryHackMe Quick Start Guide - KRYON CTF Master
 
 **Version:** 1.0.0
 **Status:** ✅ Ready to Use
@@ -13,7 +13,7 @@ Before starting, ensure you have:
 - ✅ TryHackMe account (free or premium)
 - ✅ OpenVPN config file downloaded from TryHackMe
 - ✅ Docker/Kali environment running (or WSL/native Linux)
-- ✅ SKYNET installed (`pip install -e .`)
+- ✅ KRYON installed (`pip install -e .`)
 
 ---
 
@@ -37,11 +37,11 @@ ip addr show tun0
 # Should show IP like: inet 10.10.X.X
 ```
 
-### Step 2: Launch SKYNET CTF Master (1 minute)
+### Step 2: Launch KRYON CTF Master (1 minute)
 
 ```bash
-# Navigate to SKYNET directory
-cd /workspace  # or your SKYNET path
+# Navigate to KRYON directory
+cd /workspace  # or your KRYON path
 
 # Launch Python REPL
 python3
@@ -78,7 +78,7 @@ TARGET_IP = "10.10.245.67"  # Replace with your room's IP
 
 ```python
 # ============================================
-# SKYNET CTF MASTER - Complete Workflow
+# KRYON CTF MASTER - Complete Workflow
 # ============================================
 
 from skynet.tools.ctf import *
@@ -409,7 +409,7 @@ target = get_target_ip()
 **Solution:**
 ```bash
 # Install in development mode
-cd /workspace  # or your SKYNET directory
+cd /workspace  # or your KRYON directory
 pip install -e .
 
 # Verify
@@ -433,10 +433,10 @@ docker exec -u root -it skynet_devcontainer-devenv-1 bash
 
 ## 📚 Learning Path
 
-### Recommended TryHackMe Rooms for SKYNET
+### Recommended TryHackMe Rooms for KRYON
 
 **Beginner:**
-1. ✅ "Basic Pentesting" - Practice all SKYNET phases
+1. ✅ "Basic Pentesting" - Practice all KRYON phases
 2. ✅ "Kenobi" - SMB enumeration + privesc
 3. ✅ "Startup" - Web + Linux privesc
 

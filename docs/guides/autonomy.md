@@ -1,4 +1,4 @@
-# SKYNET Autonomy System Guide
+# KRYON Autonomy System Guide
 
 **Version:** 3.1.0 (5-Pillar Autonomous Framework)
 **Status:** OPERATIONAL - ENHANCED
@@ -7,7 +7,7 @@
 
 ## Overview
 
-SKYNET's Autonomy System v3.1 represents the pinnacle of automated penetration testing technology. Built on a **5-pillar integrated framework**, it provides complete autonomous operation from strategic planning through execution with continuous learning, intelligent adaptation, and defense evasion.
+KRYON's Autonomy System v3.1 represents the pinnacle of automated penetration testing technology. Built on a **5-pillar integrated framework**, it provides complete autonomous operation from strategic planning through execution with continuous learning, intelligent adaptation, and defense evasion.
 
 ### The 5-Pillar Autonomous Framework
 
@@ -32,7 +32,7 @@ SKYNET's Autonomy System v3.1 represents the pinnacle of automated penetration t
 
 ## Quick Start
 
-The fastest way to leverage SKYNET's complete autonomy is through the CTF Master agent:
+The fastest way to leverage KRYON's complete autonomy is through the CTF Master agent:
 
 ```python
 from skynet.agents.ctf_master import ctf_master
@@ -46,8 +46,8 @@ from skynet.agents.ctf_master import ctf_master
 # - autonomous_evasion_orchestrator (evasion autonomy)
 
 # Simply run the CLI and use any autonomy tool:
-# $ skynet --agent ctf_master
-# SKYNET> autonomous_ctf_solver(target_ip="10.10.10.5", difficulty="medium")
+# $ kryon --agent ctf_master
+# KRYON> autonomous_ctf_solver(target_ip="10.10.10.5", difficulty="medium")
 ```
 
 **Performance Impact:**
@@ -337,16 +337,16 @@ engine.set_mode(OperationMode.AGGRESSIVE)    # Confirm CRITICAL only
 
 ```bash
 # Enable/disable learning
-export SKYNET_ENABLE_LEARNING=true
+export KRYON_ENABLE_LEARNING=true
 
 # Learning database location
-export SKYNET_KNOWLEDGE_DB=".skynet_knowledge/operations.db"
+export KRYON_KNOWLEDGE_DB=".kryon_knowledge/operations.db"
 
 # Adaptation settings
-export SKYNET_MAX_ADAPTATION_ATTEMPTS=5
+export KRYON_MAX_ADAPTATION_ATTEMPTS=5
 
 # Confidence threshold for recommendations
-export SKYNET_MIN_CONFIDENCE=0.5
+export KRYON_MIN_CONFIDENCE=0.5
 ```
 
 ### LLM Configuration
@@ -387,7 +387,7 @@ Wasted attempts: ~10% (intelligent prioritization)
 
 ## Best Practices
 
-1. **Let SKYNET Learn Continuously** - Always use autonomous functions for automatic learning
+1. **Let KRYON Learn Continuously** - Always use autonomous functions for automatic learning
 2. **Use Recommendations** - Get recommendations before attacking
 3. **Export Knowledge Regularly** - Backup learned knowledge weekly
 4. **Set Appropriate Confidence Thresholds** - Lower for CTFs, higher for production
@@ -449,6 +449,6 @@ follow_hints(hints: List[Dict], current_access: Dict) -> List[Dict]
 
 ---
 
-**SKYNET Autonomy System - Making Cybersecurity Operations Fully Autonomous**
+**KRYON Autonomy System - Making Cybersecurity Operations Fully Autonomous**
 
 *Version: 3.1.0 | Last Updated: January 2025*

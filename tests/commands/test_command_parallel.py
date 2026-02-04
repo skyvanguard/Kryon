@@ -31,8 +31,8 @@ class TestParallelCommand:
         parallel_module.PARALLEL_CONFIGS.clear()
 
         # Set up test environment
-        os.environ["SKYNET_TELEMETRY"] = "false"
-        os.environ["SKYNET_TRACING"] = "false"
+        os.environ["KRYON_TELEMETRY"] = "false"
+        os.environ["KRYON_TRACING"] = "false"
 
         yield
 

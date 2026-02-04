@@ -1,4 +1,4 @@
-# SKYNET - Autonomous Cybersecurity Intelligence System
+# KRYON - Autonomous Cybersecurity Intelligence System
 
 A lightweight, ergonomic framework for building autonomous cybersecurity AI agents.
 
@@ -14,11 +14,11 @@ A lightweight, ergonomic framework for building autonomous cybersecurity AI agen
 ## Quick Start
 
 ```bash
-# Install SKYNET framework
-pip install skynet-framework
+# Install KRYON framework
+pip install kryon
 
-# Launch SKYNET
-skynet
+# Launch KRYON
+kryon
 ```
 
 ## Documentation

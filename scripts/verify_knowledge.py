@@ -1,5 +1,5 @@
 """
-SKYNET Knowledge Base Verification
+KRYON Knowledge Base Verification
 ==================================
 
 Verify and generate report on knowledge base content.
@@ -22,8 +22,8 @@ def verify():
     print("""
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
-║   SKYNET Knowledge Base Verification                          ║
-║   ────────────────────────────────                           ║
+║   KRYON Knowledge Base Verification                           ║
+║   ────────────────────────────────                            ║
 ║   Generating comprehensive knowledge base report              ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝

@@ -1,5 +1,5 @@
 """
-Integration Tests for SKYNET Agent Workflows
+Integration Tests for KRYON Agent Workflows
 
 Tests complete multi-agent workflows and tool chains to ensure
 the system works end-to-end.

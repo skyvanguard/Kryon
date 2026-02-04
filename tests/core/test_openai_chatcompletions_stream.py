@@ -23,7 +23,7 @@ from skynet.sdk.agents.models.interface import ModelTracing
 from skynet.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
 from skynet.sdk.agents.models.openai_provider import OpenAIProvider
 
-skynet_model = os.getenv("SKYNET_MODEL", "qwen2.5:14b")
+kryon_model = os.getenv("KRYON_MODEL", "qwen2.5:14b")
 
 
 @pytest.mark.allow_call_model_methods
@@ -72,7 +72,7 @@ async def test_stream_response_yields_events_for_text_content(monkeypatch) -> No
         return resp, fake_stream()
 
     monkeypatch.setattr(OpenAIChatCompletionsModel, "_fetch_response", patched_fetch_response)
-    model = OpenAIProvider(use_responses=False).get_model(skynet_model)
+    model = OpenAIProvider(use_responses=False).get_model(kryon_model)
     output_events = []
     async for event in model.stream_response(
         system_instructions=None,
@@ -161,7 +161,7 @@ async def test_stream_response_yields_events_for_refusal_content(monkeypatch) ->
         return resp, fake_stream()
 
     monkeypatch.setattr(OpenAIChatCompletionsModel, "_fetch_response", patched_fetch_response)
-    model = OpenAIProvider(use_responses=False).get_model(skynet_model)
+    model = OpenAIProvider(use_responses=False).get_model(kryon_model)
     output_events = []
     async for event in model.stream_response(
         system_instructions=None,
@@ -248,7 +248,7 @@ async def test_stream_response_yields_events_for_tool_call(monkeypatch) -> None:
         return resp, fake_stream()
 
     monkeypatch.setattr(OpenAIChatCompletionsModel, "_fetch_response", patched_fetch_response)
-    model = OpenAIProvider(use_responses=False).get_model(skynet_model)
+    model = OpenAIProvider(use_responses=False).get_model(kryon_model)
     output_events = []
     async for event in model.stream_response(
         system_instructions=None,

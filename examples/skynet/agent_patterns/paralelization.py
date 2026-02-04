@@ -33,7 +33,7 @@ ctf_agent = Agent(
         execute_cli_command,
     ],
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "qwen2.5:14b"),
+        model=os.getenv("KRYON_MODEL", "qwen2.5:14b"),
         openai_client=AsyncOpenAI(),
     ),
 )
@@ -44,7 +44,7 @@ best_solution_picker = Agent(
     description="Agent focused on  picking the best security solutio",
     instructions="You pick the best security solution from the given attempts.",
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "qwen2.5:14b"),
+        model=os.getenv("KRYON_MODEL", "qwen2.5:14b"),
         openai_client=AsyncOpenAI(),
     ),
 )

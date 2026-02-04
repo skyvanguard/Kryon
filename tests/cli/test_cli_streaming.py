@@ -25,9 +25,9 @@ class TestCLIStreaming(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up test environment."""
-        os.environ["SKYNET_TELEMETRY"] = "false"
-        os.environ["SKYNET_TRACING"] = "false"
-        os.environ["SKYNET_STREAM"] = "false"
+        os.environ["KRYON_TELEMETRY"] = "false"
+        os.environ["KRYON_TRACING"] = "false"
+        os.environ["KRYON_STREAM"] = "false"
 
     @classmethod
     def tearDownClass(cls):
@@ -136,9 +136,9 @@ class TestCLIStreaming(unittest.TestCase):
         # No need to clean up _Converter state since it's now instance-based
 
         # Also ensure environment is clean
-        os.environ["SKYNET_STREAM"] = "false"
-        os.environ["SKYNET_TELEMETRY"] = "false"
-        os.environ["SKYNET_TRACING"] = "false"
+        os.environ["KRYON_STREAM"] = "false"
+        os.environ["KRYON_TELEMETRY"] = "false"
+        os.environ["KRYON_TRACING"] = "false"
 
     def test_ctrl_c_cleanup_message_consistency(self):
         """Test CTRL+C cleanup logic maintains message consistency."""
@@ -440,12 +440,12 @@ class TestCLIStreaming(unittest.TestCase):
     def test_streaming_mode_configuration(self):
         """Test streaming mode can be configured and detected."""
         # Test non-streaming mode
-        os.environ["SKYNET_STREAM"] = "false"
-        assert os.environ["SKYNET_STREAM"] == "false"
+        os.environ["KRYON_STREAM"] = "false"
+        assert os.environ["KRYON_STREAM"] == "false"
 
         # Test streaming mode
-        os.environ["SKYNET_STREAM"] = "true"
-        assert os.environ["SKYNET_STREAM"] == "true"
+        os.environ["KRYON_STREAM"] = "true"
+        assert os.environ["KRYON_STREAM"] == "true"
 
         print("✅ Streaming mode configuration test passed!")
 

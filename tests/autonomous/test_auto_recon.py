@@ -1,5 +1,5 @@
 """
-Tests for SKYNET Auto-Reconnaissance Module
+Tests for KRYON Auto-Reconnaissance Module
 ============================================
 
 Tests for autonomous reconnaissance and enumeration capabilities.

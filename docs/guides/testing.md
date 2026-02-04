@@ -1,4 +1,4 @@
-# SKYNET Testing Framework
+# KRYON Testing Framework
 
 **Version:** 1.0.0
 **Status:** ✅ Complete
@@ -8,7 +8,7 @@
 
 ## Overview
 
-SKYNET uses **pytest** as its testing framework, with comprehensive coverage across unit tests, integration tests, and validation checks. The testing infrastructure ensures code quality, reliability, and regression prevention.
+KRYON uses **pytest** as its testing framework, with comprehensive coverage across unit tests, integration tests, and validation checks. The testing infrastructure ensures code quality, reliability, and regression prevention.
 
 ### Testing Philosophy
 
@@ -299,7 +299,7 @@ Check CI/CD status:
 - ✅ All agent modules can be imported
 - ✅ External dependencies available
 - ✅ Function signatures and documentation
-- ✅ Prompt files exist and have SKYNET theming
+- ✅ Prompt files exist and have KRYON theming
 - ✅ Clearance system documentation
 - ✅ Session reports complete
 
@@ -324,7 +324,7 @@ Check CI/CD status:
 
 #### 1. Import Errors
 
-**Problem:** `ModuleNotFoundError: No module named 'skynet'`
+**Problem:** `ModuleNotFoundError: No module named 'kryon'`
 
 **Solution:**
 ```bash
@@ -460,7 +460,7 @@ When adding new features:
 
 **Testing Status:** ✅ Framework Complete
 **Last Updated:** January 22, 2025
-**Maintained By:** SKYNET Development Team
+**Maintained By:** KRYON Development Team
 
 ---
 

@@ -1,5 +1,5 @@
 """
-SKYNET Knowledge Base Initialization
+KRYON Knowledge Base Initialization
 ====================================
 
 Initialize knowledge base with real data from multiple sources.
@@ -242,7 +242,7 @@ def initialize(
     print("""
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
-║   SKYNET Knowledge Base Initialization                        ║
+║   KRYON Knowledge Base Initialization                         ║
 ║   ─────────────────────────────────                           ║
 ║   Populating knowledge base with real security data           ║
 ║                                                               ║
@@ -322,7 +322,7 @@ def initialize(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Initialize SKYNET knowledge base")
+    parser = argparse.ArgumentParser(description="Initialize KRYON knowledge base")
     parser.add_argument(
         "--sources",
         nargs="+",

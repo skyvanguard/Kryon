@@ -1,7 +1,7 @@
 """
 Tool Availability and Validation Tests
 
-Tests that verify all SKYNET tools are properly configured,
+Tests that verify all KRYON tools are properly configured,
 dependencies are available, and tools can be imported successfully.
 """
 
@@ -114,35 +114,35 @@ class TestAgentImports:
 
 
 class TestCoreImports:
-    """Test core SKYNET package imports"""
+    """Test core KRYON package imports"""
 
     def test_skynet_package(self):
-        """Test core SKYNET package"""
+        """Test core KRYON package"""
         import skynet
 
         assert skynet is not None
 
     def test_skynet_sdk(self):
-        """Test SKYNET SDK"""
+        """Test KRYON SDK"""
         import skynet.sdk
 
         assert skynet.sdk is not None
 
     def test_skynet_sdk_agents(self):
-        """Test SKYNET SDK agents"""
+        """Test KRYON SDK agents"""
         from skynet.sdk.agents import Agent, function_tool
 
         assert Agent is not None
         assert function_tool is not None
 
     def test_skynet_cache(self):
-        """Test SKYNET cache module"""
+        """Test KRYON cache module"""
         from skynet.cache import cache_scan_result
 
         assert cache_scan_result is not None
 
     def test_skynet_util(self):
-        """Test SKYNET utilities"""
+        """Test KRYON utilities"""
         from skynet.util import load_prompt_template
 
         assert load_prompt_template is not None

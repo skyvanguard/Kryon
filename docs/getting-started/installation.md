@@ -1,6 +1,6 @@
 
 ```bash
-pip install skynet-framework
+pip install kryon
 ```
 
 The following subsections provide a more detailed walkthrough on selected popular Operating Systems. Refer to the [Development](skynet_development.md) section for developer-related install instructions.
@@ -11,16 +11,16 @@ brew update && \
     brew install git python@3.12
 
 # Create virtual environment
-python3.12 -m venv skynet_env
+python3.12 -m venv kryon_env
 
 # Install the package from the local directory
-source skynet_env/bin/activate && pip install skynet-framework
+source kryon_env/bin/activate && pip install kryon
 
 # Generate a .env file and set up with defaults
 echo -e 'OPENAI_API_KEY="sk-1234"\nANTHROPIC_API_KEY=""\nOLLAMA=""\nPROMPT_TOOLKIT_NO_CPR=1' > .env
 
-# Launch SKYNET
-skynet  # first launch it can take up to 30 seconds
+# Launch KRYON
+kryon  # first launch it can take up to 30 seconds
 ```
 
 ### Ubuntu 24.04
@@ -29,16 +29,16 @@ sudo apt-get update && \
     sudo apt-get install -y git python3-pip python3.12-venv
 
 # Create the virtual environment
-python3.12 -m venv skynet_env
+python3.12 -m venv kryon_env
 
 # Install the package from the local directory
-source skynet_env/bin/activate && pip install skynet-framework
+source kryon_env/bin/activate && pip install kryon
 
 # Generate a .env file and set up with defaults
 echo -e 'OPENAI_API_KEY="sk-1234"\nANTHROPIC_API_KEY=""\nOLLAMA=""\nPROMPT_TOOLKIT_NO_CPR=1' > .env
 
-# Launch SKYNET
-skynet  # first launch it can take up to 30 seconds
+# Launch KRYON
+kryon  # first launch it can take up to 30 seconds
 ```
 
 ### Ubuntu 20.04
@@ -51,16 +51,16 @@ sudo add-apt-repository ppa:deadsnakes/ppa && sudo apt update
 sudo apt install python3.12 python3.12-venv python3.12-dev -y
 
 # Create the virtual environment
-python3.12 -m venv skynet_env
+python3.12 -m venv kryon_env
 
 # Install the package from the local directory
-source skynet_env/bin/activate && pip install skynet-framework
+source kryon_env/bin/activate && pip install kryon
 
 # Generate a .env file and set up with defaults
 echo -e 'OPENAI_API_KEY="sk-1234"\nANTHROPIC_API_KEY=""\nOLLAMA=""\nPROMPT_TOOLKIT_NO_CPR=1' > .env
 
-# Launch SKYNET
-skynet  # first launch it can take up to 30 seconds
+# Launch KRYON
+kryon  # first launch it can take up to 30 seconds
 ```
 
 ### Windows WSL
@@ -74,16 +74,16 @@ sudo apt-get update && \
     sudo apt-get install -y git python3-pip python3-venv
 
 # Create the virtual environment
-python3 -m venv skynet_env
+python3 -m venv kryon_env
 
 # Install the package from the local directory
-source skynet_env/bin/activate && pip install skynet-framework
+source kryon_env/bin/activate && pip install kryon
 
 # Generate a .env file and set up with defaults
 echo -e 'OPENAI_API_KEY="sk-1234"\nANTHROPIC_API_KEY=""\nOLLAMA=""\nPROMPT_TOOLKIT_NO_CPR=1' > .env
 
-# Launch SKYNET
-skynet  # first launch it can take up to 30 seconds
+# Launch KRYON
+kryon  # first launch it can take up to 30 seconds
 ```
 
 ### Android
@@ -106,33 +106,33 @@ sudo dpkg -i kali-archive-keyring_2024.1_all.deb && rm kali-archive-keyring_2024
 # Update APT repository
 sudo apt-get update
 
-# SKYNET requires python 3.12, lets install it
+# KRYON requires python 3.12, lets install it
 sudo apt-get update && sudo apt-get install -y git python3-pip build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev libsqlite3-dev wget libbz2-dev pkg-config
 wget https://www.python.org/ftp/python/3.12.4/Python-3.12.4.tar.xz
 tar xf Python-3.12.4.tar.xz
 cd ./configure --enable-optimizations
 sudo make altinstall # This command takes long to execute
 
-# Clone SKYNET source code
-git clone https://github.com/skynet-ai/skynet-framework && cd skynet-framework
+# Clone KRYON source code
+git clone https://github.com/kryon-ai/kryon && cd kryon
 
 # Create virtual environment
-python3.12 -m venv skynet_env
+python3.12 -m venv kryon_env
 
 # Install the package from the local directory
-source skynet_env/bin/activate && pip3 install -e .
+source kryon_env/bin/activate && pip3 install -e .
 
 # Generate a .env file and set up
 cp .env.example .env  # edit here your keys/models
 
-# Launch SKYNET
-skynet
+# Launch KRYON
+kryon
 ```
 
 
 ### Setup `.env` file
 
-SKYNET leverages the `.env` file to load configuration at launch. To facilitate the setup, the repo provides an exemplary `.env.example` file provides a template for configuring SKYNET's setup and your LLM API keys to work with desired LLM models.
+KRYON leverages the `.env` file to load configuration at launch. To facilitate the setup, the repo provides an exemplary `.env.example` file provides a template for configuring KRYON's setup and your LLM API keys to work with desired LLM models.
 
 ```bash
 OPENAI_API_KEY="sk-1234"
@@ -144,12 +144,12 @@ ANTHROPIC_API_KEY=""
 OLLAMA=""
 PROMPT_TOOLKIT_NO_CPR=1
 ```
-SKYNET does NOT provide API keys for any model by default.
+KRYON does NOT provide API keys for any model by default.
 
 
 ### Custom OpenAI Base URL Support
 ```
-SKYNET supports configuring a custom OpenAI API base URL via the `OPENAI_BASE_URL` environment variable. This allows users to redirect API calls to a custom endpoint, such as a proxy or self-hosted OpenAI-compatible service.
+KRYON supports configuring a custom OpenAI API base URL via the `OPENAI_BASE_URL` environment variable. This allows users to redirect API calls to a custom endpoint, such as a proxy or self-hosted OpenAI-compatible service.
 
 Example `.env` entry configuration:
 ```
@@ -158,6 +158,6 @@ OLLAMA_API_BASE="https://custom-openai-proxy.com/v1"
 
 Or directly from the command line:
 ```bash
-OLLAMA_API_BASE="https://custom-openai-proxy.com/v1" skynet
+OLLAMA_API_BASE="https://custom-openai-proxy.com/v1" kryon
 ```
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SKYNET Import Update Script
+KRYON Import Update Script
 ============================
 
 This script automatically updates all imports from 'skynet' to 'skynet' across
@@ -144,7 +144,7 @@ def process_directory(directory: Path, dry_run: bool = False, verbose: bool = Fa
     files_modified = 0
 
     print(f"\n{BLUE}{'=' * 60}{RESET}")
-    print(f"{BLUE}SKYNET Import Update Script{RESET}")
+    print(f"{BLUE}KRYON Import Update Script{RESET}")
     print(f"{BLUE}{'=' * 60}{RESET}\n")
 
     if dry_run:
@@ -189,7 +189,7 @@ def process_directory(directory: Path, dry_run: bool = False, verbose: bool = Fa
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="Update imports from SKYNET to SKYNET across the codebase")
+    parser = argparse.ArgumentParser(description="Update imports from SKYNET to KRYON across the codebase")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be changed without making changes")
     parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed output")
     parser.add_argument(

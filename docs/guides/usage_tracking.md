@@ -1,11 +1,11 @@
-# SKYNET Global Usage Tracking
+# KRYON Global Usage Tracking
 
-SKYNET now includes automatic global usage tracking that persists token usage and costs across all sessions to `$HOME/.skynet/usage.json`.
+KRYON now includes automatic global usage tracking that persists token usage and costs across all sessions to `$HOME/.kryon/usage.json`.
 
 ## Features
 
 - **Automatic Tracking**: All LLM interactions are automatically tracked
-- **Global Persistence**: Usage data persists across all SKYNET sessions
+- **Global Persistence**: Usage data persists across all KRYON sessions
 - **Model-Specific Stats**: Track usage per model (GPT-4, Claude, etc.)
 - **Daily Breakdowns**: View usage by day
 - **Session History**: Track individual session costs and tokens
@@ -13,7 +13,7 @@ SKYNET now includes automatic global usage tracking that persists token usage an
 
 ## Usage Data Structure
 
-The `$HOME/.skynet/usage.json` file contains:
+The `$HOME/.kryon/usage.json` file contains:
 
 ```json
 {
@@ -72,7 +72,7 @@ python examples/basic/usage_tracking_example.py reset
 If you prefer not to track usage globally, set the environment variable:
 
 ```bash
-export SKYNET_DISABLE_USAGE_TRACKING=true
+export KRYON_DISABLE_USAGE_TRACKING=true
 ```
 
 ## Implementation Details

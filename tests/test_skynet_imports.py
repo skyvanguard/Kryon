@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-SKYNET Framework - Import and Compatibility Test Suite
+KRYON Framework - Import and Compatibility Test Suite
 ======================================================
 
-Tests all critical imports for the SKYNET framework.
+Tests all critical imports for the KRYON framework.
 """
 
 import os
@@ -13,34 +13,34 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-placeholder-for-testing")
 
 
 class TestCoreImports:
-    """Test core SKYNET package imports."""
+    """Test core KRYON package imports."""
 
     def test_skynet_package(self):
-        """Test core SKYNET package import."""
+        """Test core KRYON package import."""
         import skynet
 
         assert skynet is not None
 
     def test_skynet_sdk(self):
-        """Test SKYNET SDK import."""
+        """Test KRYON SDK import."""
         import skynet.sdk
 
         assert skynet.sdk is not None
 
     def test_skynet_sdk_agents(self):
-        """Test SKYNET SDK agents module import."""
+        """Test KRYON SDK agents module import."""
         import skynet.sdk.agents
 
         assert skynet.sdk.agents is not None
 
     def test_skynet_tools(self):
-        """Test SKYNET tools module import."""
+        """Test KRYON tools module import."""
         import skynet.tools
 
         assert skynet.tools is not None
 
     def test_skynet_cache(self):
-        """Test SKYNET cache module import."""
+        """Test KRYON cache module import."""
         from skynet.cache import cache_scan_result
 
         assert cache_scan_result is not None
@@ -207,7 +207,7 @@ class TestUtilityImports:
     """Test utility module imports."""
 
     def test_skynet_util(self):
-        """Test SKYNET utilities import."""
+        """Test KRYON utilities import."""
         from skynet.util import load_prompt_template
 
         assert load_prompt_template is not None

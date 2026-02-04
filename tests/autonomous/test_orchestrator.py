@@ -1,5 +1,5 @@
 """
-SKYNET Orchestrator Integration Tests
+KRYON Orchestrator Integration Tests
 ======================================
 
 Comprehensive integration tests for autonomous orchestrator.

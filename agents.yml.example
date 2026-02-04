@@ -1,5 +1,5 @@
 # Example agents.yml configuration file
-# This file is auto-loaded when SKYNET starts
+# This file is auto-loaded when KRYON starts
 # Copy this to agents.yml and customize for your needs
 
 parallel_agents:

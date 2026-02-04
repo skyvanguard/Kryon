@@ -1,4 +1,4 @@
-# SKYNET Troubleshooting Guide
+# KRYON Troubleshooting Guide
 
 **Clearance Level:** Omega-Command (Operational Support)
 **Last Updated:** January 2025
@@ -32,8 +32,8 @@ ModuleNotFoundError: No module named 'skynet.tools.autonomous.auto_recon'
 
 **Solution:**
 ```bash
-# Verify SKYNET is properly installed
-cd /path/to/skynet
+# Verify KRYON is properly installed
+cd /path/to/kryon
 pip install -e .
 
 # Verify Python path
@@ -696,7 +696,7 @@ export PATH=$PATH:/usr/local/bin
 
 **Error:**
 ```
-PermissionError: [Errno 13] Permission denied: '/tmp/skynet_ctf_report.md'
+PermissionError: [Errno 13] Permission denied: '/tmp/kryon_ctf_report.md'
 ```
 
 **Solution:**
@@ -801,17 +801,17 @@ print(f"Hints found: {len(context.get('hints', []))}")
 
 **Solution:**
 ```bash
-# Start tcpdump before running SKYNET
-sudo tcpdump -i eth0 -w skynet_traffic.pcap host 10.10.10.5 &
+# Start tcpdump before running KRYON
+sudo tcpdump -i eth0 -w kryon_traffic.pcap host 10.10.10.5 &
 
-# Run SKYNET operation
+# Run KRYON operation
 python your_script.py
 
 # Stop tcpdump
 sudo killall tcpdump
 
 # Analyze traffic
-wireshark skynet_traffic.pcap
+wireshark kryon_traffic.pcap
 ```
 
 ---
@@ -843,11 +843,11 @@ If you're still experiencing issues after trying these troubleshooting steps:
 
 1. **Check Logs:**
 ```bash
-# Check SKYNET logs
-tail -f /var/log/skynet.log
+# Check KRYON logs
+tail -f /var/log/kryon.log
 
 # Check system logs
-journalctl -u skynet -f
+journalctl -u kryon -f
 ```
 
 2. **Run Diagnostics:**
@@ -860,7 +860,7 @@ print(diagnostics)
 ```
 
 3. **Report Issue:**
-- Include SKYNET version
+- Include KRYON version
 - Include Python version
 - Include OS details
 - Include error messages
@@ -869,7 +869,7 @@ print(diagnostics)
 
 ---
 
-**🤖 SKYNET Troubleshooting Guide v3.2.0**
+**KRYON Troubleshooting Guide v3.2.0**
 
 **Clearance Level:** Omega-Command
 **Status:** Operational Support Active

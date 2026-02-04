@@ -27,16 +27,16 @@ class TestAgentCommand:
     def setup_and_cleanup(self):
         """Setup and cleanup for each test."""
         # Set up test environment
-        os.environ["SKYNET_TELEMETRY"] = "false"
-        os.environ["SKYNET_TRACING"] = "false"
+        os.environ["KRYON_TELEMETRY"] = "false"
+        os.environ["KRYON_TRACING"] = "false"
 
         # Clear any agent-related environment variables
         env_vars_to_clear = [
-            "SKYNET_AGENT_TYPE",
+            "KRYON_AGENT_TYPE",
             "CTF_MODEL",
-            "SKYNET_CODE_MODEL",
-            "SKYNET_TEST_MODEL",
-            "SKYNET_CUSTOM_MODEL",
+            "KRYON_CODE_MODEL",
+            "KRYON_TEST_MODEL",
+            "KRYON_CUSTOM_MODEL",
         ]
         for var in env_vars_to_clear:
             if var in os.environ:
@@ -118,7 +118,7 @@ class TestAgentCommand:
 
     def test_get_model_display_with_env_var(self, agent_command):
         """Test model display with agent-specific environment variable."""
-        os.environ["SKYNET_TEST_MODEL"] = "custom-model"
+        os.environ["KRYON_TEST_MODEL"] = "custom-model"
 
         mock_agent = Mock()
         mock_agent.model = "default-model"
@@ -167,7 +167,7 @@ class TestAgentCommand:
 
         result = agent_command.handle_select(["blueteam_agent"])
         assert result is True
-        assert os.environ.get("SKYNET_AGENT_TYPE") == "blueteam_agent"
+        assert os.environ.get("KRYON_AGENT_TYPE") == "blueteam_agent"
 
         # Verify visualization was called
         mock_visualize.assert_called_once_with(mock_agents["blueteam_agent"])
@@ -178,9 +178,9 @@ class TestAgentCommand:
         """Test selecting an agent by number."""
         mock_get_agents.return_value = mock_agents
 
-        # Clear SKYNET_AGENT_TYPE to ensure clean test
-        if "SKYNET_AGENT_TYPE" in os.environ:
-            del os.environ["SKYNET_AGENT_TYPE"]
+        # Clear KRYON_AGENT_TYPE to ensure clean test
+        if "KRYON_AGENT_TYPE" in os.environ:
+            del os.environ["KRYON_AGENT_TYPE"]
 
         result = agent_command.handle_select(["2"])
 
@@ -189,13 +189,13 @@ class TestAgentCommand:
         if result is False:
             # The command failed as expected due to locals() scope issue
             # This is the actual behavior of the code
-            assert "SKYNET_AGENT_TYPE" not in os.environ
+            assert "KRYON_AGENT_TYPE" not in os.environ
         else:
             # If it succeeds, check that the correct agent was selected
             assert result is True
             agent_keys = list(mock_agents.keys())
             expected_key = agent_keys[1]  # Second agent (0-indexed)
-            assert os.environ.get("SKYNET_AGENT_TYPE") == expected_key
+            assert os.environ.get("KRYON_AGENT_TYPE") == expected_key
 
     @patch("skynet.repl.commands.agent.get_available_agents")
     def test_handle_select_invalid_name(self, mock_get_agents, agent_command, mock_agents):
@@ -204,7 +204,7 @@ class TestAgentCommand:
 
         result = agent_command.handle_select(["invalid_agent"])
         assert result is False
-        assert "SKYNET_AGENT_TYPE" not in os.environ
+        assert "KRYON_AGENT_TYPE" not in os.environ
 
     @patch("skynet.repl.commands.agent.get_available_agents")
     def test_handle_select_invalid_number(self, mock_get_agents, agent_command, mock_agents):
@@ -213,7 +213,7 @@ class TestAgentCommand:
 
         result = agent_command.handle_select(["99"])
         assert result is False
-        assert "SKYNET_AGENT_TYPE" not in os.environ
+        assert "KRYON_AGENT_TYPE" not in os.environ
 
     def test_handle_select_no_args(self, agent_command):
         """Test select command with no arguments."""
@@ -261,8 +261,8 @@ class TestAgentCommand:
     def test_handle_current_single_agent(self, mock_get_agents, agent_command, mock_agents):
         """Test handle_current for single agent mode."""
         mock_get_agents.return_value = mock_agents
-        os.environ["SKYNET_AGENT_TYPE"] = "blueteam_agent"
-        os.environ["SKYNET_PARALLEL"] = "1"  # Ensure single agent mode
+        os.environ["KRYON_AGENT_TYPE"] = "blueteam_agent"
+        os.environ["KRYON_PARALLEL"] = "1"  # Ensure single agent mode
 
         result = agent_command.handle_current([])
         assert result is True
@@ -271,8 +271,8 @@ class TestAgentCommand:
     def test_handle_current_agent_not_found(self, mock_get_agents, agent_command, mock_agents):
         """Test handle_current when current agent is not found."""
         mock_get_agents.return_value = mock_agents
-        os.environ["SKYNET_AGENT_TYPE"] = "nonexistent_agent"
-        os.environ["SKYNET_PARALLEL"] = "1"
+        os.environ["KRYON_AGENT_TYPE"] = "nonexistent_agent"
+        os.environ["KRYON_PARALLEL"] = "1"
 
         result = agent_command.handle_current([])
         assert result is False
@@ -320,7 +320,7 @@ class TestAgentCommand:
             mock_get_agents.return_value = mock_agents
 
             # Set parallel mode
-            os.environ["SKYNET_PARALLEL"] = "2"
+            os.environ["KRYON_PARALLEL"] = "2"
 
             result = agent_command.handle_current([])
             assert result is True
@@ -328,8 +328,8 @@ class TestAgentCommand:
             # Restore original configs
             PARALLEL_CONFIGS.clear()
             PARALLEL_CONFIGS.extend(original_configs)
-            if "SKYNET_PARALLEL" in os.environ:
-                del os.environ["SKYNET_PARALLEL"]
+            if "KRYON_PARALLEL" in os.environ:
+                del os.environ["KRYON_PARALLEL"]
 
     @patch("skynet.repl.commands.agent.get_available_agents")
     def test_handle_info_with_complex_agent(self, mock_get_agents, agent_command):
@@ -374,7 +374,7 @@ class TestAgentCommand:
         mock_get_agent.return_value = mock_agents["blueteam_agent"]
 
         # Set a default agent that exists in mock_agents
-        os.environ["SKYNET_AGENT_TYPE"] = "blueteam_agent"
+        os.environ["KRYON_AGENT_TYPE"] = "blueteam_agent"
 
         # Test routing to current (no args now defaults to current)
         result1 = agent_command.handle([])
@@ -391,7 +391,7 @@ class TestAgentCommand:
         # Test direct agent selection (not a subcommand)
         result4 = agent_command.handle(["blueteam_agent"])
         assert result4 is True
-        assert os.environ.get("SKYNET_AGENT_TYPE") == "blueteam_agent"
+        assert os.environ.get("KRYON_AGENT_TYPE") == "blueteam_agent"
 
     @patch("skynet.repl.commands.agent.get_available_agents")
     def test_agent_with_callable_instructions(self, mock_get_agents, agent_command):
@@ -451,11 +451,11 @@ class TestAgentCommandIntegration:
         """Setup for integration tests."""
         # Clear environment variables
         env_vars_to_clear = [
-            "SKYNET_AGENT_TYPE",
+            "KRYON_AGENT_TYPE",
             "CTF_MODEL",
-            "SKYNET_CODE_MODEL",
-            "SKYNET_TEST_MODEL",
-            "SKYNET_CUSTOM_MODEL",
+            "KRYON_CODE_MODEL",
+            "KRYON_TEST_MODEL",
+            "KRYON_CUSTOM_MODEL",
         ]
         for var in env_vars_to_clear:
             if var in os.environ:
@@ -517,7 +517,7 @@ class TestAgentCommandIntegration:
         # Select an agent by name
         result2 = cmd.handle(["select", "agent1"])
         assert result2 is True
-        assert os.environ.get("SKYNET_AGENT_TYPE") == "agent1"
+        assert os.environ.get("KRYON_AGENT_TYPE") == "agent1"
 
         # Get info for an agent
         result3 = cmd.handle(["info", "agent2"])
@@ -536,7 +536,7 @@ class TestAgentCommandIntegration:
         # Direct selection (not using select subcommand)
         result5 = cmd.handle(["agent3"])
         assert result5 is True
-        assert os.environ.get("SKYNET_AGENT_TYPE") == "agent3"
+        assert os.environ.get("KRYON_AGENT_TYPE") == "agent3"
 
     @patch("skynet.repl.commands.agent.get_available_agents")
     def test_environment_variable_handling(self, mock_get_agents):
@@ -554,7 +554,7 @@ class TestAgentCommandIntegration:
         assert result1 == "default-model"
 
         # Test with agent-specific environment variable
-        os.environ["SKYNET_TEST_MODEL"] = "env-specific-model"
+        os.environ["KRYON_TEST_MODEL"] = "env-specific-model"
         result2 = cmd._get_model_display("test", mock_agent)
         assert result2 == "env-specific-model"
 

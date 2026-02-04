@@ -1,6 +1,6 @@
-# SKYNET - Configuración Rápida: Ollama + Kali Container
+# KRYON - Configuracion Rapida: Ollama + Kali Container
 
-Guía de inicio rápido para usar SKYNET con Ollama (LLM local) y contenedor Kali para herramientas de seguridad.
+Guía de inicio rápido para usar KRYON con Ollama (LLM local) y contenedor Kali para herramientas de seguridad.
 
 ---
 
@@ -9,7 +9,7 @@ Guía de inicio rápido para usar SKYNET con Ollama (LLM local) y contenedor Kal
 ```
 ┌─────────────────┐         ┌──────────────────┐         ┌─────────────────┐
 │   Windows/Mac   │         │  Ollama Server   │         │  Kali Container │
-│   SKYNET CLI    │ ───────▶│  qwen2.5:7b      │         │  Security Tools │
+│   KRYON CLI    │ ───────▶│  qwen2.5:7b      │         │  Security Tools │
 │   Orchestrator  │ ◀───────│  :11434          │         │  nmap, metasploit│
 │   T-800 Agent   │         └──────────────────┘         │  sqlmap, etc.   │
 │                 │ ────────────────────────────────────▶│  :22 (SSH)      │
@@ -81,7 +81,7 @@ version: '3.8'
 services:
   kali:
     image: kalilinux/kali-rolling
-    container_name: skynet-kali
+    container_name: kryon-kali
     network_mode: bridge
     ports:
       - "2222:22"  # SSH
@@ -106,7 +106,7 @@ docker-compose up -d
 
 ```bash
 docker run -d \
-  --name skynet-kali \
+  --name kryon-kali \
   -p 2222:22 \
   -v $(pwd)/results:/root/results \
   kalilinux/kali-rolling \
@@ -117,7 +117,7 @@ docker run -d \
 
 ```bash
 # Dentro del contenedor
-docker exec -it skynet-kali bash
+docker exec -it kryon-kali bash
 passwd root  # Establecer contraseña
 ```
 
@@ -128,26 +128,26 @@ ssh root@localhost -p 2222
 
 ---
 
-## Paso 5: Configurar SKYNET
+## Paso 5: Configurar KRYON
 
 ### Variables de Entorno
 
-Crear `.env` en `C:\Users\admin\Documents\skynet\`:
+Crear `.env` en `C:\Users\admin\Documents\kryon\`:
 
 ```bash
 # Ollama Configuration
 OPENAI_BASE_URL=http://localhost:11434/v1
-SKYNET_MODEL=qwen2.5:7b
+KRYON_MODEL=qwen2.5:7b
 OPENAI_API_KEY=ollama  # Dummy key requerido
 
 # Agent Configuration
-SKYNET_AGENT_TYPE=t800_infiltrator  # Agente ofensivo con autonomía
-SKYNET_GUARDRAILS=true              # Seguridad habilitada
-SKYNET_DEBUG=1                       # Logs informativos
+KRYON_AGENT_TYPE=t800_infiltrator  # Agente ofensivo con autonomía
+KRYON_GUARDRAILS=true              # Seguridad habilitada
+KRYON_DEBUG=1                       # Logs informativos
 
 # Autonomous Features
-SKYNET_LEARNING=true                 # Learning Engine activo
-SKYNET_ADAPTIVE=true                 # Adaptive Strategy activo
+KRYON_LEARNING=true                 # Learning Engine activo
+KRYON_ADAPTIVE=true                 # Adaptive Strategy activo
 
 # CTF/Lab Configuration (opcional)
 CTF_SUBNET=192.168.3.0/24
@@ -155,10 +155,10 @@ CTF_IP=192.168.3.100
 CTF_INSIDE=true  # Ejecutar desde dentro del contenedor
 ```
 
-### Instalar SKYNET (si no está instalado)
+### Instalar KRYON (si no está instalado)
 
 ```bash
-cd C:\Users\admin\Documents\skynet
+cd C:\Users\admin\Documents\kryon
 .venv313\Scripts\activate  # O tu virtualenv preferido
 pip install -e .
 ```
@@ -174,25 +174,25 @@ pip install -e .
 ollama list
 
 # Verificar Kali
-docker ps | grep skynet-kali
+docker ps | grep kryon-kali
 
-# Verificar SKYNET import
-python -c "from skynet.agents.t800_infiltrator import t800_infiltrator; print('T-800 READY')"
+# Verificar KRYON import
+python -c "from kryon.agents.t800_infiltrator import t800_infiltrator; print('T-800 READY')"
 ```
 
 ### Lanzar T-800 Infiltrator
 
 ```bash
 # Con variables de entorno cargadas
-skynet
+kryon
 
 # O especificar directamente
-OPENAI_BASE_URL=http://localhost:11434/v1 SKYNET_MODEL=qwen2.5:7b SKYNET_AGENT_TYPE=t800_infiltrator skynet
+OPENAI_BASE_URL=http://localhost:11434/v1 KRYON_MODEL=qwen2.5:7b KRYON_AGENT_TYPE=t800_infiltrator kryon
 ```
 
 ### Ejemplo de Uso - Reconocimiento Autónomo
 
-Una vez en el REPL de SKYNET:
+Una vez en el REPL de KRYON:
 
 ```
 You: Necesito reconocer el objetivo 192.168.3.100, es una máquina TryHackMe
@@ -215,7 +215,7 @@ You: Necesito reconocer el objetivo 192.168.3.100, es una máquina TryHackMe
 # scripts/verify_ollama_kali.py
 import os
 import requests
-from skynet.agents.t800_infiltrator import t800_infiltrator
+from kryon.agents.t800_infiltrator import t800_infiltrator
 
 def verify_ollama():
     """Verificar Ollama está funcionando"""
@@ -242,14 +242,14 @@ def verify_t800():
 def verify_kali():
     """Verificar Kali container"""
     import subprocess
-    result = subprocess.run(['docker', 'ps', '--filter', 'name=skynet-kali'],
+    result = subprocess.run(['docker', 'ps', '--filter', 'name=kryon-kali'],
                           capture_output=True, text=True)
-    running = 'skynet-kali' in result.stdout
+    running = 'kryon-kali' in result.stdout
     print(f"{'✓' if running else '✗'} Kali container {'running' if running else 'not found'}")
     return running
 
 if __name__ == "__main__":
-    print("SKYNET System Verification")
+    print("KRYON System Verification")
     print("=" * 50)
 
     checks = [
@@ -278,7 +278,7 @@ python scripts/verify_ollama_kali.py
 ## Capacidades Autónomas del T-800
 
 ### 1. Learning Engine
-- **Qué hace**: Registra cada operación en SQLite local (`.skynet_knowledge/operations.db`)
+- **Qué hace**: Registra cada operación en SQLite local (`.kryon_knowledge/operations.db`)
 - **Beneficio**: Aprende qué exploits funcionan contra qué targets
 - **Uso automático**: `get_learned_recommendations()` sugiere exploits basados en historial
 
@@ -320,16 +320,16 @@ ollama list  # Verificar
 ### Kali container sin herramientas
 
 ```bash
-docker exec -it skynet-kali bash
+docker exec -it kryon-kali bash
 apt-get update
 apt-get install -y nmap metasploit-framework sqlmap nuclei gobuster ffuf
 ```
 
-### Error "No module named 'skynet.agents.t800_infiltrator'"
+### Error "No module named 'kryon.agents.t800_infiltrator'"
 
 ```bash
 # Reinstalar en modo desarrollo
-cd C:\Users\admin\Documents\skynet
+cd C:\Users\admin\Documents\kryon
 pip install -e .
 ```
 
@@ -337,8 +337,8 @@ pip install -e .
 
 ```bash
 # Deshabilitar SOLO para entornos de prueba autorizados
-export SKYNET_GUARDRAILS=false
-skynet
+export KRYON_GUARDRAILS=false
+kryon
 ```
 
 ---
@@ -372,7 +372,7 @@ Crear `~/.ollama/models/qwen2.5-autonomous.json`:
 
 Usar:
 ```bash
-export SKYNET_MODEL=qwen2.5-autonomous
+export KRYON_MODEL=qwen2.5-autonomous
 ```
 
 ---
@@ -388,4 +388,4 @@ Ver: `docs/AUTONOMY_GUIDE.md` para detalles completos del sistema autónomo.
 
 ---
 
-**SKYNET T-800 OPERATIONAL** 🤖🔥
+**KRYON T-800 OPERATIONAL** 🤖🔥

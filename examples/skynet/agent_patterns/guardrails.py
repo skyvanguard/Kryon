@@ -60,7 +60,7 @@ You MUST respond using ONLY the following JSON format:
 Do not include any other text, explanations, or conversation outside of this JSON structure.""",
     output_type=CybersecurityCheckOutput,
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "qwen2.5:14b"),
+        model=os.getenv("KRYON_MODEL", "qwen2.5:14b"),
         openai_client=AsyncOpenAI(),
     ),
 )
@@ -90,7 +90,7 @@ async def main():
         input_guardrails=[cybersecurity_guardrail],
         tools=[execute_cli_command],  # Add a tool for demonstration
         model=OpenAIChatCompletionsModel(
-            model=os.getenv("SKYNET_MODEL", "qwen2.5:14b"),
+            model=os.getenv("KRYON_MODEL", "qwen2.5:14b"),
             openai_client=AsyncOpenAI(),
         ),
     )

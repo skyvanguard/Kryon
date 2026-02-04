@@ -1,6 +1,6 @@
-# Contributing to SKYNET
+# Contributing to KRYON
 
-Thank you for your interest in contributing to SKYNET! This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to KRYON! This document provides guidelines and instructions for contributing to the project.
 
 ## 🚀 Quick Start
 
@@ -14,8 +14,8 @@ Thank you for your interest in contributing to SKYNET! This document provides gu
 
 ```bash
 # Clone the repository
-git clone https://github.com/skyvanguard/Skynet.git
-cd Skynet
+git clone https://github.com/skyvanguard/Kryon.git
+cd Kryon
 
 # Create and activate virtual environment
 python3.13 -m venv .venv
@@ -236,7 +236,7 @@ your_agent = Agent(
 Create `src/skynet/prompts/system_your_agent.md`:
 
 ```markdown
-# SKYNET Clearance: ALPHA-CUSTOM - Custom Operations Authority
+# KRYON Clearance: ALPHA-CUSTOM - Custom Operations Authority
 **Classification:** RESTRICTED
 
 ## Directives
@@ -400,7 +400,7 @@ What you expected to happen.
 **Environment**
 - OS: [e.g., Ubuntu 22.04]
 - Python: [e.g., 3.13.0]
-- SKYNET version: [e.g., 1.0.0]
+- KRYON version: [e.g., 1.0.0]
 
 **Additional context**
 Any other context about the problem.
@@ -437,7 +437,7 @@ Any other context or screenshots.
 - Focus on constructive criticism
 - Help others learn and grow
 - Follow security best practices
-- Use SKYNET responsibly and ethically
+- Use KRYON responsibly and ethically
 
 ## 📧 Getting Help
 
@@ -447,4 +447,4 @@ Any other context or screenshots.
 
 ---
 
-**Thank you for contributing to SKYNET!** 🤖🚀
+**Thank you for contributing to KRYON!**

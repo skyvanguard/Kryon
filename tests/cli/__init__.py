@@ -1,7 +1,7 @@
 """
 CLI Test Package
 
-This package contains comprehensive tests for the SKYNET CLI functionality,
+This package contains comprehensive tests for the KRYON CLI functionality,
 including streaming, keyboard interrupts, message flow, and integration tests.
 """
 

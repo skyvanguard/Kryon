@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SKYNET First Operation Script
+KRYON First Operation Script
 Automated reconnaissance and CTF solving
 
 Clearance: Omega-Command
@@ -20,7 +20,7 @@ from skynet.tools.autonomous import full_auto_enumeration
 
 def print_banner():
     print("=" * 80)
-    print("🤖 SKYNET v3.3.0 - Primera Operación Autónoma")
+    print("KRYON v3.3.0 - Primera Operacion Autonoma")
     print("=" * 80)
     print()
 
@@ -114,7 +114,7 @@ def run_reconnaissance(target_ip: str, deep: bool = False):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="SKYNET First Operation Script",
+        description="KRYON First Operation Script",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Ejemplos:

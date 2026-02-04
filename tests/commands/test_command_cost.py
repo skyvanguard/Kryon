@@ -387,7 +387,7 @@ class TestCostCommand:
             summary = cost_command._get_global_summary()
 
             assert "Usage tracking is disabled" in summary
-            assert "SKYNET_DISABLE_USAGE_TRACKING=false" in summary
+            assert "KRYON_DISABLE_USAGE_TRACKING=false" in summary
 
     def test_show_top_models_mini(self, cost_command, mock_console):
         """Test _show_top_models_mini method."""

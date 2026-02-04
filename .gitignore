@@ -174,10 +174,14 @@ venv*
 # Data directories
 data/
 
-# SKYNET specific files
+# KRYON specific files
 # Knowledge base and cache directories
+.kryon_knowledge/
+.kryon_cache/
 .skynet_knowledge/
 .skynet_cache/
+src/.kryon_knowledge/
+src/.kryon_cache/
 src/.skynet_knowledge/
 src/.skynet_cache/
 
