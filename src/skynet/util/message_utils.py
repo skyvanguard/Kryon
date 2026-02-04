@@ -80,9 +80,7 @@ def fix_litellm_transcription_annotations():
             }
 
         # Apply the monkey patch
-        model_param_helper.ModelParamHelper._get_litellm_supported_transcription_kwargs = (
-            safe_get_transcription_kwargs
-        )
+        model_param_helper.ModelParamHelper._get_litellm_supported_transcription_kwargs = safe_get_transcription_kwargs
         return True
     except (ImportError, AttributeError):
         # If the import fails or the attribute doesn't exist, the patch couldn't be applied

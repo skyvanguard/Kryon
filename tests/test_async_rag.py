@@ -32,14 +32,14 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 # Check if sentence_transformers is available
 try:
     import sentence_transformers
+
     HAS_SENTENCE_TRANSFORMERS = True
 except ImportError:
     HAS_SENTENCE_TRANSFORMERS = False
 
 # Skip marker for tests requiring sentence_transformers
 requires_sentence_transformers = pytest.mark.skipif(
-    not HAS_SENTENCE_TRANSFORMERS,
-    reason="sentence_transformers not installed (pip install sentence-transformers)"
+    not HAS_SENTENCE_TRANSFORMERS, reason="sentence_transformers not installed (pip install sentence-transformers)"
 )
 
 

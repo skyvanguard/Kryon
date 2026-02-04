@@ -8,16 +8,19 @@ from typing import Any
 if not os.environ.get("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 
+
 # Check if local model is available (ollama or similar)
 def _check_local_model_available():
     """Check if a local model server is running."""
     try:
         import httpx
+
         with httpx.Client(timeout=2.0) as client:
             response = client.get("http://localhost:11434/api/tags")
             return response.status_code == 200
     except Exception:
         return False
+
 
 _has_local_model = _check_local_model_available()
 

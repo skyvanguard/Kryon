@@ -216,7 +216,9 @@ def test_private_model_gpt4o_with_pricing_json():
                     print(f"Expected pricing: {expected_pricing} | Expected cost: ${expected_cost:.6f}")
 
                     if PYTEST_AVAILABLE:
-                        assert pricing == expected_pricing, f"gpt4o should have pricing {expected_pricing}, got {pricing}"
+                        assert pricing == expected_pricing, (
+                            f"gpt4o should have pricing {expected_pricing}, got {pricing}"
+                        )
                         assert abs(cost - expected_cost) < 1e-10, f"gpt4o should have cost {expected_cost}, got {cost}"
                     else:
                         if pricing != expected_pricing:

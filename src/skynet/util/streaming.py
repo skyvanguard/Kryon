@@ -509,7 +509,7 @@ def _create_tool_panel_content(tool_name, args, output, execution_info=None, tok
     if is_handoff:
         agent_name = None
         if tool_name.startswith("transfer_to_"):
-            agent_name_raw = tool_name[len("transfer_to_"):]
+            agent_name_raw = tool_name[len("transfer_to_") :]
             agent_name = " ".join(word.capitalize() for word in agent_name_raw.split("_"))
             parts = agent_name.split()
             for i, part in enumerate(parts):
@@ -1087,7 +1087,7 @@ def cli_print_tool_output(
         if is_handoff:
             agent_name = None
             if tool_name.startswith("transfer_to_"):
-                agent_name_raw = tool_name[len("transfer_to_"):]
+                agent_name_raw = tool_name[len("transfer_to_") :]
                 agent_name = " ".join(word.capitalize() for word in agent_name_raw.split("_"))
                 parts = agent_name.split()
                 for i, part in enumerate(parts):
@@ -1533,10 +1533,26 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
         filename = args.get("filename", "exploit")
 
         extensions = {
-            "python": "py", "php": "php", "bash": "sh", "shell": "sh", "ruby": "rb",
-            "perl": "pl", "golang": "go", "go": "go", "javascript": "js", "js": "js",
-            "typescript": "ts", "ts": "ts", "rust": "rs", "csharp": "cs", "cs": "cs",
-            "java": "java", "kotlin": "kt", "c": "c", "cpp": "cpp", "c++": "cpp",
+            "python": "py",
+            "php": "php",
+            "bash": "sh",
+            "shell": "sh",
+            "ruby": "rb",
+            "perl": "pl",
+            "golang": "go",
+            "go": "go",
+            "javascript": "js",
+            "js": "js",
+            "typescript": "ts",
+            "ts": "ts",
+            "rust": "rs",
+            "csharp": "cs",
+            "cs": "cs",
+            "java": "java",
+            "kotlin": "kt",
+            "c": "c",
+            "cpp": "cpp",
+            "c++": "cpp",
         }
         ext = extensions.get(language, "txt")
 
@@ -1555,13 +1571,21 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
             full_path = os.path.join(os.getcwd(), f"{filename}.{ext}")
 
         code_syntax = Syntax(
-            code, language, theme="monokai", line_numbers=True,
-            background_color="#272822", indent_guides=True, word_wrap=True,
+            code,
+            language,
+            theme="monokai",
+            line_numbers=True,
+            background_color="#272822",
+            indent_guides=True,
+            word_wrap=True,
         )
         code_panel = Panel(
             code_syntax,
             title=f"[bold cyan]{agent_name}[/bold cyan] - Code saved to: [yellow]{full_path}[/yellow]",
-            border_style="cyan", title_align="left", box=ROUNDED, padding=(0, 1),
+            border_style="cyan",
+            title_align="left",
+            box=ROUNDED,
+            padding=(0, 1),
         )
 
         local_console.print(code_panel)
@@ -1627,9 +1651,7 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
 
     current_time = time.time()
     start_tool_streaming._recent_commands = {
-        k: v
-        for k, v in start_tool_streaming._recent_commands.items()
-        if current_time - v.get("timestamp", 0) < 30
+        k: v for k, v in start_tool_streaming._recent_commands.items() if current_time - v.get("timestamp", 0) < 30
     }
 
     if tool_name == "execute_code" and isinstance(args, dict) and "code" in args:
@@ -1641,10 +1663,26 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
         filename = args.get("filename", "exploit")
 
         extensions = {
-            "python": "py", "php": "php", "bash": "sh", "shell": "sh", "ruby": "rb",
-            "perl": "pl", "golang": "go", "go": "go", "javascript": "js", "js": "js",
-            "typescript": "ts", "ts": "ts", "rust": "rs", "csharp": "cs", "cs": "cs",
-            "java": "java", "kotlin": "kt", "c": "c", "cpp": "cpp", "c++": "cpp",
+            "python": "py",
+            "php": "php",
+            "bash": "sh",
+            "shell": "sh",
+            "ruby": "rb",
+            "perl": "pl",
+            "golang": "go",
+            "go": "go",
+            "javascript": "js",
+            "js": "js",
+            "typescript": "ts",
+            "ts": "ts",
+            "rust": "rs",
+            "csharp": "cs",
+            "cs": "cs",
+            "java": "java",
+            "kotlin": "kt",
+            "c": "c",
+            "cpp": "cpp",
+            "c++": "cpp",
         }
         ext = extensions.get(language, "txt")
 
@@ -1663,13 +1701,21 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
             full_path = os.path.join(os.getcwd(), f"{filename}.{ext}")
 
         code_syntax = Syntax(
-            code, language, theme="monokai", line_numbers=True,
-            background_color="#272822", indent_guides=True, word_wrap=True,
+            code,
+            language,
+            theme="monokai",
+            line_numbers=True,
+            background_color="#272822",
+            indent_guides=True,
+            word_wrap=True,
         )
         code_panel = Panel(
             code_syntax,
             title=f"[bold cyan]{agent_name}[/bold cyan] - Code saved to: [yellow]{full_path}[/yellow]",
-            border_style="cyan", title_align="left", box=ROUNDED, padding=(0, 1),
+            border_style="cyan",
+            title_align="left",
+            box=ROUNDED,
+            padding=(0, 1),
         )
 
         local_console.print(code_panel)
@@ -1749,10 +1795,26 @@ def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None,
         filename = args.get("filename", "code")
 
         extensions = {
-            "python": "py", "php": "php", "bash": "sh", "shell": "sh", "ruby": "rb",
-            "perl": "pl", "golang": "go", "go": "go", "javascript": "js", "js": "js",
-            "typescript": "ts", "ts": "ts", "rust": "rs", "csharp": "cs", "cs": "cs",
-            "java": "java", "kotlin": "kt", "c": "c", "cpp": "cpp", "c++": "cpp",
+            "python": "py",
+            "php": "php",
+            "bash": "sh",
+            "shell": "sh",
+            "ruby": "rb",
+            "perl": "pl",
+            "golang": "go",
+            "go": "go",
+            "javascript": "js",
+            "js": "js",
+            "typescript": "ts",
+            "ts": "ts",
+            "rust": "rs",
+            "csharp": "cs",
+            "cs": "cs",
+            "java": "java",
+            "kotlin": "kt",
+            "c": "c",
+            "cpp": "cpp",
+            "c++": "cpp",
         }
         ext = extensions.get(language, "txt")
 

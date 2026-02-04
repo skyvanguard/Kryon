@@ -46,6 +46,7 @@ def _get_generic_linux_command():
         from skynet.tools.reconnaissance.generic_linux_command import (
             generic_linux_command as _glc,
         )
+
         _generic_linux_command_cached = _glc
     return _generic_linux_command_cached
 
