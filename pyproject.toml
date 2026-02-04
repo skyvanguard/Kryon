@@ -198,6 +198,12 @@ select = [
     "C4", # flake8-comprehensions
     "UP", # pyupgrade
 ]
+ignore = [
+    "UP007",  # Use X | Y for type unions (requires Python 3.10+ runtime)
+    "UP035",  # Import from collections.abc (compatibility with older code)
+    "UP045",  # Use X | None instead of Optional[X] (requires Python 3.10+ runtime)
+    "B905",   # zip() without strict= (added in Python 3.10)
+]
 isort = { combine-as-imports = true, known-first-party = ["agents"] }
 
 [tool.ruff.lint.pydocstyle]
@@ -216,6 +222,7 @@ convention = "google"
 "src/skynet/knowledge/**/*.py" = ["E501"]
 # Files with intentional late imports (warning config, circular import avoidance)
 "src/skynet/cli.py" = ["E402"]
+"src/skynet/util_legacy.py" = ["E402"]
 "src/skynet/agents/hk_aerial.py" = ["E402"]
 "src/skynet/agents/patterns/__init__.py" = ["E402"]
 

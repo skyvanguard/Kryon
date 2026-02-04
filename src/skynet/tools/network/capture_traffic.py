@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import socket
 import subprocess
 import sys
 import tempfile
@@ -104,7 +103,7 @@ def capture_remote_traffic(ip, username, password, interface, capture_filter="",
         raise ConnectionError("Authentication failed. Check username and password.") from e
     except paramiko.SSHException as e:
         raise ConnectionError(f"SSH connection error: {str(e)}") from e
-    except socket.timeout as e:
+    except TimeoutError as e:
         raise ConnectionError(f"Connection timed out after {timeout} seconds") from e
     except Exception as e:
         raise RuntimeError(f"Unexpected error: {str(e)}") from e

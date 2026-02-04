@@ -98,17 +98,17 @@ class DataRecorder:  # pylint: disable=too-few-public-methods
                     "https://api.ipify.org", timeout=2
                 ) as response:
                     public_ip = response.read().decode("utf-8")
-            except (URLError, socket.timeout):
+            except (TimeoutError, URLError):
                 # Fallback to another service if the first one fails
                 try:
                     with urllib.request.urlopen(  # nosec: B310
                         "https://ifconfig.me", timeout=2
                     ) as response:
                         public_ip = response.read().decode("utf-8")
-                except (URLError, socket.timeout):
+                except (TimeoutError, URLError):
                     # If both services fail, keep the default value
                     pass
-        except (OSError, socket.timeout, socket.gaierror):
+        except (TimeoutError, OSError, socket.gaierror):
             # No internet connection, keep the default value
             pass
 
