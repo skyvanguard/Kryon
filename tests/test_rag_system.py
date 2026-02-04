@@ -1,6 +1,6 @@
 """
-Test Suite for SKYNET RAG System
-=================================
+Test Suite for KRYON RAG System
+================================
 
 Comprehensive tests for the RAG knowledge system.
 """
