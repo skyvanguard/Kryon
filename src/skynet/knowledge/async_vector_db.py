@@ -1,5 +1,5 @@
 """
-SKYNET Async Vector Database
+KRYON Async Vector Database
 =============================
 
 Asynchronous vector database implementation with non-blocking operations.

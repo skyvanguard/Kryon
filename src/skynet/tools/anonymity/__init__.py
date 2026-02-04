@@ -1,7 +1,7 @@
 """
-SKYNET Anonymity - Complete Anonymity Suite (Phase 19 + 21)
+KRYON Anonymity - Complete Anonymity Suite (Phase 19 + 21)
 
-Maximum anonymity for all SKYNET operations with advanced evasion techniques.
+Maximum anonymity for all KRYON operations with advanced evasion techniques.
 
 Clearance Level: Omega-Shadow (Maximum Anonymity Operations Authority)
 Mission: Total anonymity across all attack vectors with intelligent adaptation
@@ -54,7 +54,7 @@ Example Usage:
     >>> # Connect to decentralized network
     >>> ygg = setup_yggdrasil_node()
     >>>
-    >>> # All SKYNET tools now use advanced anonymity automatically
+    >>> # All KRYON tools now use advanced anonymity automatically
     >>> from skynet.tools.reconnaissance import nmap
     >>> nmap("10.10.10.5")  # Uses: Tor + domain fronting + evasion
 """

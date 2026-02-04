@@ -1,5 +1,5 @@
 """
-SKYNET Async RAG Engine
+KRYON Async RAG Engine
 ========================
 
 Asynchronous Retrieval-Augmented Generation engine with parallel processing.
@@ -303,7 +303,7 @@ class AsyncRAGEngine:
 
     def _create_rag_prompt(self, question: str, context: str) -> str:
         """Create RAG prompt for LLM."""
-        prompt = f"""You are SKYNET, an advanced cybersecurity AI assistant. Answer the question using ONLY the provided context.
+        prompt = f"""You are KRYON, an advanced cybersecurity AI assistant. Answer the question using ONLY the provided context.
 
 **CONTEXT:**
 {context}

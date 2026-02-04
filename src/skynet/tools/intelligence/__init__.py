@@ -1,5 +1,5 @@
 """
-SKYNET Framework - Intelligence & Decision Engine Module
+KRYON Framework - Intelligence & Decision Engine Module
 ========================================================
 
 Intelligent decision-making and strategic planning for autonomous

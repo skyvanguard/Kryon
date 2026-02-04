@@ -1,5 +1,5 @@
 """
-SKYNET Windows Privilege Escalation Module
+KRYON Windows Privilege Escalation Module
 ==========================================
 
 Windows privilege escalation enumeration and exploitation tools.

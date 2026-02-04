@@ -1,5 +1,5 @@
 """
-SKYNET Decision Engine - Intelligent Tool Selection
+KRYON Decision Engine - Intelligent Tool Selection
 ===================================================
 
 AI-driven decision engine that analyzes targets and automatically

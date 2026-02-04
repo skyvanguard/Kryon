@@ -1,5 +1,5 @@
 """
-SKYNET Anonymity - Operational Security
+KRYON Anonymity - Operational Security
 
 Automated operational security best practices.
 

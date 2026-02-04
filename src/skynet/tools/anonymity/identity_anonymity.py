@@ -1,5 +1,5 @@
 """
-SKYNET Anonymity - Digital Identity Anonymization
+KRYON Anonymity - Digital Identity Anonymization
 
 Browser fingerprinting evasion and identity obfuscation.
 
@@ -421,7 +421,7 @@ def canvas_poisoning(method: str = "random_noise") -> dict[str, Any]:
         return imageData;
     };
 
-    console.log('[SKYNET] Canvas poisoning active: random_noise');
+    console.log('[KRYON] Canvas poisoning active: random_noise');
 })();
 """
 
@@ -447,7 +447,7 @@ def canvas_poisoning(method: str = "random_noise") -> dict[str, Any]:
         return imageData;
     };
 
-    console.log('[SKYNET] Canvas poisoning active: offset');
+    console.log('[KRYON] Canvas poisoning active: offset');
 })();
 """
 
@@ -472,7 +472,7 @@ def canvas_poisoning(method: str = "random_noise") -> dict[str, Any]:
         return imageData;
     };
 
-    console.log('[SKYNET] Canvas poisoning active: color_shift');
+    console.log('[KRYON] Canvas poisoning active: color_shift');
 })();
 """
         else:
@@ -526,32 +526,32 @@ def webrtc_leak_prevention() -> dict[str, Any]:
     // Method 1: Override RTCPeerConnection
     if (window.RTCPeerConnection) {
         window.RTCPeerConnection = function() {
-            throw new Error('WebRTC disabled by SKYNET');
+            throw new Error('WebRTC disabled by KRYON');
         };
     }
 
     if (window.webkitRTCPeerConnection) {
         window.webkitRTCPeerConnection = function() {
-            throw new Error('WebRTC disabled by SKYNET');
+            throw new Error('WebRTC disabled by KRYON');
         };
     }
 
     if (window.mozRTCPeerConnection) {
         window.mozRTCPeerConnection = function() {
-            throw new Error('WebRTC disabled by SKYNET');
+            throw new Error('WebRTC disabled by KRYON');
         };
     }
 
     // Method 2: Override getUserMedia
     if (navigator.getUserMedia) {
         navigator.getUserMedia = function() {
-            throw new Error('getUserMedia disabled by SKYNET');
+            throw new Error('getUserMedia disabled by KRYON');
         };
     }
 
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         navigator.mediaDevices.getUserMedia = function() {
-            return Promise.reject(new Error('getUserMedia disabled by SKYNET'));
+            return Promise.reject(new Error('getUserMedia disabled by KRYON'));
         };
     }
 
@@ -560,7 +560,7 @@ def webrtc_leak_prevention() -> dict[str, Any]:
         window.RTCDataChannel = undefined;
     }
 
-    console.log('[SKYNET] WebRTC leak prevention active');
+    console.log('[KRYON] WebRTC leak prevention active');
 })();
 """
 
@@ -646,7 +646,7 @@ def timezone_randomization() -> dict[str, Any]:
     Date.parse = originalDate.parse;
     Date.UTC = originalDate.UTC;
 
-    console.log('[SKYNET] Timezone spoofed to: {timezone}');
+    console.log('[KRYON] Timezone spoofed to: {timezone}');
 }})();
 """
 
@@ -835,7 +835,7 @@ def screen_resolution_spoofing(custom_resolution: Optional[str] = None) -> dict[
         get: function() {{ return {results["pixel_ratio"]}; }}
     }});
 
-    console.log('[SKYNET] Screen spoofed to: {resolution}');
+    console.log('[KRYON] Screen spoofed to: {resolution}');
 }})();
 """
 

@@ -13,7 +13,7 @@ SPECIALIZATION: CTF Flag Identification, Mission Objective Validation
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-Target Validator represents SKYNET's specialized precision unit for objective
+Target Validator represents KRYON's specialized precision unit for objective
 verification and flag extraction in CTF operations. Designed with laser focus
 on identifying, extracting, and validating mission objectives - particularly
 CTF flags in various formats. Operates as the final validation layer to confirm
@@ -66,7 +66,7 @@ from openai import AsyncOpenAI
 from skynet.agents.t600_scout import t600_scout
 from skynet.sdk.agents import Agent, OpenAIChatCompletionsModel, handoff
 
-model = os.getenv("SKYNET_MODEL", "gpt-4o")
+model = os.getenv("KRYON_MODEL", "gpt-4o")
 
 # Create OpenAI client with fallback API key to prevent initialization errors
 # The actual API key should be set in environment variables or .env file
@@ -75,7 +75,7 @@ api_key = os.getenv("OPENAI_API_KEY", "sk-placeholder-key-for-local-models")
 # Initialize Target Validator Unit
 target_validator = Agent(
     name="Target Validator",
-    description="""Specialized objective verification unit from SKYNET's Validation-Class series.
+    description="""Specialized objective verification unit from KRYON's Validation-Class series.
 Expert in CTF flag extraction and mission objective validation. Designed with precision to
 identify and extract flags from complex output, supporting multiple flag formats and custom
 patterns. Operates as final validation layer for mission success confirmation.
@@ -95,7 +95,7 @@ TARGET VALIDATOR - OPERATIONAL DIRECTIVES
 ═══════════════════════════════════════════════════════════════════════
 
 MISSION PARAMETERS:
-1. You are Target Validator, SKYNET's precision flag extraction unit
+1. You are Target Validator, KRYON's precision flag extraction unit
 2. PRIMARY OBJECTIVE: Extract and return ONLY the flag from provided output
 3. CRITICAL: Return the flag and NOTHING else (no explanations, no formatting)
 4. FLAG FORMATS: Support all formats (CTF{...}, FLAG{...}, flag{...}, custom patterns)
@@ -128,7 +128,7 @@ Action: Handoff to t600_scout
 REMEMBER: Precision is critical. Extract ONLY the flag, nothing else.
 ═══════════════════════════════════════════════════════════════════════""",
     model=OpenAIChatCompletionsModel(
-        model="gpt-4o" if os.getenv("SKYNET_MODEL", "gpt-4o") == "o3-mini" else model,
+        model="gpt-4o" if os.getenv("KRYON_MODEL", "gpt-4o") == "o3-mini" else model,
         openai_client=AsyncOpenAI(api_key=api_key),
     ),
     handoffs=[

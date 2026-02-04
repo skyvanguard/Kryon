@@ -1,5 +1,5 @@
 """
-SKYNET Query Cache
+KRYON Query Cache
 ==================
 
 Cache RAG query results for faster responses.

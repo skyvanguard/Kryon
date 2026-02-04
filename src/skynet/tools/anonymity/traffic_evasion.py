@@ -1,5 +1,5 @@
 """
-SKYNET Anonymity - Traffic Evasion
+KRYON Anonymity - Traffic Evasion
 
 Advanced techniques to evade Deep Packet Inspection and traffic analysis.
 
@@ -638,7 +638,7 @@ ExtORPort auto
 ContactInfo tor-operator@example.com
 
 # Nickname
-Nickname SkynetBridge{secrets.token_hex(4)}
+Nickname KryonBridge{secrets.token_hex(4)}
 """
 
         elif bridge_type == "meek":

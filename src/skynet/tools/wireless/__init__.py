@@ -13,7 +13,7 @@ Tool Categories:
 - Passive Monitoring: Network detection, device tracking
 - Bluetooth/BLE: Device discovery and security testing
 
-SKYNET Integration: Phase 10
+KRYON Integration: Phase 10
 """
 
 from skynet.tools.wireless.aircrack import (

@@ -1,5 +1,5 @@
 """
-SKYNET Digital Forensics & Incident Response (DFIR) Tools
+KRYON Digital Forensics & Incident Response (DFIR) Tools
 ==========================================================
 
 Comprehensive toolkit for memory forensics, disk analysis, network forensics,

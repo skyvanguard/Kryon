@@ -42,11 +42,11 @@ def create_generic_agent_factory(
         if not model_name:
             # Second priority: agent-specific environment variable
             agent_key = agent_var_name.upper()
-            model_name = os.getenv(f"SKYNET_{agent_key}_MODEL")
+            model_name = os.getenv(f"KRYON_{agent_key}_MODEL")
 
         if not model_name:
-            # Third priority: global SKYNET_MODEL
-            model_name = os.environ.get("SKYNET_MODEL", "gpt-4o")
+            # Third priority: global KRYON_MODEL
+            model_name = os.environ.get("KRYON_MODEL", "gpt-4o")
 
         api_key = os.getenv("OPENAI_API_KEY", "sk-placeholder-key-for-local-models")
 
@@ -61,7 +61,7 @@ def create_generic_agent_factory(
         )
 
         # Mark as parallel agent if running in parallel mode
-        parallel_count = int(os.getenv("SKYNET_PARALLEL", "1"))
+        parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
         if parallel_count > 1 and agent_id and agent_id.startswith("P"):
             new_model._is_parallel_agent = True
 

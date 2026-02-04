@@ -1,5 +1,5 @@
 """
-Parallel command for SKYNET CLI abstraction.
+Parallel command for KRYON CLI abstraction.
 
 Provides commands for managing parallel agent configurations.
 Different agents can be configured with specific models and prompts,
@@ -138,10 +138,10 @@ class ParallelCommand(Command):
         """Sync PARALLEL_CONFIGS to environment variables and manage history isolation."""
         if len(PARALLEL_CONFIGS) >= 2:
             # Auto-enable parallel mode - set the count, not "true"
-            os.environ["SKYNET_PARALLEL"] = str(len(PARALLEL_CONFIGS))
+            os.environ["KRYON_PARALLEL"] = str(len(PARALLEL_CONFIGS))
             # Set agent names
             agent_names = [config.agent_name for config in PARALLEL_CONFIGS]
-            os.environ["SKYNET_PARALLEL_AGENTS"] = ",".join(agent_names)
+            os.environ["KRYON_PARALLEL_AGENTS"] = ",".join(agent_names)
 
             # Set up history isolation for parallel mode
             if not PARALLEL_ISOLATION.is_parallel_mode():
@@ -159,8 +159,8 @@ class ParallelCommand(Command):
                 PARALLEL_ISOLATION.transfer_to_parallel(base_history, len(PARALLEL_CONFIGS), agent_ids)
         else:
             # Disable parallel mode if less than 2 agents
-            os.environ["SKYNET_PARALLEL"] = "1"
-            os.environ["SKYNET_PARALLEL_AGENTS"] = ""
+            os.environ["KRYON_PARALLEL"] = "1"
+            os.environ["KRYON_PARALLEL_AGENTS"] = ""
             # Don't clear configs - we want to keep single agent configurations
 
             # Clear parallel isolation if it was active
@@ -188,7 +188,7 @@ class ParallelCommand(Command):
         # Show configured runs
         if PARALLEL_CONFIGS:
             # Check if parallel mode is actually enabled
-            parallel_count = int(os.getenv("SKYNET_PARALLEL", "1"))
+            parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
             parallel_enabled = parallel_count >= 2
 
             if parallel_enabled:
@@ -363,7 +363,7 @@ class ParallelCommand(Command):
             return True
 
         # Check parallel status
-        parallel_count = int(os.getenv("SKYNET_PARALLEL", "1"))
+        parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
         parallel_enabled = parallel_count >= 2
 
         table = Table(title=f"Configured Parallel Agents ({'ENABLED' if parallel_enabled else 'DISABLED'})")
@@ -614,7 +614,7 @@ class ParallelCommand(Command):
             console.print("[yellow]No parallel configurations to override[/yellow]")
             return False
 
-        global_model = os.getenv("SKYNET_MODEL", "gpt-4o")
+        global_model = os.getenv("KRYON_MODEL", "gpt-4o")
         count = 0
 
         for config in PARALLEL_CONFIGS:
@@ -1223,7 +1223,7 @@ class ParallelCommand(Command):
                 # Update existing model's history
                 existing_model.message_history.clear()
                 # Reset context usage since we cleared history
-                os.environ["SKYNET_CONTEXT_USAGE"] = "0.0"
+                os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
                 for msg in merged_history:
                     existing_model.add_to_message_history(msg)
                 console.print(f"[green]Updated history for existing agent '{target_agent}'[/green]")
@@ -1376,7 +1376,7 @@ class ParallelCommand(Command):
                 # Reset context usage since we're rebuilding history
                 import os
 
-                os.environ["SKYNET_CONTEXT_USAGE"] = "0.0"
+                os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
                 for msg in final_history:
                     existing_model.add_to_message_history(msg)
                 console.print(f"[green]✓ Updated {agent_name} (active instance)[/green]")

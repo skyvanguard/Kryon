@@ -1,5 +1,5 @@
 """
-SKYNET Smart Caching System
+KRYON Smart Caching System
 
 Advanced result caching with LRU eviction, TTL support, and persistent storage.
 Optimizes performance by preventing duplicate scans and storing expensive results.

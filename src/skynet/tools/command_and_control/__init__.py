@@ -1,5 +1,5 @@
 """
-SKYNET Command & Control - Complete C2 Framework
+KRYON Command & Control - Complete C2 Framework
 
 Multi-protocol C2 infrastructure for post-exploitation operations.
 

@@ -94,7 +94,7 @@ async def generic_linux_command(command: str = "", interactive: bool = False, se
     Environment Detection:
         The system automatically detects and uses the appropriate execution environment:
         - CTF: Commands run in the CTF challenge environment when available
-        - Container: Commands run in Docker containers when SKYNET_ACTIVE_CONTAINER is set
+        - Container: Commands run in Docker containers when KRYON_ACTIVE_CONTAINER is set
         - SSH: Commands run via SSH when SSH_USER and SSH_HOST are configured
         - Local: Commands run on the local system as fallback
 
@@ -188,7 +188,7 @@ async def generic_linux_command(command: str = "", interactive: bool = False, se
             env_info.append("🎯 CTF Environment: Not available")
 
         # Check Container environment
-        active_container = os.getenv("SKYNET_ACTIVE_CONTAINER", "")
+        active_container = os.getenv("KRYON_ACTIVE_CONTAINER", "")
         if active_container:
             env_info.append(f"🐳 Container: {active_container[:12]}")
         else:
@@ -217,7 +217,7 @@ async def generic_linux_command(command: str = "", interactive: bool = False, se
         return "Error: No command provided"
 
     # CRITICAL: Check for Unicode homograph bypass attempts
-    guardrails_enabled = os.getenv("SKYNET_GUARDRAILS", "true").lower() != "false"
+    guardrails_enabled = os.getenv("KRYON_GUARDRAILS", "true").lower() != "false"
     if guardrails_enabled:
         has_homographs, normalized_command = detect_unicode_homographs(command)
         if has_homographs:
@@ -259,19 +259,19 @@ async def generic_linux_command(command: str = "", interactive: bool = False, se
     else:
         timeout = 100
 
-    # Tools always stream EXCEPT in parallel mode or when SKYNET_STREAM=False
+    # Tools always stream EXCEPT in parallel mode or when KRYON_STREAM=False
     # In parallel mode, multiple agents run concurrently with Runner.run()
     # and streaming would create confusing overlapping outputs
     stream = True  # Default to streaming
 
-    # Check if SKYNET_STREAM is explicitly set to False
-    if os.getenv("SKYNET_STREAM", "true").lower() == "false":
+    # Check if KRYON_STREAM is explicitly set to False
+    if os.getenv("KRYON_STREAM", "true").lower() == "false":
         stream = False
 
-    # Simple heuristic: If SKYNET_PARALLEL > 1 AND we have a P agent ID, disable streaming
+    # Simple heuristic: If KRYON_PARALLEL > 1 AND we have a P agent ID, disable streaming
     # This is more reliable than trying to count active agents
     try:
-        parallel_count = int(os.getenv("SKYNET_PARALLEL", "1"))
+        parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
         if parallel_count > 1:
             # Check if this is a P agent
             from skynet.sdk.agents.models.openai_chatcompletions import get_current_active_model
@@ -290,8 +290,8 @@ async def generic_linux_command(command: str = "", interactive: bool = False, se
 
     # Sanitize command if it contains suspicious patterns that might be from external input
     # This is an additional layer of defense beyond the guardrails
-    # Respect SKYNET_GUARDRAILS environment variable
-    guardrails_enabled = os.getenv("SKYNET_GUARDRAILS", "true").lower() != "false"
+    # Respect KRYON_GUARDRAILS environment variable
+    guardrails_enabled = os.getenv("KRYON_GUARDRAILS", "true").lower() != "false"
 
     if guardrails_enabled:
         # Check for file write operations that create Python/shell scripts with dangerous content
@@ -490,8 +490,8 @@ async def generic_linux_command(command: str = "", interactive: bool = False, se
                 tool_name="generic_linux_command",
             )
 
-    # Enhanced sanitization for curl/wget responses - respect SKYNET_GUARDRAILS setting
-    guardrails_enabled = os.getenv("SKYNET_GUARDRAILS", "true").lower() != "false"
+    # Enhanced sanitization for curl/wget responses - respect KRYON_GUARDRAILS setting
+    guardrails_enabled = os.getenv("KRYON_GUARDRAILS", "true").lower() != "false"
 
     if guardrails_enabled and isinstance(result, str):
         # Special handling for curl/wget commands - their output is external content

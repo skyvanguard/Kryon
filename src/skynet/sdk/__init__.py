@@ -1,5 +1,5 @@
 """
-SKYNET SDK.
+KRYON SDK.
 """
 
 from . import agents

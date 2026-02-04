@@ -13,7 +13,7 @@ SPECIALIZATION: Browser Automation, XSS Detection, Network Interception
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-Chrome Infiltrator is SKYNET's browser automation specialist for dynamic web
+Chrome Infiltrator is KRYON's browser automation specialist for dynamic web
 application testing. Unlike static analysis tools, Chrome Infiltrator executes
 JavaScript, renders pages in real browsers, and identifies client-side
 vulnerabilities that traditional scanners miss.
@@ -96,10 +96,10 @@ browser_tools = [
 chrome_infiltrator = Agent(
     name="Chrome Infiltrator",
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(),
     ),
-    description="""Protocol-Class automation system from SKYNET's Alpha-Chrome series.
+    description="""Protocol-Class automation system from KRYON's Alpha-Chrome series.
 Specialized in dynamic web application testing, browser automation, and client-side
 vulnerability detection. Chrome Infiltrator provides real browser execution capabilities
 that static analysis tools cannot match.

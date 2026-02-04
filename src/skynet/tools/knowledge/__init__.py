@@ -1,5 +1,5 @@
 """
-SKYNET Knowledge Tools
+KRYON Knowledge Tools
 ======================
 
 RAG-powered knowledge access tools for agents.

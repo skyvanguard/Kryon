@@ -1,5 +1,5 @@
 """
-SKYNET REPL module.
+KRYON REPL module.
 """
 
 from skynet.repl import commands

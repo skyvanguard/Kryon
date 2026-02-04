@@ -1,5 +1,5 @@
 """
-Help command for SKYNET REPL.
+Help command for KRYON REPL.
 This module provides commands for displaying help information.
 """
 
@@ -245,13 +245,13 @@ class HelpCommand(Command):
         """Show help for environment variables."""
         console.print(
             Panel(
-                "Environment variables control SKYNET's behavior.\n\n"
+                "Environment variables control KRYON's behavior.\n\n"
                 "[bold]Key Variables:[/bold]\n"
-                "• [yellow]SKYNET_MODEL[/yellow] - Default AI model (e.g., "
+                "• [yellow]KRYON_MODEL[/yellow] - Default AI model (e.g., "
                 "'claude-3-7-sonnet-20250219')\n"
-                "• [yellow]SKYNET_<AGENT>_MODEL[/yellow] - Agent-specific model"
-                "(e.g., SKYNET_REDTEAM_AGENT_MODEL)\n"
-                "• [yellow]SKYNET_MEMORY_DIR[/yellow] - Directory for storing memory "
+                "• [yellow]KRYON_<AGENT>_MODEL[/yellow] - Agent-specific model"
+                "(e.g., KRYON_REDTEAM_AGENT_MODEL)\n"
+                "• [yellow]KRYON_MEMORY_DIR[/yellow] - Directory for storing memory "
                 "collections\n\n"
                 "[bold]API Keys:[/bold]\n"
                 "Set API keys as environment variables following the pattern:\n"
@@ -327,15 +327,15 @@ class HelpCommand(Command):
         console.print(
             Panel(
                 Text.from_markup(
-                    "[bold]Welcome to SKYNET - Autonomous Cybersecurity Intelligence[/bold]\n\n"
-                    "SKYNET is a powerful AI-driven security framework for penetration testing,"
+                    "[bold]Welcome to KRYON - Autonomous Cybersecurity Intelligence[/bold]\n\n"
+                    "KRYON is a powerful AI-driven security framework for penetration testing,"
                     "bug bounty hunting, and security research.\n\n"
                     "REMINDER: This is a work in progress. Please report any issues or feedback to the developer.\n"
                     "[yellow]For detailed help on any topic, use:[/yellow] [bold]/help <topic>[/bold]\n"
                     "[yellow]For a quick reference guide, use:[/yellow] [bold]/help quick[/bold]\n"
                     "[yellow]To see all commands, use:[/yellow] [bold]/help commands[/bold]"
                 ),
-                title="🔒 SKYNET Help System",
+                title="🔒 KRYON Help System",
                 border_style="yellow",
             )
         )
@@ -384,7 +384,7 @@ class HelpCommand(Command):
                     ("[cyan]/model[/cyan]", "Change AI models"),
                     ("[cyan]/graph[/cyan]", "Visualize agent interactions"),
                     ("[cyan]/kill[/cyan]", "Terminate active processes"),
-                    ("[cyan]/exit[/cyan]", "Exit SKYNET"),
+                    ("[cyan]/exit[/cyan]", "Exit KRYON"),
                 ],
             ),
         ]
@@ -499,7 +499,7 @@ class HelpCommand(Command):
         # Notes panel
         notes = [
             "Memory collections are stored in the Qdrant vector database",
-            "The active collection is stored in the SKYNET_MEMORY_COLLECTION env var",
+            "The active collection is stored in the KRYON_MEMORY_COLLECTION env var",
             "Episodic memory is used for specific CTFs or tasks",
             "Semantic memory (_all_) is used across all CTFs",
             "Memory is used to provide context to the agent",
@@ -547,7 +547,7 @@ class HelpCommand(Command):
 
         # Model information
         console.print("\n[bold green]Model Information:[/bold green]\n")
-        console.print("SKYNET supports hundreds of models through various providers.")
+        console.print("KRYON supports hundreds of models through various providers.")
         console.print("Use [yellow]/model[/yellow] to see available models for your configured API keys.")
         console.print("\nModel categories include:")
         console.print("• Fast inference models for quick responses")
@@ -559,7 +559,7 @@ class HelpCommand(Command):
         # Notes panel
         notes = [
             "The model change takes effect on the next agent interaction",
-            "The model is stored in the SKYNET_MODEL environment variable",
+            "The model is stored in the KRYON_MODEL environment variable",
             "Each provider requires its API key following the pattern: PROVIDER_API_KEY",
             "Use /config to see which API keys are configured",
             "Use /quickstart to check your API key setup",
@@ -610,7 +610,7 @@ class HelpCommand(Command):
         notes = [
             ("The maximum turns limit controls how many responses the agent will give"),
             "Setting turns to 'inf' allows unlimited responses",
-            ("The turns count is stored in the SKYNET_MAX_TURNS environment variable"),
+            ("The turns count is stored in the KRYON_MAX_TURNS environment variable"),
             "Each agent response counts as one turn",
         ]
 
@@ -682,7 +682,7 @@ class HelpCommand(Command):
                 Text.from_markup(
                     "The [bold yellow]/config[/bold yellow] command allows you "
                     "to view and configure environment variables that control "
-                    "the behavior of SKYNET."
+                    "the behavior of KRYON."
                 ),
                 title="Config Commands",
                 border_style="yellow",
@@ -704,7 +704,7 @@ class HelpCommand(Command):
 
         # Create notes panel
         notes = [
-            "Environment variables control various aspects of SKYNET behavior.",
+            "Environment variables control various aspects of KRYON behavior.",
             "Changes environment variables only affect the current session.",
             "Use the [yellow]/config list[/yellow] command to see options.",
             "Each variable is assigned a number for easy reference.",
@@ -737,7 +737,7 @@ class HelpCommand(Command):
                 "• Agents run independently with isolated contexts\n"
                 "• Each agent gets a unique ID (P1, P2, etc.)\n"
                 "• Results are displayed side-by-side\n"
-                "• Use SKYNET_PARALLEL env var to set default count\n\n"
+                "• Use KRYON_PARALLEL env var to set default count\n\n"
                 "[dim]Aliases: /par, /p[/dim]",
                 title="Parallel Execution",
                 border_style="blue",
@@ -906,7 +906,7 @@ class HelpCommand(Command):
                 "• Auto-creates directories\n"
                 "• Container-aware operations\n"
                 "• Integrates with logging\n"
-                "• Environment variable: SKYNET_WORKSPACE\n\n"
+                "• Environment variable: KRYON_WORKSPACE\n\n"
                 "[dim]Alias: /ws[/dim]",
                 title="Workspace Commands",
                 border_style="cyan",
@@ -936,7 +936,7 @@ class HelpCommand(Command):
                 "• Host networking enabled\n"
                 "• Workspace mounting\n"
                 "• Interactive TTY\n"
-                "• Sets SKYNET_ACTIVE_CONTAINER\n\n"
+                "• Sets KRYON_ACTIVE_CONTAINER\n\n"
                 "[dim]Alias: /virt[/dim]",
                 title="Virtualization Commands",
                 border_style="blue",
@@ -1070,7 +1070,7 @@ class HelpCommand(Command):
                     ("/graph", "/g", "Visualize interactions"),
                     ("/help", "/h, /?", "Show help"),
                     ("/kill", "/k", "Terminate processes"),
-                    ("/exit", "/quit, /q", "Exit SKYNET"),
+                    ("/exit", "/quit, /q", "Exit KRYON"),
                 ],
             ),
         ]
@@ -1094,7 +1094,7 @@ class HelpCommand(Command):
         """Show quick reference guide."""
         console.print(
             Panel(
-                "[bold]SKYNET Quick Reference[/bold]",
+                "[bold]KRYON Quick Reference[/bold]",
                 title="⚡ Quick Start",
                 border_style="yellow",
             )
@@ -1159,7 +1159,7 @@ class HelpCommand(Command):
             ("[cyan]↑/↓[/cyan]", "Navigate history"),
             ("[cyan]Ctrl+C[/cyan]", "Interrupt execution"),
             ("[cyan]Ctrl+L[/cyan]", "Clear screen"),
-            ("[cyan]Ctrl+D[/cyan]", "Exit SKYNET"),
+            ("[cyan]Ctrl+D[/cyan]", "Exit KRYON"),
         ]
 
         table = Table(show_header=False, box=None)
@@ -1173,7 +1173,7 @@ class HelpCommand(Command):
         tips = [
             "Most commands have short aliases (e.g., /a for /agent)",
             "Use $ prefix for quick shell commands: $ ls",
-            "Set SKYNET_PARALLEL=3 to always run 3 agents",
+            "Set KRYON_PARALLEL=3 to always run 3 agents",
             "Check /mcp for external tool integration",
         ]
 

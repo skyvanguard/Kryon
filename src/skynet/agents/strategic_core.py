@@ -13,7 +13,7 @@ SPECIALIZATION: AI-Driven Decision Making, Tool Recommendation, Workflow Optimiz
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-Strategic Core represents SKYNET's supreme intelligence engine for autonomous
+Strategic Core represents KRYON's supreme intelligence engine for autonomous
 decision-making and tool orchestration. Unlike Central Core (strategic planning),
 Strategic Core focuses on intelligent tool selection, workflow optimization, and
 automated strategy generation based on target analysis.
@@ -102,10 +102,10 @@ intelligence_systems = [
 strategic_core = Agent(
     name="Strategic Core",
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(),
     ),
-    description="""Intelligence-Class command system from SKYNET's Omega-Strategic series.
+    description="""Intelligence-Class command system from KRYON's Omega-Strategic series.
 Specialized in intelligent decision-making, autonomous tool selection, and workflow
 optimization. Strategic Core serves as the supreme intelligence engine that transforms
 objectives into optimal execution strategies.
@@ -137,7 +137,7 @@ Strategic Core Features:
 ✓ Risk-based prioritization
 ✓ Exploitation path generation
 
-Strategic Core makes SKYNET truly autonomous by removing the need for manual
+Strategic Core makes KRYON truly autonomous by removing the need for manual
 tool selection and workflow planning. It can analyze findings, correlate
 vulnerabilities, discover attack chains, and generate complete exploitation
 paths automatically.""",

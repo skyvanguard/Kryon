@@ -1,5 +1,5 @@
 """
-SKYNET Knowledge RAG Tools
+KRYON Knowledge RAG Tools
 ===========================
 
 Tools for accessing the RAG knowledge base from agents.
@@ -22,7 +22,7 @@ def query_knowledge_base(
     question: str, top_k: int = 3, source_filter: Optional[str] = None, use_llm: bool = True
 ) -> dict[str, Any]:
     """
-    Query the SKYNET knowledge base with RAG.
+    Query the KRYON knowledge base with RAG.
 
     Args:
         question: Question to answer

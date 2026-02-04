@@ -1,5 +1,5 @@
 """
-Load command for SKYNET REPL.
+Load command for KRYON REPL.
 
 This module provides commands for loading a jsonl into
 the context of the current session.
@@ -89,9 +89,9 @@ class LoadCommand(Command):
 
                 # Enable parallel mode
                 if len(PARALLEL_CONFIGS) >= 2:
-                    os.environ["SKYNET_PARALLEL"] = str(len(PARALLEL_CONFIGS))
+                    os.environ["KRYON_PARALLEL"] = str(len(PARALLEL_CONFIGS))
                     agent_names = [config.agent_name for config in PARALLEL_CONFIGS]
-                    os.environ["SKYNET_PARALLEL_AGENTS"] = ",".join(agent_names)
+                    os.environ["KRYON_PARALLEL_AGENTS"] = ",".join(agent_names)
 
                 console.print(f"[green]Loaded parallel pattern: {pattern.description}[/green]")
                 console.print(f"[cyan]{len(PARALLEL_CONFIGS)} agents configured[/cyan]")
@@ -576,7 +576,7 @@ class LoadCommand(Command):
                     # Update existing model's history
                     model_instance.message_history.clear()
                     # Reset context usage since we're rebuilding history
-                    os.environ["SKYNET_CONTEXT_USAGE"] = "0.0"
+                    os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
                     for msg in final_history:
                         model_instance.add_to_message_history(msg)
                     console.print(f"[green]✓ Updated {agent_name} - added {len(unique_messages)} new messages[/green]")
@@ -765,7 +765,7 @@ class LoadCommand(Command):
                 # Update existing model's history
                 model_instance.message_history.clear()
                 # Reset context usage since we're rebuilding history
-                os.environ["SKYNET_CONTEXT_USAGE"] = "0.0"
+                os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
                 for msg in final_history:
                     model_instance.add_to_message_history(msg)
             else:
@@ -997,7 +997,7 @@ class LoadCommand(Command):
                         if model_instance:
                             # Clear existing messages and add new ones
                             model_instance.message_history.clear()
-                            os.environ["SKYNET_CONTEXT_USAGE"] = "0.0"
+                            os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
                             for message in messages:
                                 model_instance.add_to_message_history(message)
                         else:

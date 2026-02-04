@@ -1,5 +1,5 @@
 """
-Module for SKYNET REPL prompt functionality.
+Module for KRYON REPL prompt functionality.
 """
 
 import time
@@ -96,7 +96,7 @@ def get_user_input(command_completer, key_bindings, history_file, toolbar_func, 
 
     # Get user input with all features
     return prompt(
-        [("class:prompt", "SKYNET> ")],
+        [("class:prompt", "KRYON> ")],
         completer=command_completer,
         style=create_prompt_style(),
         history=FileHistory(str(history_file)),

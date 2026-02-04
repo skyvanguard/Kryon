@@ -1,11 +1,11 @@
 """
-SKYNET Evasion - Traffic Obfuscation
+KRYON Evasion - Traffic Obfuscation
 
 Network traffic obfuscation and C2 stealth.
 
 Clearance Level: Alpha-Black (Anti-Forensic Operations Authority)
 Specialization: Network traffic obfuscation and C2 evasion
-Mission: Hide SKYNET network communications
+Mission: Hide KRYON network communications
 
 This module provides:
 - User-Agent randomization

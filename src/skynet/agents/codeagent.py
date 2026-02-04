@@ -1,11 +1,11 @@
 """
 A Coding Agent (CodeAgent)
 
-A re-interpretation for SKYNET of the original CodeAct concept
+A re-interpretation for KRYON of the original CodeAct concept
 from the paper "Executable Code Actions Elicit Better LLM Agents"
 at https://arxiv.org/pdf/2402.01030.
 
-Briefly, the CodeAgent SKYNET Agent uses executable Python code to
+Briefly, the CodeAgent KRYON Agent uses executable Python code to
 consolidate LLM agents' actions into a unified action space
 (CodeAct). Integrated with a Python interpreter, CodeAct can
 execute code actions and dynamically revise prior actions or
@@ -394,7 +394,7 @@ I'll execute your code and show you the results.
 
         Args:
             skynet_instance (object):
-                The SKYNET instance that is calling the CodeAgent
+                The KRYON instance that is calling the CodeAgent
             messages (List[Dict]):
                 List of messages in the conversation
             context_variables (Dict, optional):
@@ -466,7 +466,7 @@ I'll execute your code and show you the results.
 
         Args:
             skynet_instance (object):
-                The SKYNET instance that is calling the CodeAgent
+                The KRYON instance that is calling the CodeAgent
             messages (List[Dict]):
                 List of messages in the conversation
             debug (bool, optional):
@@ -757,7 +757,7 @@ I'll execute your code and show you the results.
         Run the agent on a conversation.
 
         This is the main entry point for the agent,
-        aligning with SKYNET's expectations.
+        aligning with KRYON's expectations.
 
         Args:
             messages (List[Dict]):
@@ -813,6 +813,6 @@ codeagent = CodeAgent(
                    State-of-the-art in code production.""",
     # functions=[],
     # tool_choice="required",  # force tool call for handoffs
-    # execution_timeout=int(os.getenv('SKYNET_CODE_TIMEOUT', '30')),  # Get
+    # execution_timeout=int(os.getenv('KRYON_CODE_TIMEOUT', '30')),  # Get
     # timeout from env var or use default 30 seconds
 )

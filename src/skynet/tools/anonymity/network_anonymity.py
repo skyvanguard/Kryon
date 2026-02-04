@@ -1,11 +1,11 @@
 """
-SKYNET Anonymity - Network Anonymization
+KRYON Anonymity - Network Anonymization
 
 Network-level anonymization and traffic routing.
 
 Clearance Level: Omega-Shadow (Maximum Anonymity Operations Authority)
 Specialization: Network anonymization, proxy chains, Tor, VPN, I2P
-Mission: Ensure complete network-level anonymity for SKYNET operations
+Mission: Ensure complete network-level anonymity for KRYON operations
 
 This module provides:
 - Tor proxy configuration
@@ -263,7 +263,7 @@ def setup_proxy_chain(proxies: list[dict[str, str]], strict_chain: bool = True) 
 
     try:
         # Generate proxychains config
-        config_content = f"""# SKYNET ProxyChains Configuration
+        config_content = f"""# KRYON ProxyChains Configuration
 {"strict_chain" if strict_chain else "dynamic_chain"}
 proxy_dns
 remote_dns_subnet 224
@@ -618,7 +618,7 @@ def setup_onion_routing(num_hops: int = 3, exit_country: Optional[str] = None) -
 
     try:
         # Generate Tor configuration
-        config = """# SKYNET Tor Configuration
+        config = """# KRYON Tor Configuration
 SOCKSPort 9050
 ControlPort 9051
 """

@@ -1,7 +1,7 @@
 """
-Commands module for SKYNET REPL.
+Commands module for KRYON REPL.
 This module exports all commands available
-in the SKYNET REPL.
+in the KRYON REPL.
 """
 
 # Import all command modules

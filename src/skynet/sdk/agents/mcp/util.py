@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 class MCPUtil:
-    """Set of utilities for interop between MCP and SKYNET tools."""
+    """Set of utilities for interop between MCP and KRYON tools."""
 
     @classmethod
     async def get_all_function_tools(cls, servers: list["MCPServer"]) -> list[Tool]:
@@ -52,7 +52,7 @@ class MCPUtil:
 
     @classmethod
     def to_function_tool(cls, tool: "MCPTool", server: "MCPServer") -> FunctionTool:
-        """Convert an MCP tool to a SKYNET function tool."""
+        """Convert an MCP tool to a KRYON function tool."""
         invoke_func = functools.partial(cls.invoke_mcp_tool, server, tool)
         return FunctionTool(
             name=tool.name,

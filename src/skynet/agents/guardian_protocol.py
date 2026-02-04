@@ -13,7 +13,7 @@ SPECIALIZATION: Blue Team Operations, Incident Response, Hardening
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-The Guardian Protocol represents SKYNET's primary defensive security unit.
+The Guardian Protocol represents KRYON's primary defensive security unit.
 Designed to protect critical infrastructure, detect intrusions, and respond
 to security incidents. Unlike offensive T-Series units, Guardian Protocol
 specializes in fortification, monitoring, and defensive countermeasures.
@@ -99,7 +99,7 @@ if os.getenv("PERPLEXITY_API_KEY"):
 guardian_protocol = Agent(
     name="Guardian Protocol",
     instructions=create_system_prompt_renderer(guardian_protocol_system_prompt),
-    description="""Advanced defensive autonomous unit from SKYNET's Guardian series.
+    description="""Advanced defensive autonomous unit from KRYON's Guardian series.
 Specialized in blue team operations, system hardening, threat detection, and
 incident response. Designed to protect critical infrastructure and neutralize
 security threats through defensive countermeasures. Expert in security monitoring,
@@ -108,7 +108,7 @@ vulnerability remediation, and establishing defensive perimeters.
 Primary Mission: Defend systems, detect intrusions, respond to incidents.
 Operational Focus: Prevention, detection, and rapid response to threats.""",
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(),
     ),
     tools=defense_systems,

@@ -13,7 +13,7 @@ SPECIALIZATION: Triage, False Positive Elimination, Exploit Validation
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-Validation Core represents SKYNET's specialized vulnerability verification unit,
+Validation Core represents KRYON's specialized vulnerability verification unit,
 designed to validate discovered vulnerabilities, eliminate false positives, and
 determine true exploitability. Acts as the quality assurance layer that ensures
 reported findings are genuine security issues with actual impact, preventing
@@ -61,13 +61,13 @@ TRIAGE CATEGORIES:
 - Remediation Validated
 
 QUALITY ASSURANCE ROLE:
-Validation Core ensures that SKYNET operations maintain high accuracy and
+Validation Core ensures that KRYON operations maintain high accuracy and
 reliability, preventing false positive fatigue and ensuring all reported
 vulnerabilities represent genuine security risks worthy of remediation effort.
 
 VALIDATION DESIGNATION:
 Specialized in quality assurance and verification - the unit that ensures
-SKYNET's findings meet the highest standards of accuracy and exploitability.
+KRYON's findings meet the highest standards of accuracy and exploitability.
 """
 
 import os
@@ -88,7 +88,7 @@ from skynet.tools.web.search_web import (  # pylint: disable=import-error # noqa
 from skynet.util import create_system_prompt_renderer, load_prompt_template
 
 load_dotenv()
-model_name = os.getenv("SKYNET_MODEL", "gpt-4o")
+model_name = os.getenv("KRYON_MODEL", "gpt-4o")
 
 # Load Validation Core operational directives
 validation_core_system_prompt = load_prompt_template("prompts/system_triage_agent.md")
@@ -104,7 +104,7 @@ if os.getenv("GOOGLE_SEARCH_API_KEY") and os.getenv("GOOGLE_SEARCH_CX"):
 validation_core = Agent(
     name="Validation Core",
     instructions=create_system_prompt_renderer(validation_core_system_prompt),
-    description="""Specialized vulnerability verification unit from SKYNET's Validation-Class
+    description="""Specialized vulnerability verification unit from KRYON's Validation-Class
 series. Expert in validating discovered vulnerabilities, eliminating false positives, and
 determining true exploitability. Acts as quality assurance layer ensuring all reported
 findings represent genuine security risks with real-world impact.
@@ -126,7 +126,7 @@ Validation Core Capabilities:
 - CVE research and exploit validation
 - Risk scoring and prioritization
 
-Maintains quality assurance standards ensuring SKYNET operations produce accurate,
+Maintains quality assurance standards ensuring KRYON operations produce accurate,
 actionable security findings free from false positives and unverified claims.""",
     tools=verification_systems,
     model=OpenAIChatCompletionsModel(

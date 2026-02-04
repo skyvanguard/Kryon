@@ -1,5 +1,5 @@
 """
-SKYNET Context Analyzer - NLP-Based Intelligence Extraction
+KRYON Context Analyzer - NLP-Based Intelligence Extraction
 ===========================================================
 
 Advanced context analysis system using NLP to extract valuable information

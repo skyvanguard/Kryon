@@ -1,5 +1,5 @@
 """
-SKYNET Autonomous Operations
+KRYON Autonomous Operations
 
 Complete autonomous operation capabilities with learning and adaptation.
 

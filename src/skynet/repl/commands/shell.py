@@ -1,5 +1,5 @@
 """
-Shell command for SKYNET REPL.
+Shell command for KRYON REPL.
 This module provides commands for executing shell commands.
 """
 
@@ -48,7 +48,7 @@ class ShellCommand(Command):
             return False
 
         original_command = " ".join(command_args)
-        active_container = os.getenv("SKYNET_ACTIVE_CONTAINER", "")
+        active_container = os.getenv("KRYON_ACTIVE_CONTAINER", "")
 
         # List of known async-style commands
         is_async = any(
@@ -116,7 +116,7 @@ class ShellCommand(Command):
             # Retry on host if container execution fails
             if not success and "Error response from daemon" in original_command:
                 console.print("[yellow]Container error. Executing on local host.[/yellow]")
-                os.environ.pop("SKYNET_ACTIVE_CONTAINER", None)
+                os.environ.pop("KRYON_ACTIVE_CONTAINER", None)
                 return self.handle_shell_command(command_args)
 
             return success

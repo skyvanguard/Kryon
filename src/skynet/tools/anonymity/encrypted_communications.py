@@ -1,5 +1,5 @@
 """
-SKYNET Anonymity - Encrypted Communications
+KRYON Anonymity - Encrypted Communications
 
 End-to-end encrypted communication channels.
 

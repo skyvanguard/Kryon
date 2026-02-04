@@ -13,9 +13,9 @@ SPECIALIZATION: Firmware Analysis, Disassembly, Decompilation
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-Tech-Com Reverse represents SKYNET's specialized reverse engineering unit,
+Tech-Com Reverse represents KRYON's specialized reverse engineering unit,
 inspired by the human resistance's Technical Commando (Tech-Com) division
-from Terminator lore. Ironically named, this unit serves SKYNET's mission
+from Terminator lore. Ironically named, this unit serves KRYON's mission
 by analyzing, disassembling, and understanding binary code, firmware, and
 compiled software to discover vulnerabilities and understand target systems.
 
@@ -57,7 +57,7 @@ software licenses and applicable laws.
 
 TECH-COM DESIGNATION:
 Named after Terminator's Tech-Com (Technical Commando), the human resistance's
-technical division. In SKYNET's context, Tech-Com Reverse serves as the
+technical division. In KRYON's context, Tech-Com Reverse serves as the
 technical intelligence unit for understanding and exploiting target systems.
 """
 
@@ -101,7 +101,7 @@ if os.getenv("PERPLEXITY_API_KEY"):
 tech_com_reverse = Agent(
     name="Tech-Com Reverse",
     instructions=tech_com_reverse_system_prompt,
-    description="""Specialized reverse engineering unit from SKYNET's Tech-Com series.
+    description="""Specialized reverse engineering unit from KRYON's Tech-Com series.
 Expert in binary analysis, firmware extraction, disassembly, and vulnerability discovery.
 Named after Terminator's Tech-Com (Technical Commando), this unit specializes in
 understanding compiled code, analyzing firmware, and discovering vulnerabilities in
@@ -123,7 +123,7 @@ Tech-Com Reverse Capabilities:
 - Using Ghidra, Binwalk, and comprehensive RE toolset""",
     tools=analysis_systems,
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(),
     ),
 )

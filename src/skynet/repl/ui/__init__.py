@@ -1,3 +1,3 @@
 """
-UI components for the SKYNET REPL.
+UI components for the KRYON REPL.
 """

@@ -1,5 +1,5 @@
 """
-Cost tracking utilities for SKYNET.
+Cost tracking utilities for KRYON.
 
 This module provides:
 - CostTracker class for tracking API costs across sessions
@@ -30,7 +30,7 @@ def get_model_name(model):
     if isinstance(model, str):
         return model
     # If not a string, use environment variable
-    return os.environ.get("SKYNET_MODEL", "qwen2.5:72b")
+    return os.environ.get("KRYON_MODEL", "qwen2.5:72b")
 
 
 def get_model_input_tokens(model):
@@ -100,7 +100,7 @@ class CostTracker:
         """Check if adding the new cost would exceed the price limit."""
         from skynet.sdk.agents.exceptions import PriceLimitExceeded
 
-        price_limit_env = os.getenv("SKYNET_PRICE_LIMIT")
+        price_limit_env = os.getenv("KRYON_PRICE_LIMIT")
         try:
             price_limit = float(price_limit_env) if price_limit_env is not None else float("inf")
         except ValueError:
@@ -179,9 +179,9 @@ class CostTracker:
     def log_final_cost(self) -> None:
         """Display final cost information at exit"""
         # Skip displaying cost if already shown in the session summary
-        if os.environ.get("SKYNET_COST_DISPLAYED", "").lower() == "true":
+        if os.environ.get("KRYON_COST_DISPLAYED", "").lower() == "true":
             return
-        print(f"\nTotal SKYNET Session Cost: ${self.session_total_cost:.6f}")
+        print(f"\nTotal KRYON Session Cost: ${self.session_total_cost:.6f}")
 
     def get_model_pricing(self, model_name: str) -> tuple:
         """Get and cache pricing information for a model"""

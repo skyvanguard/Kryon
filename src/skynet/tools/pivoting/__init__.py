@@ -1,5 +1,5 @@
 """
-SKYNET Network Pivoting Tools
+KRYON Network Pivoting Tools
 
 Advanced network pivoting, tunneling, and lateral movement.
 

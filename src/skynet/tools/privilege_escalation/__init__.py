@@ -1,8 +1,8 @@
 """
-SKYNET Privilege Escalation Tools Module
+KRYON Privilege Escalation Tools Module
 =========================================
 
-This module provides privilege escalation capabilities for SKYNET agents.
+This module provides privilege escalation capabilities for KRYON agents.
 Includes enumeration scripts, exploit suggesters, and automated escalation tools.
 
 Capabilities:

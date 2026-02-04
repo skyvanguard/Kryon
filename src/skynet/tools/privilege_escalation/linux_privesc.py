@@ -1,5 +1,5 @@
 """
-SKYNET Linux Privilege Escalation Module
+KRYON Linux Privilege Escalation Module
 =========================================
 
 Linux privilege escalation enumeration and exploitation tools.

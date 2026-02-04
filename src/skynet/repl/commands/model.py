@@ -1,5 +1,5 @@
 """
-Model command for SKYNET REPL.
+Model command for KRYON REPL.
 This module provides commands for viewing and changing the current LLM model.
 """
 
@@ -27,7 +27,7 @@ def get_predefined_model_categories() -> dict[str, list[dict[str, str]]]:
     """Get the predefined model categories as the single source of truth.
 
     This function serves as the authoritative source for all available models
-    across the SKYNET system. Other modules should import and use this function
+    across the KRYON system. Other modules should import and use this function
     to ensure consistency.
 
     Returns:
@@ -35,7 +35,7 @@ def get_predefined_model_categories() -> dict[str, list[dict[str, str]]]:
     """
     return {
         "Alias": [
-            {"name": "gpt-4o", "description": ("Best model for SKYNET autonomous operations")},
+            {"name": "gpt-4o", "description": ("Best model for KRYON autonomous operations")},
             {"name": "gpt-4o-mini", "description": ("Fast version of gpt-4o for quick tasks")},
         ],
         "Anthropic Claude": [
@@ -148,7 +148,7 @@ class ModelCommand(Command):
 
     # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     def handle_model_command(self, args: list[str]) -> bool:
-        """Change the model used by SKYNET.
+        """Change the model used by KRYON.
 
         Args:
             args: List containing the model name to use or a number to select
@@ -180,7 +180,7 @@ class ModelCommand(Command):
 
         if not args:  # pylint: disable=too-many-nested-blocks
             # Display current model
-            model_info = os.getenv("SKYNET_MODEL", "Unknown")
+            model_info = os.getenv("KRYON_MODEL", "Unknown")
             console.print(
                 Panel(
                     f"Current model: [bold green]{model_info}[/bold green]",
@@ -319,7 +319,7 @@ class ModelCommand(Command):
             model_name = model_arg
 
         # Set the model in environment variable
-        os.environ["SKYNET_MODEL"] = model_name
+        os.environ["KRYON_MODEL"] = model_name
 
         # Display model change notification
         change_message = (

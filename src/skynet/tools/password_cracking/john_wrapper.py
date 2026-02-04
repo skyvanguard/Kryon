@@ -1,5 +1,5 @@
 """
-SKYNET Password Cracking - John the Ripper Wrapper
+KRYON Password Cracking - John the Ripper Wrapper
 
 CPU-optimized password cracking using John the Ripper.
 
@@ -392,10 +392,10 @@ def john_generate_rules(output_file: str = "/tmp/skynet_john_rules.conf", target
 
         # Write rules to file
         with open(output_file, "w") as f:
-            f.write("# SKYNET Custom John the Ripper Rules\n")
+            f.write("# KRYON Custom John the Ripper Rules\n")
             f.write(f"# Target Type: {target_type}\n")
             f.write(f"# Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-            f.write("[List.Rules:SKYNET]\n")
+            f.write("[List.Rules:KRYON]\n")
             for rule in rules:
                 f.write(rule + "\n")
 

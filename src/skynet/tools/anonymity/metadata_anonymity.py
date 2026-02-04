@@ -1,5 +1,5 @@
 """
-SKYNET Anonymity - Metadata Anonymization
+KRYON Anonymity - Metadata Anonymization
 
 Metadata cleaning and document anonymization.
 

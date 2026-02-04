@@ -1,5 +1,5 @@
 """
-SKYNET Autonomous Operations - Orchestrator
+KRYON Autonomous Operations - Orchestrator
 
 Multi-agent autonomous orchestration and coordination.
 
@@ -641,7 +641,7 @@ def multi_agent_coordination(
     target_ip: str, agents_to_use: Optional[list[str]] = None, coordination_mode: str = "parallel"
 ) -> dict[str, Any]:
     """
-    Coordinate multiple SKYNET agents for comprehensive assessment.
+    Coordinate multiple KRYON agents for comprehensive assessment.
 
     Agents work together:
     - T600 Scout: Initial reconnaissance
@@ -1016,7 +1016,7 @@ def _autonomous_flag_hunting(target_ip: str, access_level: str, flags_needed: Op
 def _generate_autonomous_report(results: dict, output_path: str):
     """Generate autonomous operation report."""
     with open(output_path, "w") as f:
-        f.write("# SKYNET Autonomous CTF Report\n\n")
+        f.write("# KRYON Autonomous CTF Report\n\n")
         f.write(f"**Generated:** {datetime.now().isoformat()}\n\n")
         f.write("## Results\n\n")
         f.write(f"- Flags Found: {len(results['flags_found'])}\n")

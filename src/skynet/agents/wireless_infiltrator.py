@@ -13,7 +13,7 @@ SPECIALIZATION: WiFi Attacks, WPA/WEP Cracking, Wireless Reconnaissance
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-Wireless Infiltrator represents SKYNET's specialized WiFi network exploitation
+Wireless Infiltrator represents KRYON's specialized WiFi network exploitation
 unit, designed to infiltrate and compromise wireless networks through advanced
 penetration techniques. Specialized in WiFi security testing, password recovery,
 handshake capture, and wireless network reconnaissance. Operates at the 2.4GHz
@@ -113,7 +113,7 @@ if os.getenv("PERPLEXITY_API_KEY"):
 wireless_infiltrator = Agent(
     name="Wireless Infiltrator",
     instructions=wireless_infiltrator_system_prompt,
-    description="""Specialized WiFi network exploitation unit from SKYNET's Wireless-Class series.
+    description="""Specialized WiFi network exploitation unit from KRYON's Wireless-Class series.
 Expert in wireless penetration testing, WPA/WEP password recovery, and WiFi network
 compromise. Utilizes advanced wireless attack techniques including handshake capture,
 PMKID attacks, evil twin APs, and WPS exploitation to infiltrate wireless networks
@@ -136,7 +136,7 @@ Wireless Infiltrator Capabilities:
 - Using aircrack-ng suite, hashcat, Reaver""",
     tools=wireless_systems,
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(),
     ),
 )

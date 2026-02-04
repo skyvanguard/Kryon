@@ -1,5 +1,5 @@
 """
-SKYNET Network Pivoting - Lateral Movement
+KRYON Network Pivoting - Lateral Movement
 
 Tools for moving laterally through compromised networks.
 

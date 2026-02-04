@@ -1,5 +1,5 @@
 """
-SKYNET Network Pivoting Module
+KRYON Network Pivoting Module
 ===============================
 
 Network pivoting and tunneling tools for lateral movement.

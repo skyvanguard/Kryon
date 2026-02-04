@@ -1,5 +1,5 @@
 """
-Template loading utilities for SKYNET.
+Template loading utilities for KRYON.
 
 This module provides functions for loading and rendering prompt templates
 used by agents.
@@ -119,7 +119,7 @@ def create_system_prompt_renderer(base_instructions):
             import traceback
 
             print(f"Warning: Failed to render system master template: {e}")
-            if os.getenv("SKYNET_DEBUG", "0") == "2":
+            if os.getenv("KRYON_DEBUG", "0") == "2":
                 traceback.print_exc()
             return base_instructions
 

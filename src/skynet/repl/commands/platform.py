@@ -1,5 +1,5 @@
 """
-Platform command for SKYNET REPL.
+Platform command for KRYON REPL.
 This module provides commands for interacting with platform-specific features.
 """
 

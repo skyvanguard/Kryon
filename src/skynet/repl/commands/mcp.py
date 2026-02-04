@@ -1,5 +1,5 @@
 """
-MCP (Model Context Protocol) command for SKYNET CLI
+MCP (Model Context Protocol) command for KRYON CLI
 
 Provides commands for managing MCP servers and integrating their tools
 with agents.
@@ -93,7 +93,7 @@ class GlobalMCPUtil(MCPUtil):
 
     @classmethod
     def to_function_tool(cls, tool, server_name: str) -> FunctionTool:
-        """Convert an MCP tool to a SKYNET function tool using server name instead of object."""
+        """Convert an MCP tool to a KRYON function tool using server name instead of object."""
 
         # Store the server configuration instead of the server object
         server = _GLOBAL_MCP_SERVERS.get(server_name)
@@ -449,7 +449,7 @@ class MCPCommand(Command):
         usage_text = """
 # MCP (Model Context Protocol) Command Usage
 
-The MCP command allows you to manage Model Context Protocol servers and integrate their tools with SKYNET agents.
+The MCP command allows you to manage Model Context Protocol servers and integrate their tools with KRYON agents.
 
 ## Commands:
 

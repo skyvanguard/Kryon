@@ -45,8 +45,8 @@ from .tracing.span_data import AgentSpanData
 from .usage import Usage
 from .util import _coro, _error_tracing
 
-# SKYNET_MAX_TURNS must be converted to an int to avoid type mismatch error when comparing.
-max_turns_env = os.getenv("SKYNET_MAX_TURNS")
+# KRYON_MAX_TURNS must be converted to an int to avoid type mismatch error when comparing.
+max_turns_env = os.getenv("KRYON_MAX_TURNS")
 DEFAULT_MAX_TURNS: float
 if max_turns_env is not None:
     try:
@@ -59,7 +59,7 @@ if max_turns_env is not None:
 else:
     DEFAULT_MAX_TURNS = float("inf")
 
-price_limit_env = os.getenv("SKYNET_PRICE_LIMIT")
+price_limit_env = os.getenv("KRYON_PRICE_LIMIT")
 if price_limit_env is not None:
     try:
         DEFAULT_PRICE_LIMIT = float(price_limit_env)

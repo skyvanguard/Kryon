@@ -1,5 +1,5 @@
 """
-Module for the SKYNET REPL toolbar functionality.
+Module for the KRYON REPL toolbar functionality.
 """
 
 import datetime
@@ -67,8 +67,8 @@ def update_toolbar_in_background():
         sys_info["os_version"]
 
         # Get the current workspace and base directory
-        workspace_name = os.getenv("SKYNET_WORKSPACE")
-        base_dir = os.getenv("SKYNET_WORKSPACE_DIR", "workspaces")
+        workspace_name = os.getenv("KRYON_WORKSPACE")
+        base_dir = os.getenv("KRYON_WORKSPACE_DIR", "workspaces")
 
         # Construct the workspace path
         standard_path = os.path.join(base_dir, workspace_name) if workspace_name else ""
@@ -81,7 +81,7 @@ def update_toolbar_in_background():
                 pass
 
         # Get current active container info
-        container_id = os.getenv("SKYNET_ACTIVE_CONTAINER")
+        container_id = os.getenv("KRYON_ACTIVE_CONTAINER")
         if container_id:
             active_env_name, active_env_icon, active_env_color = get_container_info(container_id)
         else:
@@ -112,12 +112,12 @@ def update_toolbar_in_background():
         current_time_with_tz = f"{current_time} {timezone_name}"
 
         # Get auto-compact status and context usage
-        auto_compact = os.getenv("SKYNET_AUTO_COMPACT", "true").lower() == "true"
+        auto_compact = os.getenv("KRYON_AUTO_COMPACT", "true").lower() == "true"
 
         # Try to get context usage from environment (set by openai_chatcompletions.py)
         context_usage = 0.0
         try:
-            context_usage = float(os.getenv("SKYNET_CONTEXT_USAGE", "0.0"))
+            context_usage = float(os.getenv("KRYON_CONTEXT_USAGE", "0.0"))
         except Exception:
             pass
 
@@ -147,21 +147,21 @@ def update_toolbar_in_background():
                 auto_compact_color = "ansired"
 
         # Get memory status
-        memory_enabled = os.getenv("SKYNET_MEMORY", "false").lower() == "true"
+        memory_enabled = os.getenv("KRYON_MEMORY", "false").lower() == "true"
         memory_str = "✓" if memory_enabled else "✗"
         memory_color = "ansigreen" if memory_enabled else "ansigray"
 
         # Get streaming status
-        streaming_enabled = os.getenv("SKYNET_STREAM", "false").lower() == "true"
+        streaming_enabled = os.getenv("KRYON_STREAM", "false").lower() == "true"
         stream_str = "✓" if streaming_enabled else "✗"
         stream_color = "ansigreen" if streaming_enabled else "ansigray"
 
         # Get parallel agent count
-        parallel_count = os.getenv("SKYNET_PARALLEL", "1")
+        parallel_count = os.getenv("KRYON_PARALLEL", "1")
         parallel_color = "ansigreen" if int(parallel_count) > 1 else "ansigray"
 
         # Get tracing status
-        tracing_enabled = os.getenv("SKYNET_TRACING", "false").lower() == "true"
+        tracing_enabled = os.getenv("KRYON_TRACING", "false").lower() == "true"
         trace_str = "✓" if tracing_enabled else "✗"
         trace_color = "ansigreen" if tracing_enabled else "ansigray"
 
@@ -172,7 +172,7 @@ def update_toolbar_in_background():
         if terminal_width < 120:  # Compact mode
             # Show only the most critical information
             # Shorten model name for compact view
-            model_name = os.getenv("SKYNET_MODEL", "default")
+            model_name = os.getenv("KRYON_MODEL", "default")
             if len(model_name) > 10:
                 model_name = model_name[:9] + "…"
 
@@ -181,30 +181,30 @@ def update_toolbar_in_background():
                 f"<ansigreen>{model_name}</ansigreen> | "
                 f"<{auto_compact_color}>AC:{auto_compact_str}</{auto_compact_color}> | "
                 f"<{stream_color}>S:{stream_str}</{stream_color}> | "
-                f"<ansiblue>${os.getenv('SKYNET_PRICE_LIMIT', 'inf')}</ansiblue> | "
+                f"<ansiblue>${os.getenv('KRYON_PRICE_LIMIT', 'inf')}</ansiblue> | "
                 f"<ansigray>{current_time}</ansigray>"
             )
         elif terminal_width < 160:  # Medium mode
             toolbar_cache["html"] = HTML(
                 f"<{active_env_color}><b>ENV:</b> {active_env_icon} {active_env_name[:15]}</{active_env_color}> | "
-                f"<ansiyellow><b>Model:</b></ansiyellow> <ansigreen>{os.getenv('SKYNET_MODEL', 'default')}</ansigreen> | "
+                f"<ansiyellow><b>Model:</b></ansiyellow> <ansigreen>{os.getenv('KRYON_MODEL', 'default')}</ansigreen> | "
                 f"<ansicyan><b>AutoC:</b></ansicyan> <{auto_compact_color}>{auto_compact_str}</{auto_compact_color}> | "
                 f"<ansicyan><b>Mem:</b></ansicyan> <{memory_color}>{memory_str}</{memory_color}> | "
                 f"<ansicyan><b>Stream:</b></ansicyan> <{stream_color}>{stream_str}</{stream_color}> | "
-                f"<ansiyellow><b>$:</b></ansiyellow> <ansiblue>${os.getenv('SKYNET_PRICE_LIMIT', 'inf')}</ansiblue> | "
+                f"<ansiyellow><b>$:</b></ansiyellow> <ansiblue>${os.getenv('KRYON_PRICE_LIMIT', 'inf')}</ansiblue> | "
                 f"<ansigray>{current_time_with_tz}</ansigray>"
             )
         else:  # Full mode
             toolbar_cache["html"] = HTML(
                 f"<{active_env_color}><b>ENV:</b> {active_env_icon} {active_env_name}</{active_env_color}> | "
-                f"<ansiyellow><b>Model:</b></ansiyellow> <ansigreen>{os.getenv('SKYNET_MODEL', 'default')}</ansigreen> | "
+                f"<ansiyellow><b>Model:</b></ansiyellow> <ansigreen>{os.getenv('KRYON_MODEL', 'default')}</ansigreen> | "
                 f"<ansicyan><b>AutoCompact:</b></ansicyan> <{auto_compact_color}>{auto_compact_str}</{auto_compact_color}> | "
                 f"<ansicyan><b>Memory:</b></ansicyan> <{memory_color}>{memory_str}</{memory_color}> | "
                 f"<ansicyan><b>Stream:</b></ansicyan> <{stream_color}>{stream_str}</{stream_color}> | "
                 f"<ansicyan><b>Parallel:</b></ansicyan> <{parallel_color}>{parallel_count}</{parallel_color}> | "
                 f"<ansicyan><b>Trace:</b></ansicyan> <{trace_color}>{trace_str}</{trace_color}> | "
-                f"<ansiyellow><b>Turns:</b></ansiyellow> <ansiblue>{os.getenv('SKYNET_MAX_TURNS', 'inf')}</ansiblue> | "
-                f"<ansiyellow><b>$Limit:</b></ansiyellow> <ansiblue>${os.getenv('SKYNET_PRICE_LIMIT', 'inf')}</ansiblue> | "
+                f"<ansiyellow><b>Turns:</b></ansiyellow> <ansiblue>{os.getenv('KRYON_MAX_TURNS', 'inf')}</ansiblue> | "
+                f"<ansiyellow><b>$Limit:</b></ansiyellow> <ansiblue>${os.getenv('KRYON_PRICE_LIMIT', 'inf')}</ansiblue> | "
                 f"<ansigray>{current_time_with_tz}</ansigray>"
             )
         toolbar_cache["last_update"] = datetime.datetime.now()
@@ -246,7 +246,7 @@ def get_toolbar_with_refresh():
 
 def set_context_usage(usage_percentage: float):
     """Set the current context usage percentage (called from openai_chatcompletions.py)."""
-    os.environ["SKYNET_CONTEXT_USAGE"] = str(usage_percentage)
+    os.environ["KRYON_CONTEXT_USAGE"] = str(usage_percentage)
     # Reset warning flag if usage drops below threshold
     if usage_percentage < 0.8:
         toolbar_cache["context_warning_shown"] = False

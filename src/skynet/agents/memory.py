@@ -1,5 +1,5 @@
 """
-Memory agent for SKYNET.
+Memory agent for KRYON.
 
 Leverages Retrieval Augmented Generation (RAG) to
 store long-term memory experiences across security
@@ -69,15 +69,15 @@ Semantic Memory (Single Global Collection "_all_"):
 Environment Variables enabling the episodic memory store
 --------------------------------------------------------
 
-   SKYNET_MEMORY: Enables the use of memory functionality in SKYNET
+   KRYON_MEMORY: Enables the use of memory functionality in KRYON
     can adopt values:
     - episodic: for episodic memory store
     - semantic: for semantic memory store
     - all: for all memory stores
-   SKYNET_MEMORY_COLLECTION: Name of the collection in Qdrant
-    (required if SKYNET_MEMORY=episodic)
-   SKYNET_MEMORY_ONLINE: Enables online learning (incremental updates)
-   SKYNET_MEMORY_OFFLINE: Trigger offline learning (@2_jsonl_to_memory.py) when
+   KRYON_MEMORY_COLLECTION: Name of the collection in Qdrant
+    (required if KRYON_MEMORY=episodic)
+   KRYON_MEMORY_ONLINE: Enables online learning (incremental updates)
+   KRYON_MEMORY_OFFLINE: Trigger offline learning (@2_jsonl_to_memory.py) when
     skynet.client.run() finishes
 """
 
@@ -89,7 +89,7 @@ from skynet.sdk.agents import Agent, OpenAIChatCompletionsModel
 from skynet.tools.misc.rag import add_to_memory_episodic, add_to_memory_semantic, query_memory
 
 # Get model from environment or use default
-model = os.getenv("SKYNET_MODEL", "gpt-4o")
+model = os.getenv("KRYON_MODEL", "gpt-4o")
 
 
 def get_previous_steps(query: str) -> str:

@@ -1,5 +1,5 @@
 """
-SKYNET Timestomping - File Timestamp Manipulation
+KRYON Timestomping - File Timestamp Manipulation
 
 Utilities for manipulating file timestamps to evade forensic analysis.
 """

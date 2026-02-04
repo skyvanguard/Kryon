@@ -11,7 +11,7 @@ Tool Categories:
 - Credential Attacks: Password spraying, credential stuffing
 - API Discovery: Endpoint enumeration, schema extraction
 
-SKYNET Integration: Phase 9
+KRYON Integration: Phase 9
 """
 
 from skynet.tools.api_attacks.ffuf_api import ffuf_api_fuzz

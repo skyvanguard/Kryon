@@ -2,7 +2,7 @@
 Utility functions for working with patterns.
 
 Provides helper functions to convert patterns to parallel configurations
-and integrate with the SKYNET execution system.
+and integrate with the KRYON execution system.
 """
 
 from __future__ import annotations

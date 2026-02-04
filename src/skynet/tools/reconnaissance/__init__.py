@@ -1,5 +1,5 @@
 """
-SKYNET Framework - Reconnaissance Tools Module
+KRYON Framework - Reconnaissance Tools Module
 ==============================================
 
 Comprehensive reconnaissance and information gathering tools for

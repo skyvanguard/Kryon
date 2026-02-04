@@ -1,5 +1,5 @@
 """
-Streaming UI utilities for SKYNET.
+Streaming UI utilities for KRYON.
 
 This module provides functions for streaming tool execution output
 and agent responses with Rich panels.
@@ -823,11 +823,11 @@ def cli_print_tool_output(
     if isinstance(args, dict) and args.get("auto_output"):
         command_key += ":auto_output"
 
-    streaming_enabled = os.getenv("SKYNET_STREAM", "false").lower() == "true"
+    streaming_enabled = os.getenv("KRYON_STREAM", "false").lower() == "true"
 
     if streaming:
         if call_id:
-            is_parallel = int(os.getenv("SKYNET_PARALLEL", "1")) > 1
+            is_parallel = int(os.getenv("KRYON_PARALLEL", "1")) > 1
 
             if call_id not in cli_print_tool_output._streaming_sessions:
                 cli_print_tool_output._streaming_sessions[call_id] = {
@@ -911,8 +911,8 @@ def cli_print_tool_output(
                     title_align="left",
                 )
 
-                is_parallel = int(os.getenv("SKYNET_PARALLEL", "1")) > 1
-                is_container = bool(os.getenv("SKYNET_ACTIVE_CONTAINER", ""))
+                is_parallel = int(os.getenv("KRYON_PARALLEL", "1")) > 1
+                is_container = bool(os.getenv("KRYON_ACTIVE_CONTAINER", ""))
 
                 if call_id in _LIVE_STREAMING_PANELS:
                     with _PANEL_UPDATE_LOCK:
@@ -957,8 +957,8 @@ def cli_print_tool_output(
                                     del _LIVE_STREAMING_PANELS[call_id]
                 else:
                     with _PANEL_UPDATE_LOCK:
-                        is_parallel = int(os.getenv("SKYNET_PARALLEL", "1")) > 1
-                        is_container = bool(os.getenv("SKYNET_ACTIVE_CONTAINER", ""))
+                        is_parallel = int(os.getenv("KRYON_PARALLEL", "1")) > 1
+                        is_container = bool(os.getenv("KRYON_ACTIVE_CONTAINER", ""))
 
                         if is_parallel:
                             if call_id not in _LIVE_STREAMING_PANELS:
@@ -1312,7 +1312,7 @@ def update_agent_streaming_content(context, text_delta, token_stats=None):
                 footer_stats.append(" | Session: ", style="dim")
                 footer_stats.append(f"${session_total_cost:.4f}", style="bold magenta")
 
-                model_name = context.get("model", os.environ.get("SKYNET_MODEL", "gpt-4o"))
+                model_name = context.get("model", os.environ.get("KRYON_MODEL", "gpt-4o"))
                 context_pct = input_tokens / get_model_input_tokens(model_name) * 100
                 if context_pct < 50:
                     indicator = "[emoji]🟩[/emoji]"
@@ -1399,7 +1399,7 @@ def finish_agent_streaming(context, final_stats=None):
 
             model_name = context.get("model", "")
             if not isinstance(model_name, str):
-                model_name = os.environ.get("SKYNET_MODEL", "gpt-4o-mini")
+                model_name = os.environ.get("KRYON_MODEL", "gpt-4o-mini")
 
             if (
                 interaction_input_tokens is not None
@@ -1837,7 +1837,7 @@ def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None,
         interaction_cost = token_info.get("interaction_cost", 0)
 
         if not interaction_cost and input_tokens > 0:
-            model_name = token_info.get("model", os.environ.get("SKYNET_MODEL", "gpt-4o-mini"))
+            model_name = token_info.get("model", os.environ.get("KRYON_MODEL", "gpt-4o-mini"))
             interaction_cost = calculate_model_cost(model_name, input_tokens, output_tokens)
 
         if input_tokens > 0:

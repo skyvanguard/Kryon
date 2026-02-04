@@ -1,11 +1,11 @@
 """
-SKYNET Anonymity - Central Anonymity Manager
+KRYON Anonymity - Central Anonymity Manager
 
 Global anonymity management and configuration.
 
 Clearance Level: Omega-Shadow (Maximum Anonymity Operations Authority)
 Specialization: Global anonymity control, automatic rotation, profile management
-Mission: Centralized anonymity orchestration for all SKYNET operations
+Mission: Centralized anonymity orchestration for all KRYON operations
 
 This module provides:
 - Global anonymity enable/disable
@@ -43,7 +43,7 @@ def enable_global_anonymity(
     level: str = "MEDIUM", auto_rotate: bool = False, rotation_interval: int = 3600
 ) -> dict[str, Any]:
     """
-    Enable global anonymity for all SKYNET operations.
+    Enable global anonymity for all KRYON operations.
 
     Anonymity Levels:
     - LOW: Basic User-Agent randomization only
@@ -74,12 +74,12 @@ def enable_global_anonymity(
         >>> print(f"Tor: {result['tor_enabled']}")
         >>> print(f"VPN: {result['vpn_enabled']}")
         >>>
-        >>> # Now all SKYNET tools use anonymity automatically
+        >>> # Now all KRYON tools use anonymity automatically
         >>> from skynet.tools.reconnaissance import nmap
         >>> nmap("10.10.10.5")  # Automatically uses Tor + anonymity
 
     Global Effect:
-        Once enabled, ALL SKYNET functions automatically use:
+        Once enabled, ALL KRYON functions automatically use:
         - Tor/VPN routing
         - Randomized User-Agents
         - Fingerprint randomization
@@ -190,7 +190,7 @@ def disable_global_anonymity() -> dict[str, Any]:
         >>> # Disable anonymity
         >>> result = disable_global_anonymity()
         >>>
-        >>> # Now SKYNET tools operate normally (no anonymity)
+        >>> # Now KRYON tools operate normally (no anonymity)
     """
     global _ANONYMITY_STATE, _rotation_thread
 
@@ -604,7 +604,7 @@ def get_anonymity_context() -> dict[str, Any]:
     """
     Get anonymity context for function calls.
 
-    Used internally by SKYNET functions to determine
+    Used internally by KRYON functions to determine
     if they should use anonymity features.
 
     Returns:

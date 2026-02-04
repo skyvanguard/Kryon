@@ -2,7 +2,7 @@
 Smart Cache Manager
 
 LRU-based cache with TTL support, persistent storage, and automatic cleanup.
-Optimizes SKYNET operations by caching expensive scan results and preventing duplicates.
+Optimizes KRYON operations by caching expensive scan results and preventing duplicates.
 """
 
 import hashlib

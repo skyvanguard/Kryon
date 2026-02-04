@@ -1,5 +1,5 @@
 """
-SKYNET Password Cracking - Hashcat Wrapper
+KRYON Password Cracking - Hashcat Wrapper
 
 High-performance GPU-accelerated password cracking using hashcat.
 

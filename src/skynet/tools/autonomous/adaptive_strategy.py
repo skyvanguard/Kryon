@@ -1,5 +1,5 @@
 """
-SKYNET Adaptive Strategy Engine - Intelligent Fallback System
+KRYON Adaptive Strategy Engine - Intelligent Fallback System
 =============================================================
 
 Auto-adaptation system that detects failures, identifies causes,

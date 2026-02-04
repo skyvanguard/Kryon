@@ -1,5 +1,5 @@
 """
-SKYNET utility module package.
+KRYON utility module package.
 
 This module provides utilities for:
 - Timing (active/idle time tracking)

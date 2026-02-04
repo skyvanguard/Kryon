@@ -1,5 +1,5 @@
 """
-SKYNET LLM Response Cache
+KRYON LLM Response Cache
 ==========================
 
 Intelligent caching system for LLM responses to reduce latency,

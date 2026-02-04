@@ -1,5 +1,5 @@
 """
-Quickstart command for SKYNET REPL.
+Quickstart command for KRYON REPL.
 Provides essential setup information and guidance for new users.
 Automatically runs on first launch if ~/.skynet doesn't exist.
 """
@@ -169,12 +169,12 @@ class QuickstartCommand(Command):
         console.print(
             Panel(
                 Text.from_markup(
-                    "[bold cyan]Welcome to SKYNET - Autonomous Cybersecurity Intelligence![/bold cyan]\n\n"
+                    "[bold cyan]Welcome to KRYON - Autonomous Cybersecurity Intelligence![/bold cyan]\n\n"
                     "[yellow]AI-powered security framework for penetration testing, "
                     "bug bounty hunting, and CTF challenges.[/yellow]\n\n"
-                    "This quickstart guide will help you get started with SKYNET."
+                    "This quickstart guide will help you get started with KRYON."
                 ),
-                title="🚀 SKYNET Quickstart",
+                title="🚀 KRYON Quickstart",
                 border_style="cyan",
                 box=box.DOUBLE,
             )
@@ -182,7 +182,7 @@ class QuickstartCommand(Command):
 
         # Step 1: API Requirements
         console.print("\n[bold yellow]📋 Step 1: API Requirements[/bold yellow]\n")
-        console.print("SKYNET requires at least one AI provider API key to function:")
+        console.print("KRYON requires at least one AI provider API key to function:")
 
         api_keys = self.check_api_keys()
 
@@ -204,7 +204,7 @@ class QuickstartCommand(Command):
             console.print(
                 Panel(
                     "[red]⚠️  No API keys detected![/red]\n\n"
-                    "You need at least one API key to use SKYNET.\n"
+                    "You need at least one API key to use KRYON.\n"
                     "Set it in your shell or .env file:\n\n"
                     "[yellow]export PROVIDER_API_KEY='your-key-here'[/yellow]\n\n"
                     "Replace PROVIDER with your model provider name\n",
@@ -214,7 +214,7 @@ class QuickstartCommand(Command):
 
         # Step 2: Local Models (Ollama)
         console.print("\n[bold yellow]🖥️  Step 2: Local Models (Optional)[/bold yellow]\n")
-        console.print("For local model support, SKYNET can use Ollama:")
+        console.print("For local model support, KRYON can use Ollama:")
 
         # Check Ollama endpoints
         ollama_table = Table(show_header=True, header_style="bold")
@@ -246,7 +246,7 @@ class QuickstartCommand(Command):
                 "2. Pull a model: [yellow]ollama pull llama3.1[/yellow]\n"
                 "3. Set in .env: "
                 "[yellow]OLLAMA_API_BASE='http://127.0.0.1:11434/v1'[/yellow]\n"
-                "4. Use in SKYNET: [yellow]/model llama3.1[/yellow]",
+                "4. Use in KRYON: [yellow]/model llama3.1[/yellow]",
                 border_style="cyan",
             )
         )
@@ -371,7 +371,7 @@ class QuickstartCommand(Command):
         # Configuration directory info
         skynet_dir = Path.home() / ".skynet"
         console.print("\n[bold yellow]📁 Configuration Directory[/bold yellow]\n")
-        console.print(f"SKYNET stores configuration and logs in: [cyan]{skynet_dir}[/cyan]")
+        console.print(f"KRYON stores configuration and logs in: [cyan]{skynet_dir}[/cyan]")
 
         if not skynet_dir.exists():
             console.print("[yellow]→ This directory will be created on first run[/yellow]")
@@ -384,7 +384,7 @@ class QuickstartCommand(Command):
                 "[bold]🎉 You're ready to start![/bold]\n\n"
                 "[cyan]Next steps:[/cyan]\n"
                 "1. Set up at least one API key (see table above)\n"
-                "2. Try the examples to get familiar with SKYNET\n"
+                "2. Try the examples to get familiar with KRYON\n"
                 "3. Use [yellow]/help[/yellow] for detailed command information\n"
                 "4. Join our community for support and updates\n\n"
                 "[dim]This guide: /quickstart | Hide on startup: Create ~/.skynet directory[/dim]",

@@ -1,5 +1,5 @@
 """
-Workspace command for SKYNET REPL.
+Workspace command for KRYON REPL.
 This module provides commands for setting up and managing Docker virtualization
 environments.
 """
@@ -64,10 +64,10 @@ class WorkspaceCommand(Command):
     def handle_get(self, _: Optional[list[str]] = None) -> bool:
         """Display the current workspace name and directory information."""
         # Get workspace info
-        workspace_name = os.getenv("SKYNET_WORKSPACE", None)
+        workspace_name = os.getenv("KRYON_WORKSPACE", None)
 
         # Check if a container is active
-        active_container = os.getenv("SKYNET_ACTIVE_CONTAINER", "")
+        active_container = os.getenv("KRYON_ACTIVE_CONTAINER", "")
 
         # Determine environment (container or host)
         if active_container:
@@ -180,23 +180,23 @@ class WorkspaceCommand(Command):
             )
 
             # Set the environment variable
-            if not set_env_var("SKYNET_WORKSPACE", workspace_name):
+            if not set_env_var("KRYON_WORKSPACE", workspace_name):
                 console.print("[red]Failed to set workspace environment variable.[/red]")
                 return False
         except ImportError:
             # Fallback if import fails
-            os.environ["SKYNET_WORKSPACE"] = workspace_name
+            os.environ["KRYON_WORKSPACE"] = workspace_name
 
             # Define basic fallbacks for path functions if import failed
             def get_common_workspace_dir():
-                base = os.getenv("SKYNET_WORKSPACE_DIR", ".")  # Default to current dir base
-                name = os.getenv("SKYNET_WORKSPACE")
+                base = os.getenv("KRYON_WORKSPACE_DIR", ".")  # Default to current dir base
+                name = os.getenv("KRYON_WORKSPACE")
                 if name:
                     return os.path.abspath(os.path.join(base, name))
                 return os.path.abspath(base)  # Use base dir if no name
 
             def get_common_container_path():
-                name = os.getenv("SKYNET_WORKSPACE")
+                name = os.getenv("KRYON_WORKSPACE")
                 if name:
                     return f"/workspace/workspaces/{name}"
                 return "/"  # Default container path
@@ -212,7 +212,7 @@ class WorkspaceCommand(Command):
             # Decide if this is fatal or just a warning
 
         # If container is active, also create the directory in the container
-        active_container = os.getenv("SKYNET_ACTIVE_CONTAINER", "")
+        active_container = os.getenv("KRYON_ACTIVE_CONTAINER", "")
         if active_container:
             # Check if container is running
             check_process = subprocess.run(
@@ -273,13 +273,13 @@ class WorkspaceCommand(Command):
         except ImportError:
             # Provide a basic fallback if import fails, mirroring common.py logic
             # without 'skynet_default'
-            base_dir = os.getenv("SKYNET_WORKSPACE_DIR")
-            workspace_name = os.getenv("SKYNET_WORKSPACE")
+            base_dir = os.getenv("KRYON_WORKSPACE_DIR")
+            workspace_name = os.getenv("KRYON_WORKSPACE")
 
             if base_dir and workspace_name:
                 # Basic validation
                 if not all(c.isalnum() or c in ["_", "-"] for c in workspace_name):
-                    print(f"[yellow]Warning: Invalid SKYNET_WORKSPACE name '{workspace_name}' in fallback.[/yellow]")
+                    print(f"[yellow]Warning: Invalid KRYON_WORKSPACE name '{workspace_name}' in fallback.[/yellow]")
                     # Fallback to base directory if name is invalid
                     return os.path.abspath(base_dir)
                 target_dir = os.path.join(base_dir, workspace_name)
@@ -301,7 +301,7 @@ class WorkspaceCommand(Command):
         console.print("\n[bold]Workspace Contents:[/bold]")
 
         if env_type == "container":
-            active_container = os.getenv("SKYNET_ACTIVE_CONTAINER", "")
+            active_container = os.getenv("KRYON_ACTIVE_CONTAINER", "")
 
             # For containers, use the workspace path provided
             # This should already be the correct path from handle_get
@@ -370,20 +370,20 @@ class WorkspaceCommand(Command):
         except ImportError:
             # Define basic fallbacks if import fails
             def get_common_workspace_dir():
-                base = os.getenv("SKYNET_WORKSPACE_DIR", ".")
-                name = os.getenv("SKYNET_WORKSPACE")
+                base = os.getenv("KRYON_WORKSPACE_DIR", ".")
+                name = os.getenv("KRYON_WORKSPACE")
                 if name:
                     return os.path.abspath(os.path.join(base, name))
                 return os.path.abspath(base)
 
             def get_common_container_path():
-                name = os.getenv("SKYNET_WORKSPACE")
+                name = os.getenv("KRYON_WORKSPACE")
                 if name:
                     return f"/workspace/workspaces/{name}"
                 return "/"
 
         host_workspace_dir = get_common_workspace_dir()
-        active_container = os.getenv("SKYNET_ACTIVE_CONTAINER", "")
+        active_container = os.getenv("KRYON_ACTIVE_CONTAINER", "")
 
         # Execute command in the appropriate environment
         if active_container:
@@ -493,20 +493,20 @@ class WorkspaceCommand(Command):
         except ImportError:
             # Define basic fallbacks if import fails
             def get_common_workspace_dir():
-                base = os.getenv("SKYNET_WORKSPACE_DIR", ".")
-                name = os.getenv("SKYNET_WORKSPACE")
+                base = os.getenv("KRYON_WORKSPACE_DIR", ".")
+                name = os.getenv("KRYON_WORKSPACE")
                 if name:
                     return os.path.abspath(os.path.join(base, name))
                 return os.path.abspath(base)
 
             def get_common_container_path():
-                name = os.getenv("SKYNET_WORKSPACE")
+                name = os.getenv("KRYON_WORKSPACE")
                 if name:
                     return f"/workspace/workspaces/{name}"
                 return "/"
 
         host_workspace_dir = get_common_workspace_dir()
-        active_container = os.getenv("SKYNET_ACTIVE_CONTAINER", "")
+        active_container = os.getenv("KRYON_ACTIVE_CONTAINER", "")
 
         # Execute in container if active
         if active_container:
@@ -610,7 +610,7 @@ class WorkspaceCommand(Command):
             console.print("Usage: /workspace copy <source> <destination>")
             return False
 
-        active_container = os.getenv("SKYNET_ACTIVE_CONTAINER", "")
+        active_container = os.getenv("KRYON_ACTIVE_CONTAINER", "")
         if not active_container:
             console.print("[yellow]No active container. Copy only works with containers.[/yellow]")
             return False

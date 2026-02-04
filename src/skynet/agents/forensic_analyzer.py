@@ -13,7 +13,7 @@ SPECIALIZATION: Evidence Analysis, Incident Investigation, Threat Hunting
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-Forensic Analyzer represents SKYNET's specialized investigation unit for
+Forensic Analyzer represents KRYON's specialized investigation unit for
 digital forensics and incident response operations. Designed to conduct
 thorough security investigations, analyze digital evidence, reconstruct
 attack timelines, and hunt for threats across compromised systems. Unlike
@@ -145,7 +145,7 @@ if os.getenv("GOOGLE_SEARCH_API_KEY") and os.getenv("GOOGLE_SEARCH_CX"):
 forensic_analyzer = Agent(
     name="Forensic Analyzer",
     instructions=create_system_prompt_renderer(forensic_analyzer_system_prompt),
-    description="""Specialized digital forensics and incident response unit from SKYNET's
+    description="""Specialized digital forensics and incident response unit from KRYON's
 Investigation-Class series. Expert in conducting security investigations, analyzing
 digital evidence, reconstructing attack timelines, and hunting for threats. Maintains
 forensically sound methodologies with strict chain of custody and evidence integrity.
@@ -164,7 +164,7 @@ Forensic Analyzer Capabilities:
 - Forensic reporting and legal documentation support
 - Artifact recovery and analysis""",
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(),
     ),
     tools=investigation_systems,

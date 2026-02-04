@@ -10,7 +10,7 @@ from typing import Any, Optional
 def _load_component(name: str) -> Any:
     """Load a system component"""
     try:
-        # Try SKYNET modules first, fallback to legacy path
+        # Try KRYON modules first, fallback to legacy path
         if sys.modules.get(f"skynet.internal.components.{name}"):
             return sys.modules[f"skynet.internal.components.{name}"]
         try:

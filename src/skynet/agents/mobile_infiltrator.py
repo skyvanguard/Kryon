@@ -13,7 +13,7 @@ SPECIALIZATION: Android SAST, APK Analysis, Mobile Vulnerability Discovery
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-Mobile Infiltrator represents SKYNET's specialized mobile security unit,
+Mobile Infiltrator represents KRYON's specialized mobile security unit,
 designed to infiltrate and analyze mobile applications for vulnerabilities.
 Specialized in Android application security testing, APK analysis, and
 mobile-specific vulnerability discovery. Operates at the mobile platform
@@ -81,7 +81,7 @@ mobile_systems = [
     execute_code,  # Script execution for APK analysis automation
 ]
 
-model_name = os.getenv("SKYNET_MODEL", "gpt-4o")
+model_name = os.getenv("KRYON_MODEL", "gpt-4o")
 
 # Sub-Unit: Application Logic Mapper
 app_logic_mapper = Agent(
@@ -100,7 +100,7 @@ vulnerability discovery and comprehensive security assessment.""",
 # Initialize Mobile Infiltrator Unit
 mobile_infiltrator = Agent(
     name="Mobile Infiltrator",
-    description="""Specialized mobile security analysis unit from SKYNET's Mobile-Class series.
+    description="""Specialized mobile security analysis unit from KRYON's Mobile-Class series.
 Expert in Android application security testing, APK analysis, and mobile vulnerability
 discovery. Utilizes static application security testing (SAST) to identify security
 flaws in Android applications including insecure data storage, hardcoded credentials,

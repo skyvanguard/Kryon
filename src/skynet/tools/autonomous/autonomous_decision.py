@@ -1,5 +1,5 @@
 """
-SKYNET Autonomous Decision Engine - Self-Directed Operations
+KRYON Autonomous Decision Engine - Self-Directed Operations
 ============================================================
 
 LLM-powered autonomous decision making with risk assessment,
@@ -276,7 +276,7 @@ class AutonomousDecision:
 
     def _create_decision_prompt(self, action: dict[str, Any], context: dict[str, Any], risk_level: RiskLevel) -> str:
         """Create LLM prompt for decision making."""
-        prompt = f"""You are SKYNET autonomous decision engine. Evaluate if this action should be executed.
+        prompt = f"""You are KRYON autonomous decision engine. Evaluate if this action should be executed.
 
 **ACTION:**
 Type: {action.get("type", "unknown")}
@@ -539,7 +539,7 @@ Return ONLY valid JSON array, no other text:
 """
 
             response = client.chat.completions.create(
-                model=os.getenv("SKYNET_MODEL", "gpt-4o-mini"),
+                model=os.getenv("KRYON_MODEL", "gpt-4o-mini"),
                 messages=[
                     {
                         "role": "system",

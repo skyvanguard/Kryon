@@ -1,5 +1,5 @@
 """
-History command for SKYNET REPL.
+History command for KRYON REPL.
 This module provides commands for displaying conversation history with agent-based filtering.
 """
 
@@ -146,8 +146,8 @@ class HistoryCommand(Command):
                     all_histories[full_display_name] = isolated_history
 
         # Get the current agent from environment
-        current_agent_type = os.getenv("SKYNET_AGENT_TYPE", "t600_scout")
-        parallel_count = int(os.getenv("SKYNET_PARALLEL", "1"))
+        current_agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
+        parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
 
         # Create a unified view of all agents that should be shown
         agents_to_show = {}

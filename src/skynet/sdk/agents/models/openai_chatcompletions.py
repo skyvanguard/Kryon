@@ -140,8 +140,8 @@ if TYPE_CHECKING:
 litellm.suppress_debug_info = True
 
 if (
-    os.getenv("SKYNET_MODEL", os.getenv("SKYNET_MODEL", "gpt-4o")) == "o3-mini"
-    or os.getenv("SKYNET_MODEL", os.getenv("SKYNET_MODEL", "gpt-4o")) == "gemini-1.5-pro"
+    os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "gpt-4o")) == "o3-mini"
+    or os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "gpt-4o")) == "gemini-1.5-pro"
 ):
     litellm.drop_params = True
 
@@ -220,7 +220,7 @@ def clear_agent_history(agent_name: str):
         if hasattr(active_agent, "agent_name") and active_agent.agent_name == base_name:
             active_agent.message_history.clear()
             # Reset context usage for this agent
-            os.environ["SKYNET_CONTEXT_USAGE"] = "0.0"
+            os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
 
 
 def clear_all_histories():
@@ -237,7 +237,7 @@ def clear_all_histories():
     PERSISTENT_MESSAGE_HISTORIES.clear()
 
     # Reset context usage since all histories are cleared
-    os.environ["SKYNET_CONTEXT_USAGE"] = "0.0"
+    os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
 
 
 @dataclass
@@ -668,7 +668,7 @@ class OpenAIChatCompletionsModel(Model):
             # Calculate and set context usage for toolbar
             max_tokens = self._get_model_max_tokens(str(self.model))
             context_usage = estimated_input_tokens / max_tokens if max_tokens > 0 else 0.0
-            os.environ["SKYNET_CONTEXT_USAGE"] = str(context_usage)
+            os.environ["KRYON_CONTEXT_USAGE"] = str(context_usage)
 
             # Check if auto-compaction is needed
             input, system_instructions, compacted = await self._auto_compact_if_needed(
@@ -913,8 +913,8 @@ class OpenAIChatCompletionsModel(Model):
             # Display the agent message (this will show the command for async sessions)
             if should_display_message:
                 # Ensure we're in non-streaming mode for proper markdown parsing
-                previous_stream_setting = os.environ.get("SKYNET_STREAM", "false")
-                os.environ["SKYNET_STREAM"] = "false"  # Force non-streaming mode for markdown parsing
+                previous_stream_setting = os.environ.get("KRYON_STREAM", "false")
+                os.environ["KRYON_STREAM"] = "false"  # Force non-streaming mode for markdown parsing
 
                 # Print the agent message for CLI display
                 cli_print_agent_messages(
@@ -936,7 +936,7 @@ class OpenAIChatCompletionsModel(Model):
                 )
 
                 # Restore previous streaming setting
-                os.environ["SKYNET_STREAM"] = previous_stream_setting
+                os.environ["KRYON_STREAM"] = previous_stream_setting
 
             # --- DEFERRED: Tool calls are no longer added immediately ---
             # Tool calls will be added atomically with their responses
@@ -950,7 +950,7 @@ class OpenAIChatCompletionsModel(Model):
                 # Fix Google Gemini OpenAI compatibility issues.
                 # When using the OpenAI-compatible API to call tools with Google Gemini
                 # tool_call.id is returned as an empty string.
-                if "openai/gemini" in os.getenv("SKYNET_MODEL", os.getenv("SKYNET_MODEL", "gpt-4o")):
+                if "openai/gemini" in os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "gpt-4o")):
                     for tool_call in assistant_msg.tool_calls:
                         if tool_call.id is None or tool_call.id == "":
                             tool_call.id = uuid.uuid4().hex[:16]
@@ -1155,7 +1155,7 @@ class OpenAIChatCompletionsModel(Model):
 
             # --- Check if streaming should be shown in rich panel ---
             should_show_rich_stream = (
-                os.getenv("SKYNET_STREAM", "false").lower() == "true" and not self.disable_rich_streaming
+                os.getenv("KRYON_STREAM", "false").lower() == "true" and not self.disable_rich_streaming
             )
 
             # Create streaming context if needed
@@ -1479,7 +1479,7 @@ class OpenAIChatCompletionsModel(Model):
                             # Add to the streaming text buffer
                             streaming_text_buffer += content
 
-                            # Update streaming display if enabled - ALWAYS respect SKYNET_STREAM setting
+                            # Update streaming display if enabled - ALWAYS respect KRYON_STREAM setting
                             # Both thinking and regular content should stream if streaming is enabled
                             if streaming_context:
                                 # Calculate cost for current interaction
@@ -3276,11 +3276,11 @@ class OpenAIChatCompletionsModel(Model):
             tuple: (potentially modified input, potentially modified system_instructions, whether compaction occurred)
         """
         # Check if auto-compaction is disabled
-        if os.getenv("SKYNET_AUTO_COMPACT", "true").lower() == "false":
+        if os.getenv("KRYON_AUTO_COMPACT", "true").lower() == "false":
             return input, system_instructions, False
 
         max_tokens = self._get_model_max_tokens(str(self.model))
-        threshold_percent = float(os.getenv("SKYNET_AUTO_COMPACT_THRESHOLD", "0.8"))
+        threshold_percent = float(os.getenv("KRYON_AUTO_COMPACT_THRESHOLD", "0.8"))
         threshold = max_tokens * threshold_percent
 
         if estimated_tokens <= threshold:
@@ -3293,7 +3293,7 @@ class OpenAIChatCompletionsModel(Model):
 
         # Update context usage in environment for toolbar
         context_usage = estimated_tokens / max_tokens
-        os.environ["SKYNET_CONTEXT_USAGE"] = str(context_usage)
+        os.environ["KRYON_CONTEXT_USAGE"] = str(context_usage)
 
         console.print(
             f"\n[yellow]⚠️  Context usage at {(estimated_tokens / max_tokens) * 100:.1f}% ({estimated_tokens:,}/{max_tokens:,} tokens)[/yellow]"
@@ -3316,10 +3316,10 @@ class OpenAIChatCompletionsModel(Model):
                 # Clear the message history and keep only essential messages
                 self.message_history.clear()
                 # Reset context usage after clearing
-                os.environ["SKYNET_CONTEXT_USAGE"] = "0.0"
+                os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
 
                 # Reset context usage since we cleared history
-                os.environ["SKYNET_CONTEXT_USAGE"] = "0.0"
+                os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
 
                 # Create new input with summary
                 new_system_instructions = system_instructions or ""
@@ -3355,7 +3355,7 @@ class OpenAIChatCompletionsModel(Model):
 
                 # Update context usage after compaction
                 new_context_usage = new_tokens / max_tokens if max_tokens > 0 else 0.0
-                os.environ["SKYNET_CONTEXT_USAGE"] = str(new_context_usage)
+                os.environ["KRYON_CONTEXT_USAGE"] = str(new_context_usage)
 
                 return new_input, new_system_instructions, True
 
@@ -3971,7 +3971,7 @@ class _Converter:
                     token_info["total_cost"] = getattr(COST_TRACKER, "last_total_cost", 0.0)
 
                 # Check if we're in streaming mode
-                is_streaming_enabled = os.environ.get("SKYNET_STREAM", "false").lower() == "true"
+                is_streaming_enabled = os.environ.get("KRYON_STREAM", "false").lower() == "true"
 
                 # Check if this output was already displayed during streaming
                 # For async sessions, we always display since they don't have real streaming

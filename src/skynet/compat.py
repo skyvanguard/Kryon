@@ -1,5 +1,5 @@
 """
-Compatibility utilities for optional SKYNET features.
+Compatibility utilities for optional KRYON features.
 """
 
 
@@ -14,7 +14,7 @@ def is_pentestperf_available() -> bool:
 
 
 def is_skynet_extensions_platform_available() -> bool:
-    """Check if SKYNET platform extensions are available."""
+    """Check if KRYON platform extensions are available."""
     try:
         import skynetextensions.platform  # noqa: F401
 

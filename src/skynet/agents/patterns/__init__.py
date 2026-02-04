@@ -1,5 +1,5 @@
 """
-Agent patterns for SKYNET.
+Agent patterns for KRYON.
 
 This module exports both swarm patterns (for handoff-based collaboration)
 and parallel patterns (for simultaneous execution).

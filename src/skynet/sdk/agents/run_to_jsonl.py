@@ -35,7 +35,7 @@ def get_session_recorder(workspace_name=None):
     global _session_recorder
 
     # Check if session recording is disabled (e.g., during replay)
-    if os.environ.get("SKYNET_DISABLE_SESSION_RECORDING", "").lower() == "true":
+    if os.environ.get("KRYON_DISABLE_SESSION_RECORDING", "").lower() == "true":
         return None
 
     if _session_recorder is None:
@@ -141,7 +141,7 @@ class DataRecorder:  # pylint: disable=too-few-public-methods
         Args:
             create_params: Parameters used for the LLM call
             msg: Response from the LLM
-            total_cost: Optional total accumulated cost from SKYNET instance
+            total_cost: Optional total accumulated cost from KRYON instance
             agent_name: Optional agent name/type for tracking
         """
         request_data = {

@@ -1,5 +1,5 @@
 """
-SKYNET Remote Execution Module
+KRYON Remote Execution Module
 ===============================
 
 Remote command execution tools for lateral movement.

@@ -1,11 +1,11 @@
 [project]
-name = "skynet-framework"
+name = "kryon"
 version = "1.0.0"
-description = "SKYNET - Autonomous Cybersecurity Intelligence System"
+description = "KRYON - Autonomous Cybersecurity Intelligence Platform"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-authors = [{ name = "skyvanguard" }]
+authors = [{ name = "kryon-security" }]
 dependencies = [
     # logging and visualization
     "folium>=0.15.0, <1",
@@ -282,4 +282,5 @@ markers = [
 format-command = "ruff format --stdin-filename {filename}"
 
 [project.scripts]
-skynet = "skynet.cli:main"
+kryon = "skynet.cli:main"
+skynet = "skynet.cli:main"  # Legacy alias for backwards compatibility

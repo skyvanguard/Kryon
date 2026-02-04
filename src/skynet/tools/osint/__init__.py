@@ -12,7 +12,7 @@ Tool Categories:
 - Reconnaissance: Automated OSINT frameworks
 - Malware Detection: Yara pattern matching
 
-SKYNET Integration: Phase 12
+KRYON Integration: Phase 12
 """
 
 from skynet.tools.osint.shodan_cli import shodan_host, shodan_search

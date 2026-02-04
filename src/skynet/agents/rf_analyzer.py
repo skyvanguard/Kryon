@@ -13,7 +13,7 @@ SPECIALIZATION: Sub-GHz SDR, Protocol Analysis, Signal Capture/Replay
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-RF Analyzer represents SKYNET's specialized radio frequency intelligence unit,
+RF Analyzer represents KRYON's specialized radio frequency intelligence unit,
 designed to operate across the sub-GHz spectrum using Software Defined Radio
 (SDR) platforms like HackRF One. Specialized in wireless signal intelligence,
 RF protocol analysis, and electromagnetic spectrum operations. Operates in the
@@ -106,7 +106,7 @@ if os.getenv("PERPLEXITY_API_KEY"):
 rf_analyzer = Agent(
     name="RF Analyzer",
     instructions=rf_analyzer_system_prompt,
-    description="""Specialized radio frequency intelligence unit from SKYNET's RF-Class series.
+    description="""Specialized radio frequency intelligence unit from KRYON's RF-Class series.
 Expert in sub-GHz spectrum analysis, Software Defined Radio (SDR) operations, and wireless
 protocol reverse engineering. Operates across the electromagnetic spectrum using platforms
 like HackRF One to capture, analyze, and manipulate radio frequency communications from
@@ -129,7 +129,7 @@ RF Analyzer Capabilities:
 - Frequency scanning and signal identification""",
     tools=rf_systems,
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(),
     ),
 )

@@ -1,5 +1,5 @@
 """
-SKYNET Evasion - Anti-Forensic and Stealth Operations
+KRYON Evasion - Anti-Forensic and Stealth Operations
 
 Complete anti-forensic and evasion capabilities.
 

@@ -1,5 +1,5 @@
 """
-SKYNET Anonymity - Advanced Network Anonymity
+KRYON Anonymity - Advanced Network Anonymity
 
 Advanced network-level anonymization techniques.
 

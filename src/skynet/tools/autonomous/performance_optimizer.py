@@ -1,5 +1,5 @@
 """
-SKYNET Performance Optimizer - Strategy Auto-Optimization
+KRYON Performance Optimizer - Strategy Auto-Optimization
 =========================================================
 
 Automatic analysis and optimization of attack strategies based on historical performance.

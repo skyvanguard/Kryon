@@ -1,5 +1,5 @@
 """
-SKYNET Anonymity - Anonymity Intelligence
+KRYON Anonymity - Anonymity Intelligence
 
 Intelligence and risk assessment for anonymity operations.
 

@@ -1,5 +1,5 @@
 """
-SKYNET WiFi Penetration - Evil Twin and Rogue AP
+KRYON WiFi Penetration - Evil Twin and Rogue AP
 
 Advanced WiFi attack tools for credential harvesting.
 

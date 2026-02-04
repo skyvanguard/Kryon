@@ -1,5 +1,5 @@
 """
-SKYNET Autonomous Reconnaissance
+KRYON Autonomous Reconnaissance
 =================================
 
 Automated reconnaissance and enumeration for autonomous operations.

@@ -1,12 +1,12 @@
 """
-SKYNET Knowledge Base - RAG System
+KRYON Knowledge Base - RAG System
 ==================================
 
 Retrieval-Augmented Generation system for massive knowledge access.
 
 Clearance Level: Omega-Strategic (Knowledge Enhancement Authority)
 Classification: RESTRICTED
-Mission: Provide SKYNET with access to massive cybersecurity knowledge
+Mission: Provide KRYON with access to massive cybersecurity knowledge
 
 Features:
 - Vector database for semantic search (ChromaDB)

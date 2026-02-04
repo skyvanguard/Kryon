@@ -1,5 +1,5 @@
 """
-Config command for SKYNET via environmental variables.
+Config command for KRYON via environmental variables.
 """
 
 # Standard library imports
@@ -39,101 +39,101 @@ ENV_VARS = {
         "description": "Whether to conquer the CTF from within container",
         "default": "true",
     },
-    # SKYNET variables
-    6: {"name": "SKYNET_MODEL", "description": "Model to use for agents", "default": "gpt-4o"},
+    # KRYON variables
+    6: {"name": "KRYON_MODEL", "description": "Model to use for agents", "default": "gpt-4o"},
     7: {
-        "name": "SKYNET_DEBUG",
+        "name": "KRYON_DEBUG",
         "description": "Set debug output level (0: Only tool outputs, 1: Verbose debug output, 2: CLI debug output)",  # noqa: E501 # pylint: disable=line-too-long
         "default": "1",
     },
     8: {
-        "name": "SKYNET_BRIEF",
+        "name": "KRYON_BRIEF",
         "description": "Enable/disable brief output mode",
         "default": "false",
     },
     9: {
-        "name": "SKYNET_MAX_TURNS",
+        "name": "KRYON_MAX_TURNS",
         "description": "Maximum number of turns for agent interactions",
         "default": "inf",
     },
     10: {
-        "name": "SKYNET_TRACING",
+        "name": "KRYON_TRACING",
         "description": "Enable/disable OpenTelemetry tracing",
         "default": "true",
     },
     11: {
-        "name": "SKYNET_AGENT_TYPE",
+        "name": "KRYON_AGENT_TYPE",
         "description": "Specify the agents to use (boot2root, t600_scout...)",  # noqa: E501 # pylint: disable=line-too-long
         "default": "t600_scout",
     },
-    12: {"name": "SKYNET_STATE", "description": "Enable/disable stateful mode", "default": "false"},
+    12: {"name": "KRYON_STATE", "description": "Enable/disable stateful mode", "default": "false"},
     13: {
-        "name": "SKYNET_MEMORY",
+        "name": "KRYON_MEMORY",
         "description": "Enable/disable memory mode (episodic, semantic, all)",
         "default": "false",
     },
     14: {
-        "name": "SKYNET_MEMORY_ONLINE",
+        "name": "KRYON_MEMORY_ONLINE",
         "description": "Enable/disable online memory mode",
         "default": "false",
     },
     15: {
-        "name": "SKYNET_MEMORY_OFFLINE",
+        "name": "KRYON_MEMORY_OFFLINE",
         "description": "Enable/disable offline memory",
         "default": "false",
     },
     16: {
-        "name": "SKYNET_ENV_CONTEXT",
+        "name": "KRYON_ENV_CONTEXT",
         "description": "Add dirs and current env to llm context",
         "default": "true",
     },
     17: {
-        "name": "SKYNET_MEMORY_ONLINE_INTERVAL",
+        "name": "KRYON_MEMORY_ONLINE_INTERVAL",
         "description": "Number of turns between online memory updates",
         "default": "5",
     },
     18: {
-        "name": "SKYNET_PRICE_LIMIT",
+        "name": "KRYON_PRICE_LIMIT",
         "description": "Price limit for the conversation in dollars",
         "default": "1",
     },
     19: {
-        "name": "SKYNET_REPORT",
+        "name": "KRYON_REPORT",
         "description": "Enable/disable reporter mode (ctf, nis2, pentesting)",
         "default": "ctf",
     },
     20: {
-        "name": "SKYNET_SUPPORT_MODEL",
+        "name": "KRYON_SUPPORT_MODEL",
         "description": "Model to use for the support agent",
         "default": "o3-mini",
     },
     21: {
-        "name": "SKYNET_SUPPORT_INTERVAL",
+        "name": "KRYON_SUPPORT_INTERVAL",
         "description": "Number of turns between support agent executions",
         "default": "5",
     },
     22: {
-        "name": "SKYNET_STREAM",
+        "name": "KRYON_STREAM",
         "description": "Boolean to enable real-time, chunked responses instead of full messages.",
         "default": "True",
     },
     23: {
-        "name": "SKYNET_WORKSPACE",
+        "name": "KRYON_WORKSPACE",
         "description": "Name of the current workspace (affects log file naming)",
         "default": None,
     },
     24: {
-        "name": "SKYNET_WORKSPACE_DIR",
+        "name": "KRYON_WORKSPACE_DIR",
         "description": "Path to the current workspace directory",
         "default": None,
     },
     25: {
-        "name": "SKYNET_STREAM",
+        "name": "KRYON_STREAM",
         "description": "Boolean to enable real-time, chunked responses instead of full messages.",
         "default": "True",
     },
     26: {
-        "name": "SKYNET_GUARDRAILS",
+        "name": "KRYON_GUARDRAILS",
         "description": "Enable/disable security guardrails for prompt injection protection",
         "default": "true",
     },
@@ -196,7 +196,7 @@ class ConfigCommand(Command):
         return self.handle_list(None)
 
     def _add_agent_model_vars(self):
-        """Add SKYNET_<AGENT>_MODEL variables for each available agent."""
+        """Add KRYON_<AGENT>_MODEL variables for each available agent."""
         try:
             from skynet.agents import get_available_agents
 
@@ -205,7 +205,7 @@ class ConfigCommand(Command):
 
             # Add general agent model overrides
             for agent_key in sorted(available_agents.keys()):
-                var_name = f"SKYNET_{agent_key.upper()}_MODEL"
+                var_name = f"KRYON_{agent_key.upper()}_MODEL"
                 agent_obj = available_agents[agent_key]
                 agent_display_name = getattr(agent_obj, "name", agent_key)
 
@@ -217,7 +217,7 @@ class ConfigCommand(Command):
                 current_var_num += 1
 
             # Add instance-specific model overrides for parallel execution
-            parallel_count = int(os.getenv("SKYNET_PARALLEL", "1"))
+            parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
             if parallel_count > 1:
                 # Add instance-specific variables for each agent type
                 for agent_key in sorted(available_agents.keys()):
@@ -225,7 +225,7 @@ class ConfigCommand(Command):
                     agent_display_name = getattr(agent_obj, "name", agent_key)
 
                     for instance_num in range(1, parallel_count + 1):
-                        var_name = f"SKYNET_{agent_key.upper()}_{instance_num}_MODEL"
+                        var_name = f"KRYON_{agent_key.upper()}_{instance_num}_MODEL"
 
                         ENV_VARS[current_var_num] = {
                             "name": var_name,

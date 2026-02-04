@@ -1,5 +1,5 @@
 """
-SKYNET Knowledge Scrapers
+KRYON Knowledge Scrapers
 =========================
 
 Multi-source knowledge scraping for RAG system.

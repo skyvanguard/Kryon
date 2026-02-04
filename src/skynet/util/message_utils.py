@@ -1,5 +1,5 @@
 """
-Message utilities for SKYNET.
+Message utilities for KRYON.
 
 This module provides functions for parsing, fixing, and displaying
 messages in the agent communication system.
@@ -486,7 +486,7 @@ def parse_message_content(message):
         raw_content = str(message)
 
     # Check if streaming is enabled
-    streaming_enabled = os.getenv("SKYNET_STREAM", "false").lower() == "true"
+    streaming_enabled = os.getenv("KRYON_STREAM", "false").lower() == "true"
 
     # Only apply markdown formatting in non-streaming mode
     if not streaming_enabled and raw_content:
@@ -635,7 +635,7 @@ def parse_message_tool_call(message, tool_output=None):
                 # execute_code already shows its output through streaming panels
                 if tool_name == "execute_code":
                     # Check if we're in streaming mode
-                    streaming_enabled = os.getenv("SKYNET_STREAM", "false").lower() == "true"
+                    streaming_enabled = os.getenv("KRYON_STREAM", "false").lower() == "true"
                     if streaming_enabled:
                         # Skip creating the panel - output already shown via streaming
                         continue
@@ -1074,7 +1074,7 @@ def cli_print_agent_messages(
             text.append(f">> {parsed_message} ", style="green")
         text.append(f"[{timestamp}", style="dim")
         if model:
-            text.append(f" ({os.getenv('SKYNET_SUPPORT_MODEL')})", style="bold blue")
+            text.append(f" ({os.getenv('KRYON_SUPPORT_MODEL')})", style="bold blue")
         text.append("]", style="dim")
     elif is_empty_message:
         # When parsed_message is empty, only include timestamp and model info

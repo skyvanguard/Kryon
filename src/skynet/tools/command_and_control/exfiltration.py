@@ -1,5 +1,5 @@
 """
-SKYNET Command & Control - Data Exfiltration Channels
+KRYON Command & Control - Data Exfiltration Channels
 
 Covert data exfiltration from compromised systems.
 

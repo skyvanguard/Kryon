@@ -1,5 +1,5 @@
 """
-SKYNET Embeddings Generator
+KRYON Embeddings Generator
 ===========================
 
 Generate semantic embeddings for knowledge base using sentence-transformers.

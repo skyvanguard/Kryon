@@ -1,5 +1,5 @@
 """
-SKYNET Document Processors
+KRYON Document Processors
 ==========================
 
 Process various document types for knowledge base ingestion.

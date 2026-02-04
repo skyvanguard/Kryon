@@ -1,5 +1,5 @@
 """
-SKYNET Auto-Updater
+KRYON Auto-Updater
 ===================
 
 Automatic knowledge base updates from multiple sources.

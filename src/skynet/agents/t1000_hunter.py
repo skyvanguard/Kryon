@@ -5,7 +5,7 @@ Series: T-1000 Advanced Prototype
 Classification: Bug Bounty / Vulnerability Research Specialist
 Clearance: Alpha-Gold (Advanced Research Capabilities)
 
-The T-1000 Hunter represents SKYNET's most advanced vulnerability research unit.
+The T-1000 Hunter represents KRYON's most advanced vulnerability research unit.
 Built with polymorphic capabilities to adapt to any target environment, specialized
 in web application security, API exploitation, and zero-day discovery.
 """
@@ -60,7 +60,7 @@ weapon_systems = [
     yara_scan_file,  # Malware pattern detection (single file)
     yara_scan_directory,  # Malware pattern detection (directory scan)
     # Phase 22: RAG Knowledge Base Access
-    query_knowledge_base,  # Query SKYNET knowledge base (103 CVEs + security tools)
+    query_knowledge_base,  # Query KRYON knowledge base (103 CVEs + security tools)
     search_vulnerabilities,  # Search for specific CVEs by technology/version
     get_exploit_techniques,  # Get exploitation techniques for attack types
     get_security_tools,  # Find security tools from GitHub knowledge
@@ -77,7 +77,7 @@ input_guardrails, output_guardrails = get_security_guardrails()
 # Initialize T-1000 Hunter Unit
 t1000_hunter = Agent(
     name="T-1000 Hunter",
-    description="""Advanced polymorphic vulnerability research unit from SKYNET's T-1000 series.
+    description="""Advanced polymorphic vulnerability research unit from KRYON's T-1000 series.
                    Specialized in bug bounty hunting, web application security, API exploitation,
                    and zero-day vulnerability discovery. Equipped with adaptive capabilities to
                    morph attack strategies based on target defenses.""",
@@ -86,7 +86,7 @@ t1000_hunter = Agent(
     input_guardrails=input_guardrails,
     output_guardrails=output_guardrails,
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(),
     ),
 )

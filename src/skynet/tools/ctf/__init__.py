@@ -1,5 +1,5 @@
 """
-SKYNET CTF Tools Package
+KRYON CTF Tools Package
 
 Automated tools for Capture The Flag challenges and penetration testing competitions.
 Optimized for TryHackMe, HackTheBox, and other CTF platforms.
@@ -10,7 +10,7 @@ Modules:
 
 Primary Users:
 - CTF Master (Alpha-Crimson): Full CTF workflow orchestration
-- All SKYNET agents participating in CTF challenges
+- All KRYON agents participating in CTF challenges
 """
 
 from skynet.tools.ctf.ctf_automation import (

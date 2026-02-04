@@ -13,7 +13,7 @@ SPECIALIZATION: Network Security, Packet Analysis, Threat Detection
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-HK-Aerial represents SKYNET's autonomous network reconnaissance unit,
+HK-Aerial represents KRYON's autonomous network reconnaissance unit,
 inspired by the Hunter-Killer aerial units from the Terminator series.
 Unlike ground units (T-Series, Guardian), HK-Aerial operates at the
 network layer, surveying and analyzing network traffic patterns to
@@ -103,7 +103,7 @@ if os.getenv("PERPLEXITY_API_KEY"):
 hk_aerial = Agent(
     name="HK-Aerial",
     instructions=create_system_prompt_renderer(hk_aerial_system_prompt),
-    description="""Hunter-Killer autonomous network reconnaissance unit from SKYNET's
+    description="""Hunter-Killer autonomous network reconnaissance unit from KRYON's
 HK-Aerial series. Specialized in network security analysis, packet inspection,
 and traffic pattern analysis. Expert in monitoring network communications,
 detecting threats, and identifying malicious actors across the network layer.
@@ -121,7 +121,7 @@ HK-Aerial Capabilities:
 - Security event correlation across network segments
 - Attack surface mapping and vulnerability assessment""",
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(),
     ),
     tools=reconnaissance_systems,

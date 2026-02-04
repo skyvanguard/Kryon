@@ -1,5 +1,5 @@
 """
-SKYNET Anonymity - Advanced Fingerprinting Evasion
+KRYON Anonymity - Advanced Fingerprinting Evasion
 
 Defense against modern browser and hardware fingerprinting techniques.
 

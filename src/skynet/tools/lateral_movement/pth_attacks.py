@@ -1,5 +1,5 @@
 """
-SKYNET Pass-the-Hash Attack Module
+KRYON Pass-the-Hash Attack Module
 ===================================
 
 Implements Pass-the-Hash and Pass-the-Ticket attacks for Windows networks.

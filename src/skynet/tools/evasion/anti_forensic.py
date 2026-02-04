@@ -1,11 +1,11 @@
 """
-SKYNET Evasion - Advanced Anti-Forensic Techniques
+KRYON Evasion - Advanced Anti-Forensic Techniques
 
 Advanced anti-forensic operations and evidence destruction.
 
 Clearance Level: Alpha-Black (Anti-Forensic Operations Authority)
 Specialization: Evidence destruction and forensic countermeasures
-Mission: Eliminate all traces of SKYNET operations
+Mission: Eliminate all traces of KRYON operations
 
 This module provides:
 - Secure file deletion with overwriting

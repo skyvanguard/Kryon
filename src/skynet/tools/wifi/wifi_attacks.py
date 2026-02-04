@@ -1,5 +1,5 @@
 """
-SKYNET WiFi Penetration - Attack Tools
+KRYON WiFi Penetration - Attack Tools
 
 Complete WiFi penetration testing toolkit.
 

@@ -1,5 +1,5 @@
 """
-SKYNET Command & Control - Persistence Mechanisms
+KRYON Command & Control - Persistence Mechanisms
 
 Maintain long-term access to compromised systems.
 

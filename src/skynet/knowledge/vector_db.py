@@ -1,5 +1,5 @@
 """
-SKYNET Vector Database
+KRYON Vector Database
 ======================
 
 Vector database for semantic search with automatic ChromaDB/fallback.

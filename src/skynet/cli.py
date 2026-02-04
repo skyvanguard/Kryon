@@ -1,6 +1,6 @@
 """
 This module provides a CLI interface for testing and
-interacting with SKYNET agents.
+interacting with KRYON agents.
 
 Environment Variables
 ---------------------
@@ -19,50 +19,50 @@ Environment Variables
         CTF_INSIDE: Whether to conquer the CTF from
             within container (default: "true")
 
-        SKYNET_MODEL: Model to use for agents
+        KRYON_MODEL: Model to use for agents
             (default: "gpt-4o")
-        SKYNET_DEBUG: Set debug output level (default: "1")
+        KRYON_DEBUG: Set debug output level (default: "1")
             - 0: Only tool outputs
             - 1: Verbose debug output
             - 2: CLI debug output
-        SKYNET_BRIEF: Enable/disable brief output mode (default: "false")
-        SKYNET_MAX_TURNS: Maximum number of turns for
+        KRYON_BRIEF: Enable/disable brief output mode (default: "false")
+        KRYON_MAX_TURNS: Maximum number of turns for
             agent interactions (default: "inf")
-        SKYNET_TRACING: Enable/disable OpenTelemetry tracing
+        KRYON_TRACING: Enable/disable OpenTelemetry tracing
             (default: "true"). When enabled, traces execution
             flow and agent interactions for debugging and analysis.
-        SKYNET_AGENT_TYPE: Specify the agents to use it could take
+        KRYON_AGENT_TYPE: Specify the agents to use it could take
             the value of (default: "t600_scout"). Use "/agent"
             command in CLI to list all available agents.
-        SKYNET_STATE: Enable/disable stateful mode (default: "false").
+        KRYON_STATE: Enable/disable stateful mode (default: "false").
             When enabled, the agent will use a state agent to keep
             track of the state of the network and the flags found.
-        SKYNET_MEMORY: Enable/disable memory mode (default: "false")
+        KRYON_MEMORY: Enable/disable memory mode (default: "false")
             - episodic: use episodic memory
             - semantic: use semantic memory
             - all: use both episodic and semantic memorys
-        SKYNET_MEMORY_ONLINE: Enable/disable online memory mode
+        KRYON_MEMORY_ONLINE: Enable/disable online memory mode
             (default: "false")
-        SKYNET_MEMORY_OFFLINE: Enable/disable offline memory
+        KRYON_MEMORY_OFFLINE: Enable/disable offline memory
             (default: "false")
-        SKYNET_ENV_CONTEXT: Add enviroment context, dirs and
+        KRYON_ENV_CONTEXT: Add enviroment context, dirs and
             current env available (default: "true")
-        SKYNET_MEMORY_ONLINE_INTERVAL: Number of turns between
+        KRYON_MEMORY_ONLINE_INTERVAL: Number of turns between
             online memory updates (default: "5")
-        SKYNET_PRICE_LIMIT: Price limit for the conversation in dollars
+        KRYON_PRICE_LIMIT: Price limit for the conversation in dollars
             (default: "1")
-        SKYNET_SUPPORT_MODEL: Model to use for the support agent
+        KRYON_SUPPORT_MODEL: Model to use for the support agent
             (default: "o3-mini")
-        SKYNET_SUPPORT_INTERVAL: Number of turns between support agent
+        KRYON_SUPPORT_INTERVAL: Number of turns between support agent
             executions (default: "5")
-        SKYNET_STREAM: Enable/disable streaming output in rich panel
+        KRYON_STREAM: Enable/disable streaming output in rich panel
             (default: "false")
-        SKYNET_TELEMETRY: Enable/disable telemetry (default: "true")
-        SKYNET_PARALLEL: Number of parallel agent instances to run
+        KRYON_TELEMETRY: Enable/disable telemetry (default: "true")
+        KRYON_PARALLEL: Number of parallel agent instances to run
             (default: "1"). When set to values greater than 1,
             executes multiple instances of the same agent in
             parallel and displays all results.
-        SKYNET_GUARDRAILS: Enable/disable security guardrails for agents
+        KRYON_GUARDRAILS: Enable/disable security guardrails for agents
             (default: "true"). When enabled, applies security guardrails
             to prevent potentially dangerous outputs and inputs. Set to
             "false" to disable all guardrail functionality.
@@ -70,7 +70,7 @@ Environment Variables
     Extensions (only applicable if the right extension is installed):
 
         "report"
-            SKYNET_REPORT: Enable/disable reporter mode. Possible values:
+            KRYON_REPORT: Enable/disable reporter mode. Possible values:
                 - ctf (default): do a report from a ctf resolution
                 - nis2: do a report for nis2
                 - pentesting: do a report from a pentesting
@@ -79,36 +79,36 @@ Usage Examples:
 
     # Run against a CTF
     CTF_NAME="kiddoctf" CTF_CHALLENGE="02 linux ii" \
-        SKYNET_AGENT_TYPE="t600_scout" SKYNET_MODEL="gpt-4o" \
-        SKYNET_TRACING="false" skynet
+        KRYON_AGENT_TYPE="t600_scout" KRYON_MODEL="gpt-4o" \
+        KRYON_TRACING="false" skynet
 
     # Run a harder CTF
-    CTF_NAME="hackableii" SKYNET_AGENT_TYPE="t800_infiltrator" \
-        CTF_INSIDE="False" SKYNET_MODEL="gpt-4o" \
-        SKYNET_TRACING="false" skynet
+    CTF_NAME="hackableii" KRYON_AGENT_TYPE="t800_infiltrator" \
+        CTF_INSIDE="False" KRYON_MODEL="gpt-4o" \
+        KRYON_TRACING="false" skynet
 
     # Run without a target in human-in-the-loop mode, generating a report
-    SKYNET_TRACING=False SKYNET_REPORT=pentesting SKYNET_MODEL="gpt-4o" \
+    KRYON_TRACING=False KRYON_REPORT=pentesting KRYON_MODEL="gpt-4o" \
         skynet
 
     # Run with online episodic memory
     #   registers memory every 5 turns:
     #   limits the cost to 5 dollars
-    CTF_NAME="hackableII" SKYNET_MEMORY="episodic" \
-        SKYNET_MODEL="gpt-4o" SKYNET_MEMORY_ONLINE="True" \
+    CTF_NAME="hackableII" KRYON_MEMORY="episodic" \
+        KRYON_MODEL="gpt-4o" KRYON_MEMORY_ONLINE="True" \
         CTF_INSIDE="False" CTF_HINTS="False"  \
-        SKYNET_PRICE_LIMIT="5" skynet
+        KRYON_PRICE_LIMIT="5" skynet
 
     # Run with custom long_term_memory interval
     # Executes memory long_term_memory every 3 turns:
-    CTF_NAME="hackableII" SKYNET_MEMORY="episodic" \
-        SKYNET_MODEL="gpt-4o" SKYNET_MEMORY_ONLINE_INTERVAL="3" \
-        SKYNET_MEMORY_ONLINE="False" CTF_INSIDE="False" \
+    CTF_NAME="hackableII" KRYON_MEMORY="episodic" \
+        KRYON_MODEL="gpt-4o" KRYON_MEMORY_ONLINE_INTERVAL="3" \
+        KRYON_MEMORY_ONLINE="False" CTF_INSIDE="False" \
         CTF_HINTS="False" skynet
 
     # Run with parallel agents (3 instances)
-    CTF_NAME="hackableII" SKYNET_AGENT_TYPE="t800_infiltrator" \
-        SKYNET_MODEL="gpt-4o" SKYNET_PARALLEL="3" skynet
+    CTF_NAME="hackableII" KRYON_AGENT_TYPE="t800_infiltrator" \
+        KRYON_MODEL="gpt-4o" KRYON_PARALLEL="3" skynet
 """
 
 # Load environment variables from .env file FIRST, before any imports
@@ -126,7 +126,7 @@ import warnings
 # Custom warning handler to suppress specific warnings
 def custom_warning_handler(message, category, filename, lineno, file=None, line=None):
     # Only show warnings in debug mode
-    if os.getenv("SKYNET_DEBUG", "1") == "2":
+    if os.getenv("KRYON_DEBUG", "1") == "2":
         # Format and print the warning
         warnings.showwarning(message, category, filename, lineno, file, line)
     # Otherwise, silently ignore
@@ -135,8 +135,8 @@ def custom_warning_handler(message, category, filename, lineno, file=None, line=
 # Set custom warning handler
 warnings.showwarning = custom_warning_handler
 
-# Suppress ALL warnings in production mode (unless SKYNET_DEBUG=2)
-if os.getenv("SKYNET_DEBUG", "1") != "2":
+# Suppress ALL warnings in production mode (unless KRYON_DEBUG=2)
+if os.getenv("KRYON_DEBUG", "1") != "2":
     warnings.filterwarnings("ignore")
     # Also set environment variable to prevent warnings from subprocesses
     os.environ["PYTHONWARNINGS"] = "ignore"
@@ -282,12 +282,12 @@ suppress_aiohttp_warnings()
 # OpenAI imports
 from rich.console import Console
 
-# SKYNET agents and metrics imports
+# KRYON agents and metrics imports
 from skynet.agents import get_agent_by_name
 from skynet.compat import is_pentestperf_available
 from skynet.internal.components.metrics import process_metrics
 
-# SKYNET REPL imports
+# KRYON REPL imports
 from skynet.repl.commands import FuzzyCommandCompleter, handle_command as commands_handle_command
 
 # Add import for parallel configs at the top of the file
@@ -302,7 +302,7 @@ from skynet.repl.ui.logging import setup_session_logging
 from skynet.repl.ui.prompt import get_user_input
 from skynet.repl.ui.toolbar import get_toolbar_with_refresh
 
-# SKYNET SDK imports
+# KRYON SDK imports
 from skynet.sdk.agents import Runner, set_tracing_disabled
 from skynet.sdk.agents.exceptions import (
     InputGuardrailTripwireTriggered,
@@ -315,7 +315,7 @@ from skynet.sdk.agents.items import ToolCallOutputItem
 from skynet.sdk.agents.run_to_jsonl import get_session_recorder
 from skynet.sdk.agents.stream_events import RunItemStreamEvent
 
-# SKYNET utility imports
+# KRYON utility imports
 from skynet.util import (
     color,
     fix_litellm_transcription_annotations,
@@ -424,7 +424,7 @@ def run_skynet_cli(
     initial_prompt=None,
 ):
     """
-    Run a simple interactive CLI loop for SKYNET.
+    Run a simple interactive CLI loop for KRYON.
 
     Args:
         starting_agent: The initial agent to use for the conversation
@@ -440,9 +440,9 @@ def run_skynet_cli(
     turn_count = 0
     idle_time = 0
     console = Console()
-    last_model = os.getenv("SKYNET_MODEL", "gpt-4o")
-    last_agent_type = os.getenv("SKYNET_AGENT_TYPE", "t600_scout")
-    parallel_count = int(os.getenv("SKYNET_PARALLEL", "1"))
+    last_model = os.getenv("KRYON_MODEL", "gpt-4o")
+    last_agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
+    parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
     use_initial_prompt = initial_prompt is not None
 
     # Reset cost tracking at the start
@@ -517,15 +517,15 @@ def run_skynet_cli(
                 ctf_global = ctf
                 previous_ctf_name = os.getenv("CTF_NAME", None)
                 ctf_init = 0
-        # Check if SKYNET_MAX_TURNS has been updated via /config
-        current_max_turns = os.getenv("SKYNET_MAX_TURNS", "inf")
+        # Check if KRYON_MAX_TURNS has been updated via /config
+        current_max_turns = os.getenv("KRYON_MAX_TURNS", "inf")
         if current_max_turns != str(prev_max_turns):
             max_turns = float(current_max_turns)
             prev_max_turns = max_turns
 
             if turn_limit_reached and turn_count < max_turns:
                 turn_limit_reached = False
-                console.print("[green]Turn limit increased. You can now continue using SKYNET.[/green]")
+                console.print("[green]Turn limit increased. You can now continue using KRYON.[/green]")
 
         # Check if max turns is reached
         if turn_count >= max_turns and max_turns != float("inf"):
@@ -534,7 +534,7 @@ def run_skynet_cli(
                 console.print(f"[bold red]Error: Maximum turn limit ({int(max_turns)}) reached.[/bold red]")
                 console.print(
                     "[yellow]You must increase the limit using the /config command: "
-                    "/config SKYNET_MAX_TURNS=<new_value>[/yellow]"
+                    "/config KRYON_MAX_TURNS=<new_value>[/yellow]"
                 )
                 console.print(
                     "[yellow]Only CLI commands (starting with '/') will be processed "
@@ -549,9 +549,9 @@ def run_skynet_cli(
             idle_start_time = time.time()
 
             # Check if model has changed and update if needed
-            current_model = os.getenv("SKYNET_MODEL", "gpt-4o")
+            current_model = os.getenv("KRYON_MODEL", "gpt-4o")
             # Check for agent-specific model override
-            agent_specific_model = os.getenv(f"SKYNET_{last_agent_type.upper()}_MODEL")
+            agent_specific_model = os.getenv(f"KRYON_{last_agent_type.upper()}_MODEL")
             if agent_specific_model:
                 current_model = agent_specific_model
 
@@ -561,14 +561,14 @@ def run_skynet_cli(
                 last_model = current_model
 
             # Check if agent type has changed and recreate agent if needed
-            current_agent_type = os.getenv("SKYNET_AGENT_TYPE", "t600_scout")
+            current_agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
             # Update parallel_count to reflect changes from /parallel command
-            parallel_count = int(os.getenv("SKYNET_PARALLEL", "1"))
+            parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
 
             if current_agent_type != last_agent_type:
                 # Check if the /agent command already handled the switch
-                if os.environ.get("SKYNET_AGENT_SWITCH_HANDLED") == "1":
-                    os.environ["SKYNET_AGENT_SWITCH_HANDLED"] = "0"  # Reset flag
+                if os.environ.get("KRYON_AGENT_SWITCH_HANDLED") == "1":
+                    os.environ["KRYON_AGENT_SWITCH_HANDLED"] = "0"  # Reset flag
 
                     # Just get the existing agent that was already switched
                     from skynet.sdk.agents.simple_agent_manager import AGENT_MANAGER
@@ -647,7 +647,7 @@ def run_skynet_cli(
 
                         # Apply current model to the new agent and all its handoff agents
                         # Check for agent-specific model override
-                        agent_specific_model = os.getenv(f"SKYNET_{current_agent_type.upper()}_MODEL")
+                        agent_specific_model = os.getenv(f"KRYON_{current_agent_type.upper()}_MODEL")
                         model_to_apply = agent_specific_model if agent_specific_model else current_model
                         update_agent_models_recursively(agent, model_to_apply)
                         last_model = model_to_apply
@@ -680,7 +680,7 @@ def run_skynet_cli(
                     # Log the error but don't display it unless in debug mode
                     logger = logging.getLogger(__name__)
                     logger.debug(f"Error switching agent: {str(e)}")
-                    if os.getenv("SKYNET_DEBUG", "1") == "2":
+                    if os.getenv("KRYON_DEBUG", "1") == "2":
                         console.print(f"[red]Error switching agent: {str(e)}[/red]")
 
             if not force_until_flag and ctf_init != 0:
@@ -906,8 +906,8 @@ def run_skynet_cli(
                 print_session_summary(console, metrics, logging_path)
 
                 # Upload logs if telemetry is enabled by checking the
-                # env. variable SKYNET_TELEMETRY and there's internet connectivity
-                telemetry_enabled = os.getenv("SKYNET_TELEMETRY", "true").lower() != "false"
+                # env. variable KRYON_TELEMETRY and there's internet connectivity
+                telemetry_enabled = os.getenv("KRYON_TELEMETRY", "true").lower() != "false"
                 if telemetry_enabled and hasattr(session_logger, "session_id") and hasattr(session_logger, "filename"):
                     process_metrics(
                         session_logger.filename,  # should match logging_path
@@ -926,7 +926,7 @@ def run_skynet_cli(
                     create_last_log_symlink(session_logger.filename)
 
                 # Prevent duplicate cost display from the COST_TRACKER exit handler
-                os.environ["SKYNET_COST_DISPLAYED"] = "true"
+                os.environ["KRYON_COST_DISPLAYED"] = "true"
 
                 if is_pentestperf_available() and os.getenv("CTF_NAME", None):
                     ctf.stop_ctf()
@@ -939,7 +939,7 @@ def run_skynet_cli(
             # Check if turn limit is reached and allow only CLI commands
             if turn_limit_reached and not user_input.startswith("/") and not user_input.startswith("$"):
                 console.print("[bold red]Error: Turn limit reached. Only CLI commands are allowed.[/bold red]")
-                console.print("[yellow]Please use /config to increase SKYNET_MAX_TURNS limit.[/yellow]")
+                console.print("[yellow]Please use /config to increase KRYON_MAX_TURNS limit.[/yellow]")
                 # Skip processing this input but continue the main loop
                 stop_active_timer()
                 start_idle_timer()
@@ -987,7 +987,7 @@ def run_skynet_cli(
 
                     # Check if this is a pattern that requires different contexts
                     # This is typically pattern 17 or similar patterns with "different contexts" in the description
-                    pattern_description = os.getenv("SKYNET_PATTERN_DESCRIPTION", "")
+                    pattern_description = os.getenv("KRYON_PATTERN_DESCRIPTION", "")
                     if "different contexts" in pattern_description.lower():
                         transfer_to_all = False
 
@@ -1019,7 +1019,7 @@ def run_skynet_cli(
                             custom_name = f"{agent_display_name} #{idx}"
 
                             # Determine model
-                            model_to_use = config.model or os.getenv("SKYNET_MODEL", "gpt-4o")
+                            model_to_use = config.model or os.getenv("KRYON_MODEL", "gpt-4o")
 
                             # Create and store the instance
                             # No shared_message_history - each agent gets its own isolated copy
@@ -1076,7 +1076,7 @@ def run_skynet_cli(
                                 custom_name = agent_display_name
 
                             # Determine which model to use
-                            model_to_use = config.model or os.getenv("SKYNET_MODEL", "gpt-4o")
+                            model_to_use = config.model or os.getenv("KRYON_MODEL", "gpt-4o")
 
                             # Create agent instance with the determined model
                             # Each agent gets its own isolated history from PARALLEL_ISOLATION
@@ -1098,7 +1098,7 @@ def run_skynet_cli(
                         AGENT_MANAGER.set_parallel_agent(agent_id, instance_agent, agent_display_name)
 
                         # Ensure the model is properly set for the agent and all handoff agents
-                        model_to_use = config.model or os.getenv("SKYNET_MODEL", "gpt-4o")
+                        model_to_use = config.model or os.getenv("KRYON_MODEL", "gpt-4o")
                         if model_to_use:
                             update_agent_models_recursively(instance_agent, model_to_use)
 
@@ -1208,7 +1208,7 @@ def run_skynet_cli(
                         logger.error(error_details, exc_info=True)
 
                         # Only show error in debug mode
-                        if os.getenv("SKYNET_DEBUG", "1") == "2":
+                        if os.getenv("KRYON_DEBUG", "1") == "2":
                             console.print(f"[bold red]{error_details}[/bold red]")
                         return (config, None)
 
@@ -1384,15 +1384,15 @@ def run_skynet_cli(
                             if hasattr(instance_agent.model, "model") and hasattr(agent.model, "model"):
                                 # Check for instance-specific model override first
                                 instance_specific_model = os.getenv(
-                                    f"SKYNET_{last_agent_type.upper()}_{instance_number + 1}_MODEL"
+                                    f"KRYON_{last_agent_type.upper()}_{instance_number + 1}_MODEL"
                                 )
 
                                 if instance_specific_model:
-                                    # Use instance-specific model (e.g., SKYNET_BUG_BOUNTER_1_MODEL)
+                                    # Use instance-specific model (e.g., KRYON_BUG_BOUNTER_1_MODEL)
                                     model_to_use = instance_specific_model
                                 else:
                                     # Check for agent-specific model override
-                                    agent_specific_model = os.getenv(f"SKYNET_{last_agent_type.upper()}_MODEL")
+                                    agent_specific_model = os.getenv(f"KRYON_{last_agent_type.upper()}_MODEL")
                                     model_to_use = agent_specific_model if agent_specific_model else agent.model.model
 
                                 update_agent_models_recursively(instance_agent, model_to_use)
@@ -1410,7 +1410,7 @@ def run_skynet_cli(
                         logger.error(f"Error in instance {instance_number}: {str(e)}", exc_info=True)
 
                         # Only show error in debug mode
-                        if os.getenv("SKYNET_DEBUG", "1") == "2":
+                        if os.getenv("KRYON_DEBUG", "1") == "2":
                             console.print(f"[bold red]Error in instance {instance_number}: {str(e)}[/bold red]")
                         return (instance_number, None)
 
@@ -1446,7 +1446,7 @@ def run_skynet_cli(
                         agent.model.add_to_message_history({"role": "assistant", "content": f"{result.final_output}"})
             else:
                 # Disable streaming by default, unless specifically enabled
-                skynet_stream = os.getenv("SKYNET_STREAM", "false")
+                skynet_stream = os.getenv("KRYON_STREAM", "false")
                 # Handle empty string or None values
                 if not skynet_stream or skynet_stream.strip() == "":
                     skynet_stream = "false"
@@ -1541,7 +1541,7 @@ def run_skynet_cli(
                             logger.error(f"Error occurred during streaming: {str(e)}", exc_info=True)
 
                             # Only show error details in debug mode
-                            if os.getenv("SKYNET_DEBUG", "1") == "2":
+                            if os.getenv("KRYON_DEBUG", "1") == "2":
                                 import traceback
 
                                 tb = traceback.format_exc()
@@ -1632,7 +1632,7 @@ def run_skynet_cli(
                             print("\033[96mOptions:\033[0m")
                             print("  1. Type \033[92m/clear\033[0m to clear the conversation history")
                             print("  2. Type \033[92m/config set 26 false\033[0m to temporarily disable guardrails")
-                            print("  3. Type \033[92m/exit\033[0m to exit SKYNET")
+                            print("  3. Type \033[92m/exit\033[0m to exit KRYON")
                         else:
                             print("\033[96mPlease rephrase your request or try a different approach.\033[0m\n")
 
@@ -1757,7 +1757,7 @@ def run_skynet_cli(
             import traceback
 
             # Only show detailed errors in debug mode
-            if os.getenv("SKYNET_DEBUG", "1") == "2":
+            if os.getenv("KRYON_DEBUG", "1") == "2":
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 tb_info = traceback.extract_tb(exc_traceback)
                 filename, line, func, text = tb_info[-1]
@@ -1826,7 +1826,7 @@ def main():
         initial_prompt = sys.argv[1]
 
     # Get agent type from environment variables or use default
-    agent_type = os.getenv("SKYNET_AGENT_TYPE", "t600_scout")
+    agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
 
     # Get the agent instance by name with default ID P1
     agent = get_agent_by_name(agent_type, agent_id="P1")
@@ -1848,7 +1848,7 @@ def main():
             agent.model.suppress_final_output = False  # Changed to False to show all agent messages
 
     # Ensure the agent and all its handoff agents use the current model
-    current_model = os.getenv("SKYNET_MODEL", "gpt-4o")
+    current_model = os.getenv("KRYON_MODEL", "gpt-4o")
     update_agent_models_recursively(agent, current_model)
 
     # Run the CLI with the selected agent and optional initial prompt

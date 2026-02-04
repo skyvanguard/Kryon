@@ -1,5 +1,5 @@
 """
-SKYNET Streaming RAG Engine
+KRYON Streaming RAG Engine
 ============================
 
 RAG engine with streaming LLM responses for real-time user feedback.
@@ -183,7 +183,7 @@ class StreamingRAGEngine:
 
     def _create_rag_prompt(self, question: str, context: str) -> str:
         """Create RAG prompt for LLM."""
-        prompt = f"""You are SKYNET, an advanced cybersecurity AI assistant. Answer the question using ONLY the provided context.
+        prompt = f"""You are KRYON, an advanced cybersecurity AI assistant. Answer the question using ONLY the provided context.
 
 **CONTEXT:**
 {context}

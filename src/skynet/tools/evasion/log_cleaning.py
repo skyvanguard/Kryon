@@ -1,11 +1,11 @@
 """
-SKYNET Evasion - Log Cleaning and Evidence Removal
+KRYON Evasion - Log Cleaning and Evidence Removal
 
 Anti-forensic log cleaning capabilities.
 
 Clearance Level: Alpha-Black (Anti-Forensic Operations Authority)
 Specialization: Evidence removal and log manipulation
-Mission: Remove traces of SKYNET operations
+Mission: Remove traces of KRYON operations
 
 This module provides:
 - Linux log cleaning (/var/log/*, bash_history, etc.)

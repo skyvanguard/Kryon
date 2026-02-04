@@ -1,5 +1,5 @@
 """
-SKYNET CVE Scraper - Auto-Discovery of New Exploits
+KRYON CVE Scraper - Auto-Discovery of New Exploits
 ===================================================
 
 Automatic discovery and integration of new CVEs and exploits.

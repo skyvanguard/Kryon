@@ -1,5 +1,5 @@
 """
-Virtualization command for SKYNET CLI.
+Virtualization command for KRYON CLI.
 This module provides commands for setting up and managing Docker virtualization
 environments.
 """
@@ -20,7 +20,7 @@ from skynet.repl.commands.base import Command, register_command
 
 console = Console()
 
-# Default Docker images for SKYNET
+# Default Docker images for KRYON
 DEFAULT_IMAGES = {
     "kalilinux/kali-rolling": {
         "image": "kalilinux/kali-rolling",
@@ -184,7 +184,7 @@ class DockerManager:
             # Normalize image name for all comparisons
             normalized_image_name = normalize_image_name(image_name)
             # Get the workspace directory for mounting
-            workspace_dir = os.getenv("SKYNET_WORKSPACE_DIR", os.getcwd())
+            workspace_dir = os.getenv("KRYON_WORKSPACE_DIR", os.getcwd())
             if not os.path.exists(workspace_dir):
                 workspace_dir = os.path.expanduser("~")
 
@@ -237,7 +237,7 @@ class DockerManager:
                     ]
                 )
             elif image_name == "skynet-container":
-                # For SKYNET container, add any specific flags needed
+                # For KRYON container, add any specific flags needed
                 # Like extra volume mounts or environment variables
                 home_dir = os.path.expanduser("~")
                 if os.path.exists(home_dir):
@@ -581,7 +581,7 @@ class DockerManager:
 
     @staticmethod
     def set_active_container(container_id: str) -> None:
-        """Set the active container for SKYNET.
+        """Set the active container for KRYON.
 
         Args:
             container_id: ID of the container to set as active
@@ -723,12 +723,12 @@ class DockerManager:
             console.print(f"[yellow]Warning during container activation: {str(e)}[/yellow]")
 
         # Set the container as active
-        os.environ["SKYNET_ACTIVE_CONTAINER"] = container_id
+        os.environ["KRYON_ACTIVE_CONTAINER"] = container_id
 
         # Create workspace directory in container if needed
         try:
             # Get current workspace name
-            workspace_name = os.getenv("SKYNET_WORKSPACE", None)
+            workspace_name = os.getenv("KRYON_WORKSPACE", None)
             # Make sure workspace name is valid
             if not all(c.isalnum() or c in ["_", "-"] for c in workspace_name):
                 workspace_name = "skynet_default"
@@ -850,7 +850,7 @@ class VirtualizationCommand(Command):
             return True
 
         # Get current active container
-        active_container = os.getenv("SKYNET_ACTIVE_CONTAINER", "")
+        active_container = os.getenv("KRYON_ACTIVE_CONTAINER", "")
 
         # Refresh container and image cache
         self.refresh_docker_info()
@@ -906,13 +906,13 @@ class VirtualizationCommand(Command):
             elif "parrot" in image_name.lower():
                 icon = "🔒"  # Security icon for Parrot
             elif "skynet" in image_name.lower():
-                icon = "⭐"  # Star for SKYNET container
+                icon = "⭐"  # Star for KRYON container
 
             title = f"Active Environment: {icon} {env_name}"
             border_style = "green"
         else:
             env_name = "Host System"
-            env_info = "Commands are executing directly on the host where SKYNET is running"
+            env_info = "Commands are executing directly on the host where KRYON is running"
             title = "Active Environment: 💻 Host System"
             border_style = "blue"
 
@@ -952,7 +952,7 @@ class VirtualizationCommand(Command):
             show_all: Whether to show all available images (default: False)
         """
         # Get active container for highlighting
-        active_container = os.getenv("SKYNET_ACTIVE_CONTAINER", "")
+        active_container = os.getenv("KRYON_ACTIVE_CONTAINER", "")
         active_image = ""
 
         # Find the active image if there's an active container
@@ -1075,7 +1075,7 @@ class VirtualizationCommand(Command):
         # Define the preferred order of categories
         category_order = [
             "Offensive Pentesting",
-            "SKYNET Official",
+            "KRYON Official",
             "Forensic Analysis",
             "Malware Analysis",
             "Reverse Engineering",
@@ -1135,7 +1135,7 @@ class VirtualizationCommand(Command):
 
                 # Add special icon for different category
                 icon = "🔷"  # Default icon
-                if category == "SKYNET Official":
+                if category == "KRYON Official":
                     icon = "⭐"
                 elif category == "Offensive Pentesting":
                     icon = "🔒"
@@ -1293,9 +1293,9 @@ class VirtualizationCommand(Command):
         normalize_image_name(image_identifier)
         # Special case for returning to host system
         if image_identifier.lower() in ["host", "system", "none"]:
-            if "SKYNET_ACTIVE_CONTAINER" in os.environ:
+            if "KRYON_ACTIVE_CONTAINER" in os.environ:
                 # Clear the active container
-                previous = os.environ.pop("SKYNET_ACTIVE_CONTAINER")
+                previous = os.environ.pop("KRYON_ACTIVE_CONTAINER")
                 console.print(
                     f"[green]Switched back to host system environment. "
                     f"Previous container {previous[:12]} is no longer active.[/green]"
@@ -1507,7 +1507,7 @@ class VirtualizationCommand(Command):
 
             # Create a dummy ID that will be treated as the active container
             # dummy_id = f"dummy-{image_name.replace('/', '-')}"
-            # os.environ["SKYNET_ACTIVE_CONTAINER"] = dummy_id
+            # os.environ["KRYON_ACTIVE_CONTAINER"] = dummy_id
 
             # console.print(
             #     f"[yellow]Set '{dummy_id}' as active environment.[/yellow]\n"

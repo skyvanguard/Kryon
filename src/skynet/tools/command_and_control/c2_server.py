@@ -1,5 +1,5 @@
 """
-SKYNET Command & Control - C2 Server Infrastructure
+KRYON Command & Control - C2 Server Infrastructure
 
 Multi-protocol C2 server for post-exploitation operations.
 

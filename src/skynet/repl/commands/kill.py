@@ -1,5 +1,5 @@
 """
-Kill command for SKYNET REPL.
+Kill command for KRYON REPL.
 This module provides commands for terminating active processes or sessions.
 """
 

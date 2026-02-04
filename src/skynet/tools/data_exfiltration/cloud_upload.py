@@ -1,5 +1,5 @@
 """
-SKYNET Cloud Upload Module
+KRYON Cloud Upload Module
 ===========================
 
 Upload files to cloud services for exfiltration.

@@ -1,5 +1,5 @@
 """
-SKYNET Autonomous Evasion - Auto-Defense Bypass System
+KRYON Autonomous Evasion - Auto-Defense Bypass System
 ======================================================
 
 Automatic detection and evasion of security defenses including WAF, IDS, IPS, SIEM, and EDR.
@@ -16,7 +16,7 @@ Features:
 - Log evasion and anti-forensics
 - Integration with Adaptive Strategy Engine
 
-This module provides the 5th pillar of SKYNET's Autonomy Framework v3.1:
+This module provides the 5th pillar of KRYON's Autonomy Framework v3.1:
 1. Learning Engine - Learn from operations
 2. Adaptive Strategy - Adapt when exploits fail
 3. Strategic Planner - Plan multi-objective missions

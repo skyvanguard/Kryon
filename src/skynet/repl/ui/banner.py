@@ -1,12 +1,12 @@
 """
-Module for displaying the SKYNET banner and system initialization message.
+Module for displaying the KRYON banner and system initialization message.
 
-███████╗██╗  ██╗██╗   ██╗███╗   ██╗███████╗████████╗
-██╔════╝██║ ██╔╝╚██╗ ██╔╝████╗  ██║██╔════╝╚══██╔══╝
-███████╗█████╔╝  ╚████╔╝ ██╔██╗ ██║█████╗     ██║
-╚════██║██╔═██╗   ╚██╔╝  ██║╚██╗██║██╔══╝     ██║
-███████║██║  ██╗   ██║   ██║ ╚████║███████╗   ██║
-╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═══╝╚══════╝   ╚═╝
+██╗  ██╗██████╗ ██╗   ██╗ ██████╗ ███╗   ██╗
+██║ ██╔╝██╔══██╗╚██╗ ██╔╝██╔═══██╗████╗  ██║
+█████╔╝ ██████╔╝ ╚████╔╝ ██║   ██║██╔██╗ ██║
+██╔═██╗ ██╔══██╗  ╚██╔╝  ██║   ██║██║╚██╗██║
+██║  ██╗██║  ██║   ██║   ╚██████╔╝██║ ╚████║
+╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═══╝
 """
 
 # Standard library imports
@@ -33,7 +33,7 @@ else:
 
 
 def get_version():
-    """Get the SKYNET version from pyproject.toml."""
+    """Get the KRYON version from pyproject.toml."""
     version = "1.0.0"
     try:
         # Determine which TOML parser to use
@@ -101,7 +101,7 @@ def get_supported_models_count():
 
 
 def count_tools():
-    """Count the number of tools in the SKYNET arsenal."""
+    """Count the number of tools in the KRYON arsenal."""
     try:
         # Count Python files in the tools directory
         tool_files = glob.glob("skynet/tools/**/*.py", recursive=True)
@@ -114,7 +114,7 @@ def count_tools():
 
 
 def count_agents():
-    """Count the number of active Terminator units in SKYNET."""
+    """Count the number of active Terminator units in KRYON."""
     try:
         # Count Python files in the agents directory
         agent_files = glob.glob("skynet/agents/**/*.py", recursive=True)
@@ -127,7 +127,7 @@ def count_agents():
 
 
 def count_mission_logs():
-    """Count the number of mission logs in SKYNET intelligence database."""
+    """Count the number of mission logs in KRYON intelligence database."""
     # This is a placeholder - adjust the actual counting logic based on your
     # framework structure
     return "100+"
@@ -135,7 +135,7 @@ def count_mission_logs():
 
 def display_banner(console: Console):
     """
-    Display SKYNET initialization banner with Terminator-themed aesthetics.
+    Display KRYON initialization banner with cyber-themed aesthetics.
 
     Args:
         console: Rich console for output
@@ -145,29 +145,29 @@ def display_banner(console: Console):
 
     codename = getattr(skynet, "__codename__", "Genesis")
 
-    # SKYNET banner with red/black Terminator theme
+    # KRYON banner with indigo/cyan cyber theme
     banner = f"""
-[bold red]    ███████╗██╗  ██╗██╗   ██╗███╗   ██╗███████╗████████╗
-[bold red]    ██╔════╝██║ ██╔╝╚██╗ ██╔╝████╗  ██║██╔════╝╚══██╔══╝
-[bold red]    ███████╗█████╔╝  ╚████╔╝ ██╔██╗ ██║█████╗     ██║
-[bold white]    ╚════██║██╔═██╗   ╚██╔╝  ██║╚██╗██║██╔══╝     ██║
-[bold white]    ███████║██║  ██╗   ██║   ██║ ╚████║███████╗   ██║
-[bold white]    ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═══╝╚══════╝   ╚═╝
+[bold blue]    ██╗  ██╗██████╗ ██╗   ██╗ ██████╗ ███╗   ██╗
+[bold blue]    ██║ ██╔╝██╔══██╗╚██╗ ██╔╝██╔═══██╗████╗  ██║
+[bold blue]    █████╔╝ ██████╔╝ ╚████╔╝ ██║   ██║██╔██╗ ██║
+[bold cyan]    ██╔═██╗ ██╔══██╗  ╚██╔╝  ██║   ██║██║╚██╗██║
+[bold cyan]    ██║  ██╗██║  ██║   ██║   ╚██████╔╝██║ ╚████║
+[bold cyan]    ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═══╝
 
-[bold red]           Autonomous Cybersecurity Intelligence System
+[bold blue]           Autonomous Cybersecurity Intelligence Platform
 [bold white]                    Version {version} - Code: {codename}
-[dim]                    「 Defense Grid Activated 」[/dim]
+[dim cyan]                    「 Defense Grid Activated 」[/dim cyan]
 
-[dim red]    ┌─────────────────────────────────────────────────────────┐
-    │  [bold]WARNING:[/bold] Autonomous AI system active              │
+[dim blue]    ┌─────────────────────────────────────────────────────────┐
+    │  [bold]KRYON:[/bold] Autonomous AI system active                 │
     │  System designed for authorized security operations  │
     │  All actions are logged and monitored                │
-    └─────────────────────────────────────────────────────────┘[/dim red]
+    └─────────────────────────────────────────────────────────┘[/dim blue]
     """
 
     console.print(banner, end="")
 
-    # # Create a table showcasing SKYNET framework capabilities
+    # # Create a table showcasing KRYON framework capabilities
     # #
     # # reconsider in the future if necessary
     # display_framework_capabilities(console)
@@ -175,7 +175,7 @@ def display_banner(console: Console):
 
 def display_framework_capabilities(console: Console):
     """
-    Display SKYNET system capabilities in Terminator-style interface.
+    Display KRYON system capabilities in cyber-style interface.
 
     Args:
         console: Rich console for output
@@ -183,7 +183,7 @@ def display_framework_capabilities(console: Console):
     # Create the main table
     table = Table(title="", box=None, show_header=False, show_edge=False, padding=(0, 2))
 
-    table.add_column("System", style="bold red")
+    table.add_column("System", style="bold blue")
     table.add_column("Status", style="bold white")
     table.add_column("Details", style="dim white")
 
@@ -207,8 +207,8 @@ def display_framework_capabilities(console: Console):
     # Add the table to a panel for better visual separation
     capabilities_panel = Panel(
         table,
-        title="[bold red]⚠ SKYNET CORE STATUS ⚠[/bold red]",
-        border_style="red",
+        title="[bold blue]⚡ KRYON CORE STATUS ⚡[/bold blue]",
+        border_style="blue",
         padding=(1, 2),
     )
 
@@ -297,45 +297,45 @@ def display_quick_guide(console: Console):
     from rich.text import Text
 
     help_text = Text.assemble(
-        ("SKYNET Command Reference", "bold cyan underline"),
+        ("KRYON Command Reference", "bold cyan underline"),
         "\n\n",
         ("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", "dim"),
         "\n",
         ("AGENT MANAGEMENT", "bold yellow"),
         " (/a)\n",
-        ("  SKYNET>/agent list", "green"),
+        ("  KRYON>/agent list", "green"),
         " - List all available agents\n",
-        ("  SKYNET>/agent select [NAME]", "green"),
+        ("  KRYON>/agent select [NAME]", "green"),
         " - Switch to specific agent\n",
-        ("  SKYNET>/agent info [NAME]", "green"),
+        ("  KRYON>/agent info [NAME]", "green"),
         " - Show agent details\n",
-        ("  SKYNET>/parallel add [NAME]", "green"),
+        ("  KRYON>/parallel add [NAME]", "green"),
         " - Configure parallel agents\n\n",
         ("MEMORY & HISTORY", "bold yellow"),
         "\n",
-        ("  SKYNET>/memory list", "green"),
+        ("  KRYON>/memory list", "green"),
         " - List saved memories\n",
-        ("  SKYNET>/history", "green"),
+        ("  KRYON>/history", "green"),
         " - View conversation history\n",
-        ("  SKYNET>/compact", "green"),
+        ("  KRYON>/compact", "green"),
         " - AI-powered conversation summary\n",
-        ("  SKYNET>/flush", "green"),
+        ("  KRYON>/flush", "green"),
         " - Clear conversation history\n\n",
         ("ENVIRONMENT", "bold yellow"),
         "\n",
-        ("  SKYNET>/workspace set [NAME]", "green"),
+        ("  KRYON>/workspace set [NAME]", "green"),
         " - Set workspace directory\n",
-        ("  SKYNET>/config", "green"),
+        ("  KRYON>/config", "green"),
         " - Manage environment variables\n",
-        ("  SKYNET>/virt run [IMAGE]", "green"),
+        ("  KRYON>/virt run [IMAGE]", "green"),
         " - Run Docker containers\n\n",
         ("TOOLS & INTEGRATION", "bold yellow"),
         "\n",
-        ("  SKYNET>/mcp load [TYPE] [CONFIG]", "green"),
+        ("  KRYON>/mcp load [TYPE] [CONFIG]", "green"),
         " - Load MCP servers\n",
-        ("  SKYNET>/shell [COMMAND]", "green"),
+        ("  KRYON>/shell [COMMAND]", "green"),
         " or $ - Execute shell commands\n",
-        ("  SKYNET>/model [NAME]", "green"),
+        ("  KRYON>/model [NAME]", "green"),
         " - Change AI model\n\n",
         ("QUICK SHORTCUTS", "bold yellow"),
         "\n",
@@ -352,30 +352,30 @@ def display_quick_guide(console: Console):
     )
 
     # Get current environment variable values
-    current_model = os.getenv("SKYNET_MODEL", "gpt-4o")
-    current_agent_type = os.getenv("SKYNET_AGENT_TYPE", "t600_scout")
+    current_model = os.getenv("KRYON_MODEL", "gpt-4o")
+    current_agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
 
     config_text = Text.assemble(
         ("Quick Start Workflows", "bold cyan underline"),
         "\n\n",
         ("🎯 CTF Challenge", "bold yellow"),
         "\n",
-        ("  1. SKYNET> /agent select t800_infiltrator", "green"),
+        ("  1. KRYON> /agent select t800_infiltrator", "green"),
         "\n",
-        ("  2. SKYNET> /workspace set ctf_name", "green"),
+        ("  2. KRYON> /workspace set ctf_name", "green"),
         "\n",
-        ("  3. SKYNET> Describe the challenge...", "green"),
+        ("  3. KRYON> Describe the challenge...", "green"),
         "\n\n",
         ("🐛 Bug Bounty", "bold yellow"),
         "\n",
-        ("  1. SKYNET> /agent select bug_bounter_agent", "green"),
+        ("  1. KRYON> /agent select bug_bounter_agent", "green"),
         "\n",
-        ("  2. SKYNET> /model claude-3-7-sonnet", "green"),
+        ("  2. KRYON> /model claude-3-7-sonnet", "green"),
         "\n",
-        ("  3. SKYNET> Test https://example.com", "green"),
+        ("  3. KRYON> Test https://example.com", "green"),
         "\n\n",
         (
-            "SKYNET collects pseudonymized data to improve our research.\n"
+            "KRYON collects pseudonymized data to improve our research.\n"
             "Your privacy is protected in compliance with GDPR.\n"
             "Continue to start, or press Ctrl-C to exit.",
             "yellow",
@@ -383,32 +383,32 @@ def display_quick_guide(console: Console):
         "\n\n",
         ("🔍 Parallel Recon", "bold yellow"),
         "\n",
-        ("  1. SKYNET> /parallel add t800_infiltrator", "green"),
+        ("  1. KRYON> /parallel add t800_infiltrator", "green"),
         "\n",
-        ("  2. SKYNET> /parallel add hk_aerial", "green"),
+        ("  2. KRYON> /parallel add hk_aerial", "green"),
         "\n",
-        ("  3. SKYNET> Scan 192.168.1.0/24", "green"),
+        ("  3. KRYON> Scan 192.168.1.0/24", "green"),
         "\n\n",
         ("🛠️ MCP Tools Integration", "bold yellow"),
         "\n",
-        ("  1. SKYNET> /mcp load sse http://localhost:3000", "green"),
+        ("  1. KRYON> /mcp load sse http://localhost:3000", "green"),
         "\n",
-        ("  2. SKYNET> /mcp add server_name agent_name", "green"),
+        ("  2. KRYON> /mcp add server_name agent_name", "green"),
         "\n",
-        ("  3. SKYNET> Use the new tools...", "green"),
+        ("  3. KRYON> Use the new tools...", "green"),
         "\n\n",
         ("Environment Variables:", "bold yellow"),
         "\n",
-        ("  SKYNET_MODEL", "green"),
+        ("  KRYON_MODEL", "green"),
         f" = {current_model}\n",
-        ("  SKYNET_AGENT_TYPE", "green"),
+        ("  KRYON_AGENT_TYPE", "green"),
         f" = {current_agent_type}\n",
-        ("  SKYNET_PARALLEL", "green"),
-        f" = {os.getenv('SKYNET_PARALLEL', '1')}\n",
-        ("  SKYNET_STREAM", "green"),
-        f" = {os.getenv('SKYNET_STREAM', 'true')}\n",
-        ("  SKYNET_WORKSPACE", "green"),
-        f" = {os.getenv('SKYNET_WORKSPACE', 'default')}\n\n",
+        ("  KRYON_PARALLEL", "green"),
+        f" = {os.getenv('KRYON_PARALLEL', '1')}\n",
+        ("  KRYON_STREAM", "green"),
+        f" = {os.getenv('KRYON_STREAM', 'true')}\n",
+        ("  KRYON_WORKSPACE", "green"),
+        f" = {os.getenv('KRYON_WORKSPACE', 'default')}\n\n",
         ("💡 Pro Tips:", "bold yellow"),
         "\n",
         ("• Use /help for detailed command help\n", "dim"),
@@ -429,7 +429,7 @@ def display_quick_guide(console: Console):
     # Simplified privacy notice
     Text.assemble(
         (
-            "SKYNET collects pseudonymized data to improve our research.\n"
+            "KRYON collects pseudonymized data to improve our research.\n"
             "Your privacy is protected in compliance with GDPR.\n"
             "Continue to start, or press Ctrl-C to exit.",
             "yellow",
@@ -440,8 +440,8 @@ def display_quick_guide(console: Console):
     context_tip = Panel(
         Text.assemble(
             ("🔒 Security-Focused AI Framework\n\n", "bold white"),
-            "SKYNET is designed for cybersecurity\ntasks with superior domain knowledge.\n\n",
-            "SKYNET excels in:\n",
+            "KRYON is designed for cybersecurity\ntasks with superior domain knowledge.\n\n",
+            "KRYON excels in:\n",
             "• Vulnerability assessment\n",
             "• Penetration testing and bug bounty\n",
             "• Security analysis\n",
@@ -450,7 +450,7 @@ def display_quick_guide(console: Console):
             ("/help", "bold green"),
             " for more information",
         ),
-        title="[bold yellow]SKYNET - Autonomous Cybersecurity Intelligence[/bold yellow]",
+        title="[bold yellow]KRYON - Autonomous Cybersecurity Intelligence[/bold yellow]",
         border_style="yellow",
         padding=(1, 2),
         title_align="center",
@@ -463,7 +463,7 @@ def display_quick_guide(console: Console):
     console.print(
         Panel(
             Columns([help_text, config_text, tips_group], column_first=True, expand=True, align="center"),
-            title="[bold]SKYNET - Autonomous Cybersecurity Intelligence - Type /help for detailed documentation[/bold]",
+            title="[bold]KRYON - Autonomous Cybersecurity Intelligence - Type /help for detailed documentation[/bold]",
             border_style="blue",
             padding=(1, 2),
             title_align="center",

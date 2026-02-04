@@ -1,5 +1,5 @@
 """
-Timing utilities for tracking active and idle time in SKYNET.
+Timing utilities for tracking active and idle time in KRYON.
 
 This module provides functions for measuring:
 - Active time: When the LLM is processing or tools are executing

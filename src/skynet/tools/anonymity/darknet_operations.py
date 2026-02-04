@@ -1,5 +1,5 @@
 """
-SKYNET Anonymity - Darknet Operations
+KRYON Anonymity - Darknet Operations
 
 Anonymous operations on Tor and I2P networks.
 
@@ -110,7 +110,7 @@ def create_onion_service(
         # Create Tor configuration for hidden service
         torrc_path = f"{service_dir}/torrc"
 
-        torrc_config = f"""# SKYNET Hidden Service Configuration
+        torrc_config = f"""# KRYON Hidden Service Configuration
 HiddenServiceDir {service_dir}
 HiddenServicePort {service_port} 127.0.0.1:{local_port}
 """

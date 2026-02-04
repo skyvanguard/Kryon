@@ -11,7 +11,7 @@ Tool Categories:
 - Kubernetes Security: kube-hunter, kube-bench, kubescape
 - Image Analysis: Dive, Syft
 
-SKYNET Integration: Phase 8
+KRYON Integration: Phase 8
 """
 
 from skynet.tools.container.docker_bench import docker_bench_security

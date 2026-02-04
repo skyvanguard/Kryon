@@ -1,5 +1,5 @@
 """
-Agent "command" for SKYNET CLI abstraction
+Agent "command" for KRYON CLI abstraction
 
 Provides commands for managing and switching between agents.
 """
@@ -61,7 +61,7 @@ class AgentCommand(Command):
             return ""
 
         # Show the model from environment variable if available
-        env_var_name = f"SKYNET_{agent_name.upper()}_MODEL"
+        env_var_name = f"KRYON_{agent_name.upper()}_MODEL"
         model_env = os.getenv(env_var_name)
         if model_env:
             return model_env
@@ -89,7 +89,7 @@ class AgentCommand(Command):
             return "Default CTF Model"
 
         # Show the model from environment variable if available
-        env_var_name = f"SKYNET_{agent_name.upper()}_MODEL"
+        env_var_name = f"KRYON_{agent_name.upper()}_MODEL"
         model_env = os.getenv(env_var_name)
         if model_env:
             return model_env
@@ -447,12 +447,12 @@ class AgentCommand(Command):
 
                             # Sync to environment to enable parallel mode
                             if len(PARALLEL_CONFIGS) >= 2:
-                                os.environ["SKYNET_PARALLEL"] = str(len(PARALLEL_CONFIGS))
+                                os.environ["KRYON_PARALLEL"] = str(len(PARALLEL_CONFIGS))
                                 agent_names = [config.agent_name for config in PARALLEL_CONFIGS]
-                                os.environ["SKYNET_PARALLEL_AGENTS"] = ",".join(agent_names)
+                                os.environ["KRYON_PARALLEL_AGENTS"] = ",".join(agent_names)
 
                             # Set pattern description in environment for cli.py to check
-                            os.environ["SKYNET_PATTERN_DESCRIPTION"] = pattern.description or ""
+                            os.environ["KRYON_PATTERN_DESCRIPTION"] = pattern.description or ""
 
                             console.print(f"[green]Loaded parallel pattern: {pattern.description}[/green]")
                             console.print(f"[cyan]{len(PARALLEL_CONFIGS)} agents configured in parallel mode[/cyan]")
@@ -494,7 +494,7 @@ class AgentCommand(Command):
                                     break
 
                         if agent_key:
-                            os.environ["SKYNET_AGENT_TYPE"] = agent_key
+                            os.environ["KRYON_AGENT_TYPE"] = agent_key
                             console.print(f"[green]Loaded swarm pattern: {pattern.name}[/green]")
                             console.print(f"[cyan]Entry agent: {getattr(entry_agent, 'name', agent_key)}[/cyan]")
 
@@ -528,7 +528,7 @@ class AgentCommand(Command):
             # selected_agent_key was already set above in the agent selection logic
             pass
 
-        # IMPORTANT: Don't set SKYNET_AGENT_TYPE yet - we need to set up history transfer first
+        # IMPORTANT: Don't set KRYON_AGENT_TYPE yet - we need to set up history transfer first
         # Store the selected agent key for later use
         agent_type_to_set = None
         if "selected_agent_key" in locals() and not (
@@ -622,7 +622,7 @@ class AgentCommand(Command):
 
                 # Special handling for swarm patterns - get history from the entry agent
                 # Check if we're coming from a swarm pattern by checking environment
-                prev_agent_type = os.getenv("SKYNET_AGENT_TYPE", "")
+                prev_agent_type = os.getenv("KRYON_AGENT_TYPE", "")
                 if prev_agent_type and not current_history:
                     # Try to get history from the swarm pattern's entry agent
                     prev_agent = agents_to_display.get(prev_agent_type)
@@ -640,8 +640,8 @@ class AgentCommand(Command):
         PARALLEL_AGENT_INSTANCES.clear()
 
         # Reset parallel mode to single agent
-        os.environ["SKYNET_PARALLEL"] = "1"
-        os.environ["SKYNET_PARALLEL_AGENTS"] = ""
+        os.environ["KRYON_PARALLEL"] = "1"
+        os.environ["KRYON_PARALLEL_AGENTS"] = ""
 
         # Transfer history to the new single agent BEFORE clearing
         if current_history:
@@ -670,9 +670,9 @@ class AgentCommand(Command):
 
         # NOW set the environment variable AFTER history transfer is complete
         if agent_type_to_set:
-            os.environ["SKYNET_AGENT_TYPE"] = agent_type_to_set
+            os.environ["KRYON_AGENT_TYPE"] = agent_type_to_set
             # Set a flag to tell CLI not to switch again
-            os.environ["SKYNET_AGENT_SWITCH_HANDLED"] = "1"
+            os.environ["KRYON_AGENT_SWITCH_HANDLED"] = "1"
 
         # Double-check agent_name is correct before displaying
         # This ensures we show the correct agent name even after switching from patterns
@@ -797,7 +797,7 @@ class AgentCommand(Command):
         from rich.panel import Panel
 
         # Check for parallel mode first
-        parallel_count = int(os.getenv("SKYNET_PARALLEL", "1"))
+        parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
         parallel_enabled = parallel_count >= 2
 
         # Check PARALLEL_CONFIGS if available
@@ -895,7 +895,7 @@ class AgentCommand(Command):
 
         else:
             # Show single agent configuration
-            current_agent_key = os.getenv("SKYNET_AGENT_TYPE", "t600_scout")
+            current_agent_key = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
 
             if current_agent_key not in agents_to_display:
                 console.print(f"[red]Error: Current agent '{current_agent_key}' not found[/red]")

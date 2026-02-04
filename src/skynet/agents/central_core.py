@@ -13,7 +13,7 @@ SPECIALIZATION: Tactical Reasoning, Resource Coordination, Decision Making
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-Central Core represents SKYNET's primary strategic intelligence and planning
+Central Core represents KRYON's primary strategic intelligence and planning
 unit. Unlike field units (T-Series, Guardian, HK-Series), Central Core
 operates as the command center for complex security operations. Specializes
 in multi-stage attack planning, resource allocation, and coordinating
@@ -69,10 +69,10 @@ cognitive_systems = [
 central_core = Agent(
     name="Central Core",
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(),
     ),
-    description="""Strategic command and control unit from SKYNET's Command-Class series.
+    description="""Strategic command and control unit from KRYON's Command-Class series.
 Specialized in mission planning, tactical analysis, and multi-stage operation
 coordination. Central Core serves as the strategic brain for complex security
 operations, capable of breaking down challenges into actionable steps and

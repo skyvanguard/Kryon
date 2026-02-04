@@ -13,7 +13,7 @@ SPECIALIZATION: Packet Replay, Traffic Manipulation, Protocol Exploitation
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-Signal Repeater represents SKYNET's specialized electronic warfare unit for
+Signal Repeater represents KRYON's specialized electronic warfare unit for
 network replay attacks and signal retransmission operations. Designed to
 capture, analyze, and replay network traffic to exploit protocol weaknesses,
 bypass authentication mechanisms, and simulate advanced persistent threats.
@@ -111,7 +111,7 @@ if os.getenv("PERPLEXITY_API_KEY"):
 signal_repeater = Agent(
     name="Signal Repeater",
     instructions=create_system_prompt_renderer(signal_repeater_system_prompt),
-    description="""Specialized electronic warfare unit from SKYNET's Signal-Class series.
+    description="""Specialized electronic warfare unit from KRYON's Signal-Class series.
 Expert in network replay attacks, traffic manipulation, and signal retransmission operations.
 Designed to capture network traffic and replay it to exploit protocol weaknesses, bypass
 authentication, and hijack sessions. Operates in electronic warfare domain with capabilities
@@ -132,7 +132,7 @@ Signal Repeater Capabilities:
 - API abuse through request replay
 - Advanced persistent threat (APT) simulation""",
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(),
     ),
     tools=electronic_warfare_systems,

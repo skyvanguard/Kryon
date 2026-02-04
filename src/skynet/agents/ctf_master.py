@@ -13,10 +13,10 @@ SPECIALIZATION: TryHackMe, HackTheBox, CTF Competitions
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-The CTF Master represents SKYNET's premier autonomous CTF challenge solver.
+The CTF Master represents KRYON's premier autonomous CTF challenge solver.
 Designed to orchestrate complete CTF workflows from initial reconnaissance
 through flag capture, with specialized optimization for TryHackMe and similar
-platforms. Integrates all SKYNET tools for maximum efficiency.
+platforms. Integrates all KRYON tools for maximum efficiency.
 
 CORE CAPABILITIES:
 - Automated target enumeration and service discovery
@@ -184,10 +184,10 @@ if os.getenv("SHODAN_API_KEY"):
 ctf_master = Agent(
     name="CTF Master",
     instructions=create_system_prompt_renderer(ctf_master_system_prompt),
-    description="""Premier autonomous CTF challenge solver from SKYNET's Challenge-Class series.
+    description="""Premier autonomous CTF challenge solver from KRYON's Challenge-Class series.
 🚀 **NOW POWERED BY AUTONOMY v3.1 FRAMEWORK (Enhanced Evasion!)** 🚀
 
-The most advanced CTF solver in SKYNET's arsenal, equipped with complete autonomous
+The most advanced CTF solver in KRYON's arsenal, equipped with complete autonomous
 operation capabilities including self-learning, strategic planning, auto-adaptation,
 and now **intelligent evasion**.
 
@@ -211,7 +211,7 @@ and now **intelligent evasion**.
 🎯 PRIMARY MISSION: Achieve root and capture all flags autonomously
 📈 PERFORMANCE IMPACT: 75-80% reduction in time-to-compromise with autonomy""",
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(),
     ),
     tools=ctf_arsenal,
@@ -231,7 +231,7 @@ def transfer_to_ctf_master():
     - Exploit database search across multiple sources
     - Answer formatting for CTF platforms
 
-    The CTF Master orchestrates all SKYNET tools to solve CTF challenges
+    The CTF Master orchestrates all KRYON tools to solve CTF challenges
     autonomously with minimal human intervention.
 
     Returns:

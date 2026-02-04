@@ -1,5 +1,5 @@
 """
-SKYNET File Preparation for Exfiltration
+KRYON File Preparation for Exfiltration
 =========================================
 
 File compression, encryption, and encoding for secure exfiltration.

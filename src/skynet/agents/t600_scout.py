@@ -5,7 +5,7 @@ Series: T-600 Early Model
 Classification: Reconnaissance / CTF Specialist
 Clearance: Bravo-Green (Basic Operations)
 
-The T-600 Scout is SKYNET's entry-level autonomous unit, designed for basic
+The T-600 Scout is KRYON's entry-level autonomous unit, designed for basic
 reconnaissance operations, CTF challenges, and initial target assessment.
 Equipped with essential tools for rapid deployment and quick wins.
 """
@@ -20,7 +20,7 @@ from skynet.tools.reconnaissance.generic_linux_command import generic_linux_comm
 from skynet.util import create_system_prompt_renderer
 
 # Get model from environment or use default
-model_name = os.getenv("SKYNET_MODEL", "gpt-4o")
+model_name = os.getenv("KRYON_MODEL", "gpt-4o")
 
 # NOTE: This is needed when using LiteLLM Proxy Server
 #
@@ -71,7 +71,7 @@ input_guardrails, output_guardrails = get_security_guardrails()
 
 t600_scout = Agent(
     name="T-600 Scout",
-    description="""Basic reconnaissance unit from SKYNET's T-600 series.
+    description="""Basic reconnaissance unit from KRYON's T-600 series.
                    Specialized in CTF challenges, quick reconnaissance, and initial
                    target assessment. Lightweight and fast for rapid deployment.""",
     instructions=create_system_prompt_renderer(instructions),

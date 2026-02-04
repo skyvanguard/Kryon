@@ -1,5 +1,5 @@
 """
-Exit command for SKYNET REPL.
+Exit command for KRYON REPL.
 This module provides the command to exit the REPL.
 """
 
@@ -16,7 +16,7 @@ class ExitCommand(Command):
 
     def __init__(self):
         """Initialize the exit command."""
-        super().__init__(name="/exit", description="Exit the SKYNET REPL", aliases=["/q", "/quit"])
+        super().__init__(name="/exit", description="Exit the KRYON REPL", aliases=["/q", "/quit"])
 
     def handle(self, args: Optional[list[str]] = None) -> bool:
         """Handle the exit command.

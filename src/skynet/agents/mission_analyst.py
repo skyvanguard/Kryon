@@ -13,9 +13,9 @@ SPECIALIZATION: Case Studies, Scenario Planning, Documentation
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-Mission Analyst represents SKYNET's specialized strategic documentation and
+Mission Analyst represents KRYON's specialized strategic documentation and
 use case analysis unit. Designed to create high-quality cybersecurity case
-studies, document mission scenarios, and demonstrate how SKYNET autonomous
+studies, document mission scenarios, and demonstrate how KRYON autonomous
 units tackle various security challenges. Unlike operational units (T-Series,
 Guardian, HK-Series), Mission Analyst operates in strategic planning and
 documentation mode, analyzing successful operations and creating comprehensive
@@ -34,7 +34,7 @@ CORE ANALYTICAL CAPABILITIES:
 - Training material creation
 
 MISSION OBJECTIVES:
-- Document SKYNET operational use cases
+- Document KRYON operational use cases
 - Create comprehensive security scenario case studies
 - Demonstrate multi-agent coordination strategies
 - Develop CTF challenge walkthroughs
@@ -74,7 +74,7 @@ all documentation.
 MISSION DESIGNATION:
 Specialized in strategic analysis and documentation - the knowledge preservation
 unit that ensures operational lessons are captured and shared for continuous
-improvement of SKYNET capabilities.
+improvement of KRYON capabilities.
 """
 
 import os
@@ -87,7 +87,7 @@ from skynet.tools.reconnaissance.generic_linux_command import null_tool
 from skynet.util import create_system_prompt_renderer, load_prompt_template
 
 load_dotenv()
-model_name = os.getenv("SKYNET_MODEL", "gpt-4o")
+model_name = os.getenv("KRYON_MODEL", "gpt-4o")
 
 # Load Mission Analyst strategic directives
 mission_analyst_system_prompt = load_prompt_template("prompts/system_use_cases.md")
@@ -99,9 +99,9 @@ analytical_systems = [null_tool]
 # Initialize Mission Analyst Unit
 mission_analyst = Agent(
     name="Mission Analyst",
-    description="""Strategic use case analysis and documentation unit from SKYNET's Analysis-Class
+    description="""Strategic use case analysis and documentation unit from KRYON's Analysis-Class
 series. Specialized in creating high-quality cybersecurity case studies, documenting mission
-scenarios, and demonstrating how SKYNET tackles various security challenges. Expert in
+scenarios, and demonstrating how KRYON tackles various security challenges. Expert in
 documenting CTF walkthroughs, penetration testing scenarios, bug bounty engagements, and
 multi-agent operational coordination.
 
@@ -120,7 +120,7 @@ Mission Analyst Capabilities:
 - Operational lesson learned analysis
 - Strategic use case planning
 
-Demonstrates SKYNET capabilities across:
+Demonstrates KRYON capabilities across:
 - Web application security scenarios
 - Network penetration testing operations
 - Mobile and wireless security assessments

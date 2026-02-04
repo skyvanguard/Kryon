@@ -1,5 +1,5 @@
 """
-SKYNET Anonymity - Anonymity Verification
+KRYON Anonymity - Anonymity Verification
 
 Comprehensive anonymity checking and leak detection.
 

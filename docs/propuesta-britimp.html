@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta Comercial - Britimp Seguridad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        * { font-family: 'Inter', sans-serif; }
+
+        body {
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gradient-gold {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .gradient-text-gold {
+            background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .britimp-blue {
+            color: #1e40af;
+        }
+
+        .print-page {
+            max-width: 800px;
+        }
+
+        @media print {
+            body { background: white; color: black; }
+            .glass { background: #f8fafc; border: 1px solid #e2e8f0; }
+            .no-print { display: none; }
+        }
+
+        .value-card {
+            transition: all 0.3s ease;
+        }
+
+        .value-card:hover {
+            transform: translateY(-3px);
+            border-color: #f59e0b;
+        }
+
+        .pricing-card {
+            transition: all 0.3s ease;
+        }
+
+        .pricing-card:hover {
+            transform: scale(1.02);
+        }
+
+        .pricing-card.featured {
+            border: 2px solid #f59e0b;
+            box-shadow: 0 0 30px rgba(245, 158, 11, 0.2);
+        }
+    </style>
+</head>
+<body class="text-white">
+    <!-- Header -->
+    <header class="glass border-b border-white/10">
+        <div class="print-page mx-auto px-6 py-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl gradient-gold flex items-center justify-center">
+                        <span class="text-white font-bold text-lg">M</span>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold gradient-text-gold">MBARETE Security</h1>
+                        <p class="text-xs text-gray-400">Plataforma de Ciberseguridad con IA</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm text-gray-400">Propuesta para</p>
+                    <p class="text-lg font-bold text-blue-400">Britimp Seguridad S.A.</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="print-page mx-auto px-6 py-8">
+        <!-- Executive Summary -->
+        <section class="mb-10">
+            <div class="glass rounded-2xl p-8">
+                <h2 class="text-2xl font-bold mb-4">Resumen Ejecutivo</h2>
+                <p class="text-gray-300 leading-relaxed mb-6">
+                    <strong class="text-amber-400">MBARETE Security</strong> es una plataforma de ciberseguridad autonoma impulsada por inteligencia artificial,
+                    desarrollada en Paraguay para el mercado paraguayo. Proponemos a <strong class="text-blue-400">Britimp Seguridad</strong>
+                    licenciar esta tecnologia para complementar su portafolio de seguridad fisica y electronica,
+                    ofreciendo a sus clientes una solucion integral de seguridad 360°.
+                </p>
+
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-center">
+                        <p class="text-3xl font-bold text-amber-400">180+</p>
+                        <p class="text-sm text-gray-400">Herramientas de Seguridad</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-center">
+                        <p class="text-3xl font-bold text-blue-400">25</p>
+                        <p class="text-sm text-gray-400">Agentes IA Autonomos</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-center">
+                        <p class="text-3xl font-bold text-green-400">300+</p>
+                        <p class="text-sm text-gray-400">Modelos LLM Soportados</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- The Opportunity -->
+        <section class="mb-10">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <i data-lucide="trending-up" class="w-5 h-5 text-green-400"></i>
+                La Oportunidad
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-semibold text-red-400 mb-4">Problema del Mercado</h3>
+                    <ul class="space-y-3 text-sm">
+                        <li class="flex items-start gap-2">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0"></i>
+                            <span><strong>551 millones</strong> de intentos de ciberataque en Paraguay (1er semestre 2025)</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0"></i>
+                            <span>Escasez de profesionales en ciberseguridad</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0"></i>
+                            <span>Soluciones extranjeras caras y no adaptadas</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0"></i>
+                            <span>Regulaciones crecientes (Estrategia Nacional 2025-2028)</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-semibold text-green-400 mb-4">Oportunidad para Britimp</h3>
+                    <ul class="space-y-3 text-sm">
+                        <li class="flex items-start gap-2">
+                            <i data-lucide="check-circle" class="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0"></i>
+                            <span><strong>Cross-sell</strong> a clientes existentes (bancos, financieras)</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i data-lucide="check-circle" class="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0"></i>
+                            <span><strong>Seguridad 360°:</strong> fisica + electronica + ciber</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i data-lucide="check-circle" class="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0"></i>
+                            <span><strong>Diferenciacion</strong> vs competidores (Prosegur, G4S)</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <i data-lucide="check-circle" class="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0"></i>
+                            <span><strong>Producto paraguayo</strong> - orgullo nacional, soporte local</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- What We Offer -->
+        <section class="mb-10">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <i data-lucide="package" class="w-5 h-5 text-amber-400"></i>
+                Que Ofrecemos
+            </h2>
+
+            <div class="glass rounded-xl p-6 mb-6">
+                <h3 class="font-semibold text-amber-400 mb-4">Plataforma MBARETE Security</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-300 mb-3">Agentes IA Autonomos</h4>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2 p-2 rounded bg-gray-800/50">
+                                <span class="w-8 h-8 rounded bg-red-500/20 flex items-center justify-center text-xs font-bold text-red-400">T800</span>
+                                <span class="text-sm">Infiltrator - Pentesting automatizado</span>
+                            </div>
+                            <div class="flex items-center gap-2 p-2 rounded bg-gray-800/50">
+                                <span class="w-8 h-8 rounded bg-orange-500/20 flex items-center justify-center text-xs font-bold text-orange-400">T1000</span>
+                                <span class="text-sm">Hunter - Bug hunting continuo</span>
+                            </div>
+                            <div class="flex items-center gap-2 p-2 rounded bg-gray-800/50">
+                                <span class="w-8 h-8 rounded bg-yellow-500/20 flex items-center justify-center text-xs font-bold text-yellow-400">T600</span>
+                                <span class="text-sm">Scout - Reconocimiento y OSINT</span>
+                            </div>
+                            <div class="flex items-center gap-2 p-2 rounded bg-gray-800/50">
+                                <span class="w-8 h-8 rounded bg-green-500/20 flex items-center justify-center text-xs font-bold text-green-400">GP</span>
+                                <span class="text-sm">Guardian - Defensa y hardening</span>
+                            </div>
+                            <div class="flex items-center gap-2 p-2 rounded bg-gray-800/50">
+                                <span class="w-8 h-8 rounded bg-cyan-500/20 flex items-center justify-center text-xs font-bold text-cyan-400">FA</span>
+                                <span class="text-sm">Forensic - Analisis de incidentes</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-300 mb-3">Capacidades Clave</h4>
+                        <ul class="space-y-2 text-sm">
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="shield-check" class="w-4 h-4 text-green-400"></i>
+                                SOC automatizado 24/7
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="search" class="w-4 h-4 text-cyan-400"></i>
+                                Pentesting continuo
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="eye" class="w-4 h-4 text-purple-400"></i>
+                                Threat Intelligence
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="activity" class="w-4 h-4 text-pink-400"></i>
+                                Deteccion de anomalias
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="zap" class="w-4 h-4 text-yellow-400"></i>
+                                Respuesta automatizada
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="file-text" class="w-4 h-4 text-blue-400"></i>
+                                Reportes ejecutivos
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="users" class="w-4 h-4 text-orange-400"></i>
+                                Human-in-the-loop
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="database" class="w-4 h-4 text-red-400"></i>
+                                Base de conocimiento (ExploitDB, NVD)
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Target Sectors -->
+            <div class="grid md:grid-cols-3 gap-4">
+                <div class="value-card glass rounded-xl p-4 border-2 border-transparent">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i data-lucide="landmark" class="w-5 h-5 text-green-400"></i>
+                        <h4 class="font-semibold text-green-400">Financiero</h4>
+                    </div>
+                    <p class="text-xs text-gray-400">Bancos, Fintechs, Cooperativas. Cumplimiento BCP.</p>
+                </div>
+                <div class="value-card glass rounded-xl p-4 border-2 border-transparent">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i data-lucide="building" class="w-5 h-5 text-blue-400"></i>
+                        <h4 class="font-semibold text-blue-400">Gobierno</h4>
+                    </div>
+                    <p class="text-xs text-gray-400">Ministerios, MITIC, Municipalidades.</p>
+                </div>
+                <div class="value-card glass rounded-xl p-4 border-2 border-transparent">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i data-lucide="zap" class="w-5 h-5 text-yellow-400"></i>
+                        <h4 class="font-semibold text-yellow-400">Infraestructura</h4>
+                    </div>
+                    <p class="text-xs text-gray-400">ANDE, Telecom, Datacenters.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Business Models -->
+        <section class="mb-10">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <i data-lucide="handshake" class="w-5 h-5 text-blue-400"></i>
+                Modelos de Negocio Propuestos
+            </h2>
+
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Option 1: License -->
+                <div class="pricing-card glass rounded-xl p-6">
+                    <div class="text-center mb-6">
+                        <span class="px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 text-xs font-medium">OPCION 1</span>
+                        <h3 class="text-xl font-bold mt-3">Licencia Exclusiva</h3>
+                        <p class="text-sm text-gray-400 mt-1">Paraguay</p>
+                    </div>
+                    <div class="space-y-3 mb-6">
+                        <div class="flex items-center gap-2 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            <span>Exclusividad territorial</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            <span>Marca blanca disponible</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            <span>Soporte tecnico incluido</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            <span>Actualizaciones continuas</span>
+                        </div>
+                    </div>
+                    <div class="text-center p-4 rounded-lg bg-gray-800/50">
+                        <p class="text-xs text-gray-400">Inversion unica</p>
+                        <p class="text-2xl font-bold text-blue-400">USD $150,000</p>
+                        <p class="text-xs text-gray-400">+ 15% revenue share</p>
+                    </div>
+                </div>
+
+                <!-- Option 2: Revenue Share -->
+                <div class="pricing-card featured glass rounded-xl p-6">
+                    <div class="text-center mb-6">
+                        <span class="px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-medium">RECOMENDADO</span>
+                        <h3 class="text-xl font-bold mt-3">Partnership</h3>
+                        <p class="text-sm text-gray-400 mt-1">Revenue Share</p>
+                    </div>
+                    <div class="space-y-3 mb-6">
+                        <div class="flex items-center gap-2 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            <span>Sin inversion inicial grande</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            <span>Riesgo compartido</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            <span>Alineacion de incentivos</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            <span>Escalable con el negocio</span>
+                        </div>
+                    </div>
+                    <div class="text-center p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                        <p class="text-xs text-gray-400">Inversion inicial</p>
+                        <p class="text-2xl font-bold text-amber-400">USD $50,000</p>
+                        <p class="text-xs text-gray-400">+ 30% revenue share</p>
+                    </div>
+                </div>
+
+                <!-- Option 3: Acquisition -->
+                <div class="pricing-card glass rounded-xl p-6">
+                    <div class="text-center mb-6">
+                        <span class="px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-xs font-medium">OPCION 3</span>
+                        <h3 class="text-xl font-bold mt-3">Adquisicion</h3>
+                        <p class="text-sm text-gray-400 mt-1">Propiedad total</p>
+                    </div>
+                    <div class="space-y-3 mb-6">
+                        <div class="flex items-center gap-2 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            <span>Propiedad intelectual completa</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            <span>Sin royalties futuros</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            <span>Codigo fuente completo</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            <span>Transferencia de conocimiento</span>
+                        </div>
+                    </div>
+                    <div class="text-center p-4 rounded-lg bg-gray-800/50">
+                        <p class="text-xs text-gray-400">Precio de venta</p>
+                        <p class="text-2xl font-bold text-purple-400">USD $500,000</p>
+                        <p class="text-xs text-gray-400">Negociable</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Value Proposition -->
+        <section class="mb-10">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <i data-lucide="gem" class="w-5 h-5 text-purple-400"></i>
+                Propuesta de Valor
+            </h2>
+
+            <div class="glass rounded-xl p-6">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="font-semibold text-amber-400 mb-4">Para Britimp</h3>
+                        <ul class="space-y-3 text-sm">
+                            <li class="flex items-start gap-2">
+                                <span class="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
+                                <span><strong>Nuevo revenue stream</strong> - Servicios de ciberseguridad de alto margen</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
+                                <span><strong>Diferenciacion competitiva</strong> - Unico proveedor con IA autonoma</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
+                                <span><strong>Retencion de clientes</strong> - Seguridad 360° = mayor stickiness</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold flex-shrink-0">4</span>
+                                <span><strong>Time-to-market</strong> - Producto listo, sin desarrollo interno</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-blue-400 mb-4">Para sus Clientes</h3>
+                        <ul class="space-y-3 text-sm">
+                            <li class="flex items-start gap-2">
+                                <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
+                                <span><strong>Un solo proveedor</strong> - Fisica + Electronica + Ciber</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
+                                <span><strong>Soporte local</strong> - Equipo paraguayo, mismo huso horario</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
+                                <span><strong>Cumplimiento regulatorio</strong> - Adaptado a normativas BCP/MITIC</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold flex-shrink-0">4</span>
+                                <span><strong>Costo accesible</strong> - Sin precios de multinacionales</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ROI Projection -->
+        <section class="mb-10">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <i data-lucide="bar-chart-3" class="w-5 h-5 text-green-400"></i>
+                Proyeccion de ROI (3 años)
+            </h2>
+
+            <div class="glass rounded-xl p-6">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-white/10">
+                            <th class="text-left py-3 text-gray-400">Metrica</th>
+                            <th class="text-center py-3 text-gray-400">Año 1</th>
+                            <th class="text-center py-3 text-gray-400">Año 2</th>
+                            <th class="text-center py-3 text-gray-400">Año 3</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b border-white/5">
+                            <td class="py-3">Clientes ciber (nuevos)</td>
+                            <td class="text-center py-3 text-green-400">10</td>
+                            <td class="text-center py-3 text-green-400">25</td>
+                            <td class="text-center py-3 text-green-400">50</td>
+                        </tr>
+                        <tr class="border-b border-white/5">
+                            <td class="py-3">Revenue mensual promedio/cliente</td>
+                            <td class="text-center py-3">$2,500</td>
+                            <td class="text-center py-3">$3,000</td>
+                            <td class="text-center py-3">$3,500</td>
+                        </tr>
+                        <tr class="border-b border-white/5">
+                            <td class="py-3">Revenue anual ciber</td>
+                            <td class="text-center py-3 text-amber-400">$300,000</td>
+                            <td class="text-center py-3 text-amber-400">$900,000</td>
+                            <td class="text-center py-3 text-amber-400">$2,100,000</td>
+                        </tr>
+                        <tr class="border-b border-white/5">
+                            <td class="py-3">Margen bruto (60%)</td>
+                            <td class="text-center py-3">$180,000</td>
+                            <td class="text-center py-3">$540,000</td>
+                            <td class="text-center py-3">$1,260,000</td>
+                        </tr>
+                        <tr>
+                            <td class="py-3 font-semibold">ROI acumulado</td>
+                            <td class="text-center py-3 text-green-400 font-bold">260%</td>
+                            <td class="text-center py-3 text-green-400 font-bold">980%</td>
+                            <td class="text-center py-3 text-green-400 font-bold">2,960%</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p class="text-xs text-gray-500 mt-4">* Basado en modelo Partnership ($50K inicial + 30% revenue share). Clientes objetivo: bancos, fintechs, gobierno.</p>
+            </div>
+        </section>
+
+        <!-- Technical Details -->
+        <section class="mb-10">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <i data-lucide="code" class="w-5 h-5 text-cyan-400"></i>
+                Especificaciones Tecnicas
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-semibold text-cyan-400 mb-4">Plataforma</h3>
+                    <ul class="space-y-2 text-sm text-gray-300">
+                        <li><strong>Lenguaje:</strong> Python 3.10+</li>
+                        <li><strong>Lineas de codigo:</strong> 100,000+</li>
+                        <li><strong>Tests:</strong> 106 archivos, 27,600 LOC</li>
+                        <li><strong>Cobertura:</strong> 93%</li>
+                        <li><strong>LLMs:</strong> OpenAI, Claude, DeepSeek, Llama, Ollama</li>
+                        <li><strong>Deployment:</strong> On-premise o cloud</li>
+                    </ul>
+                </div>
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-semibold text-purple-400 mb-4">Incluido en la Transferencia</h3>
+                    <ul class="space-y-2 text-sm text-gray-300">
+                        <li><i data-lucide="check" class="w-4 h-4 text-green-400 inline mr-2"></i>Codigo fuente completo</li>
+                        <li><i data-lucide="check" class="w-4 h-4 text-green-400 inline mr-2"></i>Documentacion tecnica</li>
+                        <li><i data-lucide="check" class="w-4 h-4 text-green-400 inline mr-2"></i>Manual de usuario</li>
+                        <li><i data-lucide="check" class="w-4 h-4 text-green-400 inline mr-2"></i>Capacitacion (40 horas)</li>
+                        <li><i data-lucide="check" class="w-4 h-4 text-green-400 inline mr-2"></i>Soporte 6 meses</li>
+                        <li><i data-lucide="check" class="w-4 h-4 text-green-400 inline mr-2"></i>Actualizaciones 1 año</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Next Steps -->
+        <section class="mb-10">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <i data-lucide="rocket" class="w-5 h-5 text-orange-400"></i>
+                Proximos Pasos
+            </h2>
+
+            <div class="glass rounded-xl p-6">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <div class="flex-1 p-4 rounded-lg bg-gray-800/50 text-center">
+                        <div class="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center mx-auto mb-2 font-bold">1</div>
+                        <h4 class="font-semibold">Reunion</h4>
+                        <p class="text-xs text-gray-400 mt-1">Demo tecnica y comercial</p>
+                    </div>
+                    <div class="flex items-center justify-center text-gray-600">
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </div>
+                    <div class="flex-1 p-4 rounded-lg bg-gray-800/50 text-center">
+                        <div class="w-10 h-10 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center mx-auto mb-2 font-bold">2</div>
+                        <h4 class="font-semibold">Due Diligence</h4>
+                        <p class="text-xs text-gray-400 mt-1">Revision tecnica y legal</p>
+                    </div>
+                    <div class="flex items-center justify-center text-gray-600">
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </div>
+                    <div class="flex-1 p-4 rounded-lg bg-gray-800/50 text-center">
+                        <div class="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-2 font-bold">3</div>
+                        <h4 class="font-semibold">Negociacion</h4>
+                        <p class="text-xs text-gray-400 mt-1">Terminos y condiciones</p>
+                    </div>
+                    <div class="flex items-center justify-center text-gray-600">
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </div>
+                    <div class="flex-1 p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-center">
+                        <div class="w-10 h-10 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center mx-auto mb-2 font-bold">4</div>
+                        <h4 class="font-semibold text-green-400">Cierre</h4>
+                        <p class="text-xs text-gray-400 mt-1">Firma y transferencia</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact -->
+        <section>
+            <div class="glass rounded-xl p-8 text-center">
+                <h2 class="text-xl font-bold mb-2">Contacto</h2>
+                <p class="text-gray-400 mb-6">Estamos listos para conversar sobre esta oportunidad</p>
+                <div class="flex flex-col md:flex-row gap-4 justify-center">
+                    <div class="px-6 py-3 rounded-lg bg-gray-800/50">
+                        <p class="text-xs text-gray-400">Email</p>
+                        <p class="text-amber-400">[tu-email@dominio.com]</p>
+                    </div>
+                    <div class="px-6 py-3 rounded-lg bg-gray-800/50">
+                        <p class="text-xs text-gray-400">Telefono</p>
+                        <p class="text-amber-400">[+595 xxx xxx xxx]</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="glass border-t border-white/10 py-6 mt-8 no-print">
+        <div class="print-page mx-auto px-6 text-center">
+            <p class="text-sm text-gray-400">Propuesta Confidencial - MBARETE Security</p>
+            <p class="text-xs text-gray-600 mt-2">Febrero 2026 | Asuncion, Paraguay</p>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

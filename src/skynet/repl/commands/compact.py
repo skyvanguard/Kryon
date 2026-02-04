@@ -1,5 +1,5 @@
 """
-Compact command for SKYNET REPL.
+Compact command for KRYON REPL.
 Compacts current conversation and manages model/prompt settings.
 """
 
@@ -283,7 +283,7 @@ class CompactCommand(Command):
 
         # If still no agent, try to get from environment
         if not agent_name:
-            agent_type = os.getenv("SKYNET_AGENT_TYPE", "t600_scout")
+            agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
             from skynet.agents import get_available_agents
 
             agents = get_available_agents()
@@ -415,7 +415,7 @@ class CompactCommand(Command):
 
             except Exception as e:
                 console.print(f"[red]Error compacting {display_name}: {str(e)}[/red]\n")
-                if os.getenv("SKYNET_DEBUG", "1") == "2":
+                if os.getenv("KRYON_DEBUG", "1") == "2":
                     import traceback
 
                     traceback.print_exc()
@@ -479,7 +479,7 @@ class CompactCommand(Command):
 
             # If still no agent, try to get from environment
             if not agent_name:
-                agent_type = os.getenv("SKYNET_AGENT_TYPE", "t600_scout")
+                agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
                 from skynet.agents import get_available_agents
 
                 agents = get_available_agents()
@@ -530,12 +530,12 @@ class CompactCommand(Command):
             # Pass the compact model if set
             if self.compact_model:
                 # Temporarily override the model for this operation
-                original_model = os.environ.get("SKYNET_MODEL", "gpt-4o")
-                os.environ["SKYNET_MODEL"] = self.compact_model
+                original_model = os.environ.get("KRYON_MODEL", "gpt-4o")
+                os.environ["KRYON_MODEL"] = self.compact_model
                 try:
                     result = MEMORY_COMMAND_INSTANCE.handle_save([memory_name], preserve_history=False)
                 finally:
-                    os.environ["SKYNET_MODEL"] = original_model
+                    os.environ["KRYON_MODEL"] = original_model
             else:
                 result = MEMORY_COMMAND_INSTANCE.handle_save([memory_name], preserve_history=False)
 
@@ -565,11 +565,11 @@ class CompactCommand(Command):
                     current_agent.model.message_history.clear()
 
                 # Reset context usage since we cleared the history
-                os.environ["SKYNET_CONTEXT_USAGE"] = "0.0"
+                os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
                 console.print("[green]✓ Conversation history cleared[/green]")
 
                 # Debug: Verify histories are actually cleared
-                if os.getenv("SKYNET_DEBUG", "1") == "2":
+                if os.getenv("KRYON_DEBUG", "1") == "2":
                     # Check AGENT_MANAGER
                     manager_history = AGENT_MANAGER.get_message_history(agent_name)
                     console.print(f"[dim]Debug: AGENT_MANAGER history length: {len(manager_history)}[/dim]")

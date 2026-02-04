@@ -1,5 +1,5 @@
 """
-SKYNET Anonymity - Decentralized Networks
+KRYON Anonymity - Decentralized Networks
 
 Integration with decentralized anonymous networks.
 

@@ -1,7 +1,7 @@
 """
 Cache Management Utilities
 
-CLI and programmatic tools for managing SKYNET cache system.
+CLI and programmatic tools for managing KRYON cache system.
 """
 
 import json
@@ -62,7 +62,7 @@ class CacheInspector:
         report = self.get_full_report()
 
         print("\n" + "=" * 70)
-        print("SKYNET CACHE REPORT".center(70))
+        print("KRYON CACHE REPORT".center(70))
         print("=" * 70)
 
         # Cache Statistics

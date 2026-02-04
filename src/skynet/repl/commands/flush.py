@@ -1,5 +1,5 @@
 """
-Flush command for SKYNET REPL.
+Flush command for KRYON REPL.
 This module provides commands for clearing conversation history.
 """
 
@@ -57,7 +57,7 @@ class FlushCommand(Command):
     def handle_current_agent(self) -> bool:
         """Clear history for the current agent."""
         # Try to get current agent name from environment or default
-        current_agent = os.getenv("SKYNET_CURRENT_AGENT", "Current Agent")
+        current_agent = os.getenv("KRYON_CURRENT_AGENT", "Current Agent")
 
         try:
             from skynet.sdk.agents.models.openai_chatcompletions import (
@@ -494,13 +494,13 @@ class FlushCommand(Command):
         return self.handle_current_agent()
 
     def _get_client(self):
-        """Get the SKYNET client from the global namespace.
+        """Get the KRYON client from the global namespace.
 
         This function avoids circular imports by accessing the client
         at runtime instead of import time.
 
         Returns:
-            The global SKYNET client instance or None if not available
+            The global KRYON client instance or None if not available
         """
         try:
             # Import here to avoid circular import

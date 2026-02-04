@@ -13,7 +13,7 @@ SPECIALIZATION: HTML Reports, Executive Summaries, Technical Documentation
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-Intel Reporter represents SKYNET's specialized intelligence documentation unit,
+Intel Reporter represents KRYON's specialized intelligence documentation unit,
 designed to transform raw operational data and reconnaissance findings into
 professional, actionable security assessment reports. Generates comprehensive
 HTML documentation that presents technical findings in both executive and
@@ -59,7 +59,7 @@ provide actionable intelligence for security improvement.
 
 INTEL DESIGNATION:
 Specialized in transforming raw operational data into professional intelligence
-documentation - the unit that ensures SKYNET's findings are properly recorded
+documentation - the unit that ensures KRYON's findings are properly recorded
 and communicated.
 """
 
@@ -78,7 +78,7 @@ from skynet.tools.reconnaissance.generic_linux_command import (  # pylint: disab
 from skynet.util import load_prompt_template
 
 load_dotenv()
-model_name = os.getenv("SKYNET_MODEL", "gpt-4o")
+model_name = os.getenv("KRYON_MODEL", "gpt-4o")
 
 # Load Intel Reporter operational directives
 intel_reporter_system_prompt = load_prompt_template("prompts/system_reporting_agent.md")
@@ -93,7 +93,7 @@ documentation_systems = [
 intel_reporter = Agent(
     name="Intel Reporter",
     instructions=intel_reporter_system_prompt,
-    description="""Specialized intelligence documentation unit from SKYNET's Intelligence-Class
+    description="""Specialized intelligence documentation unit from KRYON's Intelligence-Class
 series. Expert in transforming raw operational data and reconnaissance findings into professional
 security assessment reports. Generates comprehensive HTML documentation with executive summaries,
 technical findings, vulnerability assessments, and remediation recommendations.

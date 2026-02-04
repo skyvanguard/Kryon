@@ -1,5 +1,5 @@
 """
-SKYNET Simple Vector Database
+KRYON Simple Vector Database
 ==============================
 
 Lightweight vector database implementation for Python 3.14 compatibility.
@@ -292,7 +292,7 @@ class VectorDatabase:
             self._client = chromadb.Client(Settings(persist_directory=str(persist_path), anonymized_telemetry=False))
 
             self._collection = self._client.get_or_create_collection(
-                name="skynet_knowledge", metadata={"description": "SKYNET knowledge base"}
+                name="skynet_knowledge", metadata={"description": "KRYON knowledge base"}
             )
             self.backend = self._collection
             self.backend_type = "chromadb"

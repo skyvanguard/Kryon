@@ -12,7 +12,7 @@ Tool Categories:
 - Runtime Instrumentation: Function hooking, SSL bypass, root detection bypass
 - Automated Testing: Comprehensive security scanning and reporting
 
-SKYNET Integration: Phase 11
+KRYON Integration: Phase 11
 """
 
 from skynet.tools.mobile.androguard import (

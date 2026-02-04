@@ -1,5 +1,5 @@
 """
-Claude/AI thinking display utilities for SKYNET.
+Claude/AI thinking display utilities for KRYON.
 
 This module provides functions for displaying AI reasoning/thinking
 processes in the terminal with Rich panels.
@@ -299,7 +299,7 @@ def detect_claude_thinking_in_stream(model_name):
 def print_claude_reasoning_simple(reasoning_content, agent_name, model_name):
     """
     Print AI reasoning content in simple mode (no Rich panels).
-    Used when SKYNET_STREAM=False.
+    Used when KRYON_STREAM=False.
 
     Args:
         reasoning_content: The reasoning/thinking text
@@ -340,7 +340,7 @@ def start_claude_thinking_if_applicable(model_name, agent_name, counter):
         The thinking context if created, None otherwise
     """
     # Only show thinking in streaming mode
-    streaming_enabled = os.getenv("SKYNET_STREAM", "false").lower() == "true"
+    streaming_enabled = os.getenv("KRYON_STREAM", "false").lower() == "true"
 
     if streaming_enabled and detect_claude_thinking_in_stream(model_name):
         return create_claude_thinking_context(agent_name, counter, model_name)

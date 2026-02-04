@@ -1,5 +1,5 @@
 """
-SKYNET Knowledge CLI
+KRYON Knowledge CLI
 ====================
 
 Command-line interface for knowledge base management.
@@ -142,7 +142,7 @@ def cmd_scrape():
 def print_help():
     """Print help message."""
     help_text = """
-SKYNET Knowledge Base CLI
+KRYON Knowledge Base CLI
 
 Usage:
   skynet-knowledge <command> [args]

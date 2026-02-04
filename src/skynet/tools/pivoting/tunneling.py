@@ -1,5 +1,5 @@
 """
-SKYNET Network Pivoting - Tunneling and Port Forwarding
+KRYON Network Pivoting - Tunneling and Port Forwarding
 
 Advanced network pivoting and tunneling tools.
 
@@ -519,7 +519,7 @@ def _generate_proxychains_config(socks_port: int) -> str:
     """Generate proxychains configuration."""
     config_path = "/tmp/skynet_proxychains.conf"
 
-    config_content = f"""# SKYNET Proxychains Configuration
+    config_content = f"""# KRYON Proxychains Configuration
 strict_chain
 proxy_dns
 tcp_read_time_out 15000

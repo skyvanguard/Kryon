@@ -1,5 +1,5 @@
 """
-SKYNET Framework - Web Security Tools Module
+KRYON Framework - Web Security Tools Module
 ============================================
 
 Advanced web application security testing and vulnerability scanning tools.

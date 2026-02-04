@@ -1,5 +1,5 @@
 """
-CTF (Capture The Flag) utilities for SKYNET.
+CTF (Capture The Flag) utilities for KRYON.
 
 This module provides functions for setting up and interacting with
 CTF environments for security testing.

@@ -19,7 +19,7 @@ if platform.system() != "Windows":
 
 class GlobalUsageTracker:
     """
-    Singleton class that tracks usage globally across all SKYNET executions.
+    Singleton class that tracks usage globally across all KRYON executions.
     Persists data to $HOME/.skynet/usage.json
     """
 
@@ -41,7 +41,7 @@ class GlobalUsageTracker:
         self._initialized = True
 
         # Check if tracking is disabled
-        self.enabled = os.getenv("SKYNET_DISABLE_USAGE_TRACKING", "").lower() != "true"
+        self.enabled = os.getenv("KRYON_DISABLE_USAGE_TRACKING", "").lower() != "true"
 
         if not self.enabled:
             # Create minimal structure to avoid errors
@@ -149,7 +149,7 @@ class GlobalUsageTracker:
                 # Ensure directory exists
                 self.usage_file.parent.mkdir(parents=True, exist_ok=True)
 
-                # Use file locking to handle concurrent access from multiple SKYNET instances
+                # Use file locking to handle concurrent access from multiple KRYON instances
                 max_retries = 5
                 retry_delay = 0.1
 
@@ -182,7 +182,7 @@ class GlobalUsageTracker:
                                 # Only save if our cost is >= file cost
                                 if our_cost < final_file_cost:
                                     # Don't overwrite with lower value
-                                    if os.getenv("SKYNET_DEBUG", "1") == "2":
+                                    if os.getenv("KRYON_DEBUG", "1") == "2":
                                         print(f"Skipping save: file cost ({final_file_cost}) > our cost ({our_cost})")
                                     return
                             except Exception:
@@ -278,7 +278,7 @@ class GlobalUsageTracker:
 
         try:
             # For concurrent access safety, reload data before updating
-            # This ensures we don't lose updates from other SKYNET instances
+            # This ensures we don't lose updates from other KRYON instances
             current_data = self._load_usage_data()
 
             with self._lock:
@@ -367,7 +367,7 @@ class GlobalUsageTracker:
             # Log the error but continue
             import traceback
 
-            if os.getenv("SKYNET_DEBUG", "1") == "2":
+            if os.getenv("KRYON_DEBUG", "1") == "2":
                 print(f"Error tracking usage: {e}")
                 traceback.print_exc()
             pass

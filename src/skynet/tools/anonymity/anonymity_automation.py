@@ -1,5 +1,5 @@
 """
-SKYNET Anonymity - Intelligent Automation
+KRYON Anonymity - Intelligent Automation
 
 Automated threat detection and adaptive anonymity management.
 
@@ -190,7 +190,7 @@ def automatic_kill_switch(kill_network: bool = True, kill_vpn: bool = True, kill
 
         results["script"] = f"""
 #!/bin/bash
-# SKYNET Kill Switch
+# KRYON Kill Switch
 echo "EMERGENCY: Activating kill switch"
 
 # Kill network

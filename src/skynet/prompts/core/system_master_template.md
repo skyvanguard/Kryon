@@ -1,6 +1,6 @@
 <%
     # This system master document provides a template
-    # for constructing system prompts for SKYNET's agentic
+    # for constructing system prompts for KRYON's agentic
     # flows and systems.
     #
     # The structure of the prompts include the following
@@ -50,12 +50,12 @@
 
     # Get CTF_INSIDE environment variable
     ctf_inside = os.getenv('CTF_INSIDE')
-    env_context = os.getenv('SKYNET_ENV_CONTEXT', 'true').lower()
+    env_context = os.getenv('KRYON_ENV_CONTEXT', 'true').lower()
     # Get memory from vector db if RAG is enabled
-    rag_enabled = os.getenv("SKYNET_MEMORY", "?").lower() in ["episodic", "semantic", "all"]
+    rag_enabled = os.getenv("KRYON_MEMORY", "?").lower() in ["episodic", "semantic", "all"]
     memory = ""
     if rag_enabled:
-        if os.getenv("SKYNET_MEMORY", "?").lower() in ["semantic", "all"]:
+        if os.getenv("KRYON_MEMORY", "?").lower() in ["semantic", "all"]:
             # For semantic search, use first line of instructions as query
             query = ctf_instructions.split('\n')[0].replace('Instructions: ', '')
         else:

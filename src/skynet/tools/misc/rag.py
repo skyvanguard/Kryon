@@ -11,7 +11,7 @@ from skynet.rag.vector_db import QdrantConnector
 from skynet.sdk.agents import function_tool
 
 # CTF BASED MEMORY
-collection_name = os.getenv("SKYNET_MEMORY_COLLECTION", "default")
+collection_name = os.getenv("KRYON_MEMORY_COLLECTION", "default")
 
 
 @function_tool

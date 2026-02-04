@@ -1,5 +1,5 @@
 """
-Visualization utilities for SKYNET.
+Visualization utilities for KRYON.
 
 This module provides functions for visualizing agent graphs and relationships.
 """

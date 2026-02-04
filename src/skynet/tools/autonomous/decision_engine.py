@@ -1,5 +1,5 @@
 """
-SKYNET Decision Engine
+KRYON Decision Engine
 ======================
 
 Intelligent exploit selection and prioritization for autonomous operations.

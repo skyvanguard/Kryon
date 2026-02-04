@@ -1,5 +1,5 @@
 """
-Cost command for SKYNET REPL.
+Cost command for KRYON REPL.
 This module provides commands for viewing usage costs and statistics.
 """
 
@@ -71,7 +71,7 @@ class CostCommand(Command):
 
     def handle_summary(self, args: Optional[list[str]] = None) -> bool:
         """Display cost summary including current session and global totals."""
-        console.print("\n[bold cyan]💰 SKYNET Usage Cost Summary[/bold cyan]")
+        console.print("\n[bold cyan]💰 KRYON Usage Cost Summary[/bold cyan]")
         console.print("=" * 40)
 
         # Current Session Panel
@@ -146,7 +146,7 @@ class CostCommand(Command):
 
         if not GLOBAL_USAGE_TRACKER.enabled:
             lines.append("[yellow]Usage tracking is disabled[/yellow]")
-            lines.append("[dim]Set SKYNET_DISABLE_USAGE_TRACKING=false to enable[/dim]")
+            lines.append("[dim]Set KRYON_DISABLE_USAGE_TRACKING=false to enable[/dim]")
             return "\n".join(lines)
 
         summary = GLOBAL_USAGE_TRACKER.get_summary()

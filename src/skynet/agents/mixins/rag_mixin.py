@@ -1,8 +1,8 @@
 """
-RAG Mixin for SKYNET Agents
+RAG Mixin for KRYON Agents
 ============================
 
-Mixin class to add RAG capabilities to any SKYNET agent.
+Mixin class to add RAG capabilities to any KRYON agent.
 """
 
 from typing import Any, Optional

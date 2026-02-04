@@ -1,5 +1,5 @@
 """
-SKYNET Password Cracking - Password Analysis and Wordlist Generation
+KRYON Password Cracking - Password Analysis and Wordlist Generation
 
 Intelligent password analysis and custom wordlist generation.
 

@@ -1,5 +1,5 @@
 """
-SKYNET Command & Control - Payload Delivery System
+KRYON Command & Control - Payload Delivery System
 
 Multi-vector payload delivery for post-exploitation operations.
 
@@ -683,7 +683,7 @@ def detect_sandbox(checks: list[str] = None) -> dict[str, Any]:
     try:
         code_parts = []
 
-        code_parts.append("# SKYNET Sandbox Detection\n")
+        code_parts.append("# KRYON Sandbox Detection\n")
 
         if "vm" in checks:
             code_parts.append("""

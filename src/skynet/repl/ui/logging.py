@@ -1,5 +1,5 @@
 """
-Module for SKYNET REPL session logging.
+Module for KRYON REPL session logging.
 """
 
 from pathlib import Path

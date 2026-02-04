@@ -1,5 +1,5 @@
 """
-Run command for SKYNET CLI - Execute queued prompts in parallel mode.
+Run command for KRYON CLI - Execute queued prompts in parallel mode.
 
 This command is specifically for parallel mode, allowing users to
 queue prompts for different agents and then execute them all.
@@ -43,7 +43,7 @@ class RunCommand(Command):
         Returns:
             True if the command was handled successfully
         """
-        parallel_count = int(os.getenv("SKYNET_PARALLEL", "1"))
+        parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
         if parallel_count < 2:
             console.print("[red]Error: /run command is only available in parallel mode[/red]")
             console.print("[yellow]Enable parallel mode first with appropriate environment variables[/yellow]")

@@ -2,7 +2,7 @@
 Agent Registry - Centralized management of agent instances and IDs.
 
 This module provides a clean, centralized way to manage agent instances,
-their IDs, and their display names throughout the SKYNET system.
+their IDs, and their display names throughout the KRYON system.
 """
 
 import weakref

@@ -160,8 +160,8 @@ SESSION_OUTPUT_COUNTER = {}
 
 def _get_workspace_dir() -> str:
     """Determines the target workspace directory based on env vars for host."""
-    base_dir_env = os.getenv("SKYNET_WORKSPACE_DIR")
-    workspace_name = os.getenv("SKYNET_WORKSPACE")
+    base_dir_env = os.getenv("KRYON_WORKSPACE_DIR")
+    workspace_name = os.getenv("KRYON_WORKSPACE")
 
     # Determine the base directory
     if base_dir_env:
@@ -177,7 +177,7 @@ def _get_workspace_dir() -> str:
         if not all(c.isalnum() or c in ["_", "-"] for c in workspace_name):
             print(
                 color(
-                    f"Invalid SKYNET_WORKSPACE name '{workspace_name}'. Using directory '{base_dir}' instead.",
+                    f"Invalid KRYON_WORKSPACE name '{workspace_name}'. Using directory '{base_dir}' instead.",
                     fg="yellow",
                 )
             )
@@ -205,17 +205,17 @@ def _get_workspace_dir() -> str:
 
 def _get_container_workspace_path() -> str:
     """Determines the target workspace path inside the container."""
-    workspace_name = os.getenv("SKYNET_WORKSPACE")
+    workspace_name = os.getenv("KRYON_WORKSPACE")
     if workspace_name:
         if not all(c.isalnum() or c in ["_", "-"] for c in workspace_name):
             print(
                 color(
-                    f"Invalid SKYNET_WORKSPACE name '{workspace_name}' for container. Using '/workspace'.",
+                    f"Invalid KRYON_WORKSPACE name '{workspace_name}' for container. Using '/workspace'.",
                     fg="yellow",
                 )
             )
             return "/"
-        # Standard path inside SKYNET containers
+        # Standard path inside KRYON containers
         return f"/workspace/workspaces/{workspace_name}"
     else:
         return "/"
@@ -877,13 +877,13 @@ async def _run_local_async(
             if token_info and token_info.get("agent_id"):
                 agent_id = token_info.get("agent_id")
                 if agent_id and agent_id.startswith("P") and agent_id[1:].isdigit():
-                    # Check SKYNET_PARALLEL to confirm
-                    if int(os.getenv("SKYNET_PARALLEL", "1")) > 1:
+                    # Check KRYON_PARALLEL to confirm
+                    if int(os.getenv("KRYON_PARALLEL", "1")) > 1:
                         is_parallel = True
 
             # NEVER display panels in non-streaming mode
-            # The SDK will handle ALL display when SKYNET_STREAM=false
-            streaming_enabled = os.getenv("SKYNET_STREAM", "false").lower() == "true"
+            # The SDK will handle ALL display when KRYON_STREAM=false
+            streaming_enabled = os.getenv("KRYON_STREAM", "false").lower() == "true"
 
             # Only display panels if we're in streaming mode or parallel mode
             # In streaming mode, the Live panels are handled by the streaming system
@@ -1172,12 +1172,12 @@ async def _run_docker_async(
             if token_info and token_info.get("agent_id"):
                 agent_id = token_info.get("agent_id")
                 if agent_id and agent_id.startswith("P") and agent_id[1:].isdigit():
-                    if int(os.getenv("SKYNET_PARALLEL", "1")) > 1:
+                    if int(os.getenv("KRYON_PARALLEL", "1")) > 1:
                         is_parallel = True
 
             # NEVER display panels in non-streaming mode
-            # The SDK will handle ALL display when SKYNET_STREAM=false
-            streaming_enabled = os.getenv("SKYNET_STREAM", "false").lower() == "true"
+            # The SDK will handle ALL display when KRYON_STREAM=false
+            streaming_enabled = os.getenv("KRYON_STREAM", "false").lower() == "true"
 
             # Only display if we're in streaming mode AND parallel mode
             if streaming_enabled and is_parallel:
@@ -1393,13 +1393,13 @@ def _run_local(
             if token_info and token_info.get("agent_id"):
                 agent_id = token_info.get("agent_id")
                 if agent_id and agent_id.startswith("P") and agent_id[1:].isdigit():
-                    # Check SKYNET_PARALLEL to confirm
-                    if int(os.getenv("SKYNET_PARALLEL", "1")) > 1:
+                    # Check KRYON_PARALLEL to confirm
+                    if int(os.getenv("KRYON_PARALLEL", "1")) > 1:
                         is_parallel = True
 
             # NEVER display panels in non-streaming mode
-            # The SDK will handle ALL display when SKYNET_STREAM=false
-            streaming_enabled = os.getenv("SKYNET_STREAM", "false").lower() == "true"
+            # The SDK will handle ALL display when KRYON_STREAM=false
+            streaming_enabled = os.getenv("KRYON_STREAM", "false").lower() == "true"
 
             # Only display if we're in streaming mode AND parallel mode
             if streaming_enabled and is_parallel:
@@ -1617,7 +1617,7 @@ async def run_command_async(
         return await loop.run_in_executor(None, func)
 
     # Check execution environment priority
-    active_container = os.getenv("SKYNET_ACTIVE_CONTAINER", "")
+    active_container = os.getenv("KRYON_ACTIVE_CONTAINER", "")
     is_ssh_env = all(os.getenv(var) for var in ["SSH_USER", "SSH_HOST"])
 
     # For container execution, use async subprocess
@@ -1839,7 +1839,7 @@ def run_command(
                 return f"Command sent to session {label}. No output captured."
 
         # 2. Determine Execution Environment (Container > CTF > SSH > Local)
-        active_container = os.getenv("SKYNET_ACTIVE_CONTAINER", "")
+        active_container = os.getenv("KRYON_ACTIVE_CONTAINER", "")
         is_ssh_env = all(os.getenv(var) for var in ["SSH_USER", "SSH_HOST"])
 
         # --- Docker Container Execution ---
@@ -2159,12 +2159,12 @@ def run_command(
                     if token_info and token_info.get("agent_id"):
                         agent_id = token_info.get("agent_id")
                         if agent_id and agent_id.startswith("P") and agent_id[1:].isdigit():
-                            if int(os.getenv("SKYNET_PARALLEL", "1")) > 1:
+                            if int(os.getenv("KRYON_PARALLEL", "1")) > 1:
                                 is_parallel = True
 
                     # NEVER display panels in non-streaming mode
-                    # The SDK will handle ALL display when SKYNET_STREAM=false
-                    streaming_enabled = os.getenv("SKYNET_STREAM", "false").lower() == "true"
+                    # The SDK will handle ALL display when KRYON_STREAM=false
+                    streaming_enabled = os.getenv("KRYON_STREAM", "false").lower() == "true"
 
                     # Only display if we're in streaming mode AND parallel mode
                     if streaming_enabled and is_parallel:

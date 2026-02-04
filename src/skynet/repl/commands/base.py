@@ -1,6 +1,6 @@
 """
-Base module for SKYNET REPL commands.
-This module provides the base structure for all commands in the SKYNET REPL.
+Base module for KRYON REPL commands.
+This module provides the base structure for all commands in the KRYON REPL.
 """
 
 from typing import Any, Callable, Optional

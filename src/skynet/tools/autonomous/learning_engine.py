@@ -1,5 +1,5 @@
 """
-SKYNET Learning Engine - Autonomous Learning System
+KRYON Learning Engine - Autonomous Learning System
 ===================================================
 
 Machine learning system that records operations, identifies patterns,

@@ -1,11 +1,11 @@
 """
-SKYNET Anonymity - Integration Wrappers
+KRYON Anonymity - Integration Wrappers
 
-Automatic anonymity integration for existing SKYNET functions.
+Automatic anonymity integration for existing KRYON functions.
 
 Clearance Level: Omega-Shadow (Maximum Anonymity Operations Authority)
 Specialization: Transparent anonymity injection
-Mission: Make all SKYNET operations anonymous by default
+Mission: Make all KRYON operations anonymous by default
 
 This module provides:
 - Decorators for automatic anonymity

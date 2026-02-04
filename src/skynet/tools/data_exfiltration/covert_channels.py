@@ -1,5 +1,5 @@
 """
-SKYNET Covert Channel Exfiltration Module
+KRYON Covert Channel Exfiltration Module
 ==========================================
 
 Implements covert channels for data exfiltration including DNS, HTTP, ICMP.

@@ -1,5 +1,5 @@
 """
-Graph command for SKYNET CLI.
+Graph command for KRYON CLI.
 
 This module provides commands for visualizing the agent interaction graph.
 It allows users to display a simple directed graph of the conversation history,
@@ -101,7 +101,7 @@ class GraphCommand(Command):
     def handle_graph_show(self) -> bool:
         """Handle /graph show command - now supports multi-agent conversations"""
         # Check if we're in parallel mode first
-        parallel_count = int(os.getenv("SKYNET_PARALLEL", "1"))
+        parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
 
         # Also check if we have parallel configs even if not in active parallel mode
         from skynet.repl.commands.parallel import PARALLEL_CONFIGS
@@ -1017,7 +1017,7 @@ class GraphCommand(Command):
 
             elif format_type == "dot":
                 # Export as Graphviz DOT format
-                dot_content = ["digraph SKYNET_Conversations {"]
+                dot_content = ["digraph KRYON_Conversations {"]
                 dot_content.append("  rankdir=TB;")
                 dot_content.append("  node [shape=box];")
 

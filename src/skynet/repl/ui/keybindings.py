@@ -1,5 +1,5 @@
 """
-Module for SKYNET REPL key bindings.
+Module for KRYON REPL key bindings.
 """
 
 import os

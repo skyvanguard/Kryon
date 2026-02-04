@@ -1,5 +1,5 @@
 """
-SKYNET Data Exfiltration Tools Module
+KRYON Data Exfiltration Tools Module
 ======================================
 
 This module provides data exfiltration capabilities using various covert channels.

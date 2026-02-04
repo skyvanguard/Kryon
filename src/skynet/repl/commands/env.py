@@ -1,5 +1,5 @@
 """
-Environment command for SKYNET REPL.
+Environment command for KRYON REPL.
 This module provides commands for displaying environment variables.
 """
 
@@ -37,16 +37,16 @@ class EnvCommand(Command):
         return self.handle_env_command()
 
     def handle_env_command(self) -> bool:
-        """Display environment variables starting with SKYNET or CTF.
+        """Display environment variables starting with KRYON or CTF.
 
         Returns:
             bool: True if the command was executed successfully
         """
         # Get all environment variables
-        env_vars = {k: v for k, v in os.environ.items() if k.startswith(("SKYNET_", "CTF_"))}
+        env_vars = {k: v for k, v in os.environ.items() if k.startswith(("KRYON_", "CTF_"))}
 
         if not env_vars:
-            console.print("[yellow]No SKYNET_ or CTF_ environment variables found[/yellow]")
+            console.print("[yellow]No KRYON_ or CTF_ environment variables found[/yellow]")
             return True
 
         # Create a table to display the variables

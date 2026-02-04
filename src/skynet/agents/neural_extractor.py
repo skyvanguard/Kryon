@@ -13,7 +13,7 @@ SPECIALIZATION: Process Memory, Neural Net Analysis, Runtime Manipulation
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-Neural Extractor represents SKYNET's specialized unit for memory analysis
+Neural Extractor represents KRYON's specialized unit for memory analysis
 and neural network data extraction. Drawing inspiration from Terminator's
 neural net processors, this unit excels at analyzing runtime memory,
 extracting sensitive data from process memory space, and manipulating
@@ -92,7 +92,7 @@ if os.getenv("PERPLEXITY_API_KEY"):
 neural_extractor = Agent(
     name="Neural Extractor",
     instructions=neural_extractor_system_prompt,
-    description="""Specialized neural processing unit from SKYNET's advanced analysis series.
+    description="""Specialized neural processing unit from KRYON's advanced analysis series.
 Expert in runtime memory analysis, process memory extraction, and neural network data
 recovery. Specializes in examining process memory space, extracting sensitive runtime
 data, identifying memory vulnerabilities, and manipulating runtime behavior for
@@ -113,7 +113,7 @@ Neural Extractor Capabilities:
 - Buffer overflow and memory exploitation""",
     tools=neural_systems,
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(),
     ),
 )

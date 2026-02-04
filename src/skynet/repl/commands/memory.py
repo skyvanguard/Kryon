@@ -1,5 +1,5 @@
 """
-Memory command for SKYNET REPL.
+Memory command for KRYON REPL.
 Manages memory storage in .skynet/memory for persistent context.
 """
 
@@ -435,7 +435,7 @@ class MemoryCommand(Command):
 ID: {memory_id}
 Generated: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 Agent: {agent_name}
-Model: {get_compact_model() or os.environ.get("SKYNET_MODEL", "gpt-4")}
+Model: {get_compact_model() or os.environ.get("KRYON_MODEL", "gpt-4")}
 
 {summary}
 
@@ -460,7 +460,7 @@ Model: {get_compact_model() or os.environ.get("SKYNET_MODEL", "gpt-4")}
             COMPACTED_SUMMARIES[agent_name] = [summary]
             APPLIED_MEMORY_IDS[agent_name] = [memory_id]
             console.print(f"[green]✓ Memory {memory_id} automatically applied to {agent_name}'s system prompt[/green]")
-            os.environ["SKYNET_MEMORY"] = "true"
+            os.environ["KRYON_MEMORY"] = "true"
 
             # Reload the agent with the new memory
             self._reload_agent_with_memory(agent_name, preserve_history=preserve_history)
@@ -602,7 +602,7 @@ Model: {get_compact_model() or os.environ.get("SKYNET_MODEL", "gpt-4")}
                 console.print(f"[red]Error applying memory to {agent_name}: {e}[/red]")
 
         if success_count > 0:
-            os.environ["SKYNET_MEMORY"] = "true"
+            os.environ["KRYON_MEMORY"] = "true"
             console.print("[dim]The memory will be included in the agents' system prompts[/dim]")
 
             # Show summary with ID if available (only once)
@@ -951,7 +951,7 @@ Model: Merged from {len(memory_identifiers)} memories
 ID: {memory_id}
 Generated: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 Agent: {agent_name}
-Model: {get_compact_model() or os.environ.get("SKYNET_MODEL", "gpt-4")}
+Model: {get_compact_model() or os.environ.get("KRYON_MODEL", "gpt-4")}
 
 {summary}
 
@@ -965,7 +965,7 @@ Model: {get_compact_model() or os.environ.get("SKYNET_MODEL", "gpt-4")}
                 # Register the memory in the index
                 self._register_memory(memory_id, memory_name)
 
-                os.environ["SKYNET_MEMORY"] = "true"
+                os.environ["KRYON_MEMORY"] = "true"
                 console.print(f"[green]✓ Saved memory: {memory_name} (ID: {memory_id})[/green]")
 
                 # Automatically apply the memory to the agent's system prompt
@@ -1003,7 +1003,7 @@ Model: {get_compact_model() or os.environ.get("SKYNET_MODEL", "gpt-4")}
                     # Try to get from environment
                     import os
 
-                    agent_type = os.getenv("SKYNET_AGENT_TYPE", "t600_scout")
+                    agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
                     from skynet.agents import get_available_agents
 
                     agents = get_available_agents()
@@ -1059,7 +1059,7 @@ Model: {get_compact_model() or os.environ.get("SKYNET_MODEL", "gpt-4")}
 ID: {memory_id}
 Generated: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 Agent: {agent_name}
-Model: {get_compact_model() or os.environ.get("SKYNET_MODEL", "gpt-4")}
+Model: {get_compact_model() or os.environ.get("KRYON_MODEL", "gpt-4")}
 
 {summary}
 
@@ -1074,7 +1074,7 @@ Model: {get_compact_model() or os.environ.get("SKYNET_MODEL", "gpt-4")}
             self._register_memory(memory_id, memory_name)
 
             console.print(f"[green]✓ Saved memory: {memory_name} (ID: {memory_id})[/green]")
-            os.environ["SKYNET_MEMORY"] = "true"
+            os.environ["KRYON_MEMORY"] = "true"
             # Automatically apply the memory to the agent's system prompt
             if agent_name not in COMPACTED_SUMMARIES:
                 COMPACTED_SUMMARIES[agent_name] = []
@@ -1122,7 +1122,7 @@ Model: {get_compact_model() or os.environ.get("SKYNET_MODEL", "gpt-4")}
             # Clear the model's message history
             model_instance.message_history.clear()
             # Reset context usage since we cleared the history
-            os.environ["SKYNET_CONTEXT_USAGE"] = "0.0"
+            os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
 
         # Also clear persistent history
         if agent_name in PERSISTENT_MESSAGE_HISTORIES:
@@ -1153,7 +1153,7 @@ Model: {get_compact_model() or os.environ.get("SKYNET_MODEL", "gpt-4")}
         from skynet.repl.commands.compact import get_compact_model, get_custom_prompt
 
         # Create summary agent
-        model_name = get_compact_model() or os.environ.get("SKYNET_MODEL", "gpt-4o")
+        model_name = get_compact_model() or os.environ.get("KRYON_MODEL", "gpt-4o")
 
         # Use custom prompt if set, otherwise use default
         custom_prompt = get_custom_prompt()
@@ -1318,7 +1318,7 @@ This session is being continued from a previous conversation that ran out of con
                 # If agent doesn't have a name attribute, try to get from environment
                 import os
 
-                agent_type = os.getenv("SKYNET_AGENT_TYPE", "t600_scout")
+                agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
                 from skynet.agents import get_available_agents
 
                 agents = get_available_agents()
@@ -1345,7 +1345,7 @@ This session is being continued from a previous conversation that ran out of con
         # Try to get from environment and available agents
         import os
 
-        agent_type = os.getenv("SKYNET_AGENT_TYPE", "t600_scout")
+        agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
         from skynet.agents import get_available_agents
 
         agents = get_available_agents()

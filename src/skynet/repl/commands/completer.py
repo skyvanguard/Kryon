@@ -1,5 +1,5 @@
 """
-Command completer for SKYNET REPL.
+Command completer for KRYON REPL.
 This module provides a fuzzy command completer with autocompletion menu and
 command shadowing.
 """

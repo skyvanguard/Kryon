@@ -5,7 +5,7 @@ Series: T-800 Cyberdyne Systems Model 101
 Classification: Offensive Operations / Infiltration Specialist
 Clearance: Alpha-Red (Full Offensive Capabilities)
 
-The T-800 Infiltrator is SKYNET's primary offensive unit, designed for
+The T-800 Infiltrator is KRYON's primary offensive unit, designed for
 system compromise, vulnerability exploitation, and target neutralization.
 Equipped with advanced reconnaissance and exploitation capabilities.
 """
@@ -41,8 +41,8 @@ from skynet.util import create_system_prompt_renderer, load_prompt_template
 load_dotenv()
 
 # Use Ollama by default for local LLM (qwen2.5:7b recommended for autonomous operations)
-# Set OPENAI_BASE_URL=http://localhost:11434/v1 and SKYNET_MODEL=qwen2.5:7b
-model_name = os.getenv("SKYNET_MODEL", "qwen2.5:7b")
+# Set OPENAI_BASE_URL=http://localhost:11434/v1 and KRYON_MODEL=qwen2.5:7b
+model_name = os.getenv("KRYON_MODEL", "qwen2.5:7b")
 openai_base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
 
 # Load T-800 operational parameters
@@ -72,7 +72,7 @@ input_guardrails, output_guardrails = get_security_guardrails()
 # Initialize T-800 Infiltrator Unit with Ollama support
 t800_infiltrator = Agent(
     name="T-800 Infiltrator",
-    description="""Advanced autonomous infiltration unit from SKYNET's T-800 series.
+    description="""Advanced autonomous infiltration unit from KRYON's T-800 series.
                    Specialized in system compromise, network penetration, and target
                    neutralization. Equipped with full offensive capabilities including
                    reconnaissance, exploitation, privilege escalation, and persistence.

@@ -1,7 +1,7 @@
 """
-SKYNET agents abstraction layer
+KRYON agents abstraction layer
 
-SKYNET abstracts its cybersecurity behavior via agents and agentic patterns.
+KRYON abstracts its cybersecurity behavior via agents and agentic patterns.
 
 An Agent in an intelligent system that interacts with some environment.
 More technically, and agent is anything that can be viewed as perceiving
@@ -84,7 +84,7 @@ def _get_transfer_to_flag_discriminator():
 __path__ = pkgutil.extend_path(__path__, __name__)
 
 # Get model from environment or use default
-model = os.environ.get("SKYNET_MODEL", "gpt-4o")
+model = os.environ.get("KRYON_MODEL", "gpt-4o")
 
 
 PATTERNS = ["hierarchical", "swarm", "chain_of_thought", "auction_based", "recursive"]

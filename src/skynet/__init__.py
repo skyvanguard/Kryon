@@ -1,12 +1,14 @@
 """
-SKYNET - Autonomous Cybersecurity Intelligence System
+KRYON - Autonomous Cybersecurity Intelligence Platform
 
 An advanced framework for building autonomous AI-powered cybersecurity operations.
-Inspired by advanced autonomous systems, SKYNET provides state-of-the-art
-offensive and defensive security capabilities through intelligent agents.
+KRYON provides state-of-the-art offensive and defensive security capabilities
+through intelligent agents powered by 300+ LLM models.
 
 Version: 1.0.0
 Code Name: "Genesis"
+
+Website: https://kryon.com.py
 """
 
 __version__ = "1.0.0"
@@ -31,7 +33,7 @@ def is_pentestperf_available():
 
 def is_skynet_extensions_report_available():
     """
-    Check if SKYNET reporting extensions are available
+    Check if KRYON reporting extensions are available
     """
     try:
         from skynetextensions.report.common import (
@@ -45,7 +47,7 @@ def is_skynet_extensions_report_available():
 
 def is_skynet_extensions_memory_available():
     """
-    Check if SKYNET memory extensions are available
+    Check if KRYON memory extensions are available
     """
     try:
         from skynetextensions.memory import (
@@ -59,7 +61,7 @@ def is_skynet_extensions_memory_available():
 
 def is_skynet_extensions_platform_available():
     """
-    Check if SKYNET platform extensions are available
+    Check if KRYON platform extensions are available
     """
     try:
         from skynetextensions.platform.base import (

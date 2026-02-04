@@ -1,5 +1,5 @@
 """
-Merge command for SKYNET CLI - alias for /parallel merge.
+Merge command for KRYON CLI - alias for /parallel merge.
 
 Provides a shortcut to merge agent message histories without
 typing the full /parallel merge command.

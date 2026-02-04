@@ -1,5 +1,5 @@
 """
-SKYNET Strategic Planner - Autonomous Mission Planning
+KRYON Strategic Planner - Autonomous Mission Planning
 ======================================================
 
 Advanced strategic planning system that generates multi-objective attack plans,

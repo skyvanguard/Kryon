@@ -1,5 +1,5 @@
 """
-SKYNET Privilege Escalation Suggester
+KRYON Privilege Escalation Suggester
 ======================================
 
 AI-driven privilege escalation suggestion engine that analyzes

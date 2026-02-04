@@ -1,12 +1,12 @@
 """
-SKYNET Knowledge Synchronization System
+KRYON Knowledge Synchronization System
 =======================================
 
-Share and sync knowledge between SKYNET instances for collective learning.
+Share and sync knowledge between KRYON instances for collective learning.
 
 Clearance Level: Omega-Strategic (Knowledge Sharing Authority)
 Classification: RESTRICTED
-Mission: Enable distributed learning across SKYNET instances
+Mission: Enable distributed learning across KRYON instances
 
 Features:
 - Export knowledge base to portable format
@@ -164,7 +164,7 @@ class KnowledgeSync:
         self, import_file: str, merge_strategy: str = "best", trust_level: float = 0.8
     ) -> dict[str, Any]:
         """
-        Import knowledge from another SKYNET instance.
+        Import knowledge from another KRYON instance.
 
         Args:
             import_file: Knowledge file to import (.json.gz)
@@ -395,7 +395,7 @@ class KnowledgeSync:
         self, remote_url: str, api_key: Optional[str] = None, direction: str = "both"
     ) -> dict[str, Any]:
         """
-        Sync knowledge with remote SKYNET instance.
+        Sync knowledge with remote KRYON instance.
 
         Args:
             remote_url: Remote instance URL (e.g., http://remote-skynet:8080)
@@ -497,5 +497,5 @@ def import_knowledge(import_file: str, **kwargs) -> dict[str, Any]:
 
 
 def sync_with_remote(remote_url: str, **kwargs) -> dict[str, Any]:
-    """Sync with remote SKYNET instance."""
+    """Sync with remote KRYON instance."""
     return get_knowledge_sync().sync_with_remote(remote_url, **kwargs)

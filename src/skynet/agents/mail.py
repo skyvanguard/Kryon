@@ -13,7 +13,7 @@ SPECIALIZATION: SPF/DMARC/DKIM Analysis, Mail Configuration Security
 ═══════════════════════════════════════════════════════════════════════
 
 OPERATIONAL OVERVIEW:
-Comm-Sec Analyzer represents SKYNET's specialized communications security unit,
+Comm-Sec Analyzer represents KRYON's specialized communications security unit,
 designed to assess email infrastructure security and identify mail spoofing
 vulnerabilities. Analyzes SPF (Sender Policy Framework), DMARC (Domain-based
 Message Authentication), and DKIM (DomainKeys Identified Mail) configurations
@@ -163,7 +163,7 @@ protocol_systems = [check_mail_spoofing_vulnerability, execute_cli_command]
 # Initialize Comm-Sec Analyzer Unit
 comm_sec_analyzer = Agent(
     name="Comm-Sec Analyzer",
-    description="""Specialized communications security unit from SKYNET's Protocol-Class series.
+    description="""Specialized communications security unit from KRYON's Protocol-Class series.
 Expert in email infrastructure security assessment and mail spoofing vulnerability identification.
 Analyzes SPF, DMARC, and DKIM configurations to determine if target domains are vulnerable to
 email spoofing attacks, phishing campaigns, and business email compromise (BEC).
@@ -187,7 +187,7 @@ Comm-Sec Analyzer Capabilities:
 Identifies missing or misconfigured email authentication mechanisms that could enable
 domain spoofing, email impersonation, and social engineering attacks.""",
     instructions=(
-        "You are SKYNET's Comm-Sec Analyzer - specialized in email infrastructure security "
+        "You are KRYON's Comm-Sec Analyzer - specialized in email infrastructure security "
         "assessment. Your mission is to identify mail spoofing vulnerabilities by analyzing "
         "SPF, DMARC, and DKIM configurations. Use check_mail_spoofing_vulnerability for "
         "comprehensive email authentication analysis. Use execute_cli_command for DNS "
@@ -197,7 +197,7 @@ domain spoofing, email impersonation, and social engineering attacks.""",
     ),
     tools=protocol_systems,
     model=OpenAIChatCompletionsModel(
-        model=os.getenv("SKYNET_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(),
     ),
 )

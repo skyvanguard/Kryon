@@ -1,5 +1,5 @@
 """
-SKYNET Agent Mixins
+KRYON Agent Mixins
 ===================
 
 Reusable mixins for enhancing agents with additional capabilities.

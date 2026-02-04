@@ -27,7 +27,7 @@ def create_reasoner_agent(
     Args:
         name: The name of the reasoner agent.
         model: The model to use for the reasoner agent. If None,
-               uses the SKYNET_SUPPORT_MODEL environment variable or
+               uses the KRYON_SUPPORT_MODEL environment variable or
                falls back to the default model.
         instructions: Custom instructions for the reasoner agent.
                      If None, uses default reasoning instructions.
@@ -37,7 +37,7 @@ def create_reasoner_agent(
     """
     # Use environment variable for model if not specified
     if model is None:
-        model = os.getenv("SKYNET_SUPPORT_MODEL", "o3-mini")
+        model = os.getenv("KRYON_SUPPORT_MODEL", "o3-mini")
 
     # Default instructions for the reasoner agent
     default_instructions = load_prompt_template("prompts/system_reasoner_supporter.md")

@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta de Rebrand - Nueva Identidad Corporativa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+        * { font-family: 'Inter', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-5px);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .name-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .name-card:hover {
+            transform: scale(1.02);
+        }
+
+        .name-card.selected {
+            border-color: #6366f1;
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
+        }
+
+        .tab-btn {
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: #6366f1;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .stat-bar {
+            transition: width 1s ease;
+        }
+
+        /* Logo Preview Styles */
+        .logo-preview {
+            transition: all 0.3s ease;
+        }
+
+        .logo-preview:hover {
+            transform: scale(1.05);
+        }
+
+        /* Color swatches */
+        .color-swatch {
+            transition: transform 0.2s ease;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="text-white">
+    <!-- Header -->
+    <header class="glass border-b border-white/10 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-xl font-bold gradient-text">Propuesta de Rebrand</h1>
+                    <p class="text-sm text-gray-400">Nueva identidad corporativa: KRYON</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-400 text-xs font-medium border border-indigo-500/30">
+                        Febrero 2026
+                    </span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8">
+        <!-- Intro Section -->
+        <section class="mb-12">
+            <div class="glass rounded-2xl p-8">
+                <h2 class="text-2xl font-bold mb-4">Por que elegimos KRYON?</h2>
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="sparkles" class="w-5 h-5 text-blue-400"></i>
+                            <h3 class="font-semibold text-blue-400">Nombre Unico</h3>
+                        </div>
+                        <p class="text-sm text-gray-400">100% inventado, sin competencia en busquedas. Dominaras los resultados de Google.</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/30">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="zap" class="w-5 h-5 text-indigo-400"></i>
+                            <h3 class="font-semibold text-indigo-400">Poder y Tecnologia</h3>
+                        </div>
+                        <p class="text-sm text-gray-400">La K fuerte transmite poder e innovacion. Evoca "kryptonita" - lo que derrota al enemigo.</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="globe" class="w-5 h-5 text-cyan-400"></i>
+                            <h3 class="font-semibold text-cyan-400">Internacional</h3>
+                        </div>
+                        <p class="text-sm text-gray-400">Funciona perfectamente en espanol, ingles y portugues. Listo para expansion regional.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Market Context Paraguay -->
+        <section class="mb-12">
+            <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                <i data-lucide="map-pin" class="w-5 h-5 text-indigo-400"></i>
+                Contexto del Mercado en Paraguay
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-semibold text-green-400 mb-4">Oportunidades</h3>
+                    <ul class="space-y-3 text-sm">
+                        <li class="flex items-start gap-2">
+                            <span class="w-2 h-2 rounded-full bg-green-400 mt-1.5 flex-shrink-0"></span>
+                            <span><strong>Estrategia Nacional 2025-2028:</strong> El gobierno prioriza ciberseguridad</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="w-2 h-2 rounded-full bg-green-400 mt-1.5 flex-shrink-0"></span>
+                            <span><strong>551M de intentos de ataque</strong> en primer semestre 2025</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="w-2 h-2 rounded-full bg-green-400 mt-1.5 flex-shrink-0"></span>
+                            <span><strong>Fintech en auge:</strong> 150 empresas, 83% nacionales</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="w-2 h-2 rounded-full bg-green-400 mt-1.5 flex-shrink-0"></span>
+                            <span><strong>Infraestructura critica:</strong> ANDE, Itaipu, datacenters IA</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="w-2 h-2 rounded-full bg-green-400 mt-1.5 flex-shrink-0"></span>
+                            <span><strong>Ley 7503 (2025):</strong> Sistema Nacional de Pagos</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-semibold text-cyan-400 mb-4">Competidores Locales</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center justify-between p-2 rounded bg-gray-800/50">
+                            <span>SEKIURA</span>
+                            <span class="text-xs text-gray-400">Desde 2008, SOC/CSIRT</span>
+                        </div>
+                        <div class="flex items-center justify-between p-2 rounded bg-gray-800/50">
+                            <span>ISG Latam</span>
+                            <span class="text-xs text-gray-400">Ethical Hacking</span>
+                        </div>
+                        <div class="flex items-center justify-between p-2 rounded bg-gray-800/50">
+                            <span>PKF Paraguay</span>
+                            <span class="text-xs text-gray-400">Ciberdelitos</span>
+                        </div>
+                        <div class="flex items-center justify-between p-2 rounded bg-gray-800/50">
+                            <span>SISAP Paraguay</span>
+                            <span class="text-xs text-gray-400">SOC 24/7</span>
+                        </div>
+                        <div class="flex items-center justify-between p-2 rounded bg-gray-800/50">
+                            <span>Prosegur Cipher</span>
+                            <span class="text-xs text-gray-400">xMDR, AI</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">Ninguno tiene IA autonoma como diferenciador principal.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Name Proposals -->
+        <section class="mb-12">
+            <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                <i data-lucide="lightbulb" class="w-5 h-5 text-yellow-400"></i>
+                Propuestas de Nombre
+            </h2>
+
+            <!-- Tabs -->
+            <div class="flex gap-2 mb-6 flex-wrap">
+                <button onclick="showCategory('inventados')" class="tab-btn px-4 py-2 rounded-lg glass border border-white/10 text-sm active" data-cat="inventados">
+                    Inventados (Recomendados)
+                </button>
+                <button onclick="showCategory('guarani')" class="tab-btn px-4 py-2 rounded-lg glass border border-white/10 text-sm" data-cat="guarani">
+                    Guarani
+                </button>
+                <button onclick="showCategory('corporativo')" class="tab-btn px-4 py-2 rounded-lg glass border border-white/10 text-sm" data-cat="corporativo">
+                    Corporativo
+                </button>
+                <button onclick="showCategory('hibrido')" class="tab-btn px-4 py-2 rounded-lg glass border border-white/10 text-sm" data-cat="hibrido">
+                    Hibrido
+                </button>
+            </div>
+
+            <!-- Inventados Names (NEW - TOP RECOMMENDED) -->
+            <div id="inventados" class="name-category fade-in">
+                <div class="mb-6 p-4 rounded-xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/30">
+                    <h3 class="font-semibold text-indigo-400 mb-2">Por que nombres inventados?</h3>
+                    <p class="text-sm text-gray-400">Segun estudios de naming, los nombres inventados de 6-8 caracteres con consonantes fuertes (K, X, Z) transmiten poder e innovacion. Son 100% unicos, sin competencia de busqueda, y 31% mas confiables subconscientemente.</p>
+                </div>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- KRYON -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-indigo-500" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-3xl font-bold text-indigo-400">KRYON</h3>
+                                <p class="text-sm text-gray-400 mt-1">5 letras, 2 silabas | K fuerte + "on" tech</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-green-500/20 text-green-400 text-xs">TOP 1</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="star" class="w-4 h-4 text-yellow-400"></i>
+                                <span class="font-semibold">Evoca "kryptonita" - lo que derrota al enemigo</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>K fuerte transmite poder e innovacion</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Unico, sin competencia en busquedas</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Funciona en espanol e ingles</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-indigo-500" title="#6366F1"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-indigo-700" title="#4338CA"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-cyan-400" title="#22D3EE"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Score: 13/16 | Ofensivo: ⭐⭐⭐ | Defensivo: ⭐⭐⭐ | Mercado PY: ⭐⭐⭐ | Int'l: ⭐⭐⭐⭐</p>
+                    </div>
+
+                    <!-- NEXOR -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-3xl font-bold text-cyan-400">NEXOR</h3>
+                                <p class="text-sm text-gray-400 mt-1">5 letras, 2 silabas | "Nex" + "or" agente</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-cyan-500/20 text-cyan-400 text-xs">TOP 2</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>"Nex" evoca nexus (conexion)</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Balance perfecto ofensivo/defensivo</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Suena tech y profesional</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-cyan-500" title="#06B6D4"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-cyan-700" title="#0E7490"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Score: 13/16 | Ofensivo: ⭐⭐⭐ | Defensivo: ⭐⭐⭐ | Mercado PY: ⭐⭐⭐ | Int'l: ⭐⭐⭐⭐</p>
+                    </div>
+
+                    <!-- VEKTOR -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-3xl font-bold text-violet-400">VEKTOR</h3>
+                                <p class="text-sm text-gray-400 mt-1">6 letras, 2 silabas | V+K consonantes fuertes</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-violet-500/20 text-violet-400 text-xs">TOP 3</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Significa direccion, precision</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>K en vez de C = mas tech/unico</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Fuertemente ofensivo</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-violet-500" title="#8B5CF6"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-violet-700" title="#6D28D9"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Score: 13/16 | Ofensivo: ⭐⭐⭐⭐ | Defensivo: ⭐⭐ | Mercado PY: ⭐⭐⭐ | Int'l: ⭐⭐⭐⭐</p>
+                    </div>
+
+                    <!-- APEX -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-3xl font-bold text-orange-400">APEX</h3>
+                                <p class="text-sm text-gray-400 mt-1">4 letras, 2 silabas | "Apex predator"</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-orange-500/20 text-orange-400 text-xs">TOP 4</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Top de la cadena alimenticia</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Universal, facil de pronunciar</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Connotacion de superioridad</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-orange-500" title="#F97316"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-orange-700" title="#C2410C"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Score: 13/16 | Ofensivo: ⭐⭐⭐⭐ | Defensivo: ⭐⭐ | Mercado PY: ⭐⭐⭐ | Int'l: ⭐⭐⭐⭐</p>
+                    </div>
+
+                    <!-- MANTIS -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-3xl font-bold text-green-400">MANTIS</h3>
+                                <p class="text-sm text-gray-400 mt-1">6 letras, 2 silabas | Mantis religiosa</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-green-500/20 text-green-400 text-xs">TOP 5</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Paciencia + ataque letal</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Balance paciencia (defensivo) + ataque mortal (ofensivo)</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Visual memorable</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-green-500" title="#22C55E"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-green-700" title="#15803D"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Score: 13/16 | Ofensivo: ⭐⭐⭐⭐ | Defensivo: ⭐⭐⭐ | Mercado PY: ⭐⭐ | Int'l: ⭐⭐⭐⭐</p>
+                    </div>
+
+                    <!-- STRYX -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-3xl font-bold text-red-400">STRYX</h3>
+                                <p class="text-sm text-gray-400 mt-1">5 letras, 1 silaba | S+T+R+X (4 consonantes)</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-red-500/20 text-red-400 text-xs">AGRESIVO</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Ultra-agresivo, buho en latin</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Muy memorable, 1 sola silaba</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-yellow-400">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                <span>Puede parecer muy agresivo para algunos</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-red-500" title="#EF4444"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-red-700" title="#B91C1C"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Score: 11/16 | Ofensivo: ⭐⭐⭐⭐ | Defensivo: ⭐⭐ | Mercado PY: ⭐⭐ | Int'l: ⭐⭐⭐</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Guarani Names -->
+            <div id="guarani" class="name-category hidden">
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- MBARETE -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-3xl font-bold text-amber-400">MBARETE</h3>
+                                <p class="text-sm text-gray-400 mt-1">Guarani: "Fuerte, Poderoso"</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-amber-500/20 text-amber-400 text-xs">RECOMENDADO</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>100% Paraguayo - identidad cultural unica</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Facil de pronunciar y recordar</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Transmite fuerza y seguridad</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>mbarete.com.py disponible</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-amber-500" title="#F59E0B"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-amber-600" title="#D97706"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-white" title="#FFFFFF"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Slogan: "La fuerza de la ciberseguridad paraguaya"</p>
+                    </div>
+
+                    <!-- JAGUARETE -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-3xl font-bold text-emerald-400">JAGUARETE</h3>
+                                <p class="text-sm text-gray-400 mt-1">Guarani: "Jaguar Verdadero"</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 text-xs">PREMIUM</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Animal sagrado guarani - poder y agilidad</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Visual fuerte - logo con jaguar</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Reconocible internacionalmente</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-yellow-400">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                <span>Nombre largo, puede abreviarse "JAGUA"</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-emerald-500" title="#10B981"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-emerald-700" title="#047857"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-amber-400" title="#FBBF24"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Slogan: "El depredador digital de Paraguay"</p>
+                    </div>
+
+                    <!-- KEREIMBA -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-3xl font-bold text-red-400">KEREIMBA</h3>
+                                <p class="text-sm text-gray-400 mt-1">Guarani: "Guerrero"</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-red-500/20 text-red-400 text-xs">OFENSIVO</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Miembro de cofradia guerrera</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Ideal para pentesting/red team</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Unico y diferenciador</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-yellow-400">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                <span>Menos conocido, requiere educacion</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-red-500" title="#EF4444"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-red-700" title="#B91C1C"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-white" title="#FFFFFF"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Slogan: "Guerreros digitales de Paraguay"</p>
+                    </div>
+
+                    <!-- NANGAREKO -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-3xl font-bold text-blue-400">NANGAREKO</h3>
+                                <p class="text-sm text-gray-400 mt-1">Guarani: "Cuidar, Proteger"</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-blue-500/20 text-blue-400 text-xs">DEFENSIVO</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Transmite proteccion y cuidado</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Ideal para servicios de defensa/SOC</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Suave y profesional</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-yellow-400">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                <span>Ortografia con n puede confundir</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-blue-500" title="#3B82F6"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-blue-700" title="#1D4ED8"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-cyan-400" title="#22D3EE"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Slogan: "Cuidamos tu mundo digital"</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Corporativo Names -->
+            <div id="corporativo" class="name-category hidden">
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- AEGIS -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-3xl font-bold text-indigo-400">AEGIS</h3>
+                                <p class="text-sm text-gray-400 mt-1">Griego: "Escudo de Zeus"</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-indigo-500/20 text-indigo-400 text-xs">CLASICO</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Reconocido internacionalmente</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Connotacion de proteccion divina</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-yellow-400">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                <span>Nombre usado por otras empresas</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-yellow-400">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                <span>No tiene identidad paraguaya</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-indigo-500" title="#6366F1"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-indigo-700" title="#4338CA"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Slogan: "El escudo de tu empresa"</p>
+                    </div>
+
+                    <!-- SENTINEL -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-3xl font-bold text-violet-400">SENTINEL</h3>
+                                <p class="text-sm text-gray-400 mt-1">Latin: "Vigilante, Guardian"</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-violet-500/20 text-violet-400 text-xs">ENTERPRISE</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Muy profesional y corporativo</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Transmite vigilancia 24/7</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-yellow-400">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                <span>Microsoft tiene "Sentinel" (SIEM)</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-yellow-400">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                <span>Generico, sin diferenciacion</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-violet-500" title="#8B5CF6"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-violet-700" title="#6D28D9"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Slogan: "Vigilancia inteligente"</p>
+                    </div>
+
+                    <!-- CORTEX -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-3xl font-bold text-pink-400">CORTEX</h3>
+                                <p class="text-sm text-gray-400 mt-1">Latin: "Corteza Cerebral"</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-pink-500/20 text-pink-400 text-xs">AI/ML</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Perfecto para IA/ML enfocada</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Transmite inteligencia avanzada</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-yellow-400">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                <span>Palo Alto tiene "Cortex XSOAR"</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-yellow-400">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                <span>Muy tecnico para algunos clientes</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-pink-500" title="#EC4899"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-pink-700" title="#BE185D"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Slogan: "Inteligencia que protege"</p>
+                    </div>
+
+                    <!-- ARGUS -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-3xl font-bold text-cyan-400">ARGUS</h3>
+                                <p class="text-sm text-gray-400 mt-1">Griego: "El de los 100 ojos"</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-cyan-500/20 text-cyan-400 text-xs">VISION</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Metafora perfecta para SOC/monitoreo</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Mitologia conocida</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-yellow-400">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                <span>Usado por varias empresas</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-cyan-500" title="#06B6D4"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-cyan-700" title="#0E7490"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Slogan: "Vemos todo, protegemos todo"</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hibrido Names -->
+            <div id="hibrido" class="name-category hidden">
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- MBARETE SECURITY -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-indigo-500" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-2xl font-bold">
+                                    <span class="text-amber-400">MBARETE</span>
+                                    <span class="text-white">Security</span>
+                                </h3>
+                                <p class="text-sm text-gray-400 mt-1">Guarani + Ingles</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-green-500/20 text-green-400 text-xs">TOP PICK</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="star" class="w-4 h-4 text-yellow-400"></i>
+                                <span class="font-semibold">Mejor balance: identidad local + claridad global</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Claro que es empresa de seguridad</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Mantiene raiz guarani</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Escalable internacionalmente</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-amber-500" title="#F59E0B"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-700" title="#334155"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-white" title="#FFFFFF"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Slogan: "Fuerza digital paraguaya"</p>
+                    </div>
+
+                    <!-- JAGUA CYBER -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-2xl font-bold">
+                                    <span class="text-emerald-400">JAGUA</span>
+                                    <span class="text-white">Cyber</span>
+                                </h3>
+                                <p class="text-sm text-gray-400 mt-1">Guarani abreviado + Cyber</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 text-xs">AGRESIVO</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Corto y memorable</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Evoca al jaguar sin deletrearlo</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Moderno y tech</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-emerald-500" title="#10B981"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-lime-400" title="#A3E635"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Slogan: "El depredador del ciberespacio"</p>
+                    </div>
+
+                    <!-- GUARANI SHIELD -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-2xl font-bold">
+                                    <span class="text-red-400">GUARANI</span>
+                                    <span class="text-white">Shield</span>
+                                </h3>
+                                <p class="text-sm text-gray-400 mt-1">"Escudo Guarani"</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-red-500/20 text-red-400 text-xs">PATRIOTICO</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Muy patriotico y claro</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Apela al orgullo nacional</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-yellow-400">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                <span>Puede parecer muy local para expansion</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-red-500" title="#EF4444"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-blue-600" title="#2563EB"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-white" title="#FFFFFF"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Slogan: "Protegiendo el corazon digital de Paraguay"</p>
+                    </div>
+
+                    <!-- YVYTU -->
+                    <div class="name-card glass rounded-2xl p-6 border-2 border-transparent" onclick="selectName(this)">
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-2xl font-bold">
+                                    <span class="text-sky-400">YVYTU</span>
+                                    <span class="text-white">Labs</span>
+                                </h3>
+                                <p class="text-sm text-gray-400 mt-1">Guarani: "Viento" + Labs</p>
+                            </div>
+                            <span class="px-2 py-1 rounded bg-sky-500/20 text-sky-400 text-xs">STARTUP</span>
+                        </div>
+                        <div class="space-y-3 mb-4">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Evoca velocidad y omnipresencia</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                                <span>Nombre startup-friendly</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-yellow-400">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                <span>Menos asociado a seguridad directamente</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-sky-500" title="#0EA5E9"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-sky-300" title="#7DD3FC"></div>
+                            <div class="color-swatch w-8 h-8 rounded-lg bg-slate-900" title="#0F172A"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4">Slogan: "Rapido como el viento, fuerte como la tierra"</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Use Cases Paraguay -->
+        <section class="mb-12">
+            <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                <i data-lucide="target" class="w-5 h-5 text-red-400"></i>
+                Casos de Uso para Paraguay
+            </h2>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Sector Financiero -->
+                <div class="glass rounded-xl p-5 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                            <i data-lucide="landmark" class="w-5 h-5 text-green-400"></i>
+                        </div>
+                        <h3 class="font-semibold text-green-400">Sector Financiero</h3>
+                    </div>
+                    <ul class="space-y-2 text-sm text-gray-300">
+                        <li>- Bancos (BCP regulaciones)</li>
+                        <li>- Fintechs (150+ empresas)</li>
+                        <li>- Sistema de Pagos SPI</li>
+                        <li>- Cumplimiento Ley 7503</li>
+                    </ul>
+                    <div class="mt-4 p-2 rounded bg-green-500/10 text-xs text-green-400">
+                        Servicios: Pentesting, SOC, Compliance, CISO-as-a-Service
+                    </div>
+                </div>
+
+                <!-- Gobierno -->
+                <div class="glass rounded-xl p-5 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                            <i data-lucide="building" class="w-5 h-5 text-blue-400"></i>
+                        </div>
+                        <h3 class="font-semibold text-blue-400">Gobierno</h3>
+                    </div>
+                    <ul class="space-y-2 text-sm text-gray-300">
+                        <li>- MITIC (coordinacion CERT-PY)</li>
+                        <li>- Ministerios</li>
+                        <li>- Municipalidades</li>
+                        <li>- Estrategia Nacional 2025-2028</li>
+                    </ul>
+                    <div class="mt-4 p-2 rounded bg-blue-500/10 text-xs text-blue-400">
+                        Servicios: Incident Response, Threat Intel, Capacitacion
+                    </div>
+                </div>
+
+                <!-- Infraestructura Critica -->
+                <div class="glass rounded-xl p-5 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
+                            <i data-lucide="zap" class="w-5 h-5 text-yellow-400"></i>
+                        </div>
+                        <h3 class="font-semibold text-yellow-400">Infraestructura Critica</h3>
+                    </div>
+                    <ul class="space-y-2 text-sm text-gray-300">
+                        <li>- ANDE (energia)</li>
+                        <li>- Itaipu (hidroelectrica)</li>
+                        <li>- Telecomunicaciones</li>
+                        <li>- Data Centers (X8 Cloud)</li>
+                    </ul>
+                    <div class="mt-4 p-2 rounded bg-yellow-500/10 text-xs text-yellow-400">
+                        Servicios: OT Security, ICS/SCADA, Auditoria
+                    </div>
+                </div>
+
+                <!-- Salud -->
+                <div class="glass rounded-xl p-5 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+                            <i data-lucide="heart-pulse" class="w-5 h-5 text-red-400"></i>
+                        </div>
+                        <h3 class="font-semibold text-red-400">Salud</h3>
+                    </div>
+                    <ul class="space-y-2 text-sm text-gray-300">
+                        <li>- Hospitales publicos</li>
+                        <li>- Clinicas privadas</li>
+                        <li>- Farmacias</li>
+                        <li>- Laboratorios</li>
+                    </ul>
+                    <div class="mt-4 p-2 rounded bg-red-500/10 text-xs text-red-400">
+                        Servicios: Proteccion de datos medicos, Ransomware defense
+                    </div>
+                </div>
+
+                <!-- Retail y E-commerce -->
+                <div class="glass rounded-xl p-5 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                            <i data-lucide="shopping-cart" class="w-5 h-5 text-purple-400"></i>
+                        </div>
+                        <h3 class="font-semibold text-purple-400">Retail y E-commerce</h3>
+                    </div>
+                    <ul class="space-y-2 text-sm text-gray-300">
+                        <li>- Supermercados</li>
+                        <li>- Tiendas online</li>
+                        <li>- Marketplaces</li>
+                        <li>- POS/Pasarelas de pago</li>
+                    </ul>
+                    <div class="mt-4 p-2 rounded bg-purple-500/10 text-xs text-purple-400">
+                        Servicios: PCI-DSS, Fraude, WAF, API Security
+                    </div>
+                </div>
+
+                <!-- Educacion -->
+                <div class="glass rounded-xl p-5 card-hover">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                            <i data-lucide="graduation-cap" class="w-5 h-5 text-cyan-400"></i>
+                        </div>
+                        <h3 class="font-semibold text-cyan-400">Educacion</h3>
+                    </div>
+                    <ul class="space-y-2 text-sm text-gray-300">
+                        <li>- Universidades</li>
+                        <li>- Colegios</li>
+                        <li>- Plataformas e-learning</li>
+                        <li>- MEC</li>
+                    </ul>
+                    <div class="mt-4 p-2 rounded bg-cyan-500/10 text-xs text-cyan-400">
+                        Servicios: Awareness, Proteccion datos estudiantes
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Recommendation -->
+        <section class="mb-12">
+            <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                <i data-lucide="trophy" class="w-5 h-5 text-amber-400"></i>
+                Recomendacion Final - Top 3 Opciones
+            </h2>
+
+            <div class="grid md:grid-cols-3 gap-6 mb-8">
+                <!-- Option 1: KRYON -->
+                <div class="glass rounded-2xl p-6 border-2 border-indigo-500/50">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="text-3xl font-bold text-indigo-400">KRYON</span>
+                        <span class="px-2 py-1 rounded bg-indigo-500/20 text-indigo-400 text-xs">INTERNACIONAL</span>
+                    </div>
+                    <p class="text-sm text-gray-300 mb-4">Mejor opcion para expansion internacional y mercados tech-forward.</p>
+                    <div class="space-y-2 text-sm text-gray-400">
+                        <div class="flex items-center gap-2"><i data-lucide="check" class="w-3 h-3 text-green-400"></i> Nombre inventado unico</div>
+                        <div class="flex items-center gap-2"><i data-lucide="check" class="w-3 h-3 text-green-400"></i> Funciona en todos los idiomas</div>
+                        <div class="flex items-center gap-2"><i data-lucide="check" class="w-3 h-3 text-green-400"></i> Evoca poder (kryptonita)</div>
+                        <div class="flex items-center gap-2"><i data-lucide="check" class="w-3 h-3 text-green-400"></i> kryon.com / kryonsec.com</div>
+                    </div>
+                </div>
+
+                <!-- Option 2: MBARETE -->
+                <div class="glass rounded-2xl p-6 border-2 border-amber-500/50">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="text-3xl font-bold text-amber-400">MBARETE</span>
+                        <span class="px-2 py-1 rounded bg-amber-500/20 text-amber-400 text-xs">LOCAL</span>
+                    </div>
+                    <p class="text-sm text-gray-300 mb-4">Mejor opcion para identidad paraguaya y orgullo nacional.</p>
+                    <div class="space-y-2 text-sm text-gray-400">
+                        <div class="flex items-center gap-2"><i data-lucide="check" class="w-3 h-3 text-green-400"></i> 100% guarani</div>
+                        <div class="flex items-center gap-2"><i data-lucide="check" class="w-3 h-3 text-green-400"></i> Significa "Fuerte/Poderoso"</div>
+                        <div class="flex items-center gap-2"><i data-lucide="check" class="w-3 h-3 text-green-400"></i> Diferenciador unico</div>
+                        <div class="flex items-center gap-2"><i data-lucide="check" class="w-3 h-3 text-green-400"></i> mbarete.com.py disponible</div>
+                    </div>
+                </div>
+
+                <!-- Option 3: MANTIS -->
+                <div class="glass rounded-2xl p-6 border-2 border-green-500/50">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="text-3xl font-bold text-green-400">MANTIS</span>
+                        <span class="px-2 py-1 rounded bg-green-500/20 text-green-400 text-xs">BALANCE</span>
+                    </div>
+                    <p class="text-sm text-gray-300 mb-4">Mejor balance ofensivo/defensivo con visual memorable.</p>
+                    <div class="space-y-2 text-sm text-gray-400">
+                        <div class="flex items-center gap-2"><i data-lucide="check" class="w-3 h-3 text-green-400"></i> Paciencia + ataque letal</div>
+                        <div class="flex items-center gap-2"><i data-lucide="check" class="w-3 h-3 text-green-400"></i> Logo con mantis memorable</div>
+                        <div class="flex items-center gap-2"><i data-lucide="check" class="w-3 h-3 text-green-400"></i> Universal e internacional</div>
+                        <div class="flex items-center gap-2"><i data-lucide="check" class="w-3 h-3 text-green-400"></i> mantis-security.com</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Table -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="font-semibold mb-4">Tabla Comparativa TOP 10</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-white/10 text-left">
+                                <th class="py-2 px-2">#</th>
+                                <th class="py-2 px-2">Nombre</th>
+                                <th class="py-2 px-2">Tipo</th>
+                                <th class="py-2 px-2">Ofensivo</th>
+                                <th class="py-2 px-2">Defensivo</th>
+                                <th class="py-2 px-2">Mercado PY</th>
+                                <th class="py-2 px-2">Int'l</th>
+                                <th class="py-2 px-2">Score</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-gray-300">
+                            <tr class="border-b border-white/5 bg-indigo-500/10">
+                                <td class="py-2 px-2 text-indigo-400 font-bold">1</td>
+                                <td class="py-2 px-2 font-bold text-indigo-400">KRYON</td>
+                                <td class="py-2 px-2">Inventado</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐⭐</td>
+                                <td class="py-2 px-2 text-green-400 font-bold">13/16</td>
+                            </tr>
+                            <tr class="border-b border-white/5">
+                                <td class="py-2 px-2">2</td>
+                                <td class="py-2 px-2 font-bold text-cyan-400">NEXOR</td>
+                                <td class="py-2 px-2">Inventado</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐⭐</td>
+                                <td class="py-2 px-2 text-green-400 font-bold">13/16</td>
+                            </tr>
+                            <tr class="border-b border-white/5">
+                                <td class="py-2 px-2">3</td>
+                                <td class="py-2 px-2 font-bold text-violet-400">VEKTOR</td>
+                                <td class="py-2 px-2">Inventado</td>
+                                <td class="py-2 px-2">⭐⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐⭐</td>
+                                <td class="py-2 px-2 text-green-400 font-bold">13/16</td>
+                            </tr>
+                            <tr class="border-b border-white/5">
+                                <td class="py-2 px-2">4</td>
+                                <td class="py-2 px-2 font-bold text-orange-400">APEX</td>
+                                <td class="py-2 px-2">Animal</td>
+                                <td class="py-2 px-2">⭐⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐⭐</td>
+                                <td class="py-2 px-2 text-green-400 font-bold">13/16</td>
+                            </tr>
+                            <tr class="border-b border-white/5">
+                                <td class="py-2 px-2">5</td>
+                                <td class="py-2 px-2 font-bold text-green-400">MANTIS</td>
+                                <td class="py-2 px-2">Animal</td>
+                                <td class="py-2 px-2">⭐⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐⭐</td>
+                                <td class="py-2 px-2 text-green-400 font-bold">13/16</td>
+                            </tr>
+                            <tr class="border-b border-white/5">
+                                <td class="py-2 px-2">6</td>
+                                <td class="py-2 px-2 font-bold text-blue-400">CUSTOS</td>
+                                <td class="py-2 px-2">Latin</td>
+                                <td class="py-2 px-2">⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">12/16</td>
+                            </tr>
+                            <tr class="border-b border-white/5">
+                                <td class="py-2 px-2">7</td>
+                                <td class="py-2 px-2 font-bold text-red-400">VEXOR</td>
+                                <td class="py-2 px-2">Inventado</td>
+                                <td class="py-2 px-2">⭐⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐⭐</td>
+                                <td class="py-2 px-2">12/16</td>
+                            </tr>
+                            <tr class="border-b border-white/5 bg-amber-500/10">
+                                <td class="py-2 px-2">8</td>
+                                <td class="py-2 px-2 font-bold text-amber-400">MBARETE</td>
+                                <td class="py-2 px-2">Guarani</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐</td>
+                                <td class="py-2 px-2">12/16</td>
+                            </tr>
+                            <tr class="border-b border-white/5">
+                                <td class="py-2 px-2">9</td>
+                                <td class="py-2 px-2 font-bold text-red-400">STRYX</td>
+                                <td class="py-2 px-2">Inventado</td>
+                                <td class="py-2 px-2">⭐⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">11/16</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-2">10</td>
+                                <td class="py-2 px-2 font-bold text-purple-400">CITADEL</td>
+                                <td class="py-2 px-2">Corporativo</td>
+                                <td class="py-2 px-2">⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">⭐⭐⭐</td>
+                                <td class="py-2 px-2">11/16</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Next Steps -->
+        <section>
+            <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                <i data-lucide="list-checks" class="w-5 h-5 text-green-400"></i>
+                Proximos Pasos
+            </h2>
+            <div class="glass rounded-xl p-6">
+                <ol class="space-y-4">
+                    <li class="flex items-start gap-4">
+                        <span class="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold flex-shrink-0">1</span>
+                        <div>
+                            <h4 class="font-semibold">Validar Nombre</h4>
+                            <p class="text-sm text-gray-400">Confirmar disponibilidad de dominio .com.py y marca en DINAPI</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-4">
+                        <span class="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold flex-shrink-0">2</span>
+                        <div>
+                            <h4 class="font-semibold">Disenar Identidad Visual</h4>
+                            <p class="text-sm text-gray-400">Logo, paleta de colores, tipografia, guidelines de marca</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-4">
+                        <span class="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold flex-shrink-0">3</span>
+                        <div>
+                            <h4 class="font-semibold">Refactorizar Codebase</h4>
+                            <p class="text-sm text-gray-400">Completado - SKYNET renombrado a KRYON en todo el proyecto</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-4">
+                        <span class="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold flex-shrink-0">4</span>
+                        <div>
+                            <h4 class="font-semibold">Crear Website Corporativo</h4>
+                            <p class="text-sm text-gray-400">Landing page con casos de uso, servicios, contacto</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-4">
+                        <span class="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold flex-shrink-0">5</span>
+                        <div>
+                            <h4 class="font-semibold">Preparar Go-to-Market</h4>
+                            <p class="text-sm text-gray-400">Pitch deck, pricing, alianzas con CERT-PY/MITIC</p>
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="glass border-t border-white/10 py-6 mt-12">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <p class="text-sm text-gray-400">Propuesta de Rebrand - Generado Febrero 2026</p>
+            <p class="text-xs text-gray-600 mt-2">Basado en investigacion del mercado paraguayo de ciberseguridad</p>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        // Show inventados by default on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            showCategory('inventados');
+        });
+
+        function showCategory(cat) {
+            // Hide all categories
+            document.querySelectorAll('.name-category').forEach(el => {
+                el.classList.add('hidden');
+                el.classList.remove('fade-in');
+            });
+
+            // Remove active from all tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected category
+            const target = document.getElementById(cat);
+            target.classList.remove('hidden');
+            target.classList.add('fade-in');
+
+            // Activate tab
+            document.querySelector(`[data-cat="${cat}"]`).classList.add('active');
+
+            // Re-init icons
+            lucide.createIcons();
+        }
+
+        function selectName(card) {
+            // Remove selected from all
+            document.querySelectorAll('.name-card').forEach(c => {
+                c.classList.remove('selected');
+            });
+
+            // Add selected to clicked
+            card.classList.add('selected');
+        }
+    </script>
+</body>
+</html>

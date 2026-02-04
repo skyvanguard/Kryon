@@ -13,7 +13,7 @@ Tool Categories:
 - Kubernetes Security: kube-hunter, kube-bench
 - Multi-Cloud: ScoutSuite, CloudSploit
 
-SKYNET Integration: Phase 8
+KRYON Integration: Phase 8
 """
 
 from skynet.tools.cloud.cloudmapper import (

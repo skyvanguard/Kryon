@@ -1,5 +1,5 @@
 """
-SKYNET Lateral Movement Tools Module
+KRYON Lateral Movement Tools Module
 =====================================
 
 This module provides lateral movement capabilities for network penetration.

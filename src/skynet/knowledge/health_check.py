@@ -1,5 +1,5 @@
 """
-SKYNET Knowledge Health Check
+KRYON Knowledge Health Check
 ==============================
 
 Monitor health and status of knowledge system.
@@ -137,7 +137,7 @@ def print_health_status():
     status = health_check()
 
     print(f"\n{'=' * 60}")
-    print("  SKYNET Knowledge Health Status")
+    print("  KRYON Knowledge Health Status")
     print(f"{'=' * 60}\n")
 
     # Vector DB

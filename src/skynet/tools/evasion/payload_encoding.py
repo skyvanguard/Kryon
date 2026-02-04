@@ -1,5 +1,5 @@
 """
-SKYNET Payload Encoding - Auto-Evasion System
+KRYON Payload Encoding - Auto-Evasion System
 =============================================
 
 Automatic payload encoding and obfuscation for WAF/IDS/IPS bypass.

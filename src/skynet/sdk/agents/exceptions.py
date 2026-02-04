@@ -5,7 +5,7 @@ if TYPE_CHECKING:
 
 
 class AgentsException(Exception):
-    """Base class for all exceptions in the SKYNET Agents."""
+    """Base class for all exceptions in the KRYON Agents."""
 
 
 class MaxTurnsExceeded(AgentsException):
@@ -29,7 +29,7 @@ class ModelBehaviorError(AgentsException):
 
 
 class UserError(AgentsException):
-    """Exception raised when the user makes an error using SKYNET."""
+    """Exception raised when the user makes an error using KRYON."""
 
     message: str
 
