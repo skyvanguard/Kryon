@@ -349,7 +349,7 @@ def _test_share_access(host: str, share: str, username: Optional[str], password:
             else:
                 cmd.extend(["-N"])
 
-            cmd.extend(["-c", "mkdir skynet_test ; rmdir skynet_test"])
+            cmd.extend(["-c", "mkdir kryon_test ; rmdir kryon_test"])
 
             process = subprocess.run(cmd, capture_output=True, timeout=10)
 

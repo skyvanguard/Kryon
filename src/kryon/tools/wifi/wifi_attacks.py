@@ -103,7 +103,7 @@ def scan_wifi_networks(interface: str = "wlan0", timeout: int = 30, channel: Opt
         results["interface_mode"] = "monitor"
 
         # Output file for airodump-ng
-        output_prefix = f"/tmp/skynet_wifi_scan_{int(time.time())}"
+        output_prefix = f"/tmp/kryon_wifi_scan_{int(time.time())}"
 
         # Build airodump-ng command
         cmd = ["airodump-ng"]

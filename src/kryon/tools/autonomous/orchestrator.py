@@ -28,7 +28,7 @@ def autonomous_ctf_solver(
     difficulty: str = "medium",
     max_time_hours: int = 2,
     flags_needed: Optional[list[str]] = None,
-    output_report: str = "/tmp/skynet_ctf_report.md",
+    output_report: str = "/tmp/kryon_ctf_report.md",
 ) -> dict[str, Any]:
     """
     Autonomously solve CTF challenges from start to finish.
@@ -431,7 +431,7 @@ def autonomous_pentest(
     max_targets: int = 10,
     max_time_hours: int = 8,
     stealth_level: str = "normal",
-    output_dir: str = "/tmp/skynet_pentest",
+    output_dir: str = "/tmp/kryon_pentest",
 ) -> dict[str, Any]:
     """
     Autonomous penetration testing of network.

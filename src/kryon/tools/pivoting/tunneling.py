@@ -517,7 +517,7 @@ def _check_port_listening(port: int) -> bool:
 
 def _generate_proxychains_config(socks_port: int) -> str:
     """Generate proxychains configuration."""
-    config_path = "/tmp/skynet_proxychains.conf"
+    config_path = "/tmp/kryon_proxychains.conf"
 
     config_content = f"""# KRYON Proxychains Configuration
 strict_chain

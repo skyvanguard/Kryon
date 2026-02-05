@@ -100,7 +100,7 @@ def create_evil_twin(
                 return results
 
         # Configuration directory
-        config_dir = "/tmp/skynet_evil_twin"
+        config_dir = "/tmp/kryon_evil_twin"
         os.makedirs(config_dir, exist_ok=True)
 
         # 1. Configure hostapd (fake AP)
@@ -338,7 +338,7 @@ def stop_evil_twin(processes: list) -> dict[str, Any]:
     return results
 
 
-def get_captured_credentials(config_dir: str = "/tmp/skynet_evil_twin") -> dict[str, Any]:
+def get_captured_credentials(config_dir: str = "/tmp/kryon_evil_twin") -> dict[str, Any]:
     """
     Retrieve credentials captured by evil twin portal.
 
