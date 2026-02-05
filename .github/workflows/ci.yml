@@ -53,21 +53,12 @@ jobs:
           pip install -e .
           pip install pytest pytest-cov pytest-asyncio pytest-mock
 
-      - name: Run tests with coverage
+      - name: Run tests
         env:
           OPENAI_API_KEY: sk-dummy-key-for-ci
           KRYON_TELEMETRY: "false"
           KRYON_TRACING: "false"
-        run: pytest tests/ -v --ignore=tests/agents/test_agent_inference.py --ignore=tests/agents/test_agent_one_tool.py -m "not integration and not slow" --tb=short --cov=src/skynet --cov-report=xml --cov-report=term-missing
-
-      - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
-          fail_ci_if_error: false
-          verbose: true
+        run: pytest tests/ -v --ignore=tests/agents/test_agent_inference.py --ignore=tests/agents/test_agent_one_tool.py -m "not integration and not slow" --tb=short
 
   build:
     name: Build Package

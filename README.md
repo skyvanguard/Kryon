@@ -15,8 +15,6 @@
 
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![CI](https://github.com/skyvanguard/Kryon/actions/workflows/ci.yml/badge.svg)](https://github.com/skyvanguard/Kryon/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/skyvanguard/Kryon/graph/badge.svg)](https://codecov.io/gh/skyvanguard/Kryon)
 [![AI Models](https://img.shields.io/badge/AI_Models-300+-purple.svg)](#supported-ai-models)
 
 [Installation](#installation) | [Quick Start](#quick-start) | [Documentation](#documentation) | [Contributing](#contributing)
