@@ -3,14 +3,14 @@ import os
 import openai
 import pytest
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     set_default_openai_api,
     set_default_openai_client,
     set_default_openai_key,
 )
-from skynet.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
-from skynet.sdk.agents.models.openai_provider import OpenAIProvider
-from skynet.sdk.agents.models.openai_responses import OpenAIResponsesModel
+from kryon.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
+from kryon.sdk.agents.models.openai_provider import OpenAIProvider
+from kryon.sdk.agents.models.openai_responses import OpenAIResponsesModel
 
 kryon_model = os.getenv("KRYON_MODEL", "qwen2.5:14b")
 

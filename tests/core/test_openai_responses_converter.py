@@ -27,7 +27,7 @@ import pytest
 from openai import NOT_GIVEN
 from pydantic import BaseModel
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     AgentOutputSchema,
     Computer,
@@ -40,7 +40,7 @@ from skynet.sdk.agents import (
     function_tool,
     handoff,
 )
-from skynet.sdk.agents.models.openai_responses import Converter
+from kryon.sdk.agents.models.openai_responses import Converter
 
 
 def test_convert_tool_choice_standard_values():

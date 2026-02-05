@@ -1,10 +1,10 @@
 import pytest
 from pydantic import BaseModel
 
-from skynet.sdk.agents import Agent, Handoff, function_tool, handoff
-from skynet.sdk.agents.exceptions import UserError
-from skynet.sdk.agents.models.openai_chatcompletions import ToolConverter
-from skynet.sdk.agents.tool import FileSearchTool, WebSearchTool
+from kryon.sdk.agents import Agent, Handoff, function_tool, handoff
+from kryon.sdk.agents.exceptions import UserError
+from kryon.sdk.agents.models.openai_chatcompletions import ToolConverter
+from kryon.sdk.agents.tool import FileSearchTool, WebSearchTool
 
 
 def some_function(a: str, b: list[int]) -> str:

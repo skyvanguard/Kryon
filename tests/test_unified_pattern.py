@@ -4,7 +4,7 @@ Tests for the unified Pattern class with type-based behavior.
 
 import pytest
 
-from skynet.agents.patterns.pattern import (
+from kryon.agents.patterns.pattern import (
     Pattern,
     PatternType,
     conditional_pattern,
@@ -13,7 +13,7 @@ from skynet.agents.patterns.pattern import (
     sequential_pattern,
     swarm_pattern,
 )
-from skynet.repl.commands.parallel import ParallelConfig
+from kryon.repl.commands.parallel import ParallelConfig
 
 
 class TestPatternType:

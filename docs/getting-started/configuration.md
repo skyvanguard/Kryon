@@ -2,46 +2,46 @@
 
 ## API keys and clients
 
-By default, the SDK looks for the `OPENAI_API_KEY` environment variable for LLM requests and tracing, as soon as it is imported. If you are unable to set that environment variable before your app starts, you can use the [`set_default_openai_key()`][skynet.sdk.agents.set_default_openai_key] function to set the key.
+By default, the SDK looks for the `OPENAI_API_KEY` environment variable for LLM requests and tracing, as soon as it is imported. If you are unable to set that environment variable before your app starts, you can use the [`set_default_openai_key()`][kryon.sdk.agents.set_default_openai_key] function to set the key.
 
 ```python
-from skynet.sdk.agents import set_default_openai_key
+from kryon.sdk.agents import set_default_openai_key
 
 set_default_openai_key("sk-...")
 ```
 
-Alternatively, you can also configure an OpenAI client to be used. By default, the SDK creates an `AsyncOpenAI` instance, using the API key from the environment variable or the default key set above. You can change this by using the [`set_default_openai_client()`][skynet.sdk.agents.set_default_openai_client] function.
+Alternatively, you can also configure an OpenAI client to be used. By default, the SDK creates an `AsyncOpenAI` instance, using the API key from the environment variable or the default key set above. You can change this by using the [`set_default_openai_client()`][kryon.sdk.agents.set_default_openai_client] function.
 
 ```python
 from openai import AsyncOpenAI
-from skynet.sdk.agents import set_default_openai_client
+from kryon.sdk.agents import set_default_openai_client
 
 custom_client = AsyncOpenAI(base_url="...", api_key="...")
 set_default_openai_client(custom_client)
 ```
 
-Finally, you can also customize the OpenAI API that is used. By default, we use the OpenAI Responses API. You can override this to use the Chat Completions API by using the [`set_default_openai_api()`][skynet.sdk.agents.set_default_openai_api] function.
+Finally, you can also customize the OpenAI API that is used. By default, we use the OpenAI Responses API. You can override this to use the Chat Completions API by using the [`set_default_openai_api()`][kryon.sdk.agents.set_default_openai_api] function.
 
 ```python
-from skynet.sdk.agents import set_default_openai_api
+from kryon.sdk.agents import set_default_openai_api
 
 set_default_openai_api("chat_completions")
 ```
 
 ## Tracing
 
-Tracing is enabled by default. It uses the OpenAI API keys from the section above by default (i.e. the environment variable or the default key you set). You can specifically set the API key used for tracing by using the [`set_tracing_export_api_key`][skynet.sdk.agents.set_tracing_export_api_key] function.
+Tracing is enabled by default. It uses the OpenAI API keys from the section above by default (i.e. the environment variable or the default key you set). You can specifically set the API key used for tracing by using the [`set_tracing_export_api_key`][kryon.sdk.agents.set_tracing_export_api_key] function.
 
 ```python
-from skynet.sdk.agents import set_tracing_export_api_key
+from kryon.sdk.agents import set_tracing_export_api_key
 
 set_tracing_export_api_key("sk-...")
 ```
 
-You can also disable tracing entirely by using the [`set_tracing_disabled()`][skynet.sdk.agents.set_tracing_disabled] function.
+You can also disable tracing entirely by using the [`set_tracing_disabled()`][kryon.sdk.agents.set_tracing_disabled] function.
 
 ```python
-from skynet.sdk.agents import set_tracing_disabled
+from kryon.sdk.agents import set_tracing_disabled
 
 set_tracing_disabled(True)
 ```
@@ -50,10 +50,10 @@ set_tracing_disabled(True)
 
 The SDK has two Python loggers without any handlers set. By default, this means that warnings and errors are sent to `stdout`, but other logs are suppressed.
 
-To enable verbose logging, use the [`enable_verbose_stdout_logging()`][skynet.sdk.agents.enable_verbose_stdout_logging] function.
+To enable verbose logging, use the [`enable_verbose_stdout_logging()`][kryon.sdk.agents.enable_verbose_stdout_logging] function.
 
 ```python
-from skynet.sdk.agents import enable_verbose_stdout_logging
+from kryon.sdk.agents import enable_verbose_stdout_logging
 
 enable_verbose_stdout_logging()
 ```

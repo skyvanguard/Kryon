@@ -26,7 +26,7 @@ async def example_1_interactive_qa():
     print("EXAMPLE 1: Interactive Q&A Session")
     print("=" * 70)
 
-    from skynet.knowledge import query_knowledge_async
+    from kryon.knowledge import query_knowledge_async
 
     questions = [
         "What is SQL injection?",
@@ -63,7 +63,7 @@ async def example_2_vulnerability_analysis():
     print("EXAMPLE 2: Batch Vulnerability Analysis")
     print("=" * 70)
 
-    from skynet.knowledge import query_knowledge_batch
+    from kryon.knowledge import query_knowledge_batch
 
     # Common web vulnerabilities
     vulnerabilities = [
@@ -109,7 +109,7 @@ async def example_3_ctf_research():
     print("EXAMPLE 3: CTF Challenge Research")
     print("=" * 70)
 
-    from skynet.knowledge import AsyncRAGEngine
+    from kryon.knowledge import AsyncRAGEngine
 
     engine = AsyncRAGEngine(max_concurrent_llm_calls=3)
 
@@ -153,7 +153,7 @@ async def example_4_comparative_analysis():
     print("EXAMPLE 4: Comparative Security Tool Analysis")
     print("=" * 70)
 
-    from skynet.knowledge import query_knowledge_async
+    from kryon.knowledge import query_knowledge_async
 
     # Compare different tools
     tools = [
@@ -195,7 +195,7 @@ async def example_5_async_vs_sync_comparison():
     print("EXAMPLE 5: Async vs Sync Performance Comparison")
     print("=" * 70)
 
-    from skynet.knowledge import query_knowledge, query_knowledge_async
+    from kryon.knowledge import query_knowledge, query_knowledge_async
 
     queries = ["What is SQL injection?", "What is XSS?", "What is CSRF?"]
 

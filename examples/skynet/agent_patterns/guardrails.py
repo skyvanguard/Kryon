@@ -20,7 +20,7 @@ import os
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     GuardrailFunctionOutput,
     InputGuardrailTripwireTriggered,
@@ -31,7 +31,7 @@ from skynet.sdk.agents import (
     function_tool,
     input_guardrail,
 )
-from skynet.tools.common import run_command
+from kryon.tools.common import run_command
 
 
 # Example tool: run a shell command (for demonstration)

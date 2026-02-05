@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from typing_extensions import TypedDict
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     GuardrailFunctionOutput,
     Handoff,
@@ -23,8 +23,8 @@ from skynet.sdk.agents import (
     UserError,
     handoff,
 )
-from skynet.sdk.agents.agent import ToolsToFinalOutputResult
-from skynet.sdk.agents.tool import FunctionToolResult, function_tool
+from kryon.sdk.agents.agent import ToolsToFinalOutputResult
+from kryon.sdk.agents.tool import FunctionToolResult, function_tool
 from tests.core.test_responses import (
     get_final_output_message,
     get_function_tool,

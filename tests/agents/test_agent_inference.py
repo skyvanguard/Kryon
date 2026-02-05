@@ -10,8 +10,8 @@ _has_real_api_key = _api_key and not _api_key.startswith("test_key")
 if not _api_key:
     os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 
-from skynet.agents import get_agent_by_name
-from skynet.sdk.agents import Runner
+from kryon.agents import get_agent_by_name
+from kryon.sdk.agents import Runner
 
 # Skip all tests in this module if no real API key is available
 pytestmark = [

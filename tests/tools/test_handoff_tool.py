@@ -4,7 +4,7 @@ import pytest
 from openai.types.responses import ResponseOutputMessage, ResponseOutputText
 from pydantic import BaseModel
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     Handoff,
     HandoffInputData,

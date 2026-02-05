@@ -78,12 +78,12 @@ def check_skynet_modules():
     print_header("Checking KRYON Knowledge Modules")
 
     modules = [
-        ("skynet.knowledge.vector_db", "Vector database"),
-        ("skynet.knowledge.embeddings", "Embedding generation"),
-        ("skynet.knowledge.rag_engine", "RAG query engine"),
-        ("skynet.knowledge.scrapers", "Knowledge scrapers"),
-        ("skynet.knowledge.processors", "Document processors"),
-        ("skynet.knowledge.auto_updater", "Auto-updater"),
+        ("kryon.knowledge.vector_db", "Vector database"),
+        ("kryon.knowledge.embeddings", "Embedding generation"),
+        ("kryon.knowledge.rag_engine", "RAG query engine"),
+        ("kryon.knowledge.scrapers", "Knowledge scrapers"),
+        ("kryon.knowledge.processors", "Document processors"),
+        ("kryon.knowledge.auto_updater", "Auto-updater"),
     ]
 
     all_ok = True
@@ -103,7 +103,7 @@ def check_vector_db():
     print_header("Checking Vector Database")
 
     try:
-        from skynet.knowledge import get_vector_db
+        from kryon.knowledge import get_vector_db
 
         db = get_vector_db()
         print_check("ChromaDB initialized", True)
@@ -133,7 +133,7 @@ def check_embeddings():
     print_header("Checking Embeddings")
 
     try:
-        from skynet.knowledge.embeddings import generate_embedding
+        from kryon.knowledge.embeddings import generate_embedding
 
         print("Downloading embedding model (first time only)...")
         text = "Test embedding generation"
@@ -157,7 +157,7 @@ def check_rag_engine():
     print_header("Checking RAG Engine")
 
     try:
-        from skynet.knowledge import add_document, query_knowledge
+        from kryon.knowledge import add_document, query_knowledge
 
         # Add test knowledge
         doc_id = add_document(
@@ -172,7 +172,7 @@ def check_rag_engine():
         print_check("Query knowledge", len(result["sources"]) > 0, f"Found {len(result['sources'])} sources")
 
         # Cleanup
-        from skynet.knowledge import get_vector_db
+        from kryon.knowledge import get_vector_db
 
         db = get_vector_db()
         db.delete_by_ids([doc_id])
@@ -249,7 +249,7 @@ def check_scrapers():
     all_ok = True
     for scraper_name, description, requirement in scrapers:
         try:
-            module = __import__("skynet.knowledge.scrapers", fromlist=[scraper_name])
+            module = __import__("kryon.knowledge.scrapers", fromlist=[scraper_name])
             getattr(module, scraper_name)
             print_check(description, True, requirement)
         except Exception as e:

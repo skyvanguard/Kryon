@@ -23,8 +23,8 @@ if sys.platform == "win32":
 # Add src to path
 sys.path.insert(0, "./src")
 
-from skynet.knowledge.llm_cache import clear_llm_cache, get_llm_cache_stats
-from skynet.knowledge.rag_engine import RAGEngine
+from kryon.knowledge.llm_cache import clear_llm_cache, get_llm_cache_stats
+from kryon.knowledge.rag_engine import RAGEngine
 
 
 def print_header(title: str):

@@ -9,7 +9,7 @@ Common issues and their solutions.
 kryon --version
 
 # Test import
-python -c "from skynet.cli import main; print('Import OK')"
+python -c "from kryon.cli import main; print('Import OK')"
 
 # Check environment
 python -c "import os; print('API Key set:', bool(os.getenv('OPENAI_API_KEY')))"

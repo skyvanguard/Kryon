@@ -4,9 +4,9 @@ import pytest
 from inline_snapshot import snapshot
 from pydantic import BaseModel
 
-from skynet.sdk.agents import Agent, Runner
-from skynet.sdk.agents.agent_output import _WRAPPER_DICT_KEY
-from skynet.sdk.agents.util._pretty_print import (
+from kryon.sdk.agents import Agent, Runner
+from kryon.sdk.agents.agent_output import _WRAPPER_DICT_KEY
+from kryon.sdk.agents.util._pretty_print import (
     pretty_print_result,
     pretty_print_run_result_streaming,
 )

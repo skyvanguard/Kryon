@@ -37,35 +37,35 @@ def main():
     # Core autonomous modules (REQUIRED)
     print("[CRITICAL] Core Autonomous Modules:")
     all_ok = True
-    all_ok &= check_module("skynet.tools.autonomous")
-    all_ok &= check_module("skynet.tools.autonomous.auto_recon")
-    all_ok &= check_module("skynet.tools.autonomous.decision_engine")
-    all_ok &= check_module("skynet.tools.autonomous.orchestrator")
-    all_ok &= check_module("skynet.tools.autonomous.strategic_planner")
-    all_ok &= check_module("skynet.tools.autonomous.context_analyzer")
-    all_ok &= check_module("skynet.tools.autonomous.learning_engine")
-    all_ok &= check_module("skynet.tools.autonomous.adaptive_strategy")
+    all_ok &= check_module("kryon.tools.autonomous")
+    all_ok &= check_module("kryon.tools.autonomous.auto_recon")
+    all_ok &= check_module("kryon.tools.autonomous.decision_engine")
+    all_ok &= check_module("kryon.tools.autonomous.orchestrator")
+    all_ok &= check_module("kryon.tools.autonomous.strategic_planner")
+    all_ok &= check_module("kryon.tools.autonomous.context_analyzer")
+    all_ok &= check_module("kryon.tools.autonomous.learning_engine")
+    all_ok &= check_module("kryon.tools.autonomous.adaptive_strategy")
     print()
 
     # Tool modules (OPTIONAL - will be imported dynamically)
     print("[OPTIONAL] Tool Modules (imported dynamically as needed):")
-    check_module("skynet.tools.web.nuclei", optional=True)
-    check_module("skynet.tools.web.sqlmap", optional=True)
-    check_module("skynet.tools.api_attacks.hydra", optional=True)
-    check_module("skynet.tools.exploitation.metasploit_wrapper", optional=True)
-    check_module("skynet.tools.exploitation.exploit_db", optional=True)
-    check_module("skynet.tools.reconnaissance.gobuster", optional=True)
-    check_module("skynet.tools.reconnaissance.netstat", optional=True)
-    check_module("skynet.tools.reconnaissance.filesystem", optional=True)
-    check_module("skynet.tools.reconnaissance.netcat", optional=True)
-    check_module("skynet.tools.privilege_escalation.linux_privesc", optional=True)
-    check_module("skynet.tools.privilege_escalation.windows_privesc", optional=True)
-    check_module("skynet.tools.ctf.ctf_automation", optional=True)
-    check_module("skynet.tools.network.capture_traffic", optional=True)
-    check_module("skynet.tools.lateral_movement.remote_execution", optional=True)
-    check_module("skynet.tools.lateral_movement.pth_attacks", optional=True)
-    check_module("skynet.tools.container.docker_bench", optional=True)
-    check_module("skynet.tools.container.kube_hunter", optional=True)
+    check_module("kryon.tools.web.nuclei", optional=True)
+    check_module("kryon.tools.web.sqlmap", optional=True)
+    check_module("kryon.tools.api_attacks.hydra", optional=True)
+    check_module("kryon.tools.exploitation.metasploit_wrapper", optional=True)
+    check_module("kryon.tools.exploitation.exploit_db", optional=True)
+    check_module("kryon.tools.reconnaissance.gobuster", optional=True)
+    check_module("kryon.tools.reconnaissance.netstat", optional=True)
+    check_module("kryon.tools.reconnaissance.filesystem", optional=True)
+    check_module("kryon.tools.reconnaissance.netcat", optional=True)
+    check_module("kryon.tools.privilege_escalation.linux_privesc", optional=True)
+    check_module("kryon.tools.privilege_escalation.windows_privesc", optional=True)
+    check_module("kryon.tools.ctf.ctf_automation", optional=True)
+    check_module("kryon.tools.network.capture_traffic", optional=True)
+    check_module("kryon.tools.lateral_movement.remote_execution", optional=True)
+    check_module("kryon.tools.lateral_movement.pth_attacks", optional=True)
+    check_module("kryon.tools.container.docker_bench", optional=True)
+    check_module("kryon.tools.container.kube_hunter", optional=True)
     print()
 
     # Python standard library dependencies (REQUIRED)
@@ -87,7 +87,7 @@ def main():
     # Test core functions
     print("[TEST] Core Functions:")
     try:
-        from skynet.tools.autonomous import (
+        from kryon.tools.autonomous import (
             select_best_exploit,
         )
 
@@ -100,7 +100,7 @@ def main():
     # Test exploit database
     print("[TEST] Exploit Database:")
     try:
-        from skynet.tools.autonomous.decision_engine import EXPLOIT_DATABASE
+        from kryon.tools.autonomous.decision_engine import EXPLOIT_DATABASE
 
         services = list(EXPLOIT_DATABASE.keys())
         total_exploits = sum(len(exploits) for exploits in EXPLOIT_DATABASE.values())
@@ -114,7 +114,7 @@ def main():
     # Test decision engine
     print("[TEST] Decision Engine:")
     try:
-        from skynet.tools.autonomous import select_best_exploit
+        from kryon.tools.autonomous import select_best_exploit
 
         result = select_best_exploit("apache", "Apache 2.4.49", difficulty="medium")
         if result["exploit_recommended"]:

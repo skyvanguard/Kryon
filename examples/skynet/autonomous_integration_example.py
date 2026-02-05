@@ -11,7 +11,7 @@ This example demonstrates how all autonomous systems work together:
 Clearance: Omega-Strategic
 """
 
-from skynet.tools.autonomous import (
+from kryon.tools.autonomous import (
     AdaptiveStrategy,
     # Context Analyzer
     ContextAnalyzer,

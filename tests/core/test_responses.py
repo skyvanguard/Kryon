@@ -9,7 +9,7 @@ from openai.types.responses import (
     ResponseOutputText,
 )
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     FunctionTool,
     Handoff,

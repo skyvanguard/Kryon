@@ -5,9 +5,9 @@ import pytest
 from mcp.types import Tool as MCPTool
 from pydantic import BaseModel
 
-from skynet.sdk.agents import FunctionTool, RunContextWrapper
-from skynet.sdk.agents.exceptions import AgentsException, ModelBehaviorError
-from skynet.sdk.agents.mcp import MCPServer, MCPUtil
+from kryon.sdk.agents import FunctionTool, RunContextWrapper
+from kryon.sdk.agents.exceptions import AgentsException, ModelBehaviorError
+from kryon.sdk.agents.mcp import MCPServer, MCPUtil
 from tests.helpers import FakeMCPServer
 
 

@@ -10,7 +10,7 @@ pip install 'openai-agents[voice]'
 
 ## Concepts
 
-The main concept to know about is a [`VoicePipeline`][skynet.sdk.agents.voice.pipeline.VoicePipeline], which is a 3 step process:
+The main concept to know about is a [`VoicePipeline`][kryon.sdk.agents.voice.pipeline.VoicePipeline], which is a 3 step process:
 
 1. Run a speech-to-text model to turn audio into text.
 2. Run your code, which is usually an agentic workflow, to produce a result.
@@ -50,7 +50,7 @@ First, let's set up some Agents. This should feel familiar to you if you've buil
 import asyncio
 import random
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     function_tool,
 )
@@ -88,7 +88,7 @@ agent = Agent(
 
 ## Voice pipeline
 
-We'll set up a simple voice pipeline, using [`SingleAgentVoiceWorkflow`][skynet.sdk.agents.voice.workflow.SingleAgentVoiceWorkflow] as the workflow.
+We'll set up a simple voice pipeline, using [`SingleAgentVoiceWorkflow`][kryon.sdk.agents.voice.workflow.SingleAgentVoiceWorkflow] as the workflow.
 
 ```python
 from agents.voice import SingleAgentVoiceWorkflow, VoicePipeline
@@ -129,7 +129,7 @@ import random
 import numpy as np
 import sounddevice as sd
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     function_tool,
     set_tracing_disabled,

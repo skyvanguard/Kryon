@@ -35,7 +35,7 @@ KRYON's Autonomy System v3.1 represents the pinnacle of automated penetration te
 The fastest way to leverage KRYON's complete autonomy is through the CTF Master agent:
 
 ```python
-from skynet.agents.ctf_master import ctf_master
+from kryon.agents.ctf_master import ctf_master
 
 # CTF Master now has ALL autonomy tools (5 pillars):
 # - autonomous_ctf_solver (orchestrates all 5 systems)
@@ -79,7 +79,7 @@ Update Knowledge Base
 #### Basic Learning Cycle
 
 ```python
-from skynet.tools.autonomous import (
+from kryon.tools.autonomous import (
     autonomous_ctf_solver,
     record_operation,
     get_learned_recommendations
@@ -138,7 +138,7 @@ The engine detects 10 types of failures:
 ### Usage Example
 
 ```python
-from skynet.tools.autonomous import execute_with_adaptation
+from kryon.tools.autonomous import execute_with_adaptation
 
 exploit = {
     "name": "apache_path_traversal",
@@ -188,7 +188,7 @@ Monitor Progress --> Detect Issues --> Adjust Plan Dynamically
 ### Usage Example
 
 ```python
-from skynet.tools.autonomous import plan_autonomous_mission
+from kryon.tools.autonomous import plan_autonomous_mission
 
 # Define mission
 mission_plan = plan_autonomous_mission(
@@ -243,7 +243,7 @@ The Context Analyzer detects 20+ credential patterns:
 ### Usage Example
 
 ```python
-from skynet.tools.autonomous import extract_credentials, analyze_context
+from kryon.tools.autonomous import extract_credentials, analyze_context
 
 # Extract credentials from logs
 logs = """
@@ -286,7 +286,7 @@ for cred in credentials:
 ### Usage Example
 
 ```python
-from skynet.tools.autonomous import autonomous_evasion_orchestrator
+from kryon.tools.autonomous import autonomous_evasion_orchestrator
 
 # Define your operation
 def exploit_endpoint(target, payload, **context):
@@ -319,7 +319,7 @@ result = autonomous_evasion_orchestrator(
 ### Operation Modes
 
 ```python
-from skynet.tools.autonomous import get_decision_engine, OperationMode
+from kryon.tools.autonomous import get_decision_engine, OperationMode
 
 engine = get_decision_engine()
 

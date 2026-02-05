@@ -101,5 +101,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 3. **Update imports (if using SDK):**
    ```python
    # No change needed - internal module is still skynet
-   from skynet.sdk.agents import Agent, function_tool
+   from kryon.sdk.agents import Agent, function_tool
    ```

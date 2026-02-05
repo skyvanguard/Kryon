@@ -7,7 +7,7 @@ Context is an overloaded term. There are two main classes of context you might c
 
 ## Local context
 
-This is represented via the [`RunContextWrapper`][skynet.sdk.agents.run_context.RunContextWrapper] class and the [`context`][skynet.sdk.agents.run_context.RunContextWrapper.context] property within it. The way this works is:
+This is represented via the [`RunContextWrapper`][kryon.sdk.agents.run_context.RunContextWrapper] class and the [`context`][kryon.sdk.agents.run_context.RunContextWrapper.context] property within it. The way this works is:
 
 1. You create any Python object you want. A common pattern is to use a dataclass or a Pydantic object.
 2. You pass that object to the various run methods (e.g. `Runner.run(..., **context=whatever**))`).
@@ -29,7 +29,7 @@ You can use the context for things like:
 import asyncio
 from dataclasses import dataclass
 
-from skynet.sdk.agents import Agent, RunContextWrapper, Runner, function_tool
+from kryon.sdk.agents import Agent, RunContextWrapper, Runner, function_tool
 
 @dataclass
 class SecurityAlert:  # (1)!

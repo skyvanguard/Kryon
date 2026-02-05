@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from openai.types.responses import ResponseTextDeltaEvent
 
-from skynet.sdk.agents import Agent, OpenAIChatCompletionsModel, Runner, set_default_openai_client, set_tracing_disabled
+from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel, Runner, set_default_openai_client, set_tracing_disabled
 
 # Load environment variables from .env file
 load_dotenv()

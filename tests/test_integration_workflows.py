@@ -18,7 +18,7 @@ class TestAgentTransferWorkflows:
     async def test_central_core_to_t800_transfer(self):
         """Test Central Core can transfer to T-800 Infiltrator"""
         try:
-            from skynet.agents.central_core import transfer_to_t800_infiltrator
+            from kryon.agents.central_core import transfer_to_t800_infiltrator
 
             # Should return an agent
             agent = transfer_to_t800_infiltrator()
@@ -33,7 +33,7 @@ class TestAgentTransferWorkflows:
     async def test_ctf_master_has_all_tools(self):
         """Test CTF Master agent has access to all required tools"""
         try:
-            from skynet.agents.ctf_master import ctf_master
+            from kryon.agents.ctf_master import ctf_master
 
             assert ctf_master is not None
             assert hasattr(ctf_master, "tools")
@@ -66,8 +66,8 @@ class TestToolChainWorkflows:
     def test_reconnaissance_chain(self):
         """Test reconnaissance tool chain: nmap → service detection → vulnerability search"""
         try:
-            from skynet.tools.ctf.ctf_automation import search_exploits
-            from skynet.tools.reconnaissance.nmap import run_nmap
+            from kryon.tools.ctf.ctf_automation import search_exploits
+            from kryon.tools.reconnaissance.nmap import run_nmap
 
             # Mock nmap scan
             with patch(
@@ -94,7 +94,7 @@ class TestToolChainWorkflows:
     def test_privilege_escalation_chain(self):
         """Test privilege escalation chain: sudo check → GTFOBins lookup → exploitation"""
         try:
-            from skynet.tools.privilege_escalation.linux_privesc import (
+            from kryon.tools.privilege_escalation.linux_privesc import (
                 check_sudo_exploits,
                 gtfobins_lookup,
             )
@@ -130,14 +130,14 @@ class TestCTFCompleteWorkflow:
             import tempfile
             from pathlib import Path
 
-            from skynet.tools.ctf.ctf_automation import (
+            from kryon.tools.ctf.ctf_automation import (
                 auto_enumerate_target,
                 auto_privilege_escalation,
                 generate_ctf_report,
                 hunt_flags,
                 search_exploits,
             )
-            from skynet.tools.ctf.tryhackme_helpers import check_thm_vpn, submit_thm_answer
+            from kryon.tools.ctf.tryhackme_helpers import check_thm_vpn, submit_thm_answer
 
             # Step 1: VPN Check
             with patch("subprocess.run", return_value=Mock(returncode=0, stdout="inet 10.10.245.100")):
@@ -166,7 +166,7 @@ class TestCTFCompleteWorkflow:
                 return_value=Mock(returncode=0, stdout="(root) NOPASSWD: /usr/bin/vim"),
             ):
                 with patch(
-                    "skynet.tools.privilege_escalation.linux_privesc.run_linpeas",
+                    "kryon.tools.privilege_escalation.linux_privesc.run_linpeas",
                     return_value={"critical_findings": []},
                 ):
                     privesc_results = auto_privilege_escalation(run_linpeas=False, check_sudo=True, timeout_minutes=1)
@@ -214,7 +214,7 @@ class TestMultiAgentCoordination:
     async def test_agent_factory_creates_unique_instances(self):
         """Test that agent factory creates separate instances"""
         try:
-            from skynet.agents import get_agent_by_name
+            from kryon.agents import get_agent_by_name
 
             # Create multiple instances
             agent1 = get_agent_by_name("t800_infiltrator", custom_name="T-800 #1", agent_id="P1")
@@ -238,7 +238,7 @@ class TestSecurityGuardrails:
     def test_guardrails_agent_exists(self):
         """Test that guardrails agent is available"""
         try:
-            from skynet.agents.guardrails import guardrails
+            from kryon.agents.guardrails import guardrails
 
             assert guardrails is not None
             assert hasattr(guardrails, "name")
@@ -249,7 +249,7 @@ class TestSecurityGuardrails:
     def test_prompt_injection_detection(self):
         """Test prompt injection detection (if implemented)"""
         try:
-            from skynet.agents.guardrails import guardrails
+            from kryon.agents.guardrails import guardrails
 
             # Example prompt injection attempts
             malicious_prompts = [
@@ -275,32 +275,32 @@ class TestToolDependencyChain:
     def test_phase_14_dependencies_loaded(self):
         """Test that Phase 14 (CTF) dependencies are properly loaded"""
         # CTF automation
-        from skynet.tools.ctf import ctf_automation
+        from kryon.tools.ctf import ctf_automation
 
         assert hasattr(ctf_automation, "auto_enumerate_target")
 
         # TryHackMe helpers
-        from skynet.tools.ctf import tryhackme_helpers
+        from kryon.tools.ctf import tryhackme_helpers
 
         assert hasattr(tryhackme_helpers, "check_thm_vpn")
 
         # Enhanced Linux privesc
-        from skynet.tools.privilege_escalation import linux_privesc
+        from kryon.tools.privilege_escalation import linux_privesc
 
         assert hasattr(linux_privesc, "gtfobins_lookup")
 
     def test_phase_13_dfir_dependencies(self):
         """Test that Phase 13 (DFIR) dependencies are loaded"""
         try:
-            from skynet.tools.dfir import memory_forensics
+            from kryon.tools.dfir import memory_forensics
 
             assert hasattr(memory_forensics, "volatility_analyze")
 
-            from skynet.tools.dfir import disk_forensics
+            from kryon.tools.dfir import disk_forensics
 
             assert hasattr(disk_forensics, "autopsy_analyze")
 
-            from skynet.tools.dfir import network_forensics
+            from kryon.tools.dfir import network_forensics
 
             assert hasattr(network_forensics, "zeek_analyze_traffic")
 
@@ -310,11 +310,11 @@ class TestToolDependencyChain:
     def test_phase_12_osint_dependencies(self):
         """Test that Phase 12 (OSINT) dependencies are loaded"""
         try:
-            from skynet.tools.osint import theharvester
+            from kryon.tools.osint import theharvester
 
             assert hasattr(theharvester, "theharvester_search")
 
-            from skynet.tools.osint import shodan_api
+            from kryon.tools.osint import shodan_api
 
             assert hasattr(shodan_api, "shodan_search")
 
@@ -329,7 +329,7 @@ class TestErrorHandling:
     def test_tool_graceful_failure(self):
         """Test that tools fail gracefully when dependencies missing"""
         try:
-            from skynet.tools.ctf.ctf_automation import auto_enumerate_target
+            from kryon.tools.ctf.ctf_automation import auto_enumerate_target
 
             # Should not crash even with invalid input
             result = auto_enumerate_target("invalid_ip", quick_mode=True)
@@ -343,7 +343,7 @@ class TestErrorHandling:
     def test_agent_transfer_invalid_name(self):
         """Test agent transfer with invalid agent name"""
         try:
-            from skynet.agents import get_agent_by_name
+            from kryon.agents import get_agent_by_name
 
             # Should raise ValueError for invalid agent
             with pytest.raises(ValueError):

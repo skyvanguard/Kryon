@@ -7,8 +7,8 @@ generic_linux_command tool.
 
 import pytest
 
-from skynet.agents.t600_scout import transfer_to_one_tool_agent
-from skynet.sdk.agents import Runner
+from kryon.agents.t600_scout import transfer_to_one_tool_agent
+from kryon.sdk.agents import Runner
 from tests.core.test_responses import (
     get_function_tool_call,
     get_text_message,

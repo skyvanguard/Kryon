@@ -5,19 +5,19 @@ from typing import Any
 
 from openai.types.responses import Response, ResponseCompletedEvent
 
-from skynet.sdk.agents.agent_output import AgentOutputSchema
-from skynet.sdk.agents.handoffs import Handoff
-from skynet.sdk.agents.items import (
+from kryon.sdk.agents.agent_output import AgentOutputSchema
+from kryon.sdk.agents.handoffs import Handoff
+from kryon.sdk.agents.items import (
     ModelResponse,
     TResponseInputItem,
     TResponseOutputItem,
     TResponseStreamEvent,
 )
-from skynet.sdk.agents.model_settings import ModelSettings
-from skynet.sdk.agents.models.interface import Model, ModelTracing
-from skynet.sdk.agents.tool import Tool
-from skynet.sdk.agents.tracing import SpanError, generation_span
-from skynet.sdk.agents.usage import Usage
+from kryon.sdk.agents.model_settings import ModelSettings
+from kryon.sdk.agents.models.interface import Model, ModelTracing
+from kryon.sdk.agents.tool import Tool
+from kryon.sdk.agents.tracing import SpanError, generation_span
+from kryon.sdk.agents.usage import Usage
 
 
 class FakeModel(Model):

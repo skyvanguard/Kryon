@@ -1,7 +1,7 @@
 import pytest
 
-from skynet.sdk.agents.exceptions import UserError
-from skynet.sdk.agents.strict_schema import ensure_strict_json_schema
+from kryon.sdk.agents.exceptions import UserError
+from kryon.sdk.agents.strict_schema import ensure_strict_json_schema
 
 
 def test_empty_schema_has_additional_properties_false():

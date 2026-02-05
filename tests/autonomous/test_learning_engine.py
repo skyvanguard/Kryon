@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from skynet.tools.autonomous.learning_engine import (
+from kryon.tools.autonomous.learning_engine import (
     LearningEngine,
     get_learned_recommendations,
     record_operation,

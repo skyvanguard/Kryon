@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from skynet.util import cli_print_tool_output
+from kryon.util import cli_print_tool_output
 
 
 @pytest.fixture(autouse=True)

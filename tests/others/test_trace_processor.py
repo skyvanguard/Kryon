@@ -5,11 +5,11 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from skynet.sdk.agents.tracing.processor_interface import TracingProcessor
-from skynet.sdk.agents.tracing.processors import BackendSpanExporter, BatchTraceProcessor
-from skynet.sdk.agents.tracing.span_data import AgentSpanData
-from skynet.sdk.agents.tracing.spans import SpanImpl
-from skynet.sdk.agents.tracing.traces import TraceImpl
+from kryon.sdk.agents.tracing.processor_interface import TracingProcessor
+from kryon.sdk.agents.tracing.processors import BackendSpanExporter, BatchTraceProcessor
+from kryon.sdk.agents.tracing.span_data import AgentSpanData
+from kryon.sdk.agents.tracing.spans import SpanImpl
+from kryon.sdk.agents.tracing.traces import TraceImpl
 
 
 def get_span(processor: TracingProcessor) -> SpanImpl[AgentSpanData]:

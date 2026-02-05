@@ -2,7 +2,7 @@ import asyncio
 
 from pydantic import BaseModel
 
-from skynet.sdk.agents import Agent, Runner, trace
+from kryon.sdk.agents import Agent, Runner, trace
 
 """
 This example demonstrates a deterministic flow, where each step is performed by an agent.

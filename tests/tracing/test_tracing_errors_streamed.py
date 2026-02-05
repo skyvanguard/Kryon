@@ -8,7 +8,7 @@ import pytest
 from inline_snapshot import snapshot
 from typing_extensions import TypedDict
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     GuardrailFunctionOutput,
     InputGuardrail,

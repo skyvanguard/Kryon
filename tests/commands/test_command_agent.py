@@ -16,8 +16,8 @@ os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from skynet.repl.commands.agent import AgentCommand
-from skynet.repl.commands.base import Command
+from kryon.repl.commands.agent import AgentCommand
+from kryon.repl.commands.base import Command
 
 
 class TestAgentCommand:
@@ -144,8 +144,8 @@ class TestAgentCommand:
         result = agent_command._get_model_display_for_info("test", mock_agent)
         assert result == "Default CTF Model"
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
-    @patch("skynet.repl.commands.agent.get_agent_module")
+    @patch("kryon.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_agent_module")
     def test_handle_list(self, mock_get_module, mock_get_agents, agent_command, mock_agents):
         """Test listing available agents."""
         mock_get_agents.return_value = mock_agents
@@ -157,9 +157,9 @@ class TestAgentCommand:
         # Verify get_available_agents was called
         mock_get_agents.assert_called_once()
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
-    @patch("skynet.repl.commands.agent.visualize_agent_graph")
-    @patch("skynet.agents.get_agent_by_name")
+    @patch("kryon.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.visualize_agent_graph")
+    @patch("kryon.agents.get_agent_by_name")
     def test_handle_select_by_name(self, mock_get_agent, mock_visualize, mock_get_agents, agent_command, mock_agents):
         """Test selecting an agent by name."""
         mock_get_agents.return_value = mock_agents
@@ -172,8 +172,8 @@ class TestAgentCommand:
         # Verify visualization was called
         mock_visualize.assert_called_once_with(mock_agents["blueteam_agent"])
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
-    @patch("skynet.repl.commands.agent.visualize_agent_graph")
+    @patch("kryon.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.visualize_agent_graph")
     def test_handle_select_by_number(self, mock_visualize, mock_get_agents, agent_command, mock_agents):
         """Test selecting an agent by number."""
         mock_get_agents.return_value = mock_agents
@@ -197,7 +197,7 @@ class TestAgentCommand:
             expected_key = agent_keys[1]  # Second agent (0-indexed)
             assert os.environ.get("KRYON_AGENT_TYPE") == expected_key
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_available_agents")
     def test_handle_select_invalid_name(self, mock_get_agents, agent_command, mock_agents):
         """Test selecting an invalid agent name."""
         mock_get_agents.return_value = mock_agents
@@ -206,7 +206,7 @@ class TestAgentCommand:
         assert result is False
         assert "KRYON_AGENT_TYPE" not in os.environ
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_available_agents")
     def test_handle_select_invalid_number(self, mock_get_agents, agent_command, mock_agents):
         """Test selecting an invalid agent number."""
         mock_get_agents.return_value = mock_agents
@@ -220,7 +220,7 @@ class TestAgentCommand:
         result = agent_command.handle_select([])
         assert result is False
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_available_agents")
     def test_handle_info_by_name(self, mock_get_agents, agent_command, mock_agents):
         """Test getting info for an agent by name."""
         mock_get_agents.return_value = mock_agents
@@ -228,7 +228,7 @@ class TestAgentCommand:
         result = agent_command.handle_info(["blueteam_agent"])
         assert result is True
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_available_agents")
     def test_handle_info_by_number(self, mock_get_agents, agent_command, mock_agents):
         """Test getting info for an agent by number."""
         mock_get_agents.return_value = mock_agents
@@ -236,7 +236,7 @@ class TestAgentCommand:
         result = agent_command.handle_info(["1"])
         assert result is True
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_available_agents")
     def test_handle_info_invalid_name(self, mock_get_agents, agent_command, mock_agents):
         """Test getting info for an invalid agent name."""
         mock_get_agents.return_value = mock_agents
@@ -244,7 +244,7 @@ class TestAgentCommand:
         result = agent_command.handle_info(["invalid_agent"])
         assert result is False
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_available_agents")
     def test_handle_info_invalid_number(self, mock_get_agents, agent_command, mock_agents):
         """Test getting info for an invalid agent number."""
         mock_get_agents.return_value = mock_agents
@@ -257,7 +257,7 @@ class TestAgentCommand:
         result = agent_command.handle_info([])
         assert result is False
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_available_agents")
     def test_handle_current_single_agent(self, mock_get_agents, agent_command, mock_agents):
         """Test handle_current for single agent mode."""
         mock_get_agents.return_value = mock_agents
@@ -267,7 +267,7 @@ class TestAgentCommand:
         result = agent_command.handle_current([])
         assert result is True
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_available_agents")
     def test_handle_current_agent_not_found(self, mock_get_agents, agent_command, mock_agents):
         """Test handle_current when current agent is not found."""
         mock_get_agents.return_value = mock_agents
@@ -277,10 +277,10 @@ class TestAgentCommand:
         result = agent_command.handle_current([])
         assert result is False
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_available_agents")
     def test_handle_current_parallel_mode(self, mock_get_agents, agent_command):
         """Test handle_current for parallel mode."""
-        from skynet.repl.commands.parallel import PARALLEL_CONFIGS, ParallelConfig
+        from kryon.repl.commands.parallel import PARALLEL_CONFIGS, ParallelConfig
 
         # Save original configs
         original_configs = PARALLEL_CONFIGS[:]
@@ -331,7 +331,7 @@ class TestAgentCommand:
             if "KRYON_PARALLEL" in os.environ:
                 del os.environ["KRYON_PARALLEL"]
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_available_agents")
     def test_handle_info_with_complex_agent(self, mock_get_agents, agent_command):
         """Test info command with agent that has complex attributes."""
         # Create a more complex mock agent
@@ -361,10 +361,10 @@ class TestAgentCommand:
         assert agent_command.name == "/agent"
         assert "/a" in agent_command.aliases
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
-    @patch("skynet.repl.commands.agent.get_agent_module")
-    @patch("skynet.repl.commands.agent.visualize_agent_graph")
-    @patch("skynet.agents.get_agent_by_name")
+    @patch("kryon.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_agent_module")
+    @patch("kryon.repl.commands.agent.visualize_agent_graph")
+    @patch("kryon.agents.get_agent_by_name")
     def test_handle_main_command_routing(
         self, mock_get_agent, mock_visualize, mock_get_module, mock_get_agents, agent_command, mock_agents
     ):
@@ -393,7 +393,7 @@ class TestAgentCommand:
         assert result4 is True
         assert os.environ.get("KRYON_AGENT_TYPE") == "blueteam_agent"
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_available_agents")
     def test_agent_with_callable_instructions(self, mock_get_agents, agent_command):
         """Test agent with callable instructions."""
         mock_agent = Mock()
@@ -416,7 +416,7 @@ class TestAgentCommand:
         result = agent_command.handle_info(["callable"])
         assert result is True
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_available_agents")
     def test_agent_with_multiline_description(self, mock_get_agents, agent_command):
         """Test agent with multiline description that should be cleaned."""
         mock_agent = Mock()
@@ -468,10 +468,10 @@ class TestAgentCommandIntegration:
             if var in os.environ:
                 del os.environ[var]
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
-    @patch("skynet.repl.commands.agent.get_agent_module")
-    @patch("skynet.repl.commands.agent.visualize_agent_graph")
-    @patch("skynet.agents.get_agent_by_name")
+    @patch("kryon.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_agent_module")
+    @patch("kryon.repl.commands.agent.visualize_agent_graph")
+    @patch("kryon.agents.get_agent_by_name")
     def test_full_workflow(self, mock_get_agent_by_name, mock_visualize, mock_get_module, mock_get_agents):
         """Test a complete workflow of listing, selecting, and getting info."""
         # Setup mock agents
@@ -538,7 +538,7 @@ class TestAgentCommandIntegration:
         assert result5 is True
         assert os.environ.get("KRYON_AGENT_TYPE") == "agent3"
 
-    @patch("skynet.repl.commands.agent.get_available_agents")
+    @patch("kryon.repl.commands.agent.get_available_agents")
     def test_environment_variable_handling(self, mock_get_agents):
         """Test how environment variables affect model display."""
         mock_agent = Mock()

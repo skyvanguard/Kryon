@@ -147,7 +147,7 @@ Tools run directly inside Kali container:
 
 ```python
 # KRYON automatically detects and uses Docker
-from skynet.tools.reconnaissance import run_nmap
+from kryon.tools.reconnaissance import run_nmap
 
 result = run_nmap(
     target="192.168.1.0/24",
@@ -161,7 +161,7 @@ result = run_nmap(
 Tools execute via SSH:
 
 ```python
-from skynet.tools.reconnaissance import run_nmap
+from kryon.tools.reconnaissance import run_nmap
 
 result = run_nmap(
     target="192.168.1.0/24",

@@ -20,7 +20,7 @@ from openai.types.responses.response_output_text import ResponseOutputText
 from openai.types.responses.response_reasoning_item import ResponseReasoningItem, Summary
 from openai.types.responses.response_reasoning_item_param import ResponseReasoningItemParam
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     ItemHelpers,
     MessageOutputItem,

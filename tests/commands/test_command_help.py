@@ -11,8 +11,8 @@ import pytest
 from rich.panel import Panel
 from rich.table import Table
 
-from skynet.repl.commands.base import Command
-from skynet.repl.commands.help import HelpCommand
+from kryon.repl.commands.base import Command
+from kryon.repl.commands.help import HelpCommand
 
 
 class TestHelpCommand:
@@ -26,7 +26,7 @@ class TestHelpCommand:
     @pytest.fixture
     def mock_console(self):
         """Create a mock console for testing output."""
-        with patch("skynet.repl.commands.help.console") as mock_console:
+        with patch("kryon.repl.commands.help.console") as mock_console:
             yield mock_console
 
     @pytest.fixture
@@ -38,7 +38,7 @@ class TestHelpCommand:
             "/agent": Mock(name="/agent", description="Agent commands"),
         }
 
-        with patch("skynet.repl.commands.help.COMMANDS", mock_registry):
+        with patch("kryon.repl.commands.help.COMMANDS", mock_registry):
             yield mock_registry
 
     @pytest.fixture
@@ -46,7 +46,7 @@ class TestHelpCommand:
         """Create a mock aliases registry for testing."""
         mock_aliases = {"/h": "/help", "/m": "/memory", "/a": "/agent"}
 
-        with patch("skynet.repl.commands.help.COMMAND_ALIASES", mock_aliases):
+        with patch("kryon.repl.commands.help.COMMAND_ALIASES", mock_aliases):
             yield mock_aliases
 
     def test_command_initialization(self, help_command):
@@ -86,7 +86,7 @@ class TestHelpCommand:
         mock_memory_cmd.name = "/memory"
         mock_memory_cmd.show_help = Mock(return_value=True)
 
-        with patch("skynet.repl.commands.help.COMMANDS", {"/memory": mock_memory_cmd}):
+        with patch("kryon.repl.commands.help.COMMANDS", {"/memory": mock_memory_cmd}):
             result = help_command.handle_memory()
 
         assert result is True
@@ -101,7 +101,7 @@ class TestHelpCommand:
         # Remove show_help attribute
         del mock_memory_cmd.show_help
 
-        with patch("skynet.repl.commands.help.COMMANDS", {"/memory": mock_memory_cmd}):
+        with patch("kryon.repl.commands.help.COMMANDS", {"/memory": mock_memory_cmd}):
             result = help_command.handle_memory()
 
         assert result is True
@@ -142,7 +142,7 @@ class TestHelpCommand:
         mock_platform_cmd.name = "/platform"
         mock_platform_cmd.show_help = Mock(return_value=True)
 
-        with patch("skynet.repl.commands.help.COMMANDS", {"/platform": mock_platform_cmd}):
+        with patch("kryon.repl.commands.help.COMMANDS", {"/platform": mock_platform_cmd}):
             result = help_command.handle_platform()
 
         assert result is True
@@ -150,7 +150,7 @@ class TestHelpCommand:
 
     def test_handle_platform_subcommand_fallback(self, help_command, mock_console):
         """Test platform subcommand fallback."""
-        with patch("skynet.repl.commands.help.COMMANDS", {}):
+        with patch("kryon.repl.commands.help.COMMANDS", {}):
             result = help_command.handle_platform()
 
         assert result is True
@@ -267,8 +267,8 @@ class TestHelpCommand:
         mock_platform.get_commands.return_value = ["test_command"]
         mock_platform_manager.get_platform.return_value = mock_platform
 
-        with patch("skynet.repl.commands.help.HAS_PLATFORM_EXTENSIONS", True):
-            with patch("skynet.is_skynet_extensions_platform_available", return_value=True):
+        with patch("kryon.repl.commands.help.HAS_PLATFORM_EXTENSIONS", True):
+            with patch("kryon.is_skynet_extensions_platform_available", return_value=True):
                 # Mock the platform manager without importing skynetextensions
                 with patch(
                     "sys.modules",
@@ -281,7 +281,7 @@ class TestHelpCommand:
 
     def test_handle_help_platform_manager_no_extensions(self, help_command, mock_console):
         """Test platform manager help without extensions."""
-        with patch("skynet.repl.commands.help.HAS_PLATFORM_EXTENSIONS", False):
+        with patch("kryon.repl.commands.help.HAS_PLATFORM_EXTENSIONS", False):
             result = help_command.handle_help_platform_manager()
 
         assert result is True
@@ -303,7 +303,7 @@ class TestHelpCommand:
 
     def test_create_styled_table_function(self):
         """Test create_styled_table helper function."""
-        from skynet.repl.commands.help import create_styled_table
+        from kryon.repl.commands.help import create_styled_table
 
         headers = [("Command", "yellow"), ("Description", "white")]
         table = create_styled_table("Test Table", headers)
@@ -313,7 +313,7 @@ class TestHelpCommand:
 
     def test_create_notes_panel_function(self):
         """Test create_notes_panel helper function."""
-        from skynet.repl.commands.help import create_notes_panel
+        from kryon.repl.commands.help import create_notes_panel
 
         notes = ["Note 1", "Note 2", "Note 3"]
         panel = create_notes_panel(notes, "Test Notes")
@@ -341,7 +341,7 @@ class TestHelpCommand:
 
     def test_handle_memory_no_memory_command(self, help_command, mock_console):
         """Test memory subcommand when no memory command exists."""
-        with patch("skynet.repl.commands.help.COMMANDS", {}):
+        with patch("kryon.repl.commands.help.COMMANDS", {}):
             result = help_command.handle_memory()
 
         assert result is True
@@ -350,8 +350,8 @@ class TestHelpCommand:
 
     def test_handle_platform_with_import_error(self, help_command, mock_console):
         """Test platform help with import errors."""
-        with patch("skynet.repl.commands.help.HAS_PLATFORM_EXTENSIONS", True):
-            with patch("skynet.is_skynet_extensions_platform_available", return_value=False):
+        with patch("kryon.repl.commands.help.HAS_PLATFORM_EXTENSIONS", True):
+            with patch("kryon.is_skynet_extensions_platform_available", return_value=False):
                 result = help_command.handle_help_platform_manager()
 
         assert result is True
@@ -362,8 +362,8 @@ class TestHelpCommand:
         mock_platform_manager = Mock()
         mock_platform_manager.list_platforms.return_value = []
 
-        with patch("skynet.repl.commands.help.HAS_PLATFORM_EXTENSIONS", True):
-            with patch("skynet.is_skynet_extensions_platform_available", return_value=True):
+        with patch("kryon.repl.commands.help.HAS_PLATFORM_EXTENSIONS", True):
+            with patch("kryon.is_skynet_extensions_platform_available", return_value=True):
                 with patch(
                     "sys.modules",
                     {"skynetextensions.platform.base": Mock(platform_manager=mock_platform_manager)},
@@ -385,8 +385,8 @@ class TestHelpCommand:
 
     def test_handle_aliases_with_empty_registry(self, help_command, mock_console):
         """Test aliases help with empty aliases registry."""
-        with patch("skynet.repl.commands.help.COMMAND_ALIASES", {}):
-            with patch("skynet.repl.commands.help.COMMANDS", {}):
+        with patch("kryon.repl.commands.help.COMMAND_ALIASES", {}):
+            with patch("kryon.repl.commands.help.COMMANDS", {}):
                 result = help_command.handle_help_aliases()
 
         assert result is True

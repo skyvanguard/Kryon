@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     GuardrailFunctionOutput,
     InputGuardrail,
@@ -13,7 +13,7 @@ from skynet.sdk.agents import (
     TResponseInputItem,
     UserError,
 )
-from skynet.sdk.agents.guardrail import input_guardrail, output_guardrail
+from kryon.sdk.agents.guardrail import input_guardrail, output_guardrail
 
 
 def get_sync_guardrail(triggers: bool, output_info: Any | None = None):

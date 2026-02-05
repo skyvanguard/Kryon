@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from skynet.sdk.agents.models import _openai_shared
-from skynet.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
-from skynet.sdk.agents.models.openai_responses import OpenAIResponsesModel
-from skynet.sdk.agents.tracing import set_trace_processors, set_tracing_disabled
-from skynet.sdk.agents.tracing.setup import GLOBAL_TRACE_PROVIDER
+from kryon.sdk.agents.models import _openai_shared
+from kryon.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
+from kryon.sdk.agents.models.openai_responses import OpenAIResponsesModel
+from kryon.sdk.agents.tracing import set_trace_processors, set_tracing_disabled
+from kryon.sdk.agents.tracing.setup import GLOBAL_TRACE_PROVIDER
 from tests.testing_processor import SPAN_PROCESSOR_TESTING
 
 

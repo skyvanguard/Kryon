@@ -25,7 +25,7 @@ import pytest
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from skynet.tools.autonomous.orchestrator import (
+from kryon.tools.autonomous.orchestrator import (
     autonomous_ctf_solver,
     autonomous_network_pivot,
     autonomous_pentest,
@@ -36,11 +36,11 @@ from skynet.tools.autonomous.orchestrator import (
 class TestAutonomousCTFSolver:
     """Test complete autonomous CTF solving workflow."""
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
-    @patch("skynet.tools.autonomous.strategic_planner.StrategicPlanner")
-    @patch("skynet.tools.autonomous.context_analyzer.ContextAnalyzer")
-    @patch("skynet.tools.autonomous.learning_engine.get_learned_recommendations")
-    @patch("skynet.tools.autonomous.decision_engine.select_best_exploit")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.strategic_planner.StrategicPlanner")
+    @patch("kryon.tools.autonomous.context_analyzer.ContextAnalyzer")
+    @patch("kryon.tools.autonomous.learning_engine.get_learned_recommendations")
+    @patch("kryon.tools.autonomous.decision_engine.select_best_exploit")
     def test_complete_ctf_workflow_success(
         self, mock_exploit_select, mock_learned, mock_analyzer_class, mock_planner_class, mock_recon
     ):
@@ -122,8 +122,8 @@ class TestAutonomousCTFSolver:
         assert "reconnaissance" in phases
         assert "context_analysis" in phases
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
-    @patch("skynet.tools.autonomous.strategic_planner.StrategicPlanner")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.strategic_planner.StrategicPlanner")
     def test_recon_failure_handling(self, mock_planner_class, mock_recon):
         """Test handling of reconnaissance failure."""
         # Mock planner
@@ -152,10 +152,10 @@ class TestAutonomousCTFSolver:
         assert result["error"] is not None
         assert "reconnaissance failed" in result["error"].lower() or "no open ports" in result["error"].lower()
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
-    @patch("skynet.tools.autonomous.strategic_planner.StrategicPlanner")
-    @patch("skynet.tools.autonomous.context_analyzer.ContextAnalyzer")
-    @patch("skynet.tools.autonomous.learning_engine.get_learned_recommendations")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.strategic_planner.StrategicPlanner")
+    @patch("kryon.tools.autonomous.context_analyzer.ContextAnalyzer")
+    @patch("kryon.tools.autonomous.learning_engine.get_learned_recommendations")
     def test_no_exploits_available(self, mock_learned, mock_analyzer_class, mock_planner_class, mock_recon):
         """Test behavior when no exploits are available."""
         # Mock planner
@@ -197,11 +197,11 @@ class TestAutonomousCTFSolver:
         phases = [step["phase"] for step in result["exploitation_path"]]
         assert "reconnaissance" in phases
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
-    @patch("skynet.tools.autonomous.strategic_planner.StrategicPlanner")
-    @patch("skynet.tools.autonomous.context_analyzer.ContextAnalyzer")
-    @patch("skynet.tools.autonomous.learning_engine.get_learned_recommendations")
-    @patch("skynet.tools.autonomous.decision_engine.select_best_exploit")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.strategic_planner.StrategicPlanner")
+    @patch("kryon.tools.autonomous.context_analyzer.ContextAnalyzer")
+    @patch("kryon.tools.autonomous.learning_engine.get_learned_recommendations")
+    @patch("kryon.tools.autonomous.decision_engine.select_best_exploit")
     def test_timeout_handling(
         self, mock_exploit_select, mock_learned, mock_analyzer_class, mock_planner_class, mock_recon
     ):
@@ -247,10 +247,10 @@ class TestAutonomousCTFSolver:
         assert elapsed < 60  # Should not exceed reasonable time
         assert result["time_elapsed"] < 60
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
-    @patch("skynet.tools.autonomous.strategic_planner.StrategicPlanner")
-    @patch("skynet.tools.autonomous.context_analyzer.ContextAnalyzer")
-    @patch("skynet.tools.autonomous.learning_engine.get_learned_recommendations")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.strategic_planner.StrategicPlanner")
+    @patch("kryon.tools.autonomous.context_analyzer.ContextAnalyzer")
+    @patch("kryon.tools.autonomous.learning_engine.get_learned_recommendations")
     def test_credentials_discovery(self, mock_learned, mock_analyzer_class, mock_planner_class, mock_recon):
         """Test handling of discovered credentials."""
         # Mock planner
@@ -293,11 +293,11 @@ class TestAutonomousCTFSolver:
         assert creds_phases[0].get("status") == "credentials_discovered"
         assert creds_phases[0].get("count") == 1
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
-    @patch("skynet.tools.autonomous.strategic_planner.StrategicPlanner")
-    @patch("skynet.tools.autonomous.context_analyzer.ContextAnalyzer")
-    @patch("skynet.tools.autonomous.learning_engine.get_learned_recommendations")
-    @patch("skynet.tools.autonomous.decision_engine.select_best_exploit")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.strategic_planner.StrategicPlanner")
+    @patch("kryon.tools.autonomous.context_analyzer.ContextAnalyzer")
+    @patch("kryon.tools.autonomous.learning_engine.get_learned_recommendations")
+    @patch("kryon.tools.autonomous.decision_engine.select_best_exploit")
     def test_multiple_services_enumeration(
         self, mock_exploit_select, mock_learned, mock_analyzer_class, mock_planner_class, mock_recon
     ):
@@ -368,8 +368,8 @@ class TestAutonomousCTFSolver:
         # Should have called exploit selection for each service
         assert mock_exploit_select.call_count == 3
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
-    @patch("skynet.tools.autonomous.strategic_planner.StrategicPlanner")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.strategic_planner.StrategicPlanner")
     def test_difficulty_levels(self, mock_planner_class, mock_recon):
         """Test different difficulty levels affect planning."""
         mock_planner = MagicMock()
@@ -404,8 +404,8 @@ class TestAutonomousCTFSolver:
 class TestAutonomousPentest:
     """Test autonomous penetration testing."""
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
-    @patch("skynet.tools.autonomous.strategic_planner.StrategicPlanner")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.strategic_planner.StrategicPlanner")
     def test_pentest_basic_execution(self, mock_planner_class, mock_recon):
         """Test basic pentest execution."""
         mock_planner = MagicMock()
@@ -448,7 +448,7 @@ class TestAutonomousPentest:
 class TestAutonomousNetworkPivot:
     """Test autonomous network pivoting."""
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
     def test_network_pivot_discovery(self, mock_recon):
         """Test network pivot discovery."""
         mock_recon.return_value = {
@@ -491,11 +491,11 @@ class TestMultiAgentCoordination:
 class TestPhaseIntegration:
     """Test integration between phases."""
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
-    @patch("skynet.tools.autonomous.strategic_planner.StrategicPlanner")
-    @patch("skynet.tools.autonomous.context_analyzer.ContextAnalyzer")
-    @patch("skynet.tools.autonomous.learning_engine.get_learned_recommendations")
-    @patch("skynet.tools.autonomous.decision_engine.select_best_exploit")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.strategic_planner.StrategicPlanner")
+    @patch("kryon.tools.autonomous.context_analyzer.ContextAnalyzer")
+    @patch("kryon.tools.autonomous.learning_engine.get_learned_recommendations")
+    @patch("kryon.tools.autonomous.decision_engine.select_best_exploit")
     def test_phase_data_flow(
         self, mock_exploit_select, mock_learned, mock_analyzer_class, mock_planner_class, mock_recon
     ):
@@ -552,8 +552,8 @@ class TestPhaseIntegration:
 class TestErrorRecovery:
     """Test error recovery mechanisms."""
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
-    @patch("skynet.tools.autonomous.strategic_planner.StrategicPlanner")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.strategic_planner.StrategicPlanner")
     def test_exception_handling(self, mock_planner_class, mock_recon):
         """Test that exceptions are handled gracefully."""
         mock_planner = MagicMock()
@@ -566,9 +566,9 @@ class TestErrorRecovery:
         assert "error" in result
         assert result["success"] is False
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
-    @patch("skynet.tools.autonomous.strategic_planner.StrategicPlanner")
-    @patch("skynet.tools.autonomous.context_analyzer.ContextAnalyzer")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.strategic_planner.StrategicPlanner")
+    @patch("kryon.tools.autonomous.context_analyzer.ContextAnalyzer")
     def test_partial_failure_recovery(self, mock_analyzer_class, mock_planner_class, mock_recon):
         """Test recovery from partial failures."""
         mock_planner = MagicMock()
@@ -601,10 +601,10 @@ class TestErrorRecovery:
 class TestPerformance:
     """Test performance and optimization."""
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
-    @patch("skynet.tools.autonomous.strategic_planner.StrategicPlanner")
-    @patch("skynet.tools.autonomous.context_analyzer.ContextAnalyzer")
-    @patch("skynet.tools.autonomous.learning_engine.get_learned_recommendations")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.strategic_planner.StrategicPlanner")
+    @patch("kryon.tools.autonomous.context_analyzer.ContextAnalyzer")
+    @patch("kryon.tools.autonomous.learning_engine.get_learned_recommendations")
     def test_execution_time_tracking(self, mock_learned, mock_analyzer_class, mock_planner_class, mock_recon):
         """Test that execution time is properly tracked."""
         # Setup quick mocks
@@ -647,8 +647,8 @@ class TestPerformance:
 class TestResultStructure:
     """Test result structure consistency."""
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
-    @patch("skynet.tools.autonomous.strategic_planner.StrategicPlanner")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.strategic_planner.StrategicPlanner")
     def test_result_has_required_fields(self, mock_planner_class, mock_recon):
         """Test that results have all required fields."""
         mock_planner = MagicMock()
@@ -679,10 +679,10 @@ class TestResultStructure:
         for field in required_fields:
             assert field in result, f"Missing required field: {field}"
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
-    @patch("skynet.tools.autonomous.strategic_planner.StrategicPlanner")
-    @patch("skynet.tools.autonomous.context_analyzer.ContextAnalyzer")
-    @patch("skynet.tools.autonomous.learning_engine.get_learned_recommendations")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.strategic_planner.StrategicPlanner")
+    @patch("kryon.tools.autonomous.context_analyzer.ContextAnalyzer")
+    @patch("kryon.tools.autonomous.learning_engine.get_learned_recommendations")
     def test_exploitation_path_structure(self, mock_learned, mock_analyzer_class, mock_planner_class, mock_recon):
         """Test exploitation path has correct structure."""
         mock_planner = MagicMock()

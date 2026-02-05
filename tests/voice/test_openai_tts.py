@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 
 try:
-    from skynet.sdk.agents.voice import OpenAITTSModel, TTSModelSettings
+    from kryon.sdk.agents.voice import OpenAITTSModel, TTSModelSettings
 except ImportError:
     pass
 

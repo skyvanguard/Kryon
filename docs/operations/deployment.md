@@ -287,7 +287,7 @@ KRYON_MODEL="qwen2.5:14b"
 kryon --version
 
 # Test connectivity
-python -c "from skynet.cli import main; print('OK')"
+python -c "from kryon.cli import main; print('OK')"
 
 # Run health check
 kryon --health-check

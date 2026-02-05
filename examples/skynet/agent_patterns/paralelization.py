@@ -9,14 +9,14 @@ import os
 
 from openai import AsyncOpenAI
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     ItemHelpers,
     OpenAIChatCompletionsModel,
     Runner,
     function_tool,
 )
-from skynet.tools.common import run_command
+from kryon.tools.common import run_command
 
 
 @function_tool

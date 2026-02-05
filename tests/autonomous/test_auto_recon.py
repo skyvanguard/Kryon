@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from skynet.tools.autonomous.auto_recon import (
+from kryon.tools.autonomous.auto_recon import (
     _detect_services,
     _enumerate_web,
     _fallback_port_scan,
@@ -28,8 +28,8 @@ from skynet.tools.autonomous.auto_recon import (
 class TestFullAutoEnumeration:
     """Test complete autonomous enumeration."""
 
-    @patch("skynet.tools.autonomous.auto_recon._quick_port_scan")
-    @patch("skynet.tools.autonomous.auto_recon._detect_services")
+    @patch("kryon.tools.autonomous.auto_recon._quick_port_scan")
+    @patch("kryon.tools.autonomous.auto_recon._detect_services")
     def test_basic_enumeration_success(self, mock_detect, mock_scan):
         """Test basic enumeration completes successfully."""
         # Mock port scan result
@@ -82,7 +82,7 @@ class TestFullAutoEnumeration:
         assert result["os_detection"]["type"] == "Linux"
         assert result["error"] is None
 
-    @patch("skynet.tools.autonomous.auto_recon._quick_port_scan")
+    @patch("kryon.tools.autonomous.auto_recon._quick_port_scan")
     def test_enumeration_no_open_ports(self, mock_scan):
         """Test enumeration when no ports are found."""
         mock_scan.return_value = {"success": False, "ports": [], "os": {}}
@@ -93,9 +93,9 @@ class TestFullAutoEnumeration:
         assert result["error"] == "Port scan failed"
         assert len(result["open_ports"]) == 0
 
-    @patch("skynet.tools.autonomous.auto_recon._quick_port_scan")
-    @patch("skynet.tools.autonomous.auto_recon._detect_services")
-    @patch("skynet.tools.autonomous.auto_recon._enumerate_web")
+    @patch("kryon.tools.autonomous.auto_recon._quick_port_scan")
+    @patch("kryon.tools.autonomous.auto_recon._detect_services")
+    @patch("kryon.tools.autonomous.auto_recon._enumerate_web")
     def test_web_enumeration_triggered(self, mock_web, mock_detect, mock_scan):
         """Test web enumeration is triggered for HTTP services."""
         mock_scan.return_value = {
@@ -136,9 +136,9 @@ class TestFullAutoEnumeration:
         assert len(result["http_endpoints"]) == 2
         assert mock_web.called
 
-    @patch("skynet.tools.autonomous.auto_recon._quick_port_scan")
-    @patch("skynet.tools.autonomous.auto_recon._detect_services")
-    @patch("skynet.tools.autonomous.auto_recon._vulnerability_assessment")
+    @patch("kryon.tools.autonomous.auto_recon._quick_port_scan")
+    @patch("kryon.tools.autonomous.auto_recon._detect_services")
+    @patch("kryon.tools.autonomous.auto_recon._vulnerability_assessment")
     def test_vulnerability_assessment_in_deep_scan(self, mock_vuln, mock_detect, mock_scan):
         """Test vulnerability assessment runs in deep scan mode."""
         mock_scan.return_value = {
@@ -256,7 +256,7 @@ class TestServiceDetection:
             {"port": 22, "service": "ssh", "version": "OpenSSH 7.6", "protocol": "tcp"},
         ]
 
-        with patch("skynet.tools.autonomous.auto_recon._grab_banner") as mock_banner:
+        with patch("kryon.tools.autonomous.auto_recon._grab_banner") as mock_banner:
             mock_banner.return_value = "SSH-2.0-OpenSSH_7.6"
 
             result = _detect_services("10.10.10.5", ports)
@@ -427,7 +427,7 @@ class TestVulnerabilityAssessment:
 class TestConvenienceFunctions:
     """Test convenience wrapper functions."""
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
     def test_quick_recon(self, mock_full):
         """Test quick_recon wrapper."""
         mock_full.return_value = {"success": True}
@@ -437,7 +437,7 @@ class TestConvenienceFunctions:
         mock_full.assert_called_once_with("10.10.10.5", deep_scan=False, timeout=300)
         assert result["success"] is True
 
-    @patch("skynet.tools.autonomous.auto_recon.full_auto_enumeration")
+    @patch("kryon.tools.autonomous.auto_recon.full_auto_enumeration")
     def test_deep_recon(self, mock_full):
         """Test deep_recon wrapper."""
         mock_full.return_value = {"success": True}
@@ -451,7 +451,7 @@ class TestConvenienceFunctions:
 class TestEdgeCases:
     """Test edge cases and error handling."""
 
-    @patch("skynet.tools.autonomous.auto_recon._quick_port_scan")
+    @patch("kryon.tools.autonomous.auto_recon._quick_port_scan")
     def test_exception_handling(self, mock_scan):
         """Test exception handling in enumeration."""
         mock_scan.side_effect = Exception("Network error")
@@ -493,9 +493,9 @@ class TestEdgeCases:
 class TestPerformance:
     """Test performance characteristics."""
 
-    @patch("skynet.tools.autonomous.auto_recon._enumerate_web")  # Correct function name
-    @patch("skynet.tools.autonomous.auto_recon._quick_port_scan")
-    @patch("skynet.tools.autonomous.auto_recon._detect_services")
+    @patch("kryon.tools.autonomous.auto_recon._enumerate_web")  # Correct function name
+    @patch("kryon.tools.autonomous.auto_recon._quick_port_scan")
+    @patch("kryon.tools.autonomous.auto_recon._detect_services")
     def test_timeout_respected(self, mock_detect, mock_scan, mock_web):
         """Test that timeout is respected."""
         import time

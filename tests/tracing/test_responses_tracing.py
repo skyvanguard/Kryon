@@ -3,8 +3,8 @@ from inline_snapshot import snapshot
 from openai import AsyncOpenAI
 from openai.types.responses import ResponseCompletedEvent
 
-from skynet.sdk.agents import ModelSettings, ModelTracing, OpenAIResponsesModel, trace
-from skynet.sdk.agents.tracing.span_data import ResponseSpanData
+from kryon.sdk.agents import ModelSettings, ModelTracing, OpenAIResponsesModel, trace
+from kryon.sdk.agents.tracing.span_data import ResponseSpanData
 from tests import fake_model
 from tests.testing_processor import assert_no_spans, fetch_normalized_spans, fetch_ordered_spans
 

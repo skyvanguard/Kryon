@@ -5,7 +5,7 @@ import asyncio
 import pytest
 from inline_snapshot import snapshot
 
-from skynet.sdk.agents import Agent, RunConfig, Runner, trace
+from kryon.sdk.agents import Agent, RunConfig, Runner, trace
 from tests.core.test_responses import get_text_message
 from tests.fake_model import FakeModel
 from tests.testing_processor import assert_no_traces, fetch_normalized_spans

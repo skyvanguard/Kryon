@@ -8,10 +8,10 @@ from inline_snapshot import snapshot
 from openai.types.responses import ResponseCompletedEvent
 from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
 
-from skynet.sdk.agents import Agent, Model, ModelSettings, ModelTracing, Tool
-from skynet.sdk.agents.agent_output import AgentOutputSchema
-from skynet.sdk.agents.handoffs import Handoff
-from skynet.sdk.agents.items import (
+from kryon.sdk.agents import Agent, Model, ModelSettings, ModelTracing, Tool
+from kryon.sdk.agents.agent_output import AgentOutputSchema
+from kryon.sdk.agents.handoffs import Handoff
+from kryon.sdk.agents.items import (
     ModelResponse,
     TResponseInputItem,
     TResponseOutputItem,
@@ -19,7 +19,7 @@ from skynet.sdk.agents.items import (
 )
 
 try:
-    from skynet.sdk.agents.voice import SingleAgentVoiceWorkflow
+    from kryon.sdk.agents.voice import SingleAgentVoiceWorkflow
     from tests.core.test_responses import (
         get_function_tool,
         get_function_tool_call,

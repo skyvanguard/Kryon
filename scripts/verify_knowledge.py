@@ -29,7 +29,7 @@ def verify():
 ╚═══════════════════════════════════════════════════════════════╝
     """)
 
-    from skynet.knowledge import get_knowledge_stats, query_knowledge
+    from kryon.knowledge import get_knowledge_stats, query_knowledge
 
     # Get basic stats
     print("\n📊 Fetching statistics...")

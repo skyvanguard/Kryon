@@ -19,7 +19,7 @@ class TestAutoEnumerateTarget:
     @patch("subprocess.run")
     def test_quick_mode_enumeration(self, mock_subprocess):
         """Test quick mode enumeration (common ports only)"""
-        from skynet.tools.ctf.ctf_automation import auto_enumerate_target
+        from kryon.tools.ctf.ctf_automation import auto_enumerate_target
 
         # Mock nmap output
         mock_subprocess.return_value = Mock(
@@ -37,7 +37,7 @@ class TestAutoEnumerateTarget:
     @patch("subprocess.run")
     def test_web_service_detection(self, mock_subprocess):
         """Test web service detection and URL generation"""
-        from skynet.tools.ctf.ctf_automation import auto_enumerate_target
+        from kryon.tools.ctf.ctf_automation import auto_enumerate_target
 
         mock_subprocess.return_value = Mock(
             returncode=0,
@@ -53,7 +53,7 @@ class TestAutoEnumerateTarget:
 
     def test_invalid_ip_handling(self):
         """Test handling of invalid IP addresses"""
-        from skynet.tools.ctf.ctf_automation import auto_enumerate_target
+        from kryon.tools.ctf.ctf_automation import auto_enumerate_target
 
         result = auto_enumerate_target("invalid.ip.address", quick_mode=True)
 
@@ -68,7 +68,7 @@ class TestSearchExploits:
     @patch("subprocess.run")
     def test_searchsploit_integration(self, mock_subprocess):
         """Test SearchSploit integration"""
-        from skynet.tools.ctf.ctf_automation import search_exploits
+        from kryon.tools.ctf.ctf_automation import search_exploits
 
         # Mock searchsploit JSON output
         mock_subprocess.return_value = Mock(
@@ -96,7 +96,7 @@ class TestSearchExploits:
     @patch("subprocess.run")
     def test_cve_extraction(self, mock_subprocess):
         """Test CVE reference extraction from exploit titles"""
-        from skynet.tools.ctf.ctf_automation import search_exploits
+        from kryon.tools.ctf.ctf_automation import search_exploits
 
         mock_subprocess.return_value = Mock(
             returncode=0,
@@ -121,7 +121,7 @@ class TestSearchExploits:
 
     def test_no_exploits_found(self):
         """Test behavior when no exploits are found"""
-        from skynet.tools.ctf.ctf_automation import search_exploits
+        from kryon.tools.ctf.ctf_automation import search_exploits
 
         with patch("subprocess.run", return_value=Mock(returncode=0, stdout="{}")):
             result = search_exploits("nonexistent", "99.99.99")
@@ -138,7 +138,7 @@ class TestHuntFlags:
     @patch("builtins.open", create=True)
     def test_find_user_flag(self, mock_open, mock_isfile):
         """Test finding user.txt flag"""
-        from skynet.tools.ctf.ctf_automation import hunt_flags
+        from kryon.tools.ctf.ctf_automation import hunt_flags
 
         mock_isfile.return_value = True
         mock_open.return_value.__enter__.return_value.read.return_value = "THM{us3r_fl4g_h3r3}"
@@ -151,7 +151,7 @@ class TestHuntFlags:
     @patch("subprocess.run")
     def test_flag_pattern_matching(self, mock_subprocess):
         """Test custom flag pattern matching"""
-        from skynet.tools.ctf.ctf_automation import hunt_flags
+        from kryon.tools.ctf.ctf_automation import hunt_flags
 
         mock_subprocess.return_value = Mock(returncode=0, stdout="/var/www/flag.txt:THM{custom_flag_pattern}")
 
@@ -162,7 +162,7 @@ class TestHuntFlags:
 
     def test_no_flags_found_recommendations(self):
         """Test recommendations when no flags are found"""
-        from skynet.tools.ctf.ctf_automation import hunt_flags
+        from kryon.tools.ctf.ctf_automation import hunt_flags
 
         with patch("subprocess.run", return_value=Mock(returncode=0, stdout="")):
             with patch("os.path.isfile", return_value=False):
@@ -180,7 +180,7 @@ class TestGenerateCTFReport:
         """Test basic report generation with minimal data"""
         import tempfile
 
-        from skynet.tools.ctf.ctf_automation import generate_ctf_report
+        from kryon.tools.ctf.ctf_automation import generate_ctf_report
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
             output_file = f.name
@@ -199,7 +199,7 @@ class TestGenerateCTFReport:
         """Test report generation with complete CTF data"""
         import tempfile
 
-        from skynet.tools.ctf.ctf_automation import generate_ctf_report
+        from kryon.tools.ctf.ctf_automation import generate_ctf_report
 
         enum_data = {"open_ports": [{"port": 22, "protocol": "tcp", "service": "ssh", "version": "OpenSSH 7.6p1"}]}
 
@@ -238,7 +238,7 @@ class TestTryHackMeHelpers:
     @patch("subprocess.run")
     def test_check_thm_vpn_connected(self, mock_subprocess):
         """Test VPN connectivity check when connected"""
-        from skynet.tools.ctf.tryhackme_helpers import check_thm_vpn
+        from kryon.tools.ctf.tryhackme_helpers import check_thm_vpn
 
         # Mock ifconfig showing tun0 with 10.10.x.x IP
         mock_subprocess.return_value = Mock(returncode=0, stdout="inet 10.10.245.100 netmask 255.255.254.0")
@@ -251,7 +251,7 @@ class TestTryHackMeHelpers:
     @patch("subprocess.run")
     def test_check_thm_vpn_disconnected(self, mock_subprocess):
         """Test VPN connectivity check when disconnected"""
-        from skynet.tools.ctf.tryhackme_helpers import check_thm_vpn
+        from kryon.tools.ctf.tryhackme_helpers import check_thm_vpn
 
         # Mock ifconfig failure (interface not found)
         mock_subprocess.return_value = Mock(returncode=1, stdout="")
@@ -263,7 +263,7 @@ class TestTryHackMeHelpers:
 
     def test_submit_thm_answer_flag_format(self):
         """Test answer formatting for THM flags"""
-        from skynet.tools.ctf.tryhackme_helpers import submit_thm_answer
+        from kryon.tools.ctf.tryhackme_helpers import submit_thm_answer
 
         result = submit_thm_answer("  THM{us3r_fl4g_h3r3}  ")
 
@@ -273,7 +273,7 @@ class TestTryHackMeHelpers:
 
     def test_submit_thm_answer_hash_format(self):
         """Test answer formatting for hashes"""
-        from skynet.tools.ctf.tryhackme_helpers import submit_thm_answer
+        from kryon.tools.ctf.tryhackme_helpers import submit_thm_answer
 
         result = submit_thm_answer("5F4DCC3B5AA765D61D8327DEB882CF99", format_type="hash")
 
@@ -282,7 +282,7 @@ class TestTryHackMeHelpers:
 
     def test_submit_thm_answer_port_validation(self):
         """Test port number validation"""
-        from skynet.tools.ctf.tryhackme_helpers import submit_thm_answer
+        from kryon.tools.ctf.tryhackme_helpers import submit_thm_answer
 
         # Valid port
         result = submit_thm_answer("8080", format_type="port")
@@ -296,7 +296,7 @@ class TestTryHackMeHelpers:
 
     def test_parse_thm_questions(self):
         """Test parsing questions from room description"""
-        from skynet.tools.ctf.tryhackme_helpers import parse_thm_questions
+        from kryon.tools.ctf.tryhackme_helpers import parse_thm_questions
 
         description = """
         Task 1: What is the user flag?
@@ -319,7 +319,7 @@ class TestLinuxPrivescEnhancements:
 
     def test_gtfobins_lookup_sudo(self):
         """Test GTFOBins database lookup for sudo escalation"""
-        from skynet.tools.privilege_escalation.linux_privesc import gtfobins_lookup
+        from kryon.tools.privilege_escalation.linux_privesc import gtfobins_lookup
 
         result = gtfobins_lookup("vim", escalation_type="sudo")
 
@@ -329,7 +329,7 @@ class TestLinuxPrivescEnhancements:
 
     def test_gtfobins_lookup_suid(self):
         """Test GTFOBins database lookup for SUID escalation"""
-        from skynet.tools.privilege_escalation.linux_privesc import gtfobins_lookup
+        from kryon.tools.privilege_escalation.linux_privesc import gtfobins_lookup
 
         result = gtfobins_lookup("python3", escalation_type="suid")
 
@@ -338,7 +338,7 @@ class TestLinuxPrivescEnhancements:
 
     def test_gtfobins_lookup_not_found(self):
         """Test GTFOBins lookup for non-existent binary"""
-        from skynet.tools.privilege_escalation.linux_privesc import gtfobins_lookup
+        from kryon.tools.privilege_escalation.linux_privesc import gtfobins_lookup
 
         result = gtfobins_lookup("nonexistent_binary_xyz123", escalation_type="sudo")
 
@@ -349,7 +349,7 @@ class TestLinuxPrivescEnhancements:
     @patch("subprocess.run")
     def test_check_sudo_exploits(self, mock_subprocess):
         """Test automated sudo exploit checking"""
-        from skynet.tools.privilege_escalation.linux_privesc import check_sudo_exploits
+        from kryon.tools.privilege_escalation.linux_privesc import check_sudo_exploits
 
         # Mock sudo -l output showing vim with NOPASSWD
         mock_subprocess.return_value = Mock(returncode=0, stdout="(root) NOPASSWD: /usr/bin/vim")
@@ -371,7 +371,7 @@ class TestCTFWorkflowIntegration:
         """Test complete CTF workflow with mocked external calls"""
         import tempfile
 
-        from skynet.tools.ctf.ctf_automation import (
+        from kryon.tools.ctf.ctf_automation import (
             auto_enumerate_target,
             generate_ctf_report,
             hunt_flags,

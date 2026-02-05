@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from skynet.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
+from kryon.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
 
 
 class TestAutoCompact:
@@ -24,20 +24,20 @@ class TestAutoCompact:
         model._get_model_max_tokens = MagicMock(return_value=1000)
 
         # Test the _auto_compact_if_needed method
-        with patch("skynet.sdk.agents.models.openai_chatcompletions.count_tokens_with_tiktoken") as mock_count:
+        with patch("kryon.sdk.agents.models.openai_chatcompletions.count_tokens_with_tiktoken") as mock_count:
             mock_count.return_value = (850, 0)  # 85% of max
 
-            with patch("skynet.repl.commands.memory.MEMORY_COMMAND_INSTANCE") as mock_memory:
+            with patch("kryon.repl.commands.memory.MEMORY_COMMAND_INSTANCE") as mock_memory:
                 mock_memory._ai_summarize_history = AsyncMock(return_value="Summary")
 
-                with patch("skynet.repl.commands.memory.COMPACTED_SUMMARIES", {}):
+                with patch("kryon.repl.commands.memory.COMPACTED_SUMMARIES", {}):
                     with patch("rich.console.Console"):
                         # Create actual model instance
                         from openai import AsyncOpenAI
 
                         client = AsyncMock(spec=AsyncOpenAI)
 
-                        with patch("skynet.sdk.agents.models.openai_chatcompletions.get_session_recorder"):
+                        with patch("kryon.sdk.agents.models.openai_chatcompletions.get_session_recorder"):
                             model = OpenAIChatCompletionsModel(
                                 model="gpt-4",
                                 openai_client=client,
@@ -71,7 +71,7 @@ class TestAutoCompact:
 
         client = AsyncMock(spec=AsyncOpenAI)
 
-        with patch("skynet.sdk.agents.models.openai_chatcompletions.get_session_recorder"):
+        with patch("kryon.sdk.agents.models.openai_chatcompletions.get_session_recorder"):
             model = OpenAIChatCompletionsModel(
                 model="gpt-4", openai_client=client, agent_name="Test Agent", agent_id="TEST123"
             )
@@ -98,7 +98,7 @@ class TestAutoCompact:
 
         client = AsyncMock(spec=AsyncOpenAI)
 
-        with patch("skynet.sdk.agents.models.openai_chatcompletions.get_session_recorder"):
+        with patch("kryon.sdk.agents.models.openai_chatcompletions.get_session_recorder"):
             model = OpenAIChatCompletionsModel(
                 model="gpt-4", openai_client=client, agent_name="Test Agent", agent_id="TEST123"
             )
@@ -124,19 +124,19 @@ class TestAutoCompact:
 
         client = AsyncMock(spec=AsyncOpenAI)
 
-        with patch("skynet.sdk.agents.models.openai_chatcompletions.get_session_recorder"):
+        with patch("kryon.sdk.agents.models.openai_chatcompletions.get_session_recorder"):
             model = OpenAIChatCompletionsModel(
                 model="gpt-4", openai_client=client, agent_name="Test Agent", agent_id="TEST123"
             )
 
             with patch.object(model, "_get_model_max_tokens", return_value=1000):
-                with patch("skynet.sdk.agents.models.openai_chatcompletions.count_tokens_with_tiktoken") as mock_count:
+                with patch("kryon.sdk.agents.models.openai_chatcompletions.count_tokens_with_tiktoken") as mock_count:
                     mock_count.return_value = (600, 0)  # 60% - exceeds 50% threshold
 
-                    with patch("skynet.repl.commands.memory.MEMORY_COMMAND_INSTANCE") as mock_memory:
+                    with patch("kryon.repl.commands.memory.MEMORY_COMMAND_INSTANCE") as mock_memory:
                         mock_memory._ai_summarize_history = AsyncMock(return_value="Summary")
 
-                        with patch("skynet.repl.commands.memory.COMPACTED_SUMMARIES", {}):
+                        with patch("kryon.repl.commands.memory.COMPACTED_SUMMARIES", {}):
                             with patch("rich.console.Console"):
                                 # Call the auto-compact method
                                 (
@@ -161,13 +161,13 @@ class TestAutoCompact:
 
         client = AsyncMock(spec=AsyncOpenAI)
 
-        with patch("skynet.sdk.agents.models.openai_chatcompletions.get_session_recorder"):
+        with patch("kryon.sdk.agents.models.openai_chatcompletions.get_session_recorder"):
             model = OpenAIChatCompletionsModel(
                 model="gpt-4", openai_client=client, agent_name="Test Agent", agent_id="TEST123"
             )
 
             with patch.object(model, "_get_model_max_tokens", return_value=1000):
-                with patch("skynet.repl.commands.memory.MEMORY_COMMAND_INSTANCE") as mock_memory:
+                with patch("kryon.repl.commands.memory.MEMORY_COMMAND_INSTANCE") as mock_memory:
                     # Make the summarization fail
                     mock_memory._ai_summarize_history = AsyncMock(side_effect=Exception("Failed"))
 
@@ -197,8 +197,8 @@ class TestAutoCompact:
         from openai.types.chat import ChatCompletion, ChatCompletionMessage
         from openai.types.chat.chat_completion import Choice, CompletionUsage
 
-        from skynet.sdk.agents.model_settings import ModelSettings
-        from skynet.sdk.agents.models.interface import ModelTracing
+        from kryon.sdk.agents.model_settings import ModelSettings
+        from kryon.sdk.agents.models.interface import ModelTracing
 
         client = AsyncMock(spec=AsyncOpenAI)
         client.base_url = "https://api.openai.com"
@@ -223,14 +223,14 @@ class TestAutoCompact:
             ),
         )
 
-        with patch("skynet.sdk.agents.models.openai_chatcompletions.get_session_recorder"):
+        with patch("kryon.sdk.agents.models.openai_chatcompletions.get_session_recorder"):
             model = OpenAIChatCompletionsModel(
                 model="gpt-4", openai_client=client, agent_name="Test Agent", agent_id="TEST123"
             )
 
             # Mock dependencies
             with patch.object(model, "_get_model_max_tokens", return_value=1000):
-                with patch("skynet.sdk.agents.models.openai_chatcompletions.count_tokens_with_tiktoken") as mock_count:
+                with patch("kryon.sdk.agents.models.openai_chatcompletions.count_tokens_with_tiktoken") as mock_count:
                     # First count exceeds threshold, triggers compaction
                     mock_count.side_effect = [
                         (850, 0),  # Initial high count
@@ -238,20 +238,20 @@ class TestAutoCompact:
                         (200, 0),  # Post-compaction
                     ]
 
-                    with patch("skynet.repl.commands.memory.MEMORY_COMMAND_INSTANCE") as mock_memory:
+                    with patch("kryon.repl.commands.memory.MEMORY_COMMAND_INSTANCE") as mock_memory:
                         mock_memory._ai_summarize_history = AsyncMock(return_value="Previous summary")
 
-                        with patch("skynet.repl.commands.memory.COMPACTED_SUMMARIES", {}):
+                        with patch("kryon.repl.commands.memory.COMPACTED_SUMMARIES", {}):
                             with patch("rich.console.Console"):
                                 # Mock all the timer and tracking functions
-                                with patch("skynet.sdk.agents.models.openai_chatcompletions.stop_idle_timer"):
-                                    with patch("skynet.sdk.agents.models.openai_chatcompletions.start_active_timer"):
-                                        with patch("skynet.sdk.agents.models.openai_chatcompletions.stop_active_timer"):
+                                with patch("kryon.sdk.agents.models.openai_chatcompletions.stop_idle_timer"):
+                                    with patch("kryon.sdk.agents.models.openai_chatcompletions.start_active_timer"):
+                                        with patch("kryon.sdk.agents.models.openai_chatcompletions.stop_active_timer"):
                                             with patch(
-                                                "skynet.sdk.agents.models.openai_chatcompletions.start_idle_timer"
+                                                "kryon.sdk.agents.models.openai_chatcompletions.start_idle_timer"
                                             ):
                                                 with patch(
-                                                    "skynet.sdk.agents.models.openai_chatcompletions.COST_TRACKER"
+                                                    "kryon.sdk.agents.models.openai_chatcompletions.COST_TRACKER"
                                                 ):
                                                     with patch.object(
                                                         model,

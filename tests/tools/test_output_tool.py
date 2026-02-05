@@ -5,9 +5,9 @@ import pytest
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
-from skynet.sdk.agents import Agent, AgentOutputSchema, ModelBehaviorError, Runner, UserError
-from skynet.sdk.agents.agent_output import _WRAPPER_DICT_KEY
-from skynet.sdk.agents.util import _json
+from kryon.sdk.agents import Agent, AgentOutputSchema, ModelBehaviorError, Runner, UserError
+from kryon.sdk.agents.agent_output import _WRAPPER_DICT_KEY
+from kryon.sdk.agents.util import _json
 
 
 def test_plain_text_output():

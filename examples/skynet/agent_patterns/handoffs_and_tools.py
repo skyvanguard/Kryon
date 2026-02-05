@@ -8,9 +8,9 @@ import os
 
 from openai import AsyncOpenAI
 
-from skynet.sdk.agents import Agent, OpenAIChatCompletionsModel, Runner, function_tool, handoff, trace
-from skynet.sdk.agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
-from skynet.tools.common import run_command
+from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel, Runner, function_tool, handoff, trace
+from kryon.sdk.agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
+from kryon.tools.common import run_command
 
 
 @function_tool

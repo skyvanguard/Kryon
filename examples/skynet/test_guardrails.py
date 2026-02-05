@@ -5,10 +5,10 @@ Test script to demonstrate prompt injection guardrail protection
 
 import asyncio
 
-from skynet.agents.one_tool import one_tool_agent
+from kryon.agents.one_tool import one_tool_agent
 
-from skynet.agents.guardrails import detect_injection_patterns, sanitize_external_content
-from skynet.sdk.agents import InputGuardrailTripwireTriggered, Runner
+from kryon.agents.guardrails import detect_injection_patterns, sanitize_external_content
+from kryon.sdk.agents import InputGuardrailTripwireTriggered, Runner
 
 
 async def test_guardrails():

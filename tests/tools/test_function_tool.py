@@ -5,8 +5,8 @@ import pytest
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
-from skynet.sdk.agents import FunctionTool, ModelBehaviorError, RunContextWrapper, function_tool
-from skynet.sdk.agents.tool import default_tool_error_function
+from kryon.sdk.agents import FunctionTool, ModelBehaviorError, RunContextWrapper, function_tool
+from kryon.sdk.agents.tool import default_tool_error_function
 
 
 def argless_function() -> str:

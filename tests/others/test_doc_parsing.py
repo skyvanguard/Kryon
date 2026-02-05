@@ -1,4 +1,4 @@
-from skynet.sdk.agents.function_schema import generate_func_documentation
+from kryon.sdk.agents.function_schema import generate_func_documentation
 
 
 def func_foo_google(a: int, b: float) -> str:

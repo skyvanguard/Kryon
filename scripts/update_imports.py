@@ -68,17 +68,17 @@ def update_file(file_path: Path, dry_run: bool = False, verbose: bool = False) -
     original_content = content
     changes = []
 
-    # 1. Update imports: from skynet. -> from skynet.
+    # 1. Update imports: from skynet. -> from kryon.
     pattern1 = r"from skynet\."
     if re.search(pattern1, content):
-        content = re.sub(pattern1, "from skynet.", content)
-        changes.append("Updated: 'from skynet.' → 'from skynet.'")
+        content = re.sub(pattern1, "from kryon.", content)
+        changes.append("Updated: 'from skynet.' → 'from kryon.'")
 
-    # 2. Update imports: import skynet. -> import skynet.
+    # 2. Update imports: import skynet. -> import kryon.
     pattern2 = r"import skynet\."
     if re.search(pattern2, content):
-        content = re.sub(pattern2, "import skynet.", content)
-        changes.append("Updated: 'import skynet.' → 'import skynet.'")
+        content = re.sub(pattern2, "import kryon.", content)
+        changes.append("Updated: 'import skynet.' → 'import kryon.'")
 
     # 3. Update environment variables: SKYNET_ -> SKYNET_
     pattern3 = r"\bSKYNET_([A-Z_]+)\b"

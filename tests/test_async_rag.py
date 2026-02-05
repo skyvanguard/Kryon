@@ -51,7 +51,7 @@ async def test_single_query():
     print("TEST 1: Single Async Query")
     print("=" * 70)
 
-    from skynet.knowledge.async_rag_engine import AsyncRAGEngine
+    from kryon.knowledge.async_rag_engine import AsyncRAGEngine
 
     engine = AsyncRAGEngine()
 
@@ -92,7 +92,7 @@ async def test_batch_queries():
     print("TEST 2: Batch Parallel Queries (5 queries)")
     print("=" * 70)
 
-    from skynet.knowledge.async_rag_engine import AsyncRAGEngine
+    from kryon.knowledge.async_rag_engine import AsyncRAGEngine
 
     engine = AsyncRAGEngine(max_concurrent_llm_calls=3)
 
@@ -148,7 +148,7 @@ async def test_cache_integration():
     print("TEST 3: Async Cache Integration")
     print("=" * 70)
 
-    from skynet.knowledge.async_rag_engine import AsyncRAGEngine
+    from kryon.knowledge.async_rag_engine import AsyncRAGEngine
 
     engine = AsyncRAGEngine()
 
@@ -191,7 +191,7 @@ async def test_error_handling():
     print("TEST 4: Async Error Handling")
     print("=" * 70)
 
-    from skynet.knowledge.async_rag_engine import AsyncRAGEngine
+    from kryon.knowledge.async_rag_engine import AsyncRAGEngine
 
     # Create engine with invalid LLM config
     engine = AsyncRAGEngine(llm_config={"base_url": "http://invalid-url-12345:99999", "model": "nonexistent-model"})
@@ -228,7 +228,7 @@ async def test_statistics():
     print("TEST 5: Statistics Tracking")
     print("=" * 70)
 
-    from skynet.knowledge.async_rag_engine import get_async_rag_engine
+    from kryon.knowledge.async_rag_engine import get_async_rag_engine
 
     engine = get_async_rag_engine()
 
@@ -274,7 +274,7 @@ async def test_concurrent_limit():
     print("TEST 6: Concurrent LLM Call Limiting")
     print("=" * 70)
 
-    from skynet.knowledge.async_rag_engine import AsyncRAGEngine
+    from kryon.knowledge.async_rag_engine import AsyncRAGEngine
 
     # Create engine with low concurrent limit
     max_concurrent = 2

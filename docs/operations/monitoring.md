@@ -112,14 +112,14 @@ start_http_server(9090)
 kryon --health-check
 
 # Or via Python
-python -c "from skynet.cli import main; print('OK')"
+python -c "from kryon.cli import main; print('OK')"
 ```
 
 ### Docker Health Check
 
 ```dockerfile
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD python -c "from skynet.cli import main; print('OK')" || exit 1
+  CMD python -c "from kryon.cli import main; print('OK')" || exit 1
 ```
 
 ### Kubernetes Probes
@@ -127,13 +127,13 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
 ```yaml
 livenessProbe:
   exec:
-    command: ["python", "-c", "from skynet.cli import main"]
+    command: ["python", "-c", "from kryon.cli import main"]
   initialDelaySeconds: 30
   periodSeconds: 60
 
 readinessProbe:
   exec:
-    command: ["python", "-c", "import skynet; print('ready')"]
+    command: ["python", "-c", "import kryon; print('ready')"]
   initialDelaySeconds: 5
   periodSeconds: 10
 ```

@@ -69,7 +69,7 @@ echo.
 
 REM Verificar instalacion
 echo [7/7] Verificando instalacion...
-python -c "import skynet; print(f'KRYON version: {skynet.__version__}')"
+python -c "import kryon; print(f'KRYON version: {kryon.__version__}')"
 python -c "import pytest; print(f'pytest version: {pytest.__version__}')"
 python -c "import sys; print(f'Python version: {sys.version}')"
 echo.

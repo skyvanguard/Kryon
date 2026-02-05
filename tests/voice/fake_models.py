@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 try:
-    from skynet.sdk.agents.voice import (
+    from kryon.sdk.agents.voice import (
         AudioInput,
         StreamedAudioInput,
         StreamedTranscriptionSession,

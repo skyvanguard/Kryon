@@ -100,7 +100,7 @@ python3 scripts/first_operation.py --target <TARGET_IP> --mode recon
 ### Full CTF Solve
 
 ```python
-from skynet.tools.autonomous import autonomous_ctf_solver
+from kryon.tools.autonomous import autonomous_ctf_solver
 
 result = autonomous_ctf_solver(
     target_ip="10.10.245.67",
@@ -132,7 +132,7 @@ if result['success']:
 ### Reconnaissance Mode
 
 ```python
-from skynet.tools.autonomous import full_auto_enumeration
+from kryon.tools.autonomous import full_auto_enumeration
 
 results = full_auto_enumeration(
     target_ip="10.10.10.5",
@@ -148,7 +148,7 @@ print(f"Vulnerabilities: {len(results['vulnerabilities'])}")
 ### CTF Mode
 
 ```python
-from skynet.tools.autonomous import autonomous_ctf_solver
+from kryon.tools.autonomous import autonomous_ctf_solver
 
 result = autonomous_ctf_solver(
     target_ip="10.10.10.5",
@@ -160,7 +160,7 @@ result = autonomous_ctf_solver(
 ### Pentest Mode
 
 ```python
-from skynet.tools.autonomous import autonomous_pentest
+from kryon.tools.autonomous import autonomous_pentest
 
 result = autonomous_pentest(
     target_ip="10.10.10.0/24",

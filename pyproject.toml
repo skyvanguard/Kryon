@@ -12,7 +12,7 @@ dependencies = [
     "matplotlib>=3.0, <4",
     "numpy>=1.21, <3",
     "pandas>=1.3, <3",
-    # core skynet
+    # core kryon
     "openai==1.75.0",
     "pydantic>=2.10, <3",
     "griffe>=1.5.6, <2",
@@ -106,14 +106,14 @@ exclude = [
     "benchmarks/",
     "logs/",
     "site/",
-    ".skynet/",
+    ".kryon/",
     "nohup.out",
     "ci/",
     "tools/cut_the_rope/"
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/skynet"]
+packages = ["src/kryon"]
 exclude = [
     ".trunk/",
     ".git/",
@@ -131,7 +131,7 @@ exclude = [
     "benchmarks/",
     "logs/",
     "site/",
-    ".skynet/",
+    ".kryon/",
     "nohup.out",
     "ci/",
     "tools/cut_the_rope/"
@@ -158,7 +158,7 @@ exclude = [
     "benchmarks/",
     "logs/",
     "site/",
-    ".skynet/",
+    ".kryon/",
     "nohup.out",
     "ci/",
     "tools/cut_the_rope/"
@@ -193,18 +193,18 @@ convention = "google"
 "examples/**/*.py" = ["E501"]
 "tests/**/*.py" = ["E501", "E402", "F401"]
 # Files with mathematical formulas/long docstrings
-"src/skynet/agents/*.py" = ["E501"]
+"src/kryon/agents/*.py" = ["E501"]
 # Files with security tool documentation
-"src/skynet/tools/**/*.py" = ["E501"]
+"src/kryon/tools/**/*.py" = ["E501"]
 # Files with UI strings and long messages
-"src/skynet/repl/**/*.py" = ["E501"]
-"src/skynet/sdk/**/*.py" = ["E501", "E402"]
-"src/skynet/knowledge/**/*.py" = ["E501"]
+"src/kryon/repl/**/*.py" = ["E501"]
+"src/kryon/sdk/**/*.py" = ["E501", "E402"]
+"src/kryon/knowledge/**/*.py" = ["E501"]
 # Files with intentional late imports (warning config, circular import avoidance)
-"src/skynet/cli.py" = ["E402"]
-"src/skynet/util_legacy.py" = ["E402"]
-"src/skynet/agents/hk_aerial.py" = ["E402"]
-"src/skynet/agents/patterns/__init__.py" = ["E402"]
+"src/kryon/cli.py" = ["E402"]
+"src/kryon/util_legacy.py" = ["E402"]
+"src/kryon/agents/hk_aerial.py" = ["E402"]
+"src/kryon/agents/patterns/__init__.py" = ["E402"]
 
 [tool.mypy]
 strict = false
@@ -222,26 +222,26 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = [
-    "skynet.tools.*",
-    "skynet.agents.*",
-    "skynet.knowledge.*",
-    "skynet.repl.*",
-    "skynet.cache.*",
-    "skynet.cli",
-    "skynet.sdk.agents.global_usage_tracker",
-    "skynet.sdk.agents.voice.*",
-    "skynet.sdk.agents.models.openai_chatcompletions",
-    "skynet.sdk.agents.models.openai_responses",
-    "skynet.sdk.agents.mcp.*",
-    "skynet.sdk.agents._run_impl",
-    "skynet.sdk.agents.run",
-    "skynet.sdk.agents.run_to_jsonl",
-    "skynet.sdk.agents.parallel_tool_executor",
+    "kryon.tools.*",
+    "kryon.agents.*",
+    "kryon.knowledge.*",
+    "kryon.repl.*",
+    "kryon.cache.*",
+    "kryon.cli",
+    "kryon.sdk.agents.global_usage_tracker",
+    "kryon.sdk.agents.voice.*",
+    "kryon.sdk.agents.models.openai_chatcompletions",
+    "kryon.sdk.agents.models.openai_responses",
+    "kryon.sdk.agents.mcp.*",
+    "kryon.sdk.agents._run_impl",
+    "kryon.sdk.agents.run",
+    "kryon.sdk.agents.run_to_jsonl",
+    "kryon.sdk.agents.parallel_tool_executor",
 ]
 ignore_errors = true
 
 [tool.coverage.run]
-source = ["tests", "src/skynet/sdk/agents"]
+source = ["tests", "src/kryon/sdk/agents"]
 
 [tool.coverage.report]
 show_missing = true
@@ -269,5 +269,5 @@ markers = [
 format-command = "ruff format --stdin-filename {filename}"
 
 [project.scripts]
-kryon = "skynet.cli:main"
-skynet = "skynet.cli:main"  # Legacy alias for backwards compatibility
+kryon = "kryon.cli:main"
+kryon = "kryon.cli:main"  # Legacy alias for backwards compatibility

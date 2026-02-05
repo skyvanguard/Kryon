@@ -5,13 +5,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from skynet.repl.commands.parallel import (
+from kryon.repl.commands.parallel import (
     PARALLEL_AGENT_INSTANCES,
     PARALLEL_CONFIGS,
     ParallelCommand,
     ParallelConfig,
 )
-from skynet.sdk.agents.parallel_isolation import PARALLEL_ISOLATION
+from kryon.sdk.agents.parallel_isolation import PARALLEL_ISOLATION
 
 
 class TestParallelInterruptHistory:
@@ -31,8 +31,8 @@ class TestParallelInterruptHistory:
         PARALLEL_AGENT_INSTANCES.clear()
         PARALLEL_ISOLATION.clear_all_histories()
 
-    @patch("skynet.cli.Runner")
-    @patch("skynet.cli.get_agent_by_name")
+    @patch("kryon.cli.Runner")
+    @patch("kryon.cli.get_agent_by_name")
     def test_parallel_history_saved_on_interrupt(self, mock_get_agent, mock_runner):
         """Test that parallel agents' histories are saved when interrupted with Ctrl+C."""
 
@@ -155,7 +155,7 @@ class TestParallelInterruptHistory:
 
     def test_history_command_shows_saved_histories(self):
         """Test that /history command can access saved parallel agent histories."""
-        from skynet.sdk.agents.simple_agent_manager import AGENT_MANAGER
+        from kryon.sdk.agents.simple_agent_manager import AGENT_MANAGER
 
         # Setup parallel mode with some history
         PARALLEL_ISOLATION._parallel_mode = True

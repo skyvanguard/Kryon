@@ -8,7 +8,7 @@ and documentation.
 
 import pytest
 
-from skynet.tools.autonomous.context_analyzer import (
+from kryon.tools.autonomous.context_analyzer import (
     ContextAnalyzer,
     analyze_context,
     extract_attack_surface,

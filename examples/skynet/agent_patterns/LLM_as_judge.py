@@ -16,14 +16,14 @@ from typing import Literal
 
 from openai import AsyncOpenAI
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     ItemHelpers,
     OpenAIChatCompletionsModel,
     Runner,
     TResponseInputItem,
 )
-from skynet.util import get_ollama_api_base
+from kryon.util import get_ollama_api_base
 
 # Enable debug mode
 # os.environ['KRYON_DEBUG'] = '2'
@@ -34,10 +34,10 @@ if os.getenv("KRYON_MODEL", "qwen2.5:14b").startswith("qwen"):
     os.environ["OLLAMA"] = "true"
 
 # Modify OpenAIChatCompletionsModel._fetch_response_litellm_ollama to debug output
-import skynet.sdk.agents.models.openai_chatcompletions
+import kryon.sdk.agents.models.openai_chatcompletions
 
 original_fetch_response_litellm_ollama = (
-    skynet.sdk.agents.models.openai_chatcompletions.OpenAIChatCompletionsModel._fetch_response_litellm_ollama
+    kryon.sdk.agents.models.openai_chatcompletions.OpenAIChatCompletionsModel._fetch_response_litellm_ollama
 )
 
 
@@ -79,7 +79,7 @@ async def debug_fetch_response_litellm_ollama(self, kwargs, model_settings, tool
 
 
 # Patch the function
-skynet.sdk.agents.models.openai_chatcompletions.OpenAIChatCompletionsModel._fetch_response_litellm_ollama = (
+kryon.sdk.agents.models.openai_chatcompletions.OpenAIChatCompletionsModel._fetch_response_litellm_ollama = (
     debug_fetch_response_litellm_ollama
 )
 

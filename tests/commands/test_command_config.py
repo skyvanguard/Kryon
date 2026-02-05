@@ -12,8 +12,8 @@ import pytest
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from skynet.repl.commands.base import Command
-from skynet.repl.commands.config import ENV_VARS, ConfigCommand, get_env_var_value, set_env_var
+from kryon.repl.commands.base import Command
+from kryon.repl.commands.config import ENV_VARS, ConfigCommand, get_env_var_value, set_env_var
 
 
 class TestConfigCommand:

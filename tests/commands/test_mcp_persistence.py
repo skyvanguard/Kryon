@@ -2,7 +2,7 @@
 
 from unittest.mock import AsyncMock, Mock, patch
 
-from skynet.repl.commands.mcp import (
+from kryon.repl.commands.mcp import (
     _AGENT_MCP_ASSOCIATIONS,
     _GLOBAL_MCP_SERVERS,
     MCPCommand,
@@ -10,8 +10,8 @@ from skynet.repl.commands.mcp import (
     get_mcp_servers_for_agent,
     get_mcp_tools_for_agent,
 )
-from skynet.sdk.agents import Agent
-from skynet.sdk.agents.tool import FunctionTool
+from kryon.sdk.agents import Agent
+from kryon.sdk.agents.tool import FunctionTool
 
 
 class TestMCPPersistence:
@@ -52,7 +52,7 @@ class TestMCPPersistence:
         servers = get_mcp_servers_for_agent(agent_name)
         assert servers.count(server_name) == 1
 
-    @patch("skynet.agents.get_available_agents")
+    @patch("kryon.agents.get_available_agents")
     def test_agent_retrieval_includes_mcp_tools(self, mock_get_available):
         """Test that retrieving an agent includes associated MCP tools."""
         # Create a mock agent
@@ -118,7 +118,7 @@ class TestMCPPersistence:
         _GLOBAL_MCP_SERVERS["server2"] = mock_server2
 
         # Test associations display
-        with patch("skynet.repl.commands.mcp.console") as mock_console:
+        with patch("kryon.repl.commands.mcp.console") as mock_console:
             result = cmd.handle_associations()
             assert result is True
             # Should print a table

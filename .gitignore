@@ -178,12 +178,12 @@ data/
 # Knowledge base and cache directories
 .kryon_knowledge/
 .kryon_cache/
-.skynet_knowledge/
-.skynet_cache/
+.kryon_knowledge/
+.kryon_cache/
 src/.kryon_knowledge/
 src/.kryon_cache/
-src/.skynet_knowledge/
-src/.skynet_cache/
+src/.kryon_knowledge/
+src/.kryon_cache/
 
 # Large dataset files
 *.csv

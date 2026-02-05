@@ -60,7 +60,7 @@ ImportError: cannot import name 'full_auto_enumeration' from 'skynet.tools.auton
 cat src/skynet/tools/autonomous/__init__.py | grep "full_auto_enumeration"
 
 # Verify module integrity
-python -c "from skynet.tools.autonomous import full_auto_enumeration; print('OK')"
+python -c "from kryon.tools.autonomous import full_auto_enumeration; print('OK')"
 ```
 
 **Root Cause:** `__init__.py` may not be exporting the function correctly.
@@ -87,7 +87,7 @@ nmap -p 80,443,22 10.10.10.5
 
 2. **Run Manual Reconnaissance:**
 ```python
-from skynet.tools.autonomous import quick_recon
+from kryon.tools.autonomous import quick_recon
 
 recon_result = quick_recon("10.10.10.5")
 print(recon_result)
@@ -117,7 +117,7 @@ sudo apt-get install nmap
 sudo python your_script.py
 
 # Use fallback scanner (slower but works without nmap)
-from skynet.tools.autonomous.auto_recon import full_auto_enumeration
+from kryon.tools.autonomous.auto_recon import full_auto_enumeration
 result = full_auto_enumeration("10.10.10.5", deep_scan=False)
 ```
 
@@ -127,7 +127,7 @@ result = full_auto_enumeration("10.10.10.5", deep_scan=False)
 
 **Problem:**
 ```python
-from skynet.tools.autonomous import select_best_exploit
+from kryon.tools.autonomous import select_best_exploit
 
 result = select_best_exploit("unknown_service", "version 1.0")
 # Returns: {"exploit_recommended": False, "exploit_name": None}
@@ -138,7 +138,7 @@ result = select_best_exploit("unknown_service", "version 1.0")
 1. **Check Service Name:**
 ```python
 # Supported services
-from skynet.tools.autonomous.decision_engine import EXPLOIT_DATABASE
+from kryon.tools.autonomous.decision_engine import EXPLOIT_DATABASE
 
 print("Supported services:", list(EXPLOIT_DATABASE.keys()))
 # Output: ['apache', 'ssh', 'mysql', 'postgresql', 'smb', 'http', 'rdp', 'ftp']
@@ -146,7 +146,7 @@ print("Supported services:", list(EXPLOIT_DATABASE.keys()))
 
 2. **Add Custom Exploit:**
 ```python
-from skynet.tools.autonomous import add_custom_exploit, ExploitType, ExploitDifficulty
+from kryon.tools.autonomous import add_custom_exploit, ExploitType, ExploitDifficulty
 
 custom_exploit = {
     "exploit_name": "my_custom_exploit",
@@ -167,7 +167,7 @@ add_custom_exploit("my_service", "1.0", custom_exploit)
 3. **Use Generic Exploit Approach:**
 ```python
 # Force exploitation attempt even without specific exploit
-from skynet.tools.autonomous.adaptive_strategy import execute_with_adaptation
+from kryon.tools.autonomous.adaptive_strategy import execute_with_adaptation
 
 result = execute_with_adaptation(
     target_ip="10.10.10.5",
@@ -192,7 +192,7 @@ Reconnaissance phase hangs or times out during nmap scan
 
 1. **Reduce Scan Scope:**
 ```python
-from skynet.tools.autonomous import quick_recon
+from kryon.tools.autonomous import quick_recon
 
 # Use quick_recon instead of deep_recon
 result = quick_recon("10.10.10.5")  # Only scans top 1000 ports
@@ -200,7 +200,7 @@ result = quick_recon("10.10.10.5")  # Only scans top 1000 ports
 
 2. **Adjust Timeout:**
 ```python
-from skynet.tools.autonomous.auto_recon import full_auto_enumeration
+from kryon.tools.autonomous.auto_recon import full_auto_enumeration
 
 result = full_auto_enumeration(
     target_ip="10.10.10.5",
@@ -273,7 +273,7 @@ for step in result["exploitation_path"]:
 
 1. **Check Individual Exploit Execution:**
 ```python
-from skynet.tools.autonomous.orchestrator import _execute_exploit_autonomous
+from kryon.tools.autonomous.orchestrator import _execute_exploit_autonomous
 
 # Test specific exploit manually
 test_result = _execute_exploit_autonomous(
@@ -331,7 +331,7 @@ chmod 755 msfinstall
 
 2. **Use Adaptive Strategy:**
 ```python
-from skynet.tools.autonomous import execute_with_adaptation
+from kryon.tools.autonomous import execute_with_adaptation
 
 # Adaptive strategy will try multiple variations
 result = execute_with_adaptation(
@@ -381,7 +381,7 @@ msfconsole -q -x "use exploit/windows/smb/ms17_010_eternalblue; show options; ex
 ```python
 # If Metasploit fails, use alternative tools
 # For EternalBlue, try:
-from skynet.tools.exploitation import exploit_db
+from kryon.tools.exploitation import exploit_db
 
 # Search for public exploits
 exploits = exploit_db.search_exploitdb(service="smb", version="SMBv1")
@@ -423,7 +423,7 @@ sudo -l
 
 1. **Use Specific Privesc Tools:**
 ```python
-from skynet.tools.privilege_escalation import linux_privesc
+from kryon.tools.privilege_escalation import linux_privesc
 
 privesc_result = linux_privesc.auto_privilege_escalation()
 
@@ -483,7 +483,7 @@ sudo find /root -name "*.txt" 2>/dev/null
 
 1. **Use CTF Automation:**
 ```python
-from skynet.tools.ctf import ctf_automation
+from kryon.tools.ctf import ctf_automation
 
 # Comprehensive flag hunting
 flag_result = ctf_automation.hunt_flags()
@@ -494,7 +494,7 @@ print(f"Root flag: {flag_result.get('root_flag', {}).get('content')}")
 
 2. **Check Specific Locations:**
 ```python
-from skynet.tools.reconnaissance import filesystem
+from kryon.tools.reconnaissance import filesystem
 
 # Search specific directories
 flag_search = filesystem.search_files(
@@ -614,7 +614,7 @@ result = autonomous_ctf_solver(
 
 2. **Use Quick Recon Only:**
 ```python
-from skynet.tools.autonomous import quick_recon
+from kryon.tools.autonomous import quick_recon
 
 # Skip deep scanning
 recon = quick_recon("10.10.10.5")  # Much faster than deep_recon
@@ -623,7 +623,7 @@ recon = quick_recon("10.10.10.5")  # Much faster than deep_recon
 3. **Disable Slow Phases:**
 ```python
 # Manually run phases to control execution
-from skynet.tools.autonomous import (
+from kryon.tools.autonomous import (
     full_auto_enumeration,
     select_best_exploit
 )
@@ -652,7 +652,7 @@ threads=10  # Instead of default 50
 
 2. **Clear Cache:**
 ```python
-from skynet.cache import cache_manager
+from kryon.cache import cache_manager
 
 # Clear old cache entries
 cache_manager.clear_old_cache(days=7)
@@ -725,7 +725,7 @@ Warning: No exploits found in database for service
 
 **Solution:**
 ```python
-from skynet.tools.autonomous.decision_engine import EXPLOIT_DATABASE
+from kryon.tools.autonomous.decision_engine import EXPLOIT_DATABASE
 
 # Verify database is populated
 print(f"Services in DB: {list(EXPLOIT_DATABASE.keys())}")
@@ -775,19 +775,19 @@ for step in result["exploitation_path"]:
 **Solution:**
 ```python
 # Test auto-recon
-from skynet.tools.autonomous import full_auto_enumeration
+from kryon.tools.autonomous import full_auto_enumeration
 recon = full_auto_enumeration("10.10.10.5", deep_scan=False)
 print(f"Recon success: {recon['success']}")
 print(f"Ports found: {len(recon['open_ports'])}")
 
 # Test decision engine
-from skynet.tools.autonomous import select_best_exploit
+from kryon.tools.autonomous import select_best_exploit
 exploit = select_best_exploit("apache", "Apache 2.4.49", difficulty="medium")
 print(f"Exploit recommended: {exploit['exploit_recommended']}")
 print(f"Exploit name: {exploit['exploit_name']}")
 
 # Test context analyzer
-from skynet.tools.autonomous import analyze_context
+from kryon.tools.autonomous import analyze_context
 context = analyze_context(
     text_data="Apache server running on port 80",
     objective="find_vulnerabilities"
@@ -821,7 +821,7 @@ wireshark kryon_traffic.pcap
 **Solution:**
 ```python
 # Test exploit execution directly
-from skynet.tools.autonomous.orchestrator import _execute_exploit_autonomous
+from kryon.tools.autonomous.orchestrator import _execute_exploit_autonomous
 
 result = _execute_exploit_autonomous(
     target_ip="10.10.10.5",
@@ -852,7 +852,7 @@ journalctl -u kryon -f
 
 2. **Run Diagnostics:**
 ```python
-from skynet.tools.misc import cli_utils
+from kryon.tools.misc import cli_utils
 
 # Run system diagnostics
 diagnostics = cli_utils.run_system_diagnostics()

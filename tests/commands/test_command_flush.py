@@ -13,8 +13,8 @@ import pytest
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from skynet.repl.commands.base import Command
-from skynet.repl.commands.flush import FlushCommand
+from kryon.repl.commands.base import Command
+from kryon.repl.commands.flush import FlushCommand
 
 
 class TestFlushCommand:
@@ -71,7 +71,7 @@ class TestFlushCommand:
         assert flush_command.description == "Clear conversation history (all agents by default, or specific agent)"
         assert flush_command.aliases == ["/clear"]
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_all_agent_histories")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_all_agent_histories")
     def test_handle_no_args_shows_help(self, mock_get_all, flush_command):
         """Test handling with no arguments shows help menu."""
         mock_get_all.return_value = {
@@ -83,7 +83,7 @@ class TestFlushCommand:
         # Should not clear anything, just show help
         mock_get_all.assert_called_once()
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_all_agent_histories")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_all_agent_histories")
     def test_handle_no_args_empty_histories(self, mock_get_all, flush_command):
         """Test handling with no arguments when no histories exist."""
         mock_get_all.return_value = {}
@@ -91,8 +91,8 @@ class TestFlushCommand:
         assert result is True
         mock_get_all.assert_called_once()
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_agent_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_agent_history")
     def test_handle_with_agent_name(self, mock_clear_agent, mock_get_history, flush_command):
         """Test handling with specific agent name."""
         mock_get_history.return_value = []
@@ -100,8 +100,8 @@ class TestFlushCommand:
         assert result is True
         mock_clear_agent.assert_called_once_with("red_teamer")
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_agent_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_agent_history")
     def test_handle_with_agent_name_with_spaces(self, mock_clear_agent, mock_get_history, flush_command):
         """Test handling with agent name containing spaces."""
         mock_get_history.return_value = []
@@ -109,8 +109,8 @@ class TestFlushCommand:
         assert result is True
         mock_clear_agent.assert_called_once_with("Bug Bounty Hunter")
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_agent_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_agent_history")
     def test_handle_with_numbered_agent(self, mock_clear_agent, mock_get_history, flush_command):
         """Test handling with numbered agent name."""
         mock_get_history.return_value = []
@@ -118,8 +118,8 @@ class TestFlushCommand:
         assert result is True
         mock_clear_agent.assert_called_once_with("Bug Bounty Hunter #2")
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_all_agent_histories")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_all_histories")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_all_agent_histories")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_all_histories")
     def test_handle_all_subcommand(self, mock_clear_all, mock_get_all, flush_command):
         """Test handling 'all' subcommand."""
         mock_get_all.return_value = {}
@@ -127,8 +127,8 @@ class TestFlushCommand:
         assert result is True
         mock_clear_all.assert_called_once()
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_agent_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_agent_history")
     def test_handle_agent_subcommand(self, mock_clear_agent, mock_get_history, flush_command):
         """Test handling 'agent' subcommand."""
         mock_get_history.return_value = []
@@ -136,8 +136,8 @@ class TestFlushCommand:
         assert result is True
         mock_clear_agent.assert_called_once_with("test_agent")
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_agent_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_agent_history")
     def test_handle_nonexistent_agent(self, mock_clear_agent, mock_get_history, flush_command):
         """Test handling when clearing history for non-existent agent."""
         mock_get_history.return_value = []
@@ -158,9 +158,9 @@ class TestFlushCommand:
         assert flush_command.name == "/flush"
         assert "/clear" in flush_command.aliases
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_all_agent_histories")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_agent_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_all_agent_histories")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_agent_history")
     def test_handle_with_confirmation_message(
         self, mock_clear_agent, mock_get_history, mock_get_all, flush_command, capsys
     ):
@@ -175,8 +175,8 @@ class TestFlushCommand:
         # Verify clear was called with the correct agent
         mock_clear_agent.assert_called_once_with("test_agent")
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_all_agent_histories")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_all_histories")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_all_agent_histories")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_all_histories")
     def test_flush_all_with_multiple_agents(self, mock_clear_all, mock_get_all, flush_command):
         """Test flushing all histories when multiple agents are active."""
         mock_get_all.return_value = {
@@ -188,8 +188,8 @@ class TestFlushCommand:
         assert result is True
         mock_clear_all.assert_called_once()
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_agent_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_agent_history")
     def test_handle_with_empty_string_agent_name(self, mock_clear_agent, mock_get_history, flush_command):
         """Test handling with empty string as agent name."""
         mock_get_history.return_value = []
@@ -214,10 +214,10 @@ class TestFlushCommandIntegration:
         """Setup for integration tests."""
         yield
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_all_agent_histories")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_all_histories")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_agent_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_all_agent_histories")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_all_histories")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_agent_history")
     def test_flush_workflow(self, mock_clear_agent, mock_clear_all, mock_get_all, mock_get_history):
         """Test a complete flush workflow."""
         # Setup mock returns
@@ -245,8 +245,8 @@ class TestFlushCommandIntegration:
         # Should not have called clear_agent again
         assert mock_clear_agent.call_count == 1  # Only from the first test
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_agent_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_agent_history")
     def test_sequential_agent_flushes(self, mock_clear_agent, mock_get_history):
         """Test flushing multiple agents sequentially."""
         mock_get_history.return_value = []
@@ -273,8 +273,8 @@ class TestFlushCommandIntegration:
         called_agents = [call[0][0] for call in mock_clear_agent.call_args_list]
         assert called_agents == agents_to_flush
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_all_agent_histories")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_all_histories")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_all_agent_histories")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_all_histories")
     def test_flush_and_verify_empty_history(self, mock_clear_all, mock_get_all_histories):
         """Test flushing and verifying histories are empty."""
         # Before flush - histories exist
@@ -293,8 +293,8 @@ class TestFlushCommandIntegration:
         # After flush - histories should be empty
         mock_get_all_histories.return_value = {}
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_agent_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_agent_history")
     def test_flush_agents_with_special_characters(self, mock_clear_agent, mock_get_history):
         """Test flushing agents with special characters in names."""
         mock_get_history.return_value = []
@@ -315,15 +315,15 @@ class TestFlushCommandIntegration:
 
         assert mock_clear_agent.call_count == len(special_agents)
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_agent_history")
-    @patch("skynet.sdk.agents.parallel_isolation.PARALLEL_ISOLATION")
-    @patch("skynet.agents.get_available_agents")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_agent_history")
+    @patch("kryon.sdk.agents.parallel_isolation.PARALLEL_ISOLATION")
+    @patch("kryon.agents.get_available_agents")
     def test_handle_with_agent_id(
         self, mock_get_available_agents, mock_parallel_isolation, mock_clear_agent, mock_get_history
     ):
         """Test flushing agent by ID."""
-        from skynet.repl.commands.parallel import PARALLEL_CONFIGS, ParallelConfig
+        from kryon.repl.commands.parallel import PARALLEL_CONFIGS, ParallelConfig
 
         # Mock agent
         mock_agent = MagicMock()
@@ -353,15 +353,15 @@ class TestFlushCommandIntegration:
             PARALLEL_CONFIGS.clear()
             PARALLEL_CONFIGS.extend(original_configs)
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_agent_history")
-    @patch("skynet.sdk.agents.parallel_isolation.PARALLEL_ISOLATION")
-    @patch("skynet.agents.get_available_agents")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_agent_history")
+    @patch("kryon.sdk.agents.parallel_isolation.PARALLEL_ISOLATION")
+    @patch("kryon.agents.get_available_agents")
     def test_handle_numbered_agent_with_id(
         self, mock_get_available_agents, mock_parallel_isolation, mock_clear_agent, mock_get_history
     ):
         """Test flushing numbered agents with IDs."""
-        from skynet.repl.commands.parallel import PARALLEL_CONFIGS, ParallelConfig
+        from kryon.repl.commands.parallel import PARALLEL_CONFIGS, ParallelConfig
 
         # Mock agent
         mock_agent = MagicMock()
@@ -397,11 +397,11 @@ class TestFlushCommandIntegration:
             PARALLEL_CONFIGS.clear()
             PARALLEL_CONFIGS.extend(original_configs)
 
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
-    @patch("skynet.sdk.agents.models.openai_chatcompletions.clear_agent_history")
-    @patch("skynet.sdk.agents.parallel_isolation.PARALLEL_ISOLATION")
-    @patch("skynet.repl.commands.parallel.PARALLEL_CONFIGS")
-    @patch("skynet.agents.get_available_agents")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.get_agent_message_history")
+    @patch("kryon.sdk.agents.models.openai_chatcompletions.clear_agent_history")
+    @patch("kryon.sdk.agents.parallel_isolation.PARALLEL_ISOLATION")
+    @patch("kryon.repl.commands.parallel.PARALLEL_CONFIGS")
+    @patch("kryon.agents.get_available_agents")
     def test_handle_invalid_id(
         self,
         mock_get_available_agents,
@@ -411,7 +411,7 @@ class TestFlushCommandIntegration:
         mock_get_history,
     ):
         """Test handling invalid agent ID."""
-        from skynet.repl.commands.parallel import ParallelConfig
+        from kryon.repl.commands.parallel import ParallelConfig
 
         # Mock agent
         mock_agent = MagicMock()

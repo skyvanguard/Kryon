@@ -1,7 +1,7 @@
 import pytest
 
-from skynet.sdk.agents import Agent, ModelSettings, Runner
-from skynet.sdk.agents._run_impl import AgentToolUseTracker, RunImpl
+from kryon.sdk.agents import Agent, ModelSettings, Runner
+from kryon.sdk.agents._run_impl import AgentToolUseTracker, RunImpl
 from tests.core.test_responses import get_function_tool, get_function_tool_call, get_text_message
 from tests.fake_model import FakeModel
 

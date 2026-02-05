@@ -38,11 +38,11 @@ from openai.types.responses import (
 )
 from openai.types.responses.response_input_item_param import FunctionCallOutput
 
-from skynet.sdk.agents.agent_output import AgentOutputSchema
-from skynet.sdk.agents.exceptions import UserError
-from skynet.sdk.agents.items import TResponseInputItem
-from skynet.sdk.agents.models.fake_id import FAKE_RESPONSES_ID
-from skynet.sdk.agents.models.openai_chatcompletions import _Converter
+from kryon.sdk.agents.agent_output import AgentOutputSchema
+from kryon.sdk.agents.exceptions import UserError
+from kryon.sdk.agents.items import TResponseInputItem
+from kryon.sdk.agents.models.fake_id import FAKE_RESPONSES_ID
+from kryon.sdk.agents.models.openai_chatcompletions import _Converter
 
 
 @pytest.fixture

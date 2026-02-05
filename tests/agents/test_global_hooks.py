@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from typing_extensions import TypedDict
 
-from skynet.sdk.agents import Agent, RunContextWrapper, RunHooks, Runner, TContext, Tool
+from kryon.sdk.agents import Agent, RunContextWrapper, RunHooks, Runner, TContext, Tool
 from tests.core.test_responses import (
     get_final_output_message,
     get_function_tool,

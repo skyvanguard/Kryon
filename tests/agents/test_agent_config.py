@@ -1,7 +1,7 @@
 import pytest
 from pydantic import BaseModel
 
-from skynet.sdk.agents import Agent, Handoff, RunContextWrapper, Runner, handoff
+from kryon.sdk.agents import Agent, Handoff, RunContextWrapper, Runner, handoff
 
 
 @pytest.mark.asyncio

@@ -11,10 +11,10 @@ import os
 
 from dotenv import load_dotenv
 
-from skynet.agents import get_agent_by_name
-from skynet.sdk.agents import Runner
-from skynet.sdk.agents.models._openai_shared import set_use_responses_by_default
-from skynet.util import color, fix_litellm_transcription_annotations
+from kryon.agents import get_agent_by_name
+from kryon.sdk.agents import Runner
+from kryon.sdk.agents.models._openai_shared import set_use_responses_by_default
+from kryon.util import color, fix_litellm_transcription_annotations
 
 # Load environment variables
 load_dotenv()

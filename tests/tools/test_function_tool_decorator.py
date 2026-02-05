@@ -4,8 +4,8 @@ from typing import Any, Optional
 
 import pytest
 
-from skynet.sdk.agents import function_tool
-from skynet.sdk.agents.run_context import RunContextWrapper
+from kryon.sdk.agents import function_tool
+from kryon.sdk.agents.run_context import RunContextWrapper
 
 
 class DummyContext:

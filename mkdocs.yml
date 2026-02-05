@@ -155,4 +155,4 @@ extra_css:
 dev_addr: localhost:8088
 
 watch:
-  - "src/skynet"
+  - "src/kryon"

@@ -6,16 +6,16 @@ Handoffs are represented as tools to the LLM. So if there's a handoff to an agen
 
 ## Creating a handoff
 
-All agents have a [`handoffs`][skynet.sdk.agents.agent.Agent.handoffs] param, which can either take an `Agent` directly, or a `Handoff` object that customizes the Handoff.
+All agents have a [`handoffs`][kryon.sdk.agents.agent.Agent.handoffs] param, which can either take an `Agent` directly, or a `Handoff` object that customizes the Handoff.
 
-You can create a handoff using the [`handoff()`][skynet.sdk.agents.handoffs.handoff] function provided. This function allows you to specify the agent to hand off to, along with optional overrides and input filters.
+You can create a handoff using the [`handoff()`][kryon.sdk.agents.handoffs.handoff] function provided. This function allows you to specify the agent to hand off to, along with optional overrides and input filters.
 
 ### Basic Usage
 
 Here's how you can create a simple handoff:
 
 ```python
-from skynet.sdk.agents import Agent, handoff
+from kryon.sdk.agents import Agent, handoff
 
 crypto_agent = Agent(name="Cryptography Agent")
 bash_agent = Agent(name="Bash Agent")
@@ -30,7 +30,7 @@ cybersecurity_lead = Agent(name="Cybersecurity Lead Agent", handoffs=[crypto_age
 
 ### Customizing handoffs via the `handoff()` function
 
-The [`handoff()`][skynet.sdk.agents.handoffs.handoff] function lets you customize things.
+The [`handoff()`][kryon.sdk.agents.handoffs.handoff] function lets you customize things.
 
 -   `agent`: This is the agent to which things will be handed off.
 -   `tool_name_override`: By default, the `Handoff.default_tool_name()` function is used, which resolves to `transfer_to_<agent_name>`. You can override this.
@@ -40,7 +40,7 @@ The [`handoff()`][skynet.sdk.agents.handoffs.handoff] function lets you customiz
 -   `input_filter`: This lets you filter the input received by the next agent. See below for more.
 
 ```python
-from skynet.sdk.agents import Agent, handoff, RunContextWrapper
+from kryon.sdk.agents import Agent, handoff, RunContextWrapper
 
 def on_handoff(ctx: RunContextWrapper[None]):
     print("Handoff called")
@@ -62,7 +62,7 @@ In certain situations, you want the LLM to provide some data when it calls a han
 ```python
 from pydantic import BaseModel
 
-from skynet.sdk.agents import Agent, handoff, RunContextWrapper
+from kryon.sdk.agents import Agent, handoff, RunContextWrapper
 
 class EscalationData(BaseModel):
     reason: str
@@ -81,12 +81,12 @@ handoff_obj = handoff(
 
 ## Input filters
 
-When a handoff occurs, it's as though the new agent takes over the conversation, and gets to see the entire previous conversation history. If you want to change this, you can set an [`input_filter`][skynet.sdk.agents.handoffs.Handoff.input_filter]. An input filter is a function that receives the existing input via a [`HandoffInputData`][skynet.sdk.agents.handoffs.HandoffInputData], and must return a new `HandoffInputData`.
+When a handoff occurs, it's as though the new agent takes over the conversation, and gets to see the entire previous conversation history. If you want to change this, you can set an [`input_filter`][kryon.sdk.agents.handoffs.Handoff.input_filter]. An input filter is a function that receives the existing input via a [`HandoffInputData`][kryon.sdk.agents.handoffs.HandoffInputData], and must return a new `HandoffInputData`.
 
 There are some common patterns (for example removing all tool calls from the history), which are implemented for you in [`skynet.sdk.agents.extensions.handoff_filters`][]
 
 ```python
-from skynet.sdk.agents import Agent, handoff
+from kryon.sdk.agents import Agent, handoff
 from agents.extensions import handoff_filters
 
 network_agent = Agent(name="Network Agent")
@@ -104,7 +104,7 @@ handoff_obj = handoff(
 To make sure that LLMs understand handoffs properly, we recommend including information about handoffs in your agents. We have a suggested prefix in [`skynet.sdk.agents.extensions.handoff_prompt.RECOMMENDED_PROMPT_PREFIX`][], or you can call [`skynet.sdk.agents.extensions.handoff_prompt.prompt_with_handoff_instructions`][] to automatically add recommended data to your prompts.
 
 ```python
-from skynet.sdk.agents import Agent
+from kryon.sdk.agents import Agent
 from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 
 billing_agent = Agent(
@@ -137,12 +137,12 @@ User Request ───────►│ Lead Agent        │
 
 
 ```python
-from skynet.sdk.agents import Agent, OpenAIChatCompletionsModel
+from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel
 from openai import AsyncOpenAI
-from skynet.sdk.agents import handoff, function_tool, trace
-from skynet.sdk.agents import Runner
-from skynet.tools.common import run_command
-from skynet.sdk.agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
+from kryon.sdk.agents import handoff, function_tool, trace
+from kryon.sdk.agents import Runner
+from kryon.tools.common import run_command
+from kryon.sdk.agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 import os
 import asyncio
 

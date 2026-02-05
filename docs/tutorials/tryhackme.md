@@ -47,21 +47,21 @@ cd /workspace  # or your KRYON path
 python3
 
 # Import CTF Master
-from skynet.agents.ctf_master import ctf_master, transfer_to_ctf_master
+from kryon.agents.ctf_master import ctf_master, transfer_to_ctf_master
 ```
 
 ### Step 3: Start Your First TryHackMe Room (5 minutes)
 
 ```python
 # Verify VPN connection
-from skynet.tools.ctf.tryhackme_helpers import check_thm_vpn
+from kryon.tools.ctf.tryhackme_helpers import check_thm_vpn
 
 vpn_status = check_thm_vpn()
 print(f"Connected: {vpn_status['connected']}")
 print(f"VPN IP: {vpn_status['vpn_ip']}")
 
 # Auto-detect target IP (if you already scanned)
-from skynet.tools.ctf.tryhackme_helpers import get_target_ip
+from kryon.tools.ctf.tryhackme_helpers import get_target_ip
 
 target = get_target_ip(auto_detect=True)
 print(f"Target: {target['target_ip']}")
@@ -81,8 +81,8 @@ TARGET_IP = "10.10.245.67"  # Replace with your room's IP
 # KRYON CTF MASTER - Complete Workflow
 # ============================================
 
-from skynet.tools.ctf import *
-from skynet.tools.privilege_escalation.linux_privesc import *
+from kryon.tools.ctf import *
+from kryon.tools.privilege_escalation.linux_privesc import *
 
 # --------------------------------------------
 # PHASE 1: VPN & Target Verification
@@ -281,7 +281,7 @@ print("\n[✓] CTF WORKFLOW COMPLETE!")
 ### Easy Room Example (e.g., "Kenobi")
 
 ```python
-from skynet.tools.ctf import *
+from kryon.tools.ctf import *
 
 # 1. Set target
 TARGET = "10.10.245.67"
@@ -338,7 +338,7 @@ enum = auto_enumerate_target(TARGET, quick_mode=True)
 
 ```python
 # If you find a sudo/SUID binary
-from skynet.tools.privilege_escalation.linux_privesc import gtfobins_lookup
+from kryon.tools.privilege_escalation.linux_privesc import gtfobins_lookup
 
 # Check if it's exploitable
 result = gtfobins_lookup("find", "sudo")
@@ -350,7 +350,7 @@ if result['found']:
 
 ```python
 # Always format answers before submitting
-from skynet.tools.ctf.tryhackme_helpers import submit_thm_answer
+from kryon.tools.ctf.tryhackme_helpers import submit_thm_answer
 
 # Flag
 answer = submit_thm_answer("THM{flag_here}")
@@ -395,7 +395,7 @@ ip addr show tun0
 TARGET_IP = "10.10.X.X"  # Get from THM room page
 
 # Or run nmap first
-from skynet.tools.reconnaissance.nmap import run_nmap
+from kryon.tools.reconnaissance.nmap import run_nmap
 run_nmap(TARGET_IP, scan_type="quick")
 
 # Then try auto-detect again
@@ -413,7 +413,7 @@ cd /workspace  # or your KRYON directory
 pip install -e .
 
 # Verify
-python3 -c "from skynet.tools.ctf import *; print('OK')"
+python3 -c "from kryon.tools.ctf import *; print('OK')"
 ```
 
 ### Issue 4: Permission Denied

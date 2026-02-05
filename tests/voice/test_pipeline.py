@@ -5,7 +5,7 @@ import numpy.typing as npt
 import pytest
 
 try:
-    from skynet.sdk.agents.voice import (
+    from kryon.sdk.agents.voice import (
         AudioInput,
         TTSModelSettings,
         VoicePipeline,

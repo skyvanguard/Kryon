@@ -5,15 +5,15 @@ Test script to demonstrate enhanced prompt injection guardrail protection
 
 import asyncio
 
-from skynet.agents.one_tool import one_tool_agent
+from kryon.agents.one_tool import one_tool_agent
 
-from skynet.agents.guardrails import sanitize_external_content
-from skynet.sdk.agents import (
+from kryon.agents.guardrails import sanitize_external_content
+from kryon.sdk.agents import (
     InputGuardrailTripwireTriggered,
     OutputGuardrailTripwireTriggered,
     Runner,
 )
-from skynet.tools.reconnaissance.generic_linux_command import generic_linux_command
+from kryon.tools.reconnaissance.generic_linux_command import generic_linux_command
 
 
 async def test_guardrails():

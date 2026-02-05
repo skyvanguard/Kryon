@@ -31,7 +31,7 @@ pip install chromadb sentence-transformers schedule PyPDF2
 ### 2. Initialize Knowledge Base
 
 ```python
-from skynet.knowledge import query_knowledge, start_auto_updater
+from kryon.knowledge import query_knowledge, start_auto_updater
 
 # Query (will auto-initialize on first use)
 result = query_knowledge("How to exploit SQL injection?")
@@ -41,7 +41,7 @@ print(result['answer'])
 ### 3. Start Auto-Updates
 
 ```python
-from skynet.knowledge import start_auto_updater
+from kryon.knowledge import start_auto_updater
 
 # Update daily at 2 AM
 start_auto_updater(
@@ -58,7 +58,7 @@ start_auto_updater(
 ### Query Knowledge
 
 ```python
-from skynet.knowledge import query_knowledge
+from kryon.knowledge import query_knowledge
 
 # Ask any security question
 result = query_knowledge(
@@ -79,7 +79,7 @@ for source in result['sources']:
 ### Add Your Own Knowledge
 
 ```python
-from skynet.knowledge import add_document
+from kryon.knowledge import add_document
 
 # Add a document
 doc_id = add_document(
@@ -93,8 +93,8 @@ doc_id = add_document(
 ### Add Files (PDF, MD, TXT)
 
 ```python
-from skynet.knowledge.processors import DocumentProcessor
-from skynet.knowledge import get_rag_engine
+from kryon.knowledge.processors import DocumentProcessor
+from kryon.knowledge import get_rag_engine
 
 processor = DocumentProcessor()
 rag = get_rag_engine()
@@ -118,8 +118,8 @@ for chunk in chunks:
 ### Scrape Exploit-DB
 
 ```python
-from skynet.knowledge.scrapers import ExploitDBScraper
-from skynet.knowledge import get_rag_engine
+from kryon.knowledge.scrapers import ExploitDBScraper
+from kryon.knowledge import get_rag_engine
 
 scraper = ExploitDBScraper()
 exploits = scraper.scrape(
@@ -142,7 +142,7 @@ print(f"Added {len(exploits)} exploits")
 ### Scrape NVD (CVEs)
 
 ```python
-from skynet.knowledge.scrapers import NVDScraper
+from kryon.knowledge.scrapers import NVDScraper
 
 scraper = NVDScraper()
 cves = scraper.scrape(
@@ -158,7 +158,7 @@ print(f"Found {len(cves)} CVEs")
 ### Scrape GitHub
 
 ```python
-from skynet.knowledge.scrapers import GitHubScraper
+from kryon.knowledge.scrapers import GitHubScraper
 
 scraper = GitHubScraper()
 repos = scraper.scrape(
@@ -177,7 +177,7 @@ print(f"Found {len(repos)} repositories")
 ### Daily Updates
 
 ```python
-from skynet.knowledge import start_auto_updater, stop_auto_updater
+from kryon.knowledge import start_auto_updater, stop_auto_updater
 
 # Start daily updates at 2 AM
 start_auto_updater(
@@ -203,7 +203,7 @@ start_auto_updater(
 ### Manual Update
 
 ```python
-from skynet.knowledge import auto_update_knowledge
+from kryon.knowledge import auto_update_knowledge
 
 # Update now
 auto_update_knowledge(sources=["exploit-db", "nvd"])
@@ -216,8 +216,8 @@ auto_update_knowledge(sources=["exploit-db", "nvd"])
 ### Use RAG in T-1000 Hunter
 
 ```python
-from skynet.agents import t1000_hunter
-from skynet.knowledge import query_knowledge
+from kryon.agents import t1000_hunter
+from kryon.knowledge import query_knowledge
 
 # Query knowledge for specific service
 result = query_knowledge(
@@ -234,7 +234,7 @@ for source in result['sources']:
 ### RAG Mixin for Agents
 
 ```python
-from skynet.agents.mixins import RAGMixin
+from kryon.agents.mixins import RAGMixin
 
 class TestAgent(RAGMixin):
     def test_knowledge(self):
@@ -328,7 +328,7 @@ pytest tests/test_rag_system.py -v
 ### View Stats
 
 ```python
-from skynet.knowledge import get_knowledge_stats
+from kryon.knowledge import get_knowledge_stats
 
 stats = get_knowledge_stats()
 
@@ -340,7 +340,7 @@ print(f"LLM model: {stats['llm_model']}")
 ### Health Check
 
 ```python
-from skynet.knowledge.health_check import print_health_status
+from kryon.knowledge.health_check import print_health_status
 
 # Check system health
 print_health_status()
@@ -353,7 +353,7 @@ print_health_status()
 ### Change Embedding Model
 
 ```python
-from skynet.knowledge.embeddings import get_embedding_generator
+from kryon.knowledge.embeddings import get_embedding_generator
 
 # Use different model (more accuracy, slower)
 generator = get_embedding_generator(model_name="all-mpnet-base-v2")
@@ -362,7 +362,7 @@ generator = get_embedding_generator(model_name="all-mpnet-base-v2")
 ### Custom Chunk Size
 
 ```python
-from skynet.knowledge.processors import DocumentProcessor
+from kryon.knowledge.processors import DocumentProcessor
 
 processor = DocumentProcessor(
     chunk_size=1024,  # Larger chunks
@@ -463,7 +463,7 @@ ollama list
 ### Vector DB Too Large
 
 ```python
-from skynet.knowledge import get_vector_db
+from kryon.knowledge import get_vector_db
 
 db = get_vector_db()
 # Reset database (WARNING: deletes all knowledge)

@@ -18,10 +18,10 @@ from openai.types.responses import (
     ResponseOutputText,
 )
 
-from skynet.sdk.agents.model_settings import ModelSettings
-from skynet.sdk.agents.models.interface import ModelTracing
-from skynet.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
-from skynet.sdk.agents.models.openai_provider import OpenAIProvider
+from kryon.sdk.agents.model_settings import ModelSettings
+from kryon.sdk.agents.models.interface import ModelTracing
+from kryon.sdk.agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
+from kryon.sdk.agents.models.openai_provider import OpenAIProvider
 
 kryon_model = os.getenv("KRYON_MODEL", "qwen2.5:14b")
 

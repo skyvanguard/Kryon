@@ -7,8 +7,8 @@ import pytest
 
 os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 
-from skynet.sdk.agents import RunContextWrapper
-from skynet.tools.reconnaissance.generic_linux_command import generic_linux_command
+from kryon.sdk.agents import RunContextWrapper
+from kryon.tools.reconnaissance.generic_linux_command import generic_linux_command
 
 
 def _extract_alias(msg: str) -> str | None:

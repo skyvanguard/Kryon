@@ -12,8 +12,8 @@ There are two kinds of guardrails:
 Input guardrails run in 3 steps:
 
 1. First, the guardrail receives the same input passed to the agent.
-2. Next, the guardrail function runs to produce a [`GuardrailFunctionOutput`][skynet.sdk.agents.guardrail.GuardrailFunctionOutput], which is then wrapped in an [`InputGuardrailResult`][skynet.sdk.agents.guardrail.InputGuardrailResult]
-3. Finally, we check if [`.tripwire_triggered`][skynet.sdk.agents.guardrail.GuardrailFunctionOutput.tripwire_triggered] is true. If true, an [`InputGuardrailTripwireTriggered`][skynet.sdk.agents.exceptions.InputGuardrailTripwireTriggered] exception is raised, so you can appropriately respond to the user or handle the exception.
+2. Next, the guardrail function runs to produce a [`GuardrailFunctionOutput`][kryon.sdk.agents.guardrail.GuardrailFunctionOutput], which is then wrapped in an [`InputGuardrailResult`][kryon.sdk.agents.guardrail.InputGuardrailResult]
+3. Finally, we check if [`.tripwire_triggered`][kryon.sdk.agents.guardrail.GuardrailFunctionOutput.tripwire_triggered] is true. If true, an [`InputGuardrailTripwireTriggered`][kryon.sdk.agents.exceptions.InputGuardrailTripwireTriggered] exception is raised, so you can appropriately respond to the user or handle the exception.
 
 !!! Note
 
@@ -24,8 +24,8 @@ Input guardrails run in 3 steps:
 Output guardrails run in 3 steps:
 
 1. First, the guardrail receives the same input passed to the agent.
-2. Next, the guardrail function runs to produce a [`GuardrailFunctionOutput`][skynet.sdk.agents.guardrail.GuardrailFunctionOutput], which is then wrapped in an [`OutputGuardrailResult`][skynet.sdk.agents.guardrail.OutputGuardrailResult]
-3. Finally, we check if [`.tripwire_triggered`][skynet.sdk.agents.guardrail.GuardrailFunctionOutput.tripwire_triggered] is true. If true, an [`OutputGuardrailTripwireTriggered`][skynet.sdk.agents.exceptions.OutputGuardrailTripwireTriggered] exception is raised, so you can appropriately respond to the user or handle the exception.
+2. Next, the guardrail function runs to produce a [`GuardrailFunctionOutput`][kryon.sdk.agents.guardrail.GuardrailFunctionOutput], which is then wrapped in an [`OutputGuardrailResult`][kryon.sdk.agents.guardrail.OutputGuardrailResult]
+3. Finally, we check if [`.tripwire_triggered`][kryon.sdk.agents.guardrail.GuardrailFunctionOutput.tripwire_triggered] is true. If true, an [`OutputGuardrailTripwireTriggered`][kryon.sdk.agents.exceptions.OutputGuardrailTripwireTriggered] exception is raised, so you can appropriately respond to the user or handle the exception.
 
 !!! Note
 
@@ -37,11 +37,11 @@ If the input or output fails the guardrail, the Guardrail can signal this with a
 
 ## Implementing a guardrail
 
-You need to provide a function that receives input, and returns a [`GuardrailFunctionOutput`][skynet.sdk.agents.guardrail.GuardrailFunctionOutput]. In this example, we'll do this by running an Agent under the hood.
+You need to provide a function that receives input, and returns a [`GuardrailFunctionOutput`][kryon.sdk.agents.guardrail.GuardrailFunctionOutput]. In this example, we'll do this by running an Agent under the hood.
 
 ```python
 from pydantic import BaseModel
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     GuardrailFunctionOutput,
     InputGuardrailTripwireTriggered,
@@ -99,7 +99,7 @@ Output guardrails are similar.
 
 ```python
 from pydantic import BaseModel
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     GuardrailFunctionOutput,
     OutputGuardrailTripwireTriggered,

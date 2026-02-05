@@ -1,5 +1,5 @@
 try:
-    from skynet.sdk.agents.voice import StreamedAudioResult
+    from kryon.sdk.agents.voice import StreamedAudioResult
 except ImportError:
     pass
 

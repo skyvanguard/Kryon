@@ -8,7 +8,7 @@ Tools let agents take actions: things like fetching data, running code, calling 
 
 ## Hosted tools
 
-KRYON offers a few built-in tools when using the [`OpenAIResponsesModel`][skynet.sdk.agents.models.openai_responses.OpenAIResponsesModel]. They are in [tools](src/skynet/tools) and grouped in 6 major categories inspired by the security kill chain[2]:
+KRYON offers a few built-in tools when using the [`OpenAIResponsesModel`][kryon.sdk.agents.models.openai_responses.OpenAIResponsesModel]. They are in [tools](src/skynet/tools) and grouped in 6 major categories inspired by the security kill chain[2]:
 
  
 1. Reconnaissance and weaponization - *reconnaissance*  (crypto, listing, etc)
@@ -19,8 +19,8 @@ KRYON offers a few built-in tools when using the [`OpenAIResponsesModel`][skynet
 6. Command and control - *control*
 
 ```python
-from skynet.sdk.agents import Agent, Runner, OpenAIChatCompletionsModel
-from skynet.tools.reconnaissance.generic_linux_command import generic_linux_command 
+from kryon.sdk.agents import Agent, Runner, OpenAIChatCompletionsModel
+from kryon.tools.reconnaissance.generic_linux_command import generic_linux_command 
 from openai import AsyncOpenAI
 
 one_tool_agent = Agent(
@@ -54,7 +54,7 @@ We use Python's `inspect` module to extract the function signature, along with [
 ```python
 import json
 from typing_extensions import TypedDict, Any
-from skynet.sdk.agents import Agent, FunctionTool, RunContextWrapper, function_tool, OpenAIChatCompletionsModel
+from kryon.sdk.agents import Agent, FunctionTool, RunContextWrapper, function_tool, OpenAIChatCompletionsModel
 from openai import AsyncOpenAI
 
 class IPAddress(TypedDict):
@@ -189,7 +189,7 @@ for tool in agent.tools:
 
 ### Custom function tools
 
-Sometimes, you don't want to use a Python function as a tool. You can directly create a [`FunctionTool`][skynet.sdk.agents.tool.FunctionTool] if you prefer. You'll need to provide:
+Sometimes, you don't want to use a Python function as a tool. You can directly create a [`FunctionTool`][kryon.sdk.agents.tool.FunctionTool] if you prefer. You'll need to provide:
 
 -   `name`
 -   `description`
@@ -199,7 +199,7 @@ Sometimes, you don't want to use a Python function as a tool. You can directly c
 ```python
 from typing import Any
 from pydantic import BaseModel
-from skynet.sdk.agents import RunContextWrapper, FunctionTool
+from kryon.sdk.agents import RunContextWrapper, FunctionTool
 
 
 def do_some_work(data: str) -> str:
@@ -237,7 +237,7 @@ The code for the schema extraction lives in [`skynet.sdk.agents.function_schema`
 In some workflows, you may want a central agent to orchestrate a network of specialized agents, instead of handing off control. You can do this by modeling agents as tools.
 
 ```python
-from skynet.sdk.agents import Agent, Runner, OpenAIChatCompletionsModel
+from kryon.sdk.agents import Agent, Runner, OpenAIChatCompletionsModel
 from openai import AsyncOpenAI
 import asyncio
 

@@ -7,11 +7,11 @@ from typing import Any
 import pytest
 from typing_extensions import TypedDict
 
-from skynet.sdk.agents.agent import Agent
-from skynet.sdk.agents.lifecycle import AgentHooks
-from skynet.sdk.agents.run import Runner
-from skynet.sdk.agents.run_context import RunContextWrapper, TContext
-from skynet.sdk.agents.tool import Tool
+from kryon.sdk.agents.agent import Agent
+from kryon.sdk.agents.lifecycle import AgentHooks
+from kryon.sdk.agents.run import Runner
+from kryon.sdk.agents.run_context import RunContextWrapper, TContext
+from kryon.sdk.agents.tool import Tool
 from tests.core.test_responses import (
     get_final_output_message,
     get_function_tool,

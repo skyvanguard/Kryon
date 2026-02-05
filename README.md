@@ -138,8 +138,8 @@ KRYON> Perform comprehensive assessment of target.com
 ## Building Custom Agents
 
 ```python
-from skynet.sdk.agents import Agent
-from skynet.tools.reconnaissance import run_nmap
+from kryon.sdk.agents import Agent
+from kryon.tools.reconnaissance import run_nmap
 
 my_agent = Agent(
     name="Custom Scanner",

@@ -10,7 +10,7 @@ import time
 
 import pytest
 
-from skynet.tools.autonomous.strategic_planner import (
+from kryon.tools.autonomous.strategic_planner import (
     StrategicPlanner,
     adjust_plan_dynamically,
     calculate_all_attack_paths,

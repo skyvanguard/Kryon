@@ -9,7 +9,7 @@ import time
 
 import pytest
 
-from skynet.tools.autonomous.adaptive_strategy import (
+from kryon.tools.autonomous.adaptive_strategy import (
     AdaptiveStrategy,
     FailureReason,
     execute_with_adaptation,

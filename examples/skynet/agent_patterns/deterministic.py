@@ -9,8 +9,8 @@ import os
 
 from openai import AsyncOpenAI
 
-from skynet.sdk.agents import Agent, OpenAIChatCompletionsModel, Runner, function_tool
-from skynet.tools.common import run_command
+from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel, Runner, function_tool
+from kryon.tools.common import run_command
 
 
 # Function tool to execute CLI command

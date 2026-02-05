@@ -1,7 +1,7 @@
 import pytest
 
-from skynet.sdk.agents.exceptions import UserError
-from skynet.sdk.agents.mcp.server import _MCPServerWithClientSession
+from kryon.sdk.agents.exceptions import UserError
+from kryon.sdk.agents.mcp.server import _MCPServerWithClientSession
 
 
 class CrashingClientSessionServer(_MCPServerWithClientSession):

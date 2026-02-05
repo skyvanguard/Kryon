@@ -38,7 +38,7 @@ def scrape_exploitdb(max_results=500) -> list[dict]:
     print_header("Scraping Exploit-DB")
 
     try:
-        from skynet.knowledge.scrapers import ExploitDBScraper
+        from kryon.knowledge.scrapers import ExploitDBScraper
 
         scraper = ExploitDBScraper()
 
@@ -106,7 +106,7 @@ def scrape_nvd(days_back=7, max_results=200) -> list[dict]:
     print_header("Scraping NVD (National Vulnerability Database)")
 
     try:
-        from skynet.knowledge.scrapers import NVDScraper
+        from kryon.knowledge.scrapers import NVDScraper
 
         scraper = NVDScraper()
 
@@ -128,7 +128,7 @@ def scrape_github(max_results=50) -> list[dict]:
     print_header("Scraping GitHub Security Repositories")
 
     try:
-        from skynet.knowledge.scrapers import GitHubScraper
+        from kryon.knowledge.scrapers import GitHubScraper
 
         scraper = GitHubScraper()
 
@@ -180,7 +180,7 @@ def scrape_writeups() -> list[dict]:
     print_header("Scraping CTF Writeups")
 
     try:
-        from skynet.knowledge.scrapers import WriteupScraper
+        from kryon.knowledge.scrapers import WriteupScraper
 
         scraper = WriteupScraper()
 
@@ -203,7 +203,7 @@ def add_to_knowledge_base(items: list[dict], source: str):
 
     print(f"\nAdding {len(items)} items to knowledge base...")
 
-    from skynet.knowledge import get_rag_engine
+    from kryon.knowledge import get_rag_engine
 
     rag = get_rag_engine()
 
@@ -300,7 +300,7 @@ def initialize(
     print(f"\n{'─' * 70}\n")
 
     # Get stats
-    from skynet.knowledge import get_knowledge_stats
+    from kryon.knowledge import get_knowledge_stats
 
     stats = get_knowledge_stats()
 

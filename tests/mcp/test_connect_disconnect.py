@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from mcp.types import ListToolsResult, Tool as MCPTool
 
-from skynet.sdk.agents.mcp import MCPServerStdio
+from kryon.sdk.agents.mcp import MCPServerStdio
 from tests.helpers import DummyStreamsContextManager, tee
 
 

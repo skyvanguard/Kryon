@@ -10,7 +10,7 @@ from openai.types.responses.response_computer_tool_call import ActionClick
 from openai.types.responses.response_reasoning_item import ResponseReasoningItem, Summary
 from pydantic import BaseModel
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     Computer,
     ComputerTool,
@@ -23,7 +23,7 @@ from skynet.sdk.agents import (
     ToolCallItem,
     Usage,
 )
-from skynet.sdk.agents._run_impl import RunImpl
+from kryon.sdk.agents._run_impl import RunImpl
 from tests.core.test_responses import (
     get_final_output_message,
     get_function_tool,

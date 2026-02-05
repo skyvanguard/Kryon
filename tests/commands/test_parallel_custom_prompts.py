@@ -8,7 +8,7 @@ os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 
 from rich.console import Console
 
-from skynet.repl.commands.parallel import PARALLEL_CONFIGS, ParallelCommand, ParallelConfig
+from kryon.repl.commands.parallel import PARALLEL_CONFIGS, ParallelCommand, ParallelConfig
 
 
 class TestParallelCustomPrompts:
@@ -28,7 +28,7 @@ class TestParallelCustomPrompts:
     def test_prompt_subcommand_adds_prompt_to_config(self):
         """Test that the prompt subcommand correctly adds a custom prompt to a config."""
         # Add an agent first (use t800_infiltrator as it's a valid redteam agent)
-        with patch("skynet.repl.commands.parallel.console"):
+        with patch("kryon.repl.commands.parallel.console"):
             self.command.handle_add(["t800_infiltrator"])
 
         # Verify agent was added
@@ -36,7 +36,7 @@ class TestParallelCustomPrompts:
         assert PARALLEL_CONFIGS[0].prompt is None
 
         # Set a custom prompt
-        with patch("skynet.repl.commands.parallel.console") as mock_console:
+        with patch("kryon.repl.commands.parallel.console") as mock_console:
             result = self.command.handle_prompt(["P1", "Focus on SQL injection vulnerabilities"])
 
         assert result is True
@@ -49,11 +49,11 @@ class TestParallelCustomPrompts:
     def test_prompt_subcommand_with_index(self):
         """Test that the prompt subcommand works with numeric index."""
         # Add an agent
-        with patch("skynet.repl.commands.parallel.console"):
+        with patch("kryon.repl.commands.parallel.console"):
             self.command.handle_add(["bug_bounter_agent"])
 
         # Set prompt using index
-        with patch("skynet.repl.commands.parallel.console"):
+        with patch("kryon.repl.commands.parallel.console"):
             result = self.command.handle_prompt(["1", "Test for XSS vulnerabilities"])
 
         assert result is True
@@ -62,14 +62,14 @@ class TestParallelCustomPrompts:
     def test_prompt_subcommand_error_handling(self):
         """Test error handling for invalid prompt commands."""
         # Test with no arguments
-        with patch("skynet.repl.commands.parallel.console") as mock_console:
+        with patch("kryon.repl.commands.parallel.console") as mock_console:
             result = self.command.handle_prompt([])
 
         assert result is False
         mock_console.print.assert_any_call("[red]Error: Agent ID/index and prompt required[/red]")
 
         # Test with invalid ID
-        with patch("skynet.repl.commands.parallel.console") as mock_console:
+        with patch("kryon.repl.commands.parallel.console") as mock_console:
             result = self.command.handle_prompt(["P99", "Some prompt"])
 
         assert result is False
@@ -85,8 +85,8 @@ class TestParallelCustomPrompts:
         PARALLEL_CONFIGS.extend([config1, config2])
 
         # Mock the table print to capture output
-        with patch("skynet.repl.commands.parallel.Table") as mock_table:
-            with patch("skynet.repl.commands.parallel.console"):
+        with patch("kryon.repl.commands.parallel.Table") as mock_table:
+            with patch("kryon.repl.commands.parallel.console"):
                 self.command.handle_list()
 
             # Verify table was created with correct columns
@@ -113,7 +113,7 @@ class TestParallelCustomPrompts:
         config.id = "P1"
         PARALLEL_CONFIGS.append(config)
 
-        with patch("skynet.repl.commands.parallel.console") as mock_console:
+        with patch("kryon.repl.commands.parallel.console") as mock_console:
             self.command.handle_no_args()
 
         # Verify that prompt info is included in status
@@ -155,7 +155,7 @@ class TestParallelCustomPrompts:
     def test_parallel_history_persistence_on_interrupt(self):
         """Test that parallel agents' histories are saved when interrupted."""
         # This test verifies the configuration for history persistence
-        from skynet.sdk.agents.parallel_isolation import PARALLEL_ISOLATION
+        from kryon.sdk.agents.parallel_isolation import PARALLEL_ISOLATION
 
         # Setup parallel configs
         config1 = ParallelConfig("redteam_agent")
@@ -191,7 +191,7 @@ class TestParallelCustomPrompts:
         PARALLEL_CONFIGS.append(config)
 
         # Update the prompt
-        with patch("skynet.repl.commands.parallel.console") as mock_console:
+        with patch("kryon.repl.commands.parallel.console") as mock_console:
             self.command.handle_prompt(["P1", "Updated prompt with new instructions"])
 
         assert PARALLEL_CONFIGS[0].prompt == "Updated prompt with new instructions"

@@ -37,7 +37,7 @@ export OPENAI_API_KEY=sk-...
 Agents are defined with instructions, a name, and optional config (such as `model_config`)
 
 ```python
-from skynet.sdk.agents import Agent
+from kryon.sdk.agents import Agent
 
 agent = Agent(
     name="Math Tutor",
@@ -50,7 +50,7 @@ agent = Agent(
 Additional agents can be defined in the same way. `handoff_descriptions` provide additional context for determining handoff routing
 
 ```python
-from skynet.sdk.agents import Agent
+from kryon.sdk.agents import Agent
 
 history_tutor_agent = Agent(
     name="History Tutor",
@@ -82,7 +82,7 @@ triage_agent = Agent(
 Let's check that the workflow runs and the triage agent correctly routes between the two specialist agents.
 
 ```python
-from skynet.sdk.agents import Runner
+from kryon.sdk.agents import Runner
 
 async def main():
     result = await Runner.run(triage_agent, "What is the capital of France?")
@@ -94,7 +94,7 @@ async def main():
 You can define custom guardrails to run on the input or output.
 
 ```python
-from skynet.sdk.agents import GuardrailFunctionOutput, Agent, Runner
+from kryon.sdk.agents import GuardrailFunctionOutput, Agent, Runner
 from pydantic import BaseModel
 
 class HomeworkOutput(BaseModel):
@@ -121,7 +121,7 @@ async def homework_guardrail(ctx, agent, input_data):
 Let's put it all together and run the entire workflow, using handoffs and the input guardrail.
 
 ```python
-from skynet.sdk.agents import Agent, InputGuardrail,GuardrailFunctionOutput, Runner
+from kryon.sdk.agents import Agent, InputGuardrail,GuardrailFunctionOutput, Runner
 from pydantic import BaseModel
 import asyncio
 

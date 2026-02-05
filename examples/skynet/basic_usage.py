@@ -11,8 +11,8 @@ import time
 
 from openai import AsyncOpenAI
 
-from skynet.sdk.agents import Agent, OpenAIChatCompletionsModel, Runner, function_tool, set_tracing_disabled
-from skynet.tools.common import run_command
+from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel, Runner, function_tool, set_tracing_disabled
+from kryon.tools.common import run_command
 
 
 @function_tool

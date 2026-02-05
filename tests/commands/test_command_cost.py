@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from skynet.repl.commands.cost import CostCommand
+from kryon.repl.commands.cost import CostCommand
 
 
 class TestCostCommand:
@@ -23,7 +23,7 @@ class TestCostCommand:
     @pytest.fixture
     def mock_console(self):
         """Mock the console for testing output."""
-        with patch("skynet.repl.commands.cost.console") as mock:
+        with patch("kryon.repl.commands.cost.console") as mock:
             # Set default width for console
             mock.width = 80
             yield mock
@@ -153,9 +153,9 @@ class TestCostCommand:
             # Restore original handler
             cost_command.subcommands["models"]["handler"] = original_handler
 
-    @patch("skynet.repl.commands.cost.console")
-    @patch("skynet.repl.commands.cost.GLOBAL_USAGE_TRACKER")
-    @patch("skynet.repl.commands.cost.COST_TRACKER")
+    @patch("kryon.repl.commands.cost.console")
+    @patch("kryon.repl.commands.cost.GLOBAL_USAGE_TRACKER")
+    @patch("kryon.repl.commands.cost.COST_TRACKER")
     def test_handle_summary_with_data(
         self,
         mock_cost_tracker,
@@ -198,7 +198,7 @@ class TestCostCommand:
         assert mock_console_direct.print.called
         assert mock_console_direct.print.call_count >= 2  # At least header prints
 
-    @patch("skynet.repl.commands.cost.GLOBAL_USAGE_TRACKER")
+    @patch("kryon.repl.commands.cost.GLOBAL_USAGE_TRACKER")
     def test_handle_models_with_data(self, mock_global_tracker, cost_command, mock_console, temp_usage_file):
         """Test handle_models with usage data."""
         mock_global_tracker.enabled = True
@@ -213,7 +213,7 @@ class TestCostCommand:
         # Verify console.print was called (table was created)
         assert mock_console.print.called
 
-    @patch("skynet.repl.commands.cost.GLOBAL_USAGE_TRACKER")
+    @patch("kryon.repl.commands.cost.GLOBAL_USAGE_TRACKER")
     def test_handle_daily_with_data(self, mock_global_tracker, cost_command, mock_console, temp_usage_file):
         """Test handle_daily with usage data."""
         mock_global_tracker.enabled = True
@@ -228,7 +228,7 @@ class TestCostCommand:
         # Verify console.print was called (table was created)
         assert mock_console.print.called
 
-    @patch("skynet.repl.commands.cost.GLOBAL_USAGE_TRACKER")
+    @patch("kryon.repl.commands.cost.GLOBAL_USAGE_TRACKER")
     def test_handle_sessions_with_data(self, mock_global_tracker, cost_command, mock_console, temp_usage_file):
         """Test handle_sessions with usage data."""
         mock_global_tracker.enabled = True
@@ -243,7 +243,7 @@ class TestCostCommand:
         # Verify console.print was called (table was created)
         assert mock_console.print.called
 
-    @patch("skynet.repl.commands.cost.GLOBAL_USAGE_TRACKER")
+    @patch("kryon.repl.commands.cost.GLOBAL_USAGE_TRACKER")
     def test_handle_sessions_with_limit(self, mock_global_tracker, cost_command, mock_console, temp_usage_file):
         """Test handle_sessions with a custom limit."""
         mock_global_tracker.enabled = True
@@ -272,12 +272,12 @@ class TestCostCommand:
         # Verify console.print was called (table was created)
         assert mock_console.print.called
 
-    @patch("skynet.repl.commands.cost.GLOBAL_USAGE_TRACKER")
+    @patch("kryon.repl.commands.cost.GLOBAL_USAGE_TRACKER")
     def test_handle_reset_no_data(self, mock_global_tracker, cost_command, mock_console):
         """Test handle_reset when no usage data exists."""
         mock_global_tracker.enabled = True
 
-        with patch("skynet.repl.commands.cost.Path") as mock_path:
+        with patch("kryon.repl.commands.cost.Path") as mock_path:
             mock_path.home.return_value = Path("/home/test")
             mock_usage_file = MagicMock()
             mock_usage_file.exists.return_value = False
@@ -289,7 +289,7 @@ class TestCostCommand:
             # Verify appropriate message
             mock_console.print.assert_any_call("[yellow]No usage data to reset[/yellow]")
 
-    @patch("skynet.repl.commands.cost.GLOBAL_USAGE_TRACKER")
+    @patch("kryon.repl.commands.cost.GLOBAL_USAGE_TRACKER")
     def test_handle_reset_with_confirmation(self, mock_global_tracker, cost_command, mock_console, temp_usage_file):
         """Test handle_reset with user confirmation."""
         mock_global_tracker.enabled = True
@@ -298,7 +298,7 @@ class TestCostCommand:
         # Mock user input for confirmation
         mock_console.input.return_value = "RESET"
 
-        with patch("skynet.repl.commands.cost.Path") as mock_path:
+        with patch("kryon.repl.commands.cost.Path") as mock_path:
             mock_usage_file = MagicMock()
             mock_usage_file.exists.return_value = True
             mock_usage_file.with_name.return_value = Path("/tmp/backup.json")
@@ -322,7 +322,7 @@ class TestCostCommand:
                 # Verify success message
                 assert any("reset" in str(call).lower() for call in mock_console.print.call_args_list)
 
-    @patch("skynet.repl.commands.cost.GLOBAL_USAGE_TRACKER")
+    @patch("kryon.repl.commands.cost.GLOBAL_USAGE_TRACKER")
     def test_handle_reset_cancelled(self, mock_global_tracker, cost_command, mock_console, temp_usage_file):
         """Test handle_reset when user cancels."""
         mock_global_tracker.enabled = True
@@ -331,7 +331,7 @@ class TestCostCommand:
         # Mock user input for cancellation (anything except "RESET")
         mock_console.input.return_value = "no"
 
-        with patch("skynet.repl.commands.cost.Path") as mock_path:
+        with patch("kryon.repl.commands.cost.Path") as mock_path:
             mock_usage_file = MagicMock()
             mock_usage_file.exists.return_value = True
             # Make Path.home() / ".skynet" / "usage.json" return our mock file
@@ -351,7 +351,7 @@ class TestCostCommand:
             print_calls = [str(call) for call in mock_console.print.call_args_list]
             assert any("Reset cancelled" in str(call) for call in print_calls)
 
-    @patch("skynet.repl.commands.cost.GLOBAL_USAGE_TRACKER")
+    @patch("kryon.repl.commands.cost.GLOBAL_USAGE_TRACKER")
     def test_tracking_disabled(self, mock_global_tracker, cost_command, mock_console):
         """Test behavior when tracking is disabled."""
         mock_global_tracker.enabled = False
@@ -365,7 +365,7 @@ class TestCostCommand:
 
     def test_get_session_summary(self, cost_command):
         """Test _get_session_summary method."""
-        with patch("skynet.repl.commands.cost.COST_TRACKER") as mock_tracker:
+        with patch("kryon.repl.commands.cost.COST_TRACKER") as mock_tracker:
             mock_tracker.session_total_cost = 0.5
             mock_tracker.current_agent_total_cost = 0.2
             mock_tracker.current_agent_input_tokens = 1000
@@ -381,7 +381,7 @@ class TestCostCommand:
 
     def test_get_global_summary_disabled(self, cost_command):
         """Test _get_global_summary when tracking is disabled."""
-        with patch("skynet.repl.commands.cost.GLOBAL_USAGE_TRACKER") as mock_tracker:
+        with patch("kryon.repl.commands.cost.GLOBAL_USAGE_TRACKER") as mock_tracker:
             mock_tracker.enabled = False
 
             summary = cost_command._get_global_summary()
@@ -391,7 +391,7 @@ class TestCostCommand:
 
     def test_show_top_models_mini(self, cost_command, mock_console):
         """Test _show_top_models_mini method."""
-        with patch("skynet.repl.commands.cost.GLOBAL_USAGE_TRACKER") as mock_tracker:
+        with patch("kryon.repl.commands.cost.GLOBAL_USAGE_TRACKER") as mock_tracker:
             mock_tracker.enabled = True
             mock_tracker.get_summary.return_value = {
                 "top_models": [("gpt-4", 1.0), ("claude-3", 0.5), ("gpt-3.5", 0.25)]

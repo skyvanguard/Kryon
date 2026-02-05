@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     Agent,
     MessageOutputItem,
     ModelResponse,
@@ -19,7 +19,7 @@ from skynet.sdk.agents import (
     TResponseInputItem,
     Usage,
 )
-from skynet.sdk.agents._run_impl import (
+from kryon.sdk.agents._run_impl import (
     NextStepFinalOutput,
     NextStepHandoff,
     NextStepRunAgain,

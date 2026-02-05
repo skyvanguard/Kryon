@@ -117,7 +117,7 @@ Example:
 
 ```python
 import pytest
-from skynet.agents import t800_infiltrator
+from kryon.agents import t800_infiltrator
 
 @pytest.mark.unit
 def test_agent_initialization():
@@ -219,8 +219,8 @@ def exploit_vulnerability(
 Create `src/skynet/agents/your_agent.py`:
 
 ```python
-from skynet.sdk.agents import Agent
-from skynet.tools.reconnaissance import run_nmap
+from kryon.sdk.agents import Agent
+from kryon.tools.reconnaissance import run_nmap
 
 your_agent = Agent(
     name="Your Agent Name",
@@ -259,7 +259,7 @@ You are a specialized autonomous agent for...
 Add to `src/skynet/agents/__init__.py`:
 
 ```python
-from skynet.agents.your_agent import your_agent
+from kryon.agents.your_agent import your_agent
 ```
 
 ### 4. Add Tests
@@ -268,7 +268,7 @@ Create `tests/agents/test_your_agent.py`:
 
 ```python
 import pytest
-from skynet.agents import your_agent
+from kryon.agents import your_agent
 
 @pytest.mark.unit
 def test_your_agent_initialization():
@@ -283,7 +283,7 @@ def test_your_agent_initialization():
 Create `src/skynet/tools/{category}/your_tool.py`:
 
 ```python
-from skynet.sdk.agents import function_tool, RunContextWrapper
+from kryon.sdk.agents import function_tool, RunContextWrapper
 
 @function_tool
 async def your_security_tool(
@@ -322,7 +322,7 @@ Create `tests/tools/test_your_tool.py`:
 
 ```python
 import pytest
-from skynet.tools.{category} import your_security_tool
+from kryon.tools.{category} import your_security_tool
 
 @pytest.mark.unit
 async def test_your_tool():

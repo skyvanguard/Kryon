@@ -5,9 +5,9 @@ import numpy as np
 import pytest
 
 try:
-    from skynet.sdk.agents import UserError
-    from skynet.sdk.agents.voice import AudioInput, StreamedAudioInput
-    from skynet.sdk.agents.voice.input import DEFAULT_SAMPLE_RATE, _buffer_to_audio_file
+    from kryon.sdk.agents import UserError
+    from kryon.sdk.agents.voice import AudioInput, StreamedAudioInput
+    from kryon.sdk.agents.voice.input import DEFAULT_SAMPLE_RATE, _buffer_to_audio_file
 except ImportError:
     pass
 

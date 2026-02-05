@@ -15,7 +15,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from skynet.tools.autonomous import full_auto_enumeration
+from kryon.tools.autonomous import full_auto_enumeration
 
 
 def print_banner():

@@ -31,7 +31,7 @@ class TestVectorDatabase:
     def setup_method(self):
         """Setup test database."""
         self.temp_dir = tempfile.mkdtemp()
-        from skynet.knowledge.vector_db import VectorDatabase
+        from kryon.knowledge.vector_db import VectorDatabase
         self.db = VectorDatabase(persist_directory=self.temp_dir)
 
     def teardown_method(self):
@@ -94,7 +94,7 @@ class TestEmbeddings:
     def test_embedding_generation(self):
         """Test generating embeddings."""
         try:
-            from skynet.knowledge.embeddings import generate_embedding
+            from kryon.knowledge.embeddings import generate_embedding
 
             text = "Apache web server vulnerability"
             embedding = generate_embedding(text)
@@ -108,7 +108,7 @@ class TestEmbeddings:
     def test_batch_embeddings(self):
         """Test batch embedding generation."""
         try:
-            from skynet.knowledge.embeddings import generate_embeddings
+            from kryon.knowledge.embeddings import generate_embeddings
 
             texts = ["Text 1", "Text 2", "Text 3"]
             embeddings = generate_embeddings(texts)
@@ -126,8 +126,8 @@ class TestRAGEngine:
     def setup_method(self):
         """Setup test RAG engine."""
         self.temp_dir = tempfile.mkdtemp()
-        from skynet.knowledge.vector_db import VectorDatabase
-        from skynet.knowledge.rag_engine import RAGEngine
+        from kryon.knowledge.vector_db import VectorDatabase
+        from kryon.knowledge.rag_engine import RAGEngine
 
         db = VectorDatabase(persist_directory=self.temp_dir)
         self.rag = RAGEngine(vector_db=db)
@@ -183,7 +183,7 @@ class TestDocumentProcessor:
 
     def test_chunk_text(self):
         """Test text chunking."""
-        from skynet.knowledge.processors import DocumentProcessor
+        from kryon.knowledge.processors import DocumentProcessor
 
         processor = DocumentProcessor(chunk_size=10, chunk_overlap=2)
 
@@ -195,7 +195,7 @@ class TestDocumentProcessor:
 
     def test_process_text_file(self):
         """Test processing text file."""
-        from skynet.knowledge.processors import DocumentProcessor
+        from kryon.knowledge.processors import DocumentProcessor
 
         # Create temp file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
@@ -218,7 +218,7 @@ class TestMetadataExtractor:
 
     def test_extract_cves(self):
         """Test CVE extraction."""
-        from skynet.knowledge.processors import MetadataExtractor
+        from kryon.knowledge.processors import MetadataExtractor
 
         extractor = MetadataExtractor()
         content = "This exploit targets CVE-2021-41773 and CVE-2021-42013"
@@ -229,7 +229,7 @@ class TestMetadataExtractor:
 
     def test_extract_tools(self):
         """Test tool extraction."""
-        from skynet.knowledge.processors import MetadataExtractor
+        from kryon.knowledge.processors import MetadataExtractor
 
         extractor = MetadataExtractor()
         content = "Use nmap for scanning and metasploit for exploitation"
@@ -241,7 +241,7 @@ class TestMetadataExtractor:
 
     def test_extract_platforms(self):
         """Test platform extraction."""
-        from skynet.knowledge.processors import MetadataExtractor
+        from kryon.knowledge.processors import MetadataExtractor
 
         extractor = MetadataExtractor()
         content = "Linux privilege escalation on Ubuntu systems"
@@ -252,7 +252,7 @@ class TestMetadataExtractor:
 
     def test_extract_attack_types(self):
         """Test attack type extraction."""
-        from skynet.knowledge.processors import MetadataExtractor
+        from kryon.knowledge.processors import MetadataExtractor
 
         extractor = MetadataExtractor()
         content = "SQL injection and XSS vulnerabilities found"
@@ -266,7 +266,7 @@ class TestMetadataExtractor:
 def test_imports():
     """Test that all modules can be imported."""
     try:
-        from skynet.knowledge import (
+        from kryon.knowledge import (
             query_knowledge,
             add_document,
             get_vector_db,

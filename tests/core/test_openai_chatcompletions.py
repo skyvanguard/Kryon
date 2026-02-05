@@ -43,7 +43,7 @@ from openai.types.responses import (
     ResponseOutputText,
 )
 
-from skynet.sdk.agents import (
+from kryon.sdk.agents import (
     ModelResponse,
     ModelSettings,
     ModelTracing,
@@ -51,7 +51,7 @@ from skynet.sdk.agents import (
     OpenAIProvider,
     generation_span,
 )
-from skynet.sdk.agents.models.fake_id import FAKE_RESPONSES_ID
+from kryon.sdk.agents.models.fake_id import FAKE_RESPONSES_ID
 
 kryon_model = os.getenv("KRYON_MODEL", "qwen2.5:14b")
 

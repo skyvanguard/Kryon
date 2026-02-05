@@ -13,8 +13,8 @@ import pytest
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from skynet.repl.commands.base import Command
-from skynet.repl.commands.model import ModelCommand, ModelShowCommand
+from kryon.repl.commands.base import Command
+from kryon.repl.commands.model import ModelCommand, ModelShowCommand
 
 
 class TestModelCommand:

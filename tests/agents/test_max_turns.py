@@ -5,7 +5,7 @@ import json
 import pytest
 from typing_extensions import TypedDict
 
-from skynet.sdk.agents import Agent, MaxTurnsExceeded, Runner
+from kryon.sdk.agents import Agent, MaxTurnsExceeded, Runner
 from tests.core.test_responses import get_function_tool, get_function_tool_call, get_text_message
 from tests.fake_model import FakeModel
 

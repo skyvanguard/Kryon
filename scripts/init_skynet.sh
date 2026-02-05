@@ -101,8 +101,8 @@ python3 << 'PYEOF'
 import sys
 sys.path.insert(0, '/workspace/src')
 try:
-    from skynet.tools.autonomous import autonomous_ctf_solver, full_auto_enumeration
-    from skynet.tools.autonomous.decision_engine import EXPLOIT_DATABASE
+    from kryon.tools.autonomous import autonomous_ctf_solver, full_auto_enumeration
+    from kryon.tools.autonomous.decision_engine import EXPLOIT_DATABASE
     print('  ✅ Módulos autónomos')
     print(f'  ✅ Base de datos: {len(EXPLOIT_DATABASE)} servicios')
 except Exception as e:

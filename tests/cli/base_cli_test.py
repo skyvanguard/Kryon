@@ -20,8 +20,8 @@ from openai.types.chat.chat_completion_message_tool_call import (
 )
 from openai.types.completion_usage import CompletionUsage
 
-from skynet.sdk.agents import Agent, ModelResponse, OpenAIChatCompletionsModel
-from skynet.sdk.agents.models.openai_chatcompletions import (
+from kryon.sdk.agents import Agent, ModelResponse, OpenAIChatCompletionsModel
+from kryon.sdk.agents.models.openai_chatcompletions import (
     ACTIVE_MODEL_INSTANCES,
     get_all_agent_histories,
 )
@@ -191,7 +191,7 @@ class BaseCLITest:
 
     def create_mock_model_response(self, content: str = "Test response", items: Optional[list] = None) -> ModelResponse:
         """Create a mock ModelResponse for Runner.run."""
-        from skynet.sdk.agents.usage import Usage
+        from kryon.sdk.agents.usage import Usage
 
         return ModelResponse(
             output=items or [],
@@ -328,42 +328,42 @@ class BaseCLITest:
         # Enhanced mocking for CLI components
         [
             # Core CLI input/output
-            patch("skynet.repl.ui.prompt.get_user_input", side_effect=input_simulator),
-            patch("skynet.repl.ui.logging.setup_session_logging", return_value="test_history.txt"),
+            patch("kryon.repl.ui.prompt.get_user_input", side_effect=input_simulator),
+            patch("kryon.repl.ui.logging.setup_session_logging", return_value="test_history.txt"),
             # Session recording
-            patch("skynet.sdk.agents.run_to_jsonl.get_session_recorder"),
+            patch("kryon.sdk.agents.run_to_jsonl.get_session_recorder"),
             # CLI UI components
-            patch("skynet.repl.commands.FuzzyCommandCompleter"),
-            patch("skynet.repl.ui.keybindings.create_key_bindings"),
-            patch("skynet.repl.ui.banner.display_banner"),
-            patch("skynet.repl.ui.banner.display_quick_guide"),
+            patch("kryon.repl.commands.FuzzyCommandCompleter"),
+            patch("kryon.repl.ui.keybindings.create_key_bindings"),
+            patch("kryon.repl.ui.banner.display_banner"),
+            patch("kryon.repl.ui.banner.display_quick_guide"),
             # LLM calls
             patch("litellm.completion", side_effect=litellm_simulator),
             patch("litellm.acompletion", side_effect=litellm_simulator),
             # Timing functions
-            patch("skynet.util.start_idle_timer"),
-            patch("skynet.util.stop_idle_timer"),
-            patch("skynet.util.start_active_timer"),
-            patch("skynet.util.stop_active_timer"),
-            patch("skynet.util.get_active_time_seconds", return_value=1.0),
-            patch("skynet.util.get_idle_time_seconds", return_value=2.0),
+            patch("kryon.util.start_idle_timer"),
+            patch("kryon.util.stop_idle_timer"),
+            patch("kryon.util.start_active_timer"),
+            patch("kryon.util.stop_active_timer"),
+            patch("kryon.util.get_active_time_seconds", return_value=1.0),
+            patch("kryon.util.get_idle_time_seconds", return_value=2.0),
             # Rich console output
             patch("rich.console.Console.print"),
         ]
 
         # Apply all patches and run simulation
-        from skynet.cli import run_skynet_cli
+        from kryon.cli import run_skynet_cli
 
         def apply_patches_and_run():
             with (
-                patch.multiple("skynet.repl.ui.prompt", get_user_input=input_simulator),
+                patch.multiple("kryon.repl.ui.prompt", get_user_input=input_simulator),
                 patch.multiple("litellm", completion=litellm_simulator, acompletion=litellm_simulator),
                 patch.multiple(
-                    "skynet.repl.ui.logging",
+                    "kryon.repl.ui.logging",
                     setup_session_logging=Mock(return_value="test_history.txt"),
                 ),
                 patch.multiple(
-                    "skynet.sdk.agents.run_to_jsonl",
+                    "kryon.sdk.agents.run_to_jsonl",
                     get_session_recorder=Mock(
                         return_value=Mock(
                             filename="test_session.jsonl",
@@ -374,11 +374,11 @@ class BaseCLITest:
                         )
                     ),
                 ),
-                patch.multiple("skynet.repl.commands", FuzzyCommandCompleter=Mock()),
-                patch.multiple("skynet.repl.ui.keybindings", create_key_bindings=Mock()),
-                patch.multiple("skynet.repl.ui.banner", display_banner=Mock(), display_quick_guide=Mock()),
+                patch.multiple("kryon.repl.commands", FuzzyCommandCompleter=Mock()),
+                patch.multiple("kryon.repl.ui.keybindings", create_key_bindings=Mock()),
+                patch.multiple("kryon.repl.ui.banner", display_banner=Mock(), display_quick_guide=Mock()),
                 patch.multiple(
-                    "skynet.util",
+                    "kryon.util",
                     start_idle_timer=Mock(),
                     stop_idle_timer=Mock(),
                     start_active_timer=Mock(),

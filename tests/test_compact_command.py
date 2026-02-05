@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from skynet.repl.commands.compact import CompactCommand
+from kryon.repl.commands.compact import CompactCommand
 
 
 class TestCompactCommand:

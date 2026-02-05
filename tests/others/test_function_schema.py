@@ -6,9 +6,9 @@ import pytest
 from pydantic import BaseModel, ValidationError
 from typing_extensions import TypedDict
 
-from skynet.sdk.agents import RunContextWrapper
-from skynet.sdk.agents.exceptions import UserError
-from skynet.sdk.agents.function_schema import function_schema
+from kryon.sdk.agents import RunContextWrapper
+from kryon.sdk.agents.exceptions import UserError
+from kryon.sdk.agents.function_schema import function_schema
 
 
 def no_args_function():
