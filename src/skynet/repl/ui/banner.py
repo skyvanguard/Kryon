@@ -15,6 +15,24 @@ import logging
 import os
 import sys
 
+# Configure UTF-8 encoding for Windows console
+if sys.platform == "win32":
+    try:
+        # Enable UTF-8 mode for Windows console
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        kernel32.SetConsoleOutputCP(65001)  # UTF-8 code page
+        kernel32.SetConsoleCP(65001)  # Input code page
+        # Set stdout to use UTF-8
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        # Also set environment variable for Python
+        os.environ["PYTHONIOENCODING"] = "utf-8"
+    except Exception:
+        pass  # Ignore if we can't set UTF-8
+
 # Third-party imports
 import requests  # pylint: disable=import-error
 from rich.console import Console  # pylint: disable=import-error
@@ -145,8 +163,8 @@ def display_banner(console: Console):
 
     codename = getattr(skynet, "__codename__", "Genesis")
 
-    # KRYON banner with indigo/cyan cyber theme
-    banner = f"""
+    # KRYON banner with indigo/cyan cyber theme (Unicode)
+    banner_unicode = f"""
 [bold blue]    ██╗  ██╗██████╗ ██╗   ██╗ ██████╗ ███╗   ██╗
 [bold blue]    ██║ ██╔╝██╔══██╗╚██╗ ██╔╝██╔═══██╗████╗  ██║
 [bold blue]    █████╔╝ ██████╔╝ ╚████╔╝ ██║   ██║██╔██╗ ██║
@@ -156,16 +174,54 @@ def display_banner(console: Console):
 
 [bold blue]           Autonomous Cybersecurity Intelligence Platform
 [bold white]                    Version {version} - Code: {codename}
-[dim cyan]                    「 Defense Grid Activated 」[/dim cyan]
+[dim cyan]                    [ Defense Grid Activated ][/dim cyan]
 
-[dim blue]    ┌─────────────────────────────────────────────────────────┐
-    │  [bold]KRYON:[/bold] Autonomous AI system active                 │
-    │  System designed for authorized security operations  │
-    │  All actions are logged and monitored                │
-    └─────────────────────────────────────────────────────────┘[/dim blue]
+[dim blue]    +-----------------------------------------------------------+
+    |  [bold]KRYON:[/bold] Autonomous AI system active                     |
+    |  System designed for authorized security operations      |
+    |  All actions are logged and monitored                    |
+    +-----------------------------------------------------------+[/dim blue]
     """
 
-    console.print(banner, end="")
+    # ASCII fallback banner for terminals that don't support Unicode
+    banner_ascii = f"""
+[bold blue]    _  __ ____  __   __  ___  _   _
+[bold blue]   | |/ /|  _ \\ \\ \\ / / / _ \\| \\ | |
+[bold blue]   | ' / | |_) | \\ V / | | | |  \\| |
+[bold cyan]   |  <  |  _ <   | |  | | | | . ` |
+[bold cyan]   | . \\ | | \\ \\  | |  | |_| | |\\  |
+[bold cyan]   |_|\\_\\|_|  \\_\\ |_|   \\___/|_| \\_|
+
+[bold blue]           Autonomous Cybersecurity Intelligence Platform
+[bold white]                    Version {version} - Code: {codename}
+[dim cyan]                    [ Defense Grid Activated ][/dim cyan]
+
+[dim blue]    +-----------------------------------------------------------+
+    |  KRYON: Autonomous AI system active                       |
+    |  System designed for authorized security operations       |
+    |  All actions are logged and monitored                     |
+    +-----------------------------------------------------------+[/dim blue]
+    """
+
+    # Detect if we're on Windows with a legacy console
+    use_ascii = sys.platform == "win32"
+
+    # Try Unicode first on non-Windows, or if Windows Terminal is detected
+    if not use_ascii or os.environ.get("WT_SESSION"):
+        try:
+            console.print(banner_unicode, end="")
+            return
+        except (UnicodeEncodeError, UnicodeDecodeError, Exception):
+            pass  # Fall through to ASCII
+
+    # Use ASCII fallback
+    try:
+        console.print(banner_ascii, end="")
+    except Exception:
+        # Last resort: plain text
+        print(f"\n    KRYON v{version} - {codename}")
+        print("    Autonomous Cybersecurity Intelligence Platform")
+        print("    Defense Grid Activated\n")
 
     # # Create a table showcasing KRYON framework capabilities
     # #

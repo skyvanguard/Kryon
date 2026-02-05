@@ -439,7 +439,8 @@ def run_skynet_cli(
     agent = starting_agent
     turn_count = 0
     idle_time = 0
-    console = Console()
+    # Use legacy_windows=False on Windows to enable proper UTF-8 Unicode rendering
+    console = Console(legacy_windows=False) if sys.platform == "win32" else Console()
     last_model = os.getenv("KRYON_MODEL", "gpt-4o")
     last_agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
     parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))

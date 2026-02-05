@@ -30,10 +30,10 @@ dependencies = [
     "mkdocs>=1.6.0",
     "mkdocs-material>=9.6.0",
     "paramiko>=3.5.1",
-    "dnspython",
-    "flask",
-    "networkx",
-    "PyPDF2",
+    "dnspython>=2.4.0, <3",
+    "flask>=3.0.0, <4",
+    "networkx>=3.0, <4",
+    "PyPDF2>=3.0.0, <4",
 ]
 classifiers = [
     "Typing :: Typed",
