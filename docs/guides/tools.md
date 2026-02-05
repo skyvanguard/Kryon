@@ -2,13 +2,13 @@
 
 Tools let agents take actions: things like fetching data, running code, calling external APIs, and even using a computer. There are three classes of tools in the KRYON Agents
 
--   Hosted tools: these run on LLM servers alongside the AI models. KRYON offers some [tools](src/skynet/tools)
+-   Hosted tools: these run on LLM servers alongside the AI models. KRYON offers some [tools](src/kryon/tools)
 -   Function calling: these allow you to use any Python function as a tool.
 -   Agents as tools: this allows you to use an agent as a tool, allowing Agents to call other agents without handing off to them.
 
 ## Hosted tools
 
-KRYON offers a few built-in tools when using the [`OpenAIResponsesModel`][kryon.sdk.agents.models.openai_responses.OpenAIResponsesModel]. They are in [tools](src/skynet/tools) and grouped in 6 major categories inspired by the security kill chain[2]:
+KRYON offers a few built-in tools when using the [`OpenAIResponsesModel`][kryon.sdk.agents.models.openai_responses.OpenAIResponsesModel]. They are in [tools](src/kryon/tools) and grouped in 6 major categories inspired by the security kill chain[2]:
 
  
 1. Reconnaissance and weaponization - *reconnaissance*  (crypto, listing, etc)
@@ -230,7 +230,7 @@ As mentioned before, we automatically parse the function signature to extract th
 1. The signature parsing is done via the `inspect` module. We use type annotations to understand the types for the arguments, and dynamically build a Pydantic model to represent the overall schema. It supports most types, including Python primitives, Pydantic models, TypedDicts, and more.
 2. We use `griffe` to parse docstrings. Supported docstring formats are `google`, `sphinx` and `numpy`. We attempt to automatically detect the docstring format, but this is best-effort and you can explicitly set it when calling `function_tool`. You can also disable docstring parsing by setting `use_docstring_info` to `False`.
 
-The code for the schema extraction lives in [`skynet.sdk.agents.function_schema`][].
+The code for the schema extraction lives in [`kryon.sdk.agents.function_schema`][].
 
 ## Agents as tools
 

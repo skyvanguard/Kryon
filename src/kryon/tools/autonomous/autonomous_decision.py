@@ -84,10 +84,10 @@ class AutonomousDecision:
         self.context_hints = {}
 
     def _load_llm_config(self) -> dict:
-        """Load LLM configuration from ~/.skynet/config.json"""
+        """Load LLM configuration from ~/.kryon/config.json"""
         from pathlib import Path
 
-        config_path = Path.home() / ".skynet" / "config.json"
+        config_path = Path.home() / ".kryon" / "config.json"
         if config_path.exists():
             with open(config_path) as f:
                 return json.load(f)

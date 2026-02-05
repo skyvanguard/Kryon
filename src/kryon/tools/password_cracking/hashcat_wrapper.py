@@ -28,7 +28,7 @@ def hashcat_crack(
     rules: Optional[str] = None,
     use_gpu: bool = True,
     output_file: Optional[str] = None,
-    session_name: str = "skynet_hashcat",
+    session_name: str = "kryon_hashcat",
     additional_args: Optional[list[str]] = None,
 ) -> dict[str, Any]:
     """
@@ -48,7 +48,7 @@ def hashcat_crack(
         rules: Optional path to hashcat rules file
         use_gpu: Enable GPU acceleration (default: True)
         output_file: Path to save cracked passwords
-        session_name: Session name for recovery (default: skynet_hashcat)
+        session_name: Session name for recovery (default: kryon_hashcat)
         additional_args: Additional hashcat arguments
 
     Returns:
@@ -438,7 +438,7 @@ def hashcat_mask_attack(
     increment_min: int = 1,
     increment_max: int = 8,
     custom_charset: Optional[str] = None,
-    session_name: str = "skynet_mask",
+    session_name: str = "kryon_mask",
 ) -> dict[str, Any]:
     """
     Perform hashcat mask attack (brute force with pattern).

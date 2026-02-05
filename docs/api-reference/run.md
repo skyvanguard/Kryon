@@ -1,6 +1,6 @@
 # `Runner`
 
-::: skynet.sdk.agents.run
+::: kryon.sdk.agents.run
 
     options:
         members:

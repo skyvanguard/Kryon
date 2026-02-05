@@ -304,9 +304,9 @@ class TestCostCommand:
             mock_usage_file.with_name.return_value = Path("/tmp/backup.json")
             # Make Path.home() / ".skynet" / "usage.json" return our mock file
             mock_home = MagicMock()
-            mock_skynet_dir = MagicMock()
-            mock_home.__truediv__ = MagicMock(return_value=mock_skynet_dir)
-            mock_skynet_dir.__truediv__ = MagicMock(return_value=mock_usage_file)
+            mock_kryon_dir = MagicMock()
+            mock_home.__truediv__ = MagicMock(return_value=mock_kryon_dir)
+            mock_kryon_dir.__truediv__ = MagicMock(return_value=mock_usage_file)
             mock_path.home.return_value = mock_home
 
             with patch("shutil.copy2") as mock_copy:
@@ -336,9 +336,9 @@ class TestCostCommand:
             mock_usage_file.exists.return_value = True
             # Make Path.home() / ".skynet" / "usage.json" return our mock file
             mock_home = MagicMock()
-            mock_skynet_dir = MagicMock()
-            mock_home.__truediv__ = MagicMock(return_value=mock_skynet_dir)
-            mock_skynet_dir.__truediv__ = MagicMock(return_value=mock_usage_file)
+            mock_kryon_dir = MagicMock()
+            mock_home.__truediv__ = MagicMock(return_value=mock_kryon_dir)
+            mock_kryon_dir.__truediv__ = MagicMock(return_value=mock_usage_file)
             mock_path.home.return_value = mock_home
 
             result = cost_command.handle_reset()

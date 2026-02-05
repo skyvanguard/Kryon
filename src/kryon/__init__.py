@@ -31,7 +31,7 @@ def is_pentestperf_available():
     return True
 
 
-def is_skynet_extensions_report_available():
+def is_kryon_extensions_report_available():
     """
     Check if KRYON reporting extensions are available
     """
@@ -45,7 +45,7 @@ def is_skynet_extensions_report_available():
         return False
 
 
-def is_skynet_extensions_memory_available():
+def is_kryon_extensions_memory_available():
     """
     Check if KRYON memory extensions are available
     """
@@ -59,7 +59,7 @@ def is_skynet_extensions_memory_available():
         return False
 
 
-def is_skynet_extensions_platform_available():
+def is_kryon_extensions_platform_available():
     """
     Check if KRYON platform extensions are available
     """

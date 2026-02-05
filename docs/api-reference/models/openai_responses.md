@@ -1,3 +1,3 @@
 # `OpenAI Responses model`
 
-::: skynet.sdk.agents.models.openai_responses
+::: kryon.sdk.agents.models.openai_responses

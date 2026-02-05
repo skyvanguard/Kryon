@@ -1,3 +1,3 @@
 # `Model settings`
 
-::: skynet.sdk.agents.model_settings
+::: kryon.sdk.agents.model_settings

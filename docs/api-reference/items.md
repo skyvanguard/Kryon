@@ -1,3 +1,3 @@
 # `Items`
 
-::: skynet.sdk.agents.items
+::: kryon.sdk.agents.items

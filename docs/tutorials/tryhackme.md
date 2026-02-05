@@ -404,7 +404,7 @@ target = get_target_ip()
 
 ### Issue 3: Import Errors
 
-**Symptom:** `ModuleNotFoundError: No module named 'skynet'`
+**Symptom:** `ModuleNotFoundError: No module named 'kryon'`
 
 **Solution:**
 ```bash
@@ -426,7 +426,7 @@ python3 -c "from kryon.tools.ctf import *; print('OK')"
 sudo python3 your_script.py
 
 # Or run as root in Docker
-docker exec -u root -it skynet_devcontainer-devenv-1 bash
+docker exec -u root -it kryon_devcontainer-devenv-1 bash
 ```
 
 ---
@@ -486,7 +486,7 @@ After completion:
 
 ## 📖 Additional Resources
 
-- **Full CTF Master Prompt:** `src/skynet/prompts/system_ctf_master.md`
+- **Full CTF Master Prompt:** `src/kryon/prompts/system_ctf_master.md`
 - **Phase 14 Documentation:** `docs/sessions/SESSION_TRYHACKME_CTF_OPTIMIZATION.md`
 - **Testing Guide:** `docs/testing.md`
 - **Tools Reference:** `docs/tools.md`

@@ -86,7 +86,7 @@ async def main():
 
 ## Exceptions
 
-The SDK raises exceptions in certain cases. The full list is in [`skynet.sdk.agents.exceptions`][]. As an overview:
+The SDK raises exceptions in certain cases. The full list is in [`kryon.sdk.agents.exceptions`][]. As an overview:
 
 -   [`AgentsException`][kryon.sdk.agents.exceptions.AgentsException] is the base class for all exceptions raised.
 -   [`MaxTurnsExceeded`][kryon.sdk.agents.exceptions.MaxTurnsExceeded] is raised when the run exceeds the `max_turns` passed to the run methods.

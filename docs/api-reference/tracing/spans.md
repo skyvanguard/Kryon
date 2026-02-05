@@ -1,6 +1,6 @@
 # `Spans`
 
-::: skynet.sdk.agents.tracing.spans
+::: kryon.sdk.agents.tracing.spans
 
     options:
         members:

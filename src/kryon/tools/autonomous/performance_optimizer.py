@@ -36,7 +36,7 @@ class PerformanceOptimizer:
     - Tool parameter tuning (based on what worked)
     """
 
-    def __init__(self, db_path: str = ".skynet_knowledge/operations.db"):
+    def __init__(self, db_path: str = ".kryon_knowledge/operations.db"):
         """
         Initialize performance optimizer.
 

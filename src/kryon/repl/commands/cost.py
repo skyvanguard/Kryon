@@ -506,7 +506,7 @@ class CostCommand(Command):
             console.print("[yellow]Usage tracking is disabled[/yellow]")
             return True
 
-        usage_file = Path.home() / ".skynet" / "usage.json"
+        usage_file = Path.home() / ".kryon" / "usage.json"
 
         if not usage_file.exists():
             console.print("[yellow]No usage data to reset[/yellow]")

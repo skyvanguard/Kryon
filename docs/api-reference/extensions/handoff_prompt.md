@@ -1,6 +1,6 @@
 # `Handoff prompt`
 
-::: skynet.sdk.agents.extensions.handoff_prompt
+::: kryon.sdk.agents.extensions.handoff_prompt
 
     options:
         members:

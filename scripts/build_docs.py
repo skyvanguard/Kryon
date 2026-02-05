@@ -62,13 +62,13 @@ def check_documentation_coverage():
     print("Checking Documentation Coverage...")
     print("=" * 70)
 
-    # Find all Python files in src/skynet
-    skynet_dir = Path("src/skynet")
-    if not skynet_dir.exists():
-        print("⚠️  Warning: src/skynet directory not found!")
+    # Find all Python files in src/kryon
+    kryon_dir = Path("src/kryon")
+    if not kryon_dir.exists():
+        print("⚠️  Warning: src/kryon directory not found!")
         return
 
-    py_files = list(skynet_dir.rglob("*.py"))
+    py_files = list(kryon_dir.rglob("*.py"))
     documented = 0
     undocumented = []
 

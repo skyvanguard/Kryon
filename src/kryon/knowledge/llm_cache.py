@@ -43,7 +43,7 @@ class LLMResponseCache:
 
     def __init__(
         self,
-        cache_dir: str = ".skynet_knowledge/llm_cache",
+        cache_dir: str = ".kryon_knowledge/llm_cache",
         max_size: int = 1000,
         default_ttl: int = 86400,  # 24 hours
     ):

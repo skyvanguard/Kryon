@@ -1,3 +1,3 @@
 # `Result`
 
-::: skynet.sdk.agents.voice.result
+::: kryon.sdk.agents.voice.result

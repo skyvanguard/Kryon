@@ -1,3 +1,3 @@
 # `Handoffs`
 
-::: skynet.sdk.agents.handoffs
+::: kryon.sdk.agents.handoffs

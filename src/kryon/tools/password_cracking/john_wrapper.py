@@ -27,7 +27,7 @@ def john_crack(
     wordlist: Optional[str] = None,
     rules: Optional[str] = None,
     incremental: bool = False,
-    session_name: str = "skynet_john",
+    session_name: str = "kryon_john",
     show_cracked: bool = True,
     timeout_minutes: int = 60,
 ) -> dict[str, Any]:
@@ -209,7 +209,7 @@ def john_crack(
     return results
 
 
-def john_generate_rules(output_file: str = "/tmp/skynet_john_rules.conf", target_type: str = "ctf") -> dict[str, Any]:
+def john_generate_rules(output_file: str = "/tmp/kryon_john_rules.conf", target_type: str = "ctf") -> dict[str, Any]:
     """
     Generate custom John the Ripper rules for specific password patterns.
 
@@ -481,7 +481,7 @@ def john_show_formats() -> dict[str, Any]:
     return results
 
 
-def john_restore_session(session_name: str = "skynet_john") -> dict[str, Any]:
+def john_restore_session(session_name: str = "kryon_john") -> dict[str, Any]:
     """
     Restore a previously interrupted John the Ripper session.
 
@@ -497,7 +497,7 @@ def john_restore_session(session_name: str = "skynet_john") -> dict[str, Any]:
 
     Example:
         >>> # If john was interrupted, restore it
-        >>> result = john_restore_session("skynet_john")
+        >>> result = john_restore_session("kryon_john")
         >>> if result['restored']:
         ...     print("Session restored successfully")
     """

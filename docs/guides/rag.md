@@ -407,7 +407,7 @@ processor = DocumentProcessor(
 ## File Structure
 
 ```
-src/skynet/knowledge/
+src/kryon/knowledge/
 |-- __init__.py                   # Main exports
 |-- vector_db.py                  # ChromaDB wrapper
 |-- embeddings.py                 # Sentence transformers

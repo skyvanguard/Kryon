@@ -1,3 +1,3 @@
 # `MCP Util`
 
-::: skynet.sdk.agents.mcp.util
+::: kryon.sdk.agents.mcp.util

@@ -1,3 +1,3 @@
 # `Guardrails`
 
-::: skynet.sdk.agents.guardrail
+::: kryon.sdk.agents.guardrail

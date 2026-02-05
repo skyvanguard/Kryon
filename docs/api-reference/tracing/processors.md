@@ -1,3 +1,3 @@
 # `Processors`
 
-::: skynet.sdk.agents.tracing.processors
+::: kryon.sdk.agents.tracing.processors

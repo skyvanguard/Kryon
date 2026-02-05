@@ -268,7 +268,7 @@ class TestHelpCommand:
         mock_platform_manager.get_platform.return_value = mock_platform
 
         with patch("kryon.repl.commands.help.HAS_PLATFORM_EXTENSIONS", True):
-            with patch("kryon.is_skynet_extensions_platform_available", return_value=True):
+            with patch("kryon.is_kryon_extensions_platform_available", return_value=True):
                 # Mock the platform manager without importing skynetextensions
                 with patch(
                     "sys.modules",
@@ -351,7 +351,7 @@ class TestHelpCommand:
     def test_handle_platform_with_import_error(self, help_command, mock_console):
         """Test platform help with import errors."""
         with patch("kryon.repl.commands.help.HAS_PLATFORM_EXTENSIONS", True):
-            with patch("kryon.is_skynet_extensions_platform_available", return_value=False):
+            with patch("kryon.is_kryon_extensions_platform_available", return_value=False):
                 result = help_command.handle_help_platform_manager()
 
         assert result is True
@@ -363,7 +363,7 @@ class TestHelpCommand:
         mock_platform_manager.list_platforms.return_value = []
 
         with patch("kryon.repl.commands.help.HAS_PLATFORM_EXTENSIONS", True):
-            with patch("kryon.is_skynet_extensions_platform_available", return_value=True):
+            with patch("kryon.is_kryon_extensions_platform_available", return_value=True):
                 with patch(
                     "sys.modules",
                     {"skynetextensions.platform.base": Mock(platform_manager=mock_platform_manager)},

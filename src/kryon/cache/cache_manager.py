@@ -34,7 +34,7 @@ class CacheManager:
         self,
         max_size: int = 1000,
         default_ttl: int = 3600,  # 1 hour default
-        cache_dir: str = ".skynet_cache",
+        cache_dir: str = ".kryon_cache",
         enable_persistence: bool = True,
     ):
         """

@@ -1,3 +1,3 @@
 # `MCP Servers`
 
-::: skynet.sdk.agents.mcp.server
+::: kryon.sdk.agents.mcp.server

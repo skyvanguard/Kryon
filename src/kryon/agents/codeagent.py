@@ -222,7 +222,7 @@ class CodeAgent(Agent):
         object.__setattr__(self, "authorized_imports", _authorized_imports)
         object.__setattr__(self, "execution_timeout", _execution_timeout)
         object.__setattr__(self, "tool_choice", _tool_choice)
-        object.__setattr__(self, "skynet_instance", None)
+        object.__setattr__(self, "kryon_instance", None)
 
         # Create instructions if needed
         if instructions is None:
@@ -379,7 +379,7 @@ I'll execute your code and show you the results.
 
     def process_interaction(
         self,
-        skynet_instance: object,
+        kryon_instance: object,
         messages: list[dict],
         context_variables: dict = None,
         debug: bool = False,
@@ -393,7 +393,7 @@ I'll execute your code and show you the results.
         Python code based on the latest user message.
 
         Args:
-            skynet_instance (object):
+            kryon_instance (object):
                 The KRYON instance that is calling the CodeAgent
             messages (List[Dict]):
                 List of messages in the conversation
@@ -442,7 +442,7 @@ I'll execute your code and show you the results.
                     pass
 
             # Generate code using the LLM based on the conversation
-            code, completion = self._generate_code(skynet_instance, messages, debug)
+            code, completion = self._generate_code(kryon_instance, messages, debug)
             result = self._execute_code(code, debug)
             return result, code, completion
 
@@ -457,7 +457,7 @@ I'll execute your code and show you the results.
                 None,
             )
 
-    def _generate_code(self, skynet_instance: object, messages: list[dict], debug: bool = False) -> str:
+    def _generate_code(self, kryon_instance: object, messages: list[dict], debug: bool = False) -> str:
         """
         Generate Python code based on the conversation history.
 
@@ -465,7 +465,7 @@ I'll execute your code and show you the results.
         the task described in the conversation.
 
         Args:
-            skynet_instance (object):
+            kryon_instance (object):
                 The KRYON instance that is calling the CodeAgent
             messages (List[Dict]):
                 List of messages in the conversation
@@ -498,7 +498,7 @@ I'll execute your code and show you the results.
             messages_copy.append(code_generation_message)
 
             # Get completion from the model
-            completion = skynet_instance.get_chat_completion(
+            completion = kryon_instance.get_chat_completion(
                 agent=self,
                 history=messages_copy,
                 context_variables=self.context_variables,

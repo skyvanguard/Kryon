@@ -1,3 +1,3 @@
 # `Util`
 
-::: skynet.sdk.agents.tracing.util
+::: kryon.sdk.agents.tracing.util

@@ -999,7 +999,7 @@ class GraphCommand(Command):
         # Generate default filename if not provided
         if not filename:
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"skynet_graph_{timestamp}.{format_type}"
+            filename = f"kryon_graph_{timestamp}.{format_type}"
 
         try:
             if format_type == "json":

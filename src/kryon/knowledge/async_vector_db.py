@@ -51,7 +51,7 @@ class AsyncVectorDatabase:
         >>> results = await db.query_async("search query")
     """
 
-    def __init__(self, persist_directory: str = ".skynet_knowledge/async_db", max_workers: int = 4):
+    def __init__(self, persist_directory: str = ".kryon_knowledge/async_db", max_workers: int = 4):
         """
         Initialize async vector database.
 

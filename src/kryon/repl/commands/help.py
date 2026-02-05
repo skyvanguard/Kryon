@@ -22,7 +22,7 @@ try:
 except ImportError:
     HAS_PLATFORM_EXTENSIONS = False
 
-from kryon.compat import is_skynet_extensions_platform_available
+from kryon.compat import is_kryon_extensions_platform_available
 
 console = Console()
 
@@ -620,7 +620,7 @@ class HelpCommand(Command):
 
     def handle_help_platform_manager(self) -> bool:
         """Show help for platform manager commands."""
-        if HAS_PLATFORM_EXTENSIONS and is_skynet_extensions_platform_available():
+        if HAS_PLATFORM_EXTENSIONS and is_kryon_extensions_platform_available():
             try:
                 from skynetextensions.platform.base import platform_manager
 

@@ -130,7 +130,7 @@ cat ~/.freenet/node.ref
 def publish_to_freenet(
     content_path: str,
     site_key: Optional[str] = None,
-    site_name: str = "skynet-site",
+    site_name: str = "kryon-site",
     persistent: bool = True,
 ) -> dict[str, Any]:
     """
@@ -479,7 +479,7 @@ sudo apt install yggdrasil
   "InterfaceName": "ygg0",
   "IfMTU": 65535,
   "NodeInfo": {{
-    "name": "skynet-node"
+    "name": "kryon-node"
   }}
 }}
 """

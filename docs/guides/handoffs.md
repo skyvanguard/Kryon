@@ -83,7 +83,7 @@ handoff_obj = handoff(
 
 When a handoff occurs, it's as though the new agent takes over the conversation, and gets to see the entire previous conversation history. If you want to change this, you can set an [`input_filter`][kryon.sdk.agents.handoffs.Handoff.input_filter]. An input filter is a function that receives the existing input via a [`HandoffInputData`][kryon.sdk.agents.handoffs.HandoffInputData], and must return a new `HandoffInputData`.
 
-There are some common patterns (for example removing all tool calls from the history), which are implemented for you in [`skynet.sdk.agents.extensions.handoff_filters`][]
+There are some common patterns (for example removing all tool calls from the history), which are implemented for you in [`kryon.sdk.agents.extensions.handoff_filters`][]
 
 ```python
 from kryon.sdk.agents import Agent, handoff
@@ -101,7 +101,7 @@ handoff_obj = handoff(
 
 ## Recommended prompts
 
-To make sure that LLMs understand handoffs properly, we recommend including information about handoffs in your agents. We have a suggested prefix in [`skynet.sdk.agents.extensions.handoff_prompt.RECOMMENDED_PROMPT_PREFIX`][], or you can call [`skynet.sdk.agents.extensions.handoff_prompt.prompt_with_handoff_instructions`][] to automatically add recommended data to your prompts.
+To make sure that LLMs understand handoffs properly, we recommend including information about handoffs in your agents. We have a suggested prefix in [`kryon.sdk.agents.extensions.handoff_prompt.RECOMMENDED_PROMPT_PREFIX`][], or you can call [`kryon.sdk.agents.extensions.handoff_prompt.prompt_with_handoff_instructions`][] to automatically add recommended data to your prompts.
 
 ```python
 from kryon.sdk.agents import Agent

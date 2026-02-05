@@ -7,7 +7,7 @@ Orchestration refers to the flow of agents in your app. Which agents run, in wha
 
 You can mix and match these patterns. Each has their own tradeoffs, described below.
 
-We have a number of examples in examples/skynet/agent_patterns.
+We have a number of examples in examples/kryon/agent_patterns.
 
 #### ◉ Orchestrating via LLM
 

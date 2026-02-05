@@ -439,7 +439,7 @@ def save_anonymity_profile(profile_name: str, description: Optional[str] = None)
     }
 
     try:
-        profiles_dir = os.path.expanduser("~/.skynet/anonymity_profiles")
+        profiles_dir = os.path.expanduser("~/.kryon/anonymity_profiles")
         os.makedirs(profiles_dir, exist_ok=True)
 
         profile_path = os.path.join(profiles_dir, f"{profile_name}.json")
@@ -487,7 +487,7 @@ def load_anonymity_profile(profile_name: str) -> dict[str, Any]:
     results = {"profile_name": profile_name, "loaded": False, "success": False, "error": None}
 
     try:
-        profiles_dir = os.path.expanduser("~/.skynet/anonymity_profiles")
+        profiles_dir = os.path.expanduser("~/.kryon/anonymity_profiles")
         profile_path = os.path.join(profiles_dir, f"{profile_name}.json")
 
         if not os.path.exists(profile_path):
@@ -535,7 +535,7 @@ def list_anonymity_profiles() -> dict[str, Any]:
     results = {"profiles": [], "success": False, "error": None}
 
     try:
-        profiles_dir = os.path.expanduser("~/.skynet/anonymity_profiles")
+        profiles_dir = os.path.expanduser("~/.kryon/anonymity_profiles")
 
         if not os.path.exists(profiles_dir):
             results["success"] = True
@@ -568,7 +568,7 @@ def list_anonymity_profiles() -> dict[str, Any]:
 def _save_config():
     """Save current anonymity state to disk."""
     try:
-        config_dir = os.path.expanduser("~/.skynet")
+        config_dir = os.path.expanduser("~/.kryon")
         os.makedirs(config_dir, exist_ok=True)
 
         config_path = os.path.join(config_dir, "anonymity_config.json")
@@ -585,7 +585,7 @@ def _load_config():
     global _ANONYMITY_STATE
 
     try:
-        config_path = os.path.expanduser("~/.skynet/anonymity_config.json")
+        config_path = os.path.expanduser("~/.kryon/anonymity_config.json")
 
         if os.path.exists(config_path):
             with open(config_path) as f:

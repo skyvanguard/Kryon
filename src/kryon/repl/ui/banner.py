@@ -122,7 +122,7 @@ def count_tools():
     """Count the number of tools in the KRYON arsenal."""
     try:
         # Count Python files in the tools directory
-        tool_files = glob.glob("skynet/tools/**/*.py", recursive=True)
+        tool_files = glob.glob("kryon/tools/**/*.py", recursive=True)
         # Exclude __init__.py and other non-tool files
         tool_files = [f for f in tool_files if not f.endswith("__init__.py") and not f.endswith("__pycache__")]
         return len(tool_files)
@@ -135,7 +135,7 @@ def count_agents():
     """Count the number of active Terminator units in KRYON."""
     try:
         # Count Python files in the agents directory
-        agent_files = glob.glob("skynet/agents/**/*.py", recursive=True)
+        agent_files = glob.glob("kryon/agents/**/*.py", recursive=True)
         # Exclude __init__.py and other non-agent files
         agent_files = [f for f in agent_files if not f.endswith("__init__.py") and not f.endswith("__pycache__")]
         return len(agent_files)
@@ -161,7 +161,7 @@ def display_banner(console: Console):
     version = get_version()
     import kryon
 
-    codename = getattr(skynet, "__codename__", "Genesis")
+    codename = getattr(kryon, "__codename__", "Genesis")
 
     # KRYON banner with indigo/cyan cyber theme (Unicode)
     banner_unicode = f"""

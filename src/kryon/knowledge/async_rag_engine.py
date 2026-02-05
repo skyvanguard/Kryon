@@ -90,7 +90,7 @@ class AsyncRAGEngine:
 
     def _load_llm_config(self) -> dict:
         """Load LLM configuration."""
-        config_path = Path.home() / ".skynet" / "config.json"
+        config_path = Path.home() / ".kryon" / "config.json"
         if config_path.exists():
             with open(config_path) as f:
                 return json.load(f)

@@ -1,3 +1,3 @@
 # `Creating traces/spans`
 
-::: skynet.sdk.agents.tracing.create
+::: kryon.sdk.agents.tracing.create

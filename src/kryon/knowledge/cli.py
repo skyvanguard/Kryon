@@ -37,7 +37,7 @@ def main():
 def cmd_query():
     """Query knowledge base."""
     if len(sys.argv) < 3:
-        print("Usage: skynet-knowledge query <question>")
+        print("Usage: kryon-knowledge query <question>")
         sys.exit(1)
 
     question = " ".join(sys.argv[2:])
@@ -59,7 +59,7 @@ def cmd_query():
 def cmd_add():
     """Add document to knowledge base."""
     if len(sys.argv) < 3:
-        print("Usage: skynet-knowledge add <file_path>")
+        print("Usage: kryon-knowledge add <file_path>")
         sys.exit(1)
 
     file_path = sys.argv[2]
@@ -110,7 +110,7 @@ def cmd_update():
 def cmd_scrape():
     """Scrape specific source."""
     if len(sys.argv) < 3:
-        print("Usage: skynet-knowledge scrape <source>")
+        print("Usage: kryon-knowledge scrape <source>")
         print("Sources: exploit-db, nvd, github, writeups")
         sys.exit(1)
 
@@ -145,7 +145,7 @@ def print_help():
 KRYON Knowledge Base CLI
 
 Usage:
-  skynet-knowledge <command> [args]
+  kryon-knowledge <command> [args]
 
 Commands:
   query <question>    Query knowledge base
@@ -156,11 +156,11 @@ Commands:
   help                Show this help message
 
 Examples:
-  skynet-knowledge query "How to exploit SQL injection?"
-  skynet-knowledge add /path/to/document.pdf
-  skynet-knowledge stats
-  skynet-knowledge update exploit-db nvd
-  skynet-knowledge scrape github
+  kryon-knowledge query "How to exploit SQL injection?"
+  kryon-knowledge add /path/to/document.pdf
+  kryon-knowledge stats
+  kryon-knowledge update exploit-db nvd
+  kryon-knowledge scrape github
 
 Sources:
   - exploit-db: Exploit Database

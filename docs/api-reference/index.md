@@ -1,6 +1,6 @@
 # Agents module
 
-::: skynet.sdk.agents
+::: kryon.sdk.agents
 
     options:
         members:

@@ -3,7 +3,7 @@
 pip install kryon
 ```
 
-The following subsections provide a more detailed walkthrough on selected popular Operating Systems. Refer to the [Development](skynet_development.md) section for developer-related install instructions.
+The following subsections provide a more detailed walkthrough on selected popular Operating Systems. Refer to the [Development](kryon_development.md) section for developer-related install instructions.
 
 ### OS X
 ```bash

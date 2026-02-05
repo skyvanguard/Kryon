@@ -1,3 +1,3 @@
 # `Exceptions`
 
-::: skynet.sdk.agents.exceptions
+::: kryon.sdk.agents.exceptions

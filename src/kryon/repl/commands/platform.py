@@ -8,7 +8,7 @@ from typing import Optional
 from rich.console import Console  # pylint: disable=import-error
 from rich.panel import Panel  # pylint: disable=import-error
 
-from kryon.compat import is_skynet_extensions_platform_available
+from kryon.compat import is_kryon_extensions_platform_available
 from kryon.repl.commands.base import Command, register_command
 
 console = Console()
@@ -22,7 +22,7 @@ class PlatformCommand(Command):
         super().__init__(name="/platform", description="Interact with platform-specific features", aliases=["/p"])
 
         # Add subcommands dynamically based on available platforms
-        if is_skynet_extensions_platform_available():
+        if is_kryon_extensions_platform_available():
             from skynetextensions.platform.base import (
                 platform_manager,  # pylint: disable=import-error,import-outside-toplevel,unused-import,line-too-long,no-name-in-module # noqa: E501
             )
@@ -57,7 +57,7 @@ class PlatformCommand(Command):
         Returns:
             True if the command was handled successfully, False otherwise
         """
-        if not is_skynet_extensions_platform_available():
+        if not is_kryon_extensions_platform_available():
             console.print("[red]Platform extensions are not available[/red]")
             return False
 
@@ -65,7 +65,7 @@ class PlatformCommand(Command):
 
     def handle_list(self, args: Optional[list[str]] = None) -> bool:  # pylint: disable=unused-argument # noqa: E501
         """Handle /platform list command."""
-        if not is_skynet_extensions_platform_available():
+        if not is_kryon_extensions_platform_available():
             console.print("[red]Platform extensions are not available[/red]")
             return False
 
@@ -86,7 +86,7 @@ class PlatformCommand(Command):
 
     def handle_platform_command(self, args: Optional[list[str]] = None) -> bool:
         """Handle platform specific commands."""
-        if not is_skynet_extensions_platform_available():
+        if not is_kryon_extensions_platform_available():
             console.print("[red]Platform extensions are not available[/red]")
             return False
 
@@ -132,7 +132,7 @@ class PlatformCommand(Command):
         Returns:
             True if the command was handled successfully, False otherwise
         """
-        if not is_skynet_extensions_platform_available():
+        if not is_kryon_extensions_platform_available():
             console.print("[red]Platform extensions are not available[/red]")
             return False
 
@@ -178,7 +178,7 @@ class PlatformCommand(Command):
         Returns:
             True if the command was handled successfully, False otherwise
         """
-        if not is_skynet_extensions_platform_available():
+        if not is_kryon_extensions_platform_available():
             console.print("[red]Platform extensions are not available[/red]")
             return False
 
@@ -206,5 +206,5 @@ class PlatformCommand(Command):
 
 
 # Register the command
-if is_skynet_extensions_platform_available():
+if is_kryon_extensions_platform_available():
     register_command(PlatformCommand())

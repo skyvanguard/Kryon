@@ -27,13 +27,13 @@ KRYON focuses on making cybersecurity agent **coordination** and **execution** l
 If you want to dive deeper into the code, check the following files as a start point for using KRYON:
 
 ```
-skynet
+kryon
 ├── benchmarks
 ├── ci
 ├── docs
 ├── examples                     # Basic use of KRYON for start building on your own
 ├── src
-│   └── skynet
+│   └── kryon
 │        ├── __init__.py
 │        ├── agents
 │        │   ├── one_tool.py     # Agent definitions, one agent per file
@@ -65,7 +65,7 @@ For more details, including examples and implementation guidance, see the [Agent
 
 `Tools` let cybersecurity agents take actions by providing interfaces to execute system commands, run security scans, analyze vulnerabilities, and interact with target systems and APIs - they are the core capabilities that enable KRYON agents to perform security tasks effectively; in KRYON, tools include built-in cybersecurity utilities (like LinuxCmd for command execution, WebSearch for OSINT gathering, Code for dynamic script execution, and SSHTunnel for secure remote access), function calling mechanisms that allow integration of any Python function as a security tool, and agent-as-tool functionality that enables specialized security agents (such as reconnaissance or exploit agents) to be used by other agents, creating powerful collaborative security workflows without requiring formal handoffs between agents.
 
-You may find different [tools](src/skynet/tools). They are grouped in 6 major categories inspired by the security kill chain[2]:
+You may find different [tools](src/kryon/tools). They are grouped in 6 major categories inspired by the security kill chain[2]:
 
 1. Reconnaissance and weaponization - *reconnaissance*  (crypto, listing, etc)
 2. Exploitation - *exploitation*
@@ -134,7 +134,7 @@ During the agentic flow (conversation), we distinguish between **interactions** 
 - **Base64/Base32 Aware**: Automatically decodes and analyzes encoded payloads to detect hidden malicious commands
 - **Configurable**: Can be enabled/disabled via `KRYON_GUARDRAILS` environment variable
 
-For detailed implementation and examples, see [Guardrails documentation](guardrails.md) and [Prompt Injection Mitigation](skynet_prompt_injection.md).
+For detailed implementation and examples, see [Guardrails documentation](guardrails.md) and [Prompt Injection Mitigation](kryon_prompt_injection.md).
 
 
 ### 🔹 Human-In-The-Loop (HITL)

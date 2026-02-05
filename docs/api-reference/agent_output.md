@@ -1,3 +1,3 @@
 # `Agent output`
 
-::: skynet.sdk.agents.agent_output
+::: kryon.sdk.agents.agent_output

@@ -177,7 +177,7 @@ chmod 600 /opt/kryon/.env
 
 **Symptom:**
 ```
-ModuleNotFoundError: No module named 'skynet'
+ModuleNotFoundError: No module named 'kryon'
 ```
 
 **Solution:**

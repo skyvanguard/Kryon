@@ -73,7 +73,7 @@ def check_dependencies():
     return all_ok
 
 
-def check_skynet_modules():
+def check_kryon_modules():
     """Check KRYON knowledge modules."""
     print_header("Checking KRYON Knowledge Modules")
 
@@ -331,7 +331,7 @@ def validate_system():
 
     # Run all checks
     checks["Dependencies"] = check_dependencies()
-    checks["KRYON Modules"] = check_skynet_modules()
+    checks["KRYON Modules"] = check_kryon_modules()
 
     if checks["Dependencies"] and checks["KRYON Modules"]:
         checks["Vector Database"] = check_vector_db()

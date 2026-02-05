@@ -86,7 +86,7 @@ pytest -m integration
 pytest -m ctf
 
 # Run with coverage
-pytest --cov=src/skynet --cov-report=html
+pytest --cov=src/kryon --cov-report=html
 ```
 
 ### Pre-Commit Validation
@@ -137,10 +137,10 @@ pytest -m "not integration"
 
 ```bash
 # Generate coverage report
-pytest --cov=src/skynet --cov-report=term
+pytest --cov=src/kryon --cov-report=term
 
 # Generate HTML coverage report
-pytest --cov=src/skynet --cov-report=html
+pytest --cov=src/kryon --cov-report=html
 
 # Open HTML report
 open htmlcov/index.html  # macOS
@@ -332,7 +332,7 @@ Check CI/CD status:
 pip install -e .
 
 # Or add to PYTHONPATH
-export PYTHONPATH="${PYTHONPATH}:/path/to/skynet/src"
+export PYTHONPATH="${PYTHONPATH}:/path/to/kryon/src"
 ```
 
 #### 2. Missing Test Dependencies

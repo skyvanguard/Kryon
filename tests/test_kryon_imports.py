@@ -15,31 +15,31 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-placeholder-for-testing")
 class TestCoreImports:
     """Test core KRYON package imports."""
 
-    def test_skynet_package(self):
+    def test_kryon_package(self):
         """Test core KRYON package import."""
         import kryon
 
-        assert skynet is not None
+        assert kryon is not None
 
-    def test_skynet_sdk(self):
+    def test_kryon_sdk(self):
         """Test KRYON SDK import."""
         import kryon.sdk
 
         assert kryon.sdk is not None
 
-    def test_skynet_sdk_agents(self):
+    def test_kryon_sdk_agents(self):
         """Test KRYON SDK agents module import."""
         import kryon.sdk.agents
 
         assert kryon.sdk.agents is not None
 
-    def test_skynet_tools(self):
+    def test_kryon_tools(self):
         """Test KRYON tools module import."""
         import kryon.tools
 
         assert kryon.tools is not None
 
-    def test_skynet_cache(self):
+    def test_kryon_cache(self):
         """Test KRYON cache module import."""
         from kryon.cache import cache_scan_result
 
@@ -206,7 +206,7 @@ class TestPatternImports:
 class TestUtilityImports:
     """Test utility module imports."""
 
-    def test_skynet_util(self):
+    def test_kryon_util(self):
         """Test KRYON utilities import."""
         from kryon.util import load_prompt_template
 

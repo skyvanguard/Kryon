@@ -16,7 +16,7 @@ This guide covers everything you need to know about running CTF operations with 
 
 Ensure all KRYON modules are operational:
 
-- `skynet.tools.autonomous`
+- `kryon.tools.autonomous`
 - `autonomous.auto_recon`
 - `autonomous.decision_engine`
 - `autonomous.orchestrator`

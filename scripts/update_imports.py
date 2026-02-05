@@ -3,7 +3,7 @@
 KRYON Import Update Script
 ============================
 
-This script automatically updates all imports from 'skynet' to 'skynet' across
+This script automatically updates all imports from 'skynet' to 'kryon' across
 the entire codebase. It also updates environment variables and other references.
 
 Usage:

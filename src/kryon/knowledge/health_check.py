@@ -32,7 +32,7 @@ def check_llm() -> dict[str, Any]:
 
         import requests
 
-        config_path = Path.home() / ".skynet" / "config.json"
+        config_path = Path.home() / ".kryon" / "config.json"
         if not config_path.exists():
             return {"status": "not_configured", "operational": False}
 
@@ -56,7 +56,7 @@ def check_llm() -> dict[str, Any]:
 def check_disk_space() -> dict[str, Any]:
     """Check disk space."""
     try:
-        knowledge_path = Path(".skynet_knowledge")
+        knowledge_path = Path(".kryon_knowledge")
 
         # Get directory size if exists
         size_mb = 0

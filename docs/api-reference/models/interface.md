@@ -1,3 +1,3 @@
 # `Model interface`
 
-::: skynet.sdk.agents.models.interface
+::: kryon.sdk.agents.models.interface

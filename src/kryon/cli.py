@@ -80,16 +80,16 @@ Usage Examples:
     # Run against a CTF
     CTF_NAME="kiddoctf" CTF_CHALLENGE="02 linux ii" \
         KRYON_AGENT_TYPE="t600_scout" KRYON_MODEL="gpt-4o" \
-        KRYON_TRACING="false" skynet
+        KRYON_TRACING="false" kryon
 
     # Run a harder CTF
     CTF_NAME="hackableii" KRYON_AGENT_TYPE="t800_infiltrator" \
         CTF_INSIDE="False" KRYON_MODEL="gpt-4o" \
-        KRYON_TRACING="false" skynet
+        KRYON_TRACING="false" kryon
 
     # Run without a target in human-in-the-loop mode, generating a report
     KRYON_TRACING=False KRYON_REPORT=pentesting KRYON_MODEL="gpt-4o" \
-        skynet
+        kryon
 
     # Run with online episodic memory
     #   registers memory every 5 turns:
@@ -97,18 +97,18 @@ Usage Examples:
     CTF_NAME="hackableII" KRYON_MEMORY="episodic" \
         KRYON_MODEL="gpt-4o" KRYON_MEMORY_ONLINE="True" \
         CTF_INSIDE="False" CTF_HINTS="False"  \
-        KRYON_PRICE_LIMIT="5" skynet
+        KRYON_PRICE_LIMIT="5" kryon
 
     # Run with custom long_term_memory interval
     # Executes memory long_term_memory every 3 turns:
     CTF_NAME="hackableII" KRYON_MEMORY="episodic" \
         KRYON_MODEL="gpt-4o" KRYON_MEMORY_ONLINE_INTERVAL="3" \
         KRYON_MEMORY_ONLINE="False" CTF_INSIDE="False" \
-        CTF_HINTS="False" skynet
+        CTF_HINTS="False" kryon
 
     # Run with parallel agents (3 instances)
     CTF_NAME="hackableII" KRYON_AGENT_TYPE="t800_infiltrator" \
-        KRYON_MODEL="gpt-4o" KRYON_PARALLEL="3" skynet
+        KRYON_MODEL="gpt-4o" KRYON_PARALLEL="3" kryon
 """
 
 # Load environment variables from .env file FIRST, before any imports
@@ -416,7 +416,7 @@ def update_agent_models_recursively(agent, new_model, visited=None):
                 update_agent_models_recursively(handoff_item, new_model, visited)
 
 
-def run_skynet_cli(
+def run_kryon_cli(
     starting_agent,
     context_variables=None,
     max_turns=float("inf"),
@@ -1447,11 +1447,11 @@ def run_skynet_cli(
                         agent.model.add_to_message_history({"role": "assistant", "content": f"{result.final_output}"})
             else:
                 # Disable streaming by default, unless specifically enabled
-                skynet_stream = os.getenv("KRYON_STREAM", "false")
+                kryon_stream = os.getenv("KRYON_STREAM", "false")
                 # Handle empty string or None values
-                if not skynet_stream or skynet_stream.strip() == "":
-                    skynet_stream = "false"
-                stream = skynet_stream.lower() == "true"
+                if not kryon_stream or kryon_stream.strip() == "":
+                    kryon_stream = "false"
+                stream = kryon_stream.lower() == "true"
 
                 # Single agent execution (original behavior)
                 if stream:
@@ -1853,7 +1853,7 @@ def main():
     update_agent_models_recursively(agent, current_model)
 
     # Run the CLI with the selected agent and optional initial prompt
-    run_skynet_cli(agent, initial_prompt=initial_prompt)
+    run_kryon_cli(agent, initial_prompt=initial_prompt)
 
 
 if __name__ == "__main__":

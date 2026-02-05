@@ -1,3 +1,3 @@
 # `Workflow`
 
-::: skynet.sdk.agents.voice.workflow
+::: kryon.sdk.agents.voice.workflow

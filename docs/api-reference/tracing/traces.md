@@ -1,3 +1,3 @@
 # `Traces`
 
-::: skynet.sdk.agents.tracing.traces
+::: kryon.sdk.agents.tracing.traces

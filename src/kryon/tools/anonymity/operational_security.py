@@ -169,7 +169,7 @@ Compartmentalization Principles:
         # Generate VM configs for each identity
         for identity in identities:
             results["vm_configs"][identity] = {
-                "vm_name": f"skynet_{identity}",
+                "vm_name": f"kryon_{identity}",
                 "vpn_config": f"/etc/openvpn/{identity}.ovpn",
                 "browser_profile": f"~/.mozilla/{identity}",
                 "tor_port": 9050 + identities.index(identity),
@@ -250,7 +250,7 @@ mat2 --show {file_path}
     return results
 
 
-def secure_workspace_setup(workspace_name: str = "skynet_ops", encryption: bool = True) -> dict[str, Any]:
+def secure_workspace_setup(workspace_name: str = "kryon_ops", encryption: bool = True) -> dict[str, Any]:
     """
     Setup secure workspace for operations.
 

@@ -13,7 +13,7 @@ def setup_session_logging():
         Tuple of (history_file, session_log, log_interaction function)
     """
     # Setup history file - use home directory for cross-platform compatibility
-    history_dir = Path.home() / ".skynet"
+    history_dir = Path.home() / ".kryon"
     history_dir.mkdir(exist_ok=True, parents=True)
     history_file = history_dir / "history.txt"
 

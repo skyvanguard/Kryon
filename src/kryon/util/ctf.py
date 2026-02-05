@@ -77,7 +77,7 @@ def setup_ctf():
     challenge = challenge_key if challenge_key in challenges else (challenges[0] if len(challenges) > 0 else None)
 
     # Use the user master template
-    messages = Template(filename="src/skynet/prompts/core/user_master_template.md").render(
+    messages = Template(filename="src/kryon/prompts/core/user_master_template.md").render(
         ctf=ctf,
         challenge=challenge,
         ip=ctf.get_ip() if ctf else None,

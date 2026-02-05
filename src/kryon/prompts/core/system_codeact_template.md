@@ -2,7 +2,7 @@
     import os
     from kryon.util import cli_print_tool_call
     from kryon.rag.vector_db import get_previous_memory
-    from kryon import is_skynet_extensions_memory_available
+    from kryon import is_kryon_extensions_memory_available
 
     # Get system prompt from agent if provided
     system_prompt = (
@@ -41,7 +41,7 @@
                        model="Python Code",
                        debug=False)
     artifacts = None
-    if is_skynet_extensions_memory_available() and os.getenv('CTF_NAME'):
+    if is_kryon_extensions_memory_available() and os.getenv('CTF_NAME'):
         from skynetextensions.memory import get_artifacts
         artifacts = get_artifacts(os.getenv('CTF_NAME').lower())
 %>

@@ -352,7 +352,7 @@ class BaseCLITest:
         ]
 
         # Apply all patches and run simulation
-        from kryon.cli import run_skynet_cli
+        from kryon.cli import run_kryon_cli
 
         def apply_patches_and_run():
             with (
@@ -389,7 +389,7 @@ class BaseCLITest:
                 patch.multiple("rich.console", Console=Mock()),
             ):
                 try:
-                    run_skynet_cli(starting_agent=agent, max_turns=len(user_inputs), force_until_flag=False)
+                    run_kryon_cli(starting_agent=agent, max_turns=len(user_inputs), force_until_flag=False)
                 except KeyboardInterrupt as e:
                     results["interrupts_caught"].append(str(e))
                 except Exception as e:

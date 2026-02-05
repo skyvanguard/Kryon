@@ -1,3 +1,3 @@
 # `Scope`
 
-::: skynet.sdk.agents.tracing.scope
+::: kryon.sdk.agents.tracing.scope

@@ -1,3 +1,3 @@
 # `Events`
 
-::: skynet.sdk.agents.voice.events
+::: kryon.sdk.agents.voice.events

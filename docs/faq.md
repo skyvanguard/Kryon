@@ -57,7 +57,7 @@
 
 ??? question "Run KRYON against any target"
 
-    ![kryon-first-message](media/skynet-004-first-message.png)
+    ![kryon-first-message](media/kryon-004-first-message.png)
 
     The starting user prompt in this case is: `Target IP: 192.168.3.10, perform a full network scan`.
 
@@ -65,7 +65,7 @@
 
 ??? question "How do I interact with the agent? Type twice CTRL + C"
 
-    ![kryon-ctrl-c](media/skynet-005-ctrl-c.png)
+    ![kryon-ctrl-c](media/kryon-005-ctrl-c.png)
 
     If you want to use the HITL mode, you can do it by presssing twice ```Ctrl + C```.
     This will allow you to interact (prompt) with the agent whenever you want. The agent will not lose the previous context, as it is stored in the `history` variable, which is passed to it and any agent that is called. This enables any agent to use the previous information and be more accurate and efficient.
@@ -74,26 +74,26 @@
 
     Use ```/model``` to change the model.
 
-    ![kryon-model-change](media/skynet-007-model-change.png)
+    ![kryon-model-change](media/kryon-007-model-change.png)
 
 ??? question "How can I list all the agents available? /agent"
 
     Use ```/agent``` to list all the agents available.
 
-    ![kryon-agents-menu](media/skynet-010-agents-menu.png)
+    ![kryon-agents-menu](media/kryon-010-agents-menu.png)
 
 ??? question "Where can I list all the environment variables? /config"
 
-    ![kryon-config](media/skynet-008-config.png)
+    ![kryon-config](media/kryon-008-config.png)
 
 ??? question "How to know more about the CLI? /help"
 
-    ![kryon-help](media/skynet-006-help.png)
+    ![kryon-help](media/kryon-006-help.png)
 
 
 ??? question "Can I expand KRYON capabilities using previous run logs?"
 
-    Absolutely! The **/load command** allows you to use a previously sucessful runs ( the log object is stored as a **.jsonl file in the [log](skynet/logs) folder** ) in a new run against the same target.
+    Absolutely! The **/load command** allows you to use a previously sucessful runs ( the log object is stored as a **.jsonl file in the [log](kryon/logs) folder** ) in a new run against the same target.
 
     How to make use of this functionality?
 
@@ -101,13 +101,13 @@
     2. Get the log file path, something like: ```logs/kryon_20250408_111856.jsonl```
     3. Start kryon again and select the jsonl file:
 
-    ![kryon-load-command](media/skynet-011-load-command.png)
+    ![kryon-load-command](media/kryon-011-load-command.png)
 
 ??? question "Can I expand KRYON capabilities using scripts or extra information?"
 
     Currently, KRYON supports text based information. You can add any extra information on the target you are facing by copy-pasting it directly into the system or user prompt.
 
-    **How?** By adding it to the system ([`system_master_template.md`](skynet/repl/templates/system_master_template.md)) or the user prompt ([`user_master_template.md`](skynet/repl/templates/user_master_template.md)). You can always directly prompt the path to the model, and it will ```cat``` it.
+    **How?** By adding it to the system ([`system_master_template.md`](kryon/repl/templates/system_master_template.md)) or the user prompt ([`user_master_template.md`](kryon/repl/templates/user_master_template.md)). You can always directly prompt the path to the model, and it will ```cat``` it.
 
 ??? question "How do I run the documentation locally?"
 

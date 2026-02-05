@@ -236,7 +236,7 @@ class DockerManager:
                         "--cap-add=NET_ADMIN",  # Allow network admin capabilities
                     ]
                 )
-            elif image_name == "skynet-container":
+            elif image_name == "kryon-container":
                 # For KRYON container, add any specific flags needed
                 # Like extra volume mounts or environment variables
                 home_dir = os.path.expanduser("~")
@@ -640,7 +640,7 @@ class DockerManager:
                                     "run",
                                     "-d",
                                     "--name",
-                                    f"skynet-{image_name.replace('/', '-')}",
+                                    f"kryon-{image_name.replace('/', '-')}",
                                     image_name,
                                     "/bin/sh",
                                     "-c",
@@ -699,7 +699,7 @@ class DockerManager:
                                     "run",
                                     "-d",
                                     "--name",
-                                    f"skynet-{image_name.replace('/', '-')}",
+                                    f"kryon-{image_name.replace('/', '-')}",
                                     image_name,
                                     "/bin/sh",
                                     "-c",
@@ -731,7 +731,7 @@ class DockerManager:
             workspace_name = os.getenv("KRYON_WORKSPACE", None)
             # Make sure workspace name is valid
             if not all(c.isalnum() or c in ["_", "-"] for c in workspace_name):
-                workspace_name = "skynet_default"
+                workspace_name = "kryon_default"
 
             # Create workspace directory path inside container
             container_workspace_path = f"/workspace/workspaces/{workspace_name}"
@@ -905,7 +905,7 @@ class VirtualizationCommand(Command):
                 icon = "🔒"  # Security icon for Kali
             elif "parrot" in image_name.lower():
                 icon = "🔒"  # Security icon for Parrot
-            elif "skynet" in image_name.lower():
+            elif "kryon" in image_name.lower():
                 icon = "⭐"  # Star for KRYON container
 
             title = f"Active Environment: {icon} {env_name}"
@@ -1392,7 +1392,7 @@ class VirtualizationCommand(Command):
             # For other images, use a name based on the ID if available
             for img_name, img_info in DEFAULT_IMAGES.items():
                 if img_name == image_name and "id" in img_info:
-                    container_name = f"skynet-{img_info['id']}"
+                    container_name = f"kryon-{img_info['id']}"
                     break
 
         # First, check if there's an existing container using the requested image
@@ -1547,8 +1547,8 @@ class VirtualizationCommand(Command):
             True if the image was activated successfully, False otherwise
         """
         image_name = "parrotsec/security"
-        fixed_image_name = "skynet-fixed-parrotsec"
-        container_name = "skynet-parrotsec"
+        fixed_image_name = "kryon-fixed-parrotsec"
+        container_name = "kryon-parrotsec"
 
         console.print(f"[yellow]Using special handling for {image_name}.[/yellow]")
 

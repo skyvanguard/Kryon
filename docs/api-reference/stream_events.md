@@ -1,3 +1,3 @@
 # `Streaming events`
 
-::: skynet.sdk.agents.stream_events
+::: kryon.sdk.agents.stream_events

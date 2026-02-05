@@ -1,5 +1,5 @@
 """
-Global usage tracker that persists usage data to $HOME/.skynet/usage.json
+Global usage tracker that persists usage data to $HOME/.kryon/usage.json
 """
 
 import atexit
@@ -20,7 +20,7 @@ if platform.system() != "Windows":
 class GlobalUsageTracker:
     """
     Singleton class that tracks usage globally across all KRYON executions.
-    Persists data to $HOME/.skynet/usage.json
+    Persists data to $HOME/.kryon/usage.json
     """
 
     _instance = None
@@ -54,7 +54,7 @@ class GlobalUsageTracker:
             self.session_id = None
             return
 
-        self.usage_file = Path.home() / ".skynet" / "usage.json"
+        self.usage_file = Path.home() / ".kryon" / "usage.json"
         self.usage_file.parent.mkdir(parents=True, exist_ok=True)
 
         # Load existing usage data

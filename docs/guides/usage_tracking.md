@@ -78,9 +78,9 @@ export KRYON_DISABLE_USAGE_TRACKING=true
 ## Implementation Details
 
 The usage tracking is implemented in:
-- `src/skynet/sdk/agents/global_usage_tracker.py` - Core tracking logic
-- `src/skynet/sdk/agents/models/openai_chatcompletions.py` - Integration points
-- `src/skynet/cli.py` - Session start/end hooks
+- `src/kryon/sdk/agents/global_usage_tracker.py` - Core tracking logic
+- `src/kryon/sdk/agents/models/openai_chatcompletions.py` - Integration points
+- `src/kryon/cli.py` - Session start/end hooks
 
 ### Key Features:
 - **Thread-Safe**: Uses locks to ensure data consistency

@@ -1,3 +1,3 @@
 # `Setup`
 
-::: skynet.sdk.agents.tracing.setup
+::: kryon.sdk.agents.tracing.setup

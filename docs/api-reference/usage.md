@@ -1,3 +1,3 @@
 # `Usage`
 
-::: skynet.sdk.agents.usage
+::: kryon.sdk.agents.usage

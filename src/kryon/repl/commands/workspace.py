@@ -272,7 +272,7 @@ class WorkspaceCommand(Command):
             return get_common_workspace_dir()
         except ImportError:
             # Provide a basic fallback if import fails, mirroring common.py logic
-            # without 'skynet_default'
+            # without 'kryon_default'
             base_dir = os.getenv("KRYON_WORKSPACE_DIR")
             workspace_name = os.getenv("KRYON_WORKSPACE")
 

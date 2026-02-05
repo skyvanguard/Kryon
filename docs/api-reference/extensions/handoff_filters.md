@@ -1,3 +1,3 @@
 # `Handoff filters`
 
-::: skynet.sdk.agents.extensions.handoff_filters
+::: kryon.sdk.agents.extensions.handoff_filters

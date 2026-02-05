@@ -1,7 +1,7 @@
 """
 Quickstart command for KRYON REPL.
 Provides essential setup information and guidance for new users.
-Automatically runs on first launch if ~/.skynet doesn't exist.
+Automatically runs on first launch if ~/.kryon doesn't exist.
 """
 
 import os
@@ -142,7 +142,7 @@ class QuickstartCommand(Command):
         try:
             from pathlib import Path
 
-            env_file = Path.home() / "skynet" / ".env"
+            env_file = Path.home() / "kryon" / ".env"
             if not env_file.exists():
                 # Try current directory
                 env_file = Path(".env")
@@ -369,11 +369,11 @@ class QuickstartCommand(Command):
         console.print(features_table)
 
         # Configuration directory info
-        skynet_dir = Path.home() / ".skynet"
+        kryon_dir = Path.home() / ".kryon"
         console.print("\n[bold yellow]📁 Configuration Directory[/bold yellow]\n")
-        console.print(f"KRYON stores configuration and logs in: [cyan]{skynet_dir}[/cyan]")
+        console.print(f"KRYON stores configuration and logs in: [cyan]{kryon_dir}[/cyan]")
 
-        if not skynet_dir.exists():
+        if not kryon_dir.exists():
             console.print("[yellow]→ This directory will be created on first run[/yellow]")
         else:
             console.print("[green]✓ Directory exists[/green]")
@@ -387,7 +387,7 @@ class QuickstartCommand(Command):
                 "2. Try the examples to get familiar with KRYON\n"
                 "3. Use [yellow]/help[/yellow] for detailed command information\n"
                 "4. Join our community for support and updates\n\n"
-                "[dim]This guide: /quickstart | Hide on startup: Create ~/.skynet directory[/dim]",
+                "[dim]This guide: /quickstart | Hide on startup: Create ~/.kryon directory[/dim]",
                 title="Ready to Go!",
                 border_style="green",
             )

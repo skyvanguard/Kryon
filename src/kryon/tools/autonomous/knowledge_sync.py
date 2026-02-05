@@ -36,7 +36,7 @@ class KnowledgeSync:
     - Target fingerprints
     """
 
-    def __init__(self, db_path: str = ".skynet_knowledge/operations.db"):
+    def __init__(self, db_path: str = ".kryon_knowledge/operations.db"):
         """
         Initialize knowledge sync.
 
@@ -48,7 +48,7 @@ class KnowledgeSync:
 
     def _get_instance_id(self) -> str:
         """Get or create unique instance ID."""
-        id_file = Path.home() / ".skynet" / "instance_id"
+        id_file = Path.home() / ".kryon" / "instance_id"
         id_file.parent.mkdir(parents=True, exist_ok=True)
 
         if id_file.exists():
@@ -398,7 +398,7 @@ class KnowledgeSync:
         Sync knowledge with remote KRYON instance.
 
         Args:
-            remote_url: Remote instance URL (e.g., http://remote-skynet:8080)
+            remote_url: Remote instance URL (e.g., http://remote-kryon:8080)
             api_key: API key for authentication
             direction: "push", "pull", or "both"
 

@@ -36,7 +36,7 @@ class SimpleVectorDatabase:
     Provides semantic search via cosine similarity.
     """
 
-    def __init__(self, persist_directory: str = ".skynet_knowledge/simple_db"):
+    def __init__(self, persist_directory: str = ".kryon_knowledge/simple_db"):
         """
         Initialize simple vector database.
 
@@ -274,7 +274,7 @@ class VectorDatabase:
     Tries to use ChromaDB, falls back to SimpleVectorDatabase if unavailable.
     """
 
-    def __init__(self, persist_directory: str = ".skynet_knowledge/chromadb"):
+    def __init__(self, persist_directory: str = ".kryon_knowledge/chromadb"):
         """Initialize with automatic fallback."""
         self.backend = None
         self.backend_type = None
@@ -292,7 +292,7 @@ class VectorDatabase:
             self._client = chromadb.Client(Settings(persist_directory=str(persist_path), anonymized_telemetry=False))
 
             self._collection = self._client.get_or_create_collection(
-                name="skynet_knowledge", metadata={"description": "KRYON knowledge base"}
+                name="kryon_knowledge", metadata={"description": "KRYON knowledge base"}
             )
             self.backend = self._collection
             self.backend_type = "chromadb"
@@ -403,7 +403,7 @@ class VectorDatabase:
 _vector_db = None
 
 
-def get_vector_db(persist_directory: str = ".skynet_knowledge/chromadb") -> VectorDatabase:
+def get_vector_db(persist_directory: str = ".kryon_knowledge/chromadb") -> VectorDatabase:
     """Get global vector database instance."""
     global _vector_db
     if _vector_db is None:

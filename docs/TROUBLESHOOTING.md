@@ -27,7 +27,7 @@
 
 **Problem:**
 ```python
-ModuleNotFoundError: No module named 'skynet.tools.autonomous.auto_recon'
+ModuleNotFoundError: No module named 'kryon.tools.autonomous.auto_recon'
 ```
 
 **Solution:**
@@ -40,7 +40,7 @@ pip install -e .
 python -c "import sys; print('\n'.join(sys.path))"
 
 # Check if module exists
-ls -la src/skynet/tools/autonomous/auto_recon.py
+ls -la src/kryon/tools/autonomous/auto_recon.py
 ```
 
 **Root Cause:** Module not found in Python path or installation incomplete.
@@ -51,13 +51,13 @@ ls -la src/skynet/tools/autonomous/auto_recon.py
 
 **Problem:**
 ```python
-ImportError: cannot import name 'full_auto_enumeration' from 'skynet.tools.autonomous'
+ImportError: cannot import name 'full_auto_enumeration' from 'kryon.tools.autonomous'
 ```
 
 **Solution:**
 ```bash
 # Check __init__.py exports
-cat src/skynet/tools/autonomous/__init__.py | grep "full_auto_enumeration"
+cat src/kryon/tools/autonomous/__init__.py | grep "full_auto_enumeration"
 
 # Verify module integrity
 python -c "from kryon.tools.autonomous import full_auto_enumeration; print('OK')"

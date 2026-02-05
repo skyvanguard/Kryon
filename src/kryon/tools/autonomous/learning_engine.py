@@ -39,7 +39,7 @@ class LearningEngine:
     - Tool effectiveness per target type
     """
 
-    def __init__(self, db_path: str = ".skynet_knowledge/operations.db"):
+    def __init__(self, db_path: str = ".kryon_knowledge/operations.db"):
         """
         Initialize learning engine with persistent storage.
 
@@ -806,6 +806,6 @@ def get_learned_recommendations(
     return get_learning_engine().get_learned_recommendations(target_profile, top_n, min_confidence)
 
 
-def export_learned_knowledge(export_path: str = "skynet_knowledge_export.json") -> dict[str, Any]:
+def export_learned_knowledge(export_path: str = "kryon_knowledge_export.json") -> dict[str, Any]:
     """Export learned knowledge to file."""
     return get_learning_engine().export_knowledge(export_path)

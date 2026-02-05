@@ -1,6 +1,6 @@
 # `Lifecycle`
 
-::: skynet.sdk.agents.lifecycle
+::: kryon.sdk.agents.lifecycle
 
     options:
         show_source: false

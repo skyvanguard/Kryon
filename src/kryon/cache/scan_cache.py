@@ -35,7 +35,7 @@ class ScanCache:
             cache_manager: Underlying cache manager (uses global if None)
         """
         self.cache = cache_manager or get_cache()
-        self.scan_index_key = "skynet:scan_index"
+        self.scan_index_key = "kryon:scan_index"
 
     def _normalize_target(self, target: str) -> str:
         """

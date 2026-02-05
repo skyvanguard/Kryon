@@ -340,7 +340,7 @@ for lib in libs:
 
 ### Tools Integrated in KRYON Modules
 
-#### skynet.tools.reconnaissance
+#### kryon.tools.reconnaissance
 - ✅ nmap
 - ✅ masscan
 - ✅ rustscan
@@ -351,43 +351,43 @@ for lib in libs:
 - ✅ dnsenum
 - ✅ whatweb
 
-#### skynet.tools.web
+#### kryon.tools.web
 - ✅ nuclei
 - ✅ sqlmap
 - ✅ nikto
 - ✅ wpscan
 
-#### skynet.tools.api_attacks
+#### kryon.tools.api_attacks
 - ✅ hydra
 - ✅ ffuf
 - ✅ wfuzz
 
-#### skynet.tools.exploitation
+#### kryon.tools.exploitation
 - ✅ metasploit (msfconsole)
 - ✅ searchsploit
 - ✅ exploit-db
 
-#### skynet.tools.wireless
+#### kryon.tools.wireless
 - ✅ aircrack-ng
 - ✅ reaver
 - ✅ bully
 - ✅ wifite
 
-#### skynet.tools.mobile
+#### kryon.tools.mobile
 - ✅ androguard
 - ✅ frida-tools
 - ✅ objection
 
-#### skynet.tools.lateral_movement
+#### kryon.tools.lateral_movement
 - ✅ impacket (psexec, wmiexec, smbexec)
 - ✅ crackmapexec
 - ✅ evil-winrm
 
-#### skynet.tools.privilege_escalation
+#### kryon.tools.privilege_escalation
 - ✅ linpeas (scripted)
 - ✅ winpeas (scripted)
 
-#### skynet.tools.network
+#### kryon.tools.network
 - ✅ tcpdump
 - ✅ tshark
 - ✅ scapy

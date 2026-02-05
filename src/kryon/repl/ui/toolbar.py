@@ -283,7 +283,7 @@ def get_container_info(container_id):
 
         if "kali" in image.lower() or "parrot" in image.lower():
             icon = "🔒"
-        elif "skynet" in image.lower():
+        elif "kryon" in image.lower():
             icon = "⭐"
 
         # Check whether the container is currently running.

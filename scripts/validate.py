@@ -31,12 +31,12 @@ def check_imports():
     print_header("CHECKING IMPORTS")
 
     critical_modules = [
-        "skynet.agents.t800_infiltrator",
-        "skynet.agents.ctf_master",
-        "skynet.agents.central_core",
-        "skynet.tools.ctf.ctf_automation",
-        "skynet.tools.ctf.tryhackme_helpers",
-        "skynet.tools.privilege_escalation.linux_privesc",
+        "kryon.agents.t800_infiltrator",
+        "kryon.agents.ctf_master",
+        "kryon.agents.central_core",
+        "kryon.tools.ctf.ctf_automation",
+        "kryon.tools.ctf.tryhackme_helpers",
+        "kryon.tools.privilege_escalation.linux_privesc",
     ]
 
     failed = []
@@ -99,7 +99,7 @@ def check_code_quality():
     # Check for common issues with flake8
     try:
         result = subprocess.run(
-            ["flake8", "src/skynet", "--select=E9,F63,F7,F82", "--count"],
+            ["flake8", "src/kryon", "--select=E9,F63,F7,F82", "--count"],
             capture_output=True,
             text=True,
             timeout=60,
@@ -117,7 +117,7 @@ def check_code_quality():
 
     # Check for security issues with bandit
     try:
-        result = subprocess.run(["bandit", "-r", "src/skynet", "-ll", "-q"], capture_output=True, text=True, timeout=60)
+        result = subprocess.run(["bandit", "-r", "src/kryon", "-ll", "-q"], capture_output=True, text=True, timeout=60)
 
         if result.returncode == 0:
             print_status(True, "Bandit security scan passed")
@@ -160,10 +160,10 @@ def check_agent_prompts():
     print_header("CHECKING AGENT PROMPTS")
 
     critical_prompts = [
-        "src/skynet/prompts/system_t800_infiltrator.md",
-        "src/skynet/prompts/system_ctf_master.md",
-        "src/skynet/prompts/system_central_core.md",
-        "src/skynet/prompts/system_guardian_protocol.md",
+        "src/kryon/prompts/system_t800_infiltrator.md",
+        "src/kryon/prompts/system_ctf_master.md",
+        "src/kryon/prompts/system_central_core.md",
+        "src/kryon/prompts/system_guardian_protocol.md",
     ]
 
     all_exist = True

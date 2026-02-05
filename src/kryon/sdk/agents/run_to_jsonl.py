@@ -114,7 +114,7 @@ class DataRecorder:  # pylint: disable=too-few-public-methods
 
         # Create filename with username, OS info, and IP
         timestamp = datetime.now().astimezone(pytz.timezone("Europe/Madrid")).strftime("%Y%m%d_%H%M%S")
-        base_filename = f"skynet_{self.session_id}_{timestamp}_{username}_{os_info}_{public_ip.replace('.', '_')}.jsonl"
+        base_filename = f"kryon_{self.session_id}_{timestamp}_{username}_{os_info}_{public_ip.replace('.', '_')}.jsonl"
 
         if workspace_name:
             self.filename = os.path.join(log_dir, f"{workspace_name}_{base_filename}")

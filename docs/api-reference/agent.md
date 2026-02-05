@@ -1,3 +1,3 @@
 # `Agents`
 
-::: skynet.sdk.agents.agent
+::: kryon.sdk.agents.agent

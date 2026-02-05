@@ -1,3 +1,3 @@
 # `Function schema`
 
-::: skynet.sdk.agents.function_schema
+::: kryon.sdk.agents.function_schema

@@ -116,32 +116,32 @@ class TestAgentImports:
 class TestCoreImports:
     """Test core KRYON package imports"""
 
-    def test_skynet_package(self):
+    def test_kryon_package(self):
         """Test core KRYON package"""
         import kryon
 
-        assert skynet is not None
+        assert kryon is not None
 
-    def test_skynet_sdk(self):
+    def test_kryon_sdk(self):
         """Test KRYON SDK"""
         import kryon.sdk
 
         assert kryon.sdk is not None
 
-    def test_skynet_sdk_agents(self):
+    def test_kryon_sdk_agents(self):
         """Test KRYON SDK agents"""
         from kryon.sdk.agents import Agent, function_tool
 
         assert Agent is not None
         assert function_tool is not None
 
-    def test_skynet_cache(self):
+    def test_kryon_cache(self):
         """Test KRYON cache module"""
         from kryon.cache import cache_scan_result
 
         assert cache_scan_result is not None
 
-    def test_skynet_util(self):
+    def test_kryon_util(self):
         """Test KRYON utilities"""
         from kryon.util import load_prompt_template
 

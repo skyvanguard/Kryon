@@ -22,7 +22,7 @@ def load_prompt_template(template_path):
     Load a prompt template from the package resources.
 
     Args:
-        template_path: Path to the template file relative to the skynet package,
+        template_path: Path to the template file relative to the kryon package,
                       e.g., "prompts/system_bug_bounter.md"
 
     Returns:
@@ -31,7 +31,7 @@ def load_prompt_template(template_path):
     try:
         # Get the template file from package resources
         template_path_parts = template_path.split("/")
-        package_path = ["skynet"] + template_path_parts[:-1]
+        package_path = ["kryon"] + template_path_parts[:-1]
         package = ".".join(package_path)
         filename = template_path_parts[-1]
 
@@ -86,7 +86,7 @@ def create_system_prompt_renderer(base_instructions):
         try:
             # Get the master template content
             template_path_parts = "prompts/core/system_master_template.md".split("/")
-            package_path = ["skynet"] + template_path_parts[:-1]
+            package_path = ["kryon"] + template_path_parts[:-1]
             package = ".".join(package_path)
             filename = template_path_parts[-1]
 

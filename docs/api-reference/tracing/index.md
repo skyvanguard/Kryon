@@ -1,3 +1,3 @@
 # Tracing module
 
-::: skynet.sdk.agents.tracing
+::: kryon.sdk.agents.tracing

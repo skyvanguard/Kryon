@@ -1,6 +1,6 @@
 """
 Memory command for KRYON REPL.
-Manages memory storage in .skynet/memory for persistent context.
+Manages memory storage in .kryon/memory for persistent context.
 """
 
 import asyncio
@@ -42,7 +42,7 @@ def get_compact_model():
 console = Console()
 
 # Memory directory path - use home directory for cross-platform compatibility
-MEMORY_DIR = Path.home() / ".skynet" / "memory"
+MEMORY_DIR = Path.home() / ".kryon" / "memory"
 MEMORY_INDEX_FILE = MEMORY_DIR / "index.json"
 
 # Global storage for compacted summaries (deprecated - use file storage)

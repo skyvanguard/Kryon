@@ -1,3 +1,3 @@
 # `Span data`
 
-::: skynet.sdk.agents.tracing.span_data
+::: kryon.sdk.agents.tracing.span_data

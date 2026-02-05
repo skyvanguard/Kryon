@@ -13,7 +13,7 @@ def is_pentestperf_available() -> bool:
         return False
 
 
-def is_skynet_extensions_platform_available() -> bool:
+def is_kryon_extensions_platform_available() -> bool:
     """Check if KRYON platform extensions are available."""
     try:
         import skynetextensions.platform  # noqa: F401

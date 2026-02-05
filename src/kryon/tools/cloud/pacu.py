@@ -19,7 +19,7 @@ from kryon.tools.common import run_command
 @cache_scan_result(scan_type="cloud_security", ttl=14400)  # Cache for 4 hours
 def pacu_run(
     module: str,
-    session_name: str = "skynet-session",
+    session_name: str = "kryon-session",
     aws_profile: str = "",
     aws_keys: str = "",
     region: str = "",
@@ -41,7 +41,7 @@ def pacu_run(
 
     Args:
         module: Pacu module to execute
-        session_name: Pacu session name (default: skynet-session)
+        session_name: Pacu session name (default: kryon-session)
         aws_profile: AWS profile to use
         aws_keys: AWS keys in format "access_key:secret_key:session_token"
         region: AWS region to target

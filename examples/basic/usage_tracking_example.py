@@ -2,7 +2,7 @@
 Example demonstrating global usage tracking functionality.
 
 This example shows how KRYON tracks usage globally across all executions
-and saves the data to $HOME/.skynet/usage.json
+and saves the data to $HOME/.kryon/usage.json
 """
 
 import json
@@ -11,7 +11,7 @@ from pathlib import Path
 
 def display_usage_stats():
     """Display the current global usage statistics"""
-    usage_file = Path.home() / ".skynet" / "usage.json"
+    usage_file = Path.home() / ".kryon" / "usage.json"
 
     if not usage_file.exists():
         print("No usage data found yet. Run KRYON to start tracking usage.")
@@ -81,7 +81,7 @@ def display_usage_stats():
 
 def reset_usage_stats():
     """Reset usage statistics (with confirmation)"""
-    usage_file = Path.home() / ".skynet" / "usage.json"
+    usage_file = Path.home() / ".kryon" / "usage.json"
 
     if not usage_file.exists():
         print("No usage data to reset.")
@@ -105,7 +105,7 @@ def reset_usage_stats():
 
 def export_usage_report(output_file="kryon_usage_report.json"):
     """Export usage statistics to a file"""
-    usage_file = Path.home() / ".skynet" / "usage.json"
+    usage_file = Path.home() / ".kryon" / "usage.json"
 
     if not usage_file.exists():
         print("No usage data to export.")

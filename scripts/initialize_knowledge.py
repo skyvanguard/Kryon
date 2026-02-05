@@ -312,7 +312,7 @@ def initialize(
 
     print("\n✅ Knowledge base initialized successfully!")
     print("\nNext steps:")
-    print("  1. Test queries: python -m skynet.knowledge.cli query 'your question'")
+    print("  1. Test queries: python -m kryon.knowledge.cli query 'your question'")
     print("  2. Start auto-updates: See docs/RAG_QUICKSTART.md")
     print("  3. Integrate with agents: Use query_knowledge() in your code")
 

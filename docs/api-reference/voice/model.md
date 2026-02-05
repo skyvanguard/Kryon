@@ -1,3 +1,3 @@
 # `Model`
 
-::: skynet.sdk.agents.voice.model
+::: kryon.sdk.agents.voice.model

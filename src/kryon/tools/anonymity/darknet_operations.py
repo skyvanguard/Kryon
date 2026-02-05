@@ -56,7 +56,7 @@ def create_onion_service(
         >>> result = create_onion_service(
         ...     service_port=80,
         ...     local_port=8080,
-        ...     service_name="skynet_c2"
+        ...     service_name="kryon_c2"
         ... )
         >>>
         >>> print(f"Onion address: {result['onion_address']}")
@@ -79,7 +79,7 @@ def create_onion_service(
         - Anonymous APIs
     """
     results = {
-        "service_name": service_name or f"skynet_{random.randint(1000, 9999)}",
+        "service_name": service_name or f"kryon_{random.randint(1000, 9999)}",
         "service_port": service_port,
         "local_port": local_port,
         "version": version,
@@ -270,7 +270,7 @@ def i2p_eepsite_setup(local_port: int = 8080, eepsite_name: Optional[str] = None
         >>> # Create I2P hidden service
         >>> result = i2p_eepsite_setup(
         ...     local_port=8080,
-        ...     eepsite_name="skynet_i2p"
+        ...     eepsite_name="kryon_i2p"
         ... )
         >>>
         >>> print(f"I2P address: {result['i2p_address']}")
@@ -283,7 +283,7 @@ def i2p_eepsite_setup(local_port: int = 8080, eepsite_name: Optional[str] = None
         - Tor: Faster for general browsing
     """
     results = {
-        "eepsite_name": eepsite_name or f"skynet_{random.randint(1000, 9999)}",
+        "eepsite_name": eepsite_name or f"kryon_{random.randint(1000, 9999)}",
         "local_port": local_port,
         "i2p_address": "",
         "config_path": "",

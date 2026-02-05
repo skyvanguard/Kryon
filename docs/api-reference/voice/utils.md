@@ -1,3 +1,3 @@
 # `Utils`
 
-::: skynet.sdk.agents.voice.utils
+::: kryon.sdk.agents.voice.utils

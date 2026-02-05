@@ -69,7 +69,7 @@ KRYON_MODEL=azure/<model-name-deployed>
 
 Error example:
 ```sh
-ERROR:skynet.cli:Error in main loop: litellm.APIError: AzureException APIError - Resource not found
+ERROR:kryon.cli:Error in main loop: litellm.APIError: AzureException APIError - Resource not found
 openai.NotFoundError: Error code: 404 - {'error': {'code': '404', 'message': 'Resource not found'}}
 ```
 
@@ -77,7 +77,7 @@ openai.NotFoundError: Error code: 404 - {'error': {'code': '404', 'message': 'Re
 
 Error example:
 ```sh
-ERROR:skynet.cli:Error in main loop: litellm.AuthenticationError: AzureException AuthenticationError - Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.
+ERROR:kryon.cli:Error in main loop: litellm.AuthenticationError: AzureException AuthenticationError - Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.
 openai.AuthenticationError: Error code: 401 - {'error': {'code': '401', 'message': 'Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.'}}
 ```
 

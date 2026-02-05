@@ -1,6 +1,6 @@
 # `Tools`
 
-::: skynet.sdk.agents.tool
+::: kryon.sdk.agents.tool
 
     options:
         members:

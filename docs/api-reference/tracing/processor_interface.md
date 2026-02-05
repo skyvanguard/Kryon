@@ -1,3 +1,3 @@
 # `Processor interface`
 
-::: skynet.sdk.agents.tracing.processor_interface
+::: kryon.sdk.agents.tracing.processor_interface
