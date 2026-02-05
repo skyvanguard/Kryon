@@ -30,11 +30,12 @@ jobs:
         run: ruff format --check src/ tests/
 
   test:
-    name: Test (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    name: Test (${{ matrix.os }} / Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python-version: ['3.10', '3.11', '3.12']
 
     steps:
@@ -57,12 +58,7 @@ jobs:
           OPENAI_API_KEY: sk-dummy-key-for-ci
           KRYON_TELEMETRY: "false"
           KRYON_TRACING: "false"
-        run: |
-          pytest tests/ -v \
-            --ignore=tests/agents/test_agent_inference.py \
-            --ignore=tests/agents/test_agent_one_tool.py \
-            -m "not integration and not slow" \
-            --tb=short
+        run: pytest tests/ -v --ignore=tests/agents/test_agent_inference.py --ignore=tests/agents/test_agent_one_tool.py -m "not integration and not slow" --tb=short
 
   build:
     name: Build Package
