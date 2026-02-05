@@ -55,7 +55,7 @@ Homepage = "https://github.com/skyvanguard/kryon"
 Repository = "https://github.com/skyvanguard/kryon"
 
 [project.optional-dependencies]
-voice = ["numpy>=2.2.0, <3; python_version>='3.10'", "websockets>=15.0, <16"]
+voice = ["numpy>=2.2.0, <3; python_version>='3.10'", "websockets>=15.0, <17"]
 viz = ["graphviz>=0.17"]
 tracing = ["openinference-instrumentation-openai>=0.1.22; python_version<'3.14'"]
 rag = [
