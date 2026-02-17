@@ -1843,28 +1843,11 @@ def main():
 
     # Parse command-line arguments
     import argparse
-    import sys
 
     parser = argparse.ArgumentParser(
         description="KRYON - Autonomous Cybersecurity Intelligence Platform",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-
-    subparsers = parser.add_subparsers(dest="command")
-
-    # --- serve subcommand ---
-    serve_parser = subparsers.add_parser("serve", help="Start the API server")
-    serve_parser.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
-    serve_parser.add_argument("--port", type=int, default=8700, help="Bind port (default: 8700)")
-    serve_parser.add_argument("--api-key", action="append", default=[], help="API key (repeatable, omit for dev mode)")
-    serve_parser.add_argument("--reload", action="store_true", help="Enable auto-reload for development")
-
-    # --- tui subcommand ---
-    tui_parser = subparsers.add_parser("tui", help="Start the terminal UI")
-    tui_parser.add_argument("--agent", default=None, help="Initial agent to use")
-    tui_parser.add_argument("--model", default=None, help="Model override")
-
-    # --- default (REPL) arguments ---
     parser.add_argument(
         "prompt",
         nargs="?",
@@ -1884,51 +1867,6 @@ def main():
     )
 
     args = parser.parse_args()
-
-    # --- Handle serve subcommand ---
-    if args.command == "serve":
-        try:
-            from kryon.server import ServerConfig, create_app
-        except ImportError:
-            print(color("Server dependencies not installed. Run: pip install -e .[server]", fg="red"))
-            sys.exit(1)
-
-        config = ServerConfig(
-            host=args.host,
-            port=args.port,
-            api_keys=args.api_key,
-            reload=args.reload,
-        )
-        app = create_app(config)
-
-        import uvicorn
-
-        print(color(f"Starting KRYON API server on {config.host}:{config.port}", fg="cyan"))
-        if not config.api_keys:
-            print(color("No API keys configured — auth disabled (dev mode)", fg="yellow"))
-
-        uvicorn.run(
-            "kryon.server.app:create_app",
-            host=config.host,
-            port=config.port,
-            reload=config.reload,
-            factory=True,
-        )
-        return
-
-    # --- Handle tui subcommand ---
-    if args.command == "tui":
-        try:
-            from kryon.tui import KryonTUI
-        except ImportError:
-            print(color("TUI dependencies not installed. Run: pip install -e .[tui]", fg="red"))
-            sys.exit(1)
-
-        app = KryonTUI(agent_key=args.agent, model_override=args.model)
-        app.run()
-        return
-
-    # --- Default: REPL mode ---
 
     # By default, use Claude Code CLI (Pro Max subscription)
     # Only use external APIs if --use-api is specified
