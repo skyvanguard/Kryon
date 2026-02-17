@@ -236,22 +236,21 @@ your_agent = Agent(
 Create `src/kryon/prompts/system_your_agent.md`:
 
 ```markdown
-# KRYON Clearance: ALPHA-CUSTOM - Custom Operations Authority
-**Classification:** RESTRICTED
+# Your Agent Name
 
-## Directives
+## Overview
 
-You are a specialized autonomous agent for...
+You are a specialized security agent for...
 
 ## Capabilities
 
 - Capability 1
 - Capability 2
 
-## Operational Parameters
+## Tools
 
-- Parameter 1
-- Parameter 2
+- Tool 1: Description
+- Tool 2: Description
 ```
 
 ### 3. Register Agent
