@@ -66,6 +66,8 @@ Complete reference for all KRYON configuration options.
 | `guardian_protocol` | Defensive security | System hardening |
 | `forensic_analyzer` | Digital forensics | Incident response |
 | `network_analyst` | Network security | Traffic analysis |
+| `memory_analyst` | Memory forensics | RAM analysis |
+| `reverse_engineer` | Binary analysis | Malware / firmware reversing |
 | `codeagent` | Code analysis | Exploit development |
 | `central_core` | Strategic planning | High-level analysis |
 
