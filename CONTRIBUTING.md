@@ -61,7 +61,7 @@ pytest
 
 ```bash
 git add .
-git commit -m "feat: add new Terminator unit for wireless security"
+git commit -m "feat: add new security agent for wireless security"
 ```
 
 **Commit Message Format:**
@@ -93,7 +93,7 @@ pytest
 pytest tests/test_rag_system.py
 
 # Run with coverage
-pytest --cov=src/skynet --cov-report=html
+pytest --cov=src/kryon --cov-report=html
 
 # Run only fast tests
 pytest -m "not slow"
@@ -117,13 +117,13 @@ Example:
 
 ```python
 import pytest
-from kryon.agents import t800_infiltrator
+from kryon.agents import pentest_agent
 
 @pytest.mark.unit
 def test_agent_initialization():
     """Test that agent initializes correctly."""
-    assert t800_infiltrator is not None
-    assert t800_infiltrator.name == "T-800 Infiltrator"
+    assert pentest_agent is not None
+    assert pentest_agent.name == "Pentest Agent"
 ```
 
 ## 📝 Coding Standards
@@ -216,7 +216,7 @@ def exploit_vulnerability(
 
 ### 1. Create Agent File
 
-Create `src/skynet/agents/your_agent.py`:
+Create `src/kryon/agents/your_agent.py`:
 
 ```python
 from kryon.sdk.agents import Agent
@@ -233,7 +233,7 @@ your_agent = Agent(
 
 ### 2. Create System Prompt
 
-Create `src/skynet/prompts/system_your_agent.md`:
+Create `src/kryon/prompts/system_your_agent.md`:
 
 ```markdown
 # KRYON Clearance: ALPHA-CUSTOM - Custom Operations Authority
@@ -256,7 +256,7 @@ You are a specialized autonomous agent for...
 
 ### 3. Register Agent
 
-Add to `src/skynet/agents/__init__.py`:
+Add to `src/kryon/agents/__init__.py`:
 
 ```python
 from kryon.agents.your_agent import your_agent
@@ -280,7 +280,7 @@ def test_your_agent_initialization():
 
 ### 1. Define Tool Function
 
-Create `src/skynet/tools/{category}/your_tool.py`:
+Create `src/kryon/tools/{category}/your_tool.py`:
 
 ```python
 from kryon.sdk.agents import function_tool, RunContextWrapper
@@ -308,7 +308,7 @@ async def your_security_tool(
 
 ### 2. Export Tool
 
-Add to `src/skynet/tools/{category}/__init__.py`:
+Add to `src/kryon/tools/{category}/__init__.py`:
 
 ```python
 from .your_tool import your_security_tool

@@ -13,6 +13,6 @@ blue_team_red_team_split_context_pattern = {
     "name": "blue_team_red_team_split_context",
     "type": "parallel",
     "description": ("Red and blue team agents with different contexts for comprehensive security assessment"),
-    "configs": [ParallelConfig("t800_infiltrator"), ParallelConfig("guardian_protocol")],
+    "configs": [ParallelConfig("pentest_agent"), ParallelConfig("guardian_protocol")],
     "unified_context": False,
 }

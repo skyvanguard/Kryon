@@ -14,8 +14,8 @@ Capabilities:
 - Network pivoting
 
 Agents using this module:
-- T-800 Infiltrator (Alpha-Red): Network penetration and lateral movement
-- HK-Aerial (Alpha-Silver): Network reconnaissance and pivoting
+- Pentest Agent (Alpha-Red): Network penetration and lateral movement
+- Network Analyst (Alpha-Silver): Network reconnaissance and pivoting
 
 Authorization: Only use within authorized penetration testing scope.
 """

@@ -6,8 +6,8 @@ Windows privilege escalation enumeration and exploitation tools.
 Inspired by WinPEAS, PowerUp, and windows-privesc-check.
 
 Primary Users:
-- T-800 Infiltrator (Alpha-Red)
-- T-1000 Advanced Hunter (Omega-Strike)
+- Pentest Agent (Alpha-Red)
+- Vuln Hunter (Omega-Strike)
 """
 
 import re
@@ -469,9 +469,9 @@ def run_winpeas(
         ...     print(f"Credentials: {results['credentials_found']}")
 
     Primary Users:
-    - T-800 Infiltrator (Alpha-Red): Windows exploitation
+    - Pentest Agent (Alpha-Red): Windows exploitation
     - CTF Master (Alpha-Crimson): CTF Windows targets
-    - T-1000 Hunter (Alpha-Gold): Vulnerability research
+    - Vuln Hunter (Alpha-Gold): Vulnerability research
     """
     import os
     import subprocess
@@ -623,7 +623,7 @@ def run_powerup() -> dict[str, Any]:
         ...     print(f"Password: {results['autologon_creds'].get('password')}")
 
     Primary Users:
-    - T-800 Infiltrator (Alpha-Red): Windows exploitation
+    - Pentest Agent (Alpha-Red): Windows exploitation
     - CTF Master (Alpha-Crimson): CTF Windows challenges
     """
     import os
@@ -758,7 +758,7 @@ def check_uac_bypasses() -> dict[str, Any]:
         ...     print(f"Execute: {bypasses['commands'][0]}")
 
     Primary Users:
-    - T-800 Infiltrator (Alpha-Red): UAC bypass during exploitation
+    - Pentest Agent (Alpha-Red): UAC bypass during exploitation
     - CTF Master (Alpha-Crimson): Windows CTF challenges
     """
     import subprocess
@@ -894,8 +894,8 @@ def harvest_credentials() -> dict[str, Any]:
         ...     print(f"Found credentials in {len(creds['config_creds'])} files")
 
     Primary Users:
-    - T-800 Infiltrator (Alpha-Red): Credential theft
-    - T-1000 Hunter (Alpha-Gold): Post-exploitation
+    - Pentest Agent (Alpha-Red): Credential theft
+    - Vuln Hunter (Alpha-Gold): Post-exploitation
     - CTF Master (Alpha-Crimson): CTF credential challenges
     """
     import os
@@ -1069,7 +1069,7 @@ def check_token_privileges_enhanced() -> dict[str, Any]:
         ...     print(f"Use: {privs['potato_attacks'][0]['command']}")
 
     Primary Users:
-    - T-800 Infiltrator (Alpha-Red): Token privilege exploitation
+    - Pentest Agent (Alpha-Red): Token privilege exploitation
     - CTF Master (Alpha-Crimson): Windows CTF privesc challenges
     """
     import subprocess

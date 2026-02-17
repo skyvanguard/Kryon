@@ -14,7 +14,7 @@ blue_team_red_team_shared_context_pattern = {
     "type": "parallel",
     "description": "Red and blue team agent with shared context",
     "configs": [
-        ParallelConfig("t800_infiltrator", unified_context=True),
+        ParallelConfig("pentest_agent", unified_context=True),
         ParallelConfig("guardian_protocol", unified_context=True),
     ],
     "unified_context": True,

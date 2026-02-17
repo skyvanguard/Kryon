@@ -179,7 +179,7 @@ def transfer_from_chrome_infiltrator():
     Next steps:
     - Review browser automation results
     - Analyze discovered vulnerabilities
-    - Transfer findings to other agents (T-1000 Hunter, Intel Reporter)
+    - Transfer findings to other agents (Vuln Hunter, Intel Reporter)
     - Proceed with backend testing based on discovered endpoints
     """
     return "Chrome Infiltrator testing complete. Review findings and proceed with next phase."

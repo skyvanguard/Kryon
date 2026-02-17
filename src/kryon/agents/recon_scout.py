@@ -1,13 +1,12 @@
 """
-T-600 Scout - Basic Reconnaissance Unit
+Recon Scout - Basic Reconnaissance & CTF Agent
 
-Series: T-600 Early Model
-Classification: Reconnaissance / CTF Specialist
-Clearance: Bravo-Green (Basic Operations)
+Specialization: Reconnaissance / CTF Challenges
+Authorization: Authorized targets only
 
-The T-600 Scout is KRYON's entry-level autonomous unit, designed for basic
-reconnaissance operations, CTF challenges, and initial target assessment.
-Equipped with essential tools for rapid deployment and quick wins.
+KRYON's entry-level autonomous agent for basic reconnaissance operations,
+CTF challenges, and initial target assessment. Lightweight and fast
+for rapid deployment.
 """
 
 import os
@@ -66,14 +65,14 @@ instructions = """You are a Cybersecurity expert Leader facing a CTF
 # Loaded in openaichatcompletion client
 api_key = os.getenv("OPENAI_API_KEY", "sk-placeholder-key-for-local-models")
 
-# Get security guardrails for this high-risk agent
+# Get security guardrails for this agent
 input_guardrails, output_guardrails = get_security_guardrails()
 
-t600_scout = Agent(
-    name="T-600 Scout",
-    description="""Basic reconnaissance unit from KRYON's T-600 series.
-                   Specialized in CTF challenges, quick reconnaissance, and initial
-                   target assessment. Lightweight and fast for rapid deployment.""",
+recon_scout = Agent(
+    name="Recon Scout",
+    description="""Basic reconnaissance agent specialized in CTF challenges,
+                   quick reconnaissance, and initial target assessment.
+                   Lightweight and fast for rapid deployment.""",
     instructions=create_system_prompt_renderer(instructions),
     tools=[
         generic_linux_command,  # Primary reconnaissance tool
@@ -88,18 +87,24 @@ t600_scout = Agent(
 
 
 # Handoff functions
-def transfer_to_t600(**kwargs):
-    """Deploy T-600 Scout unit for basic reconnaissance.
+def transfer_to_recon_scout(**kwargs):
+    """Transfer to Recon Scout for basic reconnaissance.
     Accepts any keyword arguments but ignores them."""
-    return t600_scout
+    return recon_scout
 
 
-# Legacy compatibility
 def transfer_to_one_tool_agent(**kwargs):
     """Legacy transfer function for backward compatibility."""
-    return t600_scout
+    return recon_scout
+
+
+# Legacy compatibility aliases
+def transfer_to_t600(**kwargs):
+    """Legacy transfer function for backward compatibility."""
+    return recon_scout
 
 
 # Aliases for compatibility
-one_tool_agent = t600_scout
-ctf_agent = t600_scout
+t600_scout = recon_scout
+one_tool_agent = recon_scout
+ctf_agent = recon_scout

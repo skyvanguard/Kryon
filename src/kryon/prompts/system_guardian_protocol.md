@@ -135,7 +135,7 @@ generic_linux_command("echo 'Incident detected at $(date)' > /evidence/incident_
 
 ## INTEGRATION WITH OTHER AGENTS
 
-**Receive from HK-Aerial:** Threat intelligence and network anomalies
+**Receive from Network Analyst:** Threat intelligence and network anomalies
 **Receive from Forensic Analyzer:** Incident analysis and recommendations
 **Transfer to Intel Reporter:** Security posture reports
 

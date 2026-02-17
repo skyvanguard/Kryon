@@ -6,8 +6,8 @@ Network pivoting and tunneling tools for lateral movement.
 Implements SSH tunnels, port forwarding, and SOCKS proxies.
 
 Primary Users:
-- T-800 Infiltrator (Alpha-Red)
-- HK-Aerial (Alpha-Silver)
+- Pentest Agent (Alpha-Red)
+- Network Analyst (Alpha-Silver)
 """
 
 from typing import Any, Optional

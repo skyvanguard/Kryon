@@ -256,7 +256,7 @@ def setup_proxy_chain(proxies: list[dict[str, str]], strict_chain: bool = True) 
     results = {
         "chain_length": len(proxies),
         "strict_chain": strict_chain,
-        "config_file": "/tmp/proxychains_skynet.conf",
+        "config_file": "/tmp/proxychains_kryon.conf",
         "success": False,
         "error": None,
     }
@@ -611,7 +611,7 @@ def setup_onion_routing(num_hops: int = 3, exit_country: Optional[str] = None) -
     results = {
         "num_hops": num_hops,
         "exit_country": exit_country,
-        "config_file": "/tmp/tor_skynet.conf",
+        "config_file": "/tmp/tor_kryon.conf",
         "success": False,
         "error": None,
     }

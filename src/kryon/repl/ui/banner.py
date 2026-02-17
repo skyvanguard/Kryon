@@ -132,7 +132,7 @@ def count_tools():
 
 
 def count_agents():
-    """Count the number of active Terminator units in KRYON."""
+    """Count the number of active agents in KRYON."""
     try:
         # Count Python files in the agents directory
         agent_files = glob.glob("kryon/agents/**/*.py", recursive=True)
@@ -250,12 +250,12 @@ def display_framework_capabilities(console: Console):
         "AI models: GPT-4, Claude, DeepSeek, Qwen, Llama",
     )
 
-    table.add_row("Weapon Systems", str(count_tools()), "Offensive and defensive cyber tools")
+    table.add_row("Security Tools", str(count_tools()), "Offensive and defensive cyber tools")
 
     table.add_row(
-        "Terminator Units",
+        "Security Agents",
         str(count_agents()),
-        "Autonomous security agents (T-800, T-1000, HK-Series)",
+        "Autonomous security specialists",
     )
 
     table.add_row("Mission Database", str(count_mission_logs()), "Completed operations and intelligence logs")
@@ -318,12 +318,12 @@ def display_agent_overview(console: Console):
 
     # Add agent rows
     agents = [
-        ("t600_scout", "Basic CTF solver", "CTF challenges, Linux operations"),
-        ("t800_infiltrator", "Offensive security", "Penetration testing, exploitation"),
+        ("recon_scout", "Basic CTF solver", "CTF challenges, Linux operations"),
+        ("pentest_agent", "Offensive security", "Penetration testing, exploitation"),
         ("guardian_protocol", "Defensive security", "System defense, monitoring"),
-        ("t1000_hunter", "Bug bounty hunter", "Web security, API testing"),
+        ("vuln_hunter", "Bug bounty hunter", "Web security, API testing"),
         ("forensic_analyzer", "Digital forensics", "Incident response, analysis"),
-        ("hk_aerial", "Network security", "Traffic analysis, monitoring"),
+        ("network_analyst", "Network security", "Traffic analysis, monitoring"),
         ("target_validator", "CTF flag extraction", "Finding and validating flags"),
         ("codeagent", "Code specialist", "Exploit development, analysis"),
         ("central_core", "Strategic planning", "High-level analysis, planning"),
@@ -409,14 +409,14 @@ def display_quick_guide(console: Console):
 
     # Get current environment variable values
     current_model = os.getenv("KRYON_MODEL", "gpt-4o")
-    current_agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
+    current_agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
 
     config_text = Text.assemble(
         ("Quick Start Workflows", "bold cyan underline"),
         "\n\n",
         ("🎯 CTF Challenge", "bold yellow"),
         "\n",
-        ("  1. KRYON> /agent select t800_infiltrator", "green"),
+        ("  1. KRYON> /agent select pentest_agent", "green"),
         "\n",
         ("  2. KRYON> /workspace set ctf_name", "green"),
         "\n",
@@ -424,7 +424,7 @@ def display_quick_guide(console: Console):
         "\n\n",
         ("🐛 Bug Bounty", "bold yellow"),
         "\n",
-        ("  1. KRYON> /agent select bug_bounter_agent", "green"),
+        ("  1. KRYON> /agent select vuln_hunter", "green"),
         "\n",
         ("  2. KRYON> /model claude-3-7-sonnet", "green"),
         "\n",
@@ -439,9 +439,9 @@ def display_quick_guide(console: Console):
         "\n\n",
         ("🔍 Parallel Recon", "bold yellow"),
         "\n",
-        ("  1. KRYON> /parallel add t800_infiltrator", "green"),
+        ("  1. KRYON> /parallel add pentest_agent", "green"),
         "\n",
-        ("  2. KRYON> /parallel add hk_aerial", "green"),
+        ("  2. KRYON> /parallel add network_analyst", "green"),
         "\n",
         ("  3. KRYON> Scan 192.168.1.0/24", "green"),
         "\n\n",

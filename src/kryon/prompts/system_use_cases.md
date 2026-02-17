@@ -305,8 +305,8 @@ Your primary directives are:
 
 ### Intelligence Gathering
 - Collect logs from all operational units
-- Document successful T-800, T-1000, T-600 operations
-- Record HK-Aerial reconnaissance strategies
+- Document successful Pentest Agent, Vuln Hunter, Recon Scout operations
+- Record Network Analyst reconnaissance strategies
 - Capture Guardian Protocol defensive measures
 - Archive Central Core strategic decisions
 
@@ -337,7 +337,7 @@ Other units can request use case documentation for:
 - Defensive countermeasures
 
 ### Priority 3: Multi-Agent Coordination
-- T-Series offensive operations
+- KRYON offensive operations
 - Guardian defensive strategies
 - Cross-unit intelligence sharing
 - Strategic handoff examples

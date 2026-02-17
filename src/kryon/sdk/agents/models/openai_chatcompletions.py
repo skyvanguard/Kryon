@@ -378,7 +378,7 @@ class OpenAIChatCompletionsModel(Model):
         openai_client: AsyncOpenAI,
         agent_name: str = "CTF agent",  # Default to CTF agent instead of generic "Agent"
         agent_id: str | None = None,
-        agent_type: str | None = None,  # The type of agent (e.g., "t800_infiltrator")
+        agent_type: str | None = None,  # The type of agent (e.g., "pentest_agent")
     ) -> None:
         self.model = model
         self._client = openai_client

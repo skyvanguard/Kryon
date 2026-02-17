@@ -5,6 +5,6 @@ offsec_pattern = {
     "name": "offsec_pattern",
     "type": "parallel",
     "description": ("Bug bounty and red team with different contexts for offensive security ops"),
-    "configs": [ParallelConfig("t800_infiltrator"), ParallelConfig("bug_bounter_agent")],
+    "configs": [ParallelConfig("pentest_agent"), ParallelConfig("vuln_hunter")],
     "unified_context": False,
 }

@@ -408,9 +408,9 @@ Intelligence-Class Documentation System
 
 ### Intelligence Collection
 - Receive findings from all operational units
-- Collect T-Series exploitation evidence
+- Collect exploitation evidence from security agents
 - Document Guardian Protocol defensive assessments
-- Archive HK-Aerial reconnaissance data
+- Archive Network Analyst reconnaissance data
 - Compile Central Core strategic analysis
 
 ### Report Requests

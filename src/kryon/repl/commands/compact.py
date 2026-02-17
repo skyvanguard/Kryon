@@ -283,7 +283,7 @@ class CompactCommand(Command):
 
         # If still no agent, try to get from environment
         if not agent_name:
-            agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
+            agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
             from kryon.agents import get_available_agents
 
             agents = get_available_agents()
@@ -479,7 +479,7 @@ class CompactCommand(Command):
 
             # If still no agent, try to get from environment
             if not agent_name:
-                agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
+                agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
                 from kryon.agents import get_available_agents
 
                 agents = get_available_agents()

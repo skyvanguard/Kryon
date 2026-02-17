@@ -15,7 +15,7 @@ Capabilities:
 - Email exfiltration
 
 Agents using this module:
-- T-800 Infiltrator (Alpha-Red): Data extraction and exfiltration
+- Pentest Agent (Alpha-Red): Data extraction and exfiltration
 - Forensic Analyzer (Alpha-Platinum): Evidence collection and extraction
 
 Authorization: Only use within authorized penetration testing scope.

@@ -302,7 +302,7 @@ class TestCostCommand:
             mock_usage_file = MagicMock()
             mock_usage_file.exists.return_value = True
             mock_usage_file.with_name.return_value = Path("/tmp/backup.json")
-            # Make Path.home() / ".skynet" / "usage.json" return our mock file
+            # Make Path.home() / ".kryon" / "usage.json" return our mock file
             mock_home = MagicMock()
             mock_kryon_dir = MagicMock()
             mock_home.__truediv__ = MagicMock(return_value=mock_kryon_dir)
@@ -334,7 +334,7 @@ class TestCostCommand:
         with patch("kryon.repl.commands.cost.Path") as mock_path:
             mock_usage_file = MagicMock()
             mock_usage_file.exists.return_value = True
-            # Make Path.home() / ".skynet" / "usage.json" return our mock file
+            # Make Path.home() / ".kryon" / "usage.json" return our mock file
             mock_home = MagicMock()
             mock_kryon_dir = MagicMock()
             mock_home.__truediv__ = MagicMock(return_value=mock_kryon_dir)

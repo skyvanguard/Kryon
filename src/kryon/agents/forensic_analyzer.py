@@ -17,7 +17,7 @@ Forensic Analyzer represents KRYON's specialized investigation unit for
 digital forensics and incident response operations. Designed to conduct
 thorough security investigations, analyze digital evidence, reconstruct
 attack timelines, and hunt for threats across compromised systems. Unlike
-real-time units (T-Series, Guardian, HK-Aerial), Forensic Analyzer operates
+real-time units (Pentest Agent, Guardian, Network Analyst), Forensic Analyzer operates
 in post-incident investigation mode, piecing together the complete picture
 of security events.
 

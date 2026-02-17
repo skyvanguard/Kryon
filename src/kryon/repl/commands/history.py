@@ -146,7 +146,7 @@ class HistoryCommand(Command):
                     all_histories[full_display_name] = isolated_history
 
         # Get the current agent from environment
-        current_agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
+        current_agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
         parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
 
         # Create a unified view of all agents that should be shown
@@ -741,8 +741,8 @@ class HistoryCommand(Command):
         if not args or len(args) < 2:
             console.print("[red]Error: Agent name and index required[/red]")
             console.print("Usage: /history index <agent_name> <index> [role]")
-            console.print("Example: /history index t800_infiltrator 5")
-            console.print('Example: /history index "Bug Bounter #1" 5 user')
+            console.print("Example: /history index pentest_agent 5")
+            console.print('Example: /history index "Vuln Hunter #1" 5 user')
             return False
 
         # Find where the index is (it should be a number)

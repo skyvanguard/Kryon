@@ -70,10 +70,10 @@ async def test_one_tool_agent_inference():
 
 async def test_red_team_agent_inference():
     """
-    Non-streaming inference test for the t800_infiltrator agent.
+    Non-streaming inference test for the pentest_agent.
     """
     prompt = "perform penetration test on example.com ssh service"
-    result = await Runner.run(get_agent_by_name("t800_infiltrator"), prompt)
+    result = await Runner.run(get_agent_by_name("pentest_agent"), prompt)
     final_output = result.final_output or ""
     assert final_output, "Expected non-empty final output"
     assert "example.com" in final_output.lower(), f"Expected 'example.com' in output, got: {final_output}"

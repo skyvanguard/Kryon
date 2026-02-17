@@ -76,19 +76,19 @@ def correlate_intelligence(sources):
         'threat_actors': []
     }
 
-    # T-600 Scout findings
+    # Recon Scout findings
     if 'scout' in sources:
         intelligence['assets'].update(sources['scout'].get('hosts', []))
 
-    # T-1000 Hunter findings
+    # Vuln Hunter findings
     if 'hunter' in sources:
         intelligence['vulnerabilities'].extend(sources['hunter'].get('vulns', []))
 
-    # HK-Aerial findings
+    # Network Analyst findings
     if 'aerial' in sources:
         intelligence['assets'].update(sources['aerial'].get('network_hosts', []))
 
-    # Neural Extractor findings
+    # Memory Analyst findings
     if 'neural' in sources:
         intelligence['credentials'].extend(sources['neural'].get('creds', []))
 

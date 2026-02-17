@@ -15,7 +15,7 @@ from typing import Optional
 class AgentInstanceInfo:
     """Information about a registered agent instance."""
 
-    agent_type: str  # e.g., "t800_infiltrator"
+    agent_type: str  # e.g., "pentest_agent"
     display_name: str  # e.g., "Red Team Agent"
     agent_id: str  # e.g., "P1", "P2", etc.
     instance_number: int  # Instance number for this agent type (1, 2, etc.)
@@ -52,7 +52,7 @@ class AgentRegistry:
 
         Args:
             model_instance: The OpenAIChatCompletionsModel instance
-            agent_type: The type of agent (e.g., "t800_infiltrator")
+            agent_type: The type of agent (e.g., "pentest_agent")
             display_name: The display name (e.g., "Red Team Agent")
             agent_id: Optional specific ID (e.g., "P1"). If None, auto-generates.
             is_parallel: Whether this is a parallel instance
@@ -118,7 +118,7 @@ class AgentRegistry:
         Get agent by display name or type name.
 
         Args:
-            name: Either display name ("Red Team Agent") or type ("t800_infiltrator")
+            name: Either display name ("Pentest Agent") or type ("pentest_agent")
 
         Returns:
             Tuple of (model_instance, info) or None if not found

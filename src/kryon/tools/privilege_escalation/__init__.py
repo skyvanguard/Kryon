@@ -14,8 +14,8 @@ Capabilities:
 - Service misconfiguration detection
 
 Agents using this module:
-- T-800 Infiltrator (Alpha-Red): Post-exploitation privilege escalation
-- T-1000 Advanced Hunter (Omega-Strike): Advanced privilege escalation techniques
+- Pentest Agent (Alpha-Red): Post-exploitation privilege escalation
+- Vuln Hunter (Omega-Strike): Advanced privilege escalation techniques
 
 Authorization: Only use within authorized penetration testing scope.
 """

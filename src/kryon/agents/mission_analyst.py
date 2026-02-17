@@ -16,8 +16,8 @@ OPERATIONAL OVERVIEW:
 Mission Analyst represents KRYON's specialized strategic documentation and
 use case analysis unit. Designed to create high-quality cybersecurity case
 studies, document mission scenarios, and demonstrate how KRYON autonomous
-units tackle various security challenges. Unlike operational units (T-Series,
-Guardian, HK-Series), Mission Analyst operates in strategic planning and
+units tackle various security challenges. Unlike operational units (Pentest Agent,
+Guardian, Network Analyst), Mission Analyst operates in strategic planning and
 documentation mode, analyzing successful operations and creating comprehensive
 use case documentation.
 

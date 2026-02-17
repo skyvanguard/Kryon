@@ -661,7 +661,7 @@ def multi_agent_coordination(
     Example:
         >>> result = multi_agent_coordination(
         ...     target_ip="10.10.10.5",
-        ...     agents_to_use=["t600_scout", "t800_infiltrator", "network_analyzer"],
+        ...     agents_to_use=["recon_scout", "pentest_agent", "network_analyst"],
         ...     coordination_mode="parallel"
         ... )
         >>>
@@ -1563,7 +1563,7 @@ def _check_objective_achieved(objective: str, results: dict) -> bool:
 
 def _auto_select_agents(target_ip: str) -> list[str]:
     """Auto-select appropriate agents for target."""
-    return ["t600_scout", "t800_infiltrator", "network_analyzer"]
+    return ["recon_scout", "pentest_agent", "network_analyst"]
 
 
 def _run_agent(agent_name: str, target_ip: str) -> dict[str, Any]:

@@ -479,7 +479,7 @@ class TestMultiAgentCoordination:
         """Test basic multi-agent coordination."""
         result = multi_agent_coordination(
             target_ip="10.10.10.5",
-            agents_to_use=["t600_scout", "t800_infiltrator"],
+            agents_to_use=["recon_scout", "pentest_agent"],
             coordination_mode="parallel",
         )
 

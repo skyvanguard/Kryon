@@ -15,19 +15,19 @@ class TestAgentTransferWorkflows:
     """Test agent transfer (handoff) workflows"""
 
     @pytest.mark.asyncio
-    async def test_central_core_to_t800_transfer(self):
-        """Test Central Core can transfer to T-800 Infiltrator"""
+    async def test_central_core_to_pentest_transfer(self):
+        """Test Central Core can transfer to Pentest Agent"""
         try:
-            from kryon.agents.central_core import transfer_to_t800_infiltrator
+            from kryon.agents.central_core import transfer_to_pentest_agent
 
             # Should return an agent
-            agent = transfer_to_t800_infiltrator()
+            agent = transfer_to_pentest_agent()
             assert agent is not None
             assert hasattr(agent, "name")
-            assert "T-800" in agent.name or "Infiltrator" in agent.name
+            assert "Pentest" in agent.name
 
         except ImportError:
-            pytest.skip("Central Core or T-800 agent not available")
+            pytest.skip("Central Core or Pentest agent not available")
 
     @pytest.mark.asyncio
     async def test_ctf_master_has_all_tools(self):
@@ -217,15 +217,15 @@ class TestMultiAgentCoordination:
             from kryon.agents import get_agent_by_name
 
             # Create multiple instances
-            agent1 = get_agent_by_name("t800_infiltrator", custom_name="T-800 #1", agent_id="P1")
-            agent2 = get_agent_by_name("t800_infiltrator", custom_name="T-800 #2", agent_id="P2")
+            agent1 = get_agent_by_name("pentest_agent", custom_name="Pentest #1", agent_id="P1")
+            agent2 = get_agent_by_name("pentest_agent", custom_name="Pentest #2", agent_id="P2")
 
             # Should be different instances
             assert agent1 is not agent2
 
             # Should have custom names
             if hasattr(agent1, "name"):
-                assert "T-800 #1" in agent1.name or agent1.name == "T-800 Infiltrator"
+                assert "Pentest #1" in agent1.name or agent1.name == "Pentest Agent"
 
         except (ImportError, ValueError) as e:
             pytest.skip(f"Agent factory not available: {e}")

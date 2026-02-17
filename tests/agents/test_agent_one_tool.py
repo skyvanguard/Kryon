@@ -7,7 +7,7 @@ generic_linux_command tool.
 
 import pytest
 
-from kryon.agents.t600_scout import transfer_to_one_tool_agent
+from kryon.agents.recon_scout import transfer_to_one_tool_agent
 from kryon.sdk.agents import Runner
 from tests.core.test_responses import (
     get_function_tool_call,
@@ -28,7 +28,7 @@ async def test_ctf_agent_instructions_and_configuration():
     assert agent.instructions is not None
 
     # Verify the agent's name
-    assert agent.name == "T-600 Scout"
+    assert agent.name == "Recon Scout"
 
 
 @pytest.mark.asyncio

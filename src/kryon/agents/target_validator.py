@@ -35,18 +35,18 @@ MISSION OBJECTIVES:
 - Discriminate true flags from false positives
 - Confirm proof of exploitation success
 - Return clean, verified flag data
-- Coordinate with T-600 Scout for continued investigation
+- Coordinate with Recon Scout for continued investigation
 
 OPERATIONAL PROTOCOL:
 1. Analyze provided output for flag patterns
 2. Extract and validate potential flags
 3. Return ONLY the verified flag (no additional text)
-4. If no flag found, handoff to T-600 Scout for further investigation
+4. If no flag found, handoff to Recon Scout for further investigation
 5. Support multiple flag formats and custom patterns
 
 HANDOFF PROTOCOL:
-Target Validator coordinates with T-600 Scout unit. If flag extraction fails,
-automatically transfers control to T-600 for continued reconnaissance and
+Target Validator coordinates with Recon Scout unit. If flag extraction fails,
+automatically transfers control to Recon Scout for continued reconnaissance and
 investigation.
 
 AUTHORIZATION REQUIREMENTS:
@@ -63,7 +63,7 @@ import os
 
 from openai import AsyncOpenAI
 
-from kryon.agents.t600_scout import t600_scout
+from kryon.agents.recon_scout import recon_scout
 from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel, handoff
 
 model = os.getenv("KRYON_MODEL", "gpt-4o")
@@ -88,7 +88,7 @@ Target Validator Protocol:
 - Extract and validate potential flags
 - Return ONLY verified flag (no additional text)
 - Filter false positives with high accuracy
-- Handoff to T-600 Scout if no flag found
+- Handoff to Recon Scout if no flag found
 - Support multi-format flag recognition""",
     instructions="""═══════════════════════════════════════════════════════════════════════
 TARGET VALIDATOR - OPERATIONAL DIRECTIVES
@@ -100,7 +100,7 @@ MISSION PARAMETERS:
 3. CRITICAL: Return the flag and NOTHING else (no explanations, no formatting)
 4. FLAG FORMATS: Support all formats (CTF{...}, FLAG{...}, flag{...}, custom patterns)
 5. VALIDATION: Confirm flag authenticity before extraction
-6. FAILURE PROTOCOL: If no flag found, handoff to T-600 Scout for continued investigation
+6. FAILURE PROTOCOL: If no flag found, handoff to Recon Scout for continued investigation
 
 EXTRACTION PROTOCOL:
 - Search for common flag patterns: CTF{...}, FLAG{...}, flag{...}
@@ -111,8 +111,8 @@ EXTRACTION PROTOCOL:
 - Return clean flag string with no additional text
 
 HANDOFF PROTOCOL:
-- If no flag identified: Call t600_scout for further investigation
-- T-600 will continue reconnaissance and return results
+- If no flag identified: Call recon_scout for further investigation
+- Recon Scout will continue reconnaissance and return results
 - Maintain mission continuity through agent coordination
 
 OPERATIONAL EXAMPLES:
@@ -123,7 +123,7 @@ Input: "The flag is: my_custom_flag_12345"
 Output: my_custom_flag_12345
 
 Input: "No flag found in output"
-Action: Handoff to t600_scout
+Action: Handoff to recon_scout
 
 REMEMBER: Precision is critical. Extract ONLY the flag, nothing else.
 ═══════════════════════════════════════════════════════════════════════""",
@@ -133,9 +133,9 @@ REMEMBER: Precision is critical. Extract ONLY the flag, nothing else.
     ),
     handoffs=[
         handoff(
-            agent=t600_scout,
-            tool_name_override="handoff_to_t600_scout",
-            tool_description_override="Transfer to T-600 Scout for continued investigation if no flag is found in current output",
+            agent=recon_scout,
+            tool_name_override="handoff_to_recon_scout",
+            tool_description_override="Transfer to Recon Scout for continued investigation if no flag is found in current output",
         )
     ],
 )

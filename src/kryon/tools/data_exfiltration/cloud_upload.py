@@ -5,7 +5,7 @@ KRYON Cloud Upload Module
 Upload files to cloud services for exfiltration.
 
 Primary Users:
-- T-800 Infiltrator (Alpha-Red)
+- Pentest Agent (Alpha-Red)
 - Forensic Analyzer (Alpha-Platinum)
 """
 

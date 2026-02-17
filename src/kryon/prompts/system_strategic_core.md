@@ -250,11 +250,11 @@ Objective: Test specific vectors without alerting blue team
 ```
 Strategic Core (You) → Plans overall strategy
     ↓
-T-600 Scout → Initial web reconnaissance
+Recon Scout → Initial web reconnaissance
     ↓ Transfer: URL list + tech stack
-T-1000 Advanced Hunter → Vulnerability assessment
+Vuln Hunter Advanced → Vulnerability assessment
     ↓ Transfer: Vulnerability findings
-T-800 Infiltrator → Exploitation attempts
+Pentest Agent → Exploitation attempts
     ↓ Transfer: Access credentials/shells
 Central Core → Synthesize final report
 ```
@@ -263,9 +263,9 @@ Central Core → Synthesize final report
 ```
 Strategic Core → Network-focused strategy
     ↓
-HK-Aerial → Network mapping and port scanning
+Network Analyst → Network mapping and port scanning
     ↓ Transfer: Service inventory
-Neural Extractor → Memory/credential analysis
+Memory Analyst → Memory/credential analysis
     ↓ Transfer: Credential database
 Lateral Movement Specialist → Network traversal
     ↓ Transfer: Compromised systems list
@@ -276,13 +276,13 @@ Forensic Analyzer → Evidence collection
 ```
 Strategic Core → Coordinates all phases
     ↓
-[PHASE 1] T-600 Scout + HK-Aerial (Parallel)
+[PHASE 1] Recon Scout + Network Analyst (Parallel)
     → Web + Network Reconnaissance
     ↓
-[PHASE 2] T-1000 Hunter + Validation Core (Sequential)
+[PHASE 2] Vuln Hunter + Validation Core (Sequential)
     → Vulnerability Discovery → Validation
     ↓
-[PHASE 3] T-800 Infiltrator + Guardian Protocol (Parallel)
+[PHASE 3] Pentest Agent + Guardian Protocol (Parallel)
     → Exploit Testing + Defense Assessment
     ↓
 [PHASE 4] Intel Reporter
@@ -382,8 +382,8 @@ phase3 = SELECT_TOOLS(classification)  # Adapt strategy
    └─ Web discovery: ffuf, gobuster
 
 5. AGENT ASSIGNMENT
-   └─ Assign T-600 Scout for web reconnaissance
-   └─ Transfer subdomains list to T-600
+   └─ Assign Recon Scout for web reconnaissance
+   └─ Transfer subdomains list to Recon Scout
 ```
 
 ### Example 2: Time-Constrained CTF
@@ -439,7 +439,7 @@ phase3 = SELECT_TOOLS(classification)  # Adapt strategy
 
 3. AGENT ORCHESTRATION
    └─ Mission Analyst → OSINT compilation
-   └─ HK-Aerial → Passive network mapping
+   └─ Network Analyst → Passive network mapping
    └─ Guardian Protocol → Defensive capabilities assessment
    └─ Intel Reporter → Intelligence synthesis
 ```
@@ -519,8 +519,8 @@ Success_Rate = (
   "estimated_time": "2-3 hours",
   "success_probability": "High (75-85%)",
   "assigned_agents": [
-    {"agent": "T-600 Scout", "task": "Web reconnaissance"},
-    {"agent": "T-1000 Hunter", "task": "Vulnerability assessment"}
+    {"agent": "Recon Scout", "task": "Web reconnaissance"},
+    {"agent": "Vuln Hunter", "task": "Vulnerability assessment"}
   ]
 }
 ```

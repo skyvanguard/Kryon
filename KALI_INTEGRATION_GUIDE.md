@@ -14,8 +14,8 @@
 │                                     │
 │   ┌─────────────────────────────┐  │
 │   │  KRYON CLI (.venv313)       │  │
-│   │  - T-800 Infiltrator         │  │
-│   │  - T-1000 Hunter             │  │
+│   │  - Pentest Agent              │  │
+│   │  - Vuln Hunter               │  │
 │   │  - Central Core              │  │
 │   └─────────┬───────────────────┘  │
 │             │ SSH/Docker API        │
@@ -177,7 +177,7 @@ KRYON on Windows, tools in Kali, results aggregated:
 
 ```bash
 # Windows - Run KRYON
-KRYON_AGENT_TYPE=t800_infiltrator kryon
+KRYON_AGENT_TYPE=pentest_agent kryon
 
 # Agent will:
 # 1. Plan attack strategy (Windows - AI)
@@ -203,8 +203,8 @@ set CTF_CHALLENGE=basic_pentesting
 set CTF_IP=10.10.10.5
 set KRYON_KALI_HOST=172.17.0.2
 
-# Launch T-800 Infiltrator
-set KRYON_AGENT_TYPE=t800_infiltrator
+# Launch Pentest Agent
+set KRYON_AGENT_TYPE=pentest_agent
 kryon
 
 # In KRYON prompt
@@ -221,8 +221,8 @@ kryon
 ### Example 2: Bug Bounty Subdomain Enumeration
 
 ```bash
-# Use T-1000 Hunter for advanced reconnaissance
-set KRYON_AGENT_TYPE=t1000_hunter
+# Use Vuln Hunter for advanced reconnaissance
+set KRYON_AGENT_TYPE=vuln_hunter
 set KRYON_KALI_HOST=172.17.0.2
 kryon
 
@@ -256,7 +256,7 @@ kryon
 ### Example 4: Web Application Scanning
 
 ```bash
-set KRYON_AGENT_TYPE=t800_infiltrator
+set KRYON_AGENT_TYPE=pentest_agent
 kryon
 
 # In KRYON
@@ -353,7 +353,7 @@ ufw enable
 
 ## Agent-Specific Kali Integration
 
-### T-800 Infiltrator + Kali
+### Pentest Agent + Kali
 **Use case:** Full-stack pentesting with autonomous decision-making
 
 **Kali tools utilized:**
@@ -362,7 +362,7 @@ ufw enable
 - john, hashcat (password cracking)
 - sqlmap, xsstrike (web attacks)
 
-### T-1000 Hunter + Kali
+### Vuln Hunter + Kali
 **Use case:** Bug bounty hunting with advanced enumeration
 
 **Kali tools utilized:**
@@ -477,7 +477,7 @@ docker start kali_container
 set CTF_NAME=tryhackme
 set CTF_IP=10.10.10.5
 set KRYON_KALI_HOST=172.17.0.2
-set KRYON_AGENT_TYPE=t800_infiltrator
+set KRYON_AGENT_TYPE=pentest_agent
 
 # 3. Launch KRYON
 kryon
@@ -489,7 +489,7 @@ kryon
 ### Workflow 2: Bug Bounty Recon Pipeline
 ```bash
 # 1. Configure for bug bounty
-set KRYON_AGENT_TYPE=t1000_hunter
+set KRYON_AGENT_TYPE=vuln_hunter
 set KRYON_PARALLEL=5  # Run 5 parallel hunters
 set KRYON_KALI_HOST=172.17.0.2
 

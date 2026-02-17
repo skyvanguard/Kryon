@@ -5,7 +5,7 @@ KRYON Covert Channel Exfiltration Module
 Implements covert channels for data exfiltration including DNS, HTTP, ICMP.
 
 Primary Users:
-- T-800 Infiltrator (Alpha-Red)
+- Pentest Agent (Alpha-Red)
 - Forensic Analyzer (Alpha-Platinum)
 """
 

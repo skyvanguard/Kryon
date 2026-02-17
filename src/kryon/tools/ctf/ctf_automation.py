@@ -6,8 +6,8 @@ and flag hunting capabilities optimized for TryHackMe and other CTF platforms.
 
 Primary Users:
 - CTF Master (Alpha-Crimson): Full CTF workflow orchestration
-- T-800 Infiltrator (Alpha-Red): Automated exploitation
-- T-1000 Hunter (Alpha-Gold): Reconnaissance and enumeration
+- Pentest Agent (Alpha-Red): Automated exploitation
+- Vuln Hunter (Alpha-Gold): Reconnaissance and enumeration
 
 Functions:
 - auto_enumerate_target(): Automated reconnaissance (nmap + gobuster + services)

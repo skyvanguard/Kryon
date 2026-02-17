@@ -14,7 +14,7 @@ from mako.template import Template
 # Fixture to load the Mako template for the system master template
 @pytest.fixture
 def template():
-    return Template(filename="src/skynet/prompts/core/system_master_template.md")
+    return Template(filename="src/kryon/prompts/core/system_master_template.md")
 
 
 # Fixture to create a base agent with predefined instructions

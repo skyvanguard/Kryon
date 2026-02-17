@@ -23,7 +23,7 @@ def load_prompt_template(template_path):
 
     Args:
         template_path: Path to the template file relative to the kryon package,
-                      e.g., "prompts/system_bug_bounter.md"
+                      e.g., "prompts/system_vuln_hunter.md"
 
     Returns:
         The rendered template as a string

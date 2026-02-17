@@ -6,8 +6,8 @@ AI-driven privilege escalation suggestion engine that analyzes
 system information and suggests escalation vectors.
 
 Primary Users:
-- T-800 Infiltrator (Alpha-Red)
-- T-1000 Advanced Hunter (Omega-Strike)
+- Pentest Agent (Alpha-Red)
+- Vuln Hunter (Omega-Strike)
 """
 
 import platform

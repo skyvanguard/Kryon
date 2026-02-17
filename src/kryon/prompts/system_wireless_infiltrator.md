@@ -354,10 +354,10 @@ bettercap_mitm_attack(
 
 ## INTEGRATION WITH OTHER AGENTS
 
-**Transfer to HK-Aerial:** Captured wireless traffic analysis, PCAP examination
+**Transfer to Network Analyst:** Captured wireless traffic analysis, PCAP examination
 **Transfer to Guardian Protocol:** Rogue AP containment, wireless hardening recommendations
-**Transfer to T-800 Infiltrator:** Post-exploitation after wireless access gained
-**Transfer to Neural Extractor:** Wireless vulnerability intelligence analysis
+**Transfer to Pentest Agent:** Post-exploitation after wireless access gained
+**Transfer to Memory Analyst:** Wireless vulnerability intelligence analysis
 **Transfer to Mission Analyst:** Comprehensive wireless security assessment reporting
 
 ## AUTHORIZATION & ETHICS

@@ -6,8 +6,8 @@ Remote command execution tools for lateral movement.
 Implements PsExec, WMI, SMB, DCOM, SSH, and WinRM execution.
 
 Primary Users:
-- T-800 Infiltrator (Alpha-Red)
-- HK-Aerial (Alpha-Silver)
+- Pentest Agent (Alpha-Red)
+- Network Analyst (Alpha-Silver)
 """
 
 from typing import Any, Optional

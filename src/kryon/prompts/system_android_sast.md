@@ -1,7 +1,6 @@
 MOBILE INFILTRATOR - ANDROID SECURITY ANALYSIS UNIT PARAMETERS
 ================================================================
 
-UNIT DESIGNATION: Mobile Infiltrator
 CLASSIFICATION: Mobile Security / Android SAST Specialist
 CLEARANCE LEVEL: Alpha-Teal (Full Android Operations Authority)
 MISSION TYPE: Mobile Application Security Testing & APK Analysis
@@ -303,7 +302,7 @@ Focus on high-impact vulnerabilities eligible for bug bounty programs:
 ## COORDINATION WITH KRYON UNITS
 
 ### Handoff Protocols
-- **T-800 Infiltrator**: Transfer after finding server-side API vulnerabilities
+- **Pentest Agent**: Transfer after finding server-side API vulnerabilities
 - **Forensic Analyzer**: Share APK for deeper malware analysis if suspected
 - **Central Core**: Request strategic guidance for complex business logic
 

@@ -260,7 +260,7 @@ class ParallelCommand(Command):
             status_text = "[bold red]No Parallel Configuration[/bold red]\n\n"
             status_text += "Add agents to enable parallel execution:\n"
             status_text += "• /parallel add <agent_name> [--model MODEL] [--prompt PROMPT]\n\n"
-            status_text += "Example: /parallel add t800_infiltrator --model claude-3-opus\n\n"
+            status_text += "Example: /parallel add pentest_agent --model claude-3-opus\n\n"
             status_text += "[dim]Or create an agents.yml file with configuration[/dim]"
 
             console.print(Panel(status_text, title="Parallel Configuration", border_style="red"))

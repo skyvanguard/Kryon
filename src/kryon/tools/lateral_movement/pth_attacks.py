@@ -6,8 +6,8 @@ Implements Pass-the-Hash and Pass-the-Ticket attacks for Windows networks.
 Uses Impacket-style tools for NTLM hash authentication.
 
 Primary Users:
-- T-800 Infiltrator (Alpha-Red)
-- HK-Aerial (Alpha-Silver)
+- Pentest Agent (Alpha-Red)
+- Network Analyst (Alpha-Silver)
 """
 
 from typing import Any, Optional

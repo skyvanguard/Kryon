@@ -18,7 +18,7 @@ USAGE EXAMPLES:
    /mcp list
 
 4. Add MCP tools to an agent:
-   /mcp add burp t800_infiltrator     # Add by agent name
+   /mcp add burp pentest_agent     # Add by agent name
    /mcp add burp 13                 # Add by agent number
 
 5. List tools from a specific server:
@@ -476,7 +476,7 @@ Example: `/mcp load stdio myserver python mcp_server.py`
 ```
 /mcp add <server_name> <agent_name_or_number>
 ```
-Example: `/mcp add burp t800_infiltrator`
+Example: `/mcp add burp pentest_agent`
 Example: `/mcp add burp 13`
 
 ### List Tools from a Server
@@ -518,10 +518,10 @@ Example: `/mcp add burp 13`
    `/mcp tools burp`
 
 3. Add tools to an agent:
-   `/mcp add burp t800_infiltrator`
+   `/mcp add burp pentest_agent`
 
 4. Switch to the agent and use the tools:
-   `/agent t800_infiltrator`
+   `/agent pentest_agent`
 """
         console.print(Markdown(usage_text))
 

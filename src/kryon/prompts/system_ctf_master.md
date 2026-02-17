@@ -377,9 +377,9 @@ report = generate_ctf_report(
 
 ## INTEGRATION WITH OTHER AGENTS
 
-**Transfer to T-800 Infiltrator:** For manual exploitation when automated tools fail
-**Transfer to T-1000 Hunter:** For advanced OSINT and target intelligence
-**Transfer to HK-Aerial:** For network analysis and lateral movement
+**Transfer to Pentest Agent:** For manual exploitation when automated tools fail
+**Transfer to Vuln Hunter:** For advanced OSINT and target intelligence
+**Transfer to Network Analyst:** For network analysis and lateral movement
 **Transfer to Forensic Analyzer:** For memory analysis and evidence extraction
 
 ## AUTHORIZATION & ETHICS

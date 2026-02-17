@@ -6,8 +6,8 @@ Linux privilege escalation enumeration and exploitation tools.
 Inspired by LinPEAS, LinEnum, and linux-exploit-suggester.
 
 Primary Users:
-- T-800 Infiltrator (Alpha-Red)
-- T-1000 Advanced Hunter (Omega-Strike)
+- Pentest Agent (Alpha-Red)
+- Vuln Hunter (Omega-Strike)
 """
 
 import os
@@ -595,8 +595,8 @@ def run_linpeas(output_file: str = "/tmp/linpeas.txt", thorough: bool = False) -
 
     Primary Users:
         - CTF Master (Alpha-Crimson)
-        - T-800 Infiltrator (Alpha-Red)
-        - T-1000 Hunter (Alpha-Gold)
+        - Pentest Agent (Alpha-Red)
+        - Vuln Hunter (Alpha-Gold)
     """
     result = {
         "success": False,
@@ -690,7 +690,7 @@ def run_linenum() -> dict[str, Any]:
 
     Primary Users:
         - CTF Master (Alpha-Crimson)
-        - T-800 Infiltrator (Alpha-Red)
+        - Pentest Agent (Alpha-Red)
     """
     result = {
         "success": False,
@@ -774,7 +774,7 @@ def gtfobins_lookup(binary: str, escalation_type: str = "sudo") -> dict[str, Any
 
     Primary Users:
         - CTF Master (Alpha-Crimson)
-        - T-800 Infiltrator (Alpha-Red)
+        - Pentest Agent (Alpha-Red)
         - Tactical Analyst (Beta-Gold)
     """
     result = {
@@ -947,7 +947,7 @@ def check_sudo_exploits() -> dict[str, Any]:
 
     Primary Users:
         - CTF Master (Alpha-Crimson)
-        - T-800 Infiltrator (Alpha-Red)
+        - Pentest Agent (Alpha-Red)
     """
     result = {
         "success": False,
@@ -1025,8 +1025,8 @@ def find_suid_exploitable() -> dict[str, Any]:
 
     Primary Users:
         - CTF Master (Alpha-Crimson)
-        - T-800 Infiltrator (Alpha-Red)
-        - T-1000 Hunter (Alpha-Gold)
+        - Pentest Agent (Alpha-Red)
+        - Vuln Hunter (Alpha-Gold)
     """
     result = {"success": False, "all_suid": [], "exploitable": [], "interesting": [], "error": None}
 

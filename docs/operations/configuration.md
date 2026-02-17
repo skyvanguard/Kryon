@@ -21,7 +21,7 @@ Complete reference for all KRYON configuration options.
 | Variable | Description | Default | Values |
 |----------|-------------|---------|--------|
 | `KRYON_MODEL` | AI model to use | `gpt-4o` | Any supported model |
-| `KRYON_CORE` | Security agent | `t800_infiltrator` | See agents list |
+| `KRYON_CORE` | Security agent | `pentest_agent` | See agents list |
 | `KRYON_GUARDRAILS` | Enable security guardrails | `true` | `true`/`false` |
 | `KRYON_STREAM` | Enable streaming output | `false` | `true`/`false` |
 | `KRYON_DEBUG` | Debug verbosity | `1` | `0`, `1`, `2` |
@@ -60,12 +60,12 @@ Complete reference for all KRYON configuration options.
 
 | Agent | Specialization | Best For |
 |-------|----------------|----------|
-| `t800_infiltrator` | Offensive security | Penetration testing |
-| `t1000_hunter` | Bug bounty hunting | Web security testing |
-| `t600_scout` | Reconnaissance | Initial enumeration |
+| `pentest_agent` | Offensive security | Penetration testing |
+| `vuln_hunter` | Bug bounty hunting | Web security testing |
+| `recon_scout` | Reconnaissance | Initial enumeration |
 | `guardian_protocol` | Defensive security | System hardening |
 | `forensic_analyzer` | Digital forensics | Incident response |
-| `hk_aerial` | Network security | Traffic analysis |
+| `network_analyst` | Network security | Traffic analysis |
 | `codeagent` | Code analysis | Exploit development |
 | `central_core` | Strategic planning | High-level analysis |
 
@@ -123,7 +123,7 @@ KRYON_AUTONOMOUS_MODE="false"
 ```bash
 ANTHROPIC_API_KEY="sk-ant-..."
 KRYON_MODEL="claude-3-5-sonnet"
-KRYON_CORE="t1000_hunter"
+KRYON_CORE="vuln_hunter"
 KRYON_GUARDRAILS="true"
 KRYON_STREAM="true"
 KRYON_DEBUG="1"
@@ -134,7 +134,7 @@ KRYON_DEBUG="1"
 ```bash
 OPENAI_API_KEY="sk-..."
 KRYON_MODEL="gpt-4o"
-KRYON_CORE="t600_scout"
+KRYON_CORE="recon_scout"
 KRYON_SWARM_SIZE="3"
 CTF_NAME="hackthebox"
 CTF_IP="10.10.10.1"
@@ -145,7 +145,7 @@ CTF_IP="10.10.10.1"
 ```bash
 OLLAMA_API_BASE="http://localhost:11434/v1"
 KRYON_MODEL="qwen2.5:14b"
-KRYON_CORE="t800_infiltrator"
+KRYON_CORE="pentest_agent"
 KRYON_TELEMETRY="false"
 KRYON_TRACING="false"
 ```

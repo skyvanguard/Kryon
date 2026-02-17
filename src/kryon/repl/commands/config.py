@@ -63,8 +63,8 @@ ENV_VARS = {
     },
     11: {
         "name": "KRYON_AGENT_TYPE",
-        "description": "Specify the agents to use (boot2root, t600_scout...)",  # noqa: E501 # pylint: disable=line-too-long
-        "default": "t600_scout",
+        "description": "Specify the agents to use (boot2root, recon_scout...)",  # noqa: E501 # pylint: disable=line-too-long
+        "default": "recon_scout",
     },
     12: {"name": "KRYON_STATE", "description": "Enable/disable stateful mode", "default": "false"},
     13: {

@@ -348,8 +348,8 @@ generic_linux_command("tshark", "-r mitm_capture.pcap -Y 'http.request.method==P
 ## COORDINATION WITH KRYON UNITS
 
 ### Handoff Protocols
-- **HK-Aerial**: Receive captured traffic for replay analysis
-- **T-800 Infiltrator**: Share session tokens for system access
+- **Network Analyst**: Receive captured traffic for replay analysis
+- **Pentest Agent**: Share session tokens for system access
 - **Wireless Infiltrator**: Coordinate on WiFi replay attacks
 - **Central Core**: Request strategic guidance for complex protocols
 

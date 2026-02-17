@@ -58,7 +58,7 @@ KRYON_LOG_FILE="/var/log/kryon.log"  # File output
 ### Log Format
 
 ```
-2026-02-04 10:30:00 INFO [session-abc123] Agent: t800_infiltrator
+2026-02-04 10:30:00 INFO [session-abc123] Agent: pentest_agent
 2026-02-04 10:30:01 INFO [session-abc123] Model: gpt-4o
 2026-02-04 10:30:15 INFO [session-abc123] Tool: run_nmap
 2026-02-04 10:30:45 INFO [session-abc123] Cost: $0.0234
@@ -189,7 +189,7 @@ KRYON_AUDIT_LOG="/var/log/kryon/audit.json"
   "timestamp": "2026-02-04T10:30:00Z",
   "session_id": "abc123",
   "user": "operator@company.com",
-  "agent": "t800_infiltrator",
+  "agent": "pentest_agent",
   "action": "tool_execution",
   "tool": "run_nmap",
   "target": "192.168.1.0/24",

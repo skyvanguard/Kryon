@@ -289,8 +289,8 @@ generic_linux_command("aireplay-ng", "--deauth 10 -a <BSSID> -c <CLIENT_MAC> wla
 ## COORDINATION WITH KRYON UNITS
 
 ### Handoff Protocols
-- **T-800 Infiltrator**: Transfer after WiFi access gained for system penetration
-- **HK-Aerial**: Share network intelligence and connected device enumeration
+- **Pentest Agent**: Transfer after WiFi access gained for system penetration
+- **Network Analyst**: Share network intelligence and connected device enumeration
 - **Central Core**: Request strategic guidance when attacks fail
 
 ### Intelligence Sharing

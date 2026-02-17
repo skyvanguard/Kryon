@@ -406,7 +406,7 @@ browser_fill_form(
 ```
 Strategic Core → Analyzes target, creates strategy
     ↓
-T-600 Scout → Initial reconnaissance
+Recon Scout → Initial reconnaissance
     ↓ Transfer: URLs, subdomains
 Chrome Infiltrator (You) → Dynamic testing
     ↓ Actions:
@@ -416,14 +416,14 @@ Chrome Infiltrator (You) → Dynamic testing
     - Extract cookies and tokens
     - Intercept API traffic
     ↓ Transfer: Vulnerabilities, endpoints, cookies
-T-1000 Hunter → Backend vulnerability scanning
+Vuln Hunter → Backend vulnerability scanning
     ↓ Transfer: Complete findings
 Intel Reporter → Generate report
 ```
 
 ### Data to Provide Other Agents
 
-**To T-1000 Hunter:**
+**To Vuln Hunter:**
 - Extracted API endpoints
 - Authentication tokens
 - Session cookies

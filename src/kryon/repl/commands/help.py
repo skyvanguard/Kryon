@@ -132,16 +132,16 @@ class HelpCommand(Command):
                 "• [yellow]/agent current[/yellow] - Show current agent configuration\n\n"
                 "[bold cyan]Examples:[/bold cyan]\n"
                 "• [green]/agent list[/green] - See all available agents\n"
-                "• [green]/agent select t800_infiltrator[/green] - Switch to offensive security agent\n"
-                "• [green]/agent info t1000_hunter[/green] - View bug bounty agent details\n"
+                "• [green]/agent select pentest_agent[/green] - Switch to offensive security agent\n"
+                "• [green]/agent info vuln_hunter[/green] - View bug bounty agent details\n"
                 "• [green]/a select 2[/green] - Select agent by number (using alias)\n\n"
                 "[bold]Available Agents:[/bold]\n"
-                "• [cyan]t600_scout[/cyan] - Basic CTF solver\n"
-                "• [cyan]t800_infiltrator[/cyan] - Offensive security specialist\n"
+                "• [cyan]recon_scout[/cyan] - Basic CTF solver\n"
+                "• [cyan]pentest_agent[/cyan] - Offensive security specialist\n"
                 "• [cyan]guardian_protocol[/cyan] - Defensive security specialist\n"
-                "• [cyan]t1000_hunter[/cyan] - Bug bounty hunter\n"
+                "• [cyan]vuln_hunter[/cyan] - Bug bounty hunter\n"
                 "• [cyan]forensic_analyzer[/cyan] - Digital forensics & incident response\n"
-                "• [cyan]hk_aerial[/cyan] - Network analysis\n"
+                "• [cyan]network_analyst[/cyan] - Network analysis\n"
                 "• [cyan]target_validator[/cyan] - CTF flag extraction\n"
                 "• [cyan]codeagent[/cyan] - Code generation and analysis\n"
                 "• [cyan]central_core[/cyan] - Strategic planning\n\n"
@@ -176,7 +176,7 @@ class HelpCommand(Command):
                 "[bold green]Examples:[/bold green]\n"
                 "• [green]/graph[/green] - Display current graph\n"
                 "• [green]/graph P2[/green] - Show graph for agent P2\n"
-                "• [green]/graph t800_infiltrator[/green] - Show t800_infiltrator's graph\n"
+                "• [green]/graph pentest_agent[/green] - Show pentest_agent's graph\n"
                 "• [green]/graph timeline[/green] - View timeline\n"
                 "• [green]/graph stats[/green] - See statistics\n"
                 "• [green]/graph export mermaid graph.md[/green] - Export Mermaid\n"
@@ -729,8 +729,8 @@ class HelpCommand(Command):
                 "• [yellow]/parallel merge <indices>[/yellow] - Merge agent histories\n"
                 "• [yellow]/parallel prompt <index> <text>[/yellow] - Set custom prompt\n\n"
                 "[bold cyan]Examples:[/bold cyan]\n"
-                "• [green]/parallel add t800_infiltrator[/green] - Add red team agent\n"
-                '• [green]/parallel add t1000_hunter custom_prompt="Find SQLi"[/green]\n'
+                "• [green]/parallel add pentest_agent[/green] - Add red team agent\n"
+                '• [green]/parallel add vuln_hunter custom_prompt="Find SQLi"[/green]\n'
                 "• [green]/parallel merge 1,2[/green] - Merge histories of P1 and P2\n"
                 "• [green]/p list[/green] - Show all configured agents\n\n"
                 "[bold]Notes:[/bold]\n"
@@ -789,7 +789,7 @@ class HelpCommand(Command):
                 "• [green]/history[/green] - View control panel\n"
                 "• [green]/history P1[/green] - Show P1's conversation\n"
                 '• [green]/history search "password"[/green] - Search for term\n'
-                "• [green]/his t800_infiltrator 5[/green] - Show message #5\n\n"
+                "• [green]/his pentest_agent 5[/green] - Show message #5\n\n"
                 "[bold]Features:[/bold]\n"
                 "• Token count and cost tracking\n"
                 "• Message role visualization\n"
@@ -844,7 +844,7 @@ class HelpCommand(Command):
                 "[bold cyan]Examples:[/bold cyan]\n"
                 "• [green]/flush[/green] - Clear active agent\n"
                 "• [green]/flush all[/green] - Reset all agents\n"
-                "• [green]/flush t800_infiltrator[/green] - Clear red team agent\n"
+                "• [green]/flush pentest_agent[/green] - Clear red team agent\n"
                 "• [green]/clear P2[/green] - Clear parallel agent P2\n\n"
                 "[bold]Effects:[/bold]\n"
                 "• Removes all messages\n"
@@ -871,7 +871,7 @@ class HelpCommand(Command):
                 "• [yellow]/load <file> parallel[/yellow] - Smart parallel distribution\n\n"
                 "[bold cyan]Examples:[/bold cyan]\n"
                 "• [green]/load session.jsonl[/green] - Load to current agent\n"
-                "• [green]/load ctf.jsonl agent t800_infiltrator[/green] - Load to red team\n"
+                "• [green]/load ctf.jsonl agent pentest_agent[/green] - Load to red team\n"
                 "• [green]/load scan.jsonl all[/green] - Split across agents\n"
                 "• [green]/l pentest.jsonl parallel[/green] - Pattern-based loading\n\n"
                 "[bold]Distribution Modes:[/bold]\n"
@@ -965,7 +965,7 @@ class HelpCommand(Command):
                 "[bold cyan]Examples:[/bold cyan]\n"
                 "• [green]/mcp load sse http://localhost:3000[/green]\n"
                 '• [green]/mcp load stdio "npx @modelcontextprotocol/server-sqlite"[/green]\n'
-                "• [green]/mcp add filesystem t800_infiltrator[/green]\n"
+                "• [green]/mcp add filesystem pentest_agent[/green]\n"
                 "• [green]/mcp tools filesystem[/green]\n\n"
                 "[bold]Notes:[/bold]\n"
                 "• Fresh connections per tool call\n"
@@ -1104,7 +1104,7 @@ class HelpCommand(Command):
         console.print("\n[bold yellow]Essential Commands:[/bold yellow]")
         quick_ref = [
             ("[cyan]/agent list[/cyan]", "See available agents"),
-            ("[cyan]/agent select t800_infiltrator[/cyan]", "Switch to red team agent"),
+            ("[cyan]/agent select pentest_agent[/cyan]", "Switch to red team agent"),
             ("[cyan]/model gpt-4o[/cyan]", "Change to GPT-4"),
             ("[cyan]/shell ls -la[/cyan]", "Run shell command"),
             ("[cyan]/config[/cyan]", "View all settings"),
@@ -1124,7 +1124,7 @@ class HelpCommand(Command):
             (
                 "[bold]Start a CTF:[/bold]",
                 [
-                    "/agent select t600_scout",
+                    "/agent select recon_scout",
                     "/workspace set ctf_name",
                     "Describe the challenge...",
                 ],
@@ -1132,7 +1132,7 @@ class HelpCommand(Command):
             (
                 "[bold]Bug Bounty:[/bold]",
                 [
-                    "/agent select t1000_hunter",
+                    "/agent select vuln_hunter",
                     "/model claude-3-7-sonnet-20250219",
                     "Test https://example.com for vulnerabilities",
                 ],
@@ -1140,8 +1140,8 @@ class HelpCommand(Command):
             (
                 "[bold]Parallel Recon:[/bold]",
                 [
-                    "/parallel add t800_infiltrator",
-                    "/parallel add hk_aerial",
+                    "/parallel add pentest_agent",
+                    "/parallel add network_analyst",
                     "Scan 192.168.1.0/24",
                 ],
             ),

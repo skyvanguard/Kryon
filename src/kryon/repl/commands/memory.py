@@ -1003,7 +1003,7 @@ Model: {get_compact_model() or os.environ.get("KRYON_MODEL", "gpt-4")}
                     # Try to get from environment
                     import os
 
-                    agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
+                    agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
                     from kryon.agents import get_available_agents
 
                     agents = get_available_agents()
@@ -1318,7 +1318,7 @@ This session is being continued from a previous conversation that ran out of con
                 # If agent doesn't have a name attribute, try to get from environment
                 import os
 
-                agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
+                agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
                 from kryon.agents import get_available_agents
 
                 agents = get_available_agents()
@@ -1345,7 +1345,7 @@ This session is being continued from a previous conversation that ran out of con
         # Try to get from environment and available agents
         import os
 
-        agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
+        agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
         from kryon.agents import get_available_agents
 
         agents = get_available_agents()

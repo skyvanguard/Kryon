@@ -56,11 +56,11 @@ class TestAgentImports:
         agents = get_available_agents()
         assert len(agents) > 0
 
-    def test_t800_infiltrator(self):
-        """Test T-800 Infiltrator agent import."""
-        from kryon.agents.t800_infiltrator import t800_infiltrator
+    def test_pentest_agent(self):
+        """Test Pentest Agent import."""
+        from kryon.agents.pentest_agent import pentest_agent
 
-        assert t800_infiltrator is not None
+        assert pentest_agent is not None
 
     def test_central_core(self):
         """Test Central Core agent import."""
@@ -80,23 +80,23 @@ class TestAgentImports:
 
         assert get_security_guardrails is not None
 
-    def test_t600_scout(self):
-        """Test T-600 Scout agent import."""
-        from kryon.agents.t600_scout import t600_scout
+    def test_recon_scout(self):
+        """Test Recon Scout agent import."""
+        from kryon.agents.recon_scout import recon_scout
 
-        assert t600_scout is not None
+        assert recon_scout is not None
 
-    def test_t1000_hunter(self):
-        """Test T-1000 Hunter agent import."""
-        from kryon.agents.t1000_hunter import bug_bounter_agent
+    def test_vuln_hunter(self):
+        """Test Vuln Hunter agent import."""
+        from kryon.agents.vuln_hunter import vuln_hunter
 
-        assert bug_bounter_agent is not None
+        assert vuln_hunter is not None
 
-    def test_neural_extractor(self):
-        """Test Neural Extractor agent import."""
-        from kryon.agents.neural_extractor import neural_extractor
+    def test_memory_analyst(self):
+        """Test Memory Analyst agent import."""
+        from kryon.agents.memory_analyst import memory_analyst
 
-        assert neural_extractor is not None
+        assert memory_analyst is not None
 
     def test_forensic_analyzer(self):
         """Test Forensic Analyzer agent import."""
@@ -104,11 +104,11 @@ class TestAgentImports:
 
         assert forensic_analyzer is not None
 
-    def test_tech_com_reverse(self):
-        """Test Tech-Com Reverse agent import."""
-        from kryon.agents.tech_com_reverse import tech_com_reverse
+    def test_reverse_engineer(self):
+        """Test Reverse Engineer agent import."""
+        from kryon.agents.reverse_engineer import reverse_engineer
 
-        assert tech_com_reverse is not None
+        assert reverse_engineer is not None
 
 
 class TestToolImports:

@@ -290,7 +290,7 @@ class QuickstartCommand(Command):
 
         essential_commands = [
             ("/agent list", "View available agents", "/agent list"),
-            ("/agent select <name>", "Switch to specific agent", "/agent select t800_infiltrator"),
+            ("/agent select <name>", "Switch to specific agent", "/agent select pentest_agent"),
             ("/model", "View current model", "/model"),
             ("/model-show", "List all available models", "/model-show"),
             ("/model <name>", "Change AI model", "/model gpt-4o"),
@@ -313,7 +313,7 @@ class QuickstartCommand(Command):
                 "[bold]Basic CTF Challenge:[/bold]",
                 [
                     "# Select the CTF agent",
-                    "/agent select t600_scout",
+                    "/agent select recon_scout",
                     "# Describe your challenge",
                     "I have a binary at /tmp/challenge that asks for a password",
                 ],
@@ -322,7 +322,7 @@ class QuickstartCommand(Command):
                 "[bold]Web Security Testing:[/bold]",
                 [
                     "# Switch to bug bounty agent",
-                    "/agent select t1000_hunter",
+                    "/agent select vuln_hunter",
                     "# Test a website",
                     "Test https://example.com for common vulnerabilities",
                 ],
@@ -331,7 +331,7 @@ class QuickstartCommand(Command):
                 "[bold]Network Reconnaissance:[/bold]",
                 [
                     "# Use the red team agent",
-                    "/agent select t800_infiltrator",
+                    "/agent select pentest_agent",
                     "# Scan network",
                     "Scan the network 192.168.1.0/24 for open ports",
                 ],

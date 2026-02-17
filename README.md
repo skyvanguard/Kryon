@@ -27,7 +27,7 @@
 
 KRYON is an open-source platform for building and deploying autonomous AI agents specialized in cybersecurity operations. It combines:
 
-- **Autonomous Agents** - Pre-built agents (Terminator Units) for pentesting, forensics, and security research
+- **Autonomous Agents** - Pre-built security agents for pentesting, forensics, and security research
 - **Multi-Model Support** - Works with 300+ LLMs including GPT-4, Claude, DeepSeek, Llama, and local models via Ollama
 - **Security Tools Integration** - Native integration with nmap, metasploit, nuclei, and 50+ security tools
 - **Agent SDK** - Build your own custom security agents with the KRYON SDK
@@ -83,7 +83,7 @@ ANTHROPIC_API_KEY="sk-ant-..."
 DEEPSEEK_API_KEY="..."
 
 # Optional: Default agent
-KRYON_AGENT=t800_infiltrator
+KRYON_AGENT=pentest_agent
 ```
 
 ---
@@ -99,7 +99,7 @@ kryon
 ### Select an Agent
 
 ```bash
-KRYON> /agent t800_infiltrator
+KRYON> /agent pentest_agent
 ```
 
 ### Run a Security Assessment
@@ -117,18 +117,18 @@ KRYON> Perform comprehensive assessment of target.com
 
 ---
 
-## Agents (Terminator Units)
+## Security Agents
 
 | Agent | Description |
 |-------|-------------|
-| `t800_infiltrator` | System infiltration and exploitation |
-| `t1000_hunter` | Bug hunting and vulnerability research |
-| `t600_scout` | Reconnaissance and enumeration |
+| `pentest_agent` | System infiltration and exploitation |
+| `vuln_hunter` | Bug hunting and vulnerability research |
+| `recon_scout` | Reconnaissance and enumeration |
 | `guardian_protocol` | Defensive security and hardening |
 | `forensic_analyzer` | Incident response and forensics |
-| `hk_aerial` | Network traffic analysis |
-| `neural_extractor` | Memory forensics |
-| `tech_com_reverse` | Reverse engineering |
+| `network_analyst` | Network traffic analysis |
+| `memory_analyst` | Memory forensics |
+| `reverse_engineer` | Reverse engineering |
 | `mobile_infiltrator` | Mobile security testing |
 | `wireless_infiltrator` | WiFi security assessment |
 | `central_core` | Mission coordination |
@@ -182,8 +182,8 @@ See [examples/](examples/) for more.
 
 ```
 kryon/
-├── src/skynet/
-│   ├── agents/          # Terminator units
+├── src/kryon/
+│   ├── agents/          # Security agents
 │   ├── sdk/             # Agent SDK
 │   ├── tools/           # Security tools
 │   ├── repl/            # Interactive CLI

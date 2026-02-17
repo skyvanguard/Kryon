@@ -5,7 +5,7 @@ KRYON File Preparation for Exfiltration
 File compression, encryption, and encoding for secure exfiltration.
 
 Primary Users:
-- T-800 Infiltrator (Alpha-Red)
+- Pentest Agent (Alpha-Red)
 - Forensic Analyzer (Alpha-Platinum)
 """
 

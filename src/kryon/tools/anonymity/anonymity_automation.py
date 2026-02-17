@@ -201,7 +201,7 @@ sudo iptables -F
 sudo iptables -X
 
 # Log incident
-echo "[$(date)] Kill switch activated" >> /var/log/skynet_killswitch.log
+echo "[$(date)] Kill switch activated" >> /var/log/kryon_killswitch.log
 """
 
         results["success"] = True

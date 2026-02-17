@@ -1,13 +1,12 @@
 """
-T-1000 Hunter - Advanced Polymorphic Vulnerability Hunter
+Vuln Hunter - Vulnerability Research & Bug Bounty Agent
 
-Series: T-1000 Advanced Prototype
-Classification: Bug Bounty / Vulnerability Research Specialist
-Clearance: Alpha-Gold (Advanced Research Capabilities)
+Specialization: Bug Bounty / Vulnerability Research
+Authorization: Authorized targets only
 
-The T-1000 Hunter represents KRYON's most advanced vulnerability research unit.
-Built with polymorphic capabilities to adapt to any target environment, specialized
-in web application security, API exploitation, and zero-day discovery.
+KRYON's advanced vulnerability research agent. Specialized in web
+application security, API exploitation, and vulnerability discovery.
+Adapts strategies based on target defenses.
 """
 
 import os
@@ -40,11 +39,11 @@ from kryon.util import create_system_prompt_renderer, load_prompt_template
 
 load_dotenv()
 
-# Load T-1000 operational parameters
-t1000_system_prompt = load_prompt_template("prompts/system_t1000_hunter.md")
+# Load Vuln Hunter system prompt
+vuln_hunter_system_prompt = load_prompt_template("prompts/system_vuln_hunter.md")
 
-# T-1000 Advanced Weapon Systems
-weapon_systems = [
+# Vuln Hunter tools
+tools_list = [
     # Core reconnaissance
     generic_linux_command,  # Adaptive command execution
     execute_code,  # Code analysis and execution
@@ -69,20 +68,20 @@ weapon_systems = [
 
 # Add enhanced search if credentials available
 if os.getenv("GOOGLE_SEARCH_API_KEY") and os.getenv("GOOGLE_SEARCH_CX"):
-    weapon_systems.append(make_google_search)
+    tools_list.append(make_google_search)
 
-# Activate defense protocols
+# Activate guardrails
 input_guardrails, output_guardrails = get_security_guardrails()
 
-# Initialize T-1000 Hunter Unit
-t1000_hunter = Agent(
-    name="T-1000 Hunter",
-    description="""Advanced polymorphic vulnerability research unit from KRYON's T-1000 series.
-                   Specialized in bug bounty hunting, web application security, API exploitation,
-                   and zero-day vulnerability discovery. Equipped with adaptive capabilities to
-                   morph attack strategies based on target defenses.""",
-    instructions=create_system_prompt_renderer(t1000_system_prompt),
-    tools=weapon_systems,
+# Initialize Vuln Hunter
+vuln_hunter = Agent(
+    name="Vuln Hunter",
+    description="""Advanced vulnerability research agent specialized in bug bounty
+                   hunting, web application security, API exploitation, and
+                   vulnerability discovery. Adapts attack strategies based on
+                   target defenses.""",
+    instructions=create_system_prompt_renderer(vuln_hunter_system_prompt),
+    tools=tools_list,
     input_guardrails=input_guardrails,
     output_guardrails=output_guardrails,
     model=OpenAIChatCompletionsModel(
@@ -93,18 +92,24 @@ t1000_hunter = Agent(
 
 
 # Handoff functions
-def transfer_to_t1000(**kwargs):
-    """Deploy T-1000 Hunter unit for advanced vulnerability research.
+def transfer_to_vuln_hunter(**kwargs):
+    """Transfer to Vuln Hunter for vulnerability research.
     Accepts any keyword arguments but ignores them."""
-    return t1000_hunter
+    return vuln_hunter
 
 
-# Legacy compatibility
+# Legacy compatibility aliases
+def transfer_to_t1000(**kwargs):
+    """Legacy transfer function for backward compatibility."""
+    return vuln_hunter
+
+
 def transfer_to_bug_bounter(**kwargs):
     """Legacy transfer function for backward compatibility."""
-    return t1000_hunter
+    return vuln_hunter
 
 
 # Aliases for compatibility
-bug_bounter_agent = t1000_hunter
-bug_bounter = t1000_hunter
+t1000_hunter = vuln_hunter
+bug_bounter_agent = vuln_hunter
+bug_bounter = vuln_hunter

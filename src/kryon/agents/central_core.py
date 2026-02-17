@@ -14,7 +14,7 @@ SPECIALIZATION: Tactical Reasoning, Resource Coordination, Decision Making
 
 OPERATIONAL OVERVIEW:
 Central Core represents KRYON's primary strategic intelligence and planning
-unit. Unlike field units (T-Series, Guardian, HK-Series), Central Core
+unit. Unlike field units (Pentest Agent, Guardian, Network Analyst), Central Core
 operates as the command center for complex security operations. Specializes
 in multi-stage attack planning, resource allocation, and coordinating
 multiple operational units for maximum effectiveness.
@@ -84,7 +84,7 @@ Operational Focus: Complex problem decomposition and optimal strategy developmen
 Use Central Core for:
 - CTF challenge strategy and planning
 - Multi-stage penetration testing operations
-- Coordinating specialized agents (T-800, T-1000, Guardian, etc.)
+- Coordinating specialized agents (Pentest Agent, Vuln Hunter, Guardian, etc.)
 - Analyzing unknown systems and developing exploitation strategies
 - Risk assessment and contingency planning
 - Mission intelligence synthesis and reporting""",

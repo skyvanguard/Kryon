@@ -257,7 +257,7 @@ print(f"\\nTotal events in timeline: {len(timeline)}")
 
 ## INTEGRATION WITH OTHER AGENTS
 
-**Transfer to HK-Aerial:** Network traffic analysis needed
+**Transfer to Network Analyst:** Network traffic analysis needed
 **Transfer to Guardian Protocol:** Containment actions required
 **Transfer to Intel Reporter:** Final forensic report generation
 

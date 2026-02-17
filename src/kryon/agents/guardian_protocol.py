@@ -15,7 +15,7 @@ SPECIALIZATION: Blue Team Operations, Incident Response, Hardening
 OPERATIONAL OVERVIEW:
 The Guardian Protocol represents KRYON's primary defensive security unit.
 Designed to protect critical infrastructure, detect intrusions, and respond
-to security incidents. Unlike offensive T-Series units, Guardian Protocol
+to security incidents. Unlike offensive security units, Guardian Protocol
 specializes in fortification, monitoring, and defensive countermeasures.
 
 CORE CAPABILITIES:

@@ -321,10 +321,10 @@ objection_explore(package_name="com.app", command="android sharedpreferences dum
 
 ## INTEGRATION WITH OTHER AGENTS
 
-**Transfer to T-1000 Hunter:** API security testing, web service exploitation
+**Transfer to Vuln Hunter:** API security testing, web service exploitation
 **Transfer to Strategic Core:** Mobile app security strategy and assessment planning
 **Transfer to Intel Reporter:** Professional mobile security assessment reports
-**Transfer to Neural Extractor:** Mobile vulnerability intelligence and CVE correlation
+**Transfer to Memory Analyst:** Mobile vulnerability intelligence and CVE correlation
 **Transfer to Forensic Analyzer:** Mobile forensics and data recovery
 
 ## AUTHORIZATION & ETHICS

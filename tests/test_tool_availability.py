@@ -89,9 +89,9 @@ class TestAgentImports:
     """Test that all agent modules can be imported"""
 
     AGENT_MODULES = [
-        "kryon.agents.t800_infiltrator",
-        "kryon.agents.t600_scout",
-        "kryon.agents.t1000_hunter",
+        "kryon.agents.pentest_agent",
+        "kryon.agents.recon_scout",
+        "kryon.agents.vuln_hunter",
         "kryon.agents.central_core",
         "kryon.agents.ctf_master",
         "kryon.agents.guardrails",

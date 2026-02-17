@@ -27,9 +27,9 @@ class TestParallelCustomPrompts:
 
     def test_prompt_subcommand_adds_prompt_to_config(self):
         """Test that the prompt subcommand correctly adds a custom prompt to a config."""
-        # Add an agent first (use t800_infiltrator as it's a valid redteam agent)
+        # Add an agent first (use pentest_agent as it's a valid redteam agent)
         with patch("kryon.repl.commands.parallel.console"):
-            self.command.handle_add(["t800_infiltrator"])
+            self.command.handle_add(["pentest_agent"])
 
         # Verify agent was added
         assert len(PARALLEL_CONFIGS) == 1

@@ -11,7 +11,7 @@ Guía de inicio rápido para usar KRYON con Ollama (LLM local) y contenedor Kali
 │   Windows/Mac   │         │  Ollama Server   │         │  Kali Container │
 │   KRYON CLI    │ ───────▶│  qwen2.5:7b      │         │  Security Tools │
 │   Orchestrator  │ ◀───────│  :11434          │         │  nmap, metasploit│
-│   T-800 Agent   │         └──────────────────┘         │  sqlmap, etc.   │
+│   Pentest Agent  │         └──────────────────┘         │  sqlmap, etc.   │
 │                 │ ────────────────────────────────────▶│  :22 (SSH)      │
 └─────────────────┘         Genera decisiones             └─────────────────┘
    Orquestación              autónomas                     Ejecuta comandos
@@ -141,7 +141,7 @@ KRYON_MODEL=qwen2.5:7b
 OPENAI_API_KEY=ollama  # Dummy key requerido
 
 # Agent Configuration
-KRYON_AGENT_TYPE=t800_infiltrator  # Agente ofensivo con autonomía
+KRYON_AGENT_TYPE=pentest_agent  # Agente ofensivo con autonomía
 KRYON_GUARDRAILS=true              # Seguridad habilitada
 KRYON_DEBUG=1                       # Logs informativos
 
@@ -177,17 +177,17 @@ ollama list
 docker ps | grep kryon-kali
 
 # Verificar KRYON import
-python -c "from kryon.agents.t800_infiltrator import t800_infiltrator; print('T-800 READY')"
+python -c "from kryon.agents.pentest_agent import pentest_agent; print('PENTEST AGENT READY')"
 ```
 
-### Lanzar T-800 Infiltrator
+### Lanzar Pentest Agent
 
 ```bash
 # Con variables de entorno cargadas
 kryon
 
 # O especificar directamente
-OPENAI_BASE_URL=http://localhost:11434/v1 KRYON_MODEL=qwen2.5:7b KRYON_AGENT_TYPE=t800_infiltrator kryon
+OPENAI_BASE_URL=http://localhost:11434/v1 KRYON_MODEL=qwen2.5:7b KRYON_AGENT_TYPE=pentest_agent kryon
 ```
 
 ### Ejemplo de Uso - Reconocimiento Autónomo
@@ -197,7 +197,7 @@ Una vez en el REPL de KRYON:
 ```
 You: Necesito reconocer el objetivo 192.168.3.100, es una máquina TryHackMe
 
-[T-800 automáticamente]:
+[Pentest Agent automáticamente]:
 1. Ejecuta nmap con parámetros óptimos
 2. Analiza resultados (extract_credentials, analyze_context)
 3. Busca exploits conocidos (get_learned_recommendations)
@@ -215,7 +215,7 @@ You: Necesito reconocer el objetivo 192.168.3.100, es una máquina TryHackMe
 # scripts/verify_ollama_kali.py
 import os
 import requests
-from kryon.agents.t800_infiltrator import t800_infiltrator
+from kryon.agents.pentest_agent import pentest_agent
 
 def verify_ollama():
     """Verificar Ollama está funcionando"""
@@ -228,15 +228,15 @@ def verify_ollama():
         print("✗ Ollama not accessible")
         return False
 
-def verify_t800():
-    """Verificar T-800 carga correctamente"""
+def verify_pentest_agent():
+    """Verificar Pentest Agent carga correctamente"""
     try:
-        tools = len(t800_infiltrator.tools)
-        model = t800_infiltrator.model.model
-        print(f"✓ T-800 loaded: {tools} tools, model={model}")
+        tools = len(pentest_agent.tools)
+        model = pentest_agent.model.model
+        print(f"✓ Pentest Agent loaded: {tools} tools, model={model}")
         return tools >= 8
     except Exception as e:
-        print(f"✗ T-800 failed: {e}")
+        print(f"✗ Pentest Agent failed: {e}")
         return False
 
 def verify_kali():
@@ -254,7 +254,7 @@ if __name__ == "__main__":
 
     checks = [
         ("Ollama Server", verify_ollama()),
-        ("T-800 Agent", verify_t800()),
+        ("Pentest Agent", verify_pentest_agent()),
         ("Kali Container", verify_kali()),
     ]
 
@@ -275,7 +275,7 @@ python scripts/verify_ollama_kali.py
 
 ---
 
-## Capacidades Autónomas del T-800
+## Capacidades Autónomas del Pentest Agent
 
 ### 1. Learning Engine
 - **Qué hace**: Registra cada operación en SQLite local (`.kryon_knowledge/operations.db`)
@@ -325,7 +325,7 @@ apt-get update
 apt-get install -y nmap metasploit-framework sqlmap nuclei gobuster ffuf
 ```
 
-### Error "No module named 'kryon.agents.t800_infiltrator'"
+### Error "No module named 'kryon.agents.pentest_agent'"
 
 ```bash
 # Reinstalar en modo desarrollo
@@ -388,4 +388,4 @@ Ver: `docs/AUTONOMY_GUIDE.md` para detalles completos del sistema autónomo.
 
 ---
 
-**KRYON T-800 OPERATIONAL** 🤖🔥
+**KRYON PENTEST AGENT OPERATIONAL**

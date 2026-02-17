@@ -659,8 +659,8 @@ class LoadCommand(Command):
         if not args:
             console.print("[red]Error: Agent name required[/red]")
             console.print("Usage: /load agent <agent_name> [jsonl_file]")
-            console.print("Example: /load agent t800_infiltrator")
-            console.print('Example: /load agent "Bug Bounter #1" logs/last')
+            console.print("Example: /load agent pentest_agent")
+            console.print('Example: /load agent "Vuln Hunter #1" logs/last')
             return False
 
         # Parse using same logic as handle_load_to_agent
@@ -900,8 +900,8 @@ class LoadCommand(Command):
         console.print("\n[dim]Usage: /load agent <agent_name> [jsonl_file][/dim]")
         console.print("[dim]       /load <ID> [jsonl_file][/dim]")
         console.print("[dim]       /load load-all [jsonl_file] - Load same messages to all parallel agents[/dim]")
-        console.print("[dim]Example: /load agent t800_infiltrator logs/session_20240101.jsonl[/dim]")
-        console.print('[dim]Example: /load agent "Bug Bounter #1"[/dim]')
+        console.print("[dim]Example: /load agent pentest_agent logs/session_20240101.jsonl[/dim]")
+        console.print('[dim]Example: /load agent "Vuln Hunter #1"[/dim]')
         console.print("[dim]Example: /load P2 logs/last[/dim]")
         console.print("[dim]Example: /load load-all logs/session.jsonl[/dim]")
 

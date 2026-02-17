@@ -18,8 +18,8 @@ def create_generic_agent_factory(
     Create a generic factory function for any agent.
 
     Args:
-        agent_module_path: Full module path to the agent (e.g., 'kryon.agents.t600_scout')
-        agent_var_name: Name of the agent variable in the module (e.g., 't600_scout')
+        agent_module_path: Full module path to the agent (e.g., 'kryon.agents.recon_scout')
+        agent_var_name: Name of the agent variable in the module (e.g., 'recon_scout')
 
     Returns:
         A factory function that creates new instances of the agent

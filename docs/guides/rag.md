@@ -213,10 +213,10 @@ auto_update_knowledge(sources=["exploit-db", "nvd"])
 
 ## Integration with Agents
 
-### Use RAG in T-1000 Hunter
+### Use RAG in Vuln Hunter
 
 ```python
-from kryon.agents import t1000_hunter
+from kryon.agents import vuln_hunter
 from kryon.knowledge import query_knowledge
 
 # Query knowledge for specific service

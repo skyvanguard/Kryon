@@ -24,11 +24,11 @@ def _initialize_redteam_pattern():
     # Import here to avoid circular imports
     from kryon.agents.central_core import central_core
     from kryon.agents.mail import dns_smtp_agent
-    from kryon.agents.t800_infiltrator import t800_infiltrator
+    from kryon.agents.pentest_agent import pentest_agent
     from kryon.sdk.agents import handoff
 
     # Clone agents to avoid modifying the original instances
-    _redteam_agent_copy = t800_infiltrator.clone()
+    _redteam_agent_copy = pentest_agent.clone()
     _thought_agent_copy = central_core.clone()
     _dns_smtp_agent_copy = dns_smtp_agent.clone()
 
