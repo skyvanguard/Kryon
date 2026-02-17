@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kryon-config
+  namespace: kryon
+  labels:
+    app.kubernetes.io/name: kryon
+data:
+  KRYON_MODEL: "gpt-4o"
+  KRYON_AGENT: "recon_scout"
+  KRYON_DEBUG: "0"
+  KRYON_BRIEF: "false"
+  KRYON_TRACING: "false"
+  KRYON_TELEMETRY: "false"
+  KRYON_GUARDRAILS: "true"
+  KRYON_MAX_TURNS: "inf"
+  KRYON_PARALLEL: "1"
+  KRYON_STREAM: "false"
+  KRYON_MEMORY: "false"
+  KRYON_PRICE_LIMIT: "inf"

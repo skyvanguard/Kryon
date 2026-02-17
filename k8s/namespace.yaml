@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kryon
+  labels:
+    app.kubernetes.io/name: kryon
+    app.kubernetes.io/part-of: kryon-platform

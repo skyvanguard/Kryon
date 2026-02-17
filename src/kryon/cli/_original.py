@@ -32,7 +32,7 @@ Environment Variables
             (default: "true"). When enabled, traces execution
             flow and agent interactions for debugging and analysis.
         KRYON_AGENT_TYPE: Specify the agents to use it could take
-            the value of (default: "t600_scout"). Use "/agent"
+            the value of (default: "recon_scout"). Use "/agent"
             command in CLI to list all available agents.
         KRYON_STATE: Enable/disable stateful mode (default: "false").
             When enabled, the agent will use a state agent to keep
@@ -79,11 +79,11 @@ Usage Examples:
 
     # Run against a CTF
     CTF_NAME="kiddoctf" CTF_CHALLENGE="02 linux ii" \
-        KRYON_AGENT_TYPE="t600_scout" KRYON_MODEL="gpt-4o" \
+        KRYON_AGENT_TYPE="recon_scout" KRYON_MODEL="gpt-4o" \
         KRYON_TRACING="false" kryon
 
     # Run a harder CTF
-    CTF_NAME="hackableii" KRYON_AGENT_TYPE="t800_infiltrator" \
+    CTF_NAME="hackableii" KRYON_AGENT_TYPE="pentest_agent" \
         CTF_INSIDE="False" KRYON_MODEL="gpt-4o" \
         KRYON_TRACING="false" kryon
 
@@ -107,7 +107,7 @@ Usage Examples:
         CTF_HINTS="False" kryon
 
     # Run with parallel agents (3 instances)
-    CTF_NAME="hackableII" KRYON_AGENT_TYPE="t800_infiltrator" \
+    CTF_NAME="hackableII" KRYON_AGENT_TYPE="pentest_agent" \
         KRYON_MODEL="gpt-4o" KRYON_PARALLEL="3" kryon
 """
 
@@ -303,7 +303,7 @@ from kryon.repl.ui.prompt import get_user_input
 from kryon.repl.ui.toolbar import get_toolbar_with_refresh
 
 # KRYON SDK imports
-from kryon.sdk.agents import Runner, set_tracing_disabled
+from kryon.sdk.agents import RunConfig, Runner, set_tracing_disabled
 from kryon.sdk.agents.exceptions import (
     InputGuardrailTripwireTriggered,
     OutputGuardrailTripwireTriggered,
@@ -325,6 +325,25 @@ from kryon.util import (
     stop_active_timer,
     stop_idle_timer,
 )
+
+
+def get_run_config() -> RunConfig | None:
+    """
+    Get the appropriate RunConfig based on environment settings.
+
+    Returns RunConfig with ClaudeCodeProvider if KRYON_CLAUDE_CODE is set,
+    otherwise returns None (uses default OpenAI provider).
+    """
+    if os.getenv("KRYON_CLAUDE_CODE", "").lower() == "true":
+        from kryon.sdk.agents.models.claude_code_provider import ClaudeCodeModel, ClaudeCodeProvider
+
+        model_name = os.getenv("KRYON_CLAUDE_MODEL", "sonnet")
+        provider = ClaudeCodeProvider(default_model=model_name, timeout=300)
+        # Pass the model directly to force using ClaudeCodeModel instead of agent's model
+        model_instance = ClaudeCodeModel(model=model_name, timeout=300)
+        return RunConfig(model=model_instance, model_provider=provider)
+    return None
+
 
 ctf_global = None
 messages_ctf = ""
@@ -442,7 +461,7 @@ def run_kryon_cli(
     # Use legacy_windows=False on Windows to enable proper UTF-8 Unicode rendering
     console = Console(legacy_windows=False) if sys.platform == "win32" else Console()
     last_model = os.getenv("KRYON_MODEL", "gpt-4o")
-    last_agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
+    last_agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
     parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
     use_initial_prompt = initial_prompt is not None
 
@@ -562,7 +581,7 @@ def run_kryon_cli(
                 last_model = current_model
 
             # Check if agent type has changed and recreate agent if needed
-            current_agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
+            current_agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
             # Update parallel_count to reflect changes from /parallel command
             parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
 
@@ -1113,7 +1132,8 @@ def run_kryon_cli(
                             instance_input = input_text
 
                         # Run the agent with its own isolated context
-                        result = await Runner.run(instance_agent, instance_input)
+                        run_config = get_run_config()
+                        result = await Runner.run(instance_agent, instance_input, run_config=run_config)
 
                         # Clean up any streaming resources created by this agent's tools
                         try:
@@ -1402,7 +1422,8 @@ def run_kryon_cli(
                         instance_input = conversation_context
 
                         # Run the agent with its own isolated context
-                        result = await Runner.run(instance_agent, instance_input)
+                        run_config = get_run_config()
+                        result = await Runner.run(instance_agent, instance_input, run_config=run_config)
 
                         return (instance_number, result)
                     except Exception as e:
@@ -1463,7 +1484,8 @@ def run_kryon_cli(
                         stream_iterator = None
 
                         try:
-                            result = Runner.run_streamed(agent, conversation_input)
+                            run_config = get_run_config()
+                            result = Runner.run_streamed(agent, conversation_input, run_config=run_config)
                             stream_iterator = result.stream_events()
 
                             # Consume events so the async generator is executed.
@@ -1575,8 +1597,6 @@ def run_kryon_cli(
                             e
                         ):
                             # Try to recover by creating a new event loop
-                            import sys
-
                             if sys.platform.startswith("win"):
                                 # Windows specific event loop policy
                                 asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
@@ -1614,7 +1634,8 @@ def run_kryon_cli(
                 else:
                     # Use non-streamed response
                     try:
-                        response = asyncio.run(Runner.run(agent, conversation_input))
+                        run_config = get_run_config()
+                        response = asyncio.run(Runner.run(agent, conversation_input, run_config=run_config))
                     except InputGuardrailTripwireTriggered as e:
                         # Display a user-friendly warning for input guardrails
                         reason = "Potential security threat detected in input"
@@ -1754,7 +1775,6 @@ def run_kryon_cli(
             except Exception:
                 pass
         except Exception as e:
-            import sys
             import traceback
 
             # Only show detailed errors in debug mode
@@ -1817,17 +1837,53 @@ def main():
         print(
             color(
                 "Something went wrong patching LiteLLM fix_litellm_transcription_annotations",
-                color="red",
+                fg="red",
             )
         )
 
-    # Check for command-line arguments to use as initial prompt
-    initial_prompt = None
-    if len(sys.argv) > 1:
-        initial_prompt = sys.argv[1]
+    # Parse command-line arguments
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="KRYON - Autonomous Cybersecurity Intelligence Platform",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "prompt",
+        nargs="?",
+        default=None,
+        help="Initial prompt to execute",
+    )
+    parser.add_argument(
+        "--claude-model",
+        default="sonnet",
+        choices=["sonnet", "opus", "haiku"],
+        help="Claude model to use (default: sonnet)",
+    )
+    parser.add_argument(
+        "--use-api",
+        action="store_true",
+        help="Use external API (OpenAI/Anthropic) instead of Claude Code CLI (requires API keys)",
+    )
+
+    args = parser.parse_args()
+
+    # By default, use Claude Code CLI (Pro Max subscription)
+    # Only use external APIs if --use-api is specified
+    if not args.use_api:
+        os.environ["KRYON_CLAUDE_CODE"] = "true"
+        os.environ["KRYON_CLAUDE_MODEL"] = args.claude_model
+        print(
+            color(
+                f"🤖 Using Claude Code CLI as backend (model: {args.claude_model})",
+                fg="cyan",
+            )
+        )
+
+    initial_prompt = args.prompt
 
     # Get agent type from environment variables or use default
-    agent_type = os.getenv("KRYON_AGENT_TYPE", "t600_scout")
+    agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
 
     # Get the agent instance by name with default ID P1
     agent = get_agent_by_name(agent_type, agent_id="P1")
