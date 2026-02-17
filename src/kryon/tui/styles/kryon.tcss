@@ -1,0 +1,75 @@
+/* KRYON TUI Stylesheet */
+
+Screen {
+    layout: grid;
+    grid-size: 3 3;
+    grid-columns: 16 1fr 28;
+    grid-rows: 3 1fr 3;
+}
+
+#header {
+    column-span: 3;
+    background: $primary-darken-2;
+    color: $text;
+    text-style: bold;
+    content-align: center middle;
+    padding: 0 1;
+}
+
+#agent-sidebar {
+    row-span: 1;
+    background: $surface;
+    border-right: solid $primary-darken-1;
+    padding: 0;
+}
+
+#agent-sidebar .agent-item {
+    padding: 0 1;
+    height: 1;
+}
+
+#agent-sidebar .agent-item.--highlight {
+    background: $accent;
+    color: $text;
+    text-style: bold;
+}
+
+#chat-panel {
+    row-span: 1;
+    padding: 0 1;
+}
+
+#info-panel {
+    row-span: 1;
+    background: $surface;
+    border-left: solid $primary-darken-1;
+    padding: 0 1;
+}
+
+#input-bar {
+    column-span: 3;
+    height: 3;
+    background: $surface;
+    border-top: solid $primary-darken-1;
+    padding: 0 1;
+}
+
+#prompt-input {
+    width: 1fr;
+}
+
+.section-title {
+    text-style: bold;
+    color: $accent;
+    padding: 0 0 0 0;
+}
+
+#cost-display {
+    height: auto;
+    padding: 0;
+}
+
+#log-display {
+    height: 1fr;
+    padding: 0;
+}
