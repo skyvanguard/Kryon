@@ -1,0 +1,54 @@
+"""Evaluation metrics API endpoints."""
+
+from __future__ import annotations
+
+import json
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from kryon.server.auth import require_api_key
+
+router = APIRouter(tags=["evaluations"], dependencies=[Depends(require_api_key)])
+
+
+@router.get("/evaluations/metrics")
+async def get_metrics(findings_json: str = Query("[]")) -> dict:
+    """Get evaluation metrics for a set of findings."""
+    from kryon.intelligence.models import Finding
+    from kryon.evaluation.dashboard_metrics import DashboardMetrics
+
+    try:
+        raw = json.loads(findings_json)
+        findings = [Finding(**f) for f in raw]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid findings JSON: {e}")
+
+    metrics = DashboardMetrics()
+    return metrics.compute(findings)
+
+
+@router.get("/evaluations/compare")
+async def compare_scans(
+    before_json: str = Query("[]"),
+    after_json: str = Query("[]"),
+) -> dict:
+    """Compare two sets of findings (before/after)."""
+    from kryon.intelligence.models import Finding
+    from kryon.evaluation.comparator import ScanComparator
+
+    try:
+        before = [Finding(**f) for f in json.loads(before_json)]
+        after = [Finding(**f) for f in json.loads(after_json)]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
+
+    comp = ScanComparator()
+    result = comp.compare(before, after)
+    return result.model_dump()
+
+
+@router.get("/profiles")
+async def list_profiles() -> list[dict]:
+    """List available scan profiles."""
+    from kryon.server.profiles import list_profiles
+
+    return list_profiles()

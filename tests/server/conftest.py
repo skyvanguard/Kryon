@@ -1,0 +1,37 @@
+"""Fixtures for server tests."""
+
+import pytest
+
+from kryon.server import ServerConfig, create_app
+
+
+@pytest.fixture
+def server_config():
+    return ServerConfig(api_keys=[])
+
+
+@pytest.fixture
+def app(server_config):
+    return create_app(server_config)
+
+
+@pytest.fixture
+def client(app):
+    from starlette.testclient import TestClient
+
+    with TestClient(app) as c:
+        yield c
+
+
+@pytest.fixture
+def auth_app():
+    config = ServerConfig(api_keys=["test-key-123"])
+    return create_app(config)
+
+
+@pytest.fixture
+def auth_client(auth_app):
+    from starlette.testclient import TestClient
+
+    with TestClient(auth_app) as c:
+        yield c

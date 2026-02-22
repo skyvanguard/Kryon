@@ -1,0 +1,31 @@
+## Legal Disclaimer
+
+KRYON is an AI-powered cybersecurity platform designed for authorized security testing, research, and education.
+
+### Authorized Use Only
+
+This software must only be used against systems you own or have explicit written permission to test. Authorized use cases include:
+
+- Penetration testing with written authorization
+- Bug bounty programs with defined scope
+- CTF competitions and security challenges
+- Security research and education in controlled environments
+
+### No Warranty
+
+The software is provided "as is", without warranty of any kind. The authors and contributors assume no liability for any damages, data loss, or legal consequences arising from its use.
+
+### User Responsibility
+
+- Users are solely responsible for ensuring compliance with all applicable laws
+- Users must validate and test before deploying in any environment
+- This tool is not a substitute for formal security audits or compliance assessments
+- Misuse of this software for unauthorized access is illegal and unethical
+
+### Contributions
+
+To report issues or contribute, use [GitHub Issues](https://github.com/skyvanguard/Kryon/issues).
+
+---
+
+By using or modifying this software, you agree to the terms of the `LICENSE` and this disclaimer.
