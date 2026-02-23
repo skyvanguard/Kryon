@@ -180,7 +180,6 @@ data/
 .kryon_cache/
 src/.kryon_knowledge/
 src/.kryon_cache/
-.skynet_knowledge/
 
 # Serena IDE config
 .serena/
@@ -203,3 +202,6 @@ populate_knowledge_quick.py
 
 # Python 3.13 venv
 .venv313/
+
+# Local docs (not tracked)
+docs/
