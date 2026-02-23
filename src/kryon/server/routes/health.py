@@ -1,8 +1,7 @@
 """Health check endpoint."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
-from kryon.server.auth import require_api_key
 from kryon.server.models import HealthResponse
 
 router = APIRouter(tags=["health"])

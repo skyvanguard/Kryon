@@ -63,6 +63,7 @@ def render_risk_overview(findings: list[Finding]) -> str:
     angle = score / 100 * 180
     rad = 3.14159 * angle / 180
     import math
+
     end_x = 150 + 100 * math.cos(3.14159 - rad)
     end_y = 120 - 100 * math.sin(3.14159 - rad)
     large_arc = 1 if angle > 90 else 0
@@ -95,7 +96,7 @@ def render_risk_overview(findings: list[Finding]) -> str:
             </div>
             <div>
                 <h3 style="color:#eee;">Severity Distribution</h3>
-                {''.join(bars)}
+                {"".join(bars)}
             </div>
         </div>
         <p style="color:#888;font-size:12px;margin-top:10px;">

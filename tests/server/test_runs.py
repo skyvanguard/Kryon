@@ -12,8 +12,11 @@ def test_cancel_run_not_found(client):
 
 
 def test_create_run_invalid_agent(client):
-    resp = client.post("/api/runs", json={
-        "agent_key": "nonexistent_agent_xyz",
-        "input": "hello",
-    })
+    resp = client.post(
+        "/api/runs",
+        json={
+            "agent_key": "nonexistent_agent_xyz",
+            "input": "hello",
+        },
+    )
     assert resp.status_code == 404

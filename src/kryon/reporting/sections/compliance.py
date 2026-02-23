@@ -8,16 +8,25 @@ from kryon.intelligence.models import Finding
 # PCI-DSS v4.0 mapping
 # ---------------------------------------------------------------------------
 PCI_DSS_MAPPING: dict[str, dict] = {
-    "open_ports": {"requirement": "1.1.6", "description": "Justification and documentation for all open ports/services"},
+    "open_ports": {
+        "requirement": "1.1.6",
+        "description": "Justification and documentation for all open ports/services",
+    },
     "weak_ssl": {"requirement": "4.2.1", "description": "Strong cryptography for transmission of cardholder data"},
-    "default_creds": {"requirement": "2.2.2", "description": "Change vendor-supplied defaults before installing on network"},
+    "default_creds": {
+        "requirement": "2.2.2",
+        "description": "Change vendor-supplied defaults before installing on network",
+    },
     "sql_injection": {"requirement": "6.2.4", "description": "Address common coding vulnerabilities — injection flaws"},
     "xss": {"requirement": "6.2.4", "description": "Address common coding vulnerabilities — XSS"},
     "access_control": {"requirement": "7.2.1", "description": "Appropriate access based on business need-to-know"},
     "patch_management": {"requirement": "6.3.3", "description": "Install critical security patches within one month"},
     "logging": {"requirement": "10.2.1", "description": "Audit trails for all access to cardholder data"},
     "network_segmentation": {"requirement": "1.3.1", "description": "Restrict inbound and outbound traffic"},
-    "encryption_at_rest": {"requirement": "3.5.1", "description": "Protect stored account data with strong cryptography"},
+    "encryption_at_rest": {
+        "requirement": "3.5.1",
+        "description": "Protect stored account data with strong cryptography",
+    },
     "weak_password": {"requirement": "8.3.6", "description": "Minimum password complexity requirements"},
     "mfa": {"requirement": "8.4.2", "description": "MFA for all access into the cardholder data environment"},
     "outdated_software": {"requirement": "6.3.1", "description": "Identify and manage security vulnerabilities"},
@@ -119,7 +128,7 @@ def render_compliance_mapping(findings: list[Finding], framework: str) -> str:
         title = "ISO 27001:2022"
         key_label = "Control"
     else:
-        return f'<p>Unknown compliance framework: {framework}</p>'
+        return f"<p>Unknown compliance framework: {framework}</p>"
 
     # Map findings to categories
     category_findings: dict[str, list[Finding]] = {}
@@ -154,7 +163,7 @@ def render_compliance_mapping(findings: list[Finding], framework: str) -> str:
             rows.append(f"""
             <tr class="compliant">
                 <td><code>{ref}</code></td>
-                <td>{info['description']}</td>
+                <td>{info["description"]}</td>
                 <td><span class="sev-badge info">PASS</span></td>
                 <td>0</td>
             </tr>""")
@@ -173,7 +182,7 @@ def render_compliance_mapping(findings: list[Finding], framework: str) -> str:
                 </tr>
             </thead>
             <tbody>
-                {''.join(rows)}
+                {"".join(rows)}
             </tbody>
         </table>
     </div>"""

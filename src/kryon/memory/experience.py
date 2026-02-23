@@ -40,15 +40,11 @@ class ExperienceManager:
 
         lines = [f"Past experience for {agent_key}:"]
         for exp in experiences[:5]:  # Last 5
-            lines.append(
-                f"- Target type: {exp.target_type} | Strategy: {exp.strategy}"
-            )
+            lines.append(f"- Target type: {exp.target_type} | Strategy: {exp.strategy}")
             if exp.tools_effective:
                 lines.append(f"  Effective tools: {', '.join(exp.tools_effective)}")
             if exp.tools_ineffective:
-                lines.append(
-                    f"  Ineffective tools: {', '.join(exp.tools_ineffective)}"
-                )
+                lines.append(f"  Ineffective tools: {', '.join(exp.tools_ineffective)}")
             if exp.notes:
                 lines.append(f"  Notes: {exp.notes}")
         return "\n".join(lines)

@@ -202,9 +202,9 @@ isort = { combine-as-imports = true, known-first-party = ["agents"] }
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["E501", "E402", "F401"]
+"tests/**/*.py" = ["E501", "E402", "F401", "F841"]
 # Files with mathematical formulas/long docstrings
-"src/kryon/agents/*.py" = ["E501"]
+"src/kryon/agents/*.py" = ["E501", "E402"]
 # Files with security tool documentation
 "src/kryon/tools/**/*.py" = ["E501"]
 # Files with UI strings and long messages
@@ -212,10 +212,13 @@ convention = "google"
 "src/kryon/sdk/**/*.py" = ["E501", "E402"]
 "src/kryon/knowledge/**/*.py" = ["E501"]
 "src/kryon/intelligence/**/*.py" = ["E501"]
-"src/kryon/reporting/**/*.py" = ["E501"]
-"src/kryon/server/**/*.py" = ["E501"]
+"src/kryon/reporting/**/*.py" = ["E501", "B904"]
+"src/kryon/server/**/*.py" = ["E501", "B904"]
+"src/kryon/memory/**/*.py" = ["E501"]
+"src/kryon/evaluation/**/*.py" = ["E501"]
+"src/kryon/tui/**/*.py" = ["E501"]
 # Files with intentional late imports (warning config, circular import avoidance)
-"src/kryon/cli/*.py" = ["E402"]
+"src/kryon/cli/*.py" = ["E402", "E501"]
 "src/kryon/util_legacy.py" = ["E402"]
 "src/kryon/agents/hk_aerial.py" = ["E402"]
 "src/kryon/agents/patterns/__init__.py" = ["E402"]

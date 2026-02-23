@@ -6,7 +6,7 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Callable, Coroutine
+from typing import Callable, Coroutine
 
 from pydantic import BaseModel, Field
 
@@ -24,9 +24,7 @@ class ScheduledJob(BaseModel):
     status: str = "scheduled"  # scheduled, running, completed, cancelled
     next_run: str = ""
     last_run: str = ""
-    created_at: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 class ScanScheduler:
@@ -37,9 +35,7 @@ class ScanScheduler:
         self._tasks: dict[str, asyncio.Task] = {}
         self._scan_callback: Callable[..., Coroutine] | None = None
 
-    def set_scan_callback(
-        self, callback: Callable[..., Coroutine]
-    ) -> None:
+    def set_scan_callback(self, callback: Callable[..., Coroutine]) -> None:
         """Set the callback that actually runs a scan."""
         self._scan_callback = callback
 

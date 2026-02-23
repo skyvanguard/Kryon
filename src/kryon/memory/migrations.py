@@ -15,9 +15,7 @@ def run_migrations(conn: sqlite3.Connection, current_version: int) -> int:
     for version in sorted(migrations.keys()):
         if version > current_version:
             conn.executescript(migrations[version])
-            conn.execute(
-                "UPDATE schema_version SET version = ?", (version,)
-            )
+            conn.execute("UPDATE schema_version SET version = ?", (version,))
             conn.commit()
             current_version = version
 

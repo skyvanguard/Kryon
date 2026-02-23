@@ -105,8 +105,7 @@ class ThreatFeedAggregator:
                     "undetected": stats.get("undetected", 0),
                     "total_engines": sum(stats.values()) if stats else 0,
                     "detection_names": list(
-                        attrs.get("popular_threat_classification", {})
-                        .get("suggested_threat_label", [])
+                        attrs.get("popular_threat_classification", {}).get("suggested_threat_label", [])
                     )[:5],
                 }
         except Exception:

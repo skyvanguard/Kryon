@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from kryon.intelligence.models import Finding
 from kryon.evaluation.models import ScanComparison
 from kryon.evaluation.risk_scorer import RiskScorer
+from kryon.intelligence.models import Finding
 
 
 class ScanComparator:

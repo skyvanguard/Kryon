@@ -8,9 +8,7 @@ from kryon.sdk.agents import RunContextWrapper, function_tool
 
 
 @function_tool
-async def map_to_mitre(
-    ctx: RunContextWrapper, finding: str, tool_name: str = ""
-) -> str:
+async def map_to_mitre(ctx: RunContextWrapper, finding: str, tool_name: str = "") -> str:
     """Map a security finding to MITRE ATT&CK techniques.
 
     Args:
@@ -72,9 +70,7 @@ async def check_ioc(ctx: RunContextWrapper, indicator: str) -> str:
 
 
 @function_tool
-async def get_attack_surface_mapping(
-    ctx: RunContextWrapper, findings_json: str
-) -> str:
+async def get_attack_surface_mapping(ctx: RunContextWrapper, findings_json: str) -> str:
     """Generate MITRE ATT&CK coverage map from a list of findings.
 
     Args:

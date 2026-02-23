@@ -56,15 +56,17 @@ class IntelligenceScraper(BaseScraper):
                 f"Description: {info.get('description', '')}\n"
                 f"Platforms: {', '.join(info.get('platforms', []))}"
             )
-            items.append({
-                "content": content,
-                "metadata": {
-                    "source": "mitre-attack",
-                    "technique_id": tid,
-                    "tactic_id": info.get("tactic_id", ""),
-                    "type": "technique",
-                },
-            })
+            items.append(
+                {
+                    "content": content,
+                    "metadata": {
+                        "source": "mitre-attack",
+                        "technique_id": tid,
+                        "tactic_id": info.get("tactic_id", ""),
+                        "type": "technique",
+                    },
+                }
+            )
 
         return items
 
@@ -81,7 +83,7 @@ class IntelligenceScraper(BaseScraper):
             data = json.load(f)
 
         items = []
-        for vuln in data.get("vulnerabilities", [])[:self._max_items]:
+        for vuln in data.get("vulnerabilities", [])[: self._max_items]:
             content = (
                 f"CISA Known Exploited Vulnerability: {vuln.get('cveID', '')}\n"
                 f"Vendor: {vuln.get('vendorProject', '')}\n"
@@ -90,13 +92,15 @@ class IntelligenceScraper(BaseScraper):
                 f"Date Added: {vuln.get('dateAdded', '')}\n"
                 f"Required Action: {vuln.get('requiredAction', '')}"
             )
-            items.append({
-                "content": content,
-                "metadata": {
-                    "source": "cisa-kev",
-                    "cve_id": vuln.get("cveID", ""),
-                    "type": "vulnerability",
-                },
-            })
+            items.append(
+                {
+                    "content": content,
+                    "metadata": {
+                        "source": "cisa-kev",
+                        "cve_id": vuln.get("cveID", ""),
+                        "type": "vulnerability",
+                    },
+                }
+            )
 
         return items

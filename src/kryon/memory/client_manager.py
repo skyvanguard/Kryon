@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from kryon.memory.models import Client, FindingRecord
 from kryon.memory.store import MemoryStore
 
 

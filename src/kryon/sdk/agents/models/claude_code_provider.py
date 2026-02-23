@@ -224,7 +224,7 @@ class ClaudeCodeModel(Model):
         output: list[TResponseOutputItem] = []
 
         # Add tool calls if any
-        for i, tc in enumerate(tool_calls):
+        for _i, tc in enumerate(tool_calls):
             output.append(
                 ResponseFunctionToolCall(
                     type="function_call",

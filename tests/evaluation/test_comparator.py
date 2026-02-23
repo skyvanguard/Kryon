@@ -1,7 +1,7 @@
 """Tests for scan comparator."""
 
-from kryon.intelligence.models import Finding, Severity
 from kryon.evaluation.comparator import ScanComparator
+from kryon.intelligence.models import Finding, Severity
 
 
 def test_compare_no_changes():

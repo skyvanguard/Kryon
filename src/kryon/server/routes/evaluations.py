@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+
 from kryon.server.auth import require_api_key
 
 router = APIRouter(tags=["evaluations"], dependencies=[Depends(require_api_key)])
@@ -13,8 +14,8 @@ router = APIRouter(tags=["evaluations"], dependencies=[Depends(require_api_key)]
 @router.get("/evaluations/metrics")
 async def get_metrics(findings_json: str = Query("[]")) -> dict:
     """Get evaluation metrics for a set of findings."""
-    from kryon.intelligence.models import Finding
     from kryon.evaluation.dashboard_metrics import DashboardMetrics
+    from kryon.intelligence.models import Finding
 
     try:
         raw = json.loads(findings_json)
@@ -32,8 +33,8 @@ async def compare_scans(
     after_json: str = Query("[]"),
 ) -> dict:
     """Compare two sets of findings (before/after)."""
-    from kryon.intelligence.models import Finding
     from kryon.evaluation.comparator import ScanComparator
+    from kryon.intelligence.models import Finding
 
     try:
         before = [Finding(**f) for f in json.loads(before_json)]

@@ -1,5 +1,8 @@
 """KRYON Evaluation Pillar — Metrics, risk scoring, scan comparison."""
 
+from kryon.evaluation.comparator import ScanComparator as ScanComparator
+from kryon.evaluation.confidence import ConfidenceScorer as ConfidenceScorer
+from kryon.evaluation.coverage import CoverageAnalyzer as CoverageAnalyzer
 from kryon.evaluation.models import (
     ConfidenceScore as ConfidenceScore,
     CoverageMetrics as CoverageMetrics,
@@ -7,9 +10,6 @@ from kryon.evaluation.models import (
     ScanComparison as ScanComparison,
 )
 from kryon.evaluation.risk_scorer import RiskScorer as RiskScorer
-from kryon.evaluation.comparator import ScanComparator as ScanComparator
-from kryon.evaluation.coverage import CoverageAnalyzer as CoverageAnalyzer
-from kryon.evaluation.confidence import ConfidenceScorer as ConfidenceScorer
 
 __all__ = [
     "ConfidenceScore",

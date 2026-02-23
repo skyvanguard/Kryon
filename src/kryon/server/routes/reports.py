@@ -31,9 +31,9 @@ class ReportResponse(BaseModel):
 async def generate_report(request: ReportRequest) -> ReportResponse:
     """Generate a security report from findings."""
     from kryon.intelligence.models import Finding
+    from kryon.reporting.export import save_pdf, save_report
     from kryon.reporting.generator import ReportGenerator
     from kryon.reporting.models import ReportConfig, ReportType
-    from kryon.reporting.export import save_report, save_pdf
 
     try:
         raw = json.loads(request.findings_json)

@@ -96,9 +96,7 @@ class MemoryStore:
         cur = conn.execute("SELECT version FROM schema_version LIMIT 1")
         row = cur.fetchone()
         if row is None:
-            conn.execute(
-                "INSERT INTO schema_version (version) VALUES (?)", (_SCHEMA_VERSION,)
-            )
+            conn.execute("INSERT INTO schema_version (version) VALUES (?)", (_SCHEMA_VERSION,))
         conn.commit()
 
     def close(self) -> None:
@@ -113,7 +111,15 @@ class MemoryStore:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO clients (id, name, scope, contact, notes, created_at, tags) VALUES (?,?,?,?,?,?,?)",
-            (client.id, client.name, json.dumps(client.scope), client.contact, client.notes, client.created_at, json.dumps(client.tags)),
+            (
+                client.id,
+                client.name,
+                json.dumps(client.scope),
+                client.contact,
+                client.notes,
+                client.created_at,
+                json.dumps(client.tags),
+            ),
         )
         conn.commit()
         return client
@@ -124,8 +130,12 @@ class MemoryStore:
         if row is None:
             return None
         return Client(
-            id=row["id"], name=row["name"], scope=json.loads(row["scope"]),
-            contact=row["contact"], notes=row["notes"], created_at=row["created_at"],
+            id=row["id"],
+            name=row["name"],
+            scope=json.loads(row["scope"]),
+            contact=row["contact"],
+            notes=row["notes"],
+            created_at=row["created_at"],
             tags=json.loads(row["tags"]),
         )
 
@@ -134,8 +144,12 @@ class MemoryStore:
         rows = conn.execute("SELECT * FROM clients ORDER BY created_at DESC").fetchall()
         return [
             Client(
-                id=r["id"], name=r["name"], scope=json.loads(r["scope"]),
-                contact=r["contact"], notes=r["notes"], created_at=r["created_at"],
+                id=r["id"],
+                name=r["name"],
+                scope=json.loads(r["scope"]),
+                contact=r["contact"],
+                notes=r["notes"],
+                created_at=r["created_at"],
                 tags=json.loads(r["tags"]),
             )
             for r in rows
@@ -155,9 +169,7 @@ class MemoryStore:
         if updates:
             params.append(client_id)
             conn = self._get_conn()
-            conn.execute(
-                f"UPDATE clients SET {', '.join(updates)} WHERE id = ?", params
-            )
+            conn.execute(f"UPDATE clients SET {', '.join(updates)} WHERE id = ?", params)
             conn.commit()
         return self.get_client(client_id)
 
@@ -176,7 +188,17 @@ class MemoryStore:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO scans (id, client_id, agent_key, started_at, completed_at, status, finding_count, risk_score, report_id) VALUES (?,?,?,?,?,?,?,?,?)",
-            (scan.id, scan.client_id, scan.agent_key, scan.started_at, scan.completed_at, scan.status, scan.finding_count, scan.risk_score, scan.report_id),
+            (
+                scan.id,
+                scan.client_id,
+                scan.agent_key,
+                scan.started_at,
+                scan.completed_at,
+                scan.status,
+                scan.finding_count,
+                scan.risk_score,
+                scan.report_id,
+            ),
         )
         conn.commit()
         return scan
@@ -187,10 +209,15 @@ class MemoryStore:
         if row is None:
             return None
         return ScanRecord(
-            id=row["id"], client_id=row["client_id"], agent_key=row["agent_key"],
-            started_at=row["started_at"], completed_at=row["completed_at"],
-            status=row["status"], finding_count=row["finding_count"],
-            risk_score=row["risk_score"], report_id=row["report_id"],
+            id=row["id"],
+            client_id=row["client_id"],
+            agent_key=row["agent_key"],
+            started_at=row["started_at"],
+            completed_at=row["completed_at"],
+            status=row["status"],
+            finding_count=row["finding_count"],
+            risk_score=row["risk_score"],
+            report_id=row["report_id"],
         )
 
     def list_scans(self, client_id: str | None = None) -> list[ScanRecord]:
@@ -203,10 +230,15 @@ class MemoryStore:
             rows = conn.execute("SELECT * FROM scans ORDER BY started_at DESC").fetchall()
         return [
             ScanRecord(
-                id=r["id"], client_id=r["client_id"], agent_key=r["agent_key"],
-                started_at=r["started_at"], completed_at=r["completed_at"],
-                status=r["status"], finding_count=r["finding_count"],
-                risk_score=r["risk_score"], report_id=r["report_id"],
+                id=r["id"],
+                client_id=r["client_id"],
+                agent_key=r["agent_key"],
+                started_at=r["started_at"],
+                completed_at=r["completed_at"],
+                status=r["status"],
+                finding_count=r["finding_count"],
+                risk_score=r["risk_score"],
+                report_id=r["report_id"],
             )
             for r in rows
         ]
@@ -223,9 +255,7 @@ class MemoryStore:
         if updates:
             params.append(scan_id)
             conn = self._get_conn()
-            conn.execute(
-                f"UPDATE scans SET {', '.join(updates)} WHERE id = ?", params
-            )
+            conn.execute(f"UPDATE scans SET {', '.join(updates)} WHERE id = ?", params)
             conn.commit()
         return self.get_scan(scan_id)
 
@@ -236,21 +266,26 @@ class MemoryStore:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO findings (id, scan_id, client_id, finding_json, status, first_seen, last_seen, occurrences) VALUES (?,?,?,?,?,?,?,?)",
-            (finding.id, finding.scan_id, finding.client_id, finding.finding_json, finding.status, finding.first_seen, finding.last_seen, finding.occurrences),
+            (
+                finding.id,
+                finding.scan_id,
+                finding.client_id,
+                finding.finding_json,
+                finding.status,
+                finding.first_seen,
+                finding.last_seen,
+                finding.occurrences,
+            ),
         )
         conn.commit()
         return finding
 
     def get_findings(self, scan_id: str) -> list[FindingRecord]:
         conn = self._get_conn()
-        rows = conn.execute(
-            "SELECT * FROM findings WHERE scan_id = ? ORDER BY first_seen DESC", (scan_id,)
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM findings WHERE scan_id = ? ORDER BY first_seen DESC", (scan_id,)).fetchall()
         return [self._row_to_finding(r) for r in rows]
 
-    def get_client_findings(
-        self, client_id: str, status: str | None = None
-    ) -> list[FindingRecord]:
+    def get_client_findings(self, client_id: str, status: str | None = None) -> list[FindingRecord]:
         conn = self._get_conn()
         if status:
             rows = conn.execute(
@@ -266,9 +301,7 @@ class MemoryStore:
 
     def update_finding_status(self, finding_id: str, status: str) -> bool:
         conn = self._get_conn()
-        cur = conn.execute(
-            "UPDATE findings SET status = ? WHERE id = ?", (status, finding_id)
-        )
+        cur = conn.execute("UPDATE findings SET status = ? WHERE id = ?", (status, finding_id))
         conn.commit()
         return cur.rowcount > 0
 
@@ -287,14 +320,21 @@ class MemoryStore:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO agent_experience (id, agent_key, target_type, strategy, tools_effective, tools_ineffective, notes, timestamp) VALUES (?,?,?,?,?,?,?,?)",
-            (exp.id, exp.agent_key, exp.target_type, exp.strategy, json.dumps(exp.tools_effective), json.dumps(exp.tools_ineffective), exp.notes, exp.timestamp),
+            (
+                exp.id,
+                exp.agent_key,
+                exp.target_type,
+                exp.strategy,
+                json.dumps(exp.tools_effective),
+                json.dumps(exp.tools_ineffective),
+                exp.notes,
+                exp.timestamp,
+            ),
         )
         conn.commit()
         return exp
 
-    def get_experience(
-        self, agent_key: str, target_type: str = ""
-    ) -> list[AgentExperience]:
+    def get_experience(self, agent_key: str, target_type: str = "") -> list[AgentExperience]:
         conn = self._get_conn()
         if target_type:
             rows = conn.execute(
@@ -308,10 +348,14 @@ class MemoryStore:
             ).fetchall()
         return [
             AgentExperience(
-                id=r["id"], agent_key=r["agent_key"], target_type=r["target_type"],
-                strategy=r["strategy"], tools_effective=json.loads(r["tools_effective"]),
+                id=r["id"],
+                agent_key=r["agent_key"],
+                target_type=r["target_type"],
+                strategy=r["strategy"],
+                tools_effective=json.loads(r["tools_effective"]),
                 tools_ineffective=json.loads(r["tools_ineffective"]),
-                notes=r["notes"], timestamp=r["timestamp"],
+                notes=r["notes"],
+                timestamp=r["timestamp"],
             )
             for r in rows
         ]
@@ -321,8 +365,12 @@ class MemoryStore:
     # -----------------------------------------------------------------------
     def _row_to_finding(self, row: sqlite3.Row) -> FindingRecord:
         return FindingRecord(
-            id=row["id"], scan_id=row["scan_id"], client_id=row["client_id"],
-            finding_json=row["finding_json"], status=row["status"],
-            first_seen=row["first_seen"], last_seen=row["last_seen"],
+            id=row["id"],
+            scan_id=row["scan_id"],
+            client_id=row["client_id"],
+            finding_json=row["finding_json"],
+            status=row["status"],
+            first_seen=row["first_seen"],
+            last_seen=row["last_seen"],
             occurrences=row["occurrences"],
         )

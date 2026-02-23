@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from kryon.intelligence.models import Finding
 from kryon.evaluation.models import ConfidenceScore
+from kryon.intelligence.models import Finding
 
 
 class ConfidenceScorer:

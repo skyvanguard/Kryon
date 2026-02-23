@@ -10,7 +10,4 @@ async def html_to_pdf(html: str) -> bytes:
 
         return HTML(string=html).write_pdf()
     except ImportError:
-        raise ImportError(
-            "weasyprint is required for PDF generation. "
-            "Install with: pip install kryon[reporting]"
-        )
+        raise ImportError("weasyprint is required for PDF generation. Install with: pip install kryon[reporting]")

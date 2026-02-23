@@ -17,6 +17,7 @@ def _get_scheduler():
     global _scheduler
     if _scheduler is None:
         from kryon.server.scheduler import ScanScheduler
+
         _scheduler = ScanScheduler()
     return _scheduler
 

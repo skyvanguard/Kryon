@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from kryon.sdk.agents.agent import Agent
     from kryon.sdk.agents.run_context import RunContextWrapper
     from kryon.sdk.agents.tool import Tool
-
     from kryon.tui.app import KryonTUI
 
 

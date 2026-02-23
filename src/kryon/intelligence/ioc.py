@@ -7,9 +7,7 @@ import re
 from kryon.intelligence.models import IoC
 
 # Regex patterns for IoC extraction
-_IPV4_RE = re.compile(
-    r"\b(?:(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\b"
-)
+_IPV4_RE = re.compile(r"\b(?:(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\b")
 _DOMAIN_RE = re.compile(
     r"\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+(?:com|net|org|io|gov|edu|mil|co|info|biz|me|tv|cc|xyz|dev|app|cloud|security|hack|onion)\b"
 )
@@ -20,9 +18,7 @@ _URL_RE = re.compile(r"https?://[^\s<>\"')\]]+")
 _EMAIL_RE = re.compile(r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b")
 
 # Private/reserved IPs to exclude
-_PRIVATE_IP_RE = re.compile(
-    r"^(?:10\.|172\.(?:1[6-9]|2\d|3[01])\.|192\.168\.|127\.|0\.|255\.)"
-)
+_PRIVATE_IP_RE = re.compile(r"^(?:10\.|172\.(?:1[6-9]|2\d|3[01])\.|192\.168\.|127\.|0\.|255\.)")
 
 
 class IoCExtractor:
@@ -110,11 +106,7 @@ class IoCExtractor:
                         ioc = ioc.model_copy(
                             update={
                                 "threat_score": min(score, 1.0),
-                                "tags": (
-                                    ["tor_exit"]
-                                    if result.get("is_tor")
-                                    else []
-                                ),
+                                "tags": (["tor_exit"] if result.get("is_tor") else []),
                             }
                         )
                 elif ioc.type == "domain":

@@ -69,6 +69,4 @@ class Finding(BaseModel):
     evidence: str = ""
     tool_source: str = ""
     remediation: str = ""
-    timestamp: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())

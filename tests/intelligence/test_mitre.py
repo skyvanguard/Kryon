@@ -51,9 +51,7 @@ def test_map_finding_with_tool():
 
 def test_map_finding_deduplicates():
     mapper = MITREMapper()
-    mappings = mapper.map_finding(
-        "nmap port scan discovered open ports", tool_name="nmap"
-    )
+    mappings = mapper.map_finding("nmap port scan discovered open ports", tool_name="nmap")
     ids = [m.technique_id for m in mappings]
     # T1046 should appear only once despite matching both tool and keyword
     assert ids.count("T1046") == 1

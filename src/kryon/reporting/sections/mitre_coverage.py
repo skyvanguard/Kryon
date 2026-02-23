@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from kryon.intelligence.models import Finding, MITREMapping
 
-
 # 14 Enterprise ATT&CK tactics in kill-chain order
 _TACTICS = [
     ("TA0043", "Recon"),
@@ -24,11 +23,11 @@ _TACTICS = [
 ]
 
 _COLORS = {
-    0: "#2d2d2d",     # not covered
-    1: "#4a6741",     # 1 finding
-    2: "#6b8f3c",     # 2-3 findings
-    3: "#c9a227",     # 4-6 findings
-    4: "#c44e52",     # 7+ findings
+    0: "#2d2d2d",  # not covered
+    1: "#4a6741",  # 1 finding
+    2: "#6b8f3c",  # 2-3 findings
+    3: "#c9a227",  # 4-6 findings
+    4: "#c44e52",  # 7+ findings
 }
 
 
@@ -81,7 +80,7 @@ def render_mitre_heatmap(findings: list[Finding]) -> str:
         <strong>{sum(len(s) for s in tactic_techniques.values())}</strong> unique techniques mapped.</p>
         <svg width="{total_w}" height="{total_h}" xmlns="http://www.w3.org/2000/svg"
              style="background: #1a1a1a; border-radius: 8px; padding: 5px;">
-            {''.join(cells)}
+            {"".join(cells)}
         </svg>
         <div class="legend" style="margin-top:10px; font-size:12px; color:#999;">
             <span style="color:#2d2d2d">&#9632;</span> Not covered &nbsp;

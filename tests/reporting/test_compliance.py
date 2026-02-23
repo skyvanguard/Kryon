@@ -2,19 +2,36 @@
 
 from kryon.intelligence.models import Finding, Severity
 from kryon.reporting.sections.compliance import (
-    PCI_DSS_MAPPING,
-    MITIC_MAPPING,
     ISO_27001_MAPPING,
+    MITIC_MAPPING,
+    PCI_DSS_MAPPING,
     render_compliance_mapping,
 )
 
 
 def _make_findings() -> list[Finding]:
     return [
-        Finding(title="SQL Injection", description="SQL injection found", severity=Severity.CRITICAL, affected_asset="x"),
-        Finding(title="Weak SSL", description="TLS 1.0 enabled, weak cipher suites", severity=Severity.HIGH, affected_asset="x"),
-        Finding(title="Default Credentials", description="admin/admin default password", severity=Severity.HIGH, affected_asset="x"),
-        Finding(title="Open Port 3306", description="Port scan reveals open MySQL", severity=Severity.MEDIUM, affected_asset="x"),
+        Finding(
+            title="SQL Injection", description="SQL injection found", severity=Severity.CRITICAL, affected_asset="x"
+        ),
+        Finding(
+            title="Weak SSL",
+            description="TLS 1.0 enabled, weak cipher suites",
+            severity=Severity.HIGH,
+            affected_asset="x",
+        ),
+        Finding(
+            title="Default Credentials",
+            description="admin/admin default password",
+            severity=Severity.HIGH,
+            affected_asset="x",
+        ),
+        Finding(
+            title="Open Port 3306",
+            description="Port scan reveals open MySQL",
+            severity=Severity.MEDIUM,
+            affected_asset="x",
+        ),
     ]
 
 

@@ -56,7 +56,7 @@ class KryonTUI(App):
 
     def on_mount(self) -> None:
         """Initialize agents on mount."""
-        from kryon.agents import get_available_agents, get_agent_by_name
+        from kryon.agents import get_available_agents
 
         self._agents = get_available_agents()
 
@@ -129,9 +129,7 @@ class KryonTUI(App):
 
         try:
             loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(
-                Runner.run(self._current_agent, input=input_items, max_turns=10)
-            )
+            result = loop.run_until_complete(Runner.run(self._current_agent, input=input_items, max_turns=10))
             loop.close()
 
             output = result.final_output or ""

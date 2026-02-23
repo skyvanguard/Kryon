@@ -15,9 +15,7 @@ def render_findings_table(findings: list[Finding], include_evidence: bool = True
     for i, f in enumerate(sorted_findings, 1):
         mitre_tags = ""
         if f.mitre:
-            tags = " ".join(
-                f'<span class="mitre-tag">{m.technique_id}</span>' for m in f.mitre[:3]
-            )
+            tags = " ".join(f'<span class="mitre-tag">{m.technique_id}</span>' for m in f.mitre[:3])
             mitre_tags = tags
 
         cve_str = f.cve.cve_id if f.cve else "-"
@@ -38,7 +36,7 @@ def render_findings_table(findings: list[Finding], include_evidence: bool = True
                 <td>{mitre_tags}</td>
                 <td>{_escape(f.tool_source)}</td>
                 {evidence_cell}
-                <td>{_escape(f.remediation[:200]) if f.remediation else '-'}</td>
+                <td>{_escape(f.remediation[:200]) if f.remediation else "-"}</td>
             </tr>""")
 
     evidence_header = "<th>Evidence</th>" if include_evidence else ""
@@ -62,7 +60,7 @@ def render_findings_table(findings: list[Finding], include_evidence: bool = True
                 </tr>
             </thead>
             <tbody>
-                {''.join(rows)}
+                {"".join(rows)}
             </tbody>
         </table>
     </div>"""
@@ -70,9 +68,4 @@ def render_findings_table(findings: list[Finding], include_evidence: bool = True
 
 def _escape(text: str) -> str:
     """Escape HTML special characters."""
-    return (
-        text.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")

@@ -297,7 +297,9 @@ async def test_file_search_tool_call_parsed_correctly():
 async def test_function_web_search_tool_call_parsed_correctly():
     agent = Agent(name="test")
     web_search_call = ResponseFunctionWebSearch(
-        id="w1", status="completed", type="web_search_call",
+        id="w1",
+        status="completed",
+        type="web_search_call",
         action={"type": "search", "query": "test"},
     )
     response = ModelResponse(

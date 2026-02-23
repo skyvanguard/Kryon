@@ -30,9 +30,7 @@ class Job(BaseModel):
     status: JobStatus = JobStatus.QUEUED
     result: str = ""
     error: str = ""
-    created_at: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     started_at: str = ""
     completed_at: str = ""
 

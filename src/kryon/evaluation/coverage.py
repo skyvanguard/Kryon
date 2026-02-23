@@ -2,20 +2,16 @@
 
 from __future__ import annotations
 
-from kryon.intelligence.models import Finding
 from kryon.evaluation.models import CoverageMetrics
+from kryon.intelligence.models import Finding
 
 
 class CoverageAnalyzer:
     """Calculate attack surface coverage from findings."""
 
-    def analyze(
-        self, findings: list[Finding], total_assets: int = 0
-    ) -> CoverageMetrics:
+    def analyze(self, findings: list[Finding], total_assets: int = 0) -> CoverageMetrics:
         """Calculate coverage metrics from findings."""
         assets_seen = {f.affected_asset for f in findings}
-        tools_used = {f.tool_source for f in findings if f.tool_source}
-
         # MITRE coverage
         tactics_seen: set[str] = set()
         techniques_seen: set[str] = set()

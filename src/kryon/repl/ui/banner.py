@@ -20,6 +20,7 @@ if sys.platform == "win32":
     try:
         # Enable UTF-8 mode for Windows console
         import ctypes
+
         kernel32 = ctypes.windll.kernel32
         kernel32.SetConsoleOutputCP(65001)  # UTF-8 code page
         kernel32.SetConsoleCP(65001)  # Input code page

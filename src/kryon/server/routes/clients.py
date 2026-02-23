@@ -17,12 +17,14 @@ def _get_store():
     global _store
     if _store is None:
         from kryon.memory.store import MemoryStore
+
         _store = MemoryStore()
     return _store
 
 
 def _get_manager():
     from kryon.memory.client_manager import ClientManager
+
     return ClientManager(_get_store())
 
 

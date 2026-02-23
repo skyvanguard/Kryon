@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from kryon.intelligence.models import Finding
-from kryon.evaluation.risk_scorer import RiskScorer
-from kryon.evaluation.coverage import CoverageAnalyzer
 from kryon.evaluation.confidence import ConfidenceScorer
+from kryon.evaluation.coverage import CoverageAnalyzer
+from kryon.evaluation.risk_scorer import RiskScorer
+from kryon.intelligence.models import Finding
 
 
 class DashboardMetrics:
@@ -22,9 +22,7 @@ class DashboardMetrics:
         coverage = self._coverage.analyze(findings, total_assets)
         confidences = self._confidence.score_batch(findings)
 
-        avg_confidence = (
-            sum(c.score for c in confidences) / len(confidences) if confidences else 0.0
-        )
+        avg_confidence = sum(c.score for c in confidences) / len(confidences) if confidences else 0.0
 
         return {
             "risk_score": risk.total_score,

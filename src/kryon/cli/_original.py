@@ -1867,7 +1867,9 @@ def main():
     # --- report subcommand ---
     report_parser = subparsers.add_parser("report", help="Generate a security report")
     report_parser.add_argument("--findings", default=None, help="Path to findings JSON file")
-    report_parser.add_argument("--type", default="technical", choices=["executive", "technical", "compliance"], help="Report type")
+    report_parser.add_argument(
+        "--type", default="technical", choices=["executive", "technical", "compliance"], help="Report type"
+    )
     report_parser.add_argument("--format", default="html", choices=["html", "pdf"], help="Output format")
     report_parser.add_argument("--client", default="", help="Client name")
     report_parser.add_argument("--scope", default="", help="Target scope")
@@ -1954,10 +1956,10 @@ def main():
         import asyncio
         import json as json_mod
 
+        from kryon.intelligence.models import Finding
+        from kryon.reporting.export import save_pdf, save_report
         from kryon.reporting.generator import ReportGenerator
         from kryon.reporting.models import ReportConfig, ReportType
-        from kryon.reporting.export import save_report, save_pdf
-        from kryon.intelligence.models import Finding
 
         findings = []
         if args.findings:
@@ -1991,9 +1993,9 @@ def main():
 
     # --- Handle client subcommand ---
     if args.command == "client":
-        from kryon.memory.store import MemoryStore
         from kryon.memory.client_manager import ClientManager
         from kryon.memory.models import Client
+        from kryon.memory.store import MemoryStore
 
         store = MemoryStore()
         manager = ClientManager(store)
@@ -2013,10 +2015,12 @@ def main():
         elif args.client_action == "progress":
             progress = manager.get_client_progress(args.client_id)
             import json as json_mod
+
             print(json_mod.dumps(progress, indent=2))
         elif args.client_action == "timeline":
             timeline = manager.get_client_timeline(args.client_id)
             import json as json_mod
+
             print(json_mod.dumps(timeline, indent=2))
         else:
             client_parser.print_help()

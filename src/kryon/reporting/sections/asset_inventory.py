@@ -27,7 +27,7 @@ def render_asset_inventory(findings: list[Finding]) -> str:
         rows.append(f"""
             <tr>
                 <td><code>{asset}</code></td>
-                <td>{info['count']}</td>
+                <td>{info["count"]}</td>
                 <td><span class="sev-badge {worst}">{worst.upper()}</span></td>
                 <td>{tools}</td>
             </tr>""")
@@ -46,7 +46,7 @@ def render_asset_inventory(findings: list[Finding]) -> str:
                 </tr>
             </thead>
             <tbody>
-                {''.join(rows)}
+                {"".join(rows)}
             </tbody>
         </table>
     </div>"""

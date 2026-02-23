@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from kryon.intelligence.models import Finding, Severity
 from kryon.evaluation.models import RiskScore
+from kryon.intelligence.models import Finding, Severity
 
 _SEVERITY_WEIGHTS = {
     Severity.CRITICAL: 10.0,

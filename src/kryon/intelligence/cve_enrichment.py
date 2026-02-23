@@ -63,9 +63,7 @@ class CVEEnricher:
                 data = resp.json().get("data", [])
                 if data:
                     entry = data[0]
-                    return float(entry.get("epss", 0)), float(
-                        entry.get("percentile", 0)
-                    )
+                    return float(entry.get("epss", 0)), float(entry.get("percentile", 0))
         except Exception:
             logger.debug("EPSS lookup failed for %s", cve_id, exc_info=True)
         return None, None

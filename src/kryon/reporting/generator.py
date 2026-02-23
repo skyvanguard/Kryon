@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 import logging
-import string
 from pathlib import Path
 
 from kryon.intelligence.mitre import MITREMapper
 from kryon.intelligence.models import Finding
-from kryon.reporting.models import ReportConfig, ReportData, ReportSection, ReportType
+from kryon.reporting.models import ReportConfig, ReportType
+from kryon.reporting.sections.asset_inventory import render_asset_inventory
+from kryon.reporting.sections.compliance import render_compliance_mapping
 from kryon.reporting.sections.executive_summary import render_executive_summary
 from kryon.reporting.sections.findings_table import render_findings_table
 from kryon.reporting.sections.mitre_coverage import render_mitre_heatmap
-from kryon.reporting.sections.risk_overview import render_risk_overview, calculate_risk_score
-from kryon.reporting.sections.asset_inventory import render_asset_inventory
-from kryon.reporting.sections.compliance import render_compliance_mapping
+from kryon.reporting.sections.risk_overview import render_risk_overview
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +38,7 @@ class ReportGenerator:
         sections: list[str] = []
 
         if config.report_type in (ReportType.EXECUTIVE, ReportType.TECHNICAL):
-            sections.append(
-                render_executive_summary(findings, config.client_name, config.target_scope)
-            )
+            sections.append(render_executive_summary(findings, config.client_name, config.target_scope))
 
         sections.append(render_risk_overview(findings))
 
@@ -90,10 +87,7 @@ class ReportGenerator:
 
             return HTML(string=html).write_pdf()
         except ImportError:
-            raise ImportError(
-                "weasyprint is required for PDF generation. "
-                "Install with: pip install kryon[reporting]"
-            )
+            raise ImportError("weasyprint is required for PDF generation. Install with: pip install kryon[reporting]")
 
     def _render_template(self, **kwargs: str) -> str:
         """Render the base HTML template with string.Template (no jinja2 dep)."""
@@ -102,6 +96,7 @@ class ReportGenerator:
             raw = template_path.read_text(encoding="utf-8")
             # Simple Jinja2-like replacement using regex
             import re
+
             result = raw
             for key, value in kwargs.items():
                 # Replace {{ key }} patterns
@@ -112,5 +107,5 @@ class ReportGenerator:
 
         # Fallback minimal template
         return f"""<!DOCTYPE html>
-<html><head><title>{kwargs.get('title', 'Report')}</title></head>
-<body>{kwargs.get('content', '')}</body></html>"""
+<html><head><title>{kwargs.get("title", "Report")}</title></head>
+<body>{kwargs.get("content", "")}</body></html>"""

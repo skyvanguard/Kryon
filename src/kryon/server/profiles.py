@@ -38,7 +38,4 @@ def get_profile(name: str) -> dict | None:
 
 def list_profiles() -> list[dict]:
     """List all available scan profiles."""
-    return [
-        {"name": k, **v}
-        for k, v in SCAN_PROFILES.items()
-    ]
+    return [{"name": k, **v} for k, v in SCAN_PROFILES.items()]

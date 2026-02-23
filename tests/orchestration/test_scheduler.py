@@ -52,9 +52,7 @@ async def test_scan_callback():
         executed.append(kwargs)
 
     scheduler.set_scan_callback(mock_callback)
-    job_id = await scheduler.schedule_scan(
-        client_id="c1", agent_key="a1", interval_seconds=0
-    )
+    job_id = await scheduler.schedule_scan(client_id="c1", agent_key="a1", interval_seconds=0)
     # Wait for one-shot to complete
     await asyncio.sleep(0.2)
     assert len(executed) == 1

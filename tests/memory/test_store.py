@@ -20,6 +20,7 @@ def store(tmp_path):
 
 # --- Client CRUD ---
 
+
 def test_create_and_get_client(store):
     client = Client(name="Test Corp", scope=["192.168.1.0/24"], tags=["pyme"])
     store.create_client(client)
@@ -57,6 +58,7 @@ def test_get_nonexistent_client(store):
 
 # --- Scan Records ---
 
+
 def test_create_and_get_scan(store):
     client = Client(name="C")
     store.create_client(client)
@@ -91,6 +93,7 @@ def test_update_scan(store):
 
 
 # --- Findings ---
+
 
 def test_save_and_get_findings(store):
     client = Client(name="C")
@@ -131,6 +134,7 @@ def test_update_finding_status(store):
 
 
 # --- Agent Experience ---
+
 
 def test_save_and_get_experience(store):
     exp = AgentExperience(

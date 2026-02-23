@@ -1,7 +1,7 @@
 """Tests for risk scorer."""
 
-from kryon.intelligence.models import CVEDetail, Finding, MITREMapping, Severity
 from kryon.evaluation.risk_scorer import RiskScorer
+from kryon.intelligence.models import CVEDetail, Finding, MITREMapping, Severity
 
 
 def _make_findings():
@@ -59,8 +59,7 @@ def test_score_boost_epss():
 def test_top_risks_limit():
     scorer = RiskScorer()
     findings = [
-        Finding(title=f"Crit {i}", description="", severity=Severity.CRITICAL, affected_asset="x")
-        for i in range(10)
+        Finding(title=f"Crit {i}", description="", severity=Severity.CRITICAL, affected_asset="x") for i in range(10)
     ]
     result = scorer.score_findings(findings)
     assert len(result.top_risks) <= 5

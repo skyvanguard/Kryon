@@ -16,9 +16,7 @@ class FindingTracker:
     def __init__(self, store: MemoryStore):
         self.store = store
 
-    def record_findings(
-        self, findings: list[Finding], scan_id: str, client_id: str
-    ) -> list[FindingRecord]:
+    def record_findings(self, findings: list[Finding], scan_id: str, client_id: str) -> list[FindingRecord]:
         """Record findings from a scan, deduplicating against existing records."""
         existing = self.store.get_client_findings(client_id)
         existing_keys = {self._finding_key(f): f for f in existing}

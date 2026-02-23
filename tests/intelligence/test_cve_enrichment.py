@@ -16,9 +16,7 @@ def enricher():
 @pytest.mark.asyncio
 async def test_get_epss_success(enricher):
     mock_response = MagicMock()
-    mock_response.json.return_value = {
-        "data": [{"cve": "CVE-2024-12345", "epss": "0.75", "percentile": "0.95"}]
-    }
+    mock_response.json.return_value = {"data": [{"cve": "CVE-2024-12345", "epss": "0.75", "percentile": "0.95"}]}
     mock_response.raise_for_status = MagicMock()
 
     with patch("httpx.AsyncClient") as mock_client:
@@ -70,9 +68,7 @@ async def test_enrich_batch(enricher):
 
     with patch.object(enricher, "get_epss", return_value=(0.5, 0.8)):
         with patch.object(enricher, "check_exploit_db", return_value=[]):
-            results = await enricher.enrich_batch(
-                ["CVE-2024-11111", "CVE-2024-22222"]
-            )
+            results = await enricher.enrich_batch(["CVE-2024-11111", "CVE-2024-22222"])
 
     assert len(results) == 2
     assert results[0].cve_id == "CVE-2024-11111"

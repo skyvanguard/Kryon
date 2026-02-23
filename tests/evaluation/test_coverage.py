@@ -1,21 +1,39 @@
 """Tests for coverage analyzer."""
 
-from kryon.intelligence.models import Finding, MITREMapping, Severity
 from kryon.evaluation.coverage import CoverageAnalyzer
+from kryon.intelligence.models import Finding, MITREMapping, Severity
 
 
 def test_coverage_basic():
     analyzer = CoverageAnalyzer()
     findings = [
         Finding(
-            title="A", description="x", severity=Severity.HIGH,
-            affected_asset="192.168.1.1", tool_source="nmap",
-            mitre=[MITREMapping(tactic="Discovery", tactic_id="TA0007", technique="T1046", technique_id="T1046", confidence=0.9)],
+            title="A",
+            description="x",
+            severity=Severity.HIGH,
+            affected_asset="192.168.1.1",
+            tool_source="nmap",
+            mitre=[
+                MITREMapping(
+                    tactic="Discovery", tactic_id="TA0007", technique="T1046", technique_id="T1046", confidence=0.9
+                )
+            ],
         ),
         Finding(
-            title="B", description="y", severity=Severity.MEDIUM,
-            affected_asset="192.168.1.2", tool_source="nuclei",
-            mitre=[MITREMapping(tactic="Initial Access", tactic_id="TA0001", technique="T1190", technique_id="T1190", confidence=0.85)],
+            title="B",
+            description="y",
+            severity=Severity.MEDIUM,
+            affected_asset="192.168.1.2",
+            tool_source="nuclei",
+            mitre=[
+                MITREMapping(
+                    tactic="Initial Access",
+                    tactic_id="TA0001",
+                    technique="T1190",
+                    technique_id="T1190",
+                    confidence=0.85,
+                )
+            ],
         ),
     ]
     metrics = analyzer.analyze(findings)
