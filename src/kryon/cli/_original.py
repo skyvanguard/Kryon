@@ -1887,6 +1887,22 @@ def main():
     client_timeline_parser = client_sub.add_parser("timeline", help="Show client timeline")
     client_timeline_parser.add_argument("client_id", help="Client ID")
 
+    # --- auto-scan subcommand ---
+    autoscan_parser = subparsers.add_parser("auto-scan", help="Autonomous enterprise pentest")
+    autoscan_parser.add_argument("target", help="Scope: CIDR, IP, or comma-separated list")
+    autoscan_parser.add_argument(
+        "--profile",
+        default="standard",
+        choices=["quick", "standard", "deep", "compliance", "enterprise_quick", "enterprise_standard", "enterprise_deep", "enterprise_compliance"],
+        help="Scan profile (default: standard)",
+    )
+    autoscan_parser.add_argument("--client", default="", help="Client name/ID")
+    autoscan_parser.add_argument("--max-time", type=float, default=4.0, help="Max scan time in hours (default: 4)")
+    autoscan_parser.add_argument("--stealth", default="normal", choices=["low", "normal", "high"], help="Stealth level")
+    autoscan_parser.add_argument("--output", default=None, help="Report output path")
+    autoscan_parser.add_argument("--format", dest="report_format", default="html", choices=["html", "pdf", "json"], help="Report format")
+    autoscan_parser.add_argument("--compliance", action="append", default=[], help="Compliance framework (repeatable)")
+
     # --- default (REPL) arguments ---
     parser.add_argument(
         "prompt",
@@ -2026,6 +2042,70 @@ def main():
             client_parser.print_help()
 
         store.close()
+        return
+
+    # --- Handle auto-scan subcommand ---
+    if args.command == "auto-scan":
+        import asyncio
+
+        from kryon.providers.rate_limiter import RateLimiter
+        from kryon.tools.autonomous.enterprise_orchestrator import EnterpriseOrchestrator
+
+        # Auto-detect provider for rate limiting
+        rate_limiter = RateLimiter.detect_provider()
+
+        base_url = os.getenv("OPENAI_BASE_URL", "")
+        provider = "Groq" if "groq" in base_url.lower() else "Ollama" if "localhost" in base_url else "OpenAI"
+        model = os.getenv("KRYON_MODEL", "gpt-4o")
+        print(color(f"Provider: {provider} ({model})", fg="cyan"))
+        print(color(f"Target: {args.target}", fg="cyan"))
+        print(color(f"Profile: {args.profile} | Max time: {args.max_time}h | Stealth: {args.stealth}", fg="cyan"))
+        if args.client:
+            print(color(f"Client: {args.client}", fg="cyan"))
+        print()
+
+        def progress_callback(progress):
+            status_colors = {
+                "initializing": "yellow",
+                "recon": "cyan",
+                "vuln_scan": "blue",
+                "exploitation": "red",
+                "reporting": "magenta",
+                "completed": "green",
+                "failed": "red",
+            }
+            fg = status_colors.get(progress.status, "white")
+            # Print latest log message
+            if progress.log_messages:
+                latest = progress.log_messages[-1]
+                print(color(f"  [{progress.status.upper()}] {latest}", fg=fg))
+
+        orch = EnterpriseOrchestrator(
+            scope=args.target,
+            client_name=args.client,
+            profile=args.profile,
+            max_time_hours=args.max_time,
+            stealth_level=args.stealth,
+            rate_limiter=rate_limiter,
+            progress_callback=progress_callback,
+            output_format=args.report_format,
+            output_path=args.output,
+            compliance_frameworks=args.compliance,
+        )
+
+        print(color("Starting autonomous scan...\n", fg="green"))
+        result = asyncio.run(orch.run())
+        print()
+
+        if result["status"] == "completed":
+            print(color("Scan completed successfully!", fg="green"))
+            print(f"  Findings: {result['findings_count']} ({result['critical_count']} critical, {result['high_count']} high)")
+            if result.get("report_path"):
+                print(f"  Report: {result['report_path']}")
+        else:
+            print(color(f"Scan failed: {result.get('error', 'unknown')}", fg="red"))
+
+        print(f"  Elapsed: {result['elapsed_seconds']:.1f}s")
         return
 
     # --- Default: REPL mode ---

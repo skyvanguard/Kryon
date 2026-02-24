@@ -87,5 +87,50 @@ class DailyUsage(BaseModel):
     total_requests: int
 
 
+# --- Auto-Scan ---
+
+
+class AutoScanRequest(BaseModel):
+    targets: list[str] = Field(..., description="List of targets (IPs, CIDRs, hostnames)")
+    profile: str = Field("standard", description="Scan profile name")
+    client_id: str = Field("", description="Client ID or name")
+    max_time_hours: float = Field(4.0, ge=0.1, le=24.0, description="Max scan duration in hours")
+    stealth_level: str = Field("normal", description="Stealth level: low, normal, high")
+    output_format: str = Field("html", description="Report format: html, pdf, json")
+    compliance_frameworks: list[str] = Field(default_factory=list, description="Compliance frameworks")
+
+
+class AutoScanResponse(BaseModel):
+    scan_id: str
+    status: str
+    message: str = ""
+
+
+class AutoScanStatus(BaseModel):
+    scan_id: str
+    status: str
+    phase_progress: float = 0.0
+    hosts_discovered: int = 0
+    hosts_scanned: int = 0
+    findings_count: int = 0
+    critical_count: int = 0
+    high_count: int = 0
+    elapsed_seconds: float = 0.0
+    log_messages: list[str] = Field(default_factory=list)
+    report_path: Optional[str] = None
+    error: Optional[str] = None
+
+
+class AutoScanFinding(BaseModel):
+    id: str
+    title: str
+    severity: str
+    affected_asset: str
+    description: str = ""
+    cvss_score: Optional[float] = None
+    tool_source: str = ""
+    remediation: str = ""
+
+
 class ErrorResponse(BaseModel):
     detail: str
