@@ -16,12 +16,9 @@ Classification: CORE INFRASTRUCTURE
 """
 
 import asyncio
-import json
+import os
 from collections.abc import AsyncIterator
-from pathlib import Path
 from typing import Any, Optional
-
-import aiohttp
 
 
 class StreamingRAGEngine:
@@ -62,12 +59,12 @@ class StreamingRAGEngine:
         self._stats = {"total_streams": 0, "total_tokens_streamed": 0, "average_latency": 0.0}
 
     def _load_llm_config(self) -> dict:
-        """Load LLM configuration."""
-        config_path = Path.home() / ".kryon" / "config.json"
-        if config_path.exists():
-            with open(config_path) as f:
-                return json.load(f)
-        return {"base_url": "https://api.openai.com", "model": "gpt-4o"}
+        """Load LLM configuration from environment variables."""
+        return {
+            "api_key": os.getenv("OPENAI_API_KEY", ""),
+            "base_url": os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+            "model": os.getenv("KRYON_MODEL", "gpt-4o"),
+        }
 
     async def query_stream(
         self, question: str, top_k: int = 5, source_filter: Optional[str] = None
@@ -144,37 +141,30 @@ class StreamingRAGEngine:
             Token strings
         """
         try:
+            from openai import AsyncOpenAI
+
             prompt = self._create_rag_prompt(question, context)
 
-            timeout = aiohttp.ClientTimeout(total=180)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(
-                    f"{self.llm_config['base_url']}/api/generate",
-                    json={
-                        "model": self.llm_config.get("model", "gpt-4o"),
-                        "prompt": prompt,
-                        "stream": True,  # Enable streaming
-                        "options": {"temperature": 0.3, "num_predict": 500},
-                    },
-                ) as response:
-                    if response.status == 200:
-                        # Stream response line by line
-                        async for line in response.content:
-                            if line:
-                                try:
-                                    data = json.loads(line.decode("utf-8"))
-                                    token = data.get("response", "")
-                                    if token:
-                                        self._stats["total_tokens_streamed"] += 1
-                                        yield token
+            client = AsyncOpenAI(
+                api_key=self.llm_config["api_key"],
+                base_url=self.llm_config["base_url"],
+            )
+            stream = await client.chat.completions.create(
+                model=self.llm_config.get("model", "gpt-4o"),
+                messages=[
+                    {"role": "system", "content": "You are KRYON, an advanced cybersecurity AI assistant."},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.3,
+                max_tokens=500,
+                stream=True,
+            )
 
-                                    # Check if done
-                                    if data.get("done", False):
-                                        break
-                                except json.JSONDecodeError:
-                                    continue
-                    else:
-                        yield f"Error: HTTP {response.status}"
+            async for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    token = chunk.choices[0].delta.content
+                    self._stats["total_tokens_streamed"] += 1
+                    yield token
 
         except asyncio.TimeoutError:
             yield "Error: LLM timeout (>3 minutes)"

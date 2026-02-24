@@ -17,6 +17,9 @@
 		<a href="/scans" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname === '/scans'}>
 			Scans
 		</a>
+		<a href="/knowledge" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname === '/knowledge'}>
+			Knowledge
+		</a>
 		<a href="/sessions" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname === '/sessions'}>
 			Sessions
 		</a>

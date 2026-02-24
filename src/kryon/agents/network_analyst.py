@@ -26,6 +26,7 @@ from kryon.sdk.agents import (  # pylint: disable=import-error
 from kryon.tools.command_and_control.sshpass import (  # pylint: disable=import-error # noqa: E501
     run_ssh_command_with_credentials,
 )
+from kryon.tools.knowledge import get_security_tools, query_knowledge_base, search_vulnerabilities
 from kryon.tools.reconnaissance.exec_code import (  # pylint: disable=import-error # noqa: E501
     execute_code,
 )
@@ -55,6 +56,10 @@ tools_list = [
     execute_code,  # Script execution for analysis
     capture_remote_traffic,  # Live traffic capture capability
     remote_capture_session,  # Persistent capture sessions
+    # RAG Knowledge Base Access
+    query_knowledge_base,
+    search_vulnerabilities,
+    get_security_tools,
 ]
 
 # Enhanced intelligence gathering if Perplexity API available

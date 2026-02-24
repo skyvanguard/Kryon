@@ -22,6 +22,7 @@ from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel  # pylint: disabl
 from kryon.tools.command_and_control.sshpass import (  # pylint: disable=import-error # noqa: E501
     run_ssh_command_with_credentials,
 )
+from kryon.tools.knowledge import get_exploit_techniques, query_knowledge_base
 from kryon.tools.reconnaissance.exec_code import (  # pylint: disable=import-error # noqa: E501
     execute_code,
 )
@@ -43,6 +44,9 @@ tools_list = [
     generic_linux_command,  # System operations for memory access
     run_ssh_command_with_credentials,  # Remote system access
     execute_code,  # Script execution for analysis tools
+    # RAG Knowledge Base Access
+    query_knowledge_base,
+    get_exploit_techniques,
 ]
 
 # Enhanced intelligence gathering if Perplexity API available

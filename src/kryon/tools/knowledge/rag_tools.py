@@ -19,7 +19,7 @@ if str(_src_path) not in sys.path:
 
 
 def query_knowledge_base(
-    question: str, top_k: int = 3, source_filter: Optional[str] = None, use_llm: bool = True
+    question: str, top_k: int = 3, source_filter: Optional[str] = None, use_llm: bool = False
 ) -> dict[str, Any]:
     """
     Query the KRYON knowledge base with RAG.
@@ -178,7 +178,7 @@ def get_exploit_techniques(attack_type: str, platform: Optional[str] = None, max
             query += f" on {platform}"
 
         # Query with LLM for summary
-        result = query_knowledge(question=query, top_k=max_results, use_llm=True)
+        result = query_knowledge(question=query, top_k=max_results, use_llm=False)
 
         techniques = []
         for src in result["sources"]:

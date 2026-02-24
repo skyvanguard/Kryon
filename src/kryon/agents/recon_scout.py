@@ -15,6 +15,7 @@ from openai import AsyncOpenAI
 
 from kryon.agents.guardrails import get_security_guardrails
 from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel
+from kryon.tools.knowledge import query_knowledge_base, search_vulnerabilities
 from kryon.tools.reconnaissance.generic_linux_command import generic_linux_command
 from kryon.util import create_system_prompt_renderer
 
@@ -64,6 +65,9 @@ recon_scout = Agent(
     instructions=create_system_prompt_renderer(instructions),
     tools=[
         generic_linux_command,  # Primary reconnaissance tool
+        # RAG Knowledge Base Access
+        query_knowledge_base,
+        search_vulnerabilities,
     ],
     input_guardrails=input_guardrails,
     output_guardrails=output_guardrails,

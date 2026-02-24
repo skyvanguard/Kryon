@@ -17,12 +17,9 @@ Classification: RESTRICTED
 """
 
 import asyncio
-import json
+import os
 import time
-from pathlib import Path
 from typing import Any, Optional
-
-import aiohttp
 
 
 class AsyncRAGEngine:
@@ -89,12 +86,12 @@ class AsyncRAGEngine:
         }
 
     def _load_llm_config(self) -> dict:
-        """Load LLM configuration."""
-        config_path = Path.home() / ".kryon" / "config.json"
-        if config_path.exists():
-            with open(config_path) as f:
-                return json.load(f)
-        return {"base_url": "https://api.openai.com", "model": "gpt-4o"}
+        """Load LLM configuration from environment variables."""
+        return {
+            "api_key": os.getenv("OPENAI_API_KEY", ""),
+            "base_url": os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+            "model": os.getenv("KRYON_MODEL", "gpt-4o"),
+        }
 
     async def query(
         self,
@@ -257,45 +254,38 @@ class AsyncRAGEngine:
             self._stats["parallel_llm_calls"] += 1
 
             try:
+                from openai import AsyncOpenAI
+
                 start_time = time.time()
                 prompt = self._create_rag_prompt(question, context)
 
-                # Async HTTP call to LLM
-                timeout = aiohttp.ClientTimeout(total=180)  # 3 minutes
-                async with aiohttp.ClientSession(timeout=timeout) as session:
-                    async with session.post(
-                        f"{self.llm_config['base_url']}/api/generate",
-                        json={
-                            "model": self.llm_config.get("model", "gpt-4o"),
-                            "prompt": prompt,
-                            "stream": False,
-                            "options": {"temperature": 0.3, "num_predict": 500},
-                        },
-                    ) as response:
-                        generation_time = time.time() - start_time
+                client = AsyncOpenAI(
+                    api_key=self.llm_config["api_key"],
+                    base_url=self.llm_config["base_url"],
+                )
+                response = await client.chat.completions.create(
+                    model=self.llm_config.get("model", "gpt-4o"),
+                    messages=[
+                        {"role": "system", "content": "You are KRYON, an advanced cybersecurity AI assistant."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.3,
+                    max_tokens=500,
+                )
 
-                        if response.status == 200:
-                            data = await response.json()
-                            answer = data.get("response", "")
+                generation_time = time.time() - start_time
+                answer = response.choices[0].message.content or ""
 
-                            # Cache the response
-                            cache_llm_response(
-                                query=question,
-                                context=context,
-                                answer=answer,
-                                generation_time=generation_time,
-                            )
+                # Cache the response
+                cache_llm_response(
+                    query=question,
+                    context=context,
+                    answer=answer,
+                    generation_time=generation_time,
+                )
 
-                            return answer
-                        else:
-                            error_msg = f"LLM error: HTTP {response.status}"
-                            cache_llm_response(question, context, error_msg, generation_time, ttl=300)
-                            return error_msg
+                return answer
 
-            except asyncio.TimeoutError:
-                error_msg = "Error: LLM timeout (>3 minutes)"
-                cache_llm_response(question, context, error_msg, 0.0, ttl=300)
-                return error_msg
             except Exception as e:
                 error_msg = f"Error generating answer: {str(e)}"
                 cache_llm_response(question, context, error_msg, 0.0, ttl=300)

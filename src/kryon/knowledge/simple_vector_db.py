@@ -284,12 +284,11 @@ class VectorDatabase:
         try:
             # Try ChromaDB first
             import chromadb
-            from chromadb.config import Settings
 
             persist_path = Path(persist_directory)
             persist_path.mkdir(parents=True, exist_ok=True)
 
-            self._client = chromadb.Client(Settings(persist_directory=str(persist_path), anonymized_telemetry=False))
+            self._client = chromadb.PersistentClient(path=str(persist_path))
 
             self._collection = self._client.get_or_create_collection(
                 name="kryon_knowledge", metadata={"description": "KRYON knowledge base"}
@@ -380,9 +379,9 @@ class VectorDatabase:
         if self.backend_type == "chromadb":
             stats = {"total_documents": self.count(), "backend_type": "chromadb"}
             if self.count() > 0:
-                sample = self.backend.get(limit=100)
+                all_docs = self.backend.get(limit=self.count())
                 sources = {}
-                for metadata in sample["metadatas"]:
+                for metadata in all_docs["metadatas"]:
                     source = metadata.get("source", "unknown")
                     sources[source] = sources.get(source, 0) + 1
                 stats["sources"] = sources

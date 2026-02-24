@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from kryon.server.auth import configure_auth
 from kryon.server.config import ServerConfig
-from kryon.server.routes import agents, clients, evaluations, health, reports, runs, scans, usage
+from kryon.server.routes import agents, clients, evaluations, health, knowledge, reports, runs, scans, usage
 from kryon.server.sessions import SessionManager
 
 
@@ -54,6 +54,7 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
     app.include_router(clients.router, prefix="/api")
     app.include_router(evaluations.router, prefix="/api")
     app.include_router(scans.router, prefix="/api")
+    app.include_router(knowledge.router, prefix="/api")
 
     # Serve dashboard static files if the build directory exists
     dashboard_build = Path(__file__).resolve().parent.parent.parent.parent / "dashboard" / "build"
