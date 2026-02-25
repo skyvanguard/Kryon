@@ -34,6 +34,7 @@ class AgentSummary(BaseModel):
     key: str
     name: str
     description: str | None = None
+    category: str = "agent"
 
 
 class AgentDetail(AgentSummary):

@@ -90,72 +90,95 @@ model = os.environ.get("KRYON_MODEL", "gpt-4o")
 PATTERNS = ["hierarchical", "swarm", "chain_of_thought", "auction_based", "recursive"]
 
 
-def get_available_agents() -> dict[str, Agent]:  # pylint: disable=R0912  # noqa
+def get_available_agents(include_patterns: bool = True) -> dict[str, Agent]:  # pylint: disable=R0912  # noqa
     """
     Get a dictionary of all available agents compiled
     from the kryon/agents folder.
 
+    Deduplicates aliases (multiple variable names pointing to the same
+    Agent object) and filters out sub-agents.
+
+    Args:
+        include_patterns: Whether to include agentic patterns in the result.
+
     Returns:
         Dictionary mapping agent names to Agent instances
     """
-    agents_to_display = {}
-
-    # Import all agents from the agents folder
+    # Phase 1: Collect all Agent instances from agent modules
+    raw_agents = {}
     for _, name, _ in pkgutil.iter_modules(__path__, __name__ + "."):
         try:
             module = importlib.import_module(name)
-            # Look for Agent instances in the module
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
                 if isinstance(attr, Agent) and not attr_name.startswith("_"):
-                    if attr_name not in agents_to_display:
-                        agents_to_display[attr_name] = attr
+                    raw_agents[attr_name] = attr
         except (ImportError, AttributeError):
             pass
 
-    # Also check the patterns subdirectory
-    patterns_path = os.path.join(os.path.dirname(__file__), "patterns")
-    if os.path.exists(patterns_path) and os.path.isdir(patterns_path):  # pylint: disable=R1702  # noqa
-        for _, name, _ in pkgutil.iter_modules([patterns_path], __name__ + ".patterns."):
-            try:
-                module = importlib.import_module(name)
-                # Look for Agent instances in the patterns module
-                for attr_name in dir(module):
-                    attr = getattr(module, attr_name)
-                    if isinstance(attr, Agent) and not attr_name.startswith("_"):
-                        # Only include agents that have a .pattern attribute (swarm patterns)
-                        # Skip regular agents without pattern attribute
-                        if not hasattr(attr, "pattern"):
-                            continue
-                        if attr_name not in agents_to_display:
-                            agents_to_display[attr_name] = attr
-            except (ImportError, AttributeError):
-                pass
+    # Phase 2: Deduplicate by id() — when multiple names reference the
+    # same Agent object (legacy aliases), keep only the canonical name.
+    seen_ids: dict[int, str] = {}  # id(agent) -> best key
+    for key, agent in raw_agents.items():
+        aid = id(agent)
+        if aid not in seen_ids:
+            seen_ids[aid] = key
+        else:
+            # Prefer the key that matches agent.name in snake_case
+            canonical = getattr(agent, "name", "").lower().replace(" ", "_")
+            if key == canonical:
+                seen_ids[aid] = key
 
-    # Add all patterns (parallel, swarm, etc.) as pseudo-agents
-    from kryon.agents.patterns import PATTERNS
+    # Phase 3: Build deduplicated dict, filtering sub-agents
+    agents_to_display = {}
+    for aid, key in seen_ids.items():
+        agent = raw_agents[key]
+        desc = (getattr(agent, "description", "") or "").lower()
+        # Filter out sub-agents (embedded helper agents inside other agents)
+        if "sub-unit" in desc or "sub-agent" in desc:
+            continue
+        agents_to_display[key] = agent
 
-    for pattern_name, pattern_obj in PATTERNS.items():
-        # Create a pseudo-agent object for the pattern
-        class PatternAgent:
-            def __init__(self, pattern):
-                self.name = pattern.name
-                self.description = pattern.description
-                # Get the string value of the enum
-                if hasattr(pattern.type, "value"):
-                    self.pattern_type = pattern.type.value
-                else:
-                    self.pattern_type = str(pattern.type)
-                self._pattern = pattern
-                # Add minimal attributes to avoid AttributeError
-                self.instructions = f"Pattern: {pattern.description}"
-                self.tools = []
-                self.handoffs = []
-                self.model = None
-                self.output_type = None
+    # Phase 4: Optionally add patterns
+    if include_patterns:
+        # Check the patterns subdirectory for swarm agents
+        patterns_path = os.path.join(os.path.dirname(__file__), "patterns")
+        if os.path.exists(patterns_path) and os.path.isdir(patterns_path):  # pylint: disable=R1702  # noqa
+            for _, name, _ in pkgutil.iter_modules([patterns_path], __name__ + ".patterns."):
+                try:
+                    module = importlib.import_module(name)
+                    for attr_name in dir(module):
+                        attr = getattr(module, attr_name)
+                        if isinstance(attr, Agent) and not attr_name.startswith("_"):
+                            if not hasattr(attr, "pattern"):
+                                continue
+                            if attr_name not in agents_to_display:
+                                agents_to_display[attr_name] = attr
+                except (ImportError, AttributeError):
+                    pass
 
-        pseudo_agent = PatternAgent(pattern_obj)
-        agents_to_display[pattern_name] = pseudo_agent
+        # Add all patterns (parallel, swarm, etc.) as pseudo-agents
+        from kryon.agents.patterns import PATTERNS
+
+        for pattern_name, pattern_obj in PATTERNS.items():
+            class PatternAgent:
+                def __init__(self, pattern):
+                    self.name = pattern.name
+                    self.description = pattern.description
+                    if hasattr(pattern.type, "value"):
+                        self.pattern_type = pattern.type.value
+                    else:
+                        self.pattern_type = str(pattern.type)
+                    self.category = "pattern"
+                    self._pattern = pattern
+                    self.instructions = f"Pattern: {pattern.description}"
+                    self.tools = []
+                    self.handoffs = []
+                    self.model = None
+                    self.output_type = None
+
+            pseudo_agent = PatternAgent(pattern_obj)
+            agents_to_display[pattern_name] = pseudo_agent
 
     return agents_to_display
 

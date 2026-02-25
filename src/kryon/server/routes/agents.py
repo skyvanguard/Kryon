@@ -37,18 +37,22 @@ def _agent_model(agent) -> str | None:
 
 @router.get("/agents", response_model=list[AgentSummary])
 async def list_agents() -> list[AgentSummary]:
-    """List all available agents."""
+    """List all available agents (deduplicated, no aliases)."""
     from kryon.agents import get_available_agents
 
     agents = get_available_agents()
-    return [
-        AgentSummary(
-            key=key,
-            name=getattr(agent, "name", key),
-            description=getattr(agent, "description", None),
+    result = []
+    for key, agent in sorted(agents.items()):
+        category = "pattern" if hasattr(agent, "pattern_type") else "agent"
+        result.append(
+            AgentSummary(
+                key=key,
+                name=getattr(agent, "name", key),
+                description=getattr(agent, "description", None),
+                category=category,
+            )
         )
-        for key, agent in sorted(agents.items())
-    ]
+    return result
 
 
 @router.get("/agents/{key}", response_model=AgentDetail)
