@@ -1921,6 +1921,17 @@ def main():
         action="store_true",
         help="Use external API (OpenAI/Anthropic) instead of Claude Code CLI (requires API keys)",
     )
+    parser.add_argument(
+        "--no-dashboard",
+        action="store_true",
+        help="Do not start the dashboard/API server in the background",
+    )
+    parser.add_argument(
+        "--dashboard-port",
+        type=int,
+        default=8700,
+        help="Dashboard/API server port (default: 8700)",
+    )
 
     args = parser.parse_args()
 
@@ -2109,6 +2120,33 @@ def main():
         return
 
     # --- Default: REPL mode ---
+
+    # Start dashboard/API server in background (unless --no-dashboard)
+    _dashboard_thread = None
+    if not getattr(args, "no_dashboard", False):
+        try:
+            import threading
+
+            import uvicorn
+
+            from kryon.server import ServerConfig, create_app
+
+            dashboard_port = getattr(args, "dashboard_port", 8700)
+            config = ServerConfig(host="127.0.0.1", port=dashboard_port, api_keys=[])
+            _uvicorn_server = uvicorn.Server(uvicorn.Config(
+                create_app(config),
+                host=config.host,
+                port=config.port,
+                log_level="warning",
+            ))
+
+            _dashboard_thread = threading.Thread(target=_uvicorn_server.run, daemon=True)
+            _dashboard_thread.start()
+            print(color(f"Dashboard running at http://127.0.0.1:{dashboard_port}", fg="cyan"))
+        except ImportError:
+            pass  # server deps not installed, skip silently
+        except Exception as e:
+            print(color(f"Dashboard failed to start: {e}", fg="yellow"))
 
     # By default, use Claude Code CLI (Pro Max subscription)
     # Only use external APIs if --use-api is specified
