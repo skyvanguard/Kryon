@@ -1917,9 +1917,10 @@ def main():
         help="Claude model to use (default: sonnet)",
     )
     parser.add_argument(
-        "--use-api",
+        "--claude-code",
         action="store_true",
-        help="Use external API (OpenAI/Anthropic) instead of Claude Code CLI (requires API keys)",
+        dest="use_api",
+        help="Use Claude Code CLI as backend instead of API (Groq/OpenAI)",
     )
     parser.add_argument(
         "--no-dashboard",
@@ -2148,17 +2149,22 @@ def main():
         except Exception as e:
             print(color(f"Dashboard failed to start: {e}", fg="yellow"))
 
-    # By default, use Claude Code CLI (Pro Max subscription)
-    # Only use external APIs if --use-api is specified
-    if not args.use_api:
+    # By default, use external API (Groq/OpenAI via OPENAI_API_KEY)
+    # Only use Claude Code CLI if --claude-code is specified
+    if args.use_api:
         os.environ["KRYON_CLAUDE_CODE"] = "true"
         os.environ["KRYON_CLAUDE_MODEL"] = args.claude_model
         print(
             color(
-                f"🤖 Using Claude Code CLI as backend (model: {args.claude_model})",
+                f"Using Claude Code CLI as backend (model: {args.claude_model})",
                 fg="cyan",
             )
         )
+    else:
+        model = os.getenv("KRYON_MODEL", "gpt-4o")
+        base_url = os.getenv("OPENAI_BASE_URL", "")
+        provider = "Groq" if "groq" in base_url else "OpenAI" if not base_url else base_url.split("/")[2]
+        print(color(f"Using {provider} API as backend (model: {model})", fg="cyan"))
 
     initial_prompt = args.prompt
 
