@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
+import logging
 from datetime import datetime, timezone
 
+logger = logging.getLogger(__name__)
+
 from kryon.engagements.executor import execute_phase
+
+__all__ = ["EngagementManager"]
 from kryon.engagements.models import (
     Engagement,
     EngagementStatus,
@@ -20,12 +24,24 @@ from kryon.memory.store import MemoryStore
 class EngagementManager:
     """Orchestrates multi-day pentesting engagements."""
 
+    _SSE_QUEUE_MAXSIZE = 200
+
     def __init__(self, store: MemoryStore | None = None):
         self._store = store or MemoryStore()
         self._active_tasks: dict[str, asyncio.Task] = {}
         self._progress_queues: dict[str, asyncio.Queue] = {}
         self._resume_events: dict[str, asyncio.Event] = {}
         self._rate_limiter = None
+
+    @property
+    def store(self) -> MemoryStore:
+        return self._store
+
+    def cancel_all_tasks(self):
+        """Cancel all active engagement tasks."""
+        for task in self._active_tasks.values():
+            task.cancel()
+        self._active_tasks.clear()
 
     def _get_rate_limiter(self):
         if self._rate_limiter is None:
@@ -100,7 +116,7 @@ class EngagementManager:
 
                 task = asyncio.create_task(self._run_engagement(eng.id))
                 self._active_tasks[eng.id] = task
-                print(f"[engagements] Resumed engagement {eng.id} ({eng.client_name})", file=sys.stderr)
+                logger.info("Resumed engagement %s (%s)", eng.id, eng.client_name)
 
     # ------------------------------------------------------------------
     # Main execution loop
@@ -214,7 +230,7 @@ class EngagementManager:
 
     def get_progress_queue(self, engagement_id: str) -> asyncio.Queue:
         if engagement_id not in self._progress_queues:
-            self._progress_queues[engagement_id] = asyncio.Queue(maxsize=200)
+            self._progress_queues[engagement_id] = asyncio.Queue(maxsize=self._SSE_QUEUE_MAXSIZE)
         return self._progress_queues[engagement_id]
 
     def _emit_event(self, engagement_id: str, event_type: str, data: dict):

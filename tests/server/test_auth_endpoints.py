@@ -39,8 +39,8 @@ def jwt_app_and_client(tmp_path, monkeypatch):
     config = ServerConfig(api_keys=[], jwt_secret="test-jwt-secret-key-for-testing-32c")
     app = create_app(config)
 
-    import kryon.server.routes.clients as clients_mod
-    monkeypatch.setattr(clients_mod, "_store", store)
+    import kryon.server.deps as deps_mod
+    monkeypatch.setattr(deps_mod, "_store", store)
 
     with TestClient(app) as c:
         yield c, user, store

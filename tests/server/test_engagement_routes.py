@@ -61,7 +61,7 @@ class TestListEngagements:
         with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
             from kryon.engagements.models import Engagement
 
-            mock_mgr.return_value._store.list_engagements.return_value = [
+            mock_mgr.return_value.store.list_engagements.return_value = [
                 Engagement(client_name="A", targets=["1.1.1.1"]),
                 Engagement(client_name="B", targets=["2.2.2.2"]),
             ]
@@ -78,8 +78,8 @@ class TestGetEngagement:
             from kryon.engagements.models import Engagement
 
             eng = Engagement(client_name="Test", targets=["10.0.0.1"])
-            mock_mgr.return_value._store.get_engagement.return_value = eng
-            mock_mgr.return_value._store.get_engagement_phases.return_value = []
+            mock_mgr.return_value.store.get_engagement.return_value = eng
+            mock_mgr.return_value.store.get_engagement_phases.return_value = []
 
             resp = client.get(f"/api/v1/engagements/{eng.id}", headers=headers)
             assert resp.status_code == 200
@@ -89,7 +89,7 @@ class TestGetEngagement:
 
     def test_get_not_found(self, client, headers):
         with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
-            mock_mgr.return_value._store.get_engagement.return_value = None
+            mock_mgr.return_value.store.get_engagement.return_value = None
 
             resp = client.get("/api/v1/engagements/nonexistent", headers=headers)
             assert resp.status_code == 404
@@ -98,10 +98,10 @@ class TestGetEngagement:
 class TestPauseResume:
     def test_pause(self, client, headers):
         with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
-            from kryon.engagements.models import Engagement
+            from kryon.engagements.models import Engagement, EngagementStatus
 
-            eng = Engagement(client_name="Test", targets=["10.0.0.1"])
-            mock_mgr.return_value._store.get_engagement.return_value = eng
+            eng = Engagement(client_name="Test", targets=["10.0.0.1"], status=EngagementStatus.ACTIVE)
+            mock_mgr.return_value.store.get_engagement.return_value = eng
             mock_mgr.return_value.pause_engagement = AsyncMock()
 
             resp = client.post(f"/api/v1/engagements/{eng.id}/pause", headers=headers)
@@ -110,10 +110,10 @@ class TestPauseResume:
 
     def test_resume(self, client, headers):
         with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
-            from kryon.engagements.models import Engagement
+            from kryon.engagements.models import Engagement, EngagementStatus
 
-            eng = Engagement(client_name="Test", targets=["10.0.0.1"])
-            mock_mgr.return_value._store.get_engagement.return_value = eng
+            eng = Engagement(client_name="Test", targets=["10.0.0.1"], status=EngagementStatus.PAUSED)
+            mock_mgr.return_value.store.get_engagement.return_value = eng
             mock_mgr.return_value.resume_engagement = AsyncMock()
 
             resp = client.post(f"/api/v1/engagements/{eng.id}/resume", headers=headers)
@@ -127,7 +127,7 @@ class TestCancelEngagement:
             from kryon.engagements.models import Engagement
 
             eng = Engagement(client_name="Test", targets=["10.0.0.1"])
-            mock_mgr.return_value._store.get_engagement.return_value = eng
+            mock_mgr.return_value.store.get_engagement.return_value = eng
             mock_mgr.return_value.cancel_engagement = AsyncMock()
 
             resp = client.delete(f"/api/v1/engagements/{eng.id}", headers=headers)
@@ -136,7 +136,7 @@ class TestCancelEngagement:
 
     def test_cancel_not_found(self, client, headers):
         with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
-            mock_mgr.return_value._store.get_engagement.return_value = None
+            mock_mgr.return_value.store.get_engagement.return_value = None
 
             resp = client.delete("/api/v1/engagements/nonexistent", headers=headers)
             assert resp.status_code == 404

@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from kryon.server.auth import require_api_key
+from kryon.server.deps import get_scheduler
 from kryon.server.models import (
     AutoScanFinding,
     AutoScanRequest,
@@ -23,22 +24,9 @@ router = APIRouter(tags=["scans"], dependencies=[Depends(require_api_key)])
 # Scheduled scans (existing)
 # ---------------------------------------------------------------------------
 
-import threading
-
-# Lazy singleton scheduler (thread-safe)
-_scheduler = None
-_scheduler_lock = threading.Lock()
-
 
 def _get_scheduler():
-    global _scheduler
-    if _scheduler is None:
-        with _scheduler_lock:
-            if _scheduler is None:
-                from kryon.server.scheduler import ScanScheduler
-
-                _scheduler = ScanScheduler()
-    return _scheduler
+    return get_scheduler()
 
 
 class ScheduleScanRequest(BaseModel):
@@ -98,11 +86,23 @@ async def cancel_scan(job_id: str) -> dict:
 
 # In-memory registry of running/completed auto-scans
 _auto_scans: dict[str, dict] = {}  # scan_id -> {"orchestrator": ..., "task": ..., "progress": ...}
+_AUTO_SCANS_MAX = 50
+
+
+def _cleanup_completed_scans() -> None:
+    """Remove completed/failed scan entries when the registry grows too large."""
+    if len(_auto_scans) <= _AUTO_SCANS_MAX:
+        return
+    done_ids = [sid for sid, entry in _auto_scans.items() if entry["task"].done()]
+    for sid in done_ids:
+        _auto_scans.pop(sid, None)
 
 
 @router.post("/scans/auto", response_model=AutoScanResponse)
 async def start_auto_scan(req: AutoScanRequest) -> AutoScanResponse:
     """Start an autonomous enterprise pentest in the background."""
+    _cleanup_completed_scans()
+
     from kryon.providers.rate_limiter import RateLimiter
     from kryon.tools.autonomous.enterprise_orchestrator import EnterpriseOrchestrator
 
@@ -209,7 +209,7 @@ async def get_auto_scan_findings(scan_id: str) -> list[AutoScanFinding]:
             tool_source=f.tool_source,
             remediation=f.remediation,
         )
-        for f in orch._findings
+        for f in orch.findings
     ]
 
 
@@ -223,5 +223,6 @@ async def cancel_auto_scan(scan_id: str) -> dict:
     task = entry["task"]
     if not task.done():
         task.cancel()
+    _auto_scans.pop(scan_id, None)
 
     return {"scan_id": scan_id, "status": "cancelled"}

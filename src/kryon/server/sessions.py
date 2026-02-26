@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -16,7 +16,7 @@ class ServerSession:
     session_id: str
     agent_key: str
     agent: Any  # Agent instance
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     messages: list[dict[str, Any]] = field(default_factory=list)
     input_history: list[Any] = field(default_factory=list)
 

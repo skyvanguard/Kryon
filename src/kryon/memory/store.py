@@ -13,6 +13,22 @@ _DEFAULT_DB = Path.home() / ".kryon" / "kryon.db"
 
 _SCHEMA_VERSION = 1
 
+# Column whitelists for update methods to prevent SQL injection
+_CLIENT_COLUMNS = {"name", "scope", "contact", "notes", "tags", "owner_user_id"}
+_SCAN_COLUMNS = {"status", "completed_at", "finding_count", "risk_score", "report_id", "agent_key"}
+_ENGAGEMENT_COLUMNS = {
+    "client_name", "targets", "objectives", "duration_days", "status", "plan_json",
+    "current_phase_id", "total_findings", "critical_findings", "high_findings",
+    "risk_score", "started_at", "completed_at", "paused_at", "error",
+    "stealth_level", "profile", "phase_interval_minutes",
+}
+_ENGAGEMENT_PHASE_COLUMNS = {
+    "phase_type", "day_number", "order_index", "status", "agent_key", "scan_id",
+    "targets_subset", "config_json", "findings_count", "progress",
+    "started_at", "completed_at", "error", "checkpoint_json", "log_messages",
+}
+_USER_COLUMNS = {"username", "email", "password_hash", "role", "is_active", "last_login"}
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY
@@ -222,12 +238,15 @@ class MemoryStore:
         ]
 
     def update_client(self, client_id: str, **kwargs: str) -> Client | None:
+        """Update client fields. Only keys in _CLIENT_COLUMNS are accepted."""
         client = self.get_client(client_id)
         if client is None:
             return None
         updates = []
         params = []
         for key, value in kwargs.items():
+            if key not in _CLIENT_COLUMNS:
+                continue
             if key in ("scope", "tags"):
                 value = json.dumps(value)
             updates.append(f"{key} = ?")
@@ -310,12 +329,15 @@ class MemoryStore:
         ]
 
     def update_scan(self, scan_id: str, **kwargs) -> ScanRecord | None:
+        """Update scan fields. Only keys in _SCAN_COLUMNS are accepted."""
         scan = self.get_scan(scan_id)
         if scan is None:
             return None
         updates = []
         params = []
         for key, value in kwargs.items():
+            if key not in _SCAN_COLUMNS:
+                continue
             updates.append(f"{key} = ?")
             params.append(value)
         if updates:
@@ -465,12 +487,15 @@ class MemoryStore:
         return [self._row_to_engagement(r) for r in rows]
 
     def update_engagement(self, engagement_id: str, **kwargs) -> Engagement | None:
+        """Update engagement fields. Only keys in _ENGAGEMENT_COLUMNS are accepted."""
         eng = self.get_engagement(engagement_id)
         if eng is None:
             return None
         updates = []
         params = []
         for key, value in kwargs.items():
+            if key not in _ENGAGEMENT_COLUMNS:
+                continue
             if key in ("targets", "objectives"):
                 value = json.dumps(value)
             elif key == "status" and hasattr(value, "value"):
@@ -544,12 +569,15 @@ class MemoryStore:
         return self._row_to_phase(row)
 
     def update_engagement_phase(self, phase_id: str, **kwargs) -> EngagementPhase | None:
+        """Update engagement phase fields. Only keys in _ENGAGEMENT_PHASE_COLUMNS are accepted."""
         phase = self.get_engagement_phase(phase_id)
         if phase is None:
             return None
         updates = []
         params = []
         for key, value in kwargs.items():
+            if key not in _ENGAGEMENT_PHASE_COLUMNS:
+                continue
             if key in ("phase_type", "status") and hasattr(value, "value"):
                 value = value.value
             updates.append(f"{key} = ?")
@@ -611,10 +639,12 @@ class MemoryStore:
         return [self._row_to_user(r) for r in rows]
 
     def update_user(self, user_id: str, **kwargs) -> bool:
-        """Update user fields. Returns True if updated."""
+        """Update user fields. Only keys in _USER_COLUMNS are accepted. Returns True if updated."""
         updates = []
         params = []
         for key, value in kwargs.items():
+            if key not in _USER_COLUMNS:
+                continue
             if key == "is_active":
                 value = int(value)
             updates.append(f"{key} = ?")

@@ -45,17 +45,15 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
         runs.set_session_manager(session_manager)
         # Resume active engagements from DB
         try:
-            from kryon.server.routes.engagements import _get_manager
-            await _get_manager().resume_active_engagements()
+            from kryon.server.deps import get_engagement_manager
+            await get_engagement_manager().resume_active_engagements()
         except Exception:
             logger.warning("Failed to resume engagements", exc_info=True)
         yield
         # Shutdown — cancel active engagement tasks
         try:
-            from kryon.server.routes.engagements import _manager
-            if _manager:
-                for task in _manager._active_tasks.values():
-                    task.cancel()
+            from kryon.server.deps import get_engagement_manager
+            get_engagement_manager().cancel_all_tasks()
         except Exception:
             logger.warning("Error during shutdown cleanup", exc_info=True)
 

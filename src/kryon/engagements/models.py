@@ -38,7 +38,7 @@ class PhaseStatus(str, Enum):
 
 
 # Map phase types to the agent that executes them
-PHASE_AGENT_MAP: dict[str, str] = {
+PHASE_AGENT_MAP: dict[PhaseType, str] = {
     PhaseType.RECONNAISSANCE: "recon_scout",
     PhaseType.VULNERABILITY_ASSESSMENT: "vuln_hunter",
     PhaseType.EXPLOITATION: "pentest_agent",

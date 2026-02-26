@@ -27,8 +27,8 @@ def admin_client(tmp_path, monkeypatch):
     """TestClient with admin endpoints accessible (no auth)."""
     store = _SafeStore(db_path=tmp_path / "admin_test.db")
 
-    import kryon.server.routes.clients as clients_mod
-    monkeypatch.setattr(clients_mod, "_store", store)
+    import kryon.server.deps as deps_mod
+    monkeypatch.setattr(deps_mod, "_store", store)
 
     app = create_app(ServerConfig(api_keys=[]))
     with TestClient(app) as c:

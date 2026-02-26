@@ -9,26 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from kryon.server.auth import require_api_key
+from kryon.server.deps import get_engagement_manager
 from kryon.server.models import CreateEngagementRequest, EngagementResponse
 
 router = APIRouter(tags=["engagements"], dependencies=[Depends(require_api_key)])
 
-import threading
-
-# Lazy singleton manager (thread-safe)
-_manager = None
-_manager_lock = threading.Lock()
-
 
 def _get_manager():
-    global _manager
-    if _manager is None:
-        with _manager_lock:
-            if _manager is None:
-                from kryon.engagements.manager import EngagementManager
-
-                _manager = EngagementManager()
-    return _manager
+    return get_engagement_manager()
 
 
 @router.post("/engagements", response_model=EngagementResponse)
@@ -57,7 +45,7 @@ async def list_engagements(status: str | None = None) -> list[dict]:
     """List all engagements, optionally filtered by status."""
     manager = _get_manager()
     status_filter = [status] if status else None
-    engagements = manager._store.list_engagements(status_filter=status_filter)
+    engagements = manager.store.list_engagements(status_filter=status_filter)
     return [e.model_dump(mode="json") for e in engagements]
 
 
@@ -65,10 +53,10 @@ async def list_engagements(status: str | None = None) -> list[dict]:
 async def get_engagement(engagement_id: str) -> dict:
     """Get engagement detail with phases."""
     manager = _get_manager()
-    eng = manager._store.get_engagement(engagement_id)
+    eng = manager.store.get_engagement(engagement_id)
     if not eng:
         raise HTTPException(404, "Engagement not found")
-    phases = manager._store.get_engagement_phases(engagement_id)
+    phases = manager.store.get_engagement_phases(engagement_id)
     result = eng.model_dump(mode="json")
     result["phases"] = [p.model_dump(mode="json") for p in phases]
     return result
@@ -78,7 +66,7 @@ async def get_engagement(engagement_id: str) -> dict:
 async def stream_engagement(engagement_id: str):
     """SSE stream for live engagement updates."""
     manager = _get_manager()
-    eng = manager._store.get_engagement(engagement_id)
+    eng = manager.store.get_engagement(engagement_id)
     if not eng:
         raise HTTPException(404, "Engagement not found")
 
@@ -106,15 +94,15 @@ async def stream_engagement(engagement_id: str):
 async def get_engagement_findings(engagement_id: str) -> list[dict]:
     """Get accumulated findings across all engagement phases."""
     manager = _get_manager()
-    eng = manager._store.get_engagement(engagement_id)
+    eng = manager.store.get_engagement(engagement_id)
     if not eng:
         raise HTTPException(404, "Engagement not found")
 
-    phases = manager._store.get_engagement_phases(engagement_id)
+    phases = manager.store.get_engagement_phases(engagement_id)
     all_findings = []
     for phase in phases:
         if phase.scan_id:
-            findings = manager._store.get_findings(phase.scan_id)
+            findings = manager.store.get_findings(phase.scan_id)
             all_findings.extend([f.model_dump(mode="json") for f in findings])
     return all_findings
 
@@ -123,9 +111,11 @@ async def get_engagement_findings(engagement_id: str) -> list[dict]:
 async def pause_engagement(engagement_id: str) -> dict:
     """Pause an active engagement."""
     manager = _get_manager()
-    eng = manager._store.get_engagement(engagement_id)
+    eng = manager.store.get_engagement(engagement_id)
     if not eng:
         raise HTTPException(404, "Engagement not found")
+    if eng.status.value != "active":
+        raise HTTPException(409, f"Cannot pause engagement in '{eng.status.value}' state")
     await manager.pause_engagement(engagement_id)
     return {"status": "paused"}
 
@@ -134,9 +124,11 @@ async def pause_engagement(engagement_id: str) -> dict:
 async def resume_engagement(engagement_id: str) -> dict:
     """Resume a paused engagement."""
     manager = _get_manager()
-    eng = manager._store.get_engagement(engagement_id)
+    eng = manager.store.get_engagement(engagement_id)
     if not eng:
         raise HTTPException(404, "Engagement not found")
+    if eng.status.value != "paused":
+        raise HTTPException(409, f"Cannot resume engagement in '{eng.status.value}' state")
     await manager.resume_engagement(engagement_id)
     return {"status": "active"}
 
@@ -145,7 +137,7 @@ async def resume_engagement(engagement_id: str) -> dict:
 async def cancel_engagement(engagement_id: str) -> dict:
     """Cancel an engagement."""
     manager = _get_manager()
-    eng = manager._store.get_engagement(engagement_id)
+    eng = manager.store.get_engagement(engagement_id)
     if not eng:
         raise HTTPException(404, "Engagement not found")
     await manager.cancel_engagement(engagement_id)

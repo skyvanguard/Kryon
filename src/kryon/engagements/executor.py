@@ -13,6 +13,11 @@ from kryon.engagements.models import (
 )
 from kryon.memory.store import MemoryStore
 
+__all__ = ["execute_phase"]
+
+_DEFAULT_PHASE_MAX_HOURS = 4.0
+_DEFAULT_AGENT_MAX_TURNS = 5
+
 
 async def execute_phase(
     phase: EngagementPhase,
@@ -61,7 +66,10 @@ async def execute_phase(
     return store.get_engagement_phase(phase.id)
 
 
-async def _run_orchestrator_phase(phase, engagement, store, rate_limiter, emit_event):
+async def _run_orchestrator_phase(
+    phase: EngagementPhase, engagement: Engagement, store: MemoryStore,
+    rate_limiter, emit_event: Callable | None,
+) -> None:
     """Use EnterpriseOrchestrator for recon/vuln phases."""
     from kryon.tools.autonomous.enterprise_orchestrator import EnterpriseOrchestrator
 
@@ -88,8 +96,8 @@ async def _run_orchestrator_phase(phase, engagement, store, rate_limiter, emit_e
     orch = EnterpriseOrchestrator(
         scope=targets,
         client_name=engagement.client_name,
-        profile=profile_map.get(PhaseType(phase.phase_type), "standard"),
-        max_time_hours=4.0,
+        profile=profile_map.get(phase.phase_type, "standard"),
+        max_time_hours=_DEFAULT_PHASE_MAX_HOURS,
         stealth_level=engagement.stealth_level,
         rate_limiter=rate_limiter,
         progress_callback=_on_progress,
@@ -106,7 +114,10 @@ async def _run_orchestrator_phase(phase, engagement, store, rate_limiter, emit_e
     _update_engagement_totals(engagement.id, store)
 
 
-async def _run_agent_phase(phase, engagement, store, rate_limiter, emit_event):
+async def _run_agent_phase(
+    phase: EngagementPhase, engagement: Engagement, store: MemoryStore,
+    rate_limiter, emit_event: Callable | None,
+) -> None:
     """Execute a phase using an agent via Runner."""
     if rate_limiter:
         await rate_limiter.acquire(estimated_tokens=2000)
@@ -131,7 +142,7 @@ Perform thorough {phase.phase_type.value} and report all findings in detail."""
     if emit_event:
         emit_event("log", {"message": f"Running {phase.agent_key} for {phase.phase_type.value}..."})
 
-    result = await Runner.run(agent, input=prompt, max_turns=5)
+    result = await Runner.run(agent, input=prompt, max_turns=_DEFAULT_AGENT_MAX_TURNS)
 
     store.update_engagement_phase(phase.id, progress=1.0)
 
@@ -139,7 +150,10 @@ Perform thorough {phase.phase_type.value} and report all findings in detail."""
         emit_event("log", {"message": f"Agent {phase.agent_key} completed"})
 
 
-async def _run_reporting_phase(phase, engagement, store, emit_event):
+async def _run_reporting_phase(
+    phase: EngagementPhase, engagement: Engagement, store: MemoryStore,
+    emit_event: Callable | None,
+) -> None:
     """Generate final engagement report."""
     if emit_event:
         emit_event("log", {"message": "Generating final engagement report..."})

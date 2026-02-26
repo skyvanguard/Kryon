@@ -1,6 +1,9 @@
 """Server configuration."""
 
+import logging
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -27,3 +30,7 @@ class ServerConfig:
     ssl_certfile: str = ""
     ssl_keyfile: str = ""
     https_enabled: bool = False
+
+    def __post_init__(self):
+        if self.auth_enabled and not self.jwt_secret:
+            logger.warning("auth_enabled=True but jwt_secret is empty — auth will use an insecure default")

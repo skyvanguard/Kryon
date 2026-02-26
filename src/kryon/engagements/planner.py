@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
+
+logger = logging.getLogger(__name__)
 
 from kryon.engagements.models import (
     Engagement,
@@ -11,6 +14,8 @@ from kryon.engagements.models import (
     PhaseType,
     PHASE_AGENT_MAP,
 )
+
+__all__ = ["generate_engagement_plan", "create_phases_from_plan"]
 
 
 async def generate_engagement_plan(
@@ -26,7 +31,7 @@ async def generate_engagement_plan(
         if plan and "days" in plan:
             return plan
     except Exception:
-        pass
+        logger.debug("LLM plan failed, using fallback", exc_info=True)
 
     return _generate_default_plan(engagement)
 
@@ -101,7 +106,7 @@ def _get_strategic_context(engagement: Engagement) -> str:
             lines.append("Strategic analysis suggests:")
             lines.append(json.dumps(stages[:5], indent=2, default=str))
     except Exception:
-        pass
+        logger.debug("Strategic context unavailable", exc_info=True)
 
     try:
         from kryon.tools.autonomous.learning_engine import get_learning_engine
@@ -114,7 +119,7 @@ def _get_strategic_context(engagement: Engagement) -> str:
             lines.append("Historical recommendations:")
             lines.append(json.dumps(recs["recommended_exploits"][:3], indent=2, default=str))
     except Exception:
-        pass
+        logger.debug("Learning engine unavailable", exc_info=True)
 
     return "\n".join(lines) if lines else ""
 

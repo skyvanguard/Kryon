@@ -144,6 +144,10 @@ class EnterpriseOrchestrator:
         self._findings: list[Any] = []  # list[Finding]
         self._recon_results: dict[str, dict] = {}
 
+    @property
+    def findings(self) -> list:
+        return self._findings
+
     # ------------------------------------------------------------------
     # Public
     # ------------------------------------------------------------------

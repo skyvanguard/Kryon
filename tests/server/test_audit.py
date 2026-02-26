@@ -91,8 +91,8 @@ def test_audit_endpoint_accessible(tmp_path, monkeypatch):
             return self._conn
 
     s = _SafeStore(db_path=tmp_path / "audit_ep.db")
-    import kryon.server.routes.clients as clients_mod
-    monkeypatch.setattr(clients_mod, "_store", s)
+    import kryon.server.deps as deps_mod
+    monkeypatch.setattr(deps_mod, "_store", s)
 
     from starlette.testclient import TestClient
 
