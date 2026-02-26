@@ -6,6 +6,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+from kryon.engagements.models import Engagement, EngagementPhase
 from kryon.memory.models import AgentExperience, Client, FindingRecord, ScanRecord
 
 _DEFAULT_DB = Path.home() / ".kryon" / "kryon.db"
@@ -69,6 +70,55 @@ CREATE INDEX IF NOT EXISTS idx_findings_scan ON findings(scan_id);
 CREATE INDEX IF NOT EXISTS idx_findings_client ON findings(client_id);
 CREATE INDEX IF NOT EXISTS idx_findings_status ON findings(status);
 CREATE INDEX IF NOT EXISTS idx_experience_agent ON agent_experience(agent_key);
+
+CREATE TABLE IF NOT EXISTS engagements (
+    id TEXT PRIMARY KEY,
+    client_name TEXT NOT NULL,
+    targets TEXT DEFAULT '[]',
+    objectives TEXT DEFAULT '[]',
+    duration_days INTEGER DEFAULT 5,
+    status TEXT DEFAULT 'created',
+    plan_json TEXT DEFAULT '',
+    current_phase_id TEXT,
+    total_findings INTEGER DEFAULT 0,
+    critical_findings INTEGER DEFAULT 0,
+    high_findings INTEGER DEFAULT 0,
+    risk_score REAL DEFAULT 0.0,
+    created_at TEXT NOT NULL,
+    started_at TEXT,
+    completed_at TEXT,
+    paused_at TEXT,
+    error TEXT,
+    stealth_level TEXT DEFAULT 'normal',
+    profile TEXT DEFAULT 'enterprise_deep',
+    phase_interval_minutes INTEGER DEFAULT 30
+);
+
+CREATE TABLE IF NOT EXISTS engagement_phases (
+    id TEXT PRIMARY KEY,
+    engagement_id TEXT NOT NULL,
+    phase_type TEXT NOT NULL,
+    day_number INTEGER DEFAULT 1,
+    order_index INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'pending',
+    agent_key TEXT NOT NULL,
+    scan_id TEXT,
+    targets_subset TEXT DEFAULT '[]',
+    config_json TEXT DEFAULT '{}',
+    findings_count INTEGER DEFAULT 0,
+    progress REAL DEFAULT 0.0,
+    started_at TEXT,
+    completed_at TEXT,
+    error TEXT,
+    checkpoint_json TEXT DEFAULT '{}',
+    log_messages TEXT DEFAULT '[]',
+    FOREIGN KEY (engagement_id) REFERENCES engagements(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_engagements_status ON engagements(status);
+CREATE INDEX IF NOT EXISTS idx_engagements_created ON engagements(created_at);
+CREATE INDEX IF NOT EXISTS idx_phases_engagement ON engagement_phases(engagement_id);
+CREATE INDEX IF NOT EXISTS idx_phases_status ON engagement_phases(status);
 """
 
 
@@ -359,6 +409,155 @@ class MemoryStore:
             )
             for r in rows
         ]
+
+    # -----------------------------------------------------------------------
+    # Engagements
+    # -----------------------------------------------------------------------
+    def create_engagement(self, eng: Engagement) -> Engagement:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO engagements (id, client_name, targets, objectives, duration_days, status, plan_json, current_phase_id, total_findings, critical_findings, high_findings, risk_score, created_at, started_at, completed_at, paused_at, error, stealth_level, profile, phase_interval_minutes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                eng.id, eng.client_name, json.dumps(eng.targets),
+                json.dumps(eng.objectives), eng.duration_days, eng.status.value,
+                eng.plan_json, eng.current_phase_id, eng.total_findings,
+                eng.critical_findings, eng.high_findings, eng.risk_score,
+                eng.created_at, eng.started_at, eng.completed_at, eng.paused_at,
+                eng.error, eng.stealth_level, eng.profile, eng.phase_interval_minutes,
+            ),
+        )
+        conn.commit()
+        return eng
+
+    def get_engagement(self, engagement_id: str) -> Engagement | None:
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM engagements WHERE id = ?", (engagement_id,)).fetchone()
+        if row is None:
+            return None
+        return self._row_to_engagement(row)
+
+    def list_engagements(self, status_filter: list[str] | None = None) -> list[Engagement]:
+        conn = self._get_conn()
+        if status_filter:
+            placeholders = ",".join("?" for _ in status_filter)
+            rows = conn.execute(
+                f"SELECT * FROM engagements WHERE status IN ({placeholders}) ORDER BY created_at DESC",
+                status_filter,
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM engagements ORDER BY created_at DESC").fetchall()
+        return [self._row_to_engagement(r) for r in rows]
+
+    def update_engagement(self, engagement_id: str, **kwargs) -> Engagement | None:
+        eng = self.get_engagement(engagement_id)
+        if eng is None:
+            return None
+        updates = []
+        params = []
+        for key, value in kwargs.items():
+            if key in ("targets", "objectives"):
+                value = json.dumps(value)
+            elif key == "status" and hasattr(value, "value"):
+                value = value.value
+            updates.append(f"{key} = ?")
+            params.append(value)
+        if updates:
+            params.append(engagement_id)
+            conn = self._get_conn()
+            conn.execute(f"UPDATE engagements SET {', '.join(updates)} WHERE id = ?", params)
+            conn.commit()
+        return self.get_engagement(engagement_id)
+
+    def delete_engagement(self, engagement_id: str) -> bool:
+        conn = self._get_conn()
+        conn.execute("DELETE FROM engagement_phases WHERE engagement_id = ?", (engagement_id,))
+        cur = conn.execute("DELETE FROM engagements WHERE id = ?", (engagement_id,))
+        conn.commit()
+        return cur.rowcount > 0
+
+    def _row_to_engagement(self, row: sqlite3.Row) -> Engagement:
+        return Engagement(
+            id=row["id"], client_name=row["client_name"],
+            targets=json.loads(row["targets"]),
+            objectives=json.loads(row["objectives"]),
+            duration_days=row["duration_days"], status=row["status"],
+            plan_json=row["plan_json"] or "",
+            current_phase_id=row["current_phase_id"],
+            total_findings=row["total_findings"],
+            critical_findings=row["critical_findings"],
+            high_findings=row["high_findings"],
+            risk_score=row["risk_score"], created_at=row["created_at"],
+            started_at=row["started_at"], completed_at=row["completed_at"],
+            paused_at=row["paused_at"], error=row["error"],
+            stealth_level=row["stealth_level"], profile=row["profile"],
+            phase_interval_minutes=row["phase_interval_minutes"],
+        )
+
+    # -----------------------------------------------------------------------
+    # Engagement Phases
+    # -----------------------------------------------------------------------
+    def create_engagement_phase(self, phase: EngagementPhase) -> EngagementPhase:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO engagement_phases (id, engagement_id, phase_type, day_number, order_index, status, agent_key, scan_id, targets_subset, config_json, findings_count, progress, started_at, completed_at, error, checkpoint_json, log_messages) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                phase.id, phase.engagement_id, phase.phase_type.value,
+                phase.day_number, phase.order_index, phase.status.value,
+                phase.agent_key, phase.scan_id, phase.targets_subset,
+                phase.config_json, phase.findings_count, phase.progress,
+                phase.started_at, phase.completed_at, phase.error,
+                phase.checkpoint_json, phase.log_messages,
+            ),
+        )
+        conn.commit()
+        return phase
+
+    def get_engagement_phases(self, engagement_id: str) -> list[EngagementPhase]:
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT * FROM engagement_phases WHERE engagement_id = ? ORDER BY day_number, order_index",
+            (engagement_id,),
+        ).fetchall()
+        return [self._row_to_phase(r) for r in rows]
+
+    def get_engagement_phase(self, phase_id: str) -> EngagementPhase | None:
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM engagement_phases WHERE id = ?", (phase_id,)).fetchone()
+        if row is None:
+            return None
+        return self._row_to_phase(row)
+
+    def update_engagement_phase(self, phase_id: str, **kwargs) -> EngagementPhase | None:
+        phase = self.get_engagement_phase(phase_id)
+        if phase is None:
+            return None
+        updates = []
+        params = []
+        for key, value in kwargs.items():
+            if key in ("phase_type", "status") and hasattr(value, "value"):
+                value = value.value
+            updates.append(f"{key} = ?")
+            params.append(value)
+        if updates:
+            params.append(phase_id)
+            conn = self._get_conn()
+            conn.execute(f"UPDATE engagement_phases SET {', '.join(updates)} WHERE id = ?", params)
+            conn.commit()
+        return self.get_engagement_phase(phase_id)
+
+    def _row_to_phase(self, row: sqlite3.Row) -> EngagementPhase:
+        return EngagementPhase(
+            id=row["id"], engagement_id=row["engagement_id"],
+            phase_type=row["phase_type"], day_number=row["day_number"],
+            order_index=row["order_index"], status=row["status"],
+            agent_key=row["agent_key"], scan_id=row["scan_id"],
+            targets_subset=row["targets_subset"],
+            config_json=row["config_json"],
+            findings_count=row["findings_count"], progress=row["progress"],
+            started_at=row["started_at"], completed_at=row["completed_at"],
+            error=row["error"], checkpoint_json=row["checkpoint_json"] or "{}",
+            log_messages=row["log_messages"] or "[]",
+        )
 
     # -----------------------------------------------------------------------
     # Internal

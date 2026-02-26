@@ -133,5 +133,26 @@ class AutoScanFinding(BaseModel):
     remediation: str = ""
 
 
+# --- Engagements ---
+
+
+class CreateEngagementRequest(BaseModel):
+    client_name: str = Field(..., description="Client/organization name")
+    targets: list[str] = Field(..., description="List of targets (IPs, CIDRs, domains)")
+    objectives: list[str] = Field(
+        default=["initial_access", "vulnerability_assessment", "exploitation"],
+        description="Engagement objectives",
+    )
+    duration_days: int = Field(5, ge=1, le=30, description="Planned duration in days")
+    stealth_level: str = Field("normal", description="Stealth level: low, normal, high")
+    phase_interval_minutes: int = Field(30, ge=0, le=1440, description="Wait time between phases in minutes")
+
+
+class EngagementResponse(BaseModel):
+    id: str
+    status: str
+    message: str = ""
+
+
 class ErrorResponse(BaseModel):
     detail: str

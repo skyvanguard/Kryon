@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from kryon.server.auth import configure_auth
 from kryon.server.config import ServerConfig
-from kryon.server.routes import agents, clients, evaluations, health, knowledge, reports, runs, scans, usage
+from kryon.server.routes import agents, clients, engagements, evaluations, health, knowledge, reports, runs, scans, usage
 from kryon.server.sessions import SessionManager
 
 
@@ -26,8 +26,21 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
         # Startup
         configure_auth(config.api_keys)
         runs.set_session_manager(session_manager)
+        # Resume active engagements from DB
+        try:
+            from kryon.server.routes.engagements import _get_manager
+            await _get_manager().resume_active_engagements()
+        except Exception:
+            pass
         yield
-        # Shutdown — nothing to clean up for now
+        # Shutdown — cancel active engagement tasks
+        try:
+            from kryon.server.routes.engagements import _manager
+            if _manager:
+                for task in _manager._active_tasks.values():
+                    task.cancel()
+        except Exception:
+            pass
 
     app = FastAPI(
         title="KRYON API",
@@ -55,6 +68,7 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
     app.include_router(evaluations.router, prefix="/api")
     app.include_router(scans.router, prefix="/api")
     app.include_router(knowledge.router, prefix="/api")
+    app.include_router(engagements.router, prefix="/api")
 
     # Serve dashboard static files if the build directory exists
     dashboard_build = Path(__file__).resolve().parent.parent.parent.parent / "dashboard" / "build"
