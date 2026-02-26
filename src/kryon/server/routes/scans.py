@@ -23,16 +23,21 @@ router = APIRouter(tags=["scans"], dependencies=[Depends(require_api_key)])
 # Scheduled scans (existing)
 # ---------------------------------------------------------------------------
 
-# Lazy singleton scheduler
+import threading
+
+# Lazy singleton scheduler (thread-safe)
 _scheduler = None
+_scheduler_lock = threading.Lock()
 
 
 def _get_scheduler():
     global _scheduler
     if _scheduler is None:
-        from kryon.server.scheduler import ScanScheduler
+        with _scheduler_lock:
+            if _scheduler is None:
+                from kryon.server.scheduler import ScanScheduler
 
-        _scheduler = ScanScheduler()
+                _scheduler = ScanScheduler()
     return _scheduler
 
 

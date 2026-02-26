@@ -13,16 +13,21 @@ from kryon.server.models import CreateEngagementRequest, EngagementResponse
 
 router = APIRouter(tags=["engagements"], dependencies=[Depends(require_api_key)])
 
-# Lazy singleton manager
+import threading
+
+# Lazy singleton manager (thread-safe)
 _manager = None
+_manager_lock = threading.Lock()
 
 
 def _get_manager():
     global _manager
     if _manager is None:
-        from kryon.engagements.manager import EngagementManager
+        with _manager_lock:
+            if _manager is None:
+                from kryon.engagements.manager import EngagementManager
 
-        _manager = EngagementManager()
+                _manager = EngagementManager()
     return _manager
 
 

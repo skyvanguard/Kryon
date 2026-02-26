@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 class RunRequest(BaseModel):
     agent_key: str = Field(..., description="Agent key (e.g. 'recon_scout')")
-    input: str = Field(..., description="User prompt")
+    input: str = Field(..., max_length=50000, description="User prompt")
     session_id: Optional[str] = Field(None, description="Session ID to continue conversation")
     stream: bool = Field(False, description="Stream response via SSE")
     max_turns: int = Field(10, ge=1, le=100, description="Max agent turns")
@@ -92,7 +92,7 @@ class DailyUsage(BaseModel):
 
 
 class AutoScanRequest(BaseModel):
-    targets: list[str] = Field(..., description="List of targets (IPs, CIDRs, hostnames)")
+    targets: list[str] = Field(..., max_length=100, description="List of targets (IPs, CIDRs, hostnames)")
     profile: str = Field("standard", description="Scan profile name")
     client_id: str = Field("", description="Client ID or name")
     max_time_hours: float = Field(4.0, ge=0.1, le=24.0, description="Max scan duration in hours")
@@ -137,8 +137,8 @@ class AutoScanFinding(BaseModel):
 
 
 class CreateEngagementRequest(BaseModel):
-    client_name: str = Field(..., description="Client/organization name")
-    targets: list[str] = Field(..., description="List of targets (IPs, CIDRs, domains)")
+    client_name: str = Field(..., max_length=200, description="Client/organization name")
+    targets: list[str] = Field(..., max_length=50, description="List of targets (IPs, CIDRs, domains)")
     objectives: list[str] = Field(
         default=["initial_access", "vulnerability_assessment", "exploitation"],
         description="Engagement objectives",

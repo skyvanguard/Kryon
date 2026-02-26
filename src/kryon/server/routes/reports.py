@@ -37,9 +37,12 @@ async def generate_report(request: ReportRequest) -> ReportResponse:
 
     try:
         raw = json.loads(request.findings_json)
+    except (json.JSONDecodeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=f"Malformed findings_json: {e}")
+    try:
         findings = [Finding(**f) for f in raw]
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid findings JSON: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid finding data: {e}")
 
     config = ReportConfig(
         report_type=ReportType(request.report_type),

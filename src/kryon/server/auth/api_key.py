@@ -1,4 +1,4 @@
-"""API key authentication."""
+"""API key authentication — original auth mechanism."""
 
 from fastapi import HTTPException, Security
 from fastapi.security import APIKeyHeader

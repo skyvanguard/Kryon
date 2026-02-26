@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import traceback
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -103,7 +102,7 @@ async def create_run(req: RunRequest):
             result = await Runner.run(agent, input=input_items, max_turns=req.max_turns)
     except Exception as exc:
         run_state.status = "failed"
-        run_state.output = traceback.format_exc()
+        run_state.output = str(exc)
         raise HTTPException(status_code=500, detail=str(exc))
 
     run_state.status = "completed"

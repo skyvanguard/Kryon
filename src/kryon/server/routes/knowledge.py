@@ -6,9 +6,9 @@ import asyncio
 import json
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from kryon.server.auth import require_api_key
 
@@ -21,8 +21,8 @@ router = APIRouter(tags=["knowledge"], dependencies=[Depends(require_api_key)])
 
 
 class KnowledgeQueryRequest(BaseModel):
-    question: str
-    top_k: int = 5
+    question: str = Field(..., min_length=1, max_length=2000)
+    top_k: int = Field(5, ge=1, le=50)
     source_filter: str | None = None
     use_llm: bool = False
 
@@ -101,7 +101,11 @@ async def query_knowledge(req: KnowledgeQueryRequest) -> KnowledgeQueryResponse:
 
 
 @router.get("/knowledge/query/stream")
-async def query_knowledge_stream(question: str, top_k: int = 5, source_filter: str | None = None):
+async def query_knowledge_stream(
+    question: str = Query(..., min_length=1, max_length=2000),
+    top_k: int = Query(5, ge=1, le=50),
+    source_filter: str | None = None,
+):
     """Stream a RAG answer via Server-Sent Events."""
     from kryon.knowledge import get_streaming_rag_engine
 

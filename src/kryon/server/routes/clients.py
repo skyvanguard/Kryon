@@ -9,16 +9,21 @@ from kryon.server.auth import require_api_key
 
 router = APIRouter(tags=["clients"], dependencies=[Depends(require_api_key)])
 
-# Lazy singleton
+import threading
+
+# Lazy singleton (thread-safe)
 _store = None
+_store_lock = threading.Lock()
 
 
 def _get_store():
     global _store
     if _store is None:
-        from kryon.memory.store import MemoryStore
+        with _store_lock:
+            if _store is None:
+                from kryon.memory.store import MemoryStore
 
-        _store = MemoryStore()
+                _store = MemoryStore()
     return _store
 
 

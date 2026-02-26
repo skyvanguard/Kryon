@@ -19,9 +19,12 @@ async def get_metrics(findings_json: str = Query("[]")) -> dict:
 
     try:
         raw = json.loads(findings_json)
+    except (json.JSONDecodeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=f"Malformed JSON: {e}")
+    try:
         findings = [Finding(**f) for f in raw]
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid findings JSON: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid finding data: {e}")
 
     metrics = DashboardMetrics()
     return metrics.compute(findings)
@@ -37,10 +40,15 @@ async def compare_scans(
     from kryon.intelligence.models import Finding
 
     try:
-        before = [Finding(**f) for f in json.loads(before_json)]
-        after = [Finding(**f) for f in json.loads(after_json)]
+        before_raw = json.loads(before_json)
+        after_raw = json.loads(after_json)
+    except (json.JSONDecodeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=f"Malformed JSON: {e}")
+    try:
+        before = [Finding(**f) for f in before_raw]
+        after = [Finding(**f) for f in after_raw]
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid finding data: {e}")
 
     comp = ScanComparator()
     result = comp.compare(before, after)

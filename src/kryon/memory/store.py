@@ -133,26 +133,42 @@ class MemoryStore:
 
     def _get_conn(self) -> sqlite3.Connection:
         if self._conn is None:
-            self._conn = sqlite3.connect(str(self._db_path))
+            self._conn = sqlite3.connect(str(self._db_path), timeout=30)
             self._conn.row_factory = sqlite3.Row
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA foreign_keys=ON")
+            self._conn.execute("PRAGMA busy_timeout=5000")
         return self._conn
 
     def _ensure_tables(self) -> None:
         conn = self._get_conn()
         conn.executescript(_SCHEMA)
-        # Check version
+        # Check version and run migrations
         cur = conn.execute("SELECT version FROM schema_version LIMIT 1")
         row = cur.fetchone()
         if row is None:
             conn.execute("INSERT INTO schema_version (version) VALUES (?)", (_SCHEMA_VERSION,))
-        conn.commit()
+            conn.commit()
+            current_version = _SCHEMA_VERSION
+        else:
+            current_version = row["version"]
+        from kryon.memory.migrations import run_migrations
+        run_migrations(conn, current_version)
 
     def close(self) -> None:
         if self._conn:
             self._conn.close()
             self._conn = None
+
+    def backup(self, destination_path: Path) -> None:
+        """Create a backup of the database using SQLite online backup API."""
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = self._get_conn()
+        dst = sqlite3.connect(str(destination_path))
+        try:
+            conn.backup(dst)
+        finally:
+            dst.close()
 
     # -----------------------------------------------------------------------
     # Client CRUD
@@ -558,6 +574,136 @@ class MemoryStore:
             error=row["error"], checkpoint_json=row["checkpoint_json"] or "{}",
             log_messages=row["log_messages"] or "[]",
         )
+
+    # -----------------------------------------------------------------------
+    # Users
+    # -----------------------------------------------------------------------
+    def create_user(self, user) -> None:
+        """Create a new user. Accepts a User model from auth.models."""
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO users (id, username, email, password_hash, role, is_active, created_at, last_login) VALUES (?,?,?,?,?,?,?,?)",
+            (user.id, user.username, user.email, user.password_hash,
+             user.role, int(user.is_active), user.created_at, user.last_login),
+        )
+        conn.commit()
+
+    def get_user_by_username(self, username: str):
+        """Get a user by username. Returns User or None."""
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        if row is None:
+            return None
+        return self._row_to_user(row)
+
+    def get_user_by_id(self, user_id: str):
+        """Get a user by ID. Returns User or None."""
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        if row is None:
+            return None
+        return self._row_to_user(row)
+
+    def list_users(self) -> list:
+        """List all users."""
+        conn = self._get_conn()
+        rows = conn.execute("SELECT * FROM users ORDER BY created_at DESC").fetchall()
+        return [self._row_to_user(r) for r in rows]
+
+    def update_user(self, user_id: str, **kwargs) -> bool:
+        """Update user fields. Returns True if updated."""
+        updates = []
+        params = []
+        for key, value in kwargs.items():
+            if key == "is_active":
+                value = int(value)
+            updates.append(f"{key} = ?")
+            params.append(value)
+        if not updates:
+            return False
+        params.append(user_id)
+        conn = self._get_conn()
+        cur = conn.execute(f"UPDATE users SET {', '.join(updates)} WHERE id = ?", params)
+        conn.commit()
+        return cur.rowcount > 0
+
+    def delete_user(self, user_id: str) -> bool:
+        """Delete a user and their client access entries."""
+        conn = self._get_conn()
+        conn.execute("DELETE FROM user_client_access WHERE user_id = ?", (user_id,))
+        cur = conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+        return cur.rowcount > 0
+
+    def get_user_client_ids(self, user_id: str) -> list[str]:
+        """Get list of client IDs a user can access."""
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT client_id FROM user_client_access WHERE user_id = ?", (user_id,)
+        ).fetchall()
+        return [r["client_id"] for r in rows]
+
+    def assign_client_to_user(self, user_id: str, client_id: str) -> None:
+        """Grant a user access to a client."""
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT OR IGNORE INTO user_client_access (user_id, client_id) VALUES (?,?)",
+            (user_id, client_id),
+        )
+        conn.commit()
+
+    def remove_client_from_user(self, user_id: str, client_id: str) -> None:
+        """Revoke a user's access to a client."""
+        conn = self._get_conn()
+        conn.execute(
+            "DELETE FROM user_client_access WHERE user_id = ? AND client_id = ?",
+            (user_id, client_id),
+        )
+        conn.commit()
+
+    def _row_to_user(self, row: sqlite3.Row):
+        """Convert a DB row to a User model."""
+        from kryon.server.auth.models import User
+        return User(
+            id=row["id"], username=row["username"], email=row["email"],
+            password_hash=row["password_hash"], role=row["role"],
+            is_active=bool(row["is_active"]), created_at=row["created_at"],
+            last_login=row["last_login"],
+        )
+
+    # -----------------------------------------------------------------------
+    # Audit Log
+    # -----------------------------------------------------------------------
+    def write_audit_log(self, entry: dict) -> None:
+        """Write an audit log entry."""
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO audit_log (id, timestamp, user_id, username, action, resource_type, resource_id, details, ip_address, request_id) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (entry["id"], entry["timestamp"], entry.get("user_id"), entry.get("username"),
+             entry["action"], entry["resource_type"], entry.get("resource_id"),
+             json.dumps(entry.get("details", {})), entry.get("ip_address"), entry.get("request_id")),
+        )
+        conn.commit()
+
+    def get_audit_logs(self, limit: int = 100, user_id: str | None = None,
+                       action: str | None = None, resource_type: str | None = None) -> list[dict]:
+        """Query audit logs with optional filters."""
+        conn = self._get_conn()
+        query = "SELECT * FROM audit_log WHERE 1=1"
+        params: list = []
+        if user_id:
+            query += " AND user_id = ?"
+            params.append(user_id)
+        if action:
+            query += " AND action = ?"
+            params.append(action)
+        if resource_type:
+            query += " AND resource_type = ?"
+            params.append(resource_type)
+        query += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+        rows = conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
 
     # -----------------------------------------------------------------------
     # Internal

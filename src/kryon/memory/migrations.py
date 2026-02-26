@@ -2,21 +2,69 @@
 
 from __future__ import annotations
 
+import logging
 import sqlite3
+
+logger = logging.getLogger(__name__)
+
+# Keyed by target version number. Each entry is a list of SQL statements.
+MIGRATIONS: dict[int, list[str]] = {
+    2: [
+        "ALTER TABLE clients ADD COLUMN owner_user_id TEXT DEFAULT NULL",
+    ],
+    3: [
+        """CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT DEFAULT 'analyst',
+            is_active INTEGER DEFAULT 1,
+            created_at TEXT NOT NULL,
+            last_login TEXT
+        )""",
+        """CREATE TABLE IF NOT EXISTS user_client_access (
+            user_id TEXT NOT NULL,
+            client_id TEXT NOT NULL,
+            PRIMARY KEY (user_id, client_id)
+        )""",
+    ],
+    4: [
+        """CREATE TABLE IF NOT EXISTS audit_log (
+            id TEXT PRIMARY KEY,
+            timestamp TEXT NOT NULL,
+            user_id TEXT,
+            username TEXT,
+            action TEXT NOT NULL,
+            resource_type TEXT NOT NULL,
+            resource_id TEXT,
+            details TEXT DEFAULT '{}',
+            ip_address TEXT,
+            request_id TEXT
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)",
+        "CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id)",
+    ],
+}
 
 
 def run_migrations(conn: sqlite3.Connection, current_version: int) -> int:
     """Run any pending migrations. Returns new version."""
-    migrations = {
-        # version: migration SQL
-        # 2: "ALTER TABLE clients ADD COLUMN industry TEXT DEFAULT '';",
-    }
-
-    for version in sorted(migrations.keys()):
-        if version > current_version:
-            conn.executescript(migrations[version])
-            conn.execute("UPDATE schema_version SET version = ?", (version,))
-            conn.commit()
-            current_version = version
+    for version in sorted(MIGRATIONS.keys()):
+        if version <= current_version:
+            continue
+        for sql in MIGRATIONS[version]:
+            try:
+                conn.execute(sql)
+            except sqlite3.OperationalError as e:
+                msg = str(e).lower()
+                if "duplicate column" in msg or "already exists" in msg:
+                    logger.debug("Migration v%d: skipping — %s", version, e)
+                    continue
+                raise
+        conn.execute("UPDATE schema_version SET version = ?", (version,))
+        conn.commit()
+        current_version = version
+        logger.info("Applied migration v%d", version)
 
     return current_version
