@@ -30,7 +30,7 @@ class TestCreateEngagement:
             mock_mgr.return_value.create_engagement = AsyncMock(return_value=eng)
 
             resp = client.post(
-                "/api/engagements",
+                "/api/v1/engagements",
                 json={"client_name": "TestCorp", "targets": ["10.0.0.1"]},
                 headers=headers,
             )
@@ -41,7 +41,7 @@ class TestCreateEngagement:
 
     def test_create_requires_client_name(self, client, headers):
         resp = client.post(
-            "/api/engagements",
+            "/api/v1/engagements",
             json={"targets": ["10.0.0.1"]},
             headers=headers,
         )
@@ -49,7 +49,7 @@ class TestCreateEngagement:
 
     def test_create_requires_targets(self, client, headers):
         resp = client.post(
-            "/api/engagements",
+            "/api/v1/engagements",
             json={"client_name": "Test"},
             headers=headers,
         )
@@ -66,7 +66,7 @@ class TestListEngagements:
                 Engagement(client_name="B", targets=["2.2.2.2"]),
             ]
 
-            resp = client.get("/api/engagements", headers=headers)
+            resp = client.get("/api/v1/engagements", headers=headers)
             assert resp.status_code == 200
             data = resp.json()
             assert len(data) == 2
@@ -81,7 +81,7 @@ class TestGetEngagement:
             mock_mgr.return_value._store.get_engagement.return_value = eng
             mock_mgr.return_value._store.get_engagement_phases.return_value = []
 
-            resp = client.get(f"/api/engagements/{eng.id}", headers=headers)
+            resp = client.get(f"/api/v1/engagements/{eng.id}", headers=headers)
             assert resp.status_code == 200
             data = resp.json()
             assert data["client_name"] == "Test"
@@ -91,7 +91,7 @@ class TestGetEngagement:
         with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
             mock_mgr.return_value._store.get_engagement.return_value = None
 
-            resp = client.get("/api/engagements/nonexistent", headers=headers)
+            resp = client.get("/api/v1/engagements/nonexistent", headers=headers)
             assert resp.status_code == 404
 
 
@@ -104,7 +104,7 @@ class TestPauseResume:
             mock_mgr.return_value._store.get_engagement.return_value = eng
             mock_mgr.return_value.pause_engagement = AsyncMock()
 
-            resp = client.post(f"/api/engagements/{eng.id}/pause", headers=headers)
+            resp = client.post(f"/api/v1/engagements/{eng.id}/pause", headers=headers)
             assert resp.status_code == 200
             assert resp.json()["status"] == "paused"
 
@@ -116,7 +116,7 @@ class TestPauseResume:
             mock_mgr.return_value._store.get_engagement.return_value = eng
             mock_mgr.return_value.resume_engagement = AsyncMock()
 
-            resp = client.post(f"/api/engagements/{eng.id}/resume", headers=headers)
+            resp = client.post(f"/api/v1/engagements/{eng.id}/resume", headers=headers)
             assert resp.status_code == 200
             assert resp.json()["status"] == "active"
 
@@ -130,7 +130,7 @@ class TestCancelEngagement:
             mock_mgr.return_value._store.get_engagement.return_value = eng
             mock_mgr.return_value.cancel_engagement = AsyncMock()
 
-            resp = client.delete(f"/api/engagements/{eng.id}", headers=headers)
+            resp = client.delete(f"/api/v1/engagements/{eng.id}", headers=headers)
             assert resp.status_code == 200
             assert resp.json()["status"] == "cancelled"
 
@@ -138,5 +138,5 @@ class TestCancelEngagement:
         with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
             mock_mgr.return_value._store.get_engagement.return_value = None
 
-            resp = client.delete("/api/engagements/nonexistent", headers=headers)
+            resp = client.delete("/api/v1/engagements/nonexistent", headers=headers)
             assert resp.status_code == 404

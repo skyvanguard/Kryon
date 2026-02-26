@@ -1,7 +1,8 @@
 from unittest.mock import Mock
 
-import graphviz  # type: ignore
 import pytest
+
+graphviz = pytest.importorskip("graphviz")
 
 from kryon.sdk.agents import Agent
 from kryon.sdk.agents.extensions.visualization import (

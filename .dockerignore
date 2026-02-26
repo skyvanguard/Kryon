@@ -1,0 +1,47 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Testing
+tests/
+benchmarks/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Logs & data
+logs/
+*.log
+workspaces/
+.kryon_knowledge/
+.kryon_cache/
+
+# Dashboard (built separately)
+dashboard/node_modules/
+dashboard/.svelte-kit/
+dashboard/build/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Docker
+docker/
+
+# Docs & misc
+*.md
+LICENSE

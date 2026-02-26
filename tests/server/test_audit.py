@@ -98,7 +98,7 @@ def test_audit_endpoint_accessible(tmp_path, monkeypatch):
 
     app = create_app(ServerConfig(api_keys=[]))
     with TestClient(app) as c:
-        resp = c.get("/api/audit")
+        resp = c.get("/api/v1/audit")
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
     s.close()

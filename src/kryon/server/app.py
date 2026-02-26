@@ -64,6 +64,30 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
         description="Autonomous Cybersecurity Intelligence Platform API",
         version="1.0.0",
         lifespan=lifespan,
+        contact={
+            "name": "KRYON Security",
+            "url": "https://github.com/skyvanguard/Kryon",
+        },
+        license_info={
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT",
+        },
+        openapi_tags=[
+            {"name": "health", "description": "Health checks and system status"},
+            {"name": "auth", "description": "Authentication and session management"},
+            {"name": "agents", "description": "Security agent listing and details"},
+            {"name": "runs", "description": "Agent execution and run management"},
+            {"name": "sessions", "description": "Conversational session management"},
+            {"name": "engagements", "description": "Multi-day autonomous pentesting engagements"},
+            {"name": "scans", "description": "Automated security scanning"},
+            {"name": "clients", "description": "Client/organization management"},
+            {"name": "knowledge", "description": "RAG knowledge base queries and management"},
+            {"name": "reports", "description": "Security report generation"},
+            {"name": "evaluations", "description": "Agent evaluation and benchmarking"},
+            {"name": "usage", "description": "API usage statistics and cost tracking"},
+            {"name": "audit", "description": "Audit log access (admin)"},
+            {"name": "admin", "description": "System administration (admin)"},
+        ],
     )
 
     # Global exception handler
@@ -93,19 +117,19 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
     )
 
     # Mount routes
-    app.include_router(health.router, prefix="/api")
-    app.include_router(auth_routes.router, prefix="/api")
-    app.include_router(agents.router, prefix="/api")
-    app.include_router(runs.router, prefix="/api")
-    app.include_router(usage.router, prefix="/api")
-    app.include_router(reports.router, prefix="/api")
-    app.include_router(clients.router, prefix="/api")
-    app.include_router(evaluations.router, prefix="/api")
-    app.include_router(scans.router, prefix="/api")
-    app.include_router(knowledge.router, prefix="/api")
-    app.include_router(engagements.router, prefix="/api")
-    app.include_router(audit_routes.router, prefix="/api")
-    app.include_router(admin_routes.router, prefix="/api")
+    app.include_router(health.router, prefix="/api/v1")
+    app.include_router(auth_routes.router, prefix="/api/v1")
+    app.include_router(agents.router, prefix="/api/v1")
+    app.include_router(runs.router, prefix="/api/v1")
+    app.include_router(usage.router, prefix="/api/v1")
+    app.include_router(reports.router, prefix="/api/v1")
+    app.include_router(clients.router, prefix="/api/v1")
+    app.include_router(evaluations.router, prefix="/api/v1")
+    app.include_router(scans.router, prefix="/api/v1")
+    app.include_router(knowledge.router, prefix="/api/v1")
+    app.include_router(engagements.router, prefix="/api/v1")
+    app.include_router(audit_routes.router, prefix="/api/v1")
+    app.include_router(admin_routes.router, prefix="/api/v1")
 
     # Serve dashboard static files if the build directory exists
     dashboard_build = Path(__file__).resolve().parent.parent.parent.parent / "dashboard" / "build"

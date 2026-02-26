@@ -17,11 +17,11 @@ def _make_minimal_crash_app(debug: bool = False):
     app.add_exception_handler(Exception, global_exception_handler)
     app.add_middleware(RequestIdMiddleware)
 
-    @app.get("/api/test-crash")
+    @app.get("/api/v1/test-crash")
     async def crash():
         raise RuntimeError("boom")
 
-    @app.get("/api/ok")
+    @app.get("/api/v1/ok")
     async def ok():
         return {"status": "ok"}
 
@@ -31,7 +31,7 @@ def _make_minimal_crash_app(debug: bool = False):
 def test_unhandled_exception_returns_500():
     app = _make_minimal_crash_app()
     with TestClient(app, raise_server_exceptions=False) as c:
-        resp = c.get("/api/test-crash")
+        resp = c.get("/api/v1/test-crash")
     assert resp.status_code == 500
     body = resp.json()
     assert body["detail"] == "Internal server error"
@@ -43,7 +43,7 @@ def test_debug_mode_includes_traceback(monkeypatch):
     monkeypatch.setenv("KRYON_DEBUG", "1")
     app = _make_minimal_crash_app(debug=True)
     with TestClient(app, raise_server_exceptions=False) as c:
-        resp = c.get("/api/test-crash")
+        resp = c.get("/api/v1/test-crash")
     assert resp.status_code == 500
     body = resp.json()
     assert "traceback" in body
@@ -53,20 +53,20 @@ def test_debug_mode_includes_traceback(monkeypatch):
 def test_error_response_has_request_id():
     app = _make_minimal_crash_app()
     with TestClient(app, raise_server_exceptions=False) as c:
-        resp = c.get("/api/test-crash")
+        resp = c.get("/api/v1/test-crash")
     body = resp.json()
     assert len(body["request_id"]) == 8
 
 
 def test_normal_routes_unaffected(client):
     """Non-crashing routes still work fine."""
-    resp = client.get("/api/health")
+    resp = client.get("/api/v1/health")
     assert resp.status_code == 200
 
 
 def test_http_exceptions_pass_through(client):
     """HTTPExceptions (like 404) are not caught by the global handler."""
-    resp = client.get("/api/runs/nonexistent")
+    resp = client.get("/api/v1/runs/nonexistent")
     assert resp.status_code == 404
     body = resp.json()
     assert "detail" in body

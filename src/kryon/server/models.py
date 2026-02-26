@@ -30,6 +30,18 @@ class HealthResponse(BaseModel):
     agents_count: int
 
 
+class ReadinessCheck(BaseModel):
+    status: str
+    error: str | None = None
+
+
+class ReadinessResponse(BaseModel):
+    status: str = "ok"
+    version: str
+    uptime_seconds: float = 0.0
+    checks: dict[str, ReadinessCheck] = Field(default_factory=dict)
+
+
 class AgentSummary(BaseModel):
     key: str
     name: str

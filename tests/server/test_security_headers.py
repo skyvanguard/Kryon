@@ -17,7 +17,7 @@ def strict_client():
 
 def test_security_headers_present(client):
     """All security headers must be present on every response."""
-    resp = client.get("/api/health")
+    resp = client.get("/api/v1/health")
     assert resp.headers["X-Content-Type-Options"] == "nosniff"
     assert resp.headers["X-Frame-Options"] == "DENY"
     assert resp.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
@@ -26,7 +26,7 @@ def test_security_headers_present(client):
 
 def test_no_hsts_without_https(client):
     """HSTS should NOT be present when HTTPS is disabled."""
-    resp = client.get("/api/health")
+    resp = client.get("/api/v1/health")
     assert "Strict-Transport-Security" not in resp.headers
 
 
@@ -36,7 +36,7 @@ def test_hsts_with_https():
     from starlette.testclient import TestClient
 
     with TestClient(app) as c:
-        resp = c.get("/api/health")
+        resp = c.get("/api/v1/health")
     assert "Strict-Transport-Security" in resp.headers
     assert "max-age=31536000" in resp.headers["Strict-Transport-Security"]
 
@@ -44,7 +44,7 @@ def test_hsts_with_https():
 def test_cors_restrictive_default(strict_client):
     """Default CORS should NOT allow arbitrary origins."""
     resp = strict_client.options(
-        "/api/health",
+        "/api/v1/health",
         headers={
             "Origin": "http://evil.com",
             "Access-Control-Request-Method": "GET",

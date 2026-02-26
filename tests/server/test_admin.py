@@ -38,7 +38,7 @@ def admin_client(tmp_path, monkeypatch):
 
 def test_admin_health(admin_client):
     client, store = admin_client
-    resp = client.get("/api/admin/health")
+    resp = client.get("/api/v1/admin/health")
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "ok"
@@ -50,7 +50,7 @@ def test_admin_health(admin_client):
 
 def test_admin_backup(admin_client):
     client, store = admin_client
-    resp = client.post("/api/admin/backup")
+    resp = client.post("/api/v1/admin/backup")
     assert resp.status_code == 200
     data = resp.json()
     assert "path" in data
@@ -61,7 +61,7 @@ def test_admin_user_crud(admin_client):
     client, store = admin_client
 
     # Create user
-    resp = client.post("/api/admin/users", json={
+    resp = client.post("/api/v1/admin/users", json={
         "username": "newuser",
         "email": "new@test.com",
         "password": "secret1234",
@@ -74,34 +74,34 @@ def test_admin_user_crud(admin_client):
     user_id = user_data["id"]
 
     # List users
-    resp = client.get("/api/admin/users")
+    resp = client.get("/api/v1/admin/users")
     assert resp.status_code == 200
     assert len(resp.json()) == 1
 
     # Update user
-    resp = client.put(f"/api/admin/users/{user_id}", json={
+    resp = client.put(f"/api/v1/admin/users/{user_id}", json={
         "role": "viewer",
     })
     assert resp.status_code == 200
     assert resp.json()["role"] == "viewer"
 
     # Delete user
-    resp = client.delete(f"/api/admin/users/{user_id}")
+    resp = client.delete(f"/api/v1/admin/users/{user_id}")
     assert resp.status_code == 200
 
     # Verify deleted
-    resp = client.get("/api/admin/users")
+    resp = client.get("/api/v1/admin/users")
     assert len(resp.json()) == 0
 
 
 def test_admin_create_duplicate_username(admin_client):
     client, _ = admin_client
-    client.post("/api/admin/users", json={
+    client.post("/api/v1/admin/users", json={
         "username": "dup",
         "email": "dup@test.com",
         "password": "secret1234",
     })
-    resp = client.post("/api/admin/users", json={
+    resp = client.post("/api/v1/admin/users", json={
         "username": "dup",
         "email": "dup2@test.com",
         "password": "secret1234",

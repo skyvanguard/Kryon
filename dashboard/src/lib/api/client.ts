@@ -3,7 +3,7 @@
 import { get } from 'svelte/store';
 import { accessToken, clearAuth, setAuth, type AuthUser } from '$lib/stores/auth';
 
-const BASE_URL = '/api';
+const BASE_URL = '/api/v1';
 
 let apiKey: string | null = null;
 

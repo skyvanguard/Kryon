@@ -22,7 +22,7 @@ def debug_client(debug_app):
 
 def test_request_id_generated(client):
     """Requests without X-Request-Id get one generated."""
-    resp = client.get("/api/health")
+    resp = client.get("/api/v1/health")
     assert resp.status_code == 200
     rid = resp.headers.get("X-Request-Id")
     assert rid is not None
@@ -31,7 +31,7 @@ def test_request_id_generated(client):
 
 def test_request_id_preserved(client):
     """Client-supplied X-Request-Id is preserved."""
-    resp = client.get("/api/health", headers={"X-Request-Id": "custom42"})
+    resp = client.get("/api/v1/health", headers={"X-Request-Id": "custom42"})
     assert resp.headers["X-Request-Id"] == "custom42"
 
 
@@ -39,7 +39,7 @@ def test_request_id_unique_per_request(client):
     """Each request gets a unique ID."""
     ids = set()
     for _ in range(5):
-        resp = client.get("/api/health")
+        resp = client.get("/api/v1/health")
         ids.add(resp.headers["X-Request-Id"])
     assert len(ids) == 5
 

@@ -10,7 +10,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 # Paths excluded from rate limiting
-_EXCLUDED_PATHS = {"/api/health"}
+_EXCLUDED_PATHS = {"/api/v1/health"}
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

@@ -24,10 +24,12 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 if not ip:
                     ip = request.client.host if request.client else "unknown"
 
-                # Extract resource info from path
+                # Extract resource info from path (skip /api/v1/ prefix)
                 parts = request.url.path.strip("/").split("/")
-                resource_type = parts[1] if len(parts) > 1 else "unknown"
-                resource_id = parts[2] if len(parts) > 2 else None
+                # parts: ["api", "v1", "resource", "id"] or ["api", "resource", "id"]
+                offset = 2 if len(parts) > 1 and parts[1].startswith("v") else 1
+                resource_type = parts[offset] if len(parts) > offset else "unknown"
+                resource_id = parts[offset + 1] if len(parts) > offset + 1 else None
 
                 log_action(
                     action=f"{request.method} {request.url.path}",
