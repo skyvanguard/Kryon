@@ -37,7 +37,7 @@ class TestVectorDatabase:
     def teardown_method(self):
         """Cleanup test database."""
         if Path(self.temp_dir).exists():
-            shutil.rmtree(self.temp_dir)
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_database_initialization(self):
         """Test database initializes correctly."""
@@ -135,7 +135,7 @@ class TestRAGEngine:
     def teardown_method(self):
         """Cleanup."""
         if Path(self.temp_dir).exists():
-            shutil.rmtree(self.temp_dir)
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_add_knowledge(self):
         """Test adding knowledge."""

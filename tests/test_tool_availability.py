@@ -95,9 +95,8 @@ class TestAgentImports:
         "kryon.agents.central_core",
         "kryon.agents.ctf_master",
         "kryon.agents.guardrails",
-        "kryon.agents.neural_extractor",
         "kryon.agents.forensic_analyzer",
-        "kryon.agents.tech_com_reverse",
+        "kryon.agents.reverse_engineer",
         "kryon.agents.retester",
         "kryon.agents.mobile_infiltrator",
         "kryon.agents.wireless_infiltrator",
@@ -180,5 +179,5 @@ class TestAgentDiscovery:
         from kryon.agents import get_available_agents
 
         agents = get_available_agents()
-        # We should have at least 30 agents
-        assert len(agents) >= 30, f"Expected at least 30 agents, got {len(agents)}"
+        # After deduplication: 18 core agents + 3 patterns = ~21
+        assert len(agents) >= 18, f"Expected at least 18 agents, got {len(agents)}"

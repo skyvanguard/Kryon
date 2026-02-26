@@ -15,11 +15,11 @@ def test_run_input_max_length(client):
 def test_run_input_within_limit(client):
     """RunRequest.input accepts inputs within limit (agent may not exist, but validation passes)."""
     resp = client.post("/api/v1/runs", json={
-        "agent_key": "recon_scout",
+        "agent_key": "nonexistent_agent_for_test",
         "input": "x" * 100,
     })
-    # 404 = agent not found, but 422 would mean validation failed
-    assert resp.status_code != 422
+    # 404 = agent not found means validation passed; 422 would mean validation failed
+    assert resp.status_code == 404
 
 
 def test_engagement_targets_max_length(client):

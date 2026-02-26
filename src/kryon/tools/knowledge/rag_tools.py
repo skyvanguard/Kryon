@@ -12,12 +12,15 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
+from kryon.sdk.agents import function_tool
+
 # Add src to path for imports
 _src_path = Path(__file__).parent.parent.parent
 if str(_src_path) not in sys.path:
     sys.path.insert(0, str(_src_path))
 
 
+@function_tool
 def query_knowledge_base(
     question: str, top_k: int = 3, source_filter: Optional[str] = None, use_llm: bool = False
 ) -> dict[str, Any]:
@@ -68,6 +71,7 @@ def query_knowledge_base(
         }
 
 
+@function_tool
 def search_vulnerabilities(
     technology: str,
     version: Optional[str] = None,
@@ -151,6 +155,7 @@ def search_vulnerabilities(
         }
 
 
+@function_tool
 def get_exploit_techniques(attack_type: str, platform: Optional[str] = None, max_results: int = 3) -> dict[str, Any]:
     """
     Get exploit techniques for a specific attack type.
@@ -209,6 +214,7 @@ def get_exploit_techniques(attack_type: str, platform: Optional[str] = None, max
         }
 
 
+@function_tool
 def get_security_tools(purpose: str, max_results: int = 5) -> dict[str, Any]:
     """
     Get security tools for a specific purpose.
@@ -255,6 +261,7 @@ def get_security_tools(purpose: str, max_results: int = 5) -> dict[str, Any]:
         return {"success": False, "error": str(e), "purpose": purpose, "tools": [], "count": 0}
 
 
+@function_tool
 def get_knowledge_stats() -> dict[str, Any]:
     """
     Get statistics about the knowledge base.

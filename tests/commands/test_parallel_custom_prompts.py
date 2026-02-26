@@ -48,9 +48,9 @@ class TestParallelCustomPrompts:
 
     def test_prompt_subcommand_with_index(self):
         """Test that the prompt subcommand works with numeric index."""
-        # Add an agent
+        # Add an agent (use pentest_agent as it's a valid core agent)
         with patch("kryon.repl.commands.parallel.console"):
-            self.command.handle_add(["bug_bounter_agent"])
+            self.command.handle_add(["pentest_agent"])
 
         # Set prompt using index
         with patch("kryon.repl.commands.parallel.console"):
@@ -80,7 +80,7 @@ class TestParallelCustomPrompts:
         # Add agents with prompts
         config1 = ParallelConfig("redteam_agent", prompt="Focus on authentication bypass")
         config1.id = "P1"
-        config2 = ParallelConfig("bug_bounter_agent", prompt="Look for IDOR vulnerabilities in the API endpoints")
+        config2 = ParallelConfig("vuln_hunter", prompt="Look for IDOR vulnerabilities in the API endpoints")
         config2.id = "P2"
         PARALLEL_CONFIGS.extend([config1, config2])
 
@@ -140,7 +140,7 @@ class TestParallelCustomPrompts:
 
         config1 = ParallelConfig("redteam_agent", prompt="Custom prompt 1")
         config1.id = "P1"
-        config2 = ParallelConfig("bug_bounter_agent", prompt="Custom prompt 2")
+        config2 = ParallelConfig("vuln_hunter", prompt="Custom prompt 2")
         config2.id = "P2"
         config3 = ParallelConfig("dfir_agent")  # No custom prompt
         config3.id = "P3"
@@ -160,7 +160,7 @@ class TestParallelCustomPrompts:
         # Setup parallel configs
         config1 = ParallelConfig("redteam_agent")
         config1.id = "P1"
-        config2 = ParallelConfig("bug_bounter_agent")
+        config2 = ParallelConfig("vuln_hunter")
         config2.id = "P2"
 
         PARALLEL_CONFIGS.extend([config1, config2])

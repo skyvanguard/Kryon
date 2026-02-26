@@ -2,9 +2,13 @@ import os
 
 import pytest
 
-# Check if we have a real API key (not the test placeholder)
+# Check if we have a real OpenAI API key (not a test/placeholder key, not Groq)
 _api_key = os.environ.get("OPENAI_API_KEY", "")
-_has_real_api_key = _api_key and not _api_key.startswith("test_key")
+_base_url = os.environ.get("OPENAI_BASE_URL", "")
+_PLACEHOLDER_PREFIXES = ("test_key", "sk-placeholder", "sk-test", "not-set", "placeholder")
+_is_placeholder = not _api_key or any(_api_key.startswith(p) for p in _PLACEHOLDER_PREFIXES)
+_is_proxied = "groq.com" in _base_url or "localhost" in _base_url
+_has_real_api_key = not _is_placeholder and not _is_proxied
 
 # Set test environment variable if not already set to avoid import errors
 if not _api_key:

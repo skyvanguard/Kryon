@@ -26,11 +26,17 @@ def test_client_progress_no_scans(manager):
 def test_client_progress_improving(manager):
     client = Client(name="C")
     manager.store.create_client(client)
-    # First scan: high risk
-    s1 = ScanRecord(client_id=client.id, risk_score=80.0, finding_count=10, status="completed")
+    # First scan: high risk (older timestamp)
+    s1 = ScanRecord(
+        client_id=client.id, risk_score=80.0, finding_count=10,
+        status="completed", started_at="2026-01-01T00:00:00Z",
+    )
     manager.store.create_scan(s1)
-    # Second scan: lower risk
-    s2 = ScanRecord(client_id=client.id, risk_score=40.0, finding_count=5, status="completed")
+    # Second scan: lower risk (newer timestamp)
+    s2 = ScanRecord(
+        client_id=client.id, risk_score=40.0, finding_count=5,
+        status="completed", started_at="2026-01-02T00:00:00Z",
+    )
     manager.store.create_scan(s2)
 
     progress = manager.get_client_progress(client.id)

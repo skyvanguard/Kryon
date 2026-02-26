@@ -45,7 +45,8 @@ class TestRateLimiterInit:
         rl = RateLimiter.detect_provider("https://api.openai.com/v1")
         assert rl.config.rpm == 500
 
-    def test_detect_provider_empty_defaults_openai(self):
+    def test_detect_provider_empty_defaults_openai(self, monkeypatch):
+        monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
         rl = RateLimiter.detect_provider("")
         assert rl.config.rpm == 500
 
