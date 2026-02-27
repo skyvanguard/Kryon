@@ -1,0 +1,164 @@
+# =============================================================================
+# KRYON - Kali Linux Pentesting Stack
+# =============================================================================
+# Full offensive security environment with local LLM (Ollama + GPU).
+#
+# Usage:
+#   docker compose -f docker/docker-compose.kali.yml build
+#   docker compose -f docker/docker-compose.kali.yml up -d
+#   docker compose -f docker/docker-compose.kali.yml --profile proxy up -d
+#
+# Interactive:
+#   docker exec -it kryon python -m kryon          # REPL
+#   docker exec -it kryon bash                     # Kali shell
+#   docker exec -it -u root kryon bash             # Root shell (VPN, etc.)
+#   docker exec -it kryon-ollama ollama pull qwen2.5:7b
+#
+# VPN for CTFs:
+#   docker exec -u root -d kryon openvpn --config /workspace/htb.ovpn
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Kryon — Kali Linux pentesting platform
+  # ---------------------------------------------------------------------------
+  kryon:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.kali
+    container_name: kryon
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-ollama}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://ollama:11434/v1}
+      - OLLAMA=${OLLAMA:-true}
+      - KRYON_MODEL=${KRYON_MODEL:-qwen2.5:7b}
+      - KRYON_DEBUG=${KRYON_DEBUG:-0}
+      - KRYON_GUARDRAILS=${KRYON_GUARDRAILS:-true}
+      - KRYON_MAX_TURNS=${KRYON_MAX_TURNS:-50}
+      - KRYON_STREAM=${KRYON_STREAM:-false}
+    volumes:
+      - kryon-workspace:/workspace
+      - kryon-logs:/logs
+      - kryon-config:/home/kryon/.kryon
+      - kryon-knowledge:/home/kryon/.config/chromadb
+      - kryon-reports:/reports
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 6G
+        reservations:
+          cpus: "2"
+          memory: 3G
+    ports:
+      - "8700:8700"
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    networks:
+      - kryon-mgmt
+      - kryon-pentest
+    depends_on:
+      ollama:
+        condition: service_started
+    stdin_open: true
+    tty: true
+
+  # ---------------------------------------------------------------------------
+  # Ollama — Local LLM with GPU passthrough
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: kryon-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - kryon-mgmt
+
+  # ---------------------------------------------------------------------------
+  # Dashboard — SvelteKit SPA (nginx)
+  # ---------------------------------------------------------------------------
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/dashboard.Dockerfile
+    container_name: kryon-dashboard
+    restart: unless-stopped
+    depends_on:
+      - kryon
+    ports:
+      - "3000:80"
+    networks:
+      - kryon-mgmt
+
+  # ---------------------------------------------------------------------------
+  # Nginx — Reverse proxy with TLS (optional, enable with --profile proxy)
+  # ---------------------------------------------------------------------------
+  nginx:
+    build:
+      context: nginx
+      dockerfile: Dockerfile
+    container_name: kryon-nginx
+    profiles:
+      - proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - kryon
+      - dashboard
+    networks:
+      - kryon-mgmt
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  kryon-workspace:
+    driver: local
+  kryon-logs:
+    driver: local
+  kryon-config:
+    driver: local
+  kryon-knowledge:
+    driver: local
+  kryon-reports:
+    driver: local
+  ollama-models:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+# mgmt:    Kryon <-> Ollama <-> Dashboard (internal comms)
+# pentest: Kryon <-> targets (isolated, no LLM/dashboard access)
+# =============================================================================
+networks:
+  kryon-mgmt:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  kryon-pentest:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24

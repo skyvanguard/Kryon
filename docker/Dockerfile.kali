@@ -1,0 +1,148 @@
+# =============================================================================
+# KRYON - Kali Linux Pentesting Dockerfile (Multi-stage build)
+# =============================================================================
+# Full offensive security toolkit based on Kali Linux with all pentesting
+# tools pre-installed. Use docker-compose.kali.yml to orchestrate.
+#
+# Build:  docker compose -f docker/docker-compose.kali.yml build
+# Size:   ~8-12 GB (metasploit, seclists, wordlists, etc.)
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: base — Kali Linux with security tools
+# ---------------------------------------------------------------------------
+FROM kalilinux/kali-rolling AS base
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Core pentesting meta-package + extras not in kali-tools-top10
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Meta-package: nmap, metasploit, sqlmap, john, hydra, aircrack-ng,
+    # burpsuite (headless), wireshark-common, responder, nikto
+    kali-tools-top10 \
+    # Recon & enumeration
+    gobuster \
+    ffuf \
+    masscan \
+    enum4linux \
+    dnsrecon \
+    fierce \
+    amass \
+    whatweb \
+    wafw00f \
+    sublist3r \
+    # Web exploitation
+    wpscan \
+    dirb \
+    # Password attacks
+    hashcat \
+    seclists \
+    wordlists \
+    # SMB/AD
+    crackmapexec \
+    smbclient \
+    # Network
+    proxychains4 \
+    openvpn \
+    netcat-traditional \
+    socat \
+    tcpdump \
+    sshpass \
+    # Utilities
+    python3 \
+    python3-pip \
+    python3-venv \
+    python3-dev \
+    build-essential \
+    libffi-dev \
+    libssl-dev \
+    git \
+    curl \
+    wget \
+    jq \
+    tini \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install nuclei (latest from ProjectDiscovery)
+RUN curl -sSfL https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_$(curl -s https://api.github.com/repos/projectdiscovery/nuclei/releases/latest | jq -r '.tag_name' | tr -d 'v')_linux_amd64.zip -o /tmp/nuclei.zip \
+    && unzip -o /tmp/nuclei.zip -d /usr/local/bin/ nuclei \
+    && chmod +x /usr/local/bin/nuclei \
+    && rm /tmp/nuclei.zip \
+    || echo "WARNING: nuclei install failed, skipping"
+
+# ---------------------------------------------------------------------------
+# Stage 2: builder — Python dependencies via uv
+# ---------------------------------------------------------------------------
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+
+# Install uv for fast dependency resolution
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Install build deps for compiled packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ libffi-dev libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency manifest + source
+COPY pyproject.toml ./
+COPY src/ ./src/
+
+# Create venv and install with all relevant extras
+RUN uv venv /opt/venv && \
+    . /opt/venv/bin/activate && \
+    uv pip install --no-cache ".[rag,server,tracing,viz,tui,reporting,orchestration]"
+
+# ---------------------------------------------------------------------------
+# Stage 3: runtime — Kali tools + Python venv + Claude Code CLI
+# ---------------------------------------------------------------------------
+FROM base AS runtime
+
+LABEL maintainer="kryon-security"
+LABEL description="KRYON Pentesting Platform on Kali Linux"
+
+# Copy Python venv from builder
+COPY --from=builder /opt/venv /opt/venv
+
+# Create non-root user for default operation
+RUN groupadd -r kryon && useradd -r -g kryon -m -s /bin/bash kryon
+
+# Create required directories
+RUN mkdir -p /workspace /logs /reports /home/kryon/.kryon /home/kryon/.config && \
+    chown -R kryon:kryon /workspace /logs /reports /home/kryon
+
+# Install Claude Code CLI (Node.js required)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/* && \
+    npm install -g @anthropic-ai/claude-code
+
+# Set environment
+ENV PATH="/opt/venv/bin:/home/kryon/.local/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUTF8=1 \
+    # Ollama endpoint (docker service name)
+    OPENAI_API_KEY="ollama" \
+    OPENAI_BASE_URL="http://ollama:11434/v1" \
+    OLLAMA=true \
+    # Kryon defaults
+    KRYON_DEBUG=0 \
+    KRYON_TRACING=false \
+    KRYON_TELEMETRY=false \
+    KRYON_WORKSPACE_DIR=/workspace
+
+# Copy application source (only kryon package, preserve installed dependencies)
+COPY --chown=kryon:kryon src/kryon/ /opt/venv/lib/python3.11/site-packages/kryon/
+
+WORKDIR /workspace
+
+USER kryon
+
+# Health check against the API server
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -sf http://localhost:8700/api/v1/health || exit 1
+
+ENTRYPOINT ["tini", "--"]
+CMD ["kryon", "serve", "--host", "0.0.0.0", "--port", "8700"]
