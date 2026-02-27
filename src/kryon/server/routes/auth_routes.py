@@ -15,7 +15,7 @@ from kryon.server.auth.jwt_auth import (
     is_jwt_configured,
 )
 from kryon.server.auth.models import User, UserPublic
-from kryon.server.auth.password import hash_password, verify_password
+from kryon.server.auth.password import hash_password, validate_password_complexity, verify_password
 
 router = APIRouter(tags=["auth"])
 
@@ -112,6 +112,10 @@ async def change_password(req: PasswordChangeRequest, user: User | None = Depend
 
     if not verify_password(req.current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    complexity_error = validate_password_complexity(req.new_password)
+    if complexity_error:
+        raise HTTPException(status_code=400, detail=complexity_error)
 
     store = _get_store()
     store.update_user(user.id, password_hash=hash_password(req.new_password))

@@ -51,7 +51,7 @@ def run_cli_wizard(db_path: Path | None = None) -> dict:
     # 2. Generate JWT secret
     print("\n[2/3] Security configuration\n")
     jwt_secret = generate_jwt_secret()
-    print(f"  JWT secret generated: {jwt_secret[:8]}...")
+    print("  JWT secret generated (stored in .env)")
 
     # 3. CORS configuration
     print("\n[3/3] Network configuration\n")

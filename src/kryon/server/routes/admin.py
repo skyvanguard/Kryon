@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from kryon.server.auth import require_api_key
 from kryon.server.auth.models import UserPublic
-from kryon.server.auth.password import hash_password
+from kryon.server.auth.password import hash_password, validate_password_complexity
 from kryon.server.auth.rbac import require_permission
 
 router = APIRouter(tags=["admin"], dependencies=[Depends(require_api_key)])
@@ -109,6 +109,10 @@ async def list_users(_user=Depends(require_permission("admin:read"))):
 async def create_user(req: AdminCreateUser, _user=Depends(require_permission("admin:write"))):
     """Create a new user. Admin only."""
     from kryon.server.auth.models import User
+
+    complexity_error = validate_password_complexity(req.password)
+    if complexity_error:
+        raise HTTPException(400, complexity_error)
 
     store = _get_store()
 

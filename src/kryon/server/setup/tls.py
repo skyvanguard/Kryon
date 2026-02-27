@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 def generate_self_signed_cert(
     domain: str = "localhost",
     output_dir: Path | None = None,
+    key_passphrase: bytes | None = None,
 ) -> tuple[Path, Path]:
     """Generate a self-signed TLS certificate.
 
@@ -66,11 +67,17 @@ def generate_self_signed_cert(
     key_path = output_dir / "key.pem"
 
     cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+
+    encryption = (
+        serialization.BestAvailableEncryption(key_passphrase)
+        if key_passphrase
+        else serialization.NoEncryption()
+    )
     key_path.write_bytes(
         key.private_bytes(
             serialization.Encoding.PEM,
             serialization.PrivateFormat.TraditionalOpenSSL,
-            serialization.NoEncryption(),
+            encryption,
         )
     )
 

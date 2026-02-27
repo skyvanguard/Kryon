@@ -104,8 +104,12 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
     # Rate limiting
     app.add_middleware(RateLimitMiddleware, rpm=config.rate_limit_rpm)
 
-    # CORS
-    origins = config.cors_origins if not config.debug else ["*"]
+    # CORS — never use wildcard with credentials, even in debug
+    origins = config.cors_origins
+    if config.debug:
+        # Add common dev origins but don't use wildcard
+        dev_origins = {"http://localhost:3000", "http://localhost:5173", "http://localhost:8700"}
+        origins = list(set(origins) | dev_origins)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,

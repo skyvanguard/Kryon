@@ -39,11 +39,9 @@ async def readiness_check() -> ReadinessResponse:
         store = MemoryStore()
         conn = store._get_conn()
         conn.execute("SELECT 1")
-        row = conn.execute("SELECT version FROM schema_version LIMIT 1").fetchone()
-        version = row["version"] if row else 0
         checks["database"] = ReadinessCheck(status="healthy", error=None)
-    except Exception as exc:
-        checks["database"] = ReadinessCheck(status="unhealthy", error=str(exc))
+    except Exception:
+        checks["database"] = ReadinessCheck(status="unhealthy", error="Database unavailable")
 
     # RAG / Knowledge Base check
     try:
@@ -54,12 +52,12 @@ async def readiness_check() -> ReadinessResponse:
         doc_count = stats.get("total_documents", 0)
         checks["knowledge_base"] = ReadinessCheck(
             status="healthy" if doc_count > 0 else "degraded",
-            error=None if doc_count > 0 else "No documents in knowledge base",
+            error=None if doc_count > 0 else "Knowledge base empty",
         )
     except ImportError:
-        checks["knowledge_base"] = ReadinessCheck(status="skipped", error="RAG not installed")
-    except Exception as exc:
-        checks["knowledge_base"] = ReadinessCheck(status="unhealthy", error=str(exc))
+        checks["knowledge_base"] = ReadinessCheck(status="skipped", error="Not installed")
+    except Exception:
+        checks["knowledge_base"] = ReadinessCheck(status="unhealthy", error="Unavailable")
 
     # AI provider check
     try:
@@ -68,14 +66,13 @@ async def readiness_check() -> ReadinessResponse:
         has_openai = bool(os.environ.get("OPENAI_API_KEY"))
         has_anthropic = bool(os.environ.get("ANTHROPIC_API_KEY"))
         if has_openai or has_anthropic:
-            provider = "openai" if has_openai else "anthropic"
             checks["ai_provider"] = ReadinessCheck(status="healthy", error=None)
         else:
             checks["ai_provider"] = ReadinessCheck(
-                status="degraded", error="No AI API key configured"
+                status="degraded", error="Not configured"
             )
-    except Exception as exc:
-        checks["ai_provider"] = ReadinessCheck(status="unhealthy", error=str(exc))
+    except Exception:
+        checks["ai_provider"] = ReadinessCheck(status="unhealthy", error="Unavailable")
 
     overall = "healthy"
     for c in checks.values():

@@ -16,16 +16,20 @@ _EXCLUDED_PATHS = {"/api/v1/health"}
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Sliding-window rate limiter per client IP."""
 
-    def __init__(self, app, rpm: int = 60):
+    def __init__(self, app, rpm: int = 60, trusted_proxies: set[str] | None = None):
         super().__init__(app)
         self._rpm = rpm
         self._requests: dict[str, deque[float]] = defaultdict(deque)
+        self._trusted_proxies = trusted_proxies or {"127.0.0.1", "::1"}
 
     def _get_client_ip(self, request: Request) -> str:
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-        return request.client.host if request.client else "unknown"
+        client_host = request.client.host if request.client else "unknown"
+        # Only trust X-Forwarded-For if request comes from a trusted proxy
+        if client_host in self._trusted_proxies:
+            forwarded = request.headers.get("X-Forwarded-For")
+            if forwarded:
+                return forwarded.split(",")[0].strip()
+        return client_host
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if request.url.path in _EXCLUDED_PATHS:

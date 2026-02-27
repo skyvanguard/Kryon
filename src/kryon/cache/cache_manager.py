@@ -7,7 +7,7 @@ Optimizes KRYON operations by caching expensive scan results and preventing dupl
 
 import hashlib
 import json
-import pickle
+import logging
 import threading
 import time
 import zlib
@@ -15,6 +15,8 @@ from collections import OrderedDict
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class CacheManager:
@@ -216,20 +218,18 @@ class CacheManager:
         self._remove_expired()
 
     def _save_to_disk(self, key: str, entry: dict[str, Any]):
-        """Save cache entry to disk with compression."""
+        """Save cache entry to disk with compression (JSON format)."""
         if not self.enable_persistence:
             return
 
         try:
             cache_file = self.cache_dir / f"{key}.cache"
-            # Serialize and compress for better performance
-            pickled_data = pickle.dumps(entry, protocol=pickle.HIGHEST_PROTOCOL)
-            compressed_data = zlib.compress(pickled_data, level=6)  # Balance speed/compression
+            json_data = json.dumps(entry, default=str).encode("utf-8")
+            compressed_data = zlib.compress(json_data, level=6)
             with open(cache_file, "wb") as f:
                 f.write(compressed_data)
         except Exception:
-            # Silently fail on persistence errors
-            pass
+            logger.debug("Cache persistence write failed for key %s", key, exc_info=True)
 
     def _remove_from_disk(self, key: str):
         """Remove cache entry from disk."""
@@ -244,7 +244,7 @@ class CacheManager:
             pass
 
     def _load_from_disk(self):
-        """Load cache entries from disk with decompression."""
+        """Load cache entries from disk with decompression (JSON format)."""
         if not self.enable_persistence or not self.cache_dir.exists():
             return
 
@@ -254,27 +254,26 @@ class CacheManager:
                     with open(cache_file, "rb") as f:
                         compressed_data = f.read()
 
-                    # Decompress and deserialize
+                    # Decompress and deserialize as JSON
                     try:
-                        # Try compressed format first (new)
-                        pickled_data = zlib.decompress(compressed_data)
-                        entry = pickle.loads(pickled_data)
-                    except zlib.error:
-                        # Fallback to old uncompressed format
-                        entry = pickle.loads(compressed_data)
+                        json_data = zlib.decompress(compressed_data)
+                        entry = json.loads(json_data)
+                    except (zlib.error, json.JSONDecodeError):
+                        # Old pickle format or corrupted — remove and skip
+                        logger.debug("Removing incompatible cache file: %s", cache_file.name)
+                        cache_file.unlink(missing_ok=True)
+                        continue
 
                     # Check if expired
                     if not self._is_expired(entry):
                         key = cache_file.stem
                         self._cache[key] = entry
                     else:
-                        # Remove expired cache file
-                        cache_file.unlink()
+                        cache_file.unlink(missing_ok=True)
                 except Exception:
-                    # Skip corrupted cache files
                     continue
         except Exception:
-            pass
+            logger.debug("Cache load from disk failed", exc_info=True)
 
 
 # Global cache instance

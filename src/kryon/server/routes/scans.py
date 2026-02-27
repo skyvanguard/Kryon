@@ -10,7 +10,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from kryon.server.auth import require_api_key
-from kryon.server.deps import get_scheduler
+from kryon.server.auth.deps import get_current_user
+from kryon.server.auth.isolation import verify_client_access
+from kryon.server.auth.models import User
+from kryon.server.deps import get_scheduler, get_store
 from kryon.server.models import (
     AutoScanFinding,
     AutoScanRequest,
@@ -39,8 +42,9 @@ class ScheduleScanRequest(BaseModel):
 
 
 @router.post("/scans")
-async def schedule_scan(req: ScheduleScanRequest) -> dict:
+async def schedule_scan(req: ScheduleScanRequest, user: User | None = Depends(get_current_user)) -> dict:
     """Schedule a new scan."""
+    verify_client_access(user, req.client_id, get_store())
     scheduler = _get_scheduler()
     job_id = await scheduler.schedule_scan(
         client_id=req.client_id,
@@ -99,8 +103,9 @@ def _cleanup_completed_scans() -> None:
 
 
 @router.post("/scans/auto", response_model=AutoScanResponse)
-async def start_auto_scan(req: AutoScanRequest) -> AutoScanResponse:
+async def start_auto_scan(req: AutoScanRequest, user: User | None = Depends(get_current_user)) -> AutoScanResponse:
     """Start an autonomous enterprise pentest in the background."""
+    verify_client_access(user, req.client_id, get_store())
     _cleanup_completed_scans()
 
     from kryon.providers.rate_limiter import RateLimiter

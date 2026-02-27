@@ -23,7 +23,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
     # In debug mode, include traceback for developer convenience
     debug = os.environ.get("KRYON_DEBUG", "0")
-    if debug not in ("0", ""):
+    if debug.lower() in ("1", "true", "yes"):
         body["traceback"] = traceback.format_exception(type(exc), exc, exc.__traceback__)
 
     return JSONResponse(status_code=500, content=body)

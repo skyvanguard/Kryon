@@ -64,7 +64,7 @@ def test_admin_user_crud(admin_client):
     resp = client.post("/api/v1/admin/users", json={
         "username": "newuser",
         "email": "new@test.com",
-        "password": "secret1234",
+        "password": "Secret1234!",
         "role": "analyst",
     })
     assert resp.status_code == 200
@@ -99,11 +99,11 @@ def test_admin_create_duplicate_username(admin_client):
     client.post("/api/v1/admin/users", json={
         "username": "dup",
         "email": "dup@test.com",
-        "password": "secret1234",
+        "password": "Secret1234!",
     })
     resp = client.post("/api/v1/admin/users", json={
         "username": "dup",
         "email": "dup2@test.com",
-        "password": "secret1234",
+        "password": "Secret1234!",
     })
     assert resp.status_code == 400

@@ -9,6 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from kryon.server.auth import require_api_key
+from kryon.server.auth.deps import get_current_user
+from kryon.server.auth.isolation import verify_client_access
+from kryon.server.auth.models import User
 from kryon.server.deps import get_engagement_manager
 from kryon.server.models import CreateEngagementRequest, EngagementResponse
 
@@ -20,9 +23,11 @@ def _get_manager():
 
 
 @router.post("/engagements", response_model=EngagementResponse)
-async def create_engagement(req: CreateEngagementRequest) -> EngagementResponse:
+async def create_engagement(req: CreateEngagementRequest, user: User | None = Depends(get_current_user)) -> EngagementResponse:
     """Create a new multi-day engagement."""
     from kryon.engagements.models import Engagement
+
+    verify_client_access(user, req.client_name, _get_manager().store)
 
     engagement = Engagement(
         client_name=req.client_name,

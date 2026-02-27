@@ -33,4 +33,7 @@ class ServerConfig:
 
     def __post_init__(self):
         if self.auth_enabled and not self.jwt_secret:
-            logger.warning("auth_enabled=True but jwt_secret is empty — auth will use an insecure default")
+            raise ValueError(
+                "auth_enabled=True but jwt_secret is empty. "
+                "Set KRYON_JWT_SECRET or run the setup wizard: kryon --setup"
+            )
