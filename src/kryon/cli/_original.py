@@ -282,6 +282,8 @@ suppress_aiohttp_warnings()
 # OpenAI imports
 from rich.console import Console
 
+from kryon.repl.ui.spinner import AgentSpinner
+
 # KRYON agents and metrics imports
 from kryon.agents import get_agent_by_name
 from kryon.compat import is_pentestperf_available
@@ -319,7 +321,11 @@ from kryon.sdk.agents.items import ToolCallOutputItem
 
 # Import handled where needed to avoid circular imports
 from kryon.sdk.agents.run_to_jsonl import get_session_recorder
-from kryon.sdk.agents.stream_events import RunItemStreamEvent
+from kryon.sdk.agents.stream_events import (
+    AgentUpdatedStreamEvent,
+    RawResponsesStreamEvent,
+    RunItemStreamEvent,
+)
 
 # KRYON utility imports
 from kryon.util import (
@@ -1464,7 +1470,8 @@ def run_kryon_cli(
                     return valid_results
 
                 # Execute all parallel instances
-                results = asyncio.run(process_parallel_responses())
+                with AgentSpinner("parallel agents", console):
+                    results = asyncio.run(process_parallel_responses())
 
                 # Print summary info about the results
 
@@ -1484,20 +1491,40 @@ def run_kryon_cli(
                 # Single agent execution (original behavior)
                 if stream:
 
-                    async def process_streamed_response(agent, conversation_input):
+                    async def process_streamed_response(agent, conversation_input, spinner=None):
                         tool_calls_seen = {}  # Track tool calls by their ID
                         tool_results_seen = set()  # Track tool results by call_id
                         result = None
                         stream_iterator = None
+                        spinner_active = spinner is not None
 
                         try:
                             run_config = get_run_config()
-                            result = Runner.run_streamed(agent, conversation_input, run_config=run_config)
+                            hooks = spinner.create_hooks() if spinner else None
+                            result = Runner.run_streamed(agent, conversation_input, run_config=run_config, hooks=hooks)
                             stream_iterator = result.stream_events()
 
                             # Consume events so the async generator is executed.
                             async for event in stream_iterator:
+                                # Stop spinner on first text delta from the LLM
+                                if spinner_active and isinstance(event, RawResponsesStreamEvent):
+                                    if hasattr(event.data, "type") and event.data.type == "response.output_text.delta":
+                                        spinner.request_stop()
+                                        spinner_active = False
+
+                                # Update spinner on agent handoff
+                                if spinner_active and isinstance(event, AgentUpdatedStreamEvent):
+                                    spinner.update(handoff_agent=event.new_agent.name)
+
                                 if isinstance(event, RunItemStreamEvent):
+                                    # Update spinner on tool call
+                                    if event.name == "tool_called" and spinner_active:
+                                        tool_name = getattr(event.item, "name", None) or getattr(
+                                            getattr(event.item, "raw_item", None), "name", None
+                                        )
+                                        if tool_name:
+                                            spinner.update(tool_name=tool_name)
+
                                     if event.name == "tool_called":
                                         # Track tool calls that were issued
                                         if hasattr(event.item, "raw_item"):
@@ -1507,6 +1534,9 @@ def run_kryon_cli(
                                             if call_id:
                                                 tool_calls_seen[call_id] = event.item
                                     elif event.name == "tool_output":
+                                        # Clear tool indicator after output received
+                                        if spinner_active:
+                                            spinner.update(tool_name=None)
                                         # Ensure item is a ToolCallOutputItem before accessing attributes
                                         if isinstance(event.item, ToolCallOutputItem):
                                             call_id = event.item.raw_item["call_id"]
@@ -1579,7 +1609,11 @@ def run_kryon_cli(
                             return None
 
                     try:
-                        asyncio.run(process_streamed_response(agent, conversation_input))
+                        spinner = AgentSpinner(get_agent_short_name(agent), console)
+                        if hasattr(agent, "model"):
+                            spinner.patch_model(agent.model)
+                        with spinner:
+                            asyncio.run(process_streamed_response(agent, conversation_input, spinner))
                     except OutputGuardrailTripwireTriggered as e:
                         # Display a user-friendly warning instead of crashing (streaming mode)
                         guardrail_name = e.guardrail_result.guardrail.get_name()
@@ -1615,7 +1649,7 @@ def run_kryon_cli(
                             new_loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(new_loop)
                             try:
-                                new_loop.run_until_complete(process_streamed_response(agent, conversation_input))
+                                new_loop.run_until_complete(process_streamed_response(agent, conversation_input, spinner))
                             except OutputGuardrailTripwireTriggered as e:
                                 # Display a user-friendly warning instead of crashing (new event loop)
                                 guardrail_name = e.guardrail_result.guardrail.get_name()
@@ -1642,7 +1676,11 @@ def run_kryon_cli(
                     # Use non-streamed response
                     try:
                         run_config = get_run_config()
-                        response = asyncio.run(Runner.run(agent, conversation_input, run_config=run_config))
+                        spinner = AgentSpinner(get_agent_short_name(agent), console)
+                        if hasattr(agent, "model"):
+                            spinner.patch_model(agent.model)
+                        with spinner:
+                            response = asyncio.run(Runner.run(agent, conversation_input, run_config=run_config, hooks=spinner.create_hooks()))
                     except InputGuardrailTripwireTriggered as e:
                         # Display a user-friendly warning for input guardrails
                         reason = "Potential security threat detected in input"
