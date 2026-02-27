@@ -86,7 +86,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency manifest + source
-COPY pyproject.toml ./
+COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
 # Create venv and install with all relevant extras
@@ -102,8 +102,12 @@ FROM base AS runtime
 LABEL maintainer="kryon-security"
 LABEL description="KRYON Pentesting Platform on Kali Linux"
 
-# Copy Python venv from builder
+# Copy Python 3.11 runtime from builder (Kali ships Python 3.13, venv needs 3.11)
 COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /usr/local/bin/python3.11 /usr/local/bin/python3.11
+COPY --from=builder /usr/local/lib/python3.11 /usr/local/lib/python3.11
+COPY --from=builder /usr/local/lib/libpython3.11.so* /usr/local/lib/
+RUN ln -sf /usr/local/bin/python3.11 /usr/local/bin/python3 && ldconfig
 
 # Create non-root user for default operation
 RUN groupadd -r kryon && useradd -r -g kryon -m -s /bin/bash kryon
@@ -112,10 +116,9 @@ RUN groupadd -r kryon && useradd -r -g kryon -m -s /bin/bash kryon
 RUN mkdir -p /workspace /logs /reports /home/kryon/.kryon /home/kryon/.config && \
     chown -R kryon:kryon /workspace /logs /reports /home/kryon
 
-# Install Claude Code CLI (Node.js required)
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y --no-install-recommends nodejs && \
-    rm -rf /var/lib/apt/lists/* && \
+# Install Node.js (direct binary — avoids dependency on Kali mirrors)
+RUN curl -fsSL https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz \
+    | tar -xJ --strip-components=1 -C /usr/local/ && \
     npm install -g @anthropic-ai/claude-code
 
 # Set environment

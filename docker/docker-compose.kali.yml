@@ -76,8 +76,8 @@ services:
     restart: unless-stopped
     volumes:
       - ollama-models:/root/.ollama
-    ports:
-      - "127.0.0.1:11434:11434"
+    # No port binding needed — Kryon connects via internal Docker DNS (http://ollama:11434)
+    # If you need host access, uncomment: ports: ["127.0.0.1:11434:11434"]
     deploy:
       resources:
         limits:

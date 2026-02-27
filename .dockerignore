@@ -39,9 +39,11 @@ dashboard/build/
 .env.*
 !.env.example
 
-# Docker
+# Docker (exclude configs but keep nginx conf needed by dashboard build)
 docker/
+!docker/nginx/
 
 # Docs & misc
 *.md
+!README.md
 LICENSE
