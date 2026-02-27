@@ -13,6 +13,7 @@ Module for displaying the KRYON banner and system initialization message.
 import glob
 import logging
 import os
+from pathlib import Path
 import sys
 
 # Configure UTF-8 encoding for Windows console
@@ -52,33 +53,34 @@ else:
 
 
 def get_version():
-    """Get the KRYON version from pyproject.toml."""
-    version = "1.0.0"
+    """Get the KRYON version from installed package metadata or pyproject.toml."""
+    # 1. Try importlib.metadata (works when package is installed)
     try:
-        # Determine which TOML parser to use
+        from importlib.metadata import version as pkg_version
+        return pkg_version("kryon")
+    except Exception:
+        pass
+
+    # 2. Fallback: read pyproject.toml using absolute path
+    pyproject_path = Path(__file__).resolve().parent.parent.parent.parent / "pyproject.toml"
+    try:
         if sys.version_info >= (3, 11):
             toml_parser = tomllib
         else:
             try:
                 import tomli as toml_parser
             except ImportError:
-                logging.warning("Could not import tomli. Falling back to manual parsing.")
-                # Simple manual parsing for version only
-                with open("pyproject.toml", encoding="utf-8") as f:
+                with open(pyproject_path, encoding="utf-8") as f:
                     for line in f:
                         if line.strip().startswith("version = "):
-                            # Extract version from line like 'version = "0.4.0"'
-                            version = line.split("=")[1].strip().strip("\"'")
-                            return version
-                return version
+                            return line.split("=")[1].strip().strip("\"'")
+                return "1.0.0"
 
-        # Use proper TOML parser if available
-        with open("pyproject.toml", "rb") as f:
+        with open(pyproject_path, "rb") as f:
             config = toml_parser.load(f)
-        version = config.get("project", {}).get("version", "unknown")
-    except Exception as e:  # pylint: disable=broad-except
-        logging.warning("Could not read version from pyproject.toml: %s", e)
-    return version
+        return config.get("project", {}).get("version", "1.0.0")
+    except Exception:
+        return "1.0.0"
 
 
 def get_supported_models_count():
@@ -527,3 +529,177 @@ def display_quick_guide(console: Console):
         ),
         end="",
     )
+
+
+# ---------------------------------------------------------------------------
+# Compact startup (first-run vs. returning user)
+# ---------------------------------------------------------------------------
+
+import random
+
+from rich.box import ROUNDED
+from rich.text import Text
+
+_CLI_MARKER_DIR = Path("~/.kryon").expanduser()
+_CLI_MARKER_FILE = _CLI_MARKER_DIR / ".cli_initialized"
+
+# Rotating tips shown on each session start
+_TIPS = [
+    'Just describe your goal: [green]"Scan example.com for vulns"[/green]',
+    "Use [green]/agent list[/green] to see all 9 specialized security agents",
+    "Use [green]/compact[/green] to summarize and free up conversation context",
+    "Press [green]Esc+Enter[/green] for multi-line input",
+    "Use [green]/parallel add pentest_agent[/green] to run multiple agents at once",
+    "Use [green]$ whoami[/green] to run shell commands inline",
+    "Use [green]/memory list[/green] to recall past findings",
+    "Use [green]/workspace set ctf_name[/green] to organize operations",
+    "Use [green]/model claude-3-7-sonnet[/green] to switch AI models on the fly",
+    "Use [green]/help quick[/green] for the full command reference",
+    "Use [green]/mcp load sse URL[/green] to connect external tool servers",
+    "Use [green]/history[/green] to review your conversation",
+    "Use [green]/virt run IMAGE[/green] to spin up Docker containers",
+]
+
+
+def is_first_run() -> bool:
+    """Return True when the CLI has never been started before."""
+    return not _CLI_MARKER_FILE.exists()
+
+
+def mark_initialized() -> None:
+    """Create the first-run marker so subsequent starts show the compact banner."""
+    try:
+        _CLI_MARKER_DIR.mkdir(parents=True, exist_ok=True)
+        _CLI_MARKER_FILE.touch()
+    except OSError:
+        pass  # non-critical — next start will try again
+
+
+def _get_context() -> dict:
+    """Gather runtime context for the startup banner."""
+    version = get_version()
+    import kryon
+
+    return {
+        "version": version,
+        "codename": getattr(kryon, "__codename__", "Genesis"),
+        "agent": os.getenv("KRYON_AGENT_TYPE", "recon_scout"),
+        "model": os.getenv("KRYON_MODEL", "gpt-4o"),
+        "cwd": os.getcwd(),
+    }
+
+
+def _random_tip() -> str:
+    """Pick a random tip for this session."""
+    return random.choice(_TIPS)
+
+
+def display_compact_banner(console: Console) -> None:
+    """
+    Interactive compact startup panel for returning users.
+
+    Styled after modern CLI tools: bordered panel with context and a rotating tip.
+    """
+    ctx = _get_context()
+    tip = _random_tip()
+
+    body = Text.assemble(
+        ("KRYON", "bold blue"),
+        (" v", "white"),
+        (ctx["version"], "bold white"),
+        (" ", ""),
+        ("· ", "dim"),
+        (ctx["codename"], "bold cyan"),
+        "\n\n",
+        ("  /help", "green"),
+        (" for commands", "dim"),
+        ("    ", ""),
+        ("/agent", "green"),
+        (" to switch agents", "dim"),
+        ("    ", ""),
+        ("Ctrl+C", "green"),
+        (" to exit", "dim"),
+        "\n\n",
+        ("  Agent: ", "dim"),
+        (ctx["agent"], "cyan"),
+        ("  · ", "dim"),
+        ("Model: ", "dim"),
+        (ctx["model"], "white"),
+        ("\n",),
+        ("  cwd: ", "dim"),
+        (ctx["cwd"], "dim"),
+        "\n\n",
+        ("  Tip: ", "yellow"),
+    )
+
+    panel = Panel(
+        body + Text.from_markup(tip),
+        border_style="blue",
+        box=ROUNDED,
+        padding=(1, 2),
+    )
+    console.print()
+    console.print(panel)
+
+
+def display_first_run_welcome(console: Console) -> None:
+    """
+    First-run onboarding panel with examples and key commands.
+
+    Creates the marker file so subsequent starts use the compact banner.
+    """
+    ctx = _get_context()
+
+    body = Text.assemble(
+        ("KRYON", "bold blue"),
+        (" v", "white"),
+        (ctx["version"], "bold white"),
+        (" ", ""),
+        ("· ", "dim"),
+        (ctx["codename"], "bold cyan"),
+        "\n",
+        ("  Autonomous Cybersecurity Intelligence Platform", "dim"),
+        "\n\n",
+        ("  Welcome!", "bold white"),
+        (" KRYON is an AI-powered autonomous pentesting platform.", "dim"),
+        "\n",
+        ("  Just describe what you want to do in plain language:", "dim"),
+        "\n\n",
+        ('    "Scan example.com for web vulnerabilities"', "green"),
+        "\n",
+        ('    "Analyze this binary for malware indicators"', "green"),
+        "\n",
+        ('    "Help me solve this CTF challenge"', "green"),
+        "\n\n",
+        ("  Agent: ", "dim"),
+        (ctx["agent"], "cyan"),
+        ("  · ", "dim"),
+        ("Model: ", "dim"),
+        (ctx["model"], "white"),
+        ("\n",),
+        ("  cwd: ", "dim"),
+        (ctx["cwd"], "dim"),
+        "\n\n",
+        ("  /help", "green"),
+        ("          Full command reference", "dim"),
+        "\n",
+        ("  /agent list", "green"),
+        ("    Switch between 9 specialized agents", "dim"),
+        "\n",
+        ("  /help quick", "green"),
+        ("    Workflows, env vars, and pro tips", "dim"),
+        "\n",
+        ("  Ctrl+C", "green"),
+        ("         Exit", "dim"),
+    )
+
+    panel = Panel(
+        body,
+        border_style="blue",
+        box=ROUNDED,
+        padding=(1, 2),
+    )
+    console.print()
+    console.print(panel)
+
+    mark_initialized()

@@ -296,7 +296,13 @@ from kryon.sdk.agents.parallel_isolation import PARALLEL_ISOLATION
 
 # Global storage for shared message histories (keyed by a unique identifier)
 UNIFIED_MESSAGE_HISTORIES: dict[str, list] = {}
-from kryon.repl.ui.banner import display_banner, display_quick_guide
+from kryon.repl.ui.banner import (
+    display_banner,
+    display_compact_banner,
+    display_first_run_welcome,
+    display_quick_guide,
+    is_first_run,
+)
 from kryon.repl.ui.keybindings import create_key_bindings
 from kryon.repl.ui.logging import setup_session_logging
 from kryon.repl.ui.prompt import get_user_input
@@ -496,10 +502,11 @@ def run_kryon_cli(
         agent_name=None,  # Will be updated when agent is selected
     )
 
-    # Display banner
-    display_banner(console)
-    print("\n")
-    display_quick_guide(console)
+    # Display startup banner (compact for returning users, full for first run)
+    if is_first_run():
+        display_first_run_welcome(console)
+    else:
+        display_compact_banner(console)
 
     # Function to get the short name of the agent for display
     def get_agent_short_name(agent):
