@@ -12,7 +12,7 @@ Primary Users:
 
 from typing import Any, Optional
 
-from kryon.tools.common import generic_linux_command
+from kryon.tools.common import run_command
 
 
 def pass_the_hash(
@@ -55,7 +55,7 @@ def pass_the_hash(
         else:
             cmd_parts.append("cmd.exe")
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -101,7 +101,7 @@ def pass_the_ticket(
         os.environ["KRB5CCNAME"] = ticket_file
 
         # Use ticket to access service
-        cmd_result = generic_linux_command("smbclient", f"-k //{target}/{service}")
+        cmd_result = run_command("smbclient", f"-k //{target}/{service}")
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -143,7 +143,7 @@ def extract_ntlm_hash(
         if output_file:
             cmd_parts.extend(["-outputfile", output_file])
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success"):
             output = cmd_result.get("output", "")
@@ -193,7 +193,7 @@ def crack_ntlm_hash(
         if rules:
             cmd_parts.extend(["-r", rules])
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success"):
             output = cmd_result.get("output", "")

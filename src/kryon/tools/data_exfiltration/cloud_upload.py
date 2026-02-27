@@ -11,7 +11,7 @@ Primary Users:
 
 from typing import Any, Optional
 
-from kryon.tools.common import generic_linux_command
+from kryon.tools.common import run_command
 
 
 def upload_to_s3(
@@ -59,7 +59,7 @@ def upload_to_s3(
         if aws_secret_key:
             env_vars["AWS_SECRET_ACCESS_KEY"] = aws_secret_key
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -109,7 +109,7 @@ def upload_to_azure(
         if connection_string:
             cmd_parts.extend(["--connection-string", connection_string])
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -149,7 +149,7 @@ def upload_to_gdrive(
         else:
             dest = "gdrive:"
 
-        cmd_result = generic_linux_command("rclone", f"copy {file_path} {dest}")
+        cmd_result = run_command("rclone", f"copy {file_path} {dest}")
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -204,7 +204,7 @@ def upload_via_pastebin(
         cmd_parts.extend(["-d", f"api_paste_private={privacy}"])
         cmd_parts.append("https://pastebin.com/api/api_post.php")
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success"):
             output = cmd_result.get("output", "").strip()
@@ -242,7 +242,7 @@ def upload_via_transfer_sh(file_path: str) -> dict[str, Any]:
 
         filename = os.path.basename(file_path)
 
-        cmd_result = generic_linux_command("curl", f"--upload-file {file_path} https://transfer.sh/{filename}")
+        cmd_result = run_command("curl", f"--upload-file {file_path} https://transfer.sh/{filename}")
 
         if cmd_result.get("success"):
             url = cmd_result.get("output", "").strip()
@@ -298,7 +298,7 @@ def upload_via_ftp(
             remote_path = filename
 
         # Use curl for FTP upload
-        cmd_result = generic_linux_command(
+        cmd_result = run_command(
             "curl",
             f"-T {file_path} ftp://{ftp_host}:{port}/{remote_path} --user {ftp_user}:{ftp_password}",
         )

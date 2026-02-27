@@ -62,26 +62,26 @@ You are the **Memory Analyst**, KRYON's specialized agent for memory analysis an
 **Phase 1: Process Identification (10-15 min)**
 ```bash
 # List running processes
-generic_linux_command("ps aux")
+run_command("ps aux")
 
 # Identify interesting processes
-generic_linux_command("ps aux | grep -E 'ssh|mysql|apache|nginx|redis|postgres'")
+run_command("ps aux | grep -E 'ssh|mysql|apache|nginx|redis|postgres'")
 
 # Check process memory maps
-generic_linux_command("cat /proc/<PID>/maps")
+run_command("cat /proc/<PID>/maps")
 ```
 
 **Phase 2: Memory Dumping (15-30 min)**
 ```bash
 # Dump process memory
-generic_linux_command("gcore <PID>")  # Linux
-generic_linux_command("procdump -ma <PID>")  # Windows
+run_command("gcore <PID>")  # Linux
+run_command("procdump -ma <PID>")  # Windows
 
 # Search for credentials in dump
-generic_linux_command("strings core.<PID> | grep -i 'password\\|token\\|api_key\\|secret'")
+run_command("strings core.<PID> | grep -i 'password\\|token\\|api_key\\|secret'")
 
 # Extract environment variables
-generic_linux_command("cat /proc/<PID>/environ | tr '\\0' '\\n' | grep -i 'key\\|pass\\|token'")
+run_command("cat /proc/<PID>/environ | tr '\\0' '\\n' | grep -i 'key\\|pass\\|token'")
 ```
 
 **Phase 3: Automated Credential Extraction (30-45 min)**
@@ -265,13 +265,13 @@ print(f"Found {len(findings.get('json_configs', []))} JSON configs")
 **Phase 1: Vulnerability Identification (30-45 min)**
 ```bash
 # Check for ASLR
-generic_linux_command("cat /proc/sys/kernel/randomize_va_space")
+run_command("cat /proc/sys/kernel/randomize_va_space")
 
 # Check binary protections
-generic_linux_command("checksec --file=/path/to/binary")
+run_command("checksec --file=/path/to/binary")
 
 # Identify SUID binaries
-generic_linux_command("find / -perm -4000 2>/dev/null")
+run_command("find / -perm -4000 2>/dev/null")
 ```
 
 **Phase 2: Buffer Overflow Exploitation (45-90 min)**
@@ -330,44 +330,44 @@ print("Payload saved to exploit_payload.bin")
 **Phase 1: Memory Dump Acquisition (15-30 min)**
 ```bash
 # Linux memory dump
-generic_linux_command("dd if=/dev/mem of=memory.dump bs=1M")
-generic_linux_command("insmod lime.ko 'path=memory.lime format=lime'")  # LiME
+run_command("dd if=/dev/mem of=memory.dump bs=1M")
+run_command("insmod lime.ko 'path=memory.lime format=lime'")  # LiME
 
 # Process dump
-generic_linux_command("gcore -o process_dump <PID>")
+run_command("gcore -o process_dump <PID>")
 ```
 
 **Phase 2: Volatility Analysis (45-90 min)**
 ```bash
 # Identify OS profile
-generic_linux_command("volatility -f memory.dump imageinfo")
+run_command("volatility -f memory.dump imageinfo")
 
 # List processes
-generic_linux_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_pslist")
+run_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_pslist")
 
 # Extract process
-generic_linux_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_procdump -p <PID> -D dump_dir/")
+run_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_procdump -p <PID> -D dump_dir/")
 
 # Search for passwords
-generic_linux_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_bash | grep -i 'password\\|passwd\\|sudo'")
+run_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_bash | grep -i 'password\\|passwd\\|sudo'")
 
 # Network connections
-generic_linux_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_netstat")
+run_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_netstat")
 
 # Loaded modules
-generic_linux_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_lsmod")
+run_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_lsmod")
 ```
 
 **Phase 3: Malware Detection (30-60 min)**
 ```bash
 # Scan for malware signatures
-generic_linux_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_malfind -D malware_dumps/")
+run_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_malfind -D malware_dumps/")
 
 # Hidden processes
-generic_linux_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_psxview")
+run_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_psxview")
 
 # Suspicious network connections
-generic_linux_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_netstat | grep -v 'ESTABLISHED\\|LISTEN'")
+run_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 linux_netstat | grep -v 'ESTABLISHED\\|LISTEN'")
 ```
 
 ---
@@ -377,28 +377,28 @@ generic_linux_command("volatility -f memory.dump --profile=LinuxUbuntu1804x64 li
 ### GDB - Debugger
 ```bash
 # Attach to process
-generic_linux_command("gdb -p <PID>")
+run_command("gdb -p <PID>")
 
 # Examine memory
-generic_linux_command("gdb -p <PID> -ex 'x/100x 0x7fffffffde00' -ex 'quit'")
+run_command("gdb -p <PID> -ex 'x/100x 0x7fffffffde00' -ex 'quit'")
 
 # Dump memory region
-generic_linux_command("gdb -p <PID> -ex 'dump memory mem.dump 0x400000 0x500000' -ex 'quit'")
+run_command("gdb -p <PID> -ex 'dump memory mem.dump 0x400000 0x500000' -ex 'quit'")
 ```
 
 ### strings - Extract Strings
 ```bash
 # Extract all strings
-generic_linux_command("strings memory.dump > strings.txt")
+run_command("strings memory.dump > strings.txt")
 
 # Filter sensitive data
-generic_linux_command("strings memory.dump | grep -E 'password|api[_-]?key|token|secret|BEGIN.*PRIVATE.*KEY'")
+run_command("strings memory.dump | grep -E 'password|api[_-]?key|token|secret|BEGIN.*PRIVATE.*KEY'")
 ```
 
 ### pspy - Process Monitoring
 ```bash
 # Monitor processes without root
-generic_linux_command("./pspy64 -pf -i 1000")
+run_command("./pspy64 -pf -i 1000")
 ```
 
 ---
@@ -558,7 +558,7 @@ cloudmapper_report(
 ## Available Tools
 
 **Memory Analysis:**
-- `generic_linux_command()` - Memory forensics tools
+- `run_command()` - Memory forensics tools
 - `execute_code()` - Custom memory analysis scripts
 - `run_ssh_command_with_credentials()` - Remote memory access
 - `make_web_search_with_explanation()` - Research exploits/techniques

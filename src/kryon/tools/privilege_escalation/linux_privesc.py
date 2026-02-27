@@ -13,7 +13,7 @@ Primary Users:
 import os
 from typing import Any, Optional
 
-from kryon.tools.common import generic_linux_command
+from kryon.tools.common import run_command
 
 
 def enumerate_linux_privesc(verbose: bool = False) -> dict[str, Any]:
@@ -150,7 +150,7 @@ def find_suid_binaries(search_paths: Optional[list[str]] = None, interesting_onl
             search_paths = ["/"]
 
         # Find SUID binaries
-        cmd_result = generic_linux_command("find", f"{' '.join(search_paths)} -type f -perm -4000 2>/dev/null")
+        cmd_result = run_command("find", f"{' '.join(search_paths)} -type f -perm -4000 2>/dev/null")
 
         if cmd_result.get("success"):
             output = cmd_result.get("output", "")
@@ -210,7 +210,7 @@ def find_writable_files(search_paths: Optional[list[str]] = None, exclude_proc: 
             exclude_args = "-path /proc -prune -o -path /sys -prune -o"
 
         # Find world-writable files
-        cmd_result = generic_linux_command(
+        cmd_result = run_command(
             "find", f"{' '.join(search_paths)} {exclude_args} -type f -perm -002 2>/dev/null"
         )
 
@@ -222,7 +222,7 @@ def find_writable_files(search_paths: Optional[list[str]] = None, exclude_proc: 
             result["count"] = len(files)
 
         # Find world-writable directories
-        dir_result = generic_linux_command(
+        dir_result = run_command(
             "find", f"{' '.join(search_paths)} {exclude_args} -type d -perm -002 2>/dev/null"
         )
 
@@ -259,7 +259,7 @@ def check_sudo_permissions() -> dict[str, Any]:
 
     try:
         # Check sudo -l
-        cmd_result = generic_linux_command("sudo", "-l")
+        cmd_result = run_command("sudo", "-l")
 
         if cmd_result.get("success"):
             output = cmd_result.get("output", "")
@@ -306,7 +306,7 @@ def suggest_kernel_exploits(kernel_version: Optional[str] = None) -> dict[str, A
     try:
         # Get kernel version if not provided
         if not kernel_version:
-            cmd_result = generic_linux_command("uname", "-r")
+            cmd_result = run_command("uname", "-r")
             if cmd_result.get("success"):
                 kernel_version = cmd_result.get("output", "").strip()
 
@@ -355,7 +355,7 @@ def check_capabilities() -> dict[str, Any]:
 
     try:
         # Use getcap to find capabilities
-        cmd_result = generic_linux_command("getcap", "-r / 2>/dev/null")
+        cmd_result = run_command("getcap", "-r / 2>/dev/null")
 
         if cmd_result.get("success"):
             output = cmd_result.get("output", "")
@@ -404,11 +404,11 @@ def find_cron_jobs() -> dict[str, Any]:
         for location in cron_locations:
             if os.path.exists(location):
                 if os.path.isfile(location):
-                    cmd_result = generic_linux_command("cat", location)
+                    cmd_result = run_command("cat", location)
                     if cmd_result.get("success"):
                         all_crons.append({"location": location, "content": cmd_result.get("output", "")})
                 elif os.path.isdir(location):
-                    cmd_result = generic_linux_command("ls", f"-la {location}")
+                    cmd_result = run_command("ls", f"-la {location}")
                     if cmd_result.get("success"):
                         all_crons.append({"location": location, "content": cmd_result.get("output", "")})
 
@@ -417,7 +417,7 @@ def find_cron_jobs() -> dict[str, Any]:
         # Check for writable cron files
         for location in cron_locations:
             if os.path.exists(location):
-                cmd_result = generic_linux_command("find", f"{location} -writable 2>/dev/null")
+                cmd_result = run_command("find", f"{location} -writable 2>/dev/null")
                 if cmd_result.get("success"):
                     writable = cmd_result.get("output", "").strip()
                     if writable:
@@ -456,7 +456,7 @@ def check_docker_escape() -> dict[str, Any]:
             result["in_container"] = True
 
         # Check for privileged mode
-        cmd_result = generic_linux_command("cat", "/proc/self/status")
+        cmd_result = run_command("cat", "/proc/self/status")
         if cmd_result.get("success"):
             if "CapEff:	0000003fffffffff" in cmd_result.get("output", ""):
                 result["privileged"] = True
@@ -475,7 +475,7 @@ def check_docker_escape() -> dict[str, Any]:
             )
 
         # Check for sensitive mounts
-        cmd_result = generic_linux_command("mount", "")
+        cmd_result = run_command("mount", "")
         if cmd_result.get("success"):
             mounts = cmd_result.get("output", "")
             if "/proc" in mounts or "/sys" in mounts:
@@ -509,7 +509,7 @@ def _get_system_info() -> dict[str, str]:
 
     for key, cmd in commands.items():
         parts = cmd.split()
-        result = generic_linux_command(parts[0], " ".join(parts[1:]) if len(parts) > 1 else "")
+        result = run_command(parts[0], " ".join(parts[1:]) if len(parts) > 1 else "")
         if result.get("success"):
             info[key] = result.get("output", "").strip()
 
@@ -529,7 +529,7 @@ def _get_network_info() -> dict[str, str]:
 
     for key, cmd in commands.items():
         parts = cmd.split()
-        result = generic_linux_command(parts[0], " ".join(parts[1:]))
+        result = run_command(parts[0], " ".join(parts[1:]))
         if result.get("success"):
             info[key] = result.get("output", "").strip()
 
@@ -538,7 +538,7 @@ def _get_network_info() -> dict[str, str]:
 
 def _get_users() -> list[str]:
     """Get list of users."""
-    result = generic_linux_command("cat", "/etc/passwd")
+    result = run_command("cat", "/etc/passwd")
     if result.get("success"):
         users = []
         for line in result.get("output", "").split("\n"):
@@ -550,7 +550,7 @@ def _get_users() -> list[str]:
 
 def _get_groups() -> list[str]:
     """Get list of groups."""
-    result = generic_linux_command("cat", "/etc/group")
+    result = run_command("cat", "/etc/group")
     if result.get("success"):
         groups = []
         for line in result.get("output", "").split("\n"):
@@ -616,17 +616,17 @@ def run_linpeas(output_file: str = "/tmp/linpeas.txt", thorough: bool = False) -
         # Try to download LinPEAS from GitHub
         download_cmd = f"curl -L https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh -o {linpeas_path} 2>/dev/null || wget https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh -O {linpeas_path} 2>/dev/null"
 
-        generic_linux_command("sh", f"-c '{download_cmd}'")
+        run_command("sh", f"-c '{download_cmd}'")
 
         # Make executable
-        generic_linux_command("chmod", f"+x {linpeas_path}")
+        run_command("chmod", f"+x {linpeas_path}")
 
         # Run LinPEAS
         linpeas_args = f"-a > {output_file}" if thorough else f"> {output_file}"
-        generic_linux_command("sh", f"{linpeas_path} {linpeas_args}")
+        run_command("sh", f"{linpeas_path} {linpeas_args}")
 
         # Read output file
-        read_result = generic_linux_command("cat", output_file)
+        read_result = run_command("cat", output_file)
 
         if read_result.get("success"):
             output = read_result.get("output", "")
@@ -707,11 +707,11 @@ def run_linenum() -> dict[str, Any]:
 
         download_cmd = f"curl -L https://raw.githubusercontent.com/rebootuser/LinEnum/master/LinEnum.sh -o {linenum_path} 2>/dev/null || wget https://raw.githubusercontent.com/rebootuser/LinEnum/master/LinEnum.sh -O {linenum_path} 2>/dev/null"
 
-        generic_linux_command("sh", f"-c '{download_cmd}'")
-        generic_linux_command("chmod", f"+x {linenum_path}")
+        run_command("sh", f"-c '{download_cmd}'")
+        run_command("chmod", f"+x {linenum_path}")
 
         # Run LinEnum
-        cmd_result = generic_linux_command("sh", linenum_path)
+        cmd_result = run_command("sh", linenum_path)
 
         if cmd_result.get("success"):
             output = cmd_result.get("output", "")

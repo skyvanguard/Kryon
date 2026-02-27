@@ -14,7 +14,7 @@ SPECIALIZATION: Case Studies, Scenario Planning, Documentation
 """
 
 from kryon.agents.base import create_agent
-from kryon.tools.reconnaissance.generic_linux_command import null_tool
+from kryon.tools.reconnaissance.run_command import null_tool
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
 # Load Mission Analyst strategic directives

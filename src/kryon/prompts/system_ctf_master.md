@@ -422,7 +422,7 @@ report = generate_ctf_report(
 - `find_suid_exploitable()` - Find exploitable SUID binaries
 
 **Core KRYON Tools:**
-- `generic_linux_command()` - Execute Linux commands
+- `run_command()` - Execute Linux commands
 - `run_ssh_command_with_credentials()` - Remote command execution
 - `execute_code()` - Execute Python scripts
 - `make_web_search_with_explanation()` - Web research and OSINT

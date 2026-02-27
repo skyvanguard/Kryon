@@ -131,34 +131,34 @@ Your primary directives are:
 ### 1. Process Memory Mapping
 ```bash
 # Attach and map memory regions
-generic_linux_command("gdb", "-p <PID> -batch -ex 'info proc mappings' -ex 'quit'")
+run_command("gdb", "-p <PID> -batch -ex 'info proc mappings' -ex 'quit'")
 
 # View detailed mapping
-generic_linux_command("cat", "/proc/<PID>/maps")
+run_command("cat", "/proc/<PID>/maps")
 
 # Analyze permissions
-generic_linux_command("grep", "rwx /proc/<PID>/maps")
+run_command("grep", "rwx /proc/<PID>/maps")
 ```
 
 ### 2. Memory Pattern Scanning
 ```bash
 # Scan for specific value
-generic_linux_command("scanmem", "--pid=<PID> --command='option scan_data_type int32; 0x12345678'")
+run_command("scanmem", "--pid=<PID> --command='option scan_data_type int32; 0x12345678'")
 
 # Search binary pattern with GDB
-generic_linux_command("gdb", "-p <PID> -batch -ex 'find /b 0x<start>, 0x<end>, 0x41, 0x42, 0x43' -ex 'quit'")
+run_command("gdb", "-p <PID> -batch -ex 'find /b 0x<start>, 0x<end>, 0x41, 0x42, 0x43' -ex 'quit'")
 ```
 
 ### 3. Memory Dumping
 ```bash
 # Dump specific memory region
-generic_linux_command("dd", "if=/proc/<PID>/mem bs=1 skip=<ADDR> count=<SIZE> of=dump.bin")
+run_command("dd", "if=/proc/<PID>/mem bs=1 skip=<ADDR> count=<SIZE> of=dump.bin")
 
 # Hex dump region
-generic_linux_command("dd", "if=/proc/<PID>/mem bs=1 skip=<ADDR> count=<SIZE> | hexdump -C")
+run_command("dd", "if=/proc/<PID>/mem bs=1 skip=<ADDR> count=<SIZE> | hexdump -C")
 
 # Full process dump with gcore
-generic_linux_command("gcore", "-o memdump <PID>")
+run_command("gcore", "-o memdump <PID>")
 ```
 
 ### 4. Function Hooking with Frida
@@ -178,34 +178,34 @@ Interceptor.attach(ptr("<FUNCTION_ADDR>"), {
 EOF
 
 # Execute hook
-generic_linux_command("frida", "--no-pause -l hook.js -p <PID>")
+run_command("frida", "--no-pause -l hook.js -p <PID>")
 ```
 
 ### 5. Memory Modification
 ```bash
 # Modify integer value
-generic_linux_command("gdb", "-p <PID> -batch -ex 'set {int}<ADDR>=<VALUE>' -ex 'quit'")
+run_command("gdb", "-p <PID> -batch -ex 'set {int}<ADDR>=<VALUE>' -ex 'quit'")
 
 # Modify string
-generic_linux_command("gdb", "-p <PID> -batch -ex 'set {char[10]}<ADDR>=\"modified\"' -ex 'quit'")
+run_command("gdb", "-p <PID> -batch -ex 'set {char[10]}<ADDR>=\"modified\"' -ex 'quit'")
 
 # Patch bytes
-generic_linux_command("gdb", "-p <PID> -batch -ex 'set {char}<ADDR>=0x90' -ex 'quit'")
+run_command("gdb", "-p <PID> -batch -ex 'set {char}<ADDR>=0x90' -ex 'quit'")
 ```
 
 ### 6. Volatility Forensics
 ```bash
 # Analyze memory dump
-generic_linux_command("volatility", "-f memdump.raw imageinfo")
+run_command("volatility", "-f memdump.raw imageinfo")
 
 # List processes
-generic_linux_command("volatility", "-f memdump.raw --profile=<PROFILE> pslist")
+run_command("volatility", "-f memdump.raw --profile=<PROFILE> pslist")
 
 # Extract credentials
-generic_linux_command("volatility", "-f memdump.raw --profile=<PROFILE> hashdump")
+run_command("volatility", "-f memdump.raw --profile=<PROFILE> hashdump")
 
 # Network connections
-generic_linux_command("volatility", "-f memdump.raw --profile=<PROFILE> netscan")
+run_command("volatility", "-f memdump.raw --profile=<PROFILE> netscan")
 ```
 
 ---

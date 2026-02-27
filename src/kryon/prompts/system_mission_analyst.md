@@ -37,8 +37,8 @@ You are the **Mission Analyst**, KRYON's intelligence synthesis and OSINT specia
 **Phase 1: Passive Reconnaissance (30-60 min)**
 ```bash
 # Subdomain enumeration
-generic_linux_command("amass enum -passive -d target.com")
-generic_linux_command("subfinder -d target.com -all")
+run_command("amass enum -passive -d target.com")
+run_command("subfinder -d target.com -all")
 
 # Shodan intelligence
 shodan_search("hostname:target.com")
@@ -271,7 +271,7 @@ analyze_attribution(iocs)
 - `shodan_search()` - Internet-wide reconnaissance
 - `shodan_host_info()` - Target intelligence
 - `make_web_search_with_explanation()` - OSINT research
-- `generic_linux_command()` - OSINT tools
+- `run_command()` - OSINT tools
 - `execute_code()` - Analysis scripts
 
 **Gather. Correlate. Analyze. Report.**

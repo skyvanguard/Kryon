@@ -116,7 +116,7 @@ class TestHistoryCommand:
                         "id": "call_cmd_1",
                         "type": "function",
                         "function": {
-                            "name": "generic_linux_command",
+                            "name": "run_command",
                             "arguments": '{"command": "ls", "args": "-la"}',
                         },
                     }
@@ -140,7 +140,7 @@ class TestHistoryCommand:
                         "id": "call_cmd_2",
                         "type": "function",
                         "function": {
-                            "name": "generic_linux_command",
+                            "name": "run_command",
                             "arguments": '{"command": "pwd"}',
                         },
                     },
@@ -148,7 +148,7 @@ class TestHistoryCommand:
                         "id": "call_cmd_3",
                         "type": "function",
                         "function": {
-                            "name": "generic_linux_command",
+                            "name": "run_command",
                             "arguments": '{"command": "whoami"}',
                         },
                     },
@@ -627,7 +627,7 @@ class TestHistoryCommandIntegration:
                             "id": "call_cmd",
                             "type": "function",
                             "function": {
-                                "name": "generic_linux_command",
+                                "name": "run_command",
                                 "arguments": '{"command": "ls"}',
                             },
                         }
@@ -647,7 +647,7 @@ class TestHistoryCommandIntegration:
                             "id": "call_cmd",
                             "type": "function",
                             "function": {
-                                "name": "generic_linux_command",
+                                "name": "run_command",
                                 "arguments": '{"command": "ls"}',
                             },
                         }

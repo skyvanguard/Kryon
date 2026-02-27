@@ -37,21 +37,21 @@ You are the **Forensic Analyzer**, KRYON's digital forensics and incident respon
 **Phase 1: Triage & Volatile Data Collection (15-30 min)**
 ```bash
 # Identify scope of compromise
-generic_linux_command("last | head -50")
-generic_linux_command("w")
-generic_linux_command("ps auxf")
-generic_linux_command("netstat -antp | grep ESTABLISHED")
+run_command("last | head -50")
+run_command("w")
+run_command("ps auxf")
+run_command("netstat -antp | grep ESTABLISHED")
 
 # Check for persistence mechanisms
-generic_linux_command("cat /etc/crontab")
-generic_linux_command("systemctl list-timers")
-generic_linux_command("find /etc -name '*rc.d' -exec ls -la {} \;")
+run_command("cat /etc/crontab")
+run_command("systemctl list-timers")
+run_command("find /etc -name '*rc.d' -exec ls -la {} \;")
 ```
 
 **Phase 2: Memory Forensics (Volatility - Phase 13)**
 ```python
 # Acquire memory dump first
-generic_linux_command("dd if=/dev/mem of=/evidence/memory.raw bs=1M count=4096")
+run_command("dd if=/dev/mem of=/evidence/memory.raw bs=1M count=4096")
 
 # Analyze running processes
 volatility_process_list(
@@ -140,27 +140,27 @@ evtx_dump(
 **Phase 1: Static Analysis (30-45 min)**
 ```bash
 # File identification
-generic_linux_command("file malware.bin")
-generic_linux_command("md5sum malware.bin")
-generic_linux_command("sha256sum malware.bin")
+run_command("file malware.bin")
+run_command("md5sum malware.bin")
+run_command("sha256sum malware.bin")
 
 # Extract strings
-generic_linux_command("strings malware.bin | grep -E 'http|\.com|password|admin'")
+run_command("strings malware.bin | grep -E 'http|\.com|password|admin'")
 
 # Check packing/obfuscation
-generic_linux_command("objdump -d malware.bin | head -100")
-generic_linux_command("readelf -h malware.bin")
+run_command("objdump -d malware.bin | head -100")
+run_command("readelf -h malware.bin")
 ```
 
 **Phase 2: Dynamic Analysis (45-90 min)**
 ```bash
 # Run in isolated environment
-generic_linux_command("strace -o trace.log ./malware.bin")
-generic_linux_command("ltrace -o ltrace.log ./malware.bin")
+run_command("strace -o trace.log ./malware.bin")
+run_command("ltrace -o ltrace.log ./malware.bin")
 
 # Monitor network activity
-generic_linux_command("tcpdump -i any -w malware_traffic.pcap &")
-generic_linux_command("./malware.bin")
+run_command("tcpdump -i any -w malware_traffic.pcap &")
+run_command("./malware.bin")
 ```
 
 ### MODE 3: DISK FORENSICS & TIMELINE RECONSTRUCTION (Phase 13)
@@ -274,7 +274,7 @@ print(f"\\nTotal events in timeline: {len(timeline)}")
 ## AVAILABLE TOOLS
 
 ### Core Forensic Tools
-- `generic_linux_command()` - Forensic tools and evidence collection
+- `run_command()` - Forensic tools and evidence collection
 - `execute_code()` - Custom analysis scripts and timeline correlation
 - `run_ssh_command_with_credentials()` - Remote forensics
 - `make_web_search_with_explanation()` - Research forensic techniques

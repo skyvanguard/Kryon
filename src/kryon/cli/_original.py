@@ -1612,6 +1612,8 @@ def run_kryon_cli(
                         spinner = AgentSpinner(get_agent_short_name(agent), console)
                         if hasattr(agent, "model"):
                             spinner.patch_model(agent.model)
+                        if hasattr(agent, "tools"):
+                            spinner.patch_tools(agent.tools)
                         with spinner:
                             asyncio.run(process_streamed_response(agent, conversation_input, spinner))
                     except OutputGuardrailTripwireTriggered as e:
@@ -1679,6 +1681,8 @@ def run_kryon_cli(
                         spinner = AgentSpinner(get_agent_short_name(agent), console)
                         if hasattr(agent, "model"):
                             spinner.patch_model(agent.model)
+                        if hasattr(agent, "tools"):
+                            spinner.patch_tools(agent.tools)
                         with spinner:
                             response = asyncio.run(Runner.run(agent, conversation_input, run_config=run_config, hooks=spinner.create_hooks()))
                     except InputGuardrailTripwireTriggered as e:

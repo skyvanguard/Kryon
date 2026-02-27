@@ -59,8 +59,8 @@ from kryon.tools.dfir.network_forensics import (
 from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
-from kryon.tools.reconnaissance.generic_linux_command import (
-    generic_linux_command,
+from kryon.tools.reconnaissance.run_command import (
+    run_command,
 )
 from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
@@ -73,7 +73,7 @@ guardian_protocol_system_prompt = load_prompt_template("prompts/system_guardian_
 # Guardian Defense Systems - Available countermeasures and monitoring tools
 defense_systems = [
     # Core defensive tools
-    generic_linux_command,  # System command execution for defense
+    run_command,  # System command execution for defense
     run_ssh_command_with_credentials,  # Remote system access for monitoring
     execute_code,  # Security script execution
     # Phase 13: Network Forensics (for incident detection)

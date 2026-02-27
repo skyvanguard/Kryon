@@ -1727,7 +1727,7 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
         cli_print_tool_output._streaming_sessions[call_id]["code_panel_shown"] = True
     else:
         initial_message = "Starting tool execution..."
-        if is_parallel and tool_name == "generic_linux_command" and isinstance(args, dict):
+        if is_parallel and tool_name == "run_command" and isinstance(args, dict):
             command = args.get("command", "")
             cmd_args = args.get("args", "")
             if command:

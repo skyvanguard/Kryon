@@ -159,7 +159,7 @@ class TestCLIStreaming(unittest.TestCase):
                         "id": tool_call_id,
                         "type": "function",
                         "function": {
-                            "name": "generic_linux_command",
+                            "name": "run_command",
                             "arguments": '{"command": "sleep", "args": "30"}',
                         },
                     }
@@ -186,7 +186,7 @@ class TestCLIStreaming(unittest.TestCase):
 
             # Simulate a tool call that was started but interrupted
             test_model._converter.recent_tool_calls[tool_call_id] = {
-                "name": "generic_linux_command",
+                "name": "run_command",
                 "arguments": '{"command": "sleep", "args": "30"}',
                 "start_time": time.time() - 5,  # Started 5 seconds ago
             }
@@ -294,7 +294,7 @@ class TestCLIStreaming(unittest.TestCase):
                         "id": "call_incomplete_456",
                         "type": "function",
                         "function": {
-                            "name": "generic_linux_command",
+                            "name": "run_command",
                             "arguments": '{"command": "test", "args": "--help"}',
                         },
                     }
@@ -337,12 +337,12 @@ class TestCLIStreaming(unittest.TestCase):
             # No need to clean up _Converter state since it's instance-based
             return False
 
-    def test_generic_linux_command_interrupt_simulation(self):
-        """Test generic_linux_command behavior during interruption."""
+    def test_run_command_interrupt_simulation(self):
+        """Test run_command behavior during interruption."""
 
-        # Mock the generic_linux_command function behavior
+        # Mock the run_command function behavior
         def mock_interrupted_command():
-            """Simulate generic_linux_command being interrupted"""
+            """Simulate run_command being interrupted"""
             try:
                 # Simulate command starting
                 output = "Command started...\nProcessing files..."
@@ -473,7 +473,7 @@ class TestCLIStreaming(unittest.TestCase):
                             "id": call_id,
                             "type": "function",
                             "function": {
-                                "name": "generic_linux_command",
+                                "name": "run_command",
                                 "arguments": f'{{"command": "test", "args": "{user_input}"}}',
                             },
                         }
@@ -522,7 +522,7 @@ class TestCLIStreaming(unittest.TestCase):
 
         # Simulate a running tool call that gets interrupted
         call_id = "call_linux_cmd_123"
-        tool_name = "generic_linux_command"
+        tool_name = "run_command"
 
         # 1. Add user message
         self.add_to_test_message_history({"role": "user", "content": "Run a long command"})
@@ -655,7 +655,7 @@ if __name__ == "__main__":
                 "test_message_history_openai_format_compliance",
                 "test_ctrl_c_cleanup_message_consistency",
                 "test_fix_message_list_with_interrupted_tools",
-                "test_generic_linux_command_interrupt_simulation",
+                "test_run_command_interrupt_simulation",
                 "test_multiple_interrupt_scenarios",
                 "test_ctrl_c_during_tool_execution_real_behavior",
             ]
@@ -721,7 +721,7 @@ if __name__ == "__main__":
             "test_message_history_openai_format_compliance",
             "test_ctrl_c_cleanup_message_consistency",
             "test_fix_message_list_with_interrupted_tools",
-            "test_generic_linux_command_interrupt_simulation",
+            "test_run_command_interrupt_simulation",
             "test_multiple_interrupt_scenarios",
             "test_ctrl_c_during_tool_execution_real_behavior",
         ]

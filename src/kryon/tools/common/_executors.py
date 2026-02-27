@@ -165,8 +165,8 @@ async def _run_local_async(
             buffer_size = 0
             update_interval = 10  # lines - default for most tools
 
-            # Use a smaller interval for generic_linux_command for better responsiveness
-            if tool_name == "generic_linux_command":
+            # Use a smaller interval for run_command for better responsiveness
+            if tool_name == "run_command":
                 update_interval = 3  # Update more frequently for terminal commands
 
                 # Don't add refresh_rate to tool_args as it affects command deduplication
@@ -285,7 +285,7 @@ async def _run_local_async(
 
                 # Display the tool output panel
                 cli_print_tool_output(
-                    tool_name=tool_name or "generic_linux_command",
+                    tool_name=tool_name or "run_command",
                     args={
                         "command": parts[0] if parts else command,
                         "args": parts[1] if len(parts) > 1 else "",
@@ -470,7 +470,7 @@ async def _run_docker_async(
             # Stream output
             output_buffer = []
             buffer_size = 0
-            update_interval = 3 if tool_name == "generic_linux_command" else 10
+            update_interval = 3 if tool_name == "run_command" else 10
 
             start_time = time.time()
 
@@ -592,7 +592,7 @@ async def _run_docker_async(
                 )
 
                 cli_print_tool_output(
-                    tool_name=tool_name or "generic_linux_command",
+                    tool_name=tool_name or "run_command",
                     args=display_args,
                     output=output.strip(),
                     call_id=call_id,
@@ -693,8 +693,8 @@ def _run_local(
             buffer_size = 0
             update_interval = 10  # lines - default for most tools
 
-            # Use a smaller interval for generic_linux_command for better responsiveness
-            if tool_name == "generic_linux_command":
+            # Use a smaller interval for run_command for better responsiveness
+            if tool_name == "run_command":
                 update_interval = 3  # Update more frequently for terminal commands
 
                 # Don't add refresh_rate to tool_args as it affects command deduplication
@@ -812,7 +812,7 @@ def _run_local(
                 )
 
                 cli_print_tool_output(
-                    tool_name=tool_name or "generic_linux_command",
+                    tool_name=tool_name or "run_command",
                     args=display_args,
                     output=output.strip(),
                     call_id=call_id,

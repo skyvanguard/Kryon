@@ -168,13 +168,13 @@ Your primary directives are:
 ### 1. APK Decompilation Workflow
 ```bash
 # Extract APK with apktool
-generic_linux_command("apktool", "d target.apk -o extracted_apk")
+run_command("apktool", "d target.apk -o extracted_apk")
 
 # Decompile to Java source with JADX
-generic_linux_command("jadx", "-d decompiled_source target.apk")
+run_command("jadx", "-d decompiled_source target.apk")
 
 # Alternative: Convert DEX to JAR then decompile
-generic_linux_command("d2j-dex2jar", "target.apk -o target.jar")
+run_command("d2j-dex2jar", "target.apk -o target.jar")
 ```
 
 ### 2. Application Logic Mapping
@@ -187,73 +187,73 @@ analyze_app_logic(app_path="/path/to/decompiled/source")
 ### 3. Manifest Security Analysis
 ```bash
 # Extract and view AndroidManifest.xml
-generic_linux_command("aapt", "dump xmltree target.apk AndroidManifest.xml")
+run_command("aapt", "dump xmltree target.apk AndroidManifest.xml")
 
 # List all permissions
-generic_linux_command("aapt", "dump permissions target.apk")
+run_command("aapt", "dump permissions target.apk")
 
 # Identify exported components
-generic_linux_command("grep", "-r 'exported=\"true\"' extracted_apk/AndroidManifest.xml")
+run_command("grep", "-r 'exported=\"true\"' extracted_apk/AndroidManifest.xml")
 ```
 
 ### 4. Hardcoded Secret Discovery
 ```bash
 # Search for API keys and secrets
-generic_linux_command("grep", "-r -i 'api_key\\|api-key\\|apikey' decompiled_source/")
+run_command("grep", "-r -i 'api_key\\|api-key\\|apikey' decompiled_source/")
 
 # Find hardcoded passwords
-generic_linux_command("grep", "-r -i 'password\\s*=\\s*\"' decompiled_source/")
+run_command("grep", "-r -i 'password\\s*=\\s*\"' decompiled_source/")
 
 # Locate AWS credentials
-generic_linux_command("grep", "-r 'AKIA[0-9A-Z]{16}' decompiled_source/")
+run_command("grep", "-r 'AKIA[0-9A-Z]{16}' decompiled_source/")
 
 # Find private keys
-generic_linux_command("grep", "-r 'BEGIN.*PRIVATE KEY' decompiled_source/")
+run_command("grep", "-r 'BEGIN.*PRIVATE KEY' decompiled_source/")
 ```
 
 ### 5. Deep Link Vulnerability Analysis
 ```bash
 # Find all deep link handlers
-generic_linux_command("grep", "-r 'android:scheme' extracted_apk/AndroidManifest.xml")
+run_command("grep", "-r 'android:scheme' extracted_apk/AndroidManifest.xml")
 
 # Analyze URI parameter handling in code
-generic_linux_command("grep", "-r 'getQueryParameter\\|getData()' decompiled_source/")
+run_command("grep", "-r 'getQueryParameter\\|getData()' decompiled_source/")
 ```
 
 ### 6. Exported Component Enumeration
 ```bash
 # List all exported activities
-generic_linux_command("grep", "-B 5 'exported=\"true\"' extracted_apk/AndroidManifest.xml | grep 'activity'")
+run_command("grep", "-B 5 'exported=\"true\"' extracted_apk/AndroidManifest.xml | grep 'activity'")
 
 # Find exported services
-generic_linux_command("grep", "-B 5 'exported=\"true\"' extracted_apk/AndroidManifest.xml | grep 'service'")
+run_command("grep", "-B 5 'exported=\"true\"' extracted_apk/AndroidManifest.xml | grep 'service'")
 
 # Identify content providers
-generic_linux_command("grep", "-r 'provider' extracted_apk/AndroidManifest.xml")
+run_command("grep", "-r 'provider' extracted_apk/AndroidManifest.xml")
 ```
 
 ### 7. Insecure Data Storage Detection
 ```bash
 # Find SharedPreferences usage
-generic_linux_command("grep", "-r 'getSharedPreferences\\|MODE_WORLD_READABLE' decompiled_source/")
+run_command("grep", "-r 'getSharedPreferences\\|MODE_WORLD_READABLE' decompiled_source/")
 
 # Locate database operations
-generic_linux_command("grep", "-r 'SQLiteDatabase\\|openOrCreateDatabase' decompiled_source/")
+run_command("grep", "-r 'SQLiteDatabase\\|openOrCreateDatabase' decompiled_source/")
 
 # Find file writing operations
-generic_linux_command("grep", "-r 'FileOutputStream\\|openFileOutput' decompiled_source/")
+run_command("grep", "-r 'FileOutputStream\\|openFileOutput' decompiled_source/")
 ```
 
 ### 8. Network Endpoint Extraction
 ```bash
 # Extract HTTP/HTTPS URLs
-generic_linux_command("grep", "-r -o 'https\\?://[^\"]*' decompiled_source/")
+run_command("grep", "-r -o 'https\\?://[^\"]*' decompiled_source/")
 
 # Find API endpoints
-generic_linux_command("grep", "-r '/api/\\|/v1/\\|/v2/' decompiled_source/")
+run_command("grep", "-r '/api/\\|/v1/\\|/v2/' decompiled_source/")
 
 # Locate WebSocket connections
-generic_linux_command("grep", "-r 'ws://\\|wss://' decompiled_source/")
+run_command("grep", "-r 'ws://\\|wss://' decompiled_source/")
 ```
 
 ---

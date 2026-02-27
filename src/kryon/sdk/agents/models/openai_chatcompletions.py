@@ -14,8 +14,14 @@ from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
+import logging
+
 import litellm
 import tiktoken
+
+# Silence LiteLLM's noisy INFO logs (logs every single API call)
+logging.getLogger("LiteLLM").setLevel(logging.WARNING)
+logging.getLogger("litellm").setLevel(logging.WARNING)
 from openai import NOT_GIVEN, AsyncOpenAI, AsyncStream, NotGiven
 
 # Create custom InputTokensDetails class since it's not available in current OpenAI version
@@ -857,7 +863,7 @@ class OpenAIChatCompletionsModel(Model):
                             pass
 
                         # For regular commands that were already shown via streaming, suppress the agent message
-                        if is_regular_command and tool_call.function.name == "generic_linux_command":
+                        if is_regular_command and tool_call.function.name == "run_command":
                             # Check if this was executed very recently (likely shown via streaming)
                             if (
                                 hasattr(_Converter, "recent_tool_calls")
@@ -4006,9 +4012,9 @@ class _Converter:
                     # This indicates it was likely shown during streaming
                     if "start_time" in tool_call_info:
                         time_since_execution = time.time() - tool_call_info["start_time"]
-                        # For generic_linux_command executed recently in streaming mode, skip display
+                        # For run_command executed recently in streaming mode, skip display
                         # But always display for async session commands (they have session_id in args)
-                        # and always display for non-generic_linux_command tools
+                        # and always display for non-run_command tools
                         if time_since_execution < 5.0 and "_command" in tool_name.lower():
                             # Parse arguments to check if this is an async session command
                             try:

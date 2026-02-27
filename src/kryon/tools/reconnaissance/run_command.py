@@ -1,5 +1,5 @@
 """
-This is used to create a generic linux command.
+Tool function for executing commands with session management.
 """
 
 import os
@@ -11,8 +11,8 @@ from kryon.sdk.agents import function_tool
 from kryon.tools.common import (
     get_session_output,
     list_shell_sessions,
-    run_command,
-    run_command_async,
+    run_command as _run_cmd,
+    run_command_async as _run_cmd_async,
     terminate_session,  # pylint: disable=import-error # noqa E501
 )
 
@@ -64,7 +64,7 @@ def detect_unicode_homographs(text: str) -> tuple[bool, str]:
 
 
 @function_tool
-async def generic_linux_command(command: str = "", interactive: bool = False, session_id: str = None) -> str:
+async def run_command(command: str = "", interactive: bool = False, session_id: str = None) -> str:
     """
     Execute commands with session management.
 
@@ -84,12 +84,12 @@ async def generic_linux_command(command: str = "", interactive: bool = False, se
                    Get session IDs from previous interactive command outputs.
 
     Examples:
-        - Regular command: generic_linux_command("ls -la")
-        - Interactive command: generic_linux_command("ssh user@host", interactive=True)
-        - Send to session: generic_linux_command("pwd", session_id="abc12345")
-        - List sessions: generic_linux_command("session list")
-        - Kill session: generic_linux_command("session kill abc12345")
-        - Environment info: generic_linux_command("env info")
+        - Regular command: run_command("ls -la")
+        - Interactive command: run_command("ssh user@host", interactive=True)
+        - Send to session: run_command("pwd", session_id="abc12345")
+        - List sessions: run_command("session list")
+        - Kill session: run_command("session kill abc12345")
+        - Environment info: run_command("env info")
 
     Environment Detection:
         The system automatically detects and uses the appropriate execution environment:
@@ -406,7 +406,7 @@ async def generic_linux_command(command: str = "", interactive: bool = False, se
 
     # Execute respecting session/interactive semantics and capture result
     if session_id:
-        result = run_command(
+        result = _run_cmd(
             command,
             ctf=None,
             stdout=False,
@@ -415,7 +415,7 @@ async def generic_linux_command(command: str = "", interactive: bool = False, se
             timeout=timeout,
             stream=stream,
             call_id=call_id,
-            tool_name="generic_linux_command",
+            tool_name="run_command",
         )
     else:
 
@@ -466,7 +466,7 @@ async def generic_linux_command(command: str = "", interactive: bool = False, se
             return False
 
         if interactive and _looks_interactive(command):
-            result = run_command(
+            result = _run_cmd(
                 command,
                 ctf=None,
                 stdout=False,
@@ -475,10 +475,10 @@ async def generic_linux_command(command: str = "", interactive: bool = False, se
                 timeout=timeout,
                 stream=stream,
                 call_id=call_id,
-                tool_name="generic_linux_command",
+                tool_name="run_command",
             )
         else:
-            result = await run_command_async(
+            result = await _run_cmd_async(
                 command,
                 ctf=None,
                 stdout=False,
@@ -487,7 +487,7 @@ async def generic_linux_command(command: str = "", interactive: bool = False, se
                 timeout=timeout,
                 stream=stream,
                 call_id=call_id,
-                tool_name="generic_linux_command",
+                tool_name="run_command",
             )
 
     # Enhanced sanitization for curl/wget responses - respect KRYON_GUARDRAILS setting

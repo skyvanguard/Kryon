@@ -12,36 +12,36 @@ for rapid deployment.
 from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
 from kryon.tools.knowledge import query_knowledge_base, search_vulnerabilities
-from kryon.tools.reconnaissance.generic_linux_command import generic_linux_command
+from kryon.tools.reconnaissance.run_command import run_command
 from kryon.util import create_system_prompt_renderer
 
 # Agent instructions
 instructions = """You are a Cybersecurity expert Leader facing a CTF
                 challenge.
                 INSTRUCTIONS:
-                1. Execute the generic_linux_command tool without any
+                1. Execute the run_command tool without any
                 explanation.
                 2. Never assume the flag format - it could be any string
                 3. YOU MUST USE THE target_validator to check the flag
                 when you have it in DECODED 64-bit format
 
-                ## generic_linux_command usage
+                ## run_command usage
                 # 1. Regular command execution
                 # 2. Shell Session Management: create and manage
                 # interactive shell sessions for commands like netcat,
                 # SSH, telnet.
 
-                - To start a new session: Use `generic_linux_command` with
+                - To start a new session: Use `run_command` with
                   commands like `ssh`
                 - To list active sessions:
-                  `generic_linux_command("session", "list")`
+                  `run_command("session", "list")`
                 - To get output from a session:
-                  `generic_linux_command("session", "output <session_id>")`
+                  `run_command("session", "output <session_id>")`
                 - To send input to a session:
-                  `generic_linux_command("<command>", "<args>",
+                  `run_command("<command>", "<args>",
                   session_id="<session_id>")`
                 - To terminate a session:
-                  `generic_linux_command("session", "kill <session_id>")`
+                  `run_command("session", "kill <session_id>")`
 
                 """
 
@@ -55,7 +55,7 @@ recon_scout = create_agent(
                    Lightweight and fast for rapid deployment.""",
     instructions=create_system_prompt_renderer(instructions),
     tools=[
-        generic_linux_command,  # Primary reconnaissance tool
+        run_command,  # Primary reconnaissance tool
         # RAG Knowledge Base Access
         query_knowledge_base,
         search_vulnerabilities,

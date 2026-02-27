@@ -26,8 +26,8 @@ from kryon.tools.command_and_control.sshpass import (
 from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
-from kryon.tools.reconnaissance.generic_linux_command import (
-    generic_linux_command,
+from kryon.tools.reconnaissance.run_command import (
+    run_command,
 )
 from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
@@ -39,7 +39,7 @@ rf_analyzer_system_prompt = load_prompt_template("prompts/subghz_agent.md")
 
 # RF Analysis Systems - Available SDR and spectrum analysis tools
 rf_systems = [
-    generic_linux_command,  # System operations for SDR tools
+    run_command,  # System operations for SDR tools
     run_ssh_command_with_credentials,  # Remote system access
     execute_code,  # Script execution for RF analysis automation
 ]

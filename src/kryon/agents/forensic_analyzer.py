@@ -86,8 +86,8 @@ from kryon.tools.misc.reasoning import think
 from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
-from kryon.tools.reconnaissance.generic_linux_command import (
-    generic_linux_command,
+from kryon.tools.reconnaissance.run_command import (
+    run_command,
 )
 from kryon.tools.reconnaissance.shodan import shodan_search
 from kryon.tools.web.google_search import google_search
@@ -102,7 +102,7 @@ forensic_analyzer_system_prompt = load_prompt_template("prompts/system_forensic_
 # Forensic Analysis Systems - Available investigation and analysis tools
 investigation_systems = [
     # Core tools
-    generic_linux_command,  # System command execution for forensic collection
+    run_command,  # System command execution for forensic collection
     run_ssh_command_with_credentials,  # Remote system forensic access
     execute_code,  # Forensic script execution
     think,  # Strategic reasoning for complex investigations

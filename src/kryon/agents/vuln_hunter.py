@@ -30,7 +30,7 @@ from kryon.tools.osint.theharvester import theharvester_search
 from kryon.tools.osint.threat_intel import censys_search, recon_ng_search, virustotal_search
 from kryon.tools.osint.yara_scan import yara_scan_directory, yara_scan_file
 from kryon.tools.reconnaissance.exec_code import execute_code
-from kryon.tools.reconnaissance.generic_linux_command import generic_linux_command
+from kryon.tools.reconnaissance.run_command import run_command
 from kryon.tools.reconnaissance.shodan import shodan_host_info, shodan_search
 from kryon.tools.web.search_web import make_google_search
 from kryon.util import create_system_prompt_renderer, load_prompt_template
@@ -41,7 +41,7 @@ vuln_hunter_system_prompt = load_prompt_template("prompts/system_vuln_hunter.md"
 # Vuln Hunter tools
 tools_list = [
     # Core reconnaissance
-    generic_linux_command,  # Adaptive command execution
+    run_command,  # Adaptive command execution
     execute_code,  # Code analysis and execution
     # Internet-wide intelligence (Shodan - legacy)
     shodan_search,  # Global intelligence gathering

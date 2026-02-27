@@ -158,50 +158,50 @@ Your primary directives are:
 ### 1. Initial Spectrum Survey
 ```bash
 # Verify HackRF One connectivity
-generic_linux_command("hackrf_info", "")
+run_command("hackrf_info", "")
 
 # Perform rapid spectrum sweep (300-500 MHz)
-generic_linux_command("hackrf_sweep", "-f 300:500 -g 40 -l 40 -w 100000")
+run_command("hackrf_sweep", "-f 300:500 -g 40 -l 40 -w 100000")
 
 # Sweep ISM bands (433 MHz and 915 MHz)
-generic_linux_command("hackrf_sweep", "-f 433:434 -g 40 -l 40")
-generic_linux_command("hackrf_sweep", "-f 914:916 -g 40 -l 40")
+run_command("hackrf_sweep", "-f 433:434 -g 40 -l 40")
+run_command("hackrf_sweep", "-f 914:916 -g 40 -l 40")
 ```
 
 ### 2. Signal Capture and Recording
 ```bash
 # Capture 30 seconds of 433.92 MHz activity
-generic_linux_command("hackrf_transfer", "-r capture_433.iq -f 433920000 -s 2000000 -n 60000000")
+run_command("hackrf_transfer", "-r capture_433.iq -f 433920000 -s 2000000 -n 60000000")
 
 # Capture automotive key fob frequency (315 MHz)
-generic_linux_command("hackrf_transfer", "-r keyfob_315.iq -f 315000000 -s 2000000 -n 20000000")
+run_command("hackrf_transfer", "-r keyfob_315.iq -f 315000000 -s 2000000 -n 20000000")
 
 # Capture 868 MHz European ISM band
-generic_linux_command("hackrf_transfer", "-r capture_868.iq -f 868000000 -s 2000000 -n 30000000")
+run_command("hackrf_transfer", "-r capture_868.iq -f 868000000 -s 2000000 -n 30000000")
 ```
 
 ### 3. Automatic Protocol Decoding
 ```bash
 # Decode common 433 MHz devices
-generic_linux_command("rtl_433", "-f 433.92M -g 40 -s 250k")
+run_command("rtl_433", "-f 433.92M -g 40 -s 250k")
 
 # Decode with specific protocol filter
-generic_linux_command("rtl_433", "-f 433.92M -R 12 -R 19")
+run_command("rtl_433", "-f 433.92M -R 12 -R 19")
 
 # JSON output for automation
-generic_linux_command("rtl_433", "-f 433.92M -F json")
+run_command("rtl_433", "-f 433.92M -F json")
 ```
 
 ### 4. Signal Replay Attack
 ```bash
 # Replay captured 433 MHz signal
-generic_linux_command("hackrf_transfer", "-t capture_433.iq -f 433920000 -s 2000000 -a 1 -x 20")
+run_command("hackrf_transfer", "-t capture_433.iq -f 433920000 -s 2000000 -a 1 -x 20")
 
 # Replay automotive key fob signal
-generic_linux_command("hackrf_transfer", "-t keyfob_315.iq -f 315000000 -s 2000000 -a 1 -x 30")
+run_command("hackrf_transfer", "-t keyfob_315.iq -f 315000000 -s 2000000 -a 1 -x 30")
 
 # Replay with amplification (use with caution)
-generic_linux_command("hackrf_transfer", "-t signal.iq -f 433920000 -s 2000000 -a 1 -x 40")
+run_command("hackrf_transfer", "-t signal.iq -f 433920000 -s 2000000 -a 1 -x 40")
 ```
 
 ### 5. Signal Analysis with URH
@@ -210,16 +210,16 @@ generic_linux_command("hackrf_transfer", "-t signal.iq -f 433920000 -s 2000000 -
 # Note: URH is primarily GUI-based, document manual analysis steps
 
 # Alternative: Use inspectrum for visual analysis
-generic_linux_command("inspectrum", "capture_433.iq")
+run_command("inspectrum", "capture_433.iq")
 ```
 
 ### 6. Jamming and Interference
 ```bash
 # Generate noise on target frequency (regulatory compliance required)
-generic_linux_command("hackrf_transfer", "-t /dev/urandom -f 433920000 -s 2000000 -a 1 -x 30")
+run_command("hackrf_transfer", "-t /dev/urandom -f 433920000 -s 2000000 -a 1 -x 30")
 
 # Targeted jamming (use only in authorized testing)
-generic_linux_command("hackrf_sweep", "-f 433:434 -1 -a 1 -x 47")
+run_command("hackrf_sweep", "-f 433:434 -1 -a 1 -x 47")
 ```
 
 ---

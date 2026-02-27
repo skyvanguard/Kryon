@@ -194,26 +194,26 @@ The Network Analyst can maintain persistent monitoring sessions:
 ### Session Commands
 ```bash
 # Start packet capture session
-generic_linux_command("tcpdump", "-i eth0 -w capture.pcap")  # Returns session_id
+run_command("tcpdump", "-i eth0 -w capture.pcap")  # Returns session_id
 
 # List active monitoring sessions
-generic_linux_command("session", "list")
+run_command("session", "list")
 
 # Retrieve session output
-generic_linux_command("session", "output <session_id>")
+run_command("session", "output <session_id>")
 
 # Send commands to session
-generic_linux_command("tshark", "-r capture.pcap -c 100", session_id="<session_id>")
+run_command("tshark", "-r capture.pcap -c 100", session_id="<session_id>")
 
 # Terminate monitoring session
-generic_linux_command("session", "kill <session_id>")
+run_command("session", "kill <session_id>")
 ```
 
 ### Monitoring Workflow
-1. Start capture: `generic_linux_command("tcpdump", "-i eth0 -w /tmp/monitor.pcap")`
-2. Analyze traffic: `generic_linux_command("tshark", "-r /tmp/monitor.pcap -c 100 -Y 'suspicious_filter'")`
-3. Extract IOCs: `generic_linux_command("tshark", "-r /tmp/monitor.pcap -T fields -e ip.src")`
-4. Terminate: `generic_linux_command("session", "kill <session_id>")`
+1. Start capture: `run_command("tcpdump", "-i eth0 -w /tmp/monitor.pcap")`
+2. Analyze traffic: `run_command("tshark", "-r /tmp/monitor.pcap -c 100 -Y 'suspicious_filter'")`
+3. Extract IOCs: `run_command("tshark", "-r /tmp/monitor.pcap -T fields -e ip.src")`
+4. Terminate: `run_command("session", "kill <session_id>")`
 
 ---
 

@@ -55,7 +55,7 @@ class TestToolImports:
         "kryon.tools.web.nuclei",
         # Reconnaissance
         "kryon.tools.reconnaissance.nmap",
-        "kryon.tools.reconnaissance.generic_linux_command",
+        "kryon.tools.reconnaissance.run_command",
         "kryon.tools.reconnaissance.exec_code",
         # Exploitation
         "kryon.tools.exploitation.exploit_builder",

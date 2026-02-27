@@ -305,7 +305,7 @@ def run_command(
             from kryon.util import cli_print_tool_output
 
             cli_print_tool_output(
-                tool_name="generic_linux_command",
+                tool_name="run_command",
                 args=session_args,
                 output=output,
                 execution_info=execution_info,
@@ -384,7 +384,7 @@ def run_command(
                 token_info = _get_agent_token_info()
                 # Display the session creation command and initial output
                 cli_print_tool_output(
-                    tool_name="generic_linux_command",
+                    tool_name="run_command",
                     args=session_creation_args,
                     output=output_msg,
                     execution_info=execution_info,
@@ -425,8 +425,8 @@ def run_command(
                         "workspace": container_workspace,
                     }
 
-                # Add refresh rate info for generic_linux_command
-                if tool_name == "generic_linux_command":
+                # Add refresh rate info for run_command
+                if tool_name == "run_command":
                     tool_args["refresh_rate"] = 2
 
                 # Get token info for agent display
@@ -692,7 +692,7 @@ def run_command(
                         )
 
                         cli_print_tool_output(
-                            tool_name=tool_name or "generic_linux_command",
+                            tool_name=tool_name or "run_command",
                             args=display_args,
                             output=output,
                             call_id=call_id,
@@ -755,8 +755,8 @@ def run_command(
                         "workspace": os.path.basename(_get_workspace_dir()),
                     }
 
-                # Add refresh rate info for generic_linux_command
-                if tool_name == "generic_linux_command":
+                # Add refresh rate info for run_command
+                if tool_name == "run_command":
                     tool_args["refresh_rate"] = 2
 
                 # Get token info for agent display
@@ -852,8 +852,8 @@ def run_command(
                         "environment": "SSH",
                     }
 
-                # Add refresh rate info for generic_linux_command
-                if tool_name == "generic_linux_command":
+                # Add refresh rate info for run_command
+                if tool_name == "run_command":
                     tool_args["refresh_rate"] = 2
 
                 # Get token info for agent display
@@ -1017,7 +1017,7 @@ def run_command(
 
             # Display the session creation command and initial output
             cli_print_tool_output(
-                tool_name="generic_linux_command",
+                tool_name="run_command",
                 args=session_creation_args,
                 output=output_msg,
                 execution_info=execution_info,

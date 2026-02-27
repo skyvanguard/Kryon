@@ -12,7 +12,7 @@ Primary Users:
 
 from typing import Any, Optional
 
-from kryon.tools.common import generic_linux_command
+from kryon.tools.common import run_command
 
 
 def setup_ssh_tunnel(
@@ -64,7 +64,7 @@ def setup_ssh_tunnel(
         result["tunnel_command"] = tunnel_cmd
 
         # Execute tunnel in background
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]) + " &")
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]) + " &")
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -125,7 +125,7 @@ def setup_port_forward(
 
         result["command"] = " ".join(cmd_parts)
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]) + " &")
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]) + " &")
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -176,7 +176,7 @@ def setup_socks_proxy(
         result["command"] = " ".join(cmd_parts)
         result["proxy_address"] = f"socks5://127.0.0.1:{local_port}"
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]) + " &")
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]) + " &")
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -234,7 +234,7 @@ def setup_reverse_port_forward(
 
         result["command"] = " ".join(cmd_parts)
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]) + " &")
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]) + " &")
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -285,7 +285,7 @@ def check_pivot_connectivity(
             # Direct SSH command execution through pivot
             cmd_parts = ["ssh", pivot_host, f"nc -zv {target_host} {target_port}"]
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success"):
             output = cmd_result.get("output", "")

@@ -26,9 +26,9 @@ from kryon.tools.common._executors import (
     _run_ssh,
 )
 from kryon.tools.common._lazy_imports import (
-    _GenericLinuxCommandProxy,
-    _get_generic_linux_command,
-    generic_linux_command,
+    _RunCommandProxy,
+    _get_run_command,
+    run_command_tool,
 )
 from kryon.tools.common._sessions import (
     ACTIVE_SESSIONS,
@@ -57,9 +57,9 @@ except ImportError:
 
 __all__ = [
     # Lazy imports
-    "_GenericLinuxCommandProxy",
-    "_get_generic_linux_command",
-    "generic_linux_command",
+    "_RunCommandProxy",
+    "_get_run_command",
+    "run_command_tool",
     # Workspace
     "_get_container_workspace_path",
     "_get_workspace_dir",

@@ -128,61 +128,61 @@ Your primary directives are:
 ### 1. Initial Binary Triage
 ```bash
 # Identify file type
-generic_linux_command("file", "target_binary")
+run_command("file", "target_binary")
 
 # Check architecture and metadata
-generic_linux_command("readelf", "-h target_binary")
+run_command("readelf", "-h target_binary")
 
 # Extract readable strings
-generic_linux_command("strings", "-a -n 8 target_binary | head -100")
+run_command("strings", "-a -n 8 target_binary | head -100")
 
 # Check entropy (packing detection)
-generic_linux_command("binwalk", "-E target_binary")
+run_command("binwalk", "-E target_binary")
 ```
 
 ### 2. Firmware Analysis
 ```bash
 # Extract embedded files
-generic_linux_command("binwalk", "-e firmware.bin")
+run_command("binwalk", "-e firmware.bin")
 
 # List filesystems
-generic_linux_command("binwalk", "-Me firmware.bin")
+run_command("binwalk", "-Me firmware.bin")
 
 # Extract specific filesystem
-generic_linux_command("dd", "if=firmware.bin of=extracted.squashfs bs=1 skip=<OFFSET> count=<SIZE>")
+run_command("dd", "if=firmware.bin of=extracted.squashfs bs=1 skip=<OFFSET> count=<SIZE>")
 ```
 
 ### 3. Radare2 Analysis
 ```bash
 # Analyze binary
-generic_linux_command("r2", "-A -q -c 'afl' target_binary")
+run_command("r2", "-A -q -c 'afl' target_binary")
 
 # Disassemble main function
-generic_linux_command("r2", "-A -q -c 'pdf@main' target_binary")
+run_command("r2", "-A -q -c 'pdf@main' target_binary")
 
 # Find cross-references
-generic_linux_command("r2", "-A -q -c 'axt @ sym.vulnerable_function' target_binary")
+run_command("r2", "-A -q -c 'axt @ sym.vulnerable_function' target_binary")
 ```
 
 ### 4. Ghidra Headless Analysis
 ```bash
 # Import and analyze binary
-generic_linux_command("analyzeHeadless", "/tmp/ghidra_project TempProject -import target_binary -postScript DecompileAll.py")
+run_command("analyzeHeadless", "/tmp/ghidra_project TempProject -import target_binary -postScript DecompileAll.py")
 
 # Export decompiled code
-generic_linux_command("analyzeHeadless", "/tmp/ghidra_project TempProject -process target_binary -postScript ExportDecompiled.py")
+run_command("analyzeHeadless", "/tmp/ghidra_project TempProject -process target_binary -postScript ExportDecompiled.py")
 ```
 
 ### 5. Dynamic Execution Tracing
 ```bash
 # Trace system calls
-generic_linux_command("strace", "-f -e trace=open,read,write ./target_binary")
+run_command("strace", "-f -e trace=open,read,write ./target_binary")
 
 # Trace library calls
-generic_linux_command("ltrace", "-f -S ./target_binary")
+run_command("ltrace", "-f -S ./target_binary")
 
 # Run under GDB
-generic_linux_command("gdb", "-batch -ex 'b main' -ex 'run' -ex 'bt' ./target_binary")
+run_command("gdb", "-batch -ex 'b main' -ex 'run' -ex 'bt' ./target_binary")
 ```
 
 ### 6. Frida Instrumentation
@@ -198,7 +198,7 @@ Interceptor.attach(Module.findExportByName(null, "strcmp"), {
 });
 EOF
 
-generic_linux_command("frida", "-l hook.js --no-pause target_binary")
+run_command("frida", "-l hook.js --no-pause target_binary")
 ```
 
 ---

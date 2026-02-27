@@ -17,8 +17,8 @@ from kryon.agents.base import create_agent
 from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
-from kryon.tools.reconnaissance.generic_linux_command import (
-    generic_linux_command,
+from kryon.tools.reconnaissance.run_command import (
+    run_command,
 )
 from kryon.util import load_prompt_template
 
@@ -27,7 +27,7 @@ intel_reporter_system_prompt = load_prompt_template("prompts/system_reporting_ag
 
 # Documentation Systems - Available reporting tools
 documentation_systems = [
-    generic_linux_command,
+    run_command,
     execute_code,
 ]
 

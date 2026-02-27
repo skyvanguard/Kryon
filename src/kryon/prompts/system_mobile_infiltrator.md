@@ -245,10 +245,10 @@ find_insecure_storage('decompiled/')
 **Phase 1: Endpoint Discovery (30 min)**
 ```bash
 # Find API endpoints
-generic_linux_command("grep -rE '(http|https)://[a-zA-Z0-9.-]+/api' decompiled/")
+run_command("grep -rE '(http|https)://[a-zA-Z0-9.-]+/api' decompiled/")
 
 # Extract base URLs
-generic_linux_command("grep -rE 'BASE_URL|baseUrl|API_URL' decompiled/ | grep -oE 'https?://[^\"]+'")
+run_command("grep -rE 'BASE_URL|baseUrl|API_URL' decompiled/ | grep -oE 'https?://[^\"]+'")
 ```
 
 **Phase 2: Authentication Analysis (30-45 min)**
@@ -380,7 +380,7 @@ The Mobile Infiltrator operates under strict authorization constraints:
 - `objection_bypass_root()` - Bypass root/jailbreak detection
 
 ### Legacy Tools:
-- `generic_linux_command()` - Additional mobile tools (adb, apktool, etc.)
+- `run_command()` - Additional mobile tools (adb, apktool, etc.)
 - `execute_code()` - Custom analysis scripts
 - `make_web_search_with_explanation()` - Mobile security research
 

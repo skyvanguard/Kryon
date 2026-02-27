@@ -27,8 +27,8 @@ from kryon.agents.base import create_agent
 from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
-from kryon.tools.reconnaissance.generic_linux_command import (
-    generic_linux_command,
+from kryon.tools.reconnaissance.run_command import (
+    run_command,
 )
 from kryon.tools.web.search_web import (
     make_google_search,
@@ -39,7 +39,7 @@ from kryon.util import create_system_prompt_renderer, load_prompt_template
 validation_core_system_prompt = load_prompt_template("prompts/system_triage_agent.md")
 
 # Verification Systems - Available validation tools
-verification_systems = [generic_linux_command, execute_code]
+verification_systems = [run_command, execute_code]
 
 # Enhanced verification if Google Search available for CVE/exploit research
 if os.getenv("GOOGLE_SEARCH_API_KEY") and os.getenv("GOOGLE_SEARCH_CX"):

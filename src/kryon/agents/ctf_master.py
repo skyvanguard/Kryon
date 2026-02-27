@@ -91,8 +91,8 @@ from kryon.tools.reconnaissance.exec_code import (
 )
 
 # Core command execution
-from kryon.tools.reconnaissance.generic_linux_command import (
-    generic_linux_command,
+from kryon.tools.reconnaissance.run_command import (
+    run_command,
 )
 
 # Phase 11: Wireless tools (for wireless CTF challenges)
@@ -117,7 +117,7 @@ ctf_arsenal = [
     detect_defense_mechanism,
     apply_evasion_technique,
     # Core command execution
-    generic_linux_command,
+    run_command,
     run_ssh_command_with_credentials,
     execute_code,
     # Phase 14: CTF Automation (Priority 1 - Essential)

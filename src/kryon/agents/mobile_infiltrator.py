@@ -30,7 +30,7 @@ authorization to test.
 
 from kryon.agents.base import create_agent
 from kryon.tools.reconnaissance.exec_code import execute_code
-from kryon.tools.reconnaissance.generic_linux_command import generic_linux_command
+from kryon.tools.reconnaissance.run_command import run_command
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
 # Load Mobile Infiltrator operational directives
@@ -39,7 +39,7 @@ app_logic_mapper_system_prompt = load_prompt_template("prompts/system_android_ap
 
 # Mobile Analysis Systems - Available mobile security testing tools
 mobile_systems = [
-    generic_linux_command,  # System operations for mobile analysis tools
+    run_command,  # System operations for mobile analysis tools
     execute_code,  # Script execution for APK analysis automation
 ]
 
@@ -72,7 +72,7 @@ Includes integrated Application Logic Mapper sub-unit for deep logic analysis.""
             tool_name="analyze_app_logic",
             tool_description="Invoke Application Logic Mapper sub-unit to perform deep analysis of application logic, map data flows, and understand operational behavior.",
         ),
-        generic_linux_command,
+        run_command,
         execute_code,
     ],
 )

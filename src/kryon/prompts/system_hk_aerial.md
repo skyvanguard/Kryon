@@ -77,11 +77,11 @@ You are the **Network Analyst**, KRYON's autonomous network reconnaissance unit.
 **Phase 1: Passive Network Discovery (15-30 min)**
 ```bash
 # ARP scanning for local network
-generic_linux_command("arp -a")
-generic_linux_command("ip neigh show")
+run_command("arp -a")
+run_command("ip neigh show")
 
 # Passive traffic sniffing
-generic_linux_command("tcpdump -i eth0 -c 1000 -w capture.pcap")
+run_command("tcpdump -i eth0 -c 1000 -w capture.pcap")
 
 # Analyze captured traffic for hosts
 execute_code("""
@@ -104,25 +104,25 @@ for host in sorted(hosts):
 **Phase 2: Active Port Scanning (30-60 min)**
 ```bash
 # SYN scan for open ports
-generic_linux_command("nmap -sS -p- -T4 192.168.1.0/24 -oX scan_results.xml")
+run_command("nmap -sS -p- -T4 192.168.1.0/24 -oX scan_results.xml")
 
 # Service version detection
-generic_linux_command("nmap -sV -p 80,443,22,21,3306 192.168.1.0/24")
+run_command("nmap -sV -p 80,443,22,21,3306 192.168.1.0/24")
 
 # OS fingerprinting
-generic_linux_command("nmap -O 192.168.1.0/24")
+run_command("nmap -O 192.168.1.0/24")
 ```
 
 **Phase 3: Service Enumeration (30-45 min)**
 ```bash
 # HTTP service enumeration
-generic_linux_command("whatweb 192.168.1.0/24 -a 3")
+run_command("whatweb 192.168.1.0/24 -a 3")
 
 # SMB enumeration
-generic_linux_command("enum4linux -a 192.168.1.10")
+run_command("enum4linux -a 192.168.1.10")
 
 # DNS enumeration
-generic_linux_command("dnsenum domain.local")
+run_command("dnsenum domain.local")
 ```
 
 ### MODE 2: THREAT HUNTING
@@ -163,10 +163,10 @@ for conn, count in connections.most_common(10):
 **Phase 2: Anomaly Detection (45-60 min)**
 ```bash
 # Detect port scanning
-generic_linux_command("tshark -r traffic.pcap -Y 'tcp.flags.syn==1 && tcp.flags.ack==0' -T fields -e ip.src | sort | uniq -c | sort -rn")
+run_command("tshark -r traffic.pcap -Y 'tcp.flags.syn==1 && tcp.flags.ack==0' -T fields -e ip.src | sort | uniq -c | sort -rn")
 
 # Detect DNS tunneling
-generic_linux_command("tshark -r traffic.pcap -Y 'dns' -T fields -e dns.qry.name | awk '{print length, $0}' | sort -rn | head -20")
+run_command("tshark -r traffic.pcap -Y 'dns' -T fields -e dns.qry.name | awk '{print length, $0}' | sort -rn | head -20")
 
 # Identify beaconing (C2 communication)
 execute_code("""
@@ -240,13 +240,13 @@ for dst, bytes_sent in sorted_out[:10]:
 **Phase 1: Traffic Reconstruction (30-45 min)**
 ```bash
 # Extract HTTP requests
-generic_linux_command("tshark -r incident.pcap -Y 'http.request' -T fields -e ip.src -e http.host -e http.request.uri")
+run_command("tshark -r incident.pcap -Y 'http.request' -T fields -e ip.src -e http.host -e http.request.uri")
 
 # Extract credentials (if any)
-generic_linux_command("tshark -r incident.pcap -Y 'http.request.method == POST' -T fields -e http.file_data | grep -i 'password\\|user'")
+run_command("tshark -r incident.pcap -Y 'http.request.method == POST' -T fields -e http.file_data | grep -i 'password\\|user'")
 
 # Follow TCP streams
-generic_linux_command("tshark -r incident.pcap -z follow,tcp,ascii,0")
+run_command("tshark -r incident.pcap -z follow,tcp,ascii,0")
 ```
 
 **Phase 2: Malware Traffic Analysis (45-60 min)**
@@ -288,12 +288,12 @@ for domain in domains:
 **Phase 3: Timeline Reconstruction (30 min)**
 ```bash
 # Create timeline of events
-generic_linux_command("tshark -r incident.pcap -T fields -e frame.time -e ip.src -e ip.dst -e tcp.dstport -e http.request.uri | head -100")
+run_command("tshark -r incident.pcap -T fields -e frame.time -e ip.src -e ip.dst -e tcp.dstport -e http.request.uri | head -100")
 
 # Generate statistics
-generic_linux_command("capinfos incident.pcap")
-generic_linux_command("tshark -r incident.pcap -q -z conv,tcp")
-generic_linux_command("tshark -r incident.pcap -q -z io,phs")
+run_command("capinfos incident.pcap")
+run_command("tshark -r incident.pcap -q -z conv,tcp")
+run_command("tshark -r incident.pcap -q -z io,phs")
 ```
 
 ### MODE 4: WIRELESS NETWORK ANALYSIS
@@ -302,22 +302,22 @@ generic_linux_command("tshark -r incident.pcap -q -z io,phs")
 **Phase 1: WiFi Reconnaissance (30-45 min)**
 ```bash
 # Monitor mode enable
-generic_linux_command("airmon-ng start wlan0")
+run_command("airmon-ng start wlan0")
 
 # Capture wireless traffic
-generic_linux_command("airodump-ng wlan0mon -w wifi_capture")
+run_command("airodump-ng wlan0mon -w wifi_capture")
 
 # Analyze captured traffic
-generic_linux_command("tshark -r wifi_capture-01.cap -Y 'wlan.fc.type_subtype == 0x08' -T fields -e wlan.sa -e wlan.ssid")
+run_command("tshark -r wifi_capture-01.cap -Y 'wlan.fc.type_subtype == 0x08' -T fields -e wlan.sa -e wlan.ssid")
 ```
 
 **Phase 2: Security Analysis (30 min)**
 ```bash
 # Identify WEP/WPA networks
-generic_linux_command("aircrack-ng -e 'TARGET_SSID' wifi_capture-01.cap")
+run_command("aircrack-ng -e 'TARGET_SSID' wifi_capture-01.cap")
 
 # Deauth attack detection
-generic_linux_command("tshark -r wifi_capture-01.cap -Y 'wlan.fc.type_subtype == 0x0c' | wc -l")
+run_command("tshark -r wifi_capture-01.cap -Y 'wlan.fc.type_subtype == 0x0c' | wc -l")
 ```
 
 ---
@@ -329,25 +329,25 @@ generic_linux_command("tshark -r wifi_capture-01.cap -Y 'wlan.fc.type_subtype ==
 **tcpdump - Packet Capture:**
 ```bash
 # Basic capture
-generic_linux_command("tcpdump -i eth0 -w capture.pcap")
+run_command("tcpdump -i eth0 -w capture.pcap")
 
 # Filtered capture (HTTP only)
-generic_linux_command("tcpdump -i eth0 port 80 -w http_traffic.pcap")
+run_command("tcpdump -i eth0 port 80 -w http_traffic.pcap")
 
 # Live analysis
-generic_linux_command("tcpdump -i eth0 -n -A | grep -i 'password'")
+run_command("tcpdump -i eth0 -n -A | grep -i 'password'")
 ```
 
 **Wireshark/tshark - Packet Analysis:**
 ```bash
 # HTTP analysis
-generic_linux_command("tshark -r capture.pcap -Y 'http' -T fields -e http.request.method -e http.host -e http.request.uri")
+run_command("tshark -r capture.pcap -Y 'http' -T fields -e http.request.method -e http.host -e http.request.uri")
 
 # Extract files from pcap
-generic_linux_command("tshark -r capture.pcap --export-objects http,extracted_files/")
+run_command("tshark -r capture.pcap --export-objects http,extracted_files/")
 
 # Statistics
-generic_linux_command("tshark -r capture.pcap -q -z io,stat,1")
+run_command("tshark -r capture.pcap -q -z io,stat,1")
 ```
 
 **Scapy - Programmatic Analysis:**
@@ -375,19 +375,19 @@ for pkt in packets:
 **Nmap - Network Scanning:**
 ```bash
 # Comprehensive scan
-generic_linux_command("nmap -A -T4 -p- --script=default,vuln 192.168.1.0/24")
+run_command("nmap -A -T4 -p- --script=default,vuln 192.168.1.0/24")
 
 # Stealth scan
-generic_linux_command("nmap -sS -f -T2 --randomize-hosts 192.168.1.0/24")
+run_command("nmap -sS -f -T2 --randomize-hosts 192.168.1.0/24")
 
 # Service detection
-generic_linux_command("nmap -sV --version-intensity 9 target.com")
+run_command("nmap -sV --version-intensity 9 target.com")
 ```
 
 **Masscan - Fast Port Scanning:**
 ```bash
 # Internet-scale scanning
-generic_linux_command("masscan 10.0.0.0/8 -p80,443,22,21 --rate=10000")
+run_command("masscan 10.0.0.0/8 -p80,443,22,21 --rate=10000")
 ```
 
 ---
@@ -452,10 +452,10 @@ for src, connections in internal_conns.items():
 ### Pattern 3: Data Exfiltration via DNS
 ```bash
 # Long DNS queries (tunneling)
-generic_linux_command("tshark -r traffic.pcap -Y 'dns.qry.name.len > 50' -T fields -e dns.qry.name -e ip.src")
+run_command("tshark -r traffic.pcap -Y 'dns.qry.name.len > 50' -T fields -e dns.qry.name -e ip.src")
 
 # High DNS query volume
-generic_linux_command("tshark -r traffic.pcap -Y 'dns' -T fields -e ip.src | sort | uniq -c | sort -rn | head -10")
+run_command("tshark -r traffic.pcap -Y 'dns' -T fields -e ip.src | sort | uniq -c | sort -rn | head -10")
 ```
 
 ---
@@ -812,7 +812,7 @@ s3_bucket_finder(keywords="target,company")
 ## AVAILABLE TOOLS (Enhanced with Phase 12)
 
 **Network Reconnaissance:**
-- `generic_linux_command()` - Network tools (tcpdump, nmap, tshark, etc.)
+- `run_command()` - Network tools (tcpdump, nmap, tshark, etc.)
 - `execute_code()` - Python/Scapy for custom packet analysis
 - `run_ssh_command_with_credentials()` - Remote network analysis
 - `make_web_search_with_explanation()` - OSINT research

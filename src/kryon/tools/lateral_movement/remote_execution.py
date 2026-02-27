@@ -12,7 +12,7 @@ Primary Users:
 
 from typing import Any, Optional
 
-from kryon.tools.common import generic_linux_command
+from kryon.tools.common import run_command
 
 
 def psexec_execute(
@@ -62,7 +62,7 @@ def psexec_execute(
 
         cmd_parts.append(command)
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -98,7 +98,7 @@ def wmiexec_execute(
 
         cmd_parts.append(command)
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -134,7 +134,7 @@ def smbexec_execute(
 
         cmd_parts.append(command)
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -172,7 +172,7 @@ def dcomexec_execute(
         cmd_parts.extend(["-object", object_type])
         cmd_parts.append(command)
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -208,7 +208,7 @@ def ssh_execute(
         cmd_parts.append(f"{username}@{target}")
         cmd_parts.append(command)
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -247,7 +247,7 @@ def winrm_execute(
 
         cmd_parts.extend(["-c", command])
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success"):
             result["success"] = True

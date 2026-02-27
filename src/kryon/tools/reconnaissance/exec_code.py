@@ -20,7 +20,7 @@ def execute_code(
     This tool allows for executing code provided in different
     programming languages. It creates a permanent file with the provided code
     and executes it using the appropriate interpreter. You can exec this
-    code as many times as you want using `generic_linux_command` tool.
+    code as many times as you want using `run_command` tool.
 
     Priorize: Python and Perl
 

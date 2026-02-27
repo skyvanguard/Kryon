@@ -12,7 +12,7 @@ Primary Users:
 import os
 from typing import Any, Optional
 
-from kryon.tools.common import generic_linux_command
+from kryon.tools.common import run_command
 
 
 def compress_file(
@@ -62,13 +62,13 @@ def compress_file(
 
         # Execute compression
         if compression_type == "gzip":
-            cmd_result = generic_linux_command("gzip", f"-c {file_path} > {output_path}")
+            cmd_result = run_command("gzip", f"-c {file_path} > {output_path}")
         elif compression_type == "bzip2":
-            cmd_result = generic_linux_command("bzip2", f"-c {file_path} > {output_path}")
+            cmd_result = run_command("bzip2", f"-c {file_path} > {output_path}")
         elif compression_type == "xz":
-            cmd_result = generic_linux_command("xz", f"-c {file_path} > {output_path}")
+            cmd_result = run_command("xz", f"-c {file_path} > {output_path}")
         elif compression_type == "zip":
-            cmd_result = generic_linux_command("zip", f"{output_path} {file_path}")
+            cmd_result = run_command("zip", f"{output_path} {file_path}")
 
         if cmd_result.get("success") or os.path.exists(output_path):
             result["success"] = True
@@ -122,7 +122,7 @@ def encrypt_file(
                 cmd_parts.extend(["-pass", f"pass:{password}"])
             cmd_parts.extend(["-in", file_path, "-out", output_path])
 
-            cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+            cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         elif method == "gpg":
             cmd_parts = ["gpg", "-c", "--batch", "--yes"]
@@ -130,7 +130,7 @@ def encrypt_file(
                 cmd_parts.extend(["--passphrase", password])
             cmd_parts.extend(["-o", output_path, file_path])
 
-            cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+            cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success") or os.path.exists(output_path):
             result["success"] = True
@@ -177,11 +177,11 @@ def split_file(
         chunk_size = f"{chunk_size_mb}m"
         prefix = os.path.join(output_dir, os.path.basename(file_path) + ".part")
 
-        cmd_result = generic_linux_command("split", f"-b {chunk_size} {file_path} {prefix}")
+        cmd_result = run_command("split", f"-b {chunk_size} {file_path} {prefix}")
 
         if cmd_result.get("success"):
             # List generated chunks
-            cmd_result = generic_linux_command("ls", f"{prefix}*")
+            cmd_result = run_command("ls", f"{prefix}*")
             if cmd_result.get("success"):
                 chunks = [line.strip() for line in cmd_result.get("output", "").split("\n") if line.strip()]
                 result["success"] = True
@@ -223,7 +223,7 @@ def encode_base64(
         if not output_path:
             output_path = file_path + ".b64"
 
-        cmd_result = generic_linux_command("base64", f"{file_path} > {output_path}")
+        cmd_result = run_command("base64", f"{file_path} > {output_path}")
 
         if cmd_result.get("success") or os.path.exists(output_path):
             result["success"] = True

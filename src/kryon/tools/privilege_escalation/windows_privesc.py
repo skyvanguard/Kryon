@@ -13,7 +13,7 @@ Primary Users:
 import re
 from typing import Any
 
-from kryon.tools.common import generic_linux_command
+from kryon.tools.common import run_command
 
 
 def enumerate_windows_privesc() -> dict[str, Any]:
@@ -90,7 +90,7 @@ def find_unquoted_service_paths() -> dict[str, Any]:
         # Use wmic to query services
         cmd = 'wmic service get name,pathname,displayname,startmode | findstr /i "auto" | findstr /i /v "C:\\Windows\\\\" | findstr /i /v """'
 
-        cmd_result = generic_linux_command("cmd.exe", f"/c {cmd}")
+        cmd_result = run_command("cmd.exe", f"/c {cmd}")
 
         if cmd_result.get("success"):
             output = cmd_result.get("output", "")
@@ -133,7 +133,7 @@ def check_weak_service_permissions() -> dict[str, Any]:
         Select-Object Name, DisplayName, PathName, StartMode | Format-List
         """
 
-        cmd_result = generic_linux_command("powershell.exe", f'-Command "{ps_cmd}"')
+        cmd_result = run_command("powershell.exe", f'-Command "{ps_cmd}"')
 
         if cmd_result.get("success"):
             output = cmd_result.get("output", "")
@@ -170,7 +170,7 @@ def find_auto_logon_credentials() -> dict[str, Any]:
 
         credentials = {}
         for value in values_to_check:
-            cmd_result = generic_linux_command("reg", f'query "{reg_path}" /v {value}')
+            cmd_result = run_command("reg", f'query "{reg_path}" /v {value}')
 
             if cmd_result.get("success"):
                 output = cmd_result.get("output", "")
@@ -213,7 +213,7 @@ def check_always_install_elevated() -> dict[str, Any]:
 
     try:
         # Check HKLM key
-        cmd_result = generic_linux_command(
+        cmd_result = run_command(
             "reg",
             'query "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer" /v AlwaysInstallElevated',
         )
@@ -224,7 +224,7 @@ def check_always_install_elevated() -> dict[str, Any]:
                 result["hklm_set"] = True
 
         # Check HKCU key
-        cmd_result = generic_linux_command(
+        cmd_result = run_command(
             "reg",
             'query "HKCU\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer" /v AlwaysInstallElevated',
         )
@@ -260,7 +260,7 @@ def enumerate_scheduled_tasks() -> dict[str, Any]:
 
     try:
         # List all scheduled tasks
-        cmd_result = generic_linux_command("schtasks", "/query /fo LIST /v")
+        cmd_result = run_command("schtasks", "/query /fo LIST /v")
 
         if cmd_result.get("success"):
             output = cmd_result.get("output", "")
@@ -309,7 +309,7 @@ def check_token_privileges() -> dict[str, Any]:
 
     try:
         # Use whoami to check privileges
-        cmd_result = generic_linux_command("whoami", "/priv")
+        cmd_result = run_command("whoami", "/priv")
 
         if cmd_result.get("success"):
             output = cmd_result.get("output", "")
@@ -363,7 +363,7 @@ def find_stored_credentials() -> dict[str, Any]:
 
     try:
         # Check cmdkey stored credentials
-        cmd_result = generic_linux_command("cmdkey", "/list")
+        cmd_result = run_command("cmdkey", "/list")
         if cmd_result.get("success"):
             result["cmdkey"] = cmd_result.get("output", "").split("\n")
 
@@ -376,7 +376,7 @@ def find_stored_credentials() -> dict[str, Any]:
         ]
 
         for path in unattend_paths:
-            cmd_result = generic_linux_command("type", path)
+            cmd_result = run_command("type", path)
             if cmd_result.get("success"):
                 content = cmd_result.get("output", "")
                 if content:
@@ -407,7 +407,7 @@ def _get_windows_system_info() -> dict[str, str]:
 
     for key, cmd in commands.items():
         parts = cmd.split()
-        result = generic_linux_command(parts[0], " ".join(parts[1:]) if len(parts) > 1 else "")
+        result = run_command(parts[0], " ".join(parts[1:]) if len(parts) > 1 else "")
         if result.get("success"):
             info[key] = result.get("output", "").strip()
 

@@ -49,6 +49,7 @@ class AgentSpinner:
         self._llm_turn: int = 0
         self._lock = threading.Lock()
         self._patched_models: list[tuple] = []  # (model, original_get_response)
+        self._patched_tools: list[tuple] = []  # (tool, original_on_invoke_tool)
 
     # ------------------------------------------------------------------
     # Message formatting
@@ -133,6 +134,10 @@ class AgentSpinner:
         for model, original in self._patched_models:
             model.get_response = original
         self._patched_models.clear()
+        # Restore patched tools
+        for tool, original in self._patched_tools:
+            tool.on_invoke_tool = original
+        self._patched_tools.clear()
 
     def request_stop(self) -> None:
         """Signal stop without blocking -- safe from async context."""
@@ -173,6 +178,36 @@ class AgentSpinner:
 
         model.get_response = wrapped
         self._patched_models.append((model, original))
+
+    # ------------------------------------------------------------------
+    # Tool patching — intercept on_invoke_tool to show command args
+    # ------------------------------------------------------------------
+
+    def patch_tools(self, tools) -> None:
+        """Wrap run_command's on_invoke_tool to show the actual command in the spinner."""
+        import json as _json
+
+        for tool in tools:
+            if not (hasattr(tool, "name") and tool.name == "run_command"):
+                continue
+            if not hasattr(tool, "on_invoke_tool"):
+                continue
+            original_invoke = tool.on_invoke_tool
+            spinner = self
+
+            async def wrapped_invoke(ctx, input_json_str, _orig=original_invoke):
+                try:
+                    args = _json.loads(input_json_str)
+                    cmd = args.get("command", "")
+                    if cmd:
+                        display = cmd[:50] + "..." if len(cmd) > 50 else cmd
+                        spinner.update(tool_name=f"run_command: {display}")
+                except Exception:
+                    pass
+                return await _orig(ctx, input_json_str)
+
+            tool.on_invoke_tool = wrapped_invoke
+            self._patched_tools.append((tool, original_invoke))
 
     # ------------------------------------------------------------------
     # Hooks factory

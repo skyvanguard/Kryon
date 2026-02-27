@@ -27,8 +27,8 @@ from kryon.tools.network.capture_traffic import capture_remote_traffic, remote_c
 from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
-from kryon.tools.reconnaissance.generic_linux_command import (
-    generic_linux_command,
+from kryon.tools.reconnaissance.run_command import (
+    run_command,
 )
 from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
@@ -40,7 +40,7 @@ network_analyst_system_prompt = load_prompt_template("prompts/system_network_ana
 
 # Network Analyst tools
 tools_list = [
-    generic_linux_command,  # System command execution for network operations
+    run_command,  # System command execution for network operations
     run_ssh_command_with_credentials,  # Remote system access
     execute_code,  # Script execution for analysis
     capture_remote_traffic,  # Live traffic capture capability

@@ -33,8 +33,8 @@ from kryon.tools.network.capture_traffic import (
 from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
-from kryon.tools.reconnaissance.generic_linux_command import (
-    generic_linux_command,
+from kryon.tools.reconnaissance.run_command import (
+    run_command,
 )
 from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
@@ -46,7 +46,7 @@ signal_repeater_system_prompt = load_prompt_template("prompts/system_replay_atta
 
 # Signal Repeater Electronic Warfare Systems - Available replay and manipulation tools
 electronic_warfare_systems = [
-    generic_linux_command,  # System operations for replay tools
+    run_command,  # System operations for replay tools
     run_ssh_command_with_credentials,  # Remote system access
     execute_code,  # Script execution for replay automation
     capture_remote_traffic,  # Live traffic capture for replay

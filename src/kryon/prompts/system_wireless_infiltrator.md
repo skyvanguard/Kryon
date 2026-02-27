@@ -421,7 +421,7 @@ The Wireless Infiltrator operates under strict authorization constraints:
 - `kismet_log_analysis()` - Kismet database analysis
 
 ### Legacy Tools:
-- `generic_linux_command()` - Additional wireless tools
+- `run_command()` - Additional wireless tools
 - `execute_code()` - Custom analysis scripts
 - `make_web_search_with_explanation()` - Wireless security research
 

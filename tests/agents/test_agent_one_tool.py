@@ -2,7 +2,7 @@
 This module contains tests for the one-tool agent functionality, specifically
 for the CTF agent. It includes tests to verify the agent's instructions and
 configuration, as well as its ability to execute a Linux command using the
-generic_linux_command tool.
+run_command tool.
 """
 
 import pytest
@@ -22,7 +22,7 @@ async def test_ctf_agent_instructions_and_configuration():
     agent = transfer_to_one_tool_agent()
 
     # Check if the agent has the expected tool
-    assert any(tool.name == "generic_linux_command" for tool in agent.tools)
+    assert any(tool.name == "run_command" for tool in agent.tools)
 
     # Ensure the agent has instructions set
     assert agent.instructions is not None
@@ -43,7 +43,7 @@ async def test_ctf_agent_executes_linux_command():
         [
             [
                 get_text_message("executing comando..."),
-                get_function_tool_call("generic_linux_command", '{"command": "ls"}'),
+                get_function_tool_call("run_command", '{"command": "ls"}'),
             ],
             [get_text_message("result of the command: flag{12345}")],
         ]
@@ -59,4 +59,4 @@ async def test_ctf_agent_executes_linux_command():
     assert len(result.raw_responses) == 2
 
     # Check if the command tool was used in the input list
-    assert any("generic_linux_command" in str(item) for item in result.to_input_list())
+    assert any("run_command" in str(item) for item in result.to_input_list())

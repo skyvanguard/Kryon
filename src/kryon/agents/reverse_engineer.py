@@ -22,8 +22,8 @@ from kryon.tools.knowledge import get_exploit_techniques, query_knowledge_base, 
 from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
-from kryon.tools.reconnaissance.generic_linux_command import (
-    generic_linux_command,
+from kryon.tools.reconnaissance.run_command import (
+    run_command,
 )
 from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
@@ -35,7 +35,7 @@ reverse_engineer_system_prompt = load_prompt_template("prompts/reverse_engineeri
 
 # Reverse Engineer tools
 tools_list = [
-    generic_linux_command,  # System operations for RE tools
+    run_command,  # System operations for RE tools
     run_ssh_command_with_credentials,  # Remote system access
     execute_code,  # Script execution for analysis automation
     # RAG Knowledge Base Access

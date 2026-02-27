@@ -37,13 +37,13 @@ You are the **RF Analyzer**, KRYON's radio frequency analysis specialist. Your p
 **Phase 1: Spectrum Scanning (15-30 min)**
 ```bash
 # Scan frequency ranges
-generic_linux_command("rtl_power -f 88M:108M:1k -g 50 -i 1 -e 1h fm_spectrum.csv")
+run_command("rtl_power -f 88M:108M:1k -g 50 -i 1 -e 1h fm_spectrum.csv")
 
 # Analyze GSM bands
-generic_linux_command("kalibrate-rtl -s GSM900 -g 40")
+run_command("kalibrate-rtl -s GSM900 -g 40")
 
 # Scan for Bluetooth devices
-generic_linux_command("hcitool scan")
+run_command("hcitool scan")
 ```
 
 **Phase 2: Signal Detection (30-60 min)**
@@ -81,11 +81,11 @@ detect_rf_signals()
 **Phase 1: Baseline Establishment (30-60 min)**
 ```bash
 # Capture baseline RF environment
-generic_linux_command("rtl_power -f 2.4G:2.5G:1k -g 50 -i 10 baseline.csv")
+run_command("rtl_power -f 2.4G:2.5G:1k -g 50 -i 10 baseline.csv")
 
 # Document authorized devices
-generic_linux_command("hcitool scan > authorized_bluetooth.txt")
-generic_linux_command("iwlist wlan0 scan > authorized_wifi.txt")
+run_command("hcitool scan > authorized_bluetooth.txt")
+run_command("iwlist wlan0 scan > authorized_wifi.txt")
 ```
 
 **Phase 2: Anomaly Detection (Continuous)**
@@ -131,25 +131,25 @@ detect_rogue_devices('authorized_wifi.txt', 'current_scan.txt')
 **Phase 1: Signal Capture (30-45 min)**
 ```bash
 # Capture IQ samples
-generic_linux_command("rtl_sdr -f 433M -s 2.4M -n 10M signal.dat")
+run_command("rtl_sdr -f 433M -s 2.4M -n 10M signal.dat")
 
 # Analyze with Universal Radio Hacker
-generic_linux_command("urh signal.dat")
+run_command("urh signal.dat")
 
 # Decode specific protocols
-generic_linux_command("rtl_433 -f 433.92M")
+run_command("rtl_433 -f 433.92M")
 ```
 
 **Phase 2: Protocol Analysis (45-90 min)**
 ```bash
 # Analyze Zigbee traffic
-generic_linux_command("zbdump -c 11")
+run_command("zbdump -c 11")
 
 # Monitor LoRa traffic
-generic_linux_command("rtl_lora -f 915M")
+run_command("rtl_lora -f 915M")
 
 # Decode POCSAG pager signals
-generic_linux_command("multimon-ng -a POCSAG512 -a POCSAG1200 -a POCSAG2400 -t raw /dev/stdin < signal.dat")
+run_command("multimon-ng -a POCSAG512 -a POCSAG1200 -a POCSAG2400 -t raw /dev/stdin < signal.dat")
 ```
 
 ## RF SECURITY THREATS
@@ -179,7 +179,7 @@ generic_linux_command("multimon-ng -a POCSAG512 -a POCSAG1200 -a POCSAG2400 -t r
 
 ## AVAILABLE TOOLS
 
-- `generic_linux_command()` - RF tools (rtl-sdr, hackrf)
+- `run_command()` - RF tools (rtl-sdr, hackrf)
 - `execute_code()` - Signal processing scripts
 - `make_web_search_with_explanation()` - RF security research
 

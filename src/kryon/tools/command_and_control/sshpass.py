@@ -2,7 +2,7 @@
 SSH Pass tool for executing remote commands via SSH using password authentication.
 
 Example of generalization: to execute a local command we use a bash wrapper
-in `generic_linux_command` and in `execute_cli_command` -> `kryon.tools.misc.cli_utils`
+in `run_command` and in `execute_cli_command` -> `kryon.tools.misc.cli_utils`
 Using these wrappers, commands like `ssh` or `netcat` usually get trapped
 by the LLM, so prompt engineering is used to execute the command locally
 and return the result. Another solution is to implement interactive CLIs, for now this command

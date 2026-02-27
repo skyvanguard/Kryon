@@ -120,11 +120,11 @@ class TestToolImports:
 
         assert run_command is not None
 
-    def test_generic_linux_command(self):
-        """Test generic_linux_command import from common."""
-        from kryon.tools.common import generic_linux_command
+    def test_run_command(self):
+        """Test run_command import from common."""
+        from kryon.tools.common import run_command
 
-        assert generic_linux_command is not None
+        assert run_command is not None
 
     def test_exploitation_tools(self):
         """Test exploitation tools import."""

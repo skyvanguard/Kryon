@@ -29,7 +29,7 @@ def test_deduplication_with_streaming_disabled(capsys):
 
     # First call should display
     cli_print_tool_output(
-        tool_name="generic_linux_command",
+        tool_name="run_command",
         args={"command": "ls -la"},
         output="test output",
         streaming=False,
@@ -37,18 +37,18 @@ def test_deduplication_with_streaming_disabled(capsys):
 
     captured = capsys.readouterr()
     assert "test output" in captured.out
-    assert "generic_linux_command" in captured.out
+    assert "run_command" in captured.out
 
     # For this test, we need to manually set the display time to be recent
     # because Rich rendering takes over 1 second
-    command_key = "generic_linux_command:ls -la"
+    command_key = "run_command:ls -la"
     if hasattr(cli_print_tool_output, "_command_display_times"):
         # Set the display time to be very recent (0.1 seconds ago)
         cli_print_tool_output._command_display_times[command_key] = time.time() - 0.1
 
     # Immediate duplicate should be suppressed
     cli_print_tool_output(
-        tool_name="generic_linux_command",
+        tool_name="run_command",
         args={"command": "ls -la"},
         output="test output",
         streaming=False,
@@ -61,7 +61,7 @@ def test_deduplication_with_streaming_disabled(capsys):
     # After delay, same command should display again
     time.sleep(0.6)
     cli_print_tool_output(
-        tool_name="generic_linux_command",
+        tool_name="run_command",
         args={"command": "ls -la"},
         output="test output 2",
         streaming=False,
@@ -69,7 +69,7 @@ def test_deduplication_with_streaming_disabled(capsys):
 
     captured = capsys.readouterr()
     assert "test output 2" in captured.out
-    assert "generic_linux_command" in captured.out
+    assert "run_command" in captured.out
 
 
 def test_deduplication_with_streaming_enabled(capsys):
@@ -78,7 +78,7 @@ def test_deduplication_with_streaming_enabled(capsys):
 
     # First call should display
     cli_print_tool_output(
-        tool_name="generic_linux_command",
+        tool_name="run_command",
         args={"command": "pwd"},
         output="test output",
         streaming=False,
@@ -89,7 +89,7 @@ def test_deduplication_with_streaming_enabled(capsys):
 
     # Duplicate should always be suppressed when streaming is enabled
     cli_print_tool_output(
-        tool_name="generic_linux_command",
+        tool_name="run_command",
         args={"command": "pwd"},
         output="test output",
         streaming=False,
@@ -105,7 +105,7 @@ def test_different_commands_always_display(capsys):
 
     # First command
     cli_print_tool_output(
-        tool_name="generic_linux_command",
+        tool_name="run_command",
         args={"command": "ls"},
         output="output 1",
         streaming=False,
@@ -116,7 +116,7 @@ def test_different_commands_always_display(capsys):
 
     # Different command should display
     cli_print_tool_output(
-        tool_name="generic_linux_command",
+        tool_name="run_command",
         args={"command": "pwd"},
         output="output 2",
         streaming=False,
@@ -130,7 +130,7 @@ def test_empty_output_always_suppressed(capsys):
     """Test that empty output is always suppressed"""
     os.environ["KRYON_STREAM"] = "false"
 
-    cli_print_tool_output(tool_name="generic_linux_command", args={"command": "test"}, output="", streaming=False)
+    cli_print_tool_output(tool_name="run_command", args={"command": "test"}, output="", streaming=False)
 
     captured = capsys.readouterr()
     assert captured.out == ""  # Empty output should not display
@@ -147,7 +147,7 @@ def test_parallel_mode_deduplication(capsys):
 
     # Same command from different parallel agents should both display
     cli_print_tool_output(
-        tool_name="generic_linux_command",
+        tool_name="run_command",
         args={"command": "ls"},
         output="output from P1",
         token_info=token_info_p1,
@@ -158,7 +158,7 @@ def test_parallel_mode_deduplication(capsys):
     assert "output from P1" in captured.out
 
     cli_print_tool_output(
-        tool_name="generic_linux_command",
+        tool_name="run_command",
         args={"command": "ls"},
         output="output from P2",
         token_info=token_info_p2,
