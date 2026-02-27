@@ -38,6 +38,23 @@ class AuditMiddleware(BaseHTTPMiddleware):
                     ip_address=ip,
                     details={"status_code": response.status_code},
                 )
+                # Forward audit event to SIEM integrations
+                try:
+                    from kryon.integrations import get_integration_manager
+                    from kryon.integrations.models import SIEMEvent
+
+                    await get_integration_manager().forward_event(
+                        SIEMEvent(
+                            event_type="audit",
+                            severity="info",
+                            title=f"{request.method} {request.url.path}",
+                            description=f"API {request.method} on {resource_type}",
+                            metadata={"status_code": response.status_code, "resource_id": resource_id or ""},
+                            user=ip,
+                        )
+                    )
+                except Exception:
+                    pass  # Never fail due to SIEM forwarding
             except Exception:
                 pass  # Never fail a request due to audit logging
 

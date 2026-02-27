@@ -1,0 +1,61 @@
+# =============================================================================
+# KRYON - Development Docker Compose
+# =============================================================================
+# Usage: docker compose up -d
+# =============================================================================
+
+services:
+  kryon-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: kryon-server
+    restart: unless-stopped
+    ports:
+      - "8700:8700"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-not-set}
+      - KRYON_DEBUG=1
+      - KRYON_MODEL=${KRYON_MODEL:-gpt-4o}
+      - KRYON_GUARDRAILS=${KRYON_GUARDRAILS:-true}
+    volumes:
+      - kryon-data:/home/kryon/.kryon
+    networks:
+      - kryon-dev
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: kryon-dashboard
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - kryon-server
+    networks:
+      - kryon-dev
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: kryon-chromadb
+    restart: unless-stopped
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    volumes:
+      - chromadb-data:/chroma/chroma
+    ports:
+      - "8000:8000"
+    networks:
+      - kryon-dev
+
+volumes:
+  kryon-data:
+    driver: local
+  chromadb-data:
+    driver: local
+
+networks:
+  kryon-dev:
+    driver: bridge

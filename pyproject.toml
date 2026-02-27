@@ -291,6 +291,7 @@ markers = [
     "tool: Tool-related tests",
     "security: Security and guardrail tests",
     "optional: Tests for optional dependencies",
+    "e2e: End-to-end browser tests requiring Playwright",
 ]
 
 [tool.inline-snapshot]

@@ -16,7 +16,7 @@ from kryon.server.middleware.error_handler import global_exception_handler
 from kryon.server.middleware.rate_limit import RateLimitMiddleware
 from kryon.server.middleware.request_id import RequestIdMiddleware
 from kryon.server.middleware.security_headers import SecurityHeadersMiddleware
-from kryon.server.routes import agents, clients, engagements, evaluations, health, knowledge, reports, runs, scans, usage
+from kryon.server.routes import agents, clients, engagements, evaluations, health, integrations, knowledge, reports, runs, scans, scope, tenants, usage
 from kryon.server.routes import admin as admin_routes
 from kryon.server.routes import audit as audit_routes
 from kryon.server.routes import auth_routes
@@ -149,6 +149,9 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
     app.include_router(scans.router, prefix="/api/v1")
     app.include_router(knowledge.router, prefix="/api/v1")
     app.include_router(engagements.router, prefix="/api/v1")
+    app.include_router(scope.router, prefix="/api/v1")
+    app.include_router(integrations.router, prefix="/api/v1")
+    app.include_router(tenants.router, prefix="/api/v1")
     app.include_router(audit_routes.router, prefix="/api/v1")
     app.include_router(admin_routes.router, prefix="/api/v1")
 

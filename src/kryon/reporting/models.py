@@ -14,6 +14,8 @@ class ReportType(str, Enum):
     EXECUTIVE = "executive"
     TECHNICAL = "technical"
     COMPLIANCE = "compliance"
+    PCI_DSS = "pci_dss"
+    SOC2 = "soc2"
 
 
 class ReportConfig(BaseModel):

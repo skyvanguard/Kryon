@@ -32,3 +32,29 @@ snapshots-fix:
 .PHONY: snapshots-create
 snapshots-create:
 	uv run pytest --inline-snapshot=create
+
+.PHONY: docker-build
+docker-build:
+	docker compose build
+
+.PHONY: docker-up
+docker-up:
+	docker compose up -d
+
+.PHONY: docker-down
+docker-down:
+	docker compose down
+
+.PHONY: docker-prod
+docker-prod:
+	docker compose -f docker/docker-compose.production.yml up -d
+
+.PHONY: security-scan
+security-scan:
+	pip-audit --strict --desc || true
+	safety check --full-report || true
+
+.PHONY: release
+release:
+	python -m build
+	twine check dist/*

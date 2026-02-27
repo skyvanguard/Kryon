@@ -748,6 +748,188 @@ class MemoryStore:
         return [dict(r) for r in rows]
 
     # -----------------------------------------------------------------------
+    # Scope Whitelist
+    # -----------------------------------------------------------------------
+    def create_scope_rule(self, rule_id: str, client_id: str, rule_type: str,
+                          value: str, description: str, created_at: str,
+                          created_by: str | None = None) -> None:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO scope_whitelist (id, client_id, rule_type, value, description, created_at, created_by) VALUES (?,?,?,?,?,?,?)",
+            (rule_id, client_id, rule_type, value, description, created_at, created_by),
+        )
+        conn.commit()
+
+    def list_scope_rules(self, client_id: str | None = None, offset: int = 0, limit: int = 50) -> list[dict]:
+        conn = self._get_conn()
+        if client_id:
+            rows = conn.execute(
+                "SELECT * FROM scope_whitelist WHERE client_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (client_id, limit, offset),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM scope_whitelist ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (limit, offset),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_scope_rule(self, rule_id: str) -> dict | None:
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM scope_whitelist WHERE id = ?", (rule_id,)).fetchone()
+        return dict(row) if row else None
+
+    def delete_scope_rule(self, rule_id: str) -> bool:
+        conn = self._get_conn()
+        cur = conn.execute("DELETE FROM scope_whitelist WHERE id = ?", (rule_id,))
+        conn.commit()
+        return cur.rowcount > 0
+
+    def get_scope_rules_for_client(self, client_id: str) -> list[dict]:
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT * FROM scope_whitelist WHERE client_id = ?", (client_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    # -----------------------------------------------------------------------
+    # SIEM Configs
+    # -----------------------------------------------------------------------
+    def create_siem_config(self, config: dict) -> None:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO siem_configs (id, name, siem_type, endpoint, token, index_name, enabled, config_json, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (config["id"], config["name"], config["siem_type"], config["endpoint"],
+             config.get("token", ""), config.get("index_name", ""),
+             int(config.get("enabled", True)), json.dumps(config.get("config_json", {})),
+             config["created_at"], config.get("updated_at")),
+        )
+        conn.commit()
+
+    def list_siem_configs(self) -> list[dict]:
+        conn = self._get_conn()
+        rows = conn.execute("SELECT * FROM siem_configs ORDER BY created_at DESC").fetchall()
+        return [dict(r) for r in rows]
+
+    def get_siem_config(self, config_id: str) -> dict | None:
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM siem_configs WHERE id = ?", (config_id,)).fetchone()
+        return dict(row) if row else None
+
+    def update_siem_config(self, config_id: str, **kwargs) -> bool:
+        _SIEM_COLUMNS = {"name", "siem_type", "endpoint", "token", "index_name", "enabled", "config_json", "updated_at"}
+        updates, params = [], []
+        for key, value in kwargs.items():
+            if key not in _SIEM_COLUMNS:
+                continue
+            if key == "enabled":
+                value = int(value)
+            elif key == "config_json" and isinstance(value, dict):
+                value = json.dumps(value)
+            updates.append(f"{key} = ?")
+            params.append(value)
+        if not updates:
+            return False
+        params.append(config_id)
+        conn = self._get_conn()
+        cur = conn.execute(f"UPDATE siem_configs SET {', '.join(updates)} WHERE id = ?", params)
+        conn.commit()
+        return cur.rowcount > 0
+
+    def delete_siem_config(self, config_id: str) -> bool:
+        conn = self._get_conn()
+        cur = conn.execute("DELETE FROM siem_configs WHERE id = ?", (config_id,))
+        conn.commit()
+        return cur.rowcount > 0
+
+    # -----------------------------------------------------------------------
+    # Tenants
+    # -----------------------------------------------------------------------
+    def create_tenant(self, tenant: dict) -> None:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO tenants (id, name, slug, tier, is_active, config_json, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
+            (tenant["id"], tenant["name"], tenant["slug"], tenant.get("tier", "free"),
+             int(tenant.get("is_active", True)), json.dumps(tenant.get("config_json", {})),
+             tenant["created_at"], tenant.get("updated_at")),
+        )
+        conn.commit()
+
+    def get_tenant(self, tenant_id: str) -> dict | None:
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM tenants WHERE id = ?", (tenant_id,)).fetchone()
+        return dict(row) if row else None
+
+    def get_tenant_by_slug(self, slug: str) -> dict | None:
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM tenants WHERE slug = ?", (slug,)).fetchone()
+        return dict(row) if row else None
+
+    def list_tenants(self) -> list[dict]:
+        conn = self._get_conn()
+        rows = conn.execute("SELECT * FROM tenants ORDER BY created_at DESC").fetchall()
+        return [dict(r) for r in rows]
+
+    def update_tenant(self, tenant_id: str, **kwargs) -> bool:
+        _TENANT_COLUMNS = {"name", "slug", "tier", "is_active", "config_json", "updated_at"}
+        updates, params = [], []
+        for key, value in kwargs.items():
+            if key not in _TENANT_COLUMNS:
+                continue
+            if key == "is_active":
+                value = int(value)
+            elif key == "config_json" and isinstance(value, dict):
+                value = json.dumps(value)
+            updates.append(f"{key} = ?")
+            params.append(value)
+        if not updates:
+            return False
+        params.append(tenant_id)
+        conn = self._get_conn()
+        cur = conn.execute(f"UPDATE tenants SET {', '.join(updates)} WHERE id = ?", params)
+        conn.commit()
+        return cur.rowcount > 0
+
+    def delete_tenant(self, tenant_id: str) -> bool:
+        conn = self._get_conn()
+        conn.execute("DELETE FROM tenant_quotas WHERE tenant_id = ?", (tenant_id,))
+        cur = conn.execute("DELETE FROM tenants WHERE id = ?", (tenant_id,))
+        conn.commit()
+        return cur.rowcount > 0
+
+    # Tenant quotas
+    def set_tenant_quota(self, quota_id: str, tenant_id: str, resource: str, max_value: int, reset_at: str | None = None) -> None:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT OR REPLACE INTO tenant_quotas (id, tenant_id, resource, max_value, current_value, reset_at) VALUES (?,?,?,?,0,?)",
+            (quota_id, tenant_id, resource, max_value, reset_at),
+        )
+        conn.commit()
+
+    def get_tenant_quotas(self, tenant_id: str) -> list[dict]:
+        conn = self._get_conn()
+        rows = conn.execute("SELECT * FROM tenant_quotas WHERE tenant_id = ?", (tenant_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def increment_quota_usage(self, tenant_id: str, resource: str, amount: int = 1) -> bool:
+        conn = self._get_conn()
+        cur = conn.execute(
+            "UPDATE tenant_quotas SET current_value = current_value + ? WHERE tenant_id = ? AND resource = ?",
+            (amount, tenant_id, resource),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+
+    def reset_quota_usage(self, tenant_id: str, resource: str) -> bool:
+        conn = self._get_conn()
+        cur = conn.execute(
+            "UPDATE tenant_quotas SET current_value = 0 WHERE tenant_id = ? AND resource = ?",
+            (tenant_id, resource),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+
+    # -----------------------------------------------------------------------
     # Internal
     # -----------------------------------------------------------------------
     def _row_to_finding(self, row: sqlite3.Row) -> FindingRecord:

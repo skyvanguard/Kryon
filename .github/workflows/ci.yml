@@ -51,7 +51,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev,server,orchestration,viz,voice,tracing]"
 
-      - name: Run tests
+      - name: Run tests with coverage
         env:
           OPENAI_API_KEY: sk-dummy-key-for-ci
           KRYON_TELEMETRY: "false"
@@ -63,6 +63,7 @@ jobs:
             --ignore=tests/tui \
             --ignore=tests/reporting \
             --ignore=tests/knowledge \
+            --ignore=tests/e2e \
             --ignore=tests/test_exploitdb_scraper.py \
             --ignore=tests/test_llm_cache.py \
             --ignore=tests/test_async_rag.py \
@@ -70,8 +71,17 @@ jobs:
             --ignore=tests/test_tool_availability.py \
             --ignore=tests/voice/test_workflow.py \
             --ignore=tests/mcp/test_mcp_tracing.py \
-            -m "not integration and not slow" \
+            -m "not integration and not slow and not e2e" \
+            --cov=src/kryon --cov-report=xml \
             --tb=short
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   build:
     name: Build Package

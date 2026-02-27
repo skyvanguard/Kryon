@@ -113,12 +113,27 @@ async def your_tool(ctx: RunContextWrapper, target: str) -> str:
 
 Export in `src/kryon/tools/{category}/__init__.py` and add tests.
 
+## Architecture
+
+- `src/kryon/agents/` — LLM-powered security agents (use `create_agent()` from `base.py`)
+- `src/kryon/server/` — FastAPI REST API at `/api/v1/*`
+- `src/kryon/memory/` — SQLite persistence with schema migrations
+- `src/kryon/intelligence/` — MITRE ATT&CK mapping, CVE enrichment
+- `src/kryon/knowledge/` — RAG system with 408+ seed documents
+- `src/kryon/reporting/` — HTML/PDF report generation (executive, technical, PCI-DSS, SOC2)
+- `src/kryon/compliance/` — PCI-DSS v4.0 and SOC 2 Type II compliance mapping
+- `src/kryon/integrations/` — SIEM/SOAR (Splunk, QRadar, Elastic)
+- `src/kryon/tenancy/` — Multi-tenancy with per-tenant DB isolation
+- `src/kryon/engagements/` — Multi-day autonomous pentesting
+- `dashboard/` — SvelteKit web dashboard
+
 ## Security
 
 - Never commit secrets or API keys
 - All offensive tools must document authorization requirements
 - Implement guardrails where appropriate
 - Validate and sanitize all user inputs
+- See [SECURITY.md](SECURITY.md) for vulnerability reporting
 
 ## PR Checklist
 
@@ -126,6 +141,7 @@ Export in `src/kryon/tools/{category}/__init__.py` and add tests.
 - [ ] `make tests` pass
 - [ ] New code has tests
 - [ ] Commit messages follow convention
+- [ ] No secrets or credentials included
 
 ---
 

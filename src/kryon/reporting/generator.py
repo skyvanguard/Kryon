@@ -58,6 +58,16 @@ class ReportGenerator:
             sections.append(render_compliance_mapping(findings, "pci_dss"))
             sections.append(render_compliance_mapping(findings, "iso_27001"))
 
+        # Dedicated PCI-DSS report
+        if config.report_type == ReportType.PCI_DSS:
+            from kryon.reporting.sections.pci_dss_report import render_pci_dss_report
+            sections.append(render_pci_dss_report(findings))
+
+        # Dedicated SOC2 report
+        if config.report_type == ReportType.SOC2:
+            from kryon.reporting.sections.soc2_report import render_soc2_report
+            sections.append(render_soc2_report(findings))
+
         content = "\n".join(sections)
 
         # Report titles
@@ -65,6 +75,8 @@ class ReportGenerator:
             ReportType.EXECUTIVE: "Executive Security Assessment",
             ReportType.TECHNICAL: "Technical Security Assessment Report",
             ReportType.COMPLIANCE: "Compliance Assessment Report",
+            ReportType.PCI_DSS: "PCI-DSS v4.0 Compliance Assessment",
+            ReportType.SOC2: "SOC 2 Type II Compliance Assessment",
         }
         title = type_titles.get(config.report_type, "Security Assessment Report")
         subtitle = f"Comprehensive {config.report_type.value} analysis"

@@ -45,6 +45,54 @@ MIGRATIONS: dict[int, list[str]] = {
         "CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)",
         "CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id)",
     ],
+    5: [
+        """CREATE TABLE IF NOT EXISTS scope_whitelist (
+            id TEXT PRIMARY KEY,
+            client_id TEXT NOT NULL,
+            rule_type TEXT NOT NULL,
+            value TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            created_at TEXT NOT NULL,
+            created_by TEXT
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_scope_client ON scope_whitelist(client_id)",
+    ],
+    6: [
+        """CREATE TABLE IF NOT EXISTS siem_configs (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            siem_type TEXT NOT NULL,
+            endpoint TEXT NOT NULL,
+            token TEXT DEFAULT '',
+            index_name TEXT DEFAULT '',
+            enabled INTEGER DEFAULT 1,
+            config_json TEXT DEFAULT '{}',
+            created_at TEXT NOT NULL,
+            updated_at TEXT
+        )""",
+    ],
+    7: [
+        """CREATE TABLE IF NOT EXISTS tenants (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            slug TEXT NOT NULL UNIQUE,
+            tier TEXT DEFAULT 'free',
+            is_active INTEGER DEFAULT 1,
+            config_json TEXT DEFAULT '{}',
+            created_at TEXT NOT NULL,
+            updated_at TEXT
+        )""",
+        """CREATE TABLE IF NOT EXISTS tenant_quotas (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            resource TEXT NOT NULL,
+            max_value INTEGER NOT NULL,
+            current_value INTEGER DEFAULT 0,
+            reset_at TEXT,
+            FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_tenant_quotas_tenant ON tenant_quotas(tenant_id)",
+    ],
 }
 
 

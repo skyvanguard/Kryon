@@ -569,5 +569,8 @@ def get_security_guardrails():
         # Return empty lists to disable all guardrails
         return [], []
 
+    # Import scope guardrail
+    from kryon.agents.scope import scope_enforcement_guardrail
+
     # Return the configured guardrails
-    return [prompt_injection_guardrail], [command_execution_guardrail]
+    return [prompt_injection_guardrail, scope_enforcement_guardrail], [command_execution_guardrail]

@@ -17,6 +17,8 @@ PERMISSIONS: dict[str, set[str]] = {
         "reports:read", "reports:write",
         "knowledge:read", "knowledge:write",
         "evaluations:read",
+        "scope:read", "scope:write",
+        "integrations:read", "integrations:write",
     },
     "viewer": {
         "runs:read",
@@ -26,6 +28,7 @@ PERMISSIONS: dict[str, set[str]] = {
         "reports:read",
         "knowledge:read",
         "evaluations:read",
+        "scope:read",
     },
 }
 
