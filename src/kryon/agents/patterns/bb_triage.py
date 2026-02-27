@@ -22,13 +22,13 @@ def _initialize_bb_triage_pattern():
         return _bb_triage_swarm_pattern
 
     # Import here to avoid circular imports
-    from kryon.agents.retester import retester_agent
+    from kryon.agents.retester import validation_core
     from kryon.agents.vuln_hunter import vuln_hunter
     from kryon.sdk.agents import handoff
     from kryon.util import append_instructions
 
     # Clone agents to avoid modifying the original instances
-    _retester_agent_copy = retester_agent.clone()
+    _retester_agent_copy = validation_core.clone()
     _bug_bounter_agent_copy = vuln_hunter.clone()
 
     # Clear any existing handoffs to ensure independence

@@ -16,6 +16,7 @@ from kryon.server.auth.jwt_auth import (
 )
 from kryon.server.auth.models import User, UserPublic
 from kryon.server.auth.password import hash_password, validate_password_complexity, verify_password
+from kryon.server.deps import get_store
 
 router = APIRouter(tags=["auth"])
 
@@ -41,18 +42,13 @@ class PasswordChangeRequest(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=200)
 
 
-def _get_store():
-    from kryon.server.routes.clients import _get_store as get_store
-    return get_store()
-
-
 @router.post("/auth/login", response_model=TokenResponse)
 async def login(req: LoginRequest):
     """Authenticate and receive JWT tokens."""
     if not is_jwt_configured():
         raise HTTPException(status_code=501, detail="JWT auth not configured")
 
-    store = _get_store()
+    store = get_store()
     user = store.get_user_by_username(req.username)
     if user is None or not verify_password(req.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid username or password")
@@ -87,7 +83,7 @@ async def refresh_token(req: RefreshRequest):
     if payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Invalid token type")
 
-    store = _get_store()
+    store = get_store()
     user = store.get_user_by_id(payload["sub"])
     if user is None or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
@@ -117,6 +113,6 @@ async def change_password(req: PasswordChangeRequest, user: User | None = Depend
     if complexity_error:
         raise HTTPException(status_code=400, detail=complexity_error)
 
-    store = _get_store()
+    store = get_store()
     store.update_user(user.id, password_hash=hash_password(req.new_password))
     return {"detail": "Password updated"}

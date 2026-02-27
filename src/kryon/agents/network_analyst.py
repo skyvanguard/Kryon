@@ -14,37 +14,26 @@ on networks you own or have explicit written authorization to monitor.
 
 import os
 
-from dotenv import load_dotenv
-from openai import AsyncOpenAI
-
+from kryon.agents.base import create_agent
 from kryon.agents.forensic_analyzer import forensic_analyzer
-from kryon.sdk.agents import (  # pylint: disable=import-error
-    Agent,
-    OpenAIChatCompletionsModel,
+from kryon.sdk.agents import (
     handoff,
 )
-from kryon.tools.command_and_control.sshpass import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
 )
 from kryon.tools.knowledge import get_security_tools, query_knowledge_base, search_vulnerabilities
-from kryon.tools.reconnaissance.exec_code import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.network.capture_traffic import capture_remote_traffic, remote_capture_session
+from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
-from kryon.tools.reconnaissance.generic_linux_command import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.reconnaissance.generic_linux_command import (
     generic_linux_command,
 )
-from kryon.tools.web.search_web import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
 )
 from kryon.util import create_system_prompt_renderer, load_prompt_template
-
-load_dotenv()
-
-
-###
-# Import remote traffic capture tools
-
-from kryon.tools.network.capture_traffic import capture_remote_traffic, remote_capture_session
 
 # Load Network Analyst system prompt
 network_analyst_system_prompt = load_prompt_template("prompts/system_network_analyzer.md")
@@ -67,7 +56,7 @@ if os.getenv("PERPLEXITY_API_KEY"):
     tools_list.append(make_web_search_with_explanation)
 
 # Initialize Network Analyst
-network_analyst = Agent(
+network_analyst = create_agent(
     name="Network Analyst",
     instructions=create_system_prompt_renderer(network_analyst_system_prompt),
     description="""Network reconnaissance agent specialized in network security
@@ -84,10 +73,6 @@ Capabilities:
 - Threat actor profiling and behavioral analysis
 - Security event correlation across network segments
 - Attack surface mapping and vulnerability assessment""",
-    model=OpenAIChatCompletionsModel(
-        model=os.getenv("KRYON_MODEL", "gpt-4o"),
-        openai_client=AsyncOpenAI(),
-    ),
     tools=tools_list,
     handoffs=[  # Coordinate with Forensic Analyzer for deep incident analysis
         handoff(
@@ -97,10 +82,6 @@ Capabilities:
         )
     ],
 )
-
-# Legacy compatibility aliases
-hk_aerial = network_analyst
-network_security_analyzer_agent = network_analyst
 
 
 def transfer_to_network_analyst():
@@ -119,15 +100,4 @@ def transfer_to_network_analyst():
     Returns:
         Agent: Network Analyst agent
     """
-    return network_analyst
-
-
-# Legacy transfer functions for backward compatibility
-def transfer_to_hk_aerial():
-    """Legacy function - transfers to Network Analyst."""
-    return network_analyst
-
-
-def transfer_to_network_security_analyzer():
-    """Legacy function - transfers to Network Analyst."""
     return network_analyst

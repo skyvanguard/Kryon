@@ -5,21 +5,18 @@ from __future__ import annotations
 import asyncio
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, Query
 
 from kryon.server.auth import require_api_key
+from kryon.server.exceptions import not_found
 from kryon.server.auth.deps import get_current_user
 from kryon.server.auth.isolation import verify_client_access
 from kryon.server.auth.models import User
 from kryon.server.deps import get_engagement_manager
 from kryon.server.models import CreateEngagementRequest, EngagementResponse
+from kryon.server.sse import sse_response
 
 router = APIRouter(tags=["engagements"], dependencies=[Depends(require_api_key)])
-
-
-def _get_manager():
-    return get_engagement_manager()
 
 
 @router.post("/engagements", response_model=EngagementResponse)
@@ -27,7 +24,7 @@ async def create_engagement(req: CreateEngagementRequest, user: User | None = De
     """Create a new multi-day engagement."""
     from kryon.engagements.models import Engagement
 
-    verify_client_access(user, req.client_name, _get_manager().store)
+    verify_client_access(user, req.client_name, get_engagement_manager().store)
 
     engagement = Engagement(
         client_name=req.client_name,
@@ -38,7 +35,7 @@ async def create_engagement(req: CreateEngagementRequest, user: User | None = De
         phase_interval_minutes=req.phase_interval_minutes,
     )
 
-    manager = _get_manager()
+    manager = get_engagement_manager()
     eng = await manager.create_engagement(engagement)
     return EngagementResponse(
         id=eng.id, status=eng.status.value, message="Engagement created, planning started"
@@ -46,21 +43,21 @@ async def create_engagement(req: CreateEngagementRequest, user: User | None = De
 
 
 @router.get("/engagements")
-async def list_engagements(status: str | None = None) -> list[dict]:
+async def list_engagements(status: str | None = None, offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=500)) -> list[dict]:
     """List all engagements, optionally filtered by status."""
-    manager = _get_manager()
+    manager = get_engagement_manager()
     status_filter = [status] if status else None
-    engagements = manager.store.list_engagements(status_filter=status_filter)
+    engagements = manager.store.list_engagements(status_filter=status_filter, offset=offset, limit=limit)
     return [e.model_dump(mode="json") for e in engagements]
 
 
 @router.get("/engagements/{engagement_id}")
 async def get_engagement(engagement_id: str) -> dict:
     """Get engagement detail with phases."""
-    manager = _get_manager()
+    manager = get_engagement_manager()
     eng = manager.store.get_engagement(engagement_id)
     if not eng:
-        raise HTTPException(404, "Engagement not found")
+        raise not_found("Engagement", engagement_id)
     phases = manager.store.get_engagement_phases(engagement_id)
     result = eng.model_dump(mode="json")
     result["phases"] = [p.model_dump(mode="json") for p in phases]
@@ -70,10 +67,10 @@ async def get_engagement(engagement_id: str) -> dict:
 @router.get("/engagements/{engagement_id}/stream")
 async def stream_engagement(engagement_id: str):
     """SSE stream for live engagement updates."""
-    manager = _get_manager()
+    manager = get_engagement_manager()
     eng = manager.store.get_engagement(engagement_id)
     if not eng:
-        raise HTTPException(404, "Engagement not found")
+        raise not_found("Engagement", engagement_id)
 
     async def _event_generator():
         queue = manager.get_progress_queue(engagement_id)
@@ -88,20 +85,16 @@ async def stream_engagement(engagement_id: str):
             except asyncio.TimeoutError:
                 yield "event: ping\ndata: {}\n\n"
 
-    return StreamingResponse(
-        _event_generator(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    return sse_response(_event_generator())
 
 
 @router.get("/engagements/{engagement_id}/findings")
 async def get_engagement_findings(engagement_id: str) -> list[dict]:
     """Get accumulated findings across all engagement phases."""
-    manager = _get_manager()
+    manager = get_engagement_manager()
     eng = manager.store.get_engagement(engagement_id)
     if not eng:
-        raise HTTPException(404, "Engagement not found")
+        raise not_found("Engagement", engagement_id)
 
     phases = manager.store.get_engagement_phases(engagement_id)
     all_findings = []
@@ -115,10 +108,10 @@ async def get_engagement_findings(engagement_id: str) -> list[dict]:
 @router.post("/engagements/{engagement_id}/pause")
 async def pause_engagement(engagement_id: str) -> dict:
     """Pause an active engagement."""
-    manager = _get_manager()
+    manager = get_engagement_manager()
     eng = manager.store.get_engagement(engagement_id)
     if not eng:
-        raise HTTPException(404, "Engagement not found")
+        raise not_found("Engagement", engagement_id)
     if eng.status.value != "active":
         raise HTTPException(409, f"Cannot pause engagement in '{eng.status.value}' state")
     await manager.pause_engagement(engagement_id)
@@ -128,10 +121,10 @@ async def pause_engagement(engagement_id: str) -> dict:
 @router.post("/engagements/{engagement_id}/resume")
 async def resume_engagement(engagement_id: str) -> dict:
     """Resume a paused engagement."""
-    manager = _get_manager()
+    manager = get_engagement_manager()
     eng = manager.store.get_engagement(engagement_id)
     if not eng:
-        raise HTTPException(404, "Engagement not found")
+        raise not_found("Engagement", engagement_id)
     if eng.status.value != "paused":
         raise HTTPException(409, f"Cannot resume engagement in '{eng.status.value}' state")
     await manager.resume_engagement(engagement_id)
@@ -141,9 +134,9 @@ async def resume_engagement(engagement_id: str) -> dict:
 @router.delete("/engagements/{engagement_id}")
 async def cancel_engagement(engagement_id: str) -> dict:
     """Cancel an engagement."""
-    manager = _get_manager()
+    manager = get_engagement_manager()
     eng = manager.store.get_engagement(engagement_id)
     if not eng:
-        raise HTTPException(404, "Engagement not found")
+        raise not_found("Engagement", engagement_id)
     await manager.cancel_engagement(engagement_id)
     return {"status": "cancelled"}

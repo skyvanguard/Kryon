@@ -42,8 +42,8 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Invalid token type")
 
     # Resolve user from store
-    from kryon.server.routes.clients import _get_store
-    store = _get_store()
+    from kryon.server.deps import get_store
+    store = get_store()
     user = store.get_user_by_id(payload["sub"])
     if user is None or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")

@@ -221,9 +221,14 @@ class MemoryStore:
             tags=json.loads(row["tags"]),
         )
 
-    def list_clients(self) -> list[Client]:
+    def list_clients(self, offset: int = 0, limit: int = 0) -> list[Client]:
         conn = self._get_conn()
-        rows = conn.execute("SELECT * FROM clients ORDER BY created_at DESC").fetchall()
+        sql = "SELECT * FROM clients ORDER BY created_at DESC"
+        params: list = []
+        if limit > 0:
+            sql += " LIMIT ? OFFSET ?"
+            params = [limit, offset]
+        rows = conn.execute(sql, params).fetchall()
         return [
             Client(
                 id=r["id"],
@@ -305,14 +310,18 @@ class MemoryStore:
             report_id=row["report_id"],
         )
 
-    def list_scans(self, client_id: str | None = None) -> list[ScanRecord]:
+    def list_scans(self, client_id: str | None = None, offset: int = 0, limit: int = 0) -> list[ScanRecord]:
         conn = self._get_conn()
         if client_id:
-            rows = conn.execute(
-                "SELECT * FROM scans WHERE client_id = ? ORDER BY started_at DESC", (client_id,)
-            ).fetchall()
+            sql = "SELECT * FROM scans WHERE client_id = ? ORDER BY started_at DESC"
+            params: list = [client_id]
         else:
-            rows = conn.execute("SELECT * FROM scans ORDER BY started_at DESC").fetchall()
+            sql = "SELECT * FROM scans ORDER BY started_at DESC"
+            params = []
+        if limit > 0:
+            sql += " LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+        rows = conn.execute(sql, params).fetchall()
         return [
             ScanRecord(
                 id=r["id"],
@@ -474,16 +483,19 @@ class MemoryStore:
             return None
         return self._row_to_engagement(row)
 
-    def list_engagements(self, status_filter: list[str] | None = None) -> list[Engagement]:
+    def list_engagements(self, status_filter: list[str] | None = None, offset: int = 0, limit: int = 0) -> list[Engagement]:
         conn = self._get_conn()
         if status_filter:
             placeholders = ",".join("?" for _ in status_filter)
-            rows = conn.execute(
-                f"SELECT * FROM engagements WHERE status IN ({placeholders}) ORDER BY created_at DESC",
-                status_filter,
-            ).fetchall()
+            sql = f"SELECT * FROM engagements WHERE status IN ({placeholders}) ORDER BY created_at DESC"
+            params: list = list(status_filter)
         else:
-            rows = conn.execute("SELECT * FROM engagements ORDER BY created_at DESC").fetchall()
+            sql = "SELECT * FROM engagements ORDER BY created_at DESC"
+            params = []
+        if limit > 0:
+            sql += " LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+        rows = conn.execute(sql, params).fetchall()
         return [self._row_to_engagement(r) for r in rows]
 
     def update_engagement(self, engagement_id: str, **kwargs) -> Engagement | None:

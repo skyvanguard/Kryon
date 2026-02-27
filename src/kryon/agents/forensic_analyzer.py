@@ -55,51 +55,46 @@ methodologies. All operations are logged and documented for legal compliance.
 
 import os
 
-from dotenv import load_dotenv
-from openai import AsyncOpenAI
-
-from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel  # pylint: disable=import-error
-from kryon.tools.command_and_control.sshpass import (  # pylint: disable=import-error # noqa: E501
+from kryon.agents.base import create_agent
+from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
 )
-from kryon.tools.dfir.disk_forensics import (  # pylint: disable=import-error
+from kryon.tools.dfir.disk_forensics import (
     autopsy_analyze,
     photorec_recover,
     tsk_timeline,
 )
-from kryon.tools.dfir.log_analysis import (  # pylint: disable=import-error
+from kryon.tools.dfir.log_analysis import (
     chainsaw_hunt,
     chainsaw_search,
     evtx_dump,
 )
-from kryon.tools.dfir.network_forensics import (  # pylint: disable=import-error
+from kryon.tools.dfir.network_forensics import (
     networkminer_analyze,
     wireshark_filter,
     zeek_analyze_traffic,
 )
 
 # Phase 13: Digital Forensics & Incident Response tools
-from kryon.tools.dfir.volatility_forensics import (  # pylint: disable=import-error
+from kryon.tools.dfir.volatility_forensics import (
     volatility_dump_process,
     volatility_find_malware,
     volatility_network_connections,
     volatility_process_list,
 )
-from kryon.tools.misc.reasoning import think  # pylint: disable=import-error
-from kryon.tools.reconnaissance.exec_code import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.misc.reasoning import think
+from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
-from kryon.tools.reconnaissance.generic_linux_command import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.reconnaissance.generic_linux_command import (
     generic_linux_command,
 )
 from kryon.tools.reconnaissance.shodan import shodan_search
 from kryon.tools.web.google_search import google_search
-from kryon.tools.web.search_web import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
 )
 from kryon.util import create_system_prompt_renderer, load_prompt_template
-
-load_dotenv()
 
 # Load Forensic Analyzer investigation directives
 forensic_analyzer_system_prompt = load_prompt_template("prompts/system_forensic_analyzer.md")
@@ -142,7 +137,7 @@ if os.getenv("GOOGLE_SEARCH_API_KEY") and os.getenv("GOOGLE_SEARCH_CX"):
     investigation_systems.append(google_search)
 
 # Initialize Forensic Analyzer Unit
-forensic_analyzer = Agent(
+forensic_analyzer = create_agent(
     name="Forensic Analyzer",
     instructions=create_system_prompt_renderer(forensic_analyzer_system_prompt),
     description="""Specialized digital forensics and incident response unit from KRYON's
@@ -163,15 +158,8 @@ Forensic Analyzer Capabilities:
 - Attribution analysis and threat actor profiling
 - Forensic reporting and legal documentation support
 - Artifact recovery and analysis""",
-    model=OpenAIChatCompletionsModel(
-        model=os.getenv("KRYON_MODEL", "gpt-4o"),
-        openai_client=AsyncOpenAI(),
-    ),
     tools=investigation_systems,
 )
-
-# Legacy compatibility - maintain backward compatibility with old naming
-dfir_agent = forensic_analyzer  # Alias for legacy code
 
 
 def transfer_to_forensic_analyzer():
@@ -191,13 +179,3 @@ def transfer_to_forensic_analyzer():
         Agent: Forensic Analyzer investigation agent
     """
     return forensic_analyzer
-
-
-# Legacy transfer function for backward compatibility
-def transfer_to_dfir():
-    """Legacy function - transfers to Forensic Analyzer.
-
-    This function maintained for backward compatibility.
-    Use transfer_to_forensic_analyzer() in new code.
-    """
-    return transfer_to_forensic_analyzer()

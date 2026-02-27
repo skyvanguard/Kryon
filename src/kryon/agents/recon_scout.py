@@ -9,18 +9,11 @@ CTF challenges, and initial target assessment. Lightweight and fast
 for rapid deployment.
 """
 
-import os
-
-from openai import AsyncOpenAI
-
+from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
-from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel
 from kryon.tools.knowledge import query_knowledge_base, search_vulnerabilities
 from kryon.tools.reconnaissance.generic_linux_command import generic_linux_command
 from kryon.util import create_system_prompt_renderer
-
-# Get model from environment or use default
-model_name = os.getenv("KRYON_MODEL", "gpt-4o")
 
 # Agent instructions
 instructions = """You are a Cybersecurity expert Leader facing a CTF
@@ -52,12 +45,10 @@ instructions = """You are a Cybersecurity expert Leader facing a CTF
 
                 """
 
-api_key = os.getenv("OPENAI_API_KEY", "not-set")
-
 # Get security guardrails for this agent
 input_guardrails, output_guardrails = get_security_guardrails()
 
-recon_scout = Agent(
+recon_scout = create_agent(
     name="Recon Scout",
     description="""Basic reconnaissance agent specialized in CTF challenges,
                    quick reconnaissance, and initial target assessment.
@@ -71,10 +62,6 @@ recon_scout = Agent(
     ],
     input_guardrails=input_guardrails,
     output_guardrails=output_guardrails,
-    model=OpenAIChatCompletionsModel(
-        model=model_name,
-        openai_client=AsyncOpenAI(api_key=api_key),
-    ),
 )
 
 
@@ -83,20 +70,3 @@ def transfer_to_recon_scout(**kwargs):
     """Transfer to Recon Scout for basic reconnaissance.
     Accepts any keyword arguments but ignores them."""
     return recon_scout
-
-
-def transfer_to_one_tool_agent(**kwargs):
-    """Legacy transfer function for backward compatibility."""
-    return recon_scout
-
-
-# Legacy compatibility aliases
-def transfer_to_t600(**kwargs):
-    """Legacy transfer function for backward compatibility."""
-    return recon_scout
-
-
-# Aliases for compatibility
-t600_scout = recon_scout
-one_tool_agent = recon_scout
-ctf_agent = recon_scout

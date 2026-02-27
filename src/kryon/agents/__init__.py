@@ -90,6 +90,25 @@ model = os.environ.get("KRYON_MODEL", "gpt-4o")
 PATTERNS = ["hierarchical", "swarm", "chain_of_thought", "auction_based", "recursive"]
 
 
+class PatternAgent:
+    """Wraps a Pattern object to look like an Agent for display purposes."""
+
+    def __init__(self, pattern):
+        self.name = pattern.name
+        self.description = pattern.description
+        if hasattr(pattern.type, "value"):
+            self.pattern_type = pattern.type.value
+        else:
+            self.pattern_type = str(pattern.type)
+        self.category = "pattern"
+        self._pattern = pattern
+        self.instructions = f"Pattern: {pattern.description}"
+        self.tools = []
+        self.handoffs = []
+        self.model = None
+        self.output_type = None
+
+
 def get_available_agents(include_patterns: bool = True) -> dict[str, Agent]:  # pylint: disable=R0912  # noqa
     """
     Get a dictionary of all available agents compiled
@@ -161,22 +180,6 @@ def get_available_agents(include_patterns: bool = True) -> dict[str, Agent]:  # 
         from kryon.agents.patterns import PATTERNS
 
         for pattern_name, pattern_obj in PATTERNS.items():
-            class PatternAgent:
-                def __init__(self, pattern):
-                    self.name = pattern.name
-                    self.description = pattern.description
-                    if hasattr(pattern.type, "value"):
-                        self.pattern_type = pattern.type.value
-                    else:
-                        self.pattern_type = str(pattern.type)
-                    self.category = "pattern"
-                    self._pattern = pattern
-                    self.instructions = f"Pattern: {pattern.description}"
-                    self.tools = []
-                    self.handoffs = []
-                    self.model = None
-                    self.output_type = None
-
             pseudo_agent = PatternAgent(pattern_obj)
             agents_to_display[pattern_name] = pseudo_agent
 

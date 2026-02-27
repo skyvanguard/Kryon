@@ -23,7 +23,7 @@ def headers():
 
 class TestCreateEngagement:
     def test_create_engagement(self, client, headers):
-        with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
+        with patch("kryon.server.routes.engagements.get_engagement_manager") as mock_mgr:
             from kryon.engagements.models import Engagement
 
             eng = Engagement(client_name="TestCorp", targets=["10.0.0.1"])
@@ -58,7 +58,7 @@ class TestCreateEngagement:
 
 class TestListEngagements:
     def test_list_engagements(self, client, headers):
-        with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
+        with patch("kryon.server.routes.engagements.get_engagement_manager") as mock_mgr:
             from kryon.engagements.models import Engagement
 
             mock_mgr.return_value.store.list_engagements.return_value = [
@@ -74,7 +74,7 @@ class TestListEngagements:
 
 class TestGetEngagement:
     def test_get_engagement(self, client, headers):
-        with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
+        with patch("kryon.server.routes.engagements.get_engagement_manager") as mock_mgr:
             from kryon.engagements.models import Engagement
 
             eng = Engagement(client_name="Test", targets=["10.0.0.1"])
@@ -88,7 +88,7 @@ class TestGetEngagement:
             assert "phases" in data
 
     def test_get_not_found(self, client, headers):
-        with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
+        with patch("kryon.server.routes.engagements.get_engagement_manager") as mock_mgr:
             mock_mgr.return_value.store.get_engagement.return_value = None
 
             resp = client.get("/api/v1/engagements/nonexistent", headers=headers)
@@ -97,7 +97,7 @@ class TestGetEngagement:
 
 class TestPauseResume:
     def test_pause(self, client, headers):
-        with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
+        with patch("kryon.server.routes.engagements.get_engagement_manager") as mock_mgr:
             from kryon.engagements.models import Engagement, EngagementStatus
 
             eng = Engagement(client_name="Test", targets=["10.0.0.1"], status=EngagementStatus.ACTIVE)
@@ -109,7 +109,7 @@ class TestPauseResume:
             assert resp.json()["status"] == "paused"
 
     def test_resume(self, client, headers):
-        with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
+        with patch("kryon.server.routes.engagements.get_engagement_manager") as mock_mgr:
             from kryon.engagements.models import Engagement, EngagementStatus
 
             eng = Engagement(client_name="Test", targets=["10.0.0.1"], status=EngagementStatus.PAUSED)
@@ -123,7 +123,7 @@ class TestPauseResume:
 
 class TestCancelEngagement:
     def test_cancel(self, client, headers):
-        with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
+        with patch("kryon.server.routes.engagements.get_engagement_manager") as mock_mgr:
             from kryon.engagements.models import Engagement
 
             eng = Engagement(client_name="Test", targets=["10.0.0.1"])
@@ -135,7 +135,7 @@ class TestCancelEngagement:
             assert resp.json()["status"] == "cancelled"
 
     def test_cancel_not_found(self, client, headers):
-        with patch("kryon.server.routes.engagements._get_manager") as mock_mgr:
+        with patch("kryon.server.routes.engagements.get_engagement_manager") as mock_mgr:
             mock_mgr.return_value.store.get_engagement.return_value = None
 
             resp = client.delete("/api/v1/engagements/nonexistent", headers=headers)

@@ -14,26 +14,21 @@ or have explicit written authorization to analyze.
 
 import os
 
-from dotenv import load_dotenv
-from openai import AsyncOpenAI
-
-from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel  # pylint: disable=import-error
-from kryon.tools.command_and_control.sshpass import (  # pylint: disable=import-error # noqa: E501
+from kryon.agents.base import create_agent
+from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
 )
 from kryon.tools.knowledge import get_exploit_techniques, query_knowledge_base, search_vulnerabilities
-from kryon.tools.reconnaissance.exec_code import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
-from kryon.tools.reconnaissance.generic_linux_command import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.reconnaissance.generic_linux_command import (
     generic_linux_command,
 )
-from kryon.tools.web.search_web import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
 )
 from kryon.util import load_prompt_template
-
-load_dotenv()
 
 # Load Reverse Engineer system prompt
 reverse_engineer_system_prompt = load_prompt_template("prompts/reverse_engineering_agent.md")
@@ -54,7 +49,7 @@ if os.getenv("PERPLEXITY_API_KEY"):
     tools_list.append(make_web_search_with_explanation)
 
 # Initialize Reverse Engineer
-reverse_engineer = Agent(
+reverse_engineer = create_agent(
     name="Reverse Engineer",
     instructions=reverse_engineer_system_prompt,
     description="""Specialized reverse engineering agent for binary analysis,
@@ -74,15 +69,7 @@ Capabilities:
 - Patch diffing and security analysis
 - Using Ghidra, Binwalk, and comprehensive RE toolset""",
     tools=tools_list,
-    model=OpenAIChatCompletionsModel(
-        model=os.getenv("KRYON_MODEL", "gpt-4o"),
-        openai_client=AsyncOpenAI(),
-    ),
 )
-
-# Legacy compatibility aliases
-tech_com_reverse = reverse_engineer
-reverse_engineering_agent = reverse_engineer
 
 
 def transfer_to_reverse_engineer():
@@ -102,15 +89,4 @@ def transfer_to_reverse_engineer():
     Returns:
         Agent: Reverse Engineer agent
     """
-    return reverse_engineer
-
-
-# Legacy transfer functions for backward compatibility
-def transfer_to_tech_com_reverse():
-    """Legacy function - transfers to Reverse Engineer."""
-    return reverse_engineer
-
-
-def transfer_to_reverse_engineering():
-    """Legacy function - transfers to Reverse Engineer."""
     return reverse_engineer

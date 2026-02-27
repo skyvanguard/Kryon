@@ -7,61 +7,21 @@ import json
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
 
 from kryon.server.auth import require_api_key
+from kryon.server.exceptions import not_found
+from kryon.server.models import (
+    KnowledgeAddRequest,
+    KnowledgeAddResponse,
+    KnowledgeQueryRequest,
+    KnowledgeQueryResponse,
+    KnowledgeStatsResponse,
+    ScrapeRequest,
+    ScrapeResponse,
+)
+from kryon.server.sse import sse_response
 
 router = APIRouter(tags=["knowledge"], dependencies=[Depends(require_api_key)])
-
-
-# ---------------------------------------------------------------------------
-# Pydantic models
-# ---------------------------------------------------------------------------
-
-
-class KnowledgeQueryRequest(BaseModel):
-    question: str = Field(..., min_length=1, max_length=2000)
-    top_k: int = Field(5, ge=1, le=50)
-    source_filter: str | None = None
-    use_llm: bool = False
-
-
-class KnowledgeQueryResponse(BaseModel):
-    question: str
-    answer: str | None = None
-    sources: list[dict] = []
-    num_sources: int = 0
-
-
-class KnowledgeAddRequest(BaseModel):
-    content: str
-    source: str
-    metadata: dict | None = None
-
-
-class KnowledgeAddResponse(BaseModel):
-    doc_id: str
-    success: bool
-
-
-class KnowledgeStatsResponse(BaseModel):
-    total_documents: int = 0
-    sources: dict = {}
-    llm_configured: bool = False
-    llm_model: str = "unknown"
-
-
-class ScrapeRequest(BaseModel):
-    sources: list[str] = ["intelligence", "nvd"]
-    nvd_days: int = 30
-    nvd_count: int = 200
-
-
-class ScrapeResponse(BaseModel):
-    task_id: str
-    status: str
-    message: str
 
 
 # ---------------------------------------------------------------------------
@@ -69,6 +29,16 @@ class ScrapeResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 _scrape_tasks: dict[str, dict] = {}
+_SCRAPE_TASKS_MAX = 50
+
+
+def _cleanup_completed_scrapes() -> None:
+    """Remove completed scrape entries when the registry grows too large."""
+    if len(_scrape_tasks) <= _SCRAPE_TASKS_MAX:
+        return
+    done = [tid for tid, t in _scrape_tasks.items() if t["status"] != "running"]
+    for tid in done:
+        _scrape_tasks.pop(tid, None)
 
 
 # ---------------------------------------------------------------------------
@@ -81,15 +51,12 @@ async def query_knowledge(req: KnowledgeQueryRequest) -> KnowledgeQueryResponse:
     """Query the RAG knowledge base."""
     from kryon.knowledge import query_knowledge as _query
 
-    loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(
-        None,
-        lambda: _query(
-            question=req.question,
-            top_k=req.top_k,
-            source_filter=req.source_filter,
-            use_llm=req.use_llm,
-        ),
+    result = await asyncio.to_thread(
+        _query,
+        question=req.question,
+        top_k=req.top_k,
+        source_filter=req.source_filter,
+        use_llm=req.use_llm,
     )
 
     return KnowledgeQueryResponse(
@@ -118,11 +85,7 @@ async def query_knowledge_stream(
             yield f"data: {json.dumps({'token': token})}\n\n"
         yield f"event: done\ndata: {json.dumps({'answer': full_answer})}\n\n"
 
-    return StreamingResponse(
-        _event_generator(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    return sse_response(_event_generator())
 
 
 @router.post("/knowledge/add", response_model=KnowledgeAddResponse)
@@ -130,10 +93,8 @@ async def add_knowledge(req: KnowledgeAddRequest) -> KnowledgeAddResponse:
     """Add a document to the knowledge base."""
     from kryon.knowledge import add_document
 
-    loop = asyncio.get_event_loop()
-    doc_id = await loop.run_in_executor(
-        None,
-        lambda: add_document(content=req.content, source=req.source, **(req.metadata or {})),
+    doc_id = await asyncio.to_thread(
+        add_document, content=req.content, source=req.source, **(req.metadata or {})
     )
 
     return KnowledgeAddResponse(doc_id=doc_id, success=True)
@@ -144,8 +105,7 @@ async def get_knowledge_stats() -> KnowledgeStatsResponse:
     """Get knowledge base statistics."""
     from kryon.knowledge import get_knowledge_stats as _stats
 
-    loop = asyncio.get_event_loop()
-    stats = await loop.run_in_executor(None, _stats)
+    stats = await asyncio.to_thread(_stats)
 
     return KnowledgeStatsResponse(
         total_documents=stats.get("total_knowledge_items", 0),
@@ -158,6 +118,7 @@ async def get_knowledge_stats() -> KnowledgeStatsResponse:
 @router.post("/knowledge/scrape", response_model=ScrapeResponse)
 async def start_scrape(req: ScrapeRequest) -> ScrapeResponse:
     """Start a background scraping job."""
+    _cleanup_completed_scrapes()
     task_id = str(uuid.uuid4())[:8]
 
     async def _run_scrape():
@@ -233,5 +194,5 @@ async def get_scrape_status(task_id: str) -> dict:
     """Get status of a scraping task."""
     task = _scrape_tasks.get(task_id)
     if not task:
-        raise HTTPException(status_code=404, detail=f"Scrape task '{task_id}' not found")
+        raise not_found("Scrape task", task_id)
     return {"task_id": task_id, **task}

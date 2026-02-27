@@ -5,11 +5,10 @@ from __future__ import annotations
 import asyncio
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from kryon.server.auth import require_api_key
+from kryon.server.exceptions import not_found
 from kryon.server.auth.deps import get_current_user
 from kryon.server.auth.isolation import verify_client_access
 from kryon.server.auth.models import User
@@ -19,7 +18,9 @@ from kryon.server.models import (
     AutoScanRequest,
     AutoScanResponse,
     AutoScanStatus,
+    ScheduleScanRequest,
 )
+from kryon.server.sse import sse_response
 
 router = APIRouter(tags=["scans"], dependencies=[Depends(require_api_key)])
 
@@ -28,24 +29,11 @@ router = APIRouter(tags=["scans"], dependencies=[Depends(require_api_key)])
 # ---------------------------------------------------------------------------
 
 
-def _get_scheduler():
-    return get_scheduler()
-
-
-class ScheduleScanRequest(BaseModel):
-    client_id: str
-    agent_key: str = "pentest_agent"
-    profile: str = "standard"
-    interval_seconds: int = 604800  # weekly
-    cron: str = ""
-    webhook_url: str | None = None
-
-
 @router.post("/scans")
 async def schedule_scan(req: ScheduleScanRequest, user: User | None = Depends(get_current_user)) -> dict:
     """Schedule a new scan."""
     verify_client_access(user, req.client_id, get_store())
-    scheduler = _get_scheduler()
+    scheduler = get_scheduler()
     job_id = await scheduler.schedule_scan(
         client_id=req.client_id,
         agent_key=req.agent_key,
@@ -58,29 +46,29 @@ async def schedule_scan(req: ScheduleScanRequest, user: User | None = Depends(ge
 
 
 @router.get("/scans")
-async def list_scans() -> list[dict]:
+async def list_scans(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=500)) -> list[dict]:
     """List all scheduled and completed scans."""
-    scheduler = _get_scheduler()
+    scheduler = get_scheduler()
     jobs = await scheduler.list_scheduled()
-    return [j.model_dump() for j in jobs]
+    return [j.model_dump() for j in jobs[offset:offset + limit]]
 
 
 @router.get("/scans/{job_id}")
 async def get_scan(job_id: str) -> dict:
     """Get scan job details."""
-    scheduler = _get_scheduler()
+    scheduler = get_scheduler()
     job = scheduler.jobs.get(job_id)
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise not_found("Job", job_id)
     return job.model_dump()
 
 
 @router.delete("/scans/{job_id}")
 async def cancel_scan(job_id: str) -> dict:
     """Cancel a scheduled scan."""
-    scheduler = _get_scheduler()
+    scheduler = get_scheduler()
     if not await scheduler.cancel_scan(job_id):
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise not_found("Job", job_id)
     return {"cancelled": True}
 
 
@@ -151,7 +139,7 @@ async def get_auto_scan_status(scan_id: str) -> AutoScanStatus:
     """Get current status of an autonomous scan."""
     entry = _auto_scans.get(scan_id)
     if not entry:
-        raise HTTPException(status_code=404, detail=f"Auto-scan '{scan_id}' not found")
+        raise not_found("Auto-scan", scan_id)
 
     p = entry["orchestrator"].progress
     return AutoScanStatus(**p.to_dict())
@@ -162,7 +150,7 @@ async def stream_auto_scan(scan_id: str):
     """SSE stream of progress events for a running auto-scan."""
     entry = _auto_scans.get(scan_id)
     if not entry:
-        raise HTTPException(status_code=404, detail=f"Auto-scan '{scan_id}' not found")
+        raise not_found("Auto-scan", scan_id)
 
     async def _event_generator():
         orch = entry["orchestrator"]
@@ -188,11 +176,7 @@ async def stream_auto_scan(scan_id: str):
 
             await asyncio.sleep(1.0)
 
-    return StreamingResponse(
-        _event_generator(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    return sse_response(_event_generator())
 
 
 @router.get("/scans/auto/{scan_id}/findings", response_model=list[AutoScanFinding])
@@ -200,7 +184,7 @@ async def get_auto_scan_findings(scan_id: str) -> list[AutoScanFinding]:
     """Get findings from an autonomous scan."""
     entry = _auto_scans.get(scan_id)
     if not entry:
-        raise HTTPException(status_code=404, detail=f"Auto-scan '{scan_id}' not found")
+        raise not_found("Auto-scan", scan_id)
 
     orch = entry["orchestrator"]
     return [
@@ -223,7 +207,7 @@ async def cancel_auto_scan(scan_id: str) -> dict:
     """Cancel a running autonomous scan."""
     entry = _auto_scans.get(scan_id)
     if not entry:
-        raise HTTPException(status_code=404, detail=f"Auto-scan '{scan_id}' not found")
+        raise not_found("Auto-scan", scan_id)
 
     task = entry["task"]
     if not task.done():

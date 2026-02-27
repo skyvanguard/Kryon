@@ -5,11 +5,12 @@ from __future__ import annotations
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
 
 from kryon.server.auth import require_api_key
+from kryon.server.exceptions import not_found
 from kryon.server.models import RunRequest, RunResponse, RunStatus, SessionCreateRequest, SessionResponse
 from kryon.server.sessions import SessionManager
+from kryon.server.sse import sse_response
 from kryon.server.streaming import done_event, error_event, stream_event_to_sse
 
 router = APIRouter(tags=["runs"], dependencies=[Depends(require_api_key)])
@@ -48,7 +49,7 @@ async def create_run(req: RunRequest):
     if req.session_id:
         session = sm.get_session(req.session_id)
         if session is None:
-            raise HTTPException(status_code=404, detail=f"Session '{req.session_id}' not found")
+            raise not_found("Session", req.session_id)
         agent = session.agent
         # Build conversation history
         if session.input_history:
@@ -131,7 +132,7 @@ async def stream_run(run_id: str):
     sm = _get_sm()
     run = sm.get_run(run_id)
     if run is None:
-        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
+        raise not_found("Run", run_id)
 
     async def _event_generator():
         idx = 0
@@ -150,11 +151,7 @@ async def stream_run(run_id: str):
 
             await asyncio.sleep(0.05)
 
-    return StreamingResponse(
-        _event_generator(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    return sse_response(_event_generator())
 
 
 @router.get("/runs/{run_id}", response_model=RunStatus)
@@ -163,7 +160,7 @@ async def get_run_status(run_id: str):
     sm = _get_sm()
     run = sm.get_run(run_id)
     if run is None:
-        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
+        raise not_found("Run", run_id)
     return RunStatus(
         run_id=run.run_id,
         status=run.status,
@@ -177,7 +174,7 @@ async def cancel_run(run_id: str):
     """Cancel a running execution."""
     sm = _get_sm()
     if not sm.cancel_run(run_id):
-        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found or not running")
+        raise not_found("Run", run_id)
     return {"status": "cancelled", "run_id": run_id}
 
 

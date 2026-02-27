@@ -35,8 +35,8 @@ def log_action(
     }
 
     try:
-        from kryon.server.routes.clients import _get_store
-        store = _get_store()
+        from kryon.server.deps import get_store
+        store = get_store()
         store.write_audit_log(entry)
     except Exception:
         logger.warning("Failed to write audit log: %s", entry, exc_info=True)

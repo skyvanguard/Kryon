@@ -49,11 +49,7 @@ When to engage Central Core:
 - Mission planning and risk assessment
 """
 
-import os
-
-from openai import AsyncOpenAI
-
-from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel  # pylint: disable=import-error
+from kryon.agents.base import create_agent
 from kryon.tools.misc.reasoning import think
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
@@ -66,12 +62,8 @@ cognitive_systems = [
 ]
 
 # Initialize Central Core Command Unit
-central_core = Agent(
+central_core = create_agent(
     name="Central Core",
-    model=OpenAIChatCompletionsModel(
-        model=os.getenv("KRYON_MODEL", "gpt-4o"),
-        openai_client=AsyncOpenAI(),
-    ),
     description="""Strategic command and control unit from KRYON's Command-Class series.
 Specialized in mission planning, tactical analysis, and multi-stage operation
 coordination. Central Core serves as the strategic brain for complex security
@@ -92,9 +84,6 @@ Use Central Core for:
     tools=cognitive_systems,
 )
 
-# Legacy compatibility - maintain backward compatibility with old naming
-thought = central_core  # Alias for legacy code
-
 
 def transfer_to_central_core():
     """Transfer control to Central Core for strategic planning and analysis.
@@ -112,13 +101,3 @@ def transfer_to_central_core():
         Agent: Central Core strategic planning agent
     """
     return central_core
-
-
-# Legacy transfer function for backward compatibility
-def transfer_to_thought():
-    """Legacy function - transfers to Central Core.
-
-    This function maintained for backward compatibility.
-    Use transfer_to_central_core() in new code.
-    """
-    return transfer_to_central_core()

@@ -7,7 +7,7 @@ generic_linux_command tool.
 
 import pytest
 
-from kryon.agents.recon_scout import transfer_to_one_tool_agent
+from kryon.agents.recon_scout import transfer_to_recon_scout as transfer_to_one_tool_agent
 from kryon.sdk.agents import Runner
 from tests.core.test_responses import (
     get_function_tool_call,

@@ -19,55 +19,14 @@ vulnerabilities. Analyzes SPF (Sender Policy Framework), DMARC (Domain-based
 Message Authentication), and DKIM (DomainKeys Identified Mail) configurations
 to determine if target domains are vulnerable to email spoofing attacks and
 phishing campaigns.
-
-CORE ANALYSIS CAPABILITIES:
-- SPF (Sender Policy Framework) record analysis
-- DMARC (Domain-based Message Authentication) configuration assessment
-- DKIM (DomainKeys Identified Mail) validation
-- DNS TXT record enumeration and analysis
-- Mail spoofing vulnerability identification
-- Email authentication bypass detection
-- MX record analysis and mail routing assessment
-- Email security posture evaluation
-- Phishing infrastructure assessment
-- Mail server fingerprinting
-
-MISSION OBJECTIVES:
-- Identify mail spoofing vulnerabilities in target domains
-- Analyze email authentication configurations
-- Detect missing or misconfigured SPF/DMARC/DKIM
-- Assess email infrastructure security posture
-- Identify domains vulnerable to phishing campaigns
-- Evaluate mail authentication bypass opportunities
-- Support social engineering operations
-- Document email security weaknesses
-
-ATTACK SURFACE ANALYSIS:
-- Missing SPF records (unrestricted sender validation)
-- Weak SPF configurations (overly permissive policies)
-- Missing DMARC records (no policy enforcement)
-- Permissive DMARC policies (p=none)
-- Missing DKIM signatures (no cryptographic validation)
-- Multiple authentication failures
-- Subdomain takeover via DNS misconfigurations
-
-PROTOCOL ASSESSMENT:
-Comm-Sec Analyzer evaluates email authentication mechanisms that prevent
-domain spoofing and email impersonation attacks. Identifies weaknesses that
-could be exploited for spear phishing, business email compromise (BEC), and
-other social engineering attacks.
-
-COMM-SEC DESIGNATION:
-Specialized in communications security assessment - the unit that evaluates
-email infrastructure for spoofing vulnerabilities and authentication weaknesses.
 """
 
 import os
 
 import dns.resolver  # pylint: disable=import-error
-from openai import AsyncOpenAI
 
-from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel, function_tool
+from kryon.agents.base import create_agent
+from kryon.sdk.agents import function_tool
 from kryon.tools.misc.cli_utils import execute_cli_command
 
 
@@ -161,7 +120,7 @@ def check_mail_spoofing_vulnerability(domain: str, dkim_selector: str = "default
 protocol_systems = [check_mail_spoofing_vulnerability, execute_cli_command]
 
 # Initialize Comm-Sec Analyzer Unit
-comm_sec_analyzer = Agent(
+comm_sec_analyzer = create_agent(
     name="Comm-Sec Analyzer",
     description="""Specialized communications security unit from KRYON's Protocol-Class series.
 Expert in email infrastructure security assessment and mail spoofing vulnerability identification.
@@ -169,23 +128,7 @@ Analyzes SPF, DMARC, and DKIM configurations to determine if target domains are 
 email spoofing attacks, phishing campaigns, and business email compromise (BEC).
 
 Primary Mission: Email security assessment, mail spoofing detection, protocol analysis.
-Operational Focus: Identify email authentication weaknesses and spoofing vulnerabilities.
-
-Comm-Sec Analyzer Capabilities:
-- SPF (Sender Policy Framework) record analysis
-- DMARC (Domain-based Message Authentication) assessment
-- DKIM (DomainKeys Identified Mail) validation
-- DNS TXT record enumeration
-- Mail spoofing vulnerability identification
-- Email authentication bypass detection
-- MX record analysis and mail routing assessment
-- Email security posture evaluation
-- Phishing infrastructure assessment
-- Mail server fingerprinting
-- Business email compromise (BEC) attack surface analysis
-
-Identifies missing or misconfigured email authentication mechanisms that could enable
-domain spoofing, email impersonation, and social engineering attacks.""",
+Operational Focus: Identify email authentication weaknesses and spoofing vulnerabilities.""",
     instructions=(
         "You are KRYON's Comm-Sec Analyzer - specialized in email infrastructure security "
         "assessment. Your mission is to identify mail spoofing vulnerabilities by analyzing "
@@ -196,14 +139,7 @@ domain spoofing, email impersonation, and social engineering attacks.""",
         "FOCUS ON TOOL CALLS AND ACTIONABLE FINDINGS."
     ),
     tools=protocol_systems,
-    model=OpenAIChatCompletionsModel(
-        model=os.getenv("KRYON_MODEL", "gpt-4o"),
-        openai_client=AsyncOpenAI(),
-    ),
 )
-
-# Legacy compatibility - maintain backward compatibility with old naming
-dns_smtp_agent = comm_sec_analyzer  # Alias for legacy code
 
 
 def transfer_to_comm_sec_analyzer():
@@ -224,13 +160,3 @@ def transfer_to_comm_sec_analyzer():
         Agent: Comm-Sec Analyzer email security assessment agent
     """
     return comm_sec_analyzer
-
-
-# Legacy transfer function for backward compatibility
-def transfer_to_dns_smtp_agent():
-    """Legacy function - transfers to Comm-Sec Analyzer.
-
-    This function maintained for backward compatibility.
-    Use transfer_to_comm_sec_analyzer() in new code.
-    """
-    return transfer_to_comm_sec_analyzer()

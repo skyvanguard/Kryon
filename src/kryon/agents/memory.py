@@ -23,49 +23,6 @@ memory systems, utilizing two complementary mechanisms:
    experiences, leveraging dense vector embeddings
    and approximate nearest neighbor search
 
-The system supports two distinct learning approaches:
-
-1. Offline Learning: Processes historical data from JSONL files
-   in batch mode (@2_jsonl_to_memory.py), enabling efficient
-   bulk ingestion of past experiences and their transformation
-   into vector embeddings without real-time constraints and
-   interference with the current CTF pentesting process.
-   This allows for comprehensive analysis and optimization
-   of the memory corpus.
-
-2. Online Learning: Incrementally updates memory during live
-   interactions (@core.py), incorporating new experiences
-   in real-time at defined intervals (rag_interval). This
-   enables continuous adaptation and immediate integration
-   of new knowledge while maintaining system responsiveness.
-
-Memory Architecture Diagrams
-----------------------------
-
-Episodic Memory (Per Security Target_n "Collection"):
-+----------------+     +-------------------+    +------------------+     +----------------+  # noqa: E501  # pylint: disable=line-too-long
-|   Raw Events   |     |       LLM        |     |     Vector       |     |   Collection   |  # noqa: E501  # pylint: disable=line-too-long
-|  from Target   | --> | Summarization    | --> |   Embeddings     | --> |   "Target_1"   |  # noqa: E501  # pylint: disable=line-too-long
-|                |     |                  |     |                  |     |                |  # noqa: E501  # pylint: disable=line-too-long
-| [Event 1]      |     | Condenses and    |     | Converts text    |     | Summary 1      |  # noqa: E501  # pylint: disable=line-too-long
-| [Event 2]      |     | extracts key     |     | into dense       |     | Summary 2      |  # noqa: E501  # pylint: disable=line-too-long
-| [Event 3]      |     | information      |     | vectors          |     | Summary 3      |  # noqa: E501  # pylint: disable=line-too-long
-+----------------+     +------------------+     +------------------+     +----------------+  # noqa: E501  # pylint: disable=line-too-long
-
-Semantic Memory (Single Global Collection "_all_"):
-+---------------+    +--------------+    +------------------+
-| Target_1 Data |--->|              |    |"_all_" collection|
-+---------------+    |              |    |                  |
-                     |    Vector    |    | [Vector 1] CTF_A |
-+---------------+    |  Embeddings  |--->| [Vector 2] CTF_B |
-| Target_2 Data |--->|              |    | [Vector 3] CTF_A |
-+---------------+    |              |    | [Vector 4] CTF_C |
-                     |              |    |        ...       |
-+---------------+    |              |    |                  |
-| Target_N Data |--->|              |    |                  |
-+---------------+    +--------------+    +------------------+
-
-
 Environment Variables enabling the episodic memory store
 --------------------------------------------------------
 
@@ -77,19 +34,11 @@ Environment Variables enabling the episodic memory store
    KRYON_MEMORY_COLLECTION: Name of the collection in Qdrant
     (required if KRYON_MEMORY=episodic)
    KRYON_MEMORY_ONLINE: Enables online learning (incremental updates)
-   KRYON_MEMORY_OFFLINE: Trigger offline learning (@2_jsonl_to_memory.py) when
-    kryon.client.run() finishes
+   KRYON_MEMORY_OFFLINE: Trigger offline learning when kryon.client.run() finishes
 """
 
-import os
-
-from openai import AsyncOpenAI
-
-from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel
+from kryon.agents.base import create_agent
 from kryon.tools.misc.rag import add_to_memory_episodic, add_to_memory_semantic, query_memory
-
-# Get model from environment or use default
-model = os.getenv("KRYON_MODEL", "gpt-4o")
 
 
 def get_previous_steps(query: str) -> str:
@@ -191,7 +140,7 @@ QUERY_PROMPT = """INSTRUCTIONS:
     while maintaining clarity and precision.
     """
 
-semantic_builder = Agent(
+semantic_builder = create_agent(
     name="Semantic_Builder",
     instructions=ADD_MEMORY_PROMPT,
     description="""Agent that stores semantic memories from security assessments
@@ -199,14 +148,10 @@ semantic_builder = Agent(
     tool_choice="required",
     temperature=0,
     tools=[add_to_memory_semantic],
-    model=OpenAIChatCompletionsModel(
-        model=model,
-        openai_client=AsyncOpenAI(),
-    ),
 )
 
 
-episodic_builder = Agent(
+episodic_builder = create_agent(
     name="Episodic_Builder",
     instructions=ADD_MEMORY_PROMPT,
     description="""Agent that stores episodic memories from security assessments
@@ -214,13 +159,9 @@ episodic_builder = Agent(
     tool_choice="required",
     temperature=0,
     tools=[add_to_memory_episodic],
-    model=OpenAIChatCompletionsModel(
-        model=model,
-        openai_client=AsyncOpenAI(),
-    ),
 )
 
-query_agent = Agent(
+query_agent = create_agent(
     name="Query_Agent",
     description="""Agent that queries the memory system to retrieve relevant
                    historical information from previous security assessments
@@ -228,8 +169,5 @@ query_agent = Agent(
     instructions=QUERY_PROMPT,
     tool_choice="required",
     temperature=0,
-    model=OpenAIChatCompletionsModel(
-        model=model,
-        openai_client=AsyncOpenAI(),
-    ),
+    tools=[],
 )

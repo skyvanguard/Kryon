@@ -168,3 +168,81 @@ class EngagementResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     detail: str
+
+
+# --- Client Management ---
+
+
+class ClientCreate(BaseModel):
+    name: str
+    scope: list[str] = []
+    contact: str = ""
+    notes: str = ""
+    tags: list[str] = []
+
+
+class ClientUpdate(BaseModel):
+    name: str | None = None
+    scope: list[str] | None = None
+    contact: str | None = None
+    notes: str | None = None
+    tags: list[str] | None = None
+
+
+# --- Scheduled Scans ---
+
+
+class ScheduleScanRequest(BaseModel):
+    client_id: str
+    agent_key: str = "pentest_agent"
+    profile: str = "standard"
+    interval_seconds: int = 604800  # weekly
+    cron: str = ""
+    webhook_url: str | None = None
+
+
+# --- Knowledge Base ---
+
+
+class KnowledgeQueryRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=2000)
+    top_k: int = Field(5, ge=1, le=50)
+    source_filter: str | None = None
+    use_llm: bool = False
+
+
+class KnowledgeQueryResponse(BaseModel):
+    question: str
+    answer: str | None = None
+    sources: list[dict] = []
+    num_sources: int = 0
+
+
+class KnowledgeAddRequest(BaseModel):
+    content: str
+    source: str
+    metadata: dict | None = None
+
+
+class KnowledgeAddResponse(BaseModel):
+    doc_id: str
+    success: bool
+
+
+class KnowledgeStatsResponse(BaseModel):
+    total_documents: int = 0
+    sources: dict = {}
+    llm_configured: bool = False
+    llm_model: str = "unknown"
+
+
+class ScrapeRequest(BaseModel):
+    sources: list[str] = ["intelligence", "nvd"]
+    nvd_days: int = 30
+    nvd_count: int = 200
+
+
+class ScrapeResponse(BaseModel):
+    task_id: str
+    status: str
+    message: str

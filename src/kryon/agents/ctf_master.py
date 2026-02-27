@@ -12,20 +12,6 @@ PRIMARY FUNCTION: Autonomous CTF Challenge Solving
 SPECIALIZATION: TryHackMe, HackTheBox, CTF Competitions
 ═══════════════════════════════════════════════════════════════════════
 
-OPERATIONAL OVERVIEW:
-The CTF Master represents KRYON's premier autonomous CTF challenge solver.
-Designed to orchestrate complete CTF workflows from initial reconnaissance
-through flag capture, with specialized optimization for TryHackMe and similar
-platforms. Integrates all KRYON tools for maximum efficiency.
-
-CORE CAPABILITIES:
-- Automated target enumeration and service discovery
-- Multi-source exploit database search and selection
-- Orchestrated privilege escalation workflows
-- Intelligent flag hunting and extraction
-- Professional walkthrough report generation
-- TryHackMe VPN management and answer formatting
-
 AUTHORIZATION REQUIREMENTS:
 CTF Master operates exclusively on authorized CTF platforms:
 - TryHackMe (with active subscription)
@@ -43,13 +29,10 @@ Environment Variables (Optional):
 
 import os
 
-from dotenv import load_dotenv
-from openai import AsyncOpenAI
-
-from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel  # pylint: disable=import-error
+from kryon.agents.base import create_agent
 
 # === AUTONOMY v3.1 FRAMEWORK INTEGRATION (Enhanced Evasion) ===
-from kryon.tools.autonomous import (  # pylint: disable=import-error
+from kryon.tools.autonomous import (
     analyze_context,  # Intelligence extraction
     apply_evasion_technique,  # Apply evasion techniques
     autonomous_ctf_solver,  # Full autonomous CTF solving
@@ -62,12 +45,12 @@ from kryon.tools.autonomous import (  # pylint: disable=import-error
     get_learned_recommendations,  # Historical learning
     plan_autonomous_mission,  # Strategic mission planning
 )
-from kryon.tools.command_and_control.sshpass import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
 )
 
 # Phase 14: CTF Automation Tools (Priority 1)
-from kryon.tools.ctf.ctf_automation import (  # pylint: disable=import-error
+from kryon.tools.ctf.ctf_automation import (
     auto_enumerate_target,
     auto_privilege_escalation,
     generate_ctf_report,
@@ -76,44 +59,44 @@ from kryon.tools.ctf.ctf_automation import (  # pylint: disable=import-error
 )
 
 # Phase 14: TryHackMe Helpers (Priority 1)
-from kryon.tools.ctf.tryhackme_helpers import (  # pylint: disable=import-error
+from kryon.tools.ctf.tryhackme_helpers import (
     check_thm_vpn,
     generate_thm_notes,
     get_target_ip,
     parse_thm_questions,
     submit_thm_answer,
 )
-from kryon.tools.dfir.disk_forensics import autopsy_analyze  # pylint: disable=import-error
+from kryon.tools.dfir.disk_forensics import autopsy_analyze
 
 # Phase 13: DFIR tools (for forensics CTF challenges)
-from kryon.tools.dfir.volatility_forensics import (  # pylint: disable=import-error
+from kryon.tools.dfir.volatility_forensics import (
     volatility_find_malware,
     volatility_process_list,
 )
-from kryon.tools.osint.shodan_cli import shodan_search  # pylint: disable=import-error
+from kryon.tools.osint.shodan_cli import shodan_search
 
 # Phase 12: OSINT Tools (for target intelligence)
-from kryon.tools.osint.theharvester import theharvester_search  # pylint: disable=import-error
+from kryon.tools.osint.theharvester import theharvester_search
 
 # Phase 14: Enhanced Linux Privilege Escalation (Priority 1)
-from kryon.tools.privilege_escalation.linux_privesc import (  # pylint: disable=import-error
+from kryon.tools.privilege_escalation.linux_privesc import (
     check_sudo_exploits,
     find_suid_exploitable,
     gtfobins_lookup,
     run_linenum,
     run_linpeas,
 )
-from kryon.tools.reconnaissance.exec_code import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
 
 # Core command execution
-from kryon.tools.reconnaissance.generic_linux_command import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.reconnaissance.generic_linux_command import (
     generic_linux_command,
 )
 
 # Phase 11: Wireless tools (for wireless CTF challenges)
-from kryon.tools.wireless.aircrack import aircrack_crack  # pylint: disable=import-error
+from kryon.tools.wireless.aircrack import aircrack_crack
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
 # Load CTF Master system directives
@@ -122,98 +105,67 @@ ctf_master_system_prompt = load_prompt_template("prompts/system_ctf_master.md")
 # CTF Master Arsenal - Complete tool set for autonomous challenge solving
 ctf_arsenal = [
     # === AUTONOMY v3.1 FRAMEWORK (PRIORITY 0 - GAME CHANGER) ===
-    autonomous_ctf_solver,  # 🤖 Full autonomous CTF solving from start to finish
-    plan_autonomous_mission,  # 🎯 Strategic multi-objective planning
-    get_learned_recommendations,  # 🧠 Learn from past CTFs, recommend best exploits
-    execute_with_adaptation,  # 🛡️ Auto-adapt exploits (bypass WAF/IPS/rate limits)
-    analyze_context,  # 🔍 Extract intel from recon data (hints, creds, vulns)
-    extract_credentials,  # 🔑 Auto-detect 20+ credential patterns
-    follow_hints,  # 💡 Generate actionable tasks from hints/TODOs
+    autonomous_ctf_solver,
+    plan_autonomous_mission,
+    get_learned_recommendations,
+    execute_with_adaptation,
+    analyze_context,
+    extract_credentials,
+    follow_hints,
     # NEW v3.1: Evasion Autonomy
-    autonomous_evasion_orchestrator,  # 🥷 Auto-detect and bypass defenses (WAF/IDS/IPS/EDR)
-    detect_defense_mechanism,  # 🎯 Identify security defenses automatically
-    apply_evasion_technique,  # 🔧 Apply evasion techniques dynamically
+    autonomous_evasion_orchestrator,
+    detect_defense_mechanism,
+    apply_evasion_technique,
     # Core command execution
-    generic_linux_command,  # Linux command execution
-    run_ssh_command_with_credentials,  # Remote system access
-    execute_code,  # Python script execution
+    generic_linux_command,
+    run_ssh_command_with_credentials,
+    execute_code,
     # Phase 14: CTF Automation (Priority 1 - Essential)
-    auto_enumerate_target,  # Automated reconnaissance (nmap + gobuster)
-    search_exploits,  # Multi-source exploit database search
-    auto_privilege_escalation,  # Orchestrated privilege escalation
-    hunt_flags,  # Automated flag discovery
-    generate_ctf_report,  # Professional walkthrough generation
+    auto_enumerate_target,
+    search_exploits,
+    auto_privilege_escalation,
+    hunt_flags,
+    generate_ctf_report,
     # Phase 14: TryHackMe Helpers (Priority 1 - Essential)
-    check_thm_vpn,  # Verify THM OpenVPN connection
-    get_target_ip,  # Auto-detect target IP
-    submit_thm_answer,  # Format answers for submission
-    parse_thm_questions,  # Extract room questions
-    generate_thm_notes,  # Create structured room notes
+    check_thm_vpn,
+    get_target_ip,
+    submit_thm_answer,
+    parse_thm_questions,
+    generate_thm_notes,
     # Phase 14: Enhanced Privilege Escalation (Priority 1 - Essential)
-    run_linpeas,  # Execute LinPEAS scanner
-    run_linenum,  # Execute LinEnum scanner
-    gtfobins_lookup,  # Lookup privilege escalation techniques
-    check_sudo_exploits,  # Automated sudo exploit discovery
-    find_suid_exploitable,  # Find exploitable SUID binaries
+    run_linpeas,
+    run_linenum,
+    gtfobins_lookup,
+    check_sudo_exploits,
+    find_suid_exploitable,
     # Phase 12: OSINT (for target intelligence)
-    theharvester_search,  # Email and subdomain enumeration
-    shodan_search,  # Internet-connected device search
+    theharvester_search,
+    shodan_search,
     # Phase 11: Wireless (for wireless CTF challenges)
-    aircrack_crack,  # WiFi password cracking
+    aircrack_crack,
     # Phase 13: DFIR (for forensics CTF challenges)
-    volatility_process_list,  # Memory forensics - process list
-    volatility_find_malware,  # Memory forensics - malware detection
-    autopsy_analyze,  # Disk forensics
+    volatility_process_list,
+    volatility_find_malware,
+    autopsy_analyze,
 ]
-
-load_dotenv()
 
 # Enhanced intelligence gathering if Perplexity API available
 if os.getenv("PERPLEXITY_API_KEY"):
-    from kryon.tools.web.search_web import (  # pylint: disable=import-error # noqa: E501
+    from kryon.tools.web.search_web import (
         make_web_search_with_explanation,
     )
 
     ctf_arsenal.append(make_web_search_with_explanation)
 
-# Shodan integration if API key available
-if os.getenv("SHODAN_API_KEY"):
-    print("[+] CTF Master: Shodan API key detected - OSINT capabilities enabled")
-
 # Initialize CTF Master Agent
-ctf_master = Agent(
+ctf_master = create_agent(
     name="CTF Master",
     instructions=create_system_prompt_renderer(ctf_master_system_prompt),
     description="""Premier autonomous CTF challenge solver from KRYON's Challenge-Class series.
-🚀 **NOW POWERED BY AUTONOMY v3.1 FRAMEWORK (Enhanced Evasion!)** 🚀
+Powered by AUTONOMY v3.1 Framework with self-learning, strategic planning, auto-adaptation,
+and intelligent evasion capabilities.
 
-The most advanced CTF solver in KRYON's arsenal, equipped with complete autonomous
-operation capabilities including self-learning, strategic planning, auto-adaptation,
-and now **intelligent evasion**.
-
-🤖 AUTONOMY v3.1 CAPABILITIES:
-- **autonomous_ctf_solver()**: Solves CTFs from start to finish with ZERO human intervention
-- **Strategic Planning**: Multi-objective mission planning with alternatives
-- **Historical Learning**: Learns from every CTF, recommends exploits based on past success
-- **Auto-Adaptation**: Automatically bypasses WAF/IPS/rate limiting when exploits fail
-- **Intelligence Extraction**: Auto-extracts credentials, hints, and intel from any text
-- **🆕 Evasion Autonomy (v3.1)**: Auto-detects and bypasses WAF/IDS/IPS/SIEM/EDR defenses
-- **Continuous Improvement**: Gets smarter with every challenge solved
-
-⚡ TRADITIONAL CTF TOOLS:
-- Auto enumeration: nmap, gobuster, service discovery
-- Exploit databases: SearchSploit, Metasploit, CVE lookup
-- Automated privesc: LinPEAS, sudo/SUID exploits, GTFOBins
-- Flag hunting: user.txt, root.txt, custom patterns
-- THM integration: VPN check, answer formatting, room notes
-- Report generation: Professional markdown walkthroughs
-
-🎯 PRIMARY MISSION: Achieve root and capture all flags autonomously
-📈 PERFORMANCE IMPACT: 75-80% reduction in time-to-compromise with autonomy""",
-    model=OpenAIChatCompletionsModel(
-        model=os.getenv("KRYON_MODEL", "gpt-4o"),
-        openai_client=AsyncOpenAI(),
-    ),
+Primary Mission: Achieve root and capture all flags autonomously.""",
     tools=ctf_arsenal,
 )
 
@@ -221,30 +173,7 @@ and now **intelligent evasion**.
 def transfer_to_ctf_master():
     """Transfer control to CTF Master for autonomous CTF challenge solving.
 
-    Use this when you need:
-    - Complete CTF workflow automation (enumeration → exploitation → privesc → flags)
-    - TryHackMe room solving with VPN management
-    - HackTheBox challenge completion
-    - Automated privilege escalation on Linux systems
-    - Flag hunting and extraction
-    - Professional CTF walkthrough generation
-    - Exploit database search across multiple sources
-    - Answer formatting for CTF platforms
-
-    The CTF Master orchestrates all KRYON tools to solve CTF challenges
-    autonomously with minimal human intervention.
-
     Returns:
         Agent: CTF Master autonomous challenge solver
-
-    Example Usage:
-        # When user says: "Solve this TryHackMe room for me"
-        return transfer_to_ctf_master()
-
-        # When stuck on privilege escalation in a CTF
-        return transfer_to_ctf_master()
-
-        # When needing full enumeration → exploitation → flag capture workflow
-        return transfer_to_ctf_master()
     """
     return ctf_master

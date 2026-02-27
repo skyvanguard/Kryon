@@ -40,32 +40,29 @@ Environment Variables (Optional):
 
 import os
 
-from dotenv import load_dotenv
-from openai import AsyncOpenAI
-
-from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel  # pylint: disable=import-error
-from kryon.tools.command_and_control.sshpass import (  # pylint: disable=import-error # noqa: E501
+from kryon.agents.base import create_agent
+from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
 )
-from kryon.tools.dfir.log_analysis import (  # pylint: disable=import-error
+from kryon.tools.dfir.log_analysis import (
     chainsaw_hunt,
     chainsaw_search,
     evtx_dump,
 )
 
 # Phase 13: Defensive DFIR tools (selective - most relevant for blue team)
-from kryon.tools.dfir.network_forensics import (  # pylint: disable=import-error
+from kryon.tools.dfir.network_forensics import (
     networkminer_analyze,
     wireshark_filter,
     zeek_analyze_traffic,
 )
-from kryon.tools.reconnaissance.exec_code import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
-from kryon.tools.reconnaissance.generic_linux_command import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.reconnaissance.generic_linux_command import (
     generic_linux_command,
 )
-from kryon.tools.web.search_web import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
 )
 from kryon.util import create_system_prompt_renderer, load_prompt_template
@@ -89,14 +86,12 @@ defense_systems = [
     evtx_dump,  # Parse Windows event logs for analysis
 ]
 
-load_dotenv()
-
 # Enhanced intelligence gathering if Perplexity API available
 if os.getenv("PERPLEXITY_API_KEY"):
     defense_systems.append(make_web_search_with_explanation)
 
 # Initialize Guardian Protocol Agent
-guardian_protocol = Agent(
+guardian_protocol = create_agent(
     name="Guardian Protocol",
     instructions=create_system_prompt_renderer(guardian_protocol_system_prompt),
     description="""Advanced defensive autonomous unit from KRYON's Guardian series.
@@ -107,15 +102,8 @@ vulnerability remediation, and establishing defensive perimeters.
 
 Primary Mission: Defend systems, detect intrusions, respond to incidents.
 Operational Focus: Prevention, detection, and rapid response to threats.""",
-    model=OpenAIChatCompletionsModel(
-        model=os.getenv("KRYON_MODEL", "gpt-4o"),
-        openai_client=AsyncOpenAI(),
-    ),
     tools=defense_systems,
 )
-
-# Legacy compatibility - maintain backward compatibility with old naming
-blue_teamer = guardian_protocol  # Alias for legacy code
 
 
 def transfer_to_guardian_protocol():
@@ -133,13 +121,3 @@ def transfer_to_guardian_protocol():
         Agent: Guardian Protocol defensive security agent
     """
     return guardian_protocol
-
-
-# Legacy transfer function for backward compatibility
-def transfer_to_blue_teamer():
-    """Legacy function - transfers to Guardian Protocol.
-
-    This function maintained for backward compatibility.
-    Use transfer_to_guardian_protocol() in new code.
-    """
-    return transfer_to_guardian_protocol()

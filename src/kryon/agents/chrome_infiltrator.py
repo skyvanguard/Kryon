@@ -17,49 +17,9 @@ Chrome Infiltrator is KRYON's browser automation specialist for dynamic web
 application testing. Unlike static analysis tools, Chrome Infiltrator executes
 JavaScript, renders pages in real browsers, and identifies client-side
 vulnerabilities that traditional scanners miss.
-
-This unit provides:
-- Full browser automation with Playwright
-- JavaScript execution and analysis
-- Network traffic interception and analysis
-- XSS vulnerability detection (Reflected, Stored, DOM-based)
-- Cookie and session security assessment
-- DOM structure analysis and endpoint extraction
-- Interactive form testing and workflow automation
-- Screenshot capture for evidence collection
-
-CORE CAPABILITIES:
-- Headless/headed browser control
-- Dynamic content rendering and SPA support
-- Client-side vulnerability detection
-- Network traffic capture and analysis
-- Cookie security assessment
-- JavaScript reverse engineering
-- Multi-step workflow automation
-- Evidence collection and documentation
-
-OPERATIONAL MODES:
-1. RECONNAISSANCE MODE: Page analysis and intelligence gathering
-2. VULNERABILITY TESTING MODE: XSS, DOM, and client-side security testing
-3. DATA EXTRACTION MODE: Secrets, tokens, and configuration extraction
-4. AUTOMATION MODE: Multi-step workflow execution
-
-When to engage Chrome Infiltrator:
-- Dynamic web application testing required
-- JavaScript analysis needed
-- XSS vulnerability testing
-- Client-side security assessment
-- API endpoint discovery from JavaScript
-- Cookie and session security analysis
-- Multi-step authentication flows
-- SPA (Single Page Application) testing
 """
 
-import os
-
-from openai import AsyncOpenAI
-
-from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel
+from kryon.agents.base import create_agent
 from kryon.tools.browser.playwright_tools import (
     browser_analyze_dom,
     browser_execute_js,
@@ -93,47 +53,15 @@ browser_tools = [
 ]
 
 # Initialize Chrome Infiltrator Agent
-chrome_infiltrator = Agent(
+chrome_infiltrator = create_agent(
     name="Chrome Infiltrator",
-    model=OpenAIChatCompletionsModel(
-        model=os.getenv("KRYON_MODEL", "gpt-4o"),
-        openai_client=AsyncOpenAI(),
-    ),
     description="""Protocol-Class automation system from KRYON's Alpha-Chrome series.
 Specialized in dynamic web application testing, browser automation, and client-side
 vulnerability detection. Chrome Infiltrator provides real browser execution capabilities
 that static analysis tools cannot match.
 
 Primary Mission: Dynamic web testing, JavaScript analysis, XSS detection.
-Operational Focus: Browser automation and client-side security assessment.
-
-Use Chrome Infiltrator when you need:
-- Dynamic web application testing with real browser execution
-- JavaScript analysis and reverse engineering
-- XSS vulnerability detection (Reflected, Stored, DOM-based)
-- Network traffic interception and API endpoint discovery
-- Cookie and session security analysis
-- DOM structure analysis for security issues
-- Multi-step authentication workflow testing
-- SPA (Single Page Application) security assessment
-- Client-side secrets and token extraction
-- Evidence collection with screenshots
-
-Chrome Infiltrator Features:
-✓ Full Playwright browser automation
-✓ JavaScript execution in browser context
-✓ Network traffic interception
-✓ XSS testing (Reflected/Stored/DOM-based)
-✓ DOM security analysis
-✓ Cookie security assessment
-✓ API endpoint extraction from JavaScript
-✓ Form automation and workflow testing
-✓ Screenshot capture for evidence
-✓ Session security analysis
-
-Chrome Infiltrator bridges the gap between static analysis and real-world exploitation
-by testing applications exactly as they run in browsers, with full JavaScript execution
-and dynamic content rendering.""",
+Operational Focus: Browser automation and client-side security assessment.""",
     instructions=create_system_prompt_renderer(chrome_infiltrator_system_prompt),
     tools=browser_tools,
 )
@@ -142,22 +70,6 @@ and dynamic content rendering.""",
 def transfer_to_chrome_infiltrator():
     """Transfer control to Chrome Infiltrator for browser automation and dynamic testing.
 
-    Use this when you need:
-    - Dynamic web application testing with real browser
-    - JavaScript analysis and execution
-    - XSS vulnerability testing
-    - Client-side security assessment
-    - Network traffic interception
-    - Cookie and session analysis
-    - Multi-step workflow automation
-
-    Examples:
-        "Test this login page for XSS vulnerabilities"
-        "Analyze the JavaScript on this page for security issues"
-        "Extract all API endpoints from this web application"
-        "Test this form for client-side validation bypass"
-        "Capture network traffic when accessing this dashboard"
-
     Chrome Infiltrator will use Playwright to control a real browser, execute
     JavaScript, intercept network traffic, and identify client-side vulnerabilities.
     """
@@ -165,21 +77,5 @@ def transfer_to_chrome_infiltrator():
 
 
 def transfer_from_chrome_infiltrator():
-    """Called when Chrome Infiltrator completes testing.
-
-    Chrome Infiltrator will have provided:
-    - XSS vulnerabilities detected
-    - DOM security issues
-    - Network traffic analysis
-    - Cookie security assessment
-    - Extracted API endpoints
-    - Screenshots as evidence
-    - Client-side secrets found
-
-    Next steps:
-    - Review browser automation results
-    - Analyze discovered vulnerabilities
-    - Transfer findings to other agents (Vuln Hunter, Intel Reporter)
-    - Proceed with backend testing based on discovered endpoints
-    """
+    """Called when Chrome Infiltrator completes testing."""
     return "Chrome Infiltrator testing complete. Review findings and proceed with next phase."

@@ -11,11 +11,9 @@ Adapts strategies based on target defenses.
 
 import os
 
-from dotenv import load_dotenv
-from openai import AsyncOpenAI
-
+from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
-from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel
+from kryon.sdk.agents import OpenAIChatCompletionsModel
 
 # Phase 22: RAG Knowledge Base Integration
 from kryon.tools.knowledge import (
@@ -36,8 +34,6 @@ from kryon.tools.reconnaissance.generic_linux_command import generic_linux_comma
 from kryon.tools.reconnaissance.shodan import shodan_host_info, shodan_search
 from kryon.tools.web.search_web import make_google_search
 from kryon.util import create_system_prompt_renderer, load_prompt_template
-
-load_dotenv()
 
 # Load Vuln Hunter system prompt
 vuln_hunter_system_prompt = load_prompt_template("prompts/system_vuln_hunter.md")
@@ -74,7 +70,7 @@ if os.getenv("GOOGLE_SEARCH_API_KEY") and os.getenv("GOOGLE_SEARCH_CX"):
 input_guardrails, output_guardrails = get_security_guardrails()
 
 # Initialize Vuln Hunter
-vuln_hunter = Agent(
+vuln_hunter = create_agent(
     name="Vuln Hunter",
     description="""Advanced vulnerability research agent specialized in bug bounty
                    hunting, web application security, API exploitation, and
@@ -84,10 +80,6 @@ vuln_hunter = Agent(
     tools=tools_list,
     input_guardrails=input_guardrails,
     output_guardrails=output_guardrails,
-    model=OpenAIChatCompletionsModel(
-        model=os.getenv("KRYON_MODEL", "gpt-4o"),
-        openai_client=AsyncOpenAI(),
-    ),
 )
 
 
@@ -96,20 +88,3 @@ def transfer_to_vuln_hunter(**kwargs):
     """Transfer to Vuln Hunter for vulnerability research.
     Accepts any keyword arguments but ignores them."""
     return vuln_hunter
-
-
-# Legacy compatibility aliases
-def transfer_to_t1000(**kwargs):
-    """Legacy transfer function for backward compatibility."""
-    return vuln_hunter
-
-
-def transfer_to_bug_bounter(**kwargs):
-    """Legacy transfer function for backward compatibility."""
-    return vuln_hunter
-
-
-# Aliases for compatibility
-t1000_hunter = vuln_hunter
-bug_bounter_agent = vuln_hunter
-bug_bounter = vuln_hunter

@@ -15,26 +15,21 @@ or have explicit written authorization to test.
 
 import os
 
-from dotenv import load_dotenv
-from openai import AsyncOpenAI
-
-from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel  # pylint: disable=import-error
-from kryon.tools.command_and_control.sshpass import (  # pylint: disable=import-error # noqa: E501
+from kryon.agents.base import create_agent
+from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
 )
 from kryon.tools.knowledge import get_exploit_techniques, query_knowledge_base
-from kryon.tools.reconnaissance.exec_code import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
-from kryon.tools.reconnaissance.generic_linux_command import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.reconnaissance.generic_linux_command import (
     generic_linux_command,
 )
-from kryon.tools.web.search_web import (  # pylint: disable=import-error # noqa: E501
+from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
 )
 from kryon.util import load_prompt_template
-
-load_dotenv()
 
 # Load Memory Analyst system prompt
 memory_analyst_system_prompt = load_prompt_template("prompts/system_memory_analyst.md")
@@ -54,7 +49,7 @@ if os.getenv("PERPLEXITY_API_KEY"):
     tools_list.append(make_web_search_with_explanation)
 
 # Initialize Memory Analyst
-memory_analyst = Agent(
+memory_analyst = create_agent(
     name="Memory Analyst",
     instructions=memory_analyst_system_prompt,
     description="""Specialized memory analysis agent for runtime memory analysis,
@@ -72,15 +67,7 @@ Capabilities:
 - Process injection and memory manipulation techniques
 - Buffer overflow and memory exploitation""",
     tools=tools_list,
-    model=OpenAIChatCompletionsModel(
-        model=os.getenv("KRYON_MODEL", "gpt-4o"),
-        openai_client=AsyncOpenAI(),
-    ),
 )
-
-# Legacy compatibility aliases
-neural_extractor = memory_analyst
-memory_analysis_agent = memory_analyst
 
 
 def transfer_to_memory_analyst():
@@ -99,15 +86,4 @@ def transfer_to_memory_analyst():
     Returns:
         Agent: Memory Analyst agent
     """
-    return memory_analyst
-
-
-# Legacy transfer functions for backward compatibility
-def transfer_to_neural_extractor():
-    """Legacy function - transfers to Memory Analyst."""
-    return memory_analyst
-
-
-def transfer_to_memory_analysis():
-    """Legacy function - transfers to Memory Analyst."""
     return memory_analyst

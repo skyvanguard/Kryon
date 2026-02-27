@@ -1,8 +1,9 @@
 """Agent listing and detail endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from kryon.server.auth import require_api_key
+from kryon.server.exceptions import not_found
 from kryon.server.models import AgentDetail, AgentSummary
 
 router = APIRouter(tags=["agents"], dependencies=[Depends(require_api_key)])
@@ -63,7 +64,7 @@ async def get_agent(key: str) -> AgentDetail:
     agents = get_available_agents()
     agent = agents.get(key)
     if agent is None:
-        raise HTTPException(status_code=404, detail=f"Agent '{key}' not found")
+        raise not_found("Agent", key)
 
     input_guards = getattr(agent, "input_guardrails", None) or []
     output_guards = getattr(agent, "output_guardrails", None) or []

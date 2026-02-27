@@ -19,9 +19,9 @@ async def get_audit_logs(
     _user=Depends(require_permission("admin:read")),
 ) -> list[dict]:
     """Get audit log entries. Admin only."""
-    from kryon.server.routes.clients import _get_store
+    from kryon.server.deps import get_store
 
-    store = _get_store()
+    store = get_store()
     return store.get_audit_logs(
         limit=limit,
         user_id=user_id,
