@@ -102,7 +102,7 @@ def get_supported_models_count():
 
             # Try to get Ollama models count
             try:
-                ollama_api_base = os.getenv("OLLAMA_API_BASE", "http://host.docker.internal:8000/v1")
+                ollama_api_base = os.getenv("OLLAMA_API_BASE", os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1"))
                 ollama_response = requests.get(f"{ollama_api_base.replace('/v1', '')}/api/tags", timeout=1)
 
                 if ollama_response.status_code == 200:
@@ -478,7 +478,7 @@ def display_quick_guide(console: Console):
 
     # Create additional tips panels
     Panel(
-        "To use Ollama models, configure OLLAMA_API_BASE\nbefore startup.\n\nDefault: host.docker.internal:8000/v1",
+        "To use Ollama models, configure OLLAMA_API_BASE\nbefore startup.\n\nDefault: localhost:11434/v1",
         title="[bold yellow]Ollama Configuration[/bold yellow]",
         border_style="yellow",
         padding=(1, 2),

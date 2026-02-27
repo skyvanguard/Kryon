@@ -90,7 +90,7 @@ def update_toolbar_in_background():
         # Get Ollama information
         try:
             # Get Ollama models with a short timeout to prevent hanging
-            api_base = os.getenv("OLLAMA_API_BASE", "http://host.docker.internal:8000/v1")
+            api_base = os.getenv("OLLAMA_API_BASE", os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1"))
             response = requests.get(f"{api_base.replace('/v1', '')}/api/tags", timeout=0.5)
 
             if response.status_code == 200:
