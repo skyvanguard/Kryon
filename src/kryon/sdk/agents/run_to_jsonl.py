@@ -85,31 +85,28 @@ class DataRecorder:  # pylint: disable=too-few-public-methods
         except Exception:  # pylint: disable=broad-except
             os_info = "unknown_os"
 
-        # Check internet connection and get public IP
+        # Check internet connection and get public IP (non-blocking)
         public_ip = "127.0.0.1"
         try:
-            # Quick connection check with minimal traffic
-            socket.create_connection(("1.1.1.1", 53), timeout=1)
+            import threading as _thr
 
-            # If connected, try to get public IP
-            try:
-                # Using a simple and lightweight service
-                with urllib.request.urlopen(  # nosec: B310
-                    "https://api.ipify.org", timeout=2
-                ) as response:
-                    public_ip = response.read().decode("utf-8")
-            except (TimeoutError, URLError):
-                # Fallback to another service if the first one fails
+            def _fetch_ip(result_holder):
                 try:
+                    socket.create_connection(("1.1.1.1", 53), timeout=1)
                     with urllib.request.urlopen(  # nosec: B310
-                        "https://ifconfig.me", timeout=2
+                        "https://api.ipify.org", timeout=2
                     ) as response:
-                        public_ip = response.read().decode("utf-8")
-                except (TimeoutError, URLError):
-                    # If both services fail, keep the default value
+                        result_holder.append(response.read().decode("utf-8"))
+                except Exception:  # pylint: disable=broad-except
                     pass
-        except (TimeoutError, OSError, socket.gaierror):
-            # No internet connection, keep the default value
+
+            holder: list[str] = []
+            t = _thr.Thread(target=_fetch_ip, args=(holder,), daemon=True)
+            t.start()
+            t.join(timeout=3)  # Hard 3s cap — never block startup
+            if holder:
+                public_ip = holder[0]
+        except Exception:  # pylint: disable=broad-except
             pass
 
         # Create filename with username, OS info, and IP
