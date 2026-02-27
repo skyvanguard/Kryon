@@ -888,15 +888,15 @@ def _create_token_display(
     tokens_text.append("Context: ", style="bold")
     tokens_text.append(f"{context_pct:.1f}% ", style="bold")
 
-    # Context indicator
+    # Context indicator (use ASCII-safe characters for Windows compatibility)
     if context_pct < 50:
-        indicator = "[emoji]🟩[/emoji]"
+        indicator = "OK"
         color_local = "green"
     elif context_pct < 80:
-        indicator = "[emoji]🟨[/emoji]"
+        indicator = "!!"
         color_local = "yellow"
     else:
-        indicator = "[emoji]🟥[/emoji]"
+        indicator = "XX"
         color_local = "red"
 
     tokens_text.append(f"{indicator}", style=color_local)

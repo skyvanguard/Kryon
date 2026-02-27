@@ -28,7 +28,8 @@ def _make_minimal_crash_app(debug: bool = False):
     return app
 
 
-def test_unhandled_exception_returns_500():
+def test_unhandled_exception_returns_500(monkeypatch):
+    monkeypatch.setenv("KRYON_DEBUG", "0")
     app = _make_minimal_crash_app()
     with TestClient(app, raise_server_exceptions=False) as c:
         resp = c.get("/api/v1/test-crash")

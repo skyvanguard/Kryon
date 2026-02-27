@@ -63,7 +63,7 @@ def create_claude_thinking_context(agent_name, counter, model):
 
         # Create the thinking panel header
         header = Text()
-        header.append("[emoji]🧠[/emoji] ", style="bold yellow")
+        header.append("🧠 ", style="bold yellow")
         header.append(f"{model_display} Reasoning [{counter}]", style="bold yellow")
         header.append(f" | {agent_name}", style="bold cyan")
         header.append(f" | {timestamp}", style="dim")
@@ -74,7 +74,7 @@ def create_claude_thinking_context(agent_name, counter, model):
         # Create the panel for thinking
         panel = Panel(
             Group(header, Text("\n"), thinking_content),
-            title=f"[bold yellow][emoji]🧠[/emoji] {model_display} Thinking Process[/bold yellow]",
+            title=f"[bold yellow]🧠 {model_display} Thinking Process[/bold yellow]",
             border_style="yellow",
             box=ROUNDED,
             padding=(1, 2),
@@ -149,7 +149,7 @@ def update_claude_thinking_content(context, thinking_delta):
         # Update the panel content
         updated_panel = Panel(
             Group(context["header"], Text("\n"), thinking_display),
-            title=f"[bold yellow][emoji]🧠[/emoji] {model_display} Thinking Process[/bold yellow]",
+            title=f"[bold yellow]🧠 {model_display} Thinking Process[/bold yellow]",
             border_style="yellow",
             box=ROUNDED,
             padding=(1, 2),
@@ -201,7 +201,7 @@ def finish_claude_thinking_display(context):
 
         # Add final formatting to show completion
         final_header = Text()
-        final_header.append("[emoji]🧠[/emoji] ", style="bold green")
+        final_header.append("🧠 ", style="bold green")
         final_header.append(f"{model_display} Reasoning Complete", style="bold green")
         final_header.append(f" | {context['agent_name']}", style="bold cyan")
         final_header.append(f" | {context['timestamp']}", style="dim")
@@ -224,7 +224,7 @@ def finish_claude_thinking_display(context):
         # Create final panel
         final_panel = Panel(
             Group(final_header, Text("\n"), final_thinking_display),
-            title=f"[bold green][emoji]🧠[/emoji] {model_display} Thinking Complete[/bold green]",
+            title=f"[bold green]🧠 {model_display} Thinking Complete[/bold green]",
             border_style="green",
             box=ROUNDED,
             padding=(1, 2),
@@ -320,7 +320,7 @@ def print_claude_reasoning_simple(reasoning_content, agent_name, model_name):
 
     # Simple text output without Rich formatting
     timestamp = datetime.now().strftime("%H:%M:%S")
-    print(f"\n[emoji]🧠[/emoji] {model_display} Reasoning | {agent_name} | {model_name} | {timestamp}")
+    print(f"\n🧠 {model_display} Reasoning | {agent_name} | {model_name} | {timestamp}")
     print("=" * 60)
     print(reasoning_content)
     print("=" * 60 + "\n")

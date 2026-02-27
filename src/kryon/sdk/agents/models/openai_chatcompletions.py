@@ -740,6 +740,53 @@ class OpenAIChatCompletionsModel(Model):
             else:
                 logger.debug(f"LLM resp:\n{json.dumps(response.choices[0].message.model_dump(), indent=2)}\n")
 
+            # Ollama fallback: parse tool calls from text content when the model
+            # outputs them as JSON in the message body instead of proper tool_calls
+            if self.is_ollama:
+                msg = response.choices[0].message
+                has_tool_calls = hasattr(msg, "tool_calls") and msg.tool_calls
+                content = getattr(msg, "content", "") or ""
+                if not has_tool_calls and content.strip():
+                    try:
+                        json_start = content.find("{")
+                        json_end = content.rfind("}") + 1
+                        if json_start >= 0 and json_end > json_start:
+                            parsed = json.loads(content[json_start:json_end])
+                            if "name" in parsed and "arguments" in parsed:
+                                logger.debug(f"Parsed tool call from Ollama text: {parsed['name']}")
+                                # Build arguments string
+                                if isinstance(parsed["arguments"], dict):
+                                    parsed["arguments"].pop("ctf", None)
+                                    args_str = json.dumps(parsed["arguments"])
+                                elif isinstance(parsed["arguments"], str):
+                                    try:
+                                        ad = json.loads(parsed["arguments"])
+                                        if isinstance(ad, dict):
+                                            ad.pop("ctf", None)
+                                        args_str = json.dumps(ad)
+                                    except Exception:
+                                        args_str = json.dumps(parsed["arguments"])
+                                else:
+                                    args_str = json.dumps(str(parsed["arguments"]))
+
+                                call_id = f"call_{hashlib.md5((parsed['name'] + str(time.time())).encode()).hexdigest()[:8]}"
+
+                                # Inject proper tool_calls into the response
+                                from types import SimpleNamespace
+
+                                tc = SimpleNamespace(
+                                    id=call_id,
+                                    type="function",
+                                    function=SimpleNamespace(
+                                        name=parsed["name"],
+                                        arguments=args_str,
+                                    ),
+                                )
+                                msg.tool_calls = [tc]
+                                msg.content = None  # Clear text so it's not displayed as message
+                    except (json.JSONDecodeError, KeyError, TypeError):
+                        pass  # Not a valid tool call JSON, treat as normal text
+
             # Ensure we have reasonable token counts
             if response.usage:
                 input_tokens = response.usage.prompt_tokens
@@ -3241,13 +3288,15 @@ class OpenAIChatCompletionsModel(Model):
         if "tools" in kwargs and kwargs.get("tools") and kwargs.get("tools") is not NOT_GIVEN:
             ollama_supported_params["tools"] = kwargs.get("tools")
 
+        # Add tool_choice so the model knows it should use tools
+        if tool_choice is not None and tool_choice is not NOT_GIVEN:
+            ollama_supported_params["tool_choice"] = tool_choice
+
         # Remove None values and filter out unsupported parameters
         ollama_kwargs = {
             k: v for k, v in ollama_supported_params.items() if v is not None and k not in ["response_format", "store"]
         }
 
-        # Check if this is a Qwen model
-        str(self.model).lower()
         api_base = get_ollama_api_base()
 
         if stream:

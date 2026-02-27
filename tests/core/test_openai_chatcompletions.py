@@ -201,25 +201,11 @@ async def test_get_response_with_tool_call(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_fetch_response_non_stream(monkeypatch) -> None:
     """
-    Verify that `_fetch_response` builds the correct OpenAI API call when not
-    streaming and returns the ChatCompletion object directly. We supply a
-    dummy ChatCompletion through a stubbed OpenAI client and inspect the
-    captured kwargs.
+    Verify that `_fetch_response` builds the correct kwargs and passes them
+    through to litellm.acompletion when not streaming.
     """
-
-    # Dummy completions to record kwargs
-    class DummyCompletions:
-        def __init__(self) -> None:
-            self.kwargs: dict[str, Any] = {}
-
-        async def create(self, **kwargs: Any) -> Any:
-            self.kwargs = kwargs
-            return chat
-
-    class DummyClient:
-        def __init__(self, completions: DummyCompletions) -> None:
-            self.chat = type("_Chat", (), {"completions": completions})()
-            self.base_url = httpx.URL("http://fake")
+    # Isolate from OLLAMA env var so routing goes through litellm_openai path
+    monkeypatch.delenv("OLLAMA", raising=False)
 
     msg = ChatCompletionMessage(role="assistant", content="ignored")
     choice = Choice(index=0, finish_reason="stop", message=msg)
@@ -230,10 +216,24 @@ async def test_fetch_response_non_stream(monkeypatch) -> None:
         object="chat.completion",
         choices=[choice],
     )
-    completions = DummyCompletions()
-    dummy_client = DummyClient(completions)
+
+    # Capture kwargs passed to litellm.acompletion
+    captured_kwargs: dict[str, Any] = {}
+
+    async def fake_acompletion(**kwargs: Any) -> Any:
+        captured_kwargs.update(kwargs)
+        return chat
+
+    import litellm
+    monkeypatch.setattr(litellm, "acompletion", fake_acompletion)
+
+    dummy_client = type("_C", (), {
+        "chat": type("_Ch", (), {"completions": None})(),
+        "base_url": httpx.URL("http://fake"),
+    })()
     model = OpenAIChatCompletionsModel(model=kryon_model, openai_client=dummy_client)  # type: ignore
-    # Execute the private fetch with a system instruction and simple string input.
+    model.message_history = []  # Clear any leaked state from AGENT_MANAGER
+
     with generation_span(disabled=True) as span:
         await model._fetch_response(
             system_instructions="sys",
@@ -247,19 +247,12 @@ async def test_fetch_response_non_stream(monkeypatch) -> None:
             stream=False,
         )
 
-    # Ensure expected args were passed through to OpenAI client.
-    kwargs = completions.kwargs
-    assert kwargs["stream"] is False
-    assert kwargs["store"] is True
-    assert kwargs["model"] == kryon_model
-    assert kwargs["messages"][0]["role"] == "system"
-    assert kwargs["messages"][0]["content"] == "sys"
-    assert kwargs["messages"][1]["role"] == "user"
-    # Defaults for optional fields become the NOT_GIVEN sentinel
-    assert kwargs["tools"] is NOT_GIVEN
-    assert kwargs["tool_choice"] is NOT_GIVEN
-    assert kwargs["response_format"] is NOT_GIVEN
-    assert kwargs["stream_options"] is NOT_GIVEN
+    # Ensure expected args were passed through to litellm
+    assert captured_kwargs["stream"] is False
+    assert captured_kwargs["model"] == kryon_model
+    assert captured_kwargs["messages"][0]["role"] == "system"
+    assert captured_kwargs["messages"][0]["content"] == "sys"
+    assert captured_kwargs["messages"][1]["role"] == "user"
 
 
 @pytest.mark.skipif(not _has_local_model, reason="Requires local model server (ollama)")
@@ -267,30 +260,30 @@ async def test_fetch_response_non_stream(monkeypatch) -> None:
 async def test_fetch_response_stream(monkeypatch) -> None:
     """
     When `stream=True`, `_fetch_response` should return a bare `Response`
-    object along with the underlying async stream. The OpenAI client call
-    should include `stream_options` to request usage-delimited chunks.
+    object along with the underlying async stream.
     """
-    os.environ["KRYON_STREAM"] = "true"
+    # Isolate from OLLAMA env var
+    monkeypatch.delenv("OLLAMA", raising=False)
+    monkeypatch.setenv("KRYON_STREAM", "true")
 
     async def event_stream() -> AsyncIterator[ChatCompletionChunk]:
         if False:  # pragma: no cover
             yield  # pragma: no cover
 
-    class DummyCompletions:
-        def __init__(self) -> None:
-            self.kwargs: dict[str, Any] = {}
+    # Capture kwargs passed to litellm.acompletion
+    captured_kwargs: dict[str, Any] = {}
 
-        async def create(self, **kwargs: Any) -> Any:
-            self.kwargs = kwargs
-            return event_stream()
+    async def fake_acompletion(**kwargs: Any) -> Any:
+        captured_kwargs.update(kwargs)
+        return event_stream()
 
-    class DummyClient:
-        def __init__(self, completions: DummyCompletions) -> None:
-            self.chat = type("_Chat", (), {"completions": completions})()
-            self.base_url = httpx.URL("http://fake")
+    import litellm
+    monkeypatch.setattr(litellm, "acompletion", fake_acompletion)
 
-    completions = DummyCompletions()
-    dummy_client = DummyClient(completions)
+    dummy_client = type("_C", (), {
+        "chat": type("_Ch", (), {"completions": None})(),
+        "base_url": httpx.URL("http://fake"),
+    })()
     model = OpenAIChatCompletionsModel(model=kryon_model, openai_client=dummy_client)  # type: ignore
     with generation_span(disabled=True) as span:
         response, stream = await model._fetch_response(
@@ -304,17 +297,16 @@ async def test_fetch_response_stream(monkeypatch) -> None:
             tracing=ModelTracing.DISABLED,
             stream=True,
         )
-    # Check OpenAI client was called for streaming
-    assert completions.kwargs["stream"] is True
-    assert completions.kwargs["store"] is True
-    assert completions.kwargs["stream_options"] == {"include_usage": True}
+    # Check litellm was called for streaming
+    assert captured_kwargs["stream"] is True
+    assert captured_kwargs["stream_options"] == {"include_usage": True}
     # Response is a proper openai Response
     assert isinstance(response, Response)
     assert response.id == FAKE_RESPONSES_ID
     assert response.model == kryon_model
     assert response.object == "response"
     assert response.output == []
-    # We returned the async iterator produced by our dummy.
+    # We returned the async iterator produced by our mock.
     assert hasattr(stream, "__aiter__")
 
 

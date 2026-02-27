@@ -372,13 +372,13 @@ def _create_token_display(
     tokens_text.append(f"{context_pct:.1f}% ", style="bold")
 
     if context_pct < 50:
-        indicator = "[emoji]🟩[/emoji]"
+        indicator = "OK"
         color_local = "green"
     elif context_pct < 80:
-        indicator = "[emoji]🟨[/emoji]"
+        indicator = "!!"
         color_local = "yellow"
     else:
-        indicator = "[emoji]🟥[/emoji]"
+        indicator = "XX"
         color_local = "red"
 
     tokens_text.append(f"{indicator}", style=color_local)
@@ -471,11 +471,11 @@ def _print_simple_tool_output(tool_name, args, output, execution_info=None, toke
 
             context_pct = interaction_input_tokens / get_model_input_tokens(model) * 100
             if context_pct < 50:
-                indicator = "[emoji]🟩[/emoji]"
+                indicator = "OK"
             elif context_pct < 80:
-                indicator = "[emoji]🟨[/emoji]"
+                indicator = "!!"
             else:
-                indicator = "[emoji]🟥[/emoji]"
+                indicator = "XX"
             print(color(f"  Context: {context_pct:.1f}% {indicator}", fg="cyan"))
 
     if output and len(str(output)) > 10000:
@@ -1315,13 +1315,13 @@ def update_agent_streaming_content(context, text_delta, token_stats=None):
                 model_name = context.get("model", os.environ.get("KRYON_MODEL", "gpt-4o"))
                 context_pct = input_tokens / get_model_input_tokens(model_name) * 100
                 if context_pct < 50:
-                    indicator = "[emoji]🟩[/emoji]"
+                    indicator = "OK"
                     color_name = "green"
                 elif context_pct < 80:
-                    indicator = "[emoji]🟨[/emoji]"
+                    indicator = "!!"
                     color_name = "yellow"
                 else:
-                    indicator = "[emoji]🟥[/emoji]"
+                    indicator = "XX"
                     color_name = "red"
                 footer_stats.append(f" {indicator} {context_pct:.1f}%", style=f"bold {color_name}")
 
@@ -1441,11 +1441,11 @@ def finish_agent_streaming(context, final_stats=None):
 
                 context_pct = interaction_input_tokens / get_model_input_tokens(model_name) * 100
                 if context_pct < 50:
-                    indicator = "[emoji]🟩[/emoji]"
+                    indicator = "OK"
                 elif context_pct < 80:
-                    indicator = "[emoji]🟨[/emoji]"
+                    indicator = "!!"
                 else:
-                    indicator = "[emoji]🟥[/emoji]"
+                    indicator = "XX"
                 compact_tokens.append(f"{indicator} {context_pct:.1f}%", style="bold")
 
         if "footer" in context and final_stats:

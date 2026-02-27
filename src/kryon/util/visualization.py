@@ -18,7 +18,7 @@ def visualize_agent_graph(start_agent):
         console.print("[red]No agent provided to visualize.[/red]")
         return
 
-    tree = Tree(f"[emoji]🤖[/emoji] {start_agent.name} (Current Agent)", guide_style="bold blue")
+    tree = Tree(f"🤖 {start_agent.name} (Current Agent)", guide_style="bold blue")
 
     visited = set()
     agent_nodes = {}
@@ -91,7 +91,7 @@ def visualize_agent_graph(start_agent):
         if mcp_tools:
             for tool in mcp_tools:
                 tool_name = getattr(tool, "name", None) or getattr(tool, "__name__", "")
-                tools_node.add(f"[magenta][emoji]🔌[/emoji] {tool_name}[/magenta]")
+                tools_node.add(f"[magenta]🔌 {tool_name}[/magenta]")
 
         # Add a summary line if we have both types
         if regular_tools and mcp_tools:
@@ -115,7 +115,7 @@ def visualize_agent_graph(start_agent):
                 try:
                     next_agent = handoff_fn()
                     if next_agent:
-                        transfer_node = transfers_node.add(f"[emoji]🤖[/emoji] {next_agent.name}")
+                        transfer_node = transfers_node.add(f"🤖 {next_agent.name}")
                         add_agent_node(next_agent, transfer_node, True)
                 except Exception:
                     continue
@@ -139,12 +139,12 @@ def visualize_agent_graph(start_agent):
 
                     if next_agent:
                         transfer_node = transfers_node.add(
-                            f"[emoji]🤖[/emoji] {handoff_name} via {handoff_fn.tool_name}"
+                            f"🤖 {handoff_name} via {handoff_fn.tool_name}"
                         )
                         add_agent_node(next_agent, transfer_node, True)
                     else:
                         # If we can't find the agent, just show the name
-                        handoff_text = f"[emoji]🤖[/emoji] {handoff_name} via {handoff_fn.tool_name}"
+                        handoff_text = f"🤖 {handoff_name} via {handoff_fn.tool_name}"
                         transfers_node.add(f"[yellow]{handoff_text}[/yellow]")
                 except Exception as e:
                     transfers_node.add(f"[red]Error: {str(e)}[/red]")
@@ -152,7 +152,7 @@ def visualize_agent_graph(start_agent):
                 # Handle dictionary handoff objects
                 handoff_name = handoff_fn["agent_name"]
                 tool_name = handoff_fn.get("tool_name", f"transfer_to_{handoff_name}")
-                transfers_node.add(f"[yellow][emoji]🤖[/emoji] {handoff_name} via {tool_name}[/yellow]")
+                transfers_node.add(f"[yellow]🤖 {handoff_name} via {tool_name}[/yellow]")
 
         return node
 
