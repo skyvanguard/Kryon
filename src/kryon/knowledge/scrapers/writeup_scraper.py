@@ -47,7 +47,7 @@ class WriteupScraper(BaseScraper):
         self.last_scrape_time = time.time()
 
         if not sources:
-            sources = ["github_writeups", "medium_writeups"]
+            sources = ["github_writeups", "ctf_collections", "medium_writeups"]
 
         all_writeups = []
 
@@ -55,6 +55,8 @@ class WriteupScraper(BaseScraper):
             try:
                 if source == "github_writeups":
                     writeups = self._scrape_github_writeups(max_results // len(sources))
+                elif source == "ctf_collections":
+                    writeups = self._scrape_ctf_collections(max_results // len(sources))
                 elif source == "medium_writeups":
                     writeups = self._scrape_medium_writeups(max_results // len(sources))
                 else:
@@ -80,7 +82,13 @@ class WriteupScraper(BaseScraper):
         """
         writeups = []
 
-        search_queries = ["HackTheBox writeup", "TryHackMe writeup", "CTF writeup"]
+        search_queries = [
+            "HackTheBox writeup",
+            "TryHackMe writeup",
+            "CTF writeup",
+            "bug bounty writeup",
+            "pentest writeup",
+        ]
 
         for query in search_queries[:2]:  # Limit to avoid rate limit
             try:
@@ -137,6 +145,47 @@ class WriteupScraper(BaseScraper):
 """
 
         return formatted
+
+    def _scrape_ctf_collections(self, max_results: int) -> list[dict[str, Any]]:
+        """
+        Scrape curated CTF writeup collections from GitHub.
+
+        Targets well-known aggregation repositories.
+        """
+        curated_repos = [
+            "CTFd/ctfd",
+            "apsdehal/awesome-ctf",
+            "zardus/ctf-tools",
+            "w181496/Web-CTF-Cheatsheet",
+            "JohnHammond/ctf-katana",
+        ]
+
+        writeups = []
+        for repo_name in curated_repos[:max_results]:
+            try:
+                response = requests.get(
+                    f"https://api.github.com/repos/{repo_name}",
+                    timeout=15,
+                )
+                if response.status_code == 200:
+                    repo = response.json()
+                    content = self._format_github_writeup(repo)
+                    writeups.append({
+                        "content": content,
+                        "metadata": {
+                            "source": self.source_name,
+                            "subsource": "ctf-collection",
+                            "repo_name": repo.get("full_name", ""),
+                            "url": repo.get("html_url", ""),
+                            "type": "writeup",
+                            "timestamp": time.time(),
+                        },
+                    })
+                self.rate_limit(1.5)
+            except Exception as e:
+                self.log_error(f"CTF collection error for {repo_name}: {e}")
+
+        return writeups
 
     def _scrape_medium_writeups(self, max_results: int) -> list[dict[str, Any]]:
         """

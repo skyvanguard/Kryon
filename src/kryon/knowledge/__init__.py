@@ -47,7 +47,7 @@ from .async_vector_db import (
     get_async_vector_db,
     query_async,
 )
-from .auto_updater import auto_update_knowledge, start_auto_updater, stop_auto_updater
+from .auto_updater import auto_update_knowledge, get_auto_updater, start_auto_updater, stop_auto_updater
 from .exploitdb_scraper import ExploitDBScraper, get_exploitdb_stats, scrape_exploitdb
 from .rag_engine import (
     RAGEngine,
@@ -86,10 +86,50 @@ __all__ = [
     "query_async",
     # Auto-updater
     "auto_update_knowledge",
+    "get_auto_updater",
     "start_auto_updater",
     "stop_auto_updater",
+    # Seed
+    "seed_knowledge_base",
     # Exploit-DB Scraper
     "ExploitDBScraper",
     "scrape_exploitdb",
     "get_exploitdb_stats",
 ]
+
+
+def seed_knowledge_base(seed_dir: str | None = None) -> dict:
+    """
+    Populate the knowledge base with static seed data.
+
+    Args:
+        seed_dir: Optional custom path to seed data directory.
+
+    Returns:
+        Stats dict with count of items added.
+    """
+    import logging
+
+    from .scrapers.static_seed_scraper import StaticSeedScraper
+
+    _logger = logging.getLogger(__name__)
+
+    scraper = StaticSeedScraper(seed_dir=seed_dir) if seed_dir else StaticSeedScraper()
+    items = scraper.scrape()
+
+    added = 0
+    errors = 0
+    for item in items:
+        try:
+            add_document(
+                content=item["content"],
+                source=item["metadata"].get("source", "static-seed"),
+                **item["metadata"],
+            )
+            added += 1
+        except Exception as e:
+            errors += 1
+            _logger.debug("Error adding seed item: %s", e)
+
+    _logger.info("Seed complete: %d items added, %d errors", added, errors)
+    return {"added": added, "errors": errors, "total_items": len(items)}

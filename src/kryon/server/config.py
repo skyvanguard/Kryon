@@ -31,6 +31,11 @@ class ServerConfig:
     ssl_keyfile: str = ""
     https_enabled: bool = False
 
+    # Knowledge auto-updater
+    auto_update_enabled: bool = False
+    auto_update_interval_hours: int = 24
+    auto_update_sources: list[str] = field(default_factory=list)
+
     def __post_init__(self):
         if self.auth_enabled and not self.jwt_secret:
             raise ValueError(

@@ -123,57 +123,29 @@ async def start_scrape(req: ScrapeRequest) -> ScrapeResponse:
 
     async def _run_scrape():
         from kryon.knowledge import add_document
+        from kryon.knowledge.scrapers import SCRAPER_REGISTRY
 
         count = 0
         errors: list[str] = []
 
-        if "intelligence" in req.sources:
-            try:
-                from kryon.knowledge.scrapers.intelligence_scraper import IntelligenceScraper
+        for source in req.sources:
+            if source not in SCRAPER_REGISTRY:
+                errors.append(f"{source}: unknown source (available: {list(SCRAPER_REGISTRY.keys())})")
+                continue
 
-                scraper = IntelligenceScraper(max_items=200)
-                items = scraper.scrape()
+            try:
+                scraper_cls = SCRAPER_REGISTRY[source]
+                scraper = scraper_cls()
+                items = scraper.scrape(max_results=req.nvd_count)
                 for item in items:
                     add_document(
                         content=item["content"],
-                        source=item["metadata"].get("source", "intelligence-feed"),
+                        source=item["metadata"].get("source", source),
                         **item["metadata"],
                     )
                 count += len(items)
             except Exception as e:
-                errors.append(f"intelligence: {e}")
-
-        if "nvd" in req.sources:
-            try:
-                from kryon.knowledge.scrapers.nvd_scraper import NVDScraper
-
-                scraper = NVDScraper()
-                items = scraper.scrape(days_back=req.nvd_days, max_results=req.nvd_count)
-                for item in items:
-                    add_document(
-                        content=item["content"],
-                        source=item["metadata"].get("source", "nvd"),
-                        **item["metadata"],
-                    )
-                count += len(items)
-            except Exception as e:
-                errors.append(f"nvd: {e}")
-
-        if "github" in req.sources:
-            try:
-                from kryon.knowledge.scrapers.github_scraper import GitHubScraper
-
-                scraper = GitHubScraper()
-                items = scraper.scrape(min_stars=50, max_results=50)
-                for item in items:
-                    add_document(
-                        content=item["content"],
-                        source=item["metadata"].get("source", "github"),
-                        **item["metadata"],
-                    )
-                count += len(items)
-            except Exception as e:
-                errors.append(f"github: {e}")
+                errors.append(f"{source}: {e}")
 
         _scrape_tasks[task_id]["status"] = "completed"
         _scrape_tasks[task_id]["documents_added"] = count

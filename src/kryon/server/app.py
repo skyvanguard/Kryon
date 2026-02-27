@@ -49,7 +49,26 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
             await get_engagement_manager().resume_active_engagements()
         except Exception:
             logger.warning("Failed to resume engagements", exc_info=True)
+        # Start knowledge auto-updater if enabled
+        if config.auto_update_enabled:
+            try:
+                from kryon.knowledge.auto_updater import get_auto_updater
+                updater = get_auto_updater()
+                schedule_type = "daily" if config.auto_update_interval_hours >= 24 else "hourly"
+                updater.start(
+                    schedule_type=schedule_type,
+                    sources=config.auto_update_sources or None,
+                )
+            except Exception:
+                logger.warning("Failed to start knowledge auto-updater", exc_info=True)
         yield
+        # Shutdown — stop auto-updater
+        if config.auto_update_enabled:
+            try:
+                from kryon.knowledge.auto_updater import get_auto_updater
+                get_auto_updater().stop()
+            except Exception:
+                logger.warning("Error stopping auto-updater", exc_info=True)
         # Shutdown — cancel active engagement tasks
         try:
             from kryon.server.deps import get_engagement_manager

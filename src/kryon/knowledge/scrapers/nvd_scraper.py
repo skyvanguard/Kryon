@@ -36,7 +36,8 @@ class NVDScraper(BaseScraper):
         days_back: int = 30,
         keywords: Optional[list[str]] = None,
         severity_min: str = "MEDIUM",
-        max_results: int = 200,
+        max_results: int = 500,
+        cvss_min: float = 0.0,
     ) -> list[dict[str, Any]]:
         """
         Scrape CVEs from NVD.
@@ -46,6 +47,7 @@ class NVDScraper(BaseScraper):
             keywords: Optional keyword filter
             severity_min: Minimum severity (LOW, MEDIUM, HIGH, CRITICAL)
             max_results: Maximum results
+            cvss_min: Minimum CVSS score (0.0-10.0)
 
         Returns:
             List of CVE knowledge items
@@ -82,6 +84,11 @@ class NVDScraper(BaseScraper):
                     # Filter by severity
                     severity = self._get_severity(cve_item)
                     if not self._meets_severity_threshold(severity, severity_min):
+                        continue
+
+                    # Filter by CVSS score
+                    score = self._get_cvss_score(cve_item)
+                    if cvss_min > 0 and score < cvss_min:
                         continue
 
                     content = self._format_cve(cve_item)
@@ -150,31 +157,60 @@ class NVDScraper(BaseScraper):
         return sev_level >= threshold_level
 
     def _format_cve(self, cve_item: dict) -> str:
-        """Format CVE as knowledge text."""
+        """Format CVE as structured markdown knowledge text."""
         cve_id = cve_item.get("id", "Unknown")
         description = self._get_description(cve_item)
         severity = self._get_severity(cve_item)
         cvss_score = self._get_cvss_score(cve_item)
         published = cve_item.get("published", "Unknown")
 
-        # Get references
+        # Get references with tags
         references = cve_item.get("references", [])
-        ref_text = "\n".join([f"- {ref.get('url', '')}" for ref in references[:5]])
+        ref_lines = []
+        for ref in references[:8]:
+            url = ref.get("url", "")
+            tags = ", ".join(ref.get("tags", []))
+            tag_suffix = f" ({tags})" if tags else ""
+            ref_lines.append(f"- {url}{tag_suffix}")
+        ref_text = "\n".join(ref_lines)
 
-        formatted = f"""**CVE: {cve_id}**
+        # Get weaknesses (CWE)
+        weaknesses = cve_item.get("weaknesses", [])
+        cwe_ids = []
+        for w in weaknesses:
+            for desc in w.get("description", []):
+                val = desc.get("value", "")
+                if val.startswith("CWE-"):
+                    cwe_ids.append(val)
+        cwe_text = ", ".join(cwe_ids) if cwe_ids else "Not specified"
 
-**Severity:** {severity} (CVSS: {cvss_score})
+        # Get CVSS vector string
+        vector = self._get_cvss_vector(cve_item)
+        vector_text = f"\n**CVSS Vector:** {vector}" if vector else ""
+
+        formatted = f"""## {cve_id}
+
+**Severity:** {severity} (CVSS: {cvss_score}){vector_text}
 **Published:** {published}
-**Source:** NVD (NIST)
+**Weakness:** {cwe_text}
 
-**Description:**
+### Description
 {description}
 
-**References:**
+### References
 {ref_text if ref_text else "No references available"}
 """
 
         return formatted
+
+    def _get_cvss_vector(self, cve_item: dict) -> str:
+        """Extract CVSS vector string."""
+        metrics = cve_item.get("metrics", {})
+        for key in ("cvssMetricV31", "cvssMetricV30"):
+            entries = metrics.get(key, [])
+            if entries:
+                return entries[0].get("cvssData", {}).get("vectorString", "")
+        return ""
 
     def _extract_metadata(self, cve_item: dict) -> dict[str, Any]:
         """Extract metadata from CVE."""

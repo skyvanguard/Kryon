@@ -38,13 +38,18 @@ class GitHubScraper(BaseScraper):
         return self.source_name
 
     def scrape(
-        self, keywords: Optional[list[str]] = None, min_stars: int = 10, max_results: int = 100
+        self,
+        keywords: Optional[list[str]] = None,
+        topics: Optional[list[str]] = None,
+        min_stars: int = 10,
+        max_results: int = 100,
     ) -> list[dict[str, Any]]:
         """
         Scrape GitHub for security repositories.
 
         Args:
             keywords: Search keywords (e.g., ["CVE", "exploit", "poc"])
+            topics: GitHub topics to search (e.g., ["cybersecurity", "pentest"])
             min_stars: Minimum stars for repository
             max_results: Maximum results
 
@@ -58,13 +63,26 @@ class GitHubScraper(BaseScraper):
 
         all_repos = []
 
-        for keyword in keywords[:10]:  # Limit keywords to avoid rate limit
+        # Search by keywords
+        per_keyword = max(max_results // (len(keywords) + len(topics or [])), 5)
+        for keyword in keywords[:10]:
             try:
-                repos = self._search_repositories(keyword, min_stars, max_results // len(keywords))
+                repos = self._search_repositories(keyword, min_stars, per_keyword)
                 all_repos.extend(repos)
-                self.rate_limit(2)  # GitHub rate limiting (1 request per 2 seconds for non-authenticated)
+                self.rate_limit(2)
             except Exception as e:
                 self.log_error(f"Error scraping keyword '{keyword}': {str(e)}")
+
+        # Search by topics
+        if topics is None:
+            topics = ["cybersecurity", "pentesting", "vulnerability", "security-tools"]
+        for topic in topics[:5]:
+            try:
+                repos = self._search_repositories(f"topic:{topic}", min_stars, per_keyword)
+                all_repos.extend(repos)
+                self.rate_limit(2)
+            except Exception as e:
+                self.log_error(f"Error scraping topic '{topic}': {str(e)}")
 
         # Deduplicate
         unique_repos = self.deduplicate(all_repos)
@@ -153,9 +171,7 @@ class GitHubScraper(BaseScraper):
 **URL:** {url}
 
 **README Preview:**
-{readme[:1000] if readme else "README not available"}
-
-**Use Case:** Security tool, exploit, or PoC available in this repository.
+{readme[:2000] if readme else "README not available"}
 """
 
         return formatted
