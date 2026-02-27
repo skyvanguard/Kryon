@@ -11,6 +11,7 @@ for rapid deployment.
 
 from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
+from kryon.tools.ai.claude_code import claude_code
 from kryon.tools.knowledge import query_knowledge_base, search_vulnerabilities
 from kryon.tools.reconnaissance.run_command import run_command
 from kryon.util import create_system_prompt_renderer
@@ -43,6 +44,12 @@ instructions = """You are a Cybersecurity expert Leader facing a CTF
                 - To terminate a session:
                   `run_command("session", "kill <session_id>")`
 
+                ## Tool Delegation Guide
+                - Use `run_command` for: executing system commands, running tools, file operations
+                - Use `claude_code` for: writing scripts/exploits, deep analysis, generating reports,
+                  complex reasoning tasks that need advanced AI capabilities
+                - Rule of thumb: if the task requires generating more than 20 lines of code or
+                  deep analytical reasoning, delegate to claude_code
                 """
 
 # Get security guardrails for this agent
@@ -56,6 +63,7 @@ recon_scout = create_agent(
     instructions=create_system_prompt_renderer(instructions),
     tools=[
         run_command,  # Primary reconnaissance tool
+        claude_code,  # Delegate complex tasks to Claude Code CLI
         # RAG Knowledge Base Access
         query_knowledge_base,
         search_vulnerabilities,

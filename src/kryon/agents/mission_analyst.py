@@ -14,6 +14,7 @@ SPECIALIZATION: Case Studies, Scenario Planning, Documentation
 """
 
 from kryon.agents.base import create_agent
+from kryon.tools.ai.claude_code import claude_code
 from kryon.tools.reconnaissance.run_command import null_tool
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
@@ -22,7 +23,11 @@ mission_analyst_system_prompt = load_prompt_template("prompts/system_use_cases.m
 
 # Mission Analyst operates primarily through analysis and documentation
 # No active reconnaissance tools required for documentation mission
-analytical_systems = [null_tool]
+analytical_systems = [
+    null_tool,
+    # AI Delegation — complex tasks to Claude Code CLI
+    claude_code,
+]
 
 # Initialize Mission Analyst Unit
 mission_analyst = create_agent(

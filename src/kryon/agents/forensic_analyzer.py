@@ -56,6 +56,7 @@ methodologies. All operations are logged and documented for legal compliance.
 import os
 
 from kryon.agents.base import create_agent
+from kryon.tools.ai.claude_code import claude_code
 from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
 )
@@ -123,6 +124,8 @@ investigation_systems = [
     chainsaw_hunt,  # Hunt for threats in Windows event logs with Sigma rules
     chainsaw_search,  # Search for specific Event IDs and patterns
     evtx_dump,  # Parse and convert Windows EVTX logs for analysis
+    # AI Delegation — complex tasks to Claude Code CLI
+    claude_code,
 ]
 
 # Enhanced intelligence gathering if Perplexity API available

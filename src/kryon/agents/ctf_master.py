@@ -30,6 +30,7 @@ Environment Variables (Optional):
 import os
 
 from kryon.agents.base import create_agent
+from kryon.tools.ai.claude_code import claude_code
 
 # === AUTONOMY v3.1 FRAMEWORK INTEGRATION (Enhanced Evasion) ===
 from kryon.tools.autonomous import (
@@ -147,6 +148,8 @@ ctf_arsenal = [
     volatility_process_list,
     volatility_find_malware,
     autopsy_analyze,
+    # AI Delegation — complex tasks to Claude Code CLI
+    claude_code,
 ]
 
 # Enhanced intelligence gathering if Perplexity API available

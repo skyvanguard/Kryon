@@ -13,7 +13,7 @@ import os
 
 from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
-from kryon.sdk.agents import OpenAIChatCompletionsModel
+from kryon.tools.ai.claude_code import claude_code
 
 # Phase 22: RAG Knowledge Base Integration
 from kryon.tools.knowledge import (
@@ -60,6 +60,8 @@ tools_list = [
     get_exploit_techniques,  # Get exploitation techniques for attack types
     get_security_tools,  # Find security tools from GitHub knowledge
     get_knowledge_stats,  # Get knowledge base statistics
+    # AI Delegation — complex tasks to Claude Code CLI
+    claude_code,
 ]
 
 # Add enhanced search if credentials available

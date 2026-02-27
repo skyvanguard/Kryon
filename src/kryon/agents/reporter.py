@@ -14,6 +14,7 @@ SPECIALIZATION: HTML Reports, Executive Summaries, Technical Documentation
 """
 
 from kryon.agents.base import create_agent
+from kryon.tools.ai.claude_code import claude_code
 from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
@@ -29,6 +30,8 @@ intel_reporter_system_prompt = load_prompt_template("prompts/system_reporting_ag
 documentation_systems = [
     run_command,
     execute_code,
+    # AI Delegation — complex tasks to Claude Code CLI
+    claude_code,
 ]
 
 # Initialize Intel Reporter Unit

@@ -15,6 +15,7 @@ or have explicit written authorization to analyze.
 import os
 
 from kryon.agents.base import create_agent
+from kryon.tools.ai.claude_code import claude_code
 from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
 )
@@ -42,6 +43,8 @@ tools_list = [
     query_knowledge_base,
     search_vulnerabilities,
     get_exploit_techniques,
+    # AI Delegation — complex tasks to Claude Code CLI
+    claude_code,
 ]
 
 # Enhanced intelligence gathering if Perplexity API available

@@ -13,8 +13,11 @@ from mako.template import Template  # pylint: disable=import-error
 
 
 def get_ollama_api_base():
-    """Get the Ollama API base URL from environment variable or default to localhost:8000."""
-    return os.environ.get("OLLAMA_API_BASE", "http://localhost:8000/v1")
+    """Get the Ollama API base URL from environment or default to Ollama's standard port."""
+    return os.environ.get(
+        "OLLAMA_API_BASE",
+        os.environ.get("OPENAI_BASE_URL", "http://localhost:11434/v1"),
+    )
 
 
 def load_prompt_template(template_path):
