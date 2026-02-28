@@ -29,3 +29,110 @@ AI_TOOLS = [claude_code]
 
 # Base toolset — standard for every agent (7 tools)
 BASE_TOOLS = CORE_TOOLS + RAG_TOOLS + AI_TOOLS
+
+# --- Domain-specific toolsets ---
+
+# AppSec pipeline tools (SAST/DAST/SCA/API/Supply Chain)
+from kryon.tools.appsec import (  # noqa: E402
+    api_security_scan,
+    check_typosquatting,
+    dependency_tree,
+    detect_dependency_confusion,
+    generate_sbom,
+    owasp_api_top10_check,
+    scan_sbom_vulns,
+    semgrep_scan,
+    semgrep_scan_with_rules,
+    zap_api_scan,
+    zap_baseline_scan,
+    zap_full_scan,
+)
+
+APPSEC_TOOLS = [
+    semgrep_scan,
+    semgrep_scan_with_rules,
+    zap_baseline_scan,
+    zap_full_scan,
+    zap_api_scan,
+    generate_sbom,
+    scan_sbom_vulns,
+    dependency_tree,
+    api_security_scan,
+    owasp_api_top10_check,
+    detect_dependency_confusion,
+    check_typosquatting,
+]
+
+# Offensive validation tools (BAS/Purple Team/Detection as Code)
+from kryon.tools.validation import (  # noqa: E402
+    calculate_mitre_coverage,
+    check_siem_alert,
+    generate_coverage_report,
+    generate_sigma_rule,
+    generate_suricata_rule,
+    generate_yara_rule,
+    list_attack_techniques,
+    simulate_attack,
+    validate_detection,
+)
+
+VALIDATION_TOOLS = [
+    simulate_attack,
+    list_attack_techniques,
+    validate_detection,
+    check_siem_alert,
+    generate_sigma_rule,
+    generate_yara_rule,
+    generate_suricata_rule,
+    calculate_mitre_coverage,
+    generate_coverage_report,
+]
+
+# Credential and password tools
+from kryon.tools.credentials import (  # noqa: E402
+    generate_targeted_wordlist,
+    identify_hash_type,
+    search_credential_dataset,
+)
+
+CREDENTIAL_TOOLS = [
+    search_credential_dataset,
+    generate_targeted_wordlist,
+    identify_hash_type,
+]
+
+# LLM security testing tools
+from kryon.tools.llm_security import (  # noqa: E402
+    garak_list_probes,
+    garak_scan,
+    generate_injection_payloads,
+    test_data_extraction,
+    test_prompt_injection,
+)
+
+LLM_SECURITY_TOOLS = [
+    garak_scan,
+    garak_list_probes,
+    test_prompt_injection,
+    generate_injection_payloads,
+    test_data_extraction,
+]
+
+# Discovery / ASM tools
+from kryon.tools.discovery import (  # noqa: E402
+    aggregate_cloud_posture,
+    asm_diff,
+    asm_discovery_scan,
+    asset_timeline,
+    register_asset,
+    search_assets,
+)
+
+DISCOVERY_TOOLS = [
+    asm_discovery_scan,
+    asm_diff,
+    register_asset,
+    search_assets,
+    asset_timeline,
+    aggregate_cloud_posture,
+]

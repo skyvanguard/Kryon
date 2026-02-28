@@ -93,6 +93,52 @@ MIGRATIONS: dict[int, list[str]] = {
         )""",
         "CREATE INDEX IF NOT EXISTS idx_tenant_quotas_tenant ON tenant_quotas(tenant_id)",
     ],
+    8: [
+        """CREATE TABLE IF NOT EXISTS assets (
+            id TEXT PRIMARY KEY,
+            client_id TEXT DEFAULT '',
+            asset_type TEXT NOT NULL,
+            identifier TEXT NOT NULL,
+            status TEXT DEFAULT 'active',
+            metadata_json TEXT DEFAULT '{}',
+            first_seen TEXT NOT NULL,
+            last_seen TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_assets_client ON assets(client_id)",
+        "CREATE INDEX IF NOT EXISTS idx_assets_type ON assets(asset_type)",
+        "CREATE INDEX IF NOT EXISTS idx_assets_identifier ON assets(identifier)",
+        """CREATE TABLE IF NOT EXISTS asset_changes (
+            id TEXT PRIMARY KEY,
+            asset_id TEXT NOT NULL,
+            change_type TEXT NOT NULL,
+            old_value TEXT DEFAULT '',
+            new_value TEXT DEFAULT '',
+            detected_at TEXT NOT NULL,
+            scan_id TEXT DEFAULT '',
+            FOREIGN KEY (asset_id) REFERENCES assets(id)
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_asset_changes_asset ON asset_changes(asset_id)",
+    ],
+    9: [
+        """CREATE TABLE IF NOT EXISTS iocs (
+            id TEXT PRIMARY KEY,
+            ioc_type TEXT NOT NULL,
+            ioc_value TEXT NOT NULL,
+            source TEXT DEFAULT '',
+            threat_score REAL DEFAULT 0.5,
+            tags TEXT DEFAULT '',
+            first_seen TEXT NOT NULL,
+            last_seen TEXT,
+            ttl_days INTEGER DEFAULT 90,
+            enrichment_json TEXT DEFAULT '{}',
+            UNIQUE(ioc_type, ioc_value)
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_iocs_type ON iocs(ioc_type)",
+        "CREATE INDEX IF NOT EXISTS idx_iocs_value ON iocs(ioc_value)",
+        "CREATE INDEX IF NOT EXISTS idx_iocs_score ON iocs(threat_score)",
+    ],
 }
 
 

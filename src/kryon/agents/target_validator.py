@@ -18,6 +18,7 @@ import os
 from openai import AsyncOpenAI
 
 from kryon.agents.recon_scout import recon_scout
+from kryon.agents.toolsets import RAG_TOOLS, AI_TOOLS
 from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel, handoff
 
 model = os.getenv("KRYON_MODEL", "gpt-4o")
@@ -63,6 +64,7 @@ REMEMBER: Precision is critical. Extract ONLY the flag, nothing else.
         model="gpt-4o" if os.getenv("KRYON_MODEL", "gpt-4o") == "o3-mini" else model,
         openai_client=AsyncOpenAI(api_key=api_key),
     ),
+    tools=RAG_TOOLS + AI_TOOLS,
     handoffs=[
         handoff(
             agent=recon_scout,

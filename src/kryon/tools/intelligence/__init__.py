@@ -13,7 +13,6 @@ Components:
 - Correlation Engine: Vulnerability correlation and chaining
 """
 
-from .context_analyzer import analyze_context, assess_security, classify_target, detect_technology
 from .decision_engine import analyze_target, create_strategy, optimize_workflow, recommend_tools
 from .vulnerability_correlator import (
     correlate_vulnerabilities,
@@ -28,11 +27,6 @@ __all__ = [
     "recommend_tools",
     "create_strategy",
     "optimize_workflow",
-    # Context Analyzer
-    "analyze_context",
-    "classify_target",
-    "detect_technology",
-    "assess_security",
     # Vulnerability Correlator
     "correlate_vulnerabilities",
     "find_attack_chains",

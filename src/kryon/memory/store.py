@@ -999,6 +999,116 @@ class MemoryStore:
         return cur.rowcount > 0
 
     # -----------------------------------------------------------------------
+    # Assets (v8)
+    # -----------------------------------------------------------------------
+    def upsert_asset(self, asset_id: str, asset_type: str, identifier: str, client_id: str = "", metadata_json: str = "{}", now: str = "") -> str:
+        conn = self._get_conn()
+        existing = conn.execute("SELECT id FROM assets WHERE asset_type = ? AND identifier = ?", (asset_type, identifier)).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE assets SET last_seen = ?, metadata_json = ?, updated_at = ? WHERE id = ?",
+                (now, metadata_json, now, existing["id"]),
+            )
+            conn.commit()
+            return existing["id"]
+        conn.execute(
+            "INSERT INTO assets (id, client_id, asset_type, identifier, status, metadata_json, first_seen, last_seen, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (asset_id, client_id, asset_type, identifier, "active", metadata_json, now, now, now),
+        )
+        conn.commit()
+        return asset_id
+
+    def list_assets(self, query: str = "", asset_type: str = "", client_id: str = "", status: str = "", offset: int = 0, limit: int = 50) -> list[dict]:
+        conn = self._get_conn()
+        sql = "SELECT * FROM assets WHERE 1=1"
+        params: list = []
+        if query:
+            sql += " AND identifier LIKE ?"
+            params.append(f"%{query}%")
+        if asset_type:
+            sql += " AND asset_type = ?"
+            params.append(asset_type)
+        if client_id:
+            sql += " AND client_id = ?"
+            params.append(client_id)
+        if status:
+            sql += " AND status = ?"
+            params.append(status)
+        sql += " ORDER BY last_seen DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        rows = conn.execute(sql, params).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_asset(self, asset_id: str) -> dict | None:
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM assets WHERE id = ?", (asset_id,)).fetchone()
+        return dict(row) if row else None
+
+    def record_asset_change(self, change_id: str, asset_id: str, change_type: str, old_value: str, new_value: str, detected_at: str, scan_id: str = "") -> None:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO asset_changes (id, asset_id, change_type, old_value, new_value, detected_at, scan_id) VALUES (?,?,?,?,?,?,?)",
+            (change_id, asset_id, change_type, old_value, new_value, detected_at, scan_id),
+        )
+        conn.commit()
+
+    def get_asset_timeline(self, asset_id: str) -> list[dict]:
+        conn = self._get_conn()
+        rows = conn.execute("SELECT * FROM asset_changes WHERE asset_id = ? ORDER BY detected_at DESC", (asset_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    # -----------------------------------------------------------------------
+    # IOCs (v9)
+    # -----------------------------------------------------------------------
+    def store_ioc(self, ioc_id: str, ioc_type: str, ioc_value: str, source: str = "", threat_score: float = 0.5, tags: str = "", ttl_days: int = 90, now: str = "") -> str:
+        conn = self._get_conn()
+        existing = conn.execute("SELECT id FROM iocs WHERE ioc_type = ? AND ioc_value = ?", (ioc_type, ioc_value)).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE iocs SET last_seen = ?, threat_score = ?, tags = ? WHERE id = ?",
+                (now, threat_score, tags, existing["id"]),
+            )
+            conn.commit()
+            return existing["id"]
+        conn.execute(
+            "INSERT INTO iocs (id, ioc_type, ioc_value, source, threat_score, tags, first_seen, last_seen, ttl_days) VALUES (?,?,?,?,?,?,?,?,?)",
+            (ioc_id, ioc_type, ioc_value, source, threat_score, tags, now, now, ttl_days),
+        )
+        conn.commit()
+        return ioc_id
+
+    def search_iocs(self, query: str = "", ioc_type: str = "", min_score: float = 0.0, max_age_days: int = 0) -> list[dict]:
+        conn = self._get_conn()
+        sql = "SELECT * FROM iocs WHERE 1=1"
+        params: list = []
+        if query:
+            sql += " AND ioc_value LIKE ?"
+            params.append(f"%{query}%")
+        if ioc_type:
+            sql += " AND ioc_type = ?"
+            params.append(ioc_type)
+        if min_score > 0:
+            sql += " AND threat_score >= ?"
+            params.append(min_score)
+        if max_age_days > 0:
+            sql += " AND first_seen >= datetime('now', ?)"
+            params.append(f"-{max_age_days} days")
+        sql += " ORDER BY threat_score DESC LIMIT 100"
+        rows = conn.execute(sql, params).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_ioc(self, ioc_id: str) -> dict | None:
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM iocs WHERE id = ?", (ioc_id,)).fetchone()
+        return dict(row) if row else None
+
+    def update_ioc_enrichment(self, ioc_id: str, enrichment_json: str) -> bool:
+        conn = self._get_conn()
+        cur = conn.execute("UPDATE iocs SET enrichment_json = ? WHERE id = ?", (enrichment_json, ioc_id))
+        conn.commit()
+        return cur.rowcount > 0
+
+    # -----------------------------------------------------------------------
     # Internal
     # -----------------------------------------------------------------------
     def _row_to_finding(self, row: sqlite3.Row) -> FindingRecord:

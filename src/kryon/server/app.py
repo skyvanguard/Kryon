@@ -16,7 +16,7 @@ from kryon.server.middleware.error_handler import global_exception_handler
 from kryon.server.middleware.rate_limit import RateLimitMiddleware
 from kryon.server.middleware.request_id import RequestIdMiddleware
 from kryon.server.middleware.security_headers import SecurityHeadersMiddleware
-from kryon.server.routes import agents, clients, engagements, evaluations, findings, health, integrations, knowledge, reports, runs, scans, scope, tenants, usage
+from kryon.server.routes import agents, appsec, assets, clients, compliance, engagements, evaluations, findings, health, integrations, knowledge, reports, runs, scans, scope, tenants, usage, validation
 from kryon.server.routes import admin as admin_routes
 from kryon.server.routes import audit as audit_routes
 from kryon.server.routes import auth_routes
@@ -104,6 +104,10 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
             {"name": "usage", "description": "API usage statistics and cost tracking"},
             {"name": "audit", "description": "Audit log access (admin)"},
             {"name": "admin", "description": "System administration (admin)"},
+            {"name": "appsec", "description": "Application security scanning (SAST/DAST/SCA)"},
+            {"name": "validation", "description": "Offensive validation and BAS"},
+            {"name": "compliance", "description": "Compliance framework assessment"},
+            {"name": "assets", "description": "Asset inventory management"},
         ],
     )
 
@@ -155,6 +159,10 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
     app.include_router(tenants.router, prefix="/api/v1")
     app.include_router(audit_routes.router, prefix="/api/v1")
     app.include_router(admin_routes.router, prefix="/api/v1")
+    app.include_router(appsec.router, prefix="/api/v1")
+    app.include_router(validation.router, prefix="/api/v1")
+    app.include_router(compliance.router, prefix="/api/v1")
+    app.include_router(assets.router, prefix="/api/v1")
 
     # Serve dashboard static files if the build directory exists
     dashboard_build = Path(__file__).resolve().parent.parent.parent.parent / "dashboard" / "build"

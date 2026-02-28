@@ -31,7 +31,7 @@ def test_no_agent_exceeds_tool_limit():
 def test_ctf_master_reduced():
     """CTF Master should have 15 or fewer tools (was 37)."""
     agents = get_available_agents(include_patterns=False)
-    ctf = agents.get("CTF Master")
+    ctf = agents.get("ctf_master")
     assert ctf is not None, "CTF Master agent not found"
     assert len(ctf.tools) <= 15, f"CTF Master has {len(ctf.tools)} tools, expected <= 15"
 
@@ -39,7 +39,7 @@ def test_ctf_master_reduced():
 def test_vuln_hunter_reduced():
     """Vuln Hunter should have 15 or fewer tools (was 17)."""
     agents = get_available_agents(include_patterns=False)
-    vh = agents.get("Vuln Hunter")
+    vh = agents.get("vuln_hunter")
     assert vh is not None, "Vuln Hunter agent not found"
     assert len(vh.tools) <= 15, f"Vuln Hunter has {len(vh.tools)} tools, expected <= 15"
 

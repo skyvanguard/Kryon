@@ -246,3 +246,49 @@ class ScrapeResponse(BaseModel):
     task_id: str
     status: str
     message: str
+
+
+# --- AppSec ---
+
+
+class SASTScanRequest(BaseModel):
+    target_path: str = Field(..., max_length=500, description="Path to source code")
+    config: str = Field("auto", description="Semgrep config (auto, p/security-audit, etc.)")
+    severity: str = Field("ERROR,WARNING", description="Severity filter")
+    language: str = Field("", description="Limit to specific language")
+
+
+class DASTScanRequest(BaseModel):
+    target_url: str = Field(..., max_length=2000, description="Target URL")
+    minutes: int = Field(5, ge=1, le=120, description="Scan duration")
+    ajax_spider: bool = Field(False, description="Enable Ajax spider")
+
+
+class SBOMRequest(BaseModel):
+    target: str = Field(..., max_length=500, description="Target to analyze")
+    format: str = Field("cyclonedx-json", description="SBOM format")
+    source_type: str = Field("dir", description="Source type (dir, image)")
+
+
+# --- Validation ---
+
+
+class SimulateRequest(BaseModel):
+    technique_id: str = Field(..., max_length=20, description="MITRE ATT&CK technique ID")
+    target: str = Field(..., max_length=500, description="Target host/IP")
+    mode: str = Field("safe", description="Execution mode (safe, full)")
+
+
+class DetectRequest(BaseModel):
+    technique_id: str = Field(..., max_length=20, description="Technique to validate")
+    siem_type: str = Field("elastic", description="SIEM platform")
+    siem_endpoint: str = Field("", max_length=500, description="SIEM API endpoint")
+    time_window_minutes: int = Field(15, ge=1, le=1440)
+
+
+# --- Compliance ---
+
+
+class ComplianceAssessRequest(BaseModel):
+    framework: str = Field(..., description="Framework ID (pci_dss, soc2, nist_csf, etc.)")
+    client_id: str = Field("", description="Client ID to scope findings")

@@ -24,6 +24,7 @@ ratio in operational reporting.
 import os
 
 from kryon.agents.base import create_agent
+from kryon.agents.toolsets import RAG_TOOLS, AI_TOOLS
 from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )
@@ -39,7 +40,7 @@ from kryon.util import create_system_prompt_renderer, load_prompt_template
 validation_core_system_prompt = load_prompt_template("prompts/system_triage_agent.md")
 
 # Verification Systems - Available validation tools
-verification_systems = [run_command, execute_code]
+verification_systems = [run_command, execute_code] + RAG_TOOLS + AI_TOOLS
 
 # Enhanced verification if Google Search available for CVE/exploit research
 if os.getenv("GOOGLE_SEARCH_API_KEY") and os.getenv("GOOGLE_SEARCH_CX"):

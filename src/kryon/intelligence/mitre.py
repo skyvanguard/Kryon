@@ -346,6 +346,175 @@ _TOOL_TECHNIQUE_MAP: dict[str, list[dict]] = {
             "confidence": 0.75,
         }
     ],
+    # AppSec tools
+    "semgrep": [
+        {
+            "tactic": "Initial Access",
+            "tactic_id": "TA0001",
+            "technique": "Exploit Public-Facing Application",
+            "technique_id": "T1190",
+            "confidence": 0.7,
+        }
+    ],
+    "syft": [
+        {
+            "tactic": "Reconnaissance",
+            "tactic_id": "TA0043",
+            "technique": "Gather Victim Host Information: Software",
+            "technique_id": "T1592.002",
+            "confidence": 0.7,
+        }
+    ],
+    "grype": [
+        {
+            "tactic": "Initial Access",
+            "tactic_id": "TA0001",
+            "technique": "Exploit Public-Facing Application",
+            "technique_id": "T1190",
+            "confidence": 0.75,
+        }
+    ],
+    # Credential tools
+    "fofa": [
+        {
+            "tactic": "Reconnaissance",
+            "tactic_id": "TA0043",
+            "technique": "Search Open Technical Databases",
+            "technique_id": "T1596",
+            "confidence": 0.85,
+        }
+    ],
+    "credential_spray": [
+        {
+            "tactic": "Credential Access",
+            "tactic_id": "TA0006",
+            "technique": "Brute Force: Password Spraying",
+            "technique_id": "T1110.003",
+            "confidence": 0.9,
+        }
+    ],
+    "honeypot": [
+        {
+            "tactic": "Discovery",
+            "tactic_id": "TA0007",
+            "technique": "Network Service Discovery",
+            "technique_id": "T1046",
+            "confidence": 0.6,
+        }
+    ],
+    # LLM Security
+    "garak": [
+        {
+            "tactic": "Initial Access",
+            "tactic_id": "TA0001",
+            "technique": "Exploit Public-Facing Application",
+            "technique_id": "T1190",
+            "confidence": 0.7,
+        }
+    ],
+    # Cloud tools
+    "prowler": [
+        {
+            "tactic": "Discovery",
+            "tactic_id": "TA0007",
+            "technique": "Cloud Infrastructure Discovery",
+            "technique_id": "T1580",
+            "confidence": 0.85,
+        }
+    ],
+    "scoutsuite": [
+        {
+            "tactic": "Discovery",
+            "tactic_id": "TA0007",
+            "technique": "Cloud Infrastructure Discovery",
+            "technique_id": "T1580",
+            "confidence": 0.85,
+        }
+    ],
+    "pacu": [
+        {
+            "tactic": "Privilege Escalation",
+            "tactic_id": "TA0004",
+            "technique": "Valid Accounts: Cloud Accounts",
+            "technique_id": "T1078.004",
+            "confidence": 0.85,
+        }
+    ],
+    # Network tools
+    "wireshark": [
+        {
+            "tactic": "Credential Access",
+            "tactic_id": "TA0006",
+            "technique": "Network Sniffing",
+            "technique_id": "T1040",
+            "confidence": 0.85,
+        }
+    ],
+    "tcpdump": [
+        {
+            "tactic": "Credential Access",
+            "tactic_id": "TA0006",
+            "technique": "Network Sniffing",
+            "technique_id": "T1040",
+            "confidence": 0.8,
+        }
+    ],
+    "chisel": [
+        {
+            "tactic": "Command and Control",
+            "tactic_id": "TA0011",
+            "technique": "Protocol Tunneling",
+            "technique_id": "T1572",
+            "confidence": 0.85,
+        }
+    ],
+    "socat": [
+        {
+            "tactic": "Command and Control",
+            "tactic_id": "TA0011",
+            "technique": "Protocol Tunneling",
+            "technique_id": "T1572",
+            "confidence": 0.75,
+        }
+    ],
+    "ligolo": [
+        {
+            "tactic": "Command and Control",
+            "tactic_id": "TA0011",
+            "technique": "Protocol Tunneling",
+            "technique_id": "T1572",
+            "confidence": 0.85,
+        }
+    ],
+    # Persistence tools
+    "crontab": [
+        {
+            "tactic": "Persistence",
+            "tactic_id": "TA0003",
+            "technique": "Scheduled Task/Job: Cron",
+            "technique_id": "T1053.003",
+            "confidence": 0.8,
+        }
+    ],
+    # Additional recon
+    "censys": [
+        {
+            "tactic": "Reconnaissance",
+            "tactic_id": "TA0043",
+            "technique": "Search Open Technical Databases",
+            "technique_id": "T1596",
+            "confidence": 0.85,
+        }
+    ],
+    "spiderfoot": [
+        {
+            "tactic": "Reconnaissance",
+            "tactic_id": "TA0043",
+            "technique": "Gather Victim Identity Information",
+            "technique_id": "T1589",
+            "confidence": 0.8,
+        }
+    ],
     # Wireless
     "aircrack": [
         {
@@ -634,6 +803,177 @@ _FINDING_KEYWORD_MAP: list[tuple[re.Pattern, dict]] = [
             "tactic_id": "TA0040",
             "technique": "Network Denial of Service",
             "technique_id": "T1498",
+            "confidence": 0.8,
+        },
+    ),
+    # Additional patterns for expanded coverage
+    (
+        re.compile(r"supply.chain|dependency.confusion|typosquat", re.I),
+        {
+            "tactic": "Initial Access",
+            "tactic_id": "TA0001",
+            "technique": "Supply Chain Compromise: Software Dependencies",
+            "technique_id": "T1195.001",
+            "confidence": 0.85,
+        },
+    ),
+    (
+        re.compile(r"container.escape|docker.breakout|k8s.exploit", re.I),
+        {
+            "tactic": "Privilege Escalation",
+            "tactic_id": "TA0004",
+            "technique": "Escape to Host",
+            "technique_id": "T1611",
+            "confidence": 0.9,
+        },
+    ),
+    (
+        re.compile(r"cloud.metadata|169\.254\.169\.254|imds", re.I),
+        {
+            "tactic": "Credential Access",
+            "tactic_id": "TA0006",
+            "technique": "Unsecured Credentials: Cloud Instance Metadata API",
+            "technique_id": "T1552.005",
+            "confidence": 0.9,
+        },
+    ),
+    (
+        re.compile(r"api.key.expos|token.leak|secret.expos|hardcoded.secret", re.I),
+        {
+            "tactic": "Credential Access",
+            "tactic_id": "TA0006",
+            "technique": "Unsecured Credentials",
+            "technique_id": "T1552",
+            "confidence": 0.85,
+        },
+    ),
+    (
+        re.compile(r"jwt.attack|token.forgery|jwt.none|jwt.weak", re.I),
+        {
+            "tactic": "Credential Access",
+            "tactic_id": "TA0006",
+            "technique": "Forge Web Credentials",
+            "technique_id": "T1606",
+            "confidence": 0.85,
+        },
+    ),
+    (
+        re.compile(r"prompt.inject|jailbreak|llm.attack|ai.safety", re.I),
+        {
+            "tactic": "Execution",
+            "tactic_id": "TA0002",
+            "technique": "Command and Scripting Interpreter",
+            "technique_id": "T1059",
+            "confidence": 0.7,
+        },
+    ),
+    (
+        re.compile(r"kerberoast|as.rep.roast|golden.ticket|silver.ticket", re.I),
+        {
+            "tactic": "Credential Access",
+            "tactic_id": "TA0006",
+            "technique": "Steal or Forge Kerberos Tickets",
+            "technique_id": "T1558",
+            "confidence": 0.9,
+        },
+    ),
+    (
+        re.compile(r"tunnel|proxy|pivot|port.forward|socks", re.I),
+        {
+            "tactic": "Command and Control",
+            "tactic_id": "TA0011",
+            "technique": "Protocol Tunneling",
+            "technique_id": "T1572",
+            "confidence": 0.75,
+        },
+    ),
+    (
+        re.compile(r"persistence|backdoor|webshell|implant|rootkit", re.I),
+        {
+            "tactic": "Persistence",
+            "tactic_id": "TA0003",
+            "technique": "Server Software Component: Web Shell",
+            "technique_id": "T1505.003",
+            "confidence": 0.85,
+        },
+    ),
+    (
+        re.compile(r"cloud.misconfigur|s3.public|storage.open|bucket.public", re.I),
+        {
+            "tactic": "Collection",
+            "tactic_id": "TA0009",
+            "technique": "Data from Cloud Storage",
+            "technique_id": "T1530",
+            "confidence": 0.85,
+        },
+    ),
+    (
+        re.compile(r"sbom|software.composition|vulnerable.depend|outdated.lib", re.I),
+        {
+            "tactic": "Initial Access",
+            "tactic_id": "TA0001",
+            "technique": "Supply Chain Compromise",
+            "technique_id": "T1195",
+            "confidence": 0.7,
+        },
+    ),
+    (
+        re.compile(r"cred.dump|sam.database|lsass|ntds\.dit", re.I),
+        {
+            "tactic": "Credential Access",
+            "tactic_id": "TA0006",
+            "technique": "OS Credential Dumping",
+            "technique_id": "T1003",
+            "confidence": 0.9,
+        },
+    ),
+    (
+        re.compile(r"dcsync|domain.replication|drsuapi", re.I),
+        {
+            "tactic": "Credential Access",
+            "tactic_id": "TA0006",
+            "technique": "OS Credential Dumping: DCSync",
+            "technique_id": "T1003.006",
+            "confidence": 0.95,
+        },
+    ),
+    (
+        re.compile(r"scheduled.task|cron.job|at.command", re.I),
+        {
+            "tactic": "Persistence",
+            "tactic_id": "TA0003",
+            "technique": "Scheduled Task/Job",
+            "technique_id": "T1053",
+            "confidence": 0.8,
+        },
+    ),
+    (
+        re.compile(r"dll.inject|process.inject|code.inject|hollowing", re.I),
+        {
+            "tactic": "Defense Evasion",
+            "tactic_id": "TA0005",
+            "technique": "Process Injection",
+            "technique_id": "T1055",
+            "confidence": 0.9,
+        },
+    ),
+    (
+        re.compile(r"wmi|windows.management.instrument", re.I),
+        {
+            "tactic": "Execution",
+            "tactic_id": "TA0002",
+            "technique": "Windows Management Instrumentation",
+            "technique_id": "T1047",
+            "confidence": 0.8,
+        },
+    ),
+    (
+        re.compile(r"network.sniff|packet.capture|wireshark|tcpdump", re.I),
+        {
+            "tactic": "Credential Access",
+            "tactic_id": "TA0006",
+            "technique": "Network Sniffing",
+            "technique_id": "T1040",
             "confidence": 0.8,
         },
     ),

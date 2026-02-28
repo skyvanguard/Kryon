@@ -33,6 +33,15 @@
 		<a href="/knowledge" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname === '/knowledge'}>
 			Knowledge
 		</a>
+		<a href="/assets" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname.startsWith('/assets')}>
+			Assets
+		</a>
+		<a href="/appsec" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname === '/appsec'}>
+			AppSec
+		</a>
+		<a href="/compliance" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname === '/compliance'}>
+			Compliance
+		</a>
 		<a href="/scope" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname === '/scope'}>
 			Scope
 		</a>
