@@ -410,6 +410,75 @@ class MemoryStore:
         ).fetchall()
         return [self._row_to_finding(r) for r in rows]
 
+    def list_all_findings(
+        self,
+        severity: str | None = None,
+        status: str | None = None,
+        client_id: str | None = None,
+        tool_source: str | None = None,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> list[FindingRecord]:
+        """List findings across all scans/clients with optional filters."""
+        conn = self._get_conn()
+        clauses: list[str] = []
+        params: list[str | int] = []
+        if severity:
+            clauses.append("finding_json LIKE ?")
+            params.append(f'%"severity": "{severity}"%')
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        if client_id:
+            clauses.append("client_id = ?")
+            params.append(client_id)
+        if tool_source:
+            clauses.append("finding_json LIKE ?")
+            params.append(f'%"tool_source": "{tool_source}"%')
+        where = " AND ".join(clauses)
+        sql = "SELECT * FROM findings"
+        if where:
+            sql += f" WHERE {where}"
+        sql += " ORDER BY first_seen DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        rows = conn.execute(sql, params).fetchall()
+        return [self._row_to_finding(r) for r in rows]
+
+    def count_findings(
+        self,
+        severity: str | None = None,
+        status: str | None = None,
+        client_id: str | None = None,
+        tool_source: str | None = None,
+    ) -> int:
+        """Count findings with optional filters."""
+        conn = self._get_conn()
+        clauses: list[str] = []
+        params: list[str] = []
+        if severity:
+            clauses.append("finding_json LIKE ?")
+            params.append(f'%"severity": "{severity}"%')
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        if client_id:
+            clauses.append("client_id = ?")
+            params.append(client_id)
+        if tool_source:
+            clauses.append("finding_json LIKE ?")
+            params.append(f'%"tool_source": "{tool_source}"%')
+        where = " AND ".join(clauses)
+        sql = "SELECT COUNT(*) FROM findings"
+        if where:
+            sql += f" WHERE {where}"
+        return conn.execute(sql, params).fetchone()[0]
+
+    def get_finding_by_id(self, finding_id: str) -> FindingRecord | None:
+        """Get a single finding by ID."""
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM findings WHERE id = ?", (finding_id,)).fetchone()
+        return self._row_to_finding(row) if row else None
+
     # -----------------------------------------------------------------------
     # Agent Experience
     # -----------------------------------------------------------------------
