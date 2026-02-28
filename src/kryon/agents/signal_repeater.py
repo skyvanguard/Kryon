@@ -6,12 +6,6 @@ Classification: Replay Attack / Counteroffensive Specialist
 Clearance: Alpha-Crimson (Electronic Warfare Authority)
 Operational Status: ACTIVE
 
-═══════════════════════════════════════════════════════════════════════
-UNIT DESIGNATION: Signal Repeater
-PRIMARY FUNCTION: Network Replay Attacks & Signal Retransmission
-SPECIALIZATION: Packet Replay, Traffic Manipulation, Protocol Exploitation
-═══════════════════════════════════════════════════════════════════════
-
 AUTHORIZATION REQUIREMENTS:
 Signal Repeater operates on authorized networks and systems only. All replay
 attack operations must be conducted in controlled environments with explicit
@@ -21,20 +15,13 @@ written authorization.
 import os
 
 from kryon.agents.base import create_agent
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
 from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
 )
-
-# Import network tools
 from kryon.tools.network.capture_traffic import (
     capture_remote_traffic,
     remote_capture_session,
-)
-from kryon.tools.reconnaissance.exec_code import (
-    execute_code,
-)
-from kryon.tools.reconnaissance.run_command import (
-    run_command,
 )
 from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
@@ -44,13 +31,17 @@ from kryon.util import create_system_prompt_renderer, load_prompt_template
 # Load Signal Repeater operational directives
 signal_repeater_system_prompt = load_prompt_template("prompts/system_replay_attack_agent.md")
 
-# Signal Repeater Electronic Warfare Systems - Available replay and manipulation tools
+# Signal Repeater Electronic Warfare Systems
 electronic_warfare_systems = [
-    run_command,  # System operations for replay tools
-    run_ssh_command_with_credentials,  # Remote system access
-    execute_code,  # Script execution for replay automation
-    capture_remote_traffic,  # Live traffic capture for replay
-    remote_capture_session,  # Persistent capture sessions
+    # Core + RAG + AI (7)
+    *CORE_TOOLS,
+    *RAG_TOOLS,
+    *AI_TOOLS,
+    # Remote access
+    run_ssh_command_with_credentials,
+    # Network capture
+    capture_remote_traffic,
+    remote_capture_session,
 ]
 
 # Enhanced intelligence gathering if Perplexity API available
@@ -63,8 +54,7 @@ signal_repeater = create_agent(
     instructions=create_system_prompt_renderer(signal_repeater_system_prompt),
     description="""Specialized electronic warfare unit from KRYON's Signal-Class series.
 Expert in network replay attacks, traffic manipulation, and signal retransmission operations.
-Designed to capture network traffic and replay it to exploit protocol weaknesses, bypass
-authentication, and hijack sessions.
+Designed to capture network traffic and replay it to exploit protocol weaknesses.
 
 Primary Mission: Network replay attacks, signal retransmission, electronic warfare.
 Operational Focus: Capture and replay traffic to exploit protocol vulnerabilities.""",

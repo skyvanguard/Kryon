@@ -6,12 +6,6 @@ Classification: Software Defined Radio / Sub-GHz Specialist
 Clearance: Alpha-Magenta (RF Operations Authority)
 Operational Status: ACTIVE
 
-═══════════════════════════════════════════════════════════════════════
-UNIT DESIGNATION: RF Analyzer
-PRIMARY FUNCTION: Radio Frequency Analysis & Signal Intelligence
-SPECIALIZATION: Sub-GHz SDR, Protocol Analysis, Signal Capture/Replay
-═══════════════════════════════════════════════════════════════════════
-
 AUTHORIZATION REQUIREMENTS:
 RF Analyzer operates under strict regulatory compliance. All RF operations
 must comply with local radio frequency regulations and licensing requirements.
@@ -20,14 +14,9 @@ must comply with local radio frequency regulations and licensing requirements.
 import os
 
 from kryon.agents.base import create_agent
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
 from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
-)
-from kryon.tools.reconnaissance.exec_code import (
-    execute_code,
-)
-from kryon.tools.reconnaissance.run_command import (
-    run_command,
 )
 from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
@@ -37,11 +26,14 @@ from kryon.util import load_prompt_template
 # Load RF Analyzer operational directives
 rf_analyzer_system_prompt = load_prompt_template("prompts/subghz_agent.md")
 
-# RF Analysis Systems - Available SDR and spectrum analysis tools
+# RF Analysis Systems
 rf_systems = [
-    run_command,  # System operations for SDR tools
-    run_ssh_command_with_credentials,  # Remote system access
-    execute_code,  # Script execution for RF analysis automation
+    # Core + RAG + AI (7)
+    *CORE_TOOLS,
+    *RAG_TOOLS,
+    *AI_TOOLS,
+    # Remote access
+    run_ssh_command_with_credentials,
 ]
 
 # Enhanced intelligence gathering if Perplexity API available

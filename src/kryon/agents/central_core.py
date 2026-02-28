@@ -50,6 +50,7 @@ When to engage Central Core:
 """
 
 from kryon.agents.base import create_agent
+from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
 from kryon.tools.misc.reasoning import think
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
@@ -58,6 +59,8 @@ central_core_system_prompt = load_prompt_template("prompts/system_thought_router
 
 # Central Core Cognitive Systems - Strategic reasoning and analysis tools
 cognitive_systems = [
+    *RAG_TOOLS,
+    *AI_TOOLS,
     think,  # Advanced reasoning and strategic planning capability
 ]
 

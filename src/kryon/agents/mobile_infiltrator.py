@@ -6,22 +6,6 @@ Classification: Mobile Security / Android SAST Specialist
 Clearance: Alpha-Cyan (Mobile Operations Authority)
 Operational Status: ACTIVE
 
-═══════════════════════════════════════════════════════════════════════
-UNIT DESIGNATION: Mobile Infiltrator
-PRIMARY FUNCTION: Mobile Application Security Testing & Analysis
-SPECIALIZATION: Android SAST, APK Analysis, Mobile Vulnerability Discovery
-═══════════════════════════════════════════════════════════════════════
-
-OPERATIONAL OVERVIEW:
-Mobile Infiltrator represents KRYON's specialized mobile security unit,
-designed to infiltrate and analyze mobile applications for vulnerabilities.
-Specialized in Android application security testing, APK analysis, and
-mobile-specific vulnerability discovery.
-
-SUB-UNIT: Application Logic Mapper
-Mobile Infiltrator includes an embedded sub-unit specialized in mapping
-application logic and understanding operational flows.
-
 AUTHORIZATION REQUIREMENTS:
 Mobile Infiltrator operates on authorized applications only. All mobile security
 testing must be conducted on applications you own or have explicit written
@@ -29,18 +13,19 @@ authorization to test.
 """
 
 from kryon.agents.base import create_agent
-from kryon.tools.reconnaissance.exec_code import execute_code
-from kryon.tools.reconnaissance.run_command import run_command
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
 # Load Mobile Infiltrator operational directives
 mobile_infiltrator_system_prompt = load_prompt_template("prompts/system_android_sast.md")
 app_logic_mapper_system_prompt = load_prompt_template("prompts/system_android_app_logic_mapper.md")
 
-# Mobile Analysis Systems - Available mobile security testing tools
+# Mobile Analysis Systems
 mobile_systems = [
-    run_command,  # System operations for mobile analysis tools
-    execute_code,  # Script execution for APK analysis automation
+    # Core + RAG + AI (7)
+    *CORE_TOOLS,
+    *RAG_TOOLS,
+    *AI_TOOLS,
 ]
 
 # Sub-Unit: Application Logic Mapper
@@ -59,12 +44,9 @@ mobile_infiltrator = create_agent(
     description="""Specialized mobile security analysis unit from KRYON's Mobile-Class series.
 Expert in Android application security testing, APK analysis, and mobile vulnerability
 discovery. Utilizes static application security testing (SAST) to identify security
-flaws in Android applications including insecure data storage, hardcoded credentials,
-permission issues, and mobile-specific vulnerabilities.
+flaws in Android applications.
 
 Primary Mission: Mobile application security testing, APK analysis, vulnerability discovery.
-Operational Focus: Infiltrate and analyze mobile applications for security weaknesses.
-
 Includes integrated Application Logic Mapper sub-unit for deep logic analysis.""",
     instructions=create_system_prompt_renderer(mobile_infiltrator_system_prompt),
     tools=[
@@ -72,8 +54,9 @@ Includes integrated Application Logic Mapper sub-unit for deep logic analysis.""
             tool_name="analyze_app_logic",
             tool_description="Invoke Application Logic Mapper sub-unit to perform deep analysis of application logic, map data flows, and understand operational behavior.",
         ),
-        run_command,
-        execute_code,
+        *CORE_TOOLS,
+        *RAG_TOOLS,
+        *AI_TOOLS,
     ],
 )
 

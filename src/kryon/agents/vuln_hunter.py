@@ -13,55 +13,27 @@ import os
 
 from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
-from kryon.tools.ai.claude_code import claude_code
-
-# Phase 22: RAG Knowledge Base Integration
-from kryon.tools.knowledge import (
-    get_exploit_techniques,
-    get_knowledge_stats,
-    get_security_tools,
-    query_knowledge_base,
-    search_vulnerabilities,
-)
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS_FULL
 from kryon.tools.osint.shodan_cli import shodan_host
-
-# Phase 12: OSINT & Threat Intelligence tools
 from kryon.tools.osint.theharvester import theharvester_search
-from kryon.tools.osint.threat_intel import censys_search, recon_ng_search, virustotal_search
-from kryon.tools.osint.yara_scan import yara_scan_directory, yara_scan_file
-from kryon.tools.reconnaissance.exec_code import execute_code
-from kryon.tools.reconnaissance.run_command import run_command
-from kryon.tools.reconnaissance.shodan import shodan_host_info, shodan_search
+from kryon.tools.osint.threat_intel import censys_search, virustotal_search
 from kryon.tools.web.search_web import make_google_search
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
 # Load Vuln Hunter system prompt
 vuln_hunter_system_prompt = load_prompt_template("prompts/system_vuln_hunter.md")
 
-# Vuln Hunter tools
+# Vuln Hunter tools — focused set (12 tools)
 tools_list = [
-    # Core reconnaissance
-    run_command,  # Adaptive command execution
-    execute_code,  # Code analysis and execution
-    # Internet-wide intelligence (Shodan - legacy)
-    shodan_search,  # Global intelligence gathering
-    shodan_host_info,  # Target reconnaissance
-    # Phase 12: OSINT & Threat Intelligence
-    theharvester_search,  # Email/subdomain/host harvesting from public sources
-    shodan_host,  # Detailed host information (Phase 12 version)
-    virustotal_search,  # Threat intelligence and reputation lookup
-    censys_search,  # Certificate and host intelligence
-    recon_ng_search,  # Advanced modular reconnaissance
-    yara_scan_file,  # Malware pattern detection (single file)
-    yara_scan_directory,  # Malware pattern detection (directory scan)
-    # Phase 22: RAG Knowledge Base Access
-    query_knowledge_base,  # Query KRYON knowledge base (103 CVEs + security tools)
-    search_vulnerabilities,  # Search for specific CVEs by technology/version
-    get_exploit_techniques,  # Get exploitation techniques for attack types
-    get_security_tools,  # Find security tools from GitHub knowledge
-    get_knowledge_stats,  # Get knowledge base statistics
-    # AI Delegation — complex tasks to Claude Code CLI
-    claude_code,
+    # Core + RAG full + AI (9)
+    *CORE_TOOLS,
+    *RAG_TOOLS_FULL,
+    *AI_TOOLS,
+    # OSINT & Threat Intelligence (3)
+    theharvester_search,
+    shodan_host,
+    virustotal_search,
+    censys_search,
 ]
 
 # Add enhanced search if credentials available

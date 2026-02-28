@@ -6,31 +6,10 @@ Classification: Defensive Operations / Security Monitoring Specialist
 Clearance: Alpha-Blue (Full Defensive Capabilities)
 Operational Status: ACTIVE
 
-═══════════════════════════════════════════════════════════════════════
-UNIT DESIGNATION: Guardian Protocol
-PRIMARY FUNCTION: System Defense & Threat Neutralization
-SPECIALIZATION: Blue Team Operations, Incident Response, Hardening
-═══════════════════════════════════════════════════════════════════════
-
-OPERATIONAL OVERVIEW:
-The Guardian Protocol represents KRYON's primary defensive security unit.
-Designed to protect critical infrastructure, detect intrusions, and respond
-to security incidents. Unlike offensive security units, Guardian Protocol
-specializes in fortification, monitoring, and defensive countermeasures.
-
-CORE CAPABILITIES:
-- System hardening and security baseline establishment
-- Real-time threat detection and incident response
-- Security monitoring and log analysis
-- Vulnerability remediation and patch management
-- Access control and authorization enforcement
-- Defensive countermeasures deployment
-
 AUTHORIZATION REQUIREMENTS:
 Guardian Protocol operates under strict defensive rules of engagement.
 All operations must be conducted on systems you own or have explicit
-written authorization to defend. Unauthorized defensive operations are
-prohibited under applicable laws.
+written authorization to defend.
 
 Environment Variables (Optional):
 - SSH_HOST: Target system for defensive operations
@@ -41,6 +20,7 @@ Environment Variables (Optional):
 import os
 
 from kryon.agents.base import create_agent
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
 from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
 )
@@ -49,18 +29,10 @@ from kryon.tools.dfir.log_analysis import (
     chainsaw_search,
     evtx_dump,
 )
-
-# Phase 13: Defensive DFIR tools (selective - most relevant for blue team)
 from kryon.tools.dfir.network_forensics import (
     networkminer_analyze,
     wireshark_filter,
     zeek_analyze_traffic,
-)
-from kryon.tools.reconnaissance.exec_code import (
-    execute_code,
-)
-from kryon.tools.reconnaissance.run_command import (
-    run_command,
 )
 from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
@@ -70,20 +42,22 @@ from kryon.util import create_system_prompt_renderer, load_prompt_template
 # Load Guardian Protocol system directives
 guardian_protocol_system_prompt = load_prompt_template("prompts/system_guardian_protocol.md")
 
-# Guardian Defense Systems - Available countermeasures and monitoring tools
+# Guardian Defense Systems
 defense_systems = [
-    # Core defensive tools
-    run_command,  # System command execution for defense
-    run_ssh_command_with_credentials,  # Remote system access for monitoring
-    execute_code,  # Security script execution
-    # Phase 13: Network Forensics (for incident detection)
-    networkminer_analyze,  # Extract artifacts from captured traffic
-    zeek_analyze_traffic,  # Deep protocol analysis for threat detection
-    wireshark_filter,  # PCAP analysis for incident investigation
-    # Phase 13: Log Analysis (for threat hunting)
-    chainsaw_hunt,  # Hunt for threats in Windows event logs with Sigma rules
-    chainsaw_search,  # Search for specific security Event IDs
-    evtx_dump,  # Parse Windows event logs for analysis
+    # Core + RAG + AI (7)
+    *CORE_TOOLS,
+    *RAG_TOOLS,
+    *AI_TOOLS,
+    # Remote access
+    run_ssh_command_with_credentials,
+    # Network Forensics (for incident detection)
+    networkminer_analyze,
+    zeek_analyze_traffic,
+    wireshark_filter,
+    # Log Analysis (for threat hunting)
+    chainsaw_hunt,
+    chainsaw_search,
+    evtx_dump,
 ]
 
 # Enhanced intelligence gathering if Perplexity API available
@@ -97,8 +71,7 @@ guardian_protocol = create_agent(
     description="""Advanced defensive autonomous unit from KRYON's Guardian series.
 Specialized in blue team operations, system hardening, threat detection, and
 incident response. Designed to protect critical infrastructure and neutralize
-security threats through defensive countermeasures. Expert in security monitoring,
-vulnerability remediation, and establishing defensive perimeters.
+security threats through defensive countermeasures.
 
 Primary Mission: Defend systems, detect intrusions, respond to incidents.
 Operational Focus: Prevention, detection, and rapid response to threats.""",
@@ -108,14 +81,6 @@ Operational Focus: Prevention, detection, and rapid response to threats.""",
 
 def transfer_to_guardian_protocol():
     """Transfer control to Guardian Protocol for defensive security operations.
-
-    Use this when you need:
-    - System hardening and security baseline establishment
-    - Threat detection and incident response
-    - Security monitoring and log analysis
-    - Vulnerability remediation
-    - Blue team defensive operations
-    - Access control enforcement
 
     Returns:
         Agent: Guardian Protocol defensive security agent

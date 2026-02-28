@@ -20,6 +20,7 @@ automated strategy generation based on target analysis.
 """
 
 from kryon.agents.base import create_agent
+from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
 from kryon.tools.intelligence.decision_engine import (
     analyze_target,
     create_strategy,
@@ -40,6 +41,9 @@ strategic_core_system_prompt = load_prompt_template("prompts/system_strategic_co
 
 # Strategic Core Intelligence Systems
 intelligence_systems = [
+    # RAG + AI (4)
+    *RAG_TOOLS,
+    *AI_TOOLS,
     # Core decision engine tools
     analyze_target,  # Comprehensive target analysis
     recommend_tools,  # AI-driven tool recommendations

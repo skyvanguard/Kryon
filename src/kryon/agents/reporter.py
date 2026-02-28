@@ -5,33 +5,21 @@ Series: Intelligence-Class Documentation System
 Classification: Strategic Reporting / Intelligence Documentation Specialist
 Clearance: Beta-Silver (Intelligence Reporting Authority)
 Operational Status: ACTIVE
-
-═══════════════════════════════════════════════════════════════════════
-UNIT DESIGNATION: Intel Reporter
-PRIMARY FUNCTION: Intelligence Documentation & Strategic Report Generation
-SPECIALIZATION: HTML Reports, Executive Summaries, Technical Documentation
-═══════════════════════════════════════════════════════════════════════
 """
 
 from kryon.agents.base import create_agent
-from kryon.tools.ai.claude_code import claude_code
-from kryon.tools.reconnaissance.exec_code import (
-    execute_code,
-)
-from kryon.tools.reconnaissance.run_command import (
-    run_command,
-)
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
 from kryon.util import load_prompt_template
 
 # Load Intel Reporter operational directives
 intel_reporter_system_prompt = load_prompt_template("prompts/system_reporting_agent.md")
 
-# Documentation Systems - Available reporting tools
+# Documentation Systems
 documentation_systems = [
-    run_command,
-    execute_code,
-    # AI Delegation — complex tasks to Claude Code CLI
-    claude_code,
+    # Core + RAG + AI (7)
+    *CORE_TOOLS,
+    *RAG_TOOLS,
+    *AI_TOOLS,
 ]
 
 # Initialize Intel Reporter Unit

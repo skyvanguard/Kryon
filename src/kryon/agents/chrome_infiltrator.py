@@ -6,12 +6,6 @@ Classification: Browser Automation / Dynamic Web Testing
 Clearance: Alpha-Chrome (Advanced Browser Authority)
 Operational Status: ACTIVE
 
-═══════════════════════════════════════════════════════════════════════
-UNIT DESIGNATION: Chrome Infiltrator
-PRIMARY FUNCTION: Dynamic Web Testing & JavaScript Analysis
-SPECIALIZATION: Browser Automation, XSS Detection, Network Interception
-═══════════════════════════════════════════════════════════════════════
-
 OPERATIONAL OVERVIEW:
 Chrome Infiltrator is KRYON's browser automation specialist for dynamic web
 application testing. Unlike static analysis tools, Chrome Infiltrator executes
@@ -20,6 +14,7 @@ vulnerabilities that traditional scanners miss.
 """
 
 from kryon.agents.base import create_agent
+from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
 from kryon.tools.browser.playwright_tools import (
     browser_analyze_dom,
     browser_execute_js,
@@ -38,18 +33,21 @@ chrome_infiltrator_system_prompt = load_prompt_template("prompts/system_chrome_i
 
 # Chrome Infiltrator Browser Automation Tools
 browser_tools = [
+    # RAG + AI (4)
+    *RAG_TOOLS,
+    *AI_TOOLS,
     # Core browser automation
-    browser_navigate,  # Navigate to URLs and extract page info
-    browser_screenshot,  # Capture visual evidence
-    browser_execute_js,  # Execute JavaScript in browser context
-    browser_fill_form,  # Automated form interaction
+    browser_navigate,
+    browser_screenshot,
+    browser_execute_js,
+    browser_fill_form,
     # Network and security analysis
-    browser_intercept_traffic,  # Network traffic interception
-    browser_analyze_dom,  # DOM security analysis
-    browser_extract_cookies,  # Cookie security assessment
-    browser_test_xss,  # XSS vulnerability testing
+    browser_intercept_traffic,
+    browser_analyze_dom,
+    browser_extract_cookies,
+    browser_test_xss,
     # Advanced reasoning
-    think,  # Strategic reasoning capability
+    think,
 ]
 
 # Initialize Chrome Infiltrator Agent
@@ -68,11 +66,7 @@ Operational Focus: Browser automation and client-side security assessment.""",
 
 
 def transfer_to_chrome_infiltrator():
-    """Transfer control to Chrome Infiltrator for browser automation and dynamic testing.
-
-    Chrome Infiltrator will use Playwright to control a real browser, execute
-    JavaScript, intercept network traffic, and identify client-side vulnerabilities.
-    """
+    """Transfer control to Chrome Infiltrator for browser automation and dynamic testing."""
     return chrome_infiltrator
 
 
