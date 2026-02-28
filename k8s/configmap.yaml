@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kryon-config
+  namespace: kryon-system
+  labels:
+    app.kubernetes.io/name: kryon
+    app.kubernetes.io/component: configuration
+data:
+  KRYON_DEBUG: "false"
+  KRYON_LOG_FORMAT: "json"
+  KRYON_RATE_LIMIT: "120"
+  KRYON_HOST: "0.0.0.0"
+  KRYON_PORT: "8700"
+  KRYON_DATA_DIR: "/data"

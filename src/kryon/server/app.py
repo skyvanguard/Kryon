@@ -16,7 +16,7 @@ from kryon.server.middleware.error_handler import global_exception_handler
 from kryon.server.middleware.rate_limit import RateLimitMiddleware
 from kryon.server.middleware.request_id import RequestIdMiddleware
 from kryon.server.middleware.security_headers import SecurityHeadersMiddleware
-from kryon.server.routes import agents, appsec, assets, clients, compliance, engagements, evaluations, findings, health, integrations, knowledge, reports, runs, scans, scope, tenants, usage, validation
+from kryon.server.routes import agents, appsec, assets, attack_paths, billing, clients, compliance, engagements, evaluations, findings, health, integrations, knowledge, notifications, onboarding, remediation, report_settings, reports, risk, runs, scans, scope, tenants, usage, validation
 from kryon.server.routes import admin as admin_routes
 from kryon.server.routes import audit as audit_routes
 from kryon.server.routes import auth_routes
@@ -108,6 +108,13 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
             {"name": "validation", "description": "Offensive validation and BAS"},
             {"name": "compliance", "description": "Compliance framework assessment"},
             {"name": "assets", "description": "Asset inventory management"},
+            {"name": "notifications", "description": "Multi-channel notification management"},
+            {"name": "remediation", "description": "Remediation workflow and SLA enforcement"},
+            {"name": "risk", "description": "Business risk scoring and impact analysis"},
+            {"name": "attack_paths", "description": "Attack path visualization and kill chains"},
+            {"name": "report_settings", "description": "Report branding and template configuration"},
+            {"name": "onboarding", "description": "Customer onboarding wizard"},
+            {"name": "billing", "description": "License validation and usage metering"},
         ],
     )
 
@@ -163,6 +170,13 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
     app.include_router(validation.router, prefix="/api/v1")
     app.include_router(compliance.router, prefix="/api/v1")
     app.include_router(assets.router, prefix="/api/v1")
+    app.include_router(notifications.router, prefix="/api/v1")
+    app.include_router(remediation.router, prefix="/api/v1")
+    app.include_router(risk.router, prefix="/api/v1")
+    app.include_router(attack_paths.router, prefix="/api/v1")
+    app.include_router(report_settings.router, prefix="/api/v1")
+    app.include_router(onboarding.router, prefix="/api/v1")
+    app.include_router(billing.router, prefix="/api/v1")
 
     # Serve dashboard static files if the build directory exists
     dashboard_build = Path(__file__).resolve().parent.parent.parent.parent / "dashboard" / "build"

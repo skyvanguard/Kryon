@@ -1,0 +1,20 @@
+apiVersion: v2
+name: kryon
+description: KRYON Security Platform - Enterprise-Grade Autonomous Pentesting & Security Operations
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - security
+  - pentesting
+  - vulnerability-scanning
+  - appsec
+  - compliance
+  - threat-intelligence
+home: https://github.com/skyvanguard/kryon
+sources:
+  - https://github.com/skyvanguard/kryon
+maintainers:
+  - name: skyvanguard
+    email: admin@kryon.security
+icon: https://raw.githubusercontent.com/skyvanguard/kryon/main/docs/logo.png

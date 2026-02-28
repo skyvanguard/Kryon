@@ -1,0 +1,16 @@
+# Ignore actual secrets (keep example)
+secret.yaml
+
+# Ignore environment-specific configs
+*-values.yaml
+*.env
+
+# Ignore backup files
+*.bak
+*.backup
+*.old
+
+# Ignore temporary files
+*.tmp
+*.swp
+*~

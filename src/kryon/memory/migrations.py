@@ -139,6 +139,117 @@ MIGRATIONS: dict[int, list[str]] = {
         "CREATE INDEX IF NOT EXISTS idx_iocs_value ON iocs(ioc_value)",
         "CREATE INDEX IF NOT EXISTS idx_iocs_score ON iocs(threat_score)",
     ],
+    10: [
+        """CREATE TABLE IF NOT EXISTS notification_channels (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            channel_type TEXT NOT NULL,
+            config_json TEXT DEFAULT '{}',
+            enabled INTEGER DEFAULT 1,
+            created_at TEXT NOT NULL,
+            created_by TEXT
+        )""",
+        """CREATE TABLE IF NOT EXISTS notification_rules (
+            id TEXT PRIMARY KEY,
+            event_type TEXT NOT NULL,
+            severity_filter TEXT DEFAULT '',
+            client_filter TEXT DEFAULT '',
+            channel_ids TEXT DEFAULT '[]',
+            digest_mode TEXT DEFAULT 'immediate',
+            enabled INTEGER DEFAULT 1,
+            created_at TEXT NOT NULL
+        )""",
+        """CREATE TABLE IF NOT EXISTS notification_log (
+            id TEXT PRIMARY KEY,
+            channel_id TEXT,
+            event_type TEXT NOT NULL,
+            payload_json TEXT DEFAULT '{}',
+            sent_at TEXT NOT NULL,
+            success INTEGER DEFAULT 0,
+            error_message TEXT DEFAULT ''
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_notification_log_sent ON notification_log(sent_at)",
+    ],
+    11: [
+        "ALTER TABLE findings ADD COLUMN assigned_to TEXT DEFAULT NULL",
+        "ALTER TABLE findings ADD COLUMN assigned_at TEXT DEFAULT NULL",
+        "ALTER TABLE findings ADD COLUMN sla_deadline TEXT DEFAULT NULL",
+        "ALTER TABLE findings ADD COLUMN remediation_notes TEXT DEFAULT '[]'",
+        "ALTER TABLE findings ADD COLUMN remediated_at TEXT DEFAULT NULL",
+        "ALTER TABLE findings ADD COLUMN remediated_by TEXT DEFAULT NULL",
+        "ALTER TABLE findings ADD COLUMN retest_status TEXT DEFAULT NULL",
+        "ALTER TABLE findings ADD COLUMN retest_scan_id TEXT DEFAULT NULL",
+        "ALTER TABLE findings ADD COLUMN priority TEXT DEFAULT 'medium'",
+        """CREATE TABLE IF NOT EXISTS finding_history (
+            id TEXT PRIMARY KEY,
+            finding_id TEXT NOT NULL,
+            change_type TEXT NOT NULL,
+            old_value TEXT DEFAULT '',
+            new_value TEXT DEFAULT '',
+            changed_by TEXT DEFAULT '',
+            changed_at TEXT NOT NULL
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_finding_history_finding ON finding_history(finding_id)",
+    ],
+    12: [
+        "ALTER TABLE assets ADD COLUMN criticality TEXT DEFAULT 'medium'",
+        "ALTER TABLE assets ADD COLUMN exposure TEXT DEFAULT 'internal'",
+    ],
+    13: [
+        """CREATE TABLE IF NOT EXISTS report_brandings (
+            id TEXT PRIMARY KEY,
+            client_id TEXT NOT NULL,
+            logo_url TEXT DEFAULT '',
+            primary_color TEXT DEFAULT '#00d4ff',
+            company_name TEXT DEFAULT '',
+            footer_text TEXT DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT
+        )""",
+    ],
+    14: [
+        """CREATE TABLE IF NOT EXISTS credentials (
+            id TEXT PRIMARY KEY,
+            client_id TEXT NOT NULL,
+            credential_type TEXT NOT NULL,
+            label TEXT DEFAULT '',
+            encrypted_data TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            created_by TEXT,
+            last_used_at TEXT
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_credentials_client ON credentials(client_id)",
+        """CREATE TABLE IF NOT EXISTS onboarding_sessions (
+            id TEXT PRIMARY KEY,
+            client_id TEXT NOT NULL,
+            current_step INTEGER DEFAULT 1,
+            data_json TEXT DEFAULT '{}',
+            started_at TEXT NOT NULL,
+            completed_at TEXT
+        )""",
+    ],
+    15: [
+        """CREATE TABLE IF NOT EXISTS licenses (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            license_key TEXT NOT NULL,
+            tier TEXT DEFAULT 'free',
+            features TEXT DEFAULT '[]',
+            issued_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_licenses_tenant ON licenses(tenant_id)",
+        """CREATE TABLE IF NOT EXISTS usage_metering (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            resource TEXT NOT NULL,
+            amount INTEGER DEFAULT 1,
+            recorded_at TEXT NOT NULL
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_usage_tenant ON usage_metering(tenant_id)",
+        "CREATE INDEX IF NOT EXISTS idx_usage_recorded ON usage_metering(recorded_at)",
+    ],
 }
 
 

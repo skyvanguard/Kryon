@@ -45,8 +45,26 @@
 		<a href="/scope" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname === '/scope'}>
 			Scope
 		</a>
+		<a href="/remediation" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname.startsWith('/remediation')}>
+			Remediation
+		</a>
+		<a href="/risk" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname === '/risk'}>
+			Risk
+		</a>
+		<a href="/attack-paths" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname.startsWith('/attack-paths')}>
+			Attack Paths
+		</a>
+		<a href="/onboarding" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname.startsWith('/onboarding')}>
+			Onboarding
+		</a>
 
 		{#if isAdmin}
+			<a href="/notifications" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname.startsWith('/notifications')}>
+				Notifications
+			</a>
+			<a href="/billing" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname.startsWith('/billing')}>
+				Billing
+			</a>
 			<a href="/admin" class="hover:text-kryon-400 transition-colors" class:text-kryon-400={$page.url.pathname.startsWith('/admin')}>
 				Admin
 			</a>

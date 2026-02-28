@@ -1,0 +1,160 @@
+# Default values for KRYON Security Platform
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Namespace configuration
+namespace: kryon-system
+
+# Server configuration
+server:
+  replicaCount: 2
+  image:
+    repository: kryon/server
+    pullPolicy: IfNotPresent
+    tag: "latest"
+
+  service:
+    type: ClusterIP
+    port: 8700
+    targetPort: 8700
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "500m"
+    limits:
+      memory: "512Mi"
+      cpu: "1000m"
+
+  livenessProbe:
+    httpGet:
+      path: /api/v1/health
+      port: 8700
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /api/v1/health
+      port: 8700
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# Dashboard configuration
+dashboard:
+  replicaCount: 1
+  image:
+    repository: kryon/dashboard
+    pullPolicy: IfNotPresent
+    tag: "latest"
+
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "100m"
+    limits:
+      memory: "128Mi"
+      cpu: "200m"
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: kryon.example.com
+      paths:
+        - path: /api
+          pathType: Prefix
+          backend: server
+        - path: /
+          pathType: Prefix
+          backend: dashboard
+  tls:
+    - secretName: kryon-tls-cert
+      hosts:
+        - kryon.example.com
+
+# Autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Persistent storage configuration
+persistence:
+  enabled: true
+  accessMode: ReadWriteMany
+  size: 10Gi
+  # storageClass: ""  # Use default storage class if not specified
+
+# Configuration map values
+config:
+  debug: false
+  logFormat: json
+  rateLimit: 120
+  host: "0.0.0.0"
+  port: "8700"
+  dataDir: "/data"
+
+# Secrets - MUST BE PROVIDED via --set flags or separate values file
+# DO NOT commit actual secrets to version control
+secrets:
+  jwtSecret: ""
+  apiKey: ""
+  credentialKey: ""
+  # Optional AI provider configurations
+  openaiApiKey: ""
+  ollamaBaseUrl: ""
+
+# Security context
+securityContext:
+  server:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+  dashboard:
+    runAsNonRoot: true
+    runAsUser: 101
+    fsGroup: 101
+
+# Image pull secrets (if using private registry)
+imagePullSecrets: []
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod security context
+podSecurityContext: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}

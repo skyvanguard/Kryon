@@ -1109,6 +1109,317 @@ class MemoryStore:
         return cur.rowcount > 0
 
     # -----------------------------------------------------------------------
+    # Notification Channels (v10)
+    # -----------------------------------------------------------------------
+    def save_notification_channel(self, channel_id: str, name: str, channel_type: str,
+                                   config_json: str = "{}", enabled: bool = True,
+                                   created_at: str = "", created_by: str | None = None) -> None:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO notification_channels (id, name, channel_type, config_json, enabled, created_at, created_by) VALUES (?,?,?,?,?,?,?)",
+            (channel_id, name, channel_type, config_json, int(enabled), created_at, created_by),
+        )
+        conn.commit()
+
+    def list_notification_channels(self) -> list[dict]:
+        conn = self._get_conn()
+        rows = conn.execute("SELECT * FROM notification_channels ORDER BY created_at DESC").fetchall()
+        return [dict(r) for r in rows]
+
+    def get_notification_channel(self, channel_id: str) -> dict | None:
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM notification_channels WHERE id = ?", (channel_id,)).fetchone()
+        return dict(row) if row else None
+
+    def update_notification_channel(self, channel_id: str, **kwargs) -> bool:
+        _COLS = {"name", "config_json", "enabled"}
+        updates, params = [], []
+        for key, value in kwargs.items():
+            if key not in _COLS:
+                continue
+            if key == "enabled":
+                value = int(value)
+            updates.append(f"{key} = ?")
+            params.append(value)
+        if not updates:
+            return False
+        params.append(channel_id)
+        conn = self._get_conn()
+        cur = conn.execute(f"UPDATE notification_channels SET {', '.join(updates)} WHERE id = ?", params)
+        conn.commit()
+        return cur.rowcount > 0
+
+    def delete_notification_channel(self, channel_id: str) -> bool:
+        conn = self._get_conn()
+        cur = conn.execute("DELETE FROM notification_channels WHERE id = ?", (channel_id,))
+        conn.commit()
+        return cur.rowcount > 0
+
+    def save_notification_rule(self, rule_id: str, event_type: str, severity_filter: str = "",
+                                client_filter: str = "", channel_ids: str = "[]",
+                                digest_mode: str = "immediate", enabled: bool = True,
+                                created_at: str = "") -> None:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO notification_rules (id, event_type, severity_filter, client_filter, channel_ids, digest_mode, enabled, created_at) VALUES (?,?,?,?,?,?,?,?)",
+            (rule_id, event_type, severity_filter, client_filter, channel_ids, digest_mode, int(enabled), created_at),
+        )
+        conn.commit()
+
+    def list_notification_rules(self) -> list[dict]:
+        conn = self._get_conn()
+        rows = conn.execute("SELECT * FROM notification_rules ORDER BY created_at DESC").fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_notification_rule(self, rule_id: str) -> bool:
+        conn = self._get_conn()
+        cur = conn.execute("DELETE FROM notification_rules WHERE id = ?", (rule_id,))
+        conn.commit()
+        return cur.rowcount > 0
+
+    def log_notification(self, log_id: str, channel_id: str, event_type: str,
+                         payload_json: str = "{}", sent_at: str = "",
+                         success: bool = False, error_message: str = "") -> None:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO notification_log (id, channel_id, event_type, payload_json, sent_at, success, error_message) VALUES (?,?,?,?,?,?,?)",
+            (log_id, channel_id, event_type, payload_json, sent_at, int(success), error_message),
+        )
+        conn.commit()
+
+    def list_notification_log(self, offset: int = 0, limit: int = 50) -> list[dict]:
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT * FROM notification_log ORDER BY sent_at DESC LIMIT ? OFFSET ?", (limit, offset)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    # -----------------------------------------------------------------------
+    # Remediation (v11)
+    # -----------------------------------------------------------------------
+    def assign_finding(self, finding_id: str, assigned_to: str, priority: str,
+                       sla_deadline: str, assigned_at: str, changed_by: str = "") -> bool:
+        conn = self._get_conn()
+        cur = conn.execute(
+            "UPDATE findings SET assigned_to = ?, priority = ?, sla_deadline = ?, assigned_at = ? WHERE id = ?",
+            (assigned_to, priority, sla_deadline, assigned_at, finding_id),
+        )
+        conn.commit()
+        if cur.rowcount > 0:
+            self._save_finding_history(finding_id, "assigned", "", assigned_to, changed_by)
+            return True
+        return False
+
+    def add_remediation_note(self, finding_id: str, note: str, changed_by: str = "") -> bool:
+        conn = self._get_conn()
+        row = conn.execute("SELECT remediation_notes FROM findings WHERE id = ?", (finding_id,)).fetchone()
+        if not row:
+            return False
+        try:
+            notes = json.loads(row["remediation_notes"] or "[]")
+        except (json.JSONDecodeError, TypeError):
+            notes = []
+        notes.append({"note": note, "by": changed_by, "at": self._now()})
+        conn.execute("UPDATE findings SET remediation_notes = ? WHERE id = ?", (json.dumps(notes), finding_id))
+        conn.commit()
+        return True
+
+    def get_overdue_findings(self, client_id: str = "", offset: int = 0, limit: int = 50) -> list[FindingRecord]:
+        conn = self._get_conn()
+        now = self._now()
+        sql = "SELECT * FROM findings WHERE sla_deadline IS NOT NULL AND sla_deadline < ? AND status = 'open'"
+        params: list = [now]
+        if client_id:
+            sql += " AND client_id = ?"
+            params.append(client_id)
+        sql += " ORDER BY sla_deadline ASC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        rows = conn.execute(sql, params).fetchall()
+        return [self._row_to_finding(r) for r in rows]
+
+    def get_mttr(self, client_id: str = "") -> dict:
+        conn = self._get_conn()
+        sql = "SELECT assigned_at, remediated_at FROM findings WHERE remediated_at IS NOT NULL AND assigned_at IS NOT NULL"
+        params: list = []
+        if client_id:
+            sql += " AND client_id = ?"
+            params.append(client_id)
+        rows = conn.execute(sql, params).fetchall()
+        if not rows:
+            return {"mttr_days": 0, "sample_size": 0}
+        total_days = 0.0
+        for r in rows:
+            try:
+                from datetime import datetime as dt
+                assigned = dt.fromisoformat(r["assigned_at"])
+                remediated = dt.fromisoformat(r["remediated_at"])
+                total_days += (remediated - assigned).total_seconds() / 86400
+            except (ValueError, TypeError):
+                continue
+        return {"mttr_days": round(total_days / len(rows), 1) if rows else 0, "sample_size": len(rows)}
+
+    def _save_finding_history(self, finding_id: str, change_type: str,
+                               old_value: str, new_value: str, changed_by: str) -> None:
+        import uuid
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO finding_history (id, finding_id, change_type, old_value, new_value, changed_by, changed_at) VALUES (?,?,?,?,?,?,?)",
+            (str(uuid.uuid4()), finding_id, change_type, old_value, new_value, changed_by, self._now()),
+        )
+        conn.commit()
+
+    def get_finding_history_log(self, finding_id: str) -> list[dict]:
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT * FROM finding_history WHERE finding_id = ? ORDER BY changed_at DESC", (finding_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    # -----------------------------------------------------------------------
+    # Asset Criticality (v12)
+    # -----------------------------------------------------------------------
+    def update_asset_criticality(self, asset_id: str, criticality: str, exposure: str) -> bool:
+        conn = self._get_conn()
+        cur = conn.execute(
+            "UPDATE assets SET criticality = ?, exposure = ?, updated_at = ? WHERE id = ?",
+            (criticality, exposure, self._now(), asset_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+
+    def get_assets_with_findings(self, client_id: str = "", limit: int = 10) -> list[dict]:
+        conn = self._get_conn()
+        sql = """SELECT a.*, COUNT(f.id) as finding_count
+                 FROM assets a LEFT JOIN findings f ON f.finding_json LIKE '%' || a.identifier || '%'
+                 WHERE 1=1"""
+        params: list = []
+        if client_id:
+            sql += " AND a.client_id = ?"
+            params.append(client_id)
+        sql += " GROUP BY a.id ORDER BY finding_count DESC LIMIT ?"
+        params.append(limit)
+        rows = conn.execute(sql, params).fetchall()
+        return [dict(r) for r in rows]
+
+    # -----------------------------------------------------------------------
+    # Report Branding (v13)
+    # -----------------------------------------------------------------------
+    def save_branding(self, branding_id: str, client_id: str, logo_url: str = "",
+                      primary_color: str = "#00d4ff", company_name: str = "",
+                      footer_text: str = "", created_at: str = "") -> None:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT OR REPLACE INTO report_brandings (id, client_id, logo_url, primary_color, company_name, footer_text, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
+            (branding_id, client_id, logo_url, primary_color, company_name, footer_text, created_at, self._now()),
+        )
+        conn.commit()
+
+    def get_branding(self, client_id: str) -> dict | None:
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM report_brandings WHERE client_id = ?", (client_id,)).fetchone()
+        return dict(row) if row else None
+
+    # -----------------------------------------------------------------------
+    # Credentials & Onboarding (v14)
+    # -----------------------------------------------------------------------
+    def save_credential(self, cred_id: str, client_id: str, credential_type: str,
+                        label: str, encrypted_data: str, created_at: str,
+                        created_by: str | None = None) -> None:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO credentials (id, client_id, credential_type, label, encrypted_data, created_at, created_by) VALUES (?,?,?,?,?,?,?)",
+            (cred_id, client_id, credential_type, label, encrypted_data, created_at, created_by),
+        )
+        conn.commit()
+
+    def list_credentials(self, client_id: str) -> list[dict]:
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT id, client_id, credential_type, label, created_at, created_by, last_used_at FROM credentials WHERE client_id = ? ORDER BY created_at DESC",
+            (client_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_credential(self, cred_id: str) -> bool:
+        conn = self._get_conn()
+        cur = conn.execute("DELETE FROM credentials WHERE id = ?", (cred_id,))
+        conn.commit()
+        return cur.rowcount > 0
+
+    def save_onboarding_session(self, session_id: str, client_id: str, started_at: str) -> None:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO onboarding_sessions (id, client_id, current_step, data_json, started_at) VALUES (?,?,1,'{}',?)",
+            (session_id, client_id, started_at),
+        )
+        conn.commit()
+
+    def get_onboarding_session(self, session_id: str) -> dict | None:
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM onboarding_sessions WHERE id = ?", (session_id,)).fetchone()
+        return dict(row) if row else None
+
+    def update_onboarding_session(self, session_id: str, **kwargs) -> bool:
+        _COLS = {"current_step", "data_json", "completed_at"}
+        updates, params = [], []
+        for key, value in kwargs.items():
+            if key not in _COLS:
+                continue
+            updates.append(f"{key} = ?")
+            params.append(value)
+        if not updates:
+            return False
+        params.append(session_id)
+        conn = self._get_conn()
+        cur = conn.execute(f"UPDATE onboarding_sessions SET {', '.join(updates)} WHERE id = ?", params)
+        conn.commit()
+        return cur.rowcount > 0
+
+    # -----------------------------------------------------------------------
+    # Licenses & Usage Metering (v15)
+    # -----------------------------------------------------------------------
+    def save_license(self, license_id: str, tenant_id: str, license_key: str,
+                     tier: str, features: str, issued_at: str, expires_at: str) -> None:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO licenses (id, tenant_id, license_key, tier, features, issued_at, expires_at) VALUES (?,?,?,?,?,?,?)",
+            (license_id, tenant_id, license_key, tier, features, issued_at, expires_at),
+        )
+        conn.commit()
+
+    def get_license(self, tenant_id: str) -> dict | None:
+        conn = self._get_conn()
+        row = conn.execute(
+            "SELECT * FROM licenses WHERE tenant_id = ? AND is_active = 1 ORDER BY issued_at DESC LIMIT 1",
+            (tenant_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def record_usage(self, usage_id: str, tenant_id: str, resource: str,
+                     amount: int, recorded_at: str) -> None:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT INTO usage_metering (id, tenant_id, resource, amount, recorded_at) VALUES (?,?,?,?,?)",
+            (usage_id, tenant_id, resource, amount, recorded_at),
+        )
+        conn.commit()
+
+    def get_usage_summary(self, tenant_id: str, since: str = "") -> list[dict]:
+        conn = self._get_conn()
+        sql = "SELECT resource, SUM(amount) as total FROM usage_metering WHERE tenant_id = ?"
+        params: list = [tenant_id]
+        if since:
+            sql += " AND recorded_at >= ?"
+            params.append(since)
+        sql += " GROUP BY resource"
+        rows = conn.execute(sql, params).fetchall()
+        return [dict(r) for r in rows]
+
+    def _now(self) -> str:
+        from datetime import datetime, timezone
+        return datetime.now(timezone.utc).isoformat()
+
+    # -----------------------------------------------------------------------
     # Internal
     # -----------------------------------------------------------------------
     def _row_to_finding(self, row: sqlite3.Row) -> FindingRecord:

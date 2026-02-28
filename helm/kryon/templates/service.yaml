@@ -1,0 +1,40 @@
+---
+# Server Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kryon.fullname" . }}-server
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "kryon.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  type: {{ .Values.server.service.type }}
+  ports:
+  - port: {{ .Values.server.service.port }}
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "kryon.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+---
+# Dashboard Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kryon.fullname" . }}-dashboard
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "kryon.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboard
+spec:
+  type: {{ .Values.dashboard.service.type }}
+  ports:
+  - port: {{ .Values.dashboard.service.port }}
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "kryon.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboard

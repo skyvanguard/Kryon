@@ -1,0 +1,19 @@
+# Ignore environment-specific values
+dev-values.yaml
+staging-values.yaml
+prod-values.yaml
+*-secrets.yaml
+secrets.yaml
+
+# Ignore chart packages
+*.tgz
+
+# Ignore backup files
+*.bak
+*.backup
+*.old
+
+# Ignore temporary files
+*.tmp
+*.swp
+*~
