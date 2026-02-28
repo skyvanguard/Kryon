@@ -113,7 +113,7 @@ RUN ln -sf /usr/local/bin/python3.11 /usr/local/bin/python3 && ldconfig
 RUN groupadd -r kryon && useradd -r -g kryon -m -s /bin/bash kryon
 
 # Create required directories
-RUN mkdir -p /workspace /logs /reports /home/kryon/.kryon /home/kryon/.config && \
+RUN mkdir -p /workspace /logs /reports /home/kryon/.kryon /home/kryon/.config/chromadb && \
     chown -R kryon:kryon /workspace /logs /reports /home/kryon
 
 # Install Node.js (direct binary — avoids dependency on Kali mirrors)

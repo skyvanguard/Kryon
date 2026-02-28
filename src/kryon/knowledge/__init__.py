@@ -121,10 +121,11 @@ def seed_knowledge_base(seed_dir: str | None = None) -> dict:
     errors = 0
     for item in items:
         try:
+            meta = {k: v for k, v in item["metadata"].items() if k != "source"}
             add_document(
                 content=item["content"],
                 source=item["metadata"].get("source", "static-seed"),
-                **item["metadata"],
+                **meta,
             )
             added += 1
         except Exception as e:
