@@ -250,6 +250,22 @@ MIGRATIONS: dict[int, list[str]] = {
         "CREATE INDEX IF NOT EXISTS idx_usage_tenant ON usage_metering(tenant_id)",
         "CREATE INDEX IF NOT EXISTS idx_usage_recorded ON usage_metering(recorded_at)",
     ],
+    16: [
+        """CREATE TABLE IF NOT EXISTS scheduled_jobs (
+            id TEXT PRIMARY KEY,
+            client_id TEXT NOT NULL,
+            agent_key TEXT NOT NULL,
+            profile TEXT DEFAULT 'standard',
+            cron TEXT DEFAULT '',
+            interval_seconds INTEGER DEFAULT 0,
+            webhook_url TEXT,
+            status TEXT DEFAULT 'scheduled',
+            next_run TEXT DEFAULT '',
+            last_run TEXT DEFAULT '',
+            created_at TEXT NOT NULL
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_status ON scheduled_jobs(status)",
+    ],
 }
 
 

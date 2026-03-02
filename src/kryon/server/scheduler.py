@@ -1,4 +1,4 @@
-"""Scan scheduling — asyncio-based job scheduler (no external deps)."""
+"""Scan scheduling — asyncio-based job scheduler with DB persistence."""
 
 from __future__ import annotations
 
@@ -11,6 +11,12 @@ from typing import Callable, Coroutine
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
+
+
+def _get_store():
+    """Lazy import to avoid circular dependencies."""
+    from kryon.server.deps import get_store
+    return get_store()
 
 
 class ScheduledJob(BaseModel):
@@ -59,6 +65,12 @@ class ScanScheduler:
         )
         self.jobs[job.id] = job
 
+        # Persist to DB
+        try:
+            _get_store().save_scheduled_job(job.model_dump())
+        except Exception:
+            logger.warning("Failed to persist job %s to DB", job.id, exc_info=True)
+
         task = asyncio.create_task(self._run_loop(job))
         self._tasks[job.id] = task
         logger.info("Scheduled scan job %s for client %s every %ds", job.id, client_id, interval_seconds)
@@ -72,7 +84,36 @@ class ScanScheduler:
         if job_id in self._tasks:
             self._tasks[job_id].cancel()
             del self._tasks[job_id]
+
+        # Update DB
+        try:
+            _get_store().update_scheduled_job_status(job_id, "cancelled")
+        except Exception:
+            logger.warning("Failed to update job %s status in DB", job_id, exc_info=True)
         return True
+
+    async def restore_from_db(self) -> int:
+        """Restore active scheduled jobs from database. Returns count restored."""
+        try:
+            store = _get_store()
+            rows = store.list_scheduled_jobs(status="scheduled")
+        except Exception:
+            logger.warning("Failed to load scheduled jobs from DB", exc_info=True)
+            return 0
+
+        restored = 0
+        for row in rows:
+            if row["id"] in self.jobs:
+                continue
+            job = ScheduledJob(**row)
+            self.jobs[job.id] = job
+            task = asyncio.create_task(self._run_loop(job))
+            self._tasks[job.id] = task
+            restored += 1
+
+        if restored:
+            logger.info("Restored %d scheduled jobs from database", restored)
+        return restored
 
     async def list_scheduled(self) -> list[ScheduledJob]:
         """List all scheduled jobs."""
@@ -106,6 +147,13 @@ class ScanScheduler:
         try:
             while job.status != "cancelled":
                 await self.run_scan_job(job)
+                # Persist last_run to DB
+                try:
+                    _get_store().update_scheduled_job_status(
+                        job.id, job.status, last_run=job.last_run
+                    )
+                except Exception:
+                    logger.debug("Failed to persist last_run for job %s", job.id)
                 if job.interval_seconds > 0:
                     await asyncio.sleep(job.interval_seconds)
                 else:

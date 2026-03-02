@@ -49,6 +49,15 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
             await get_engagement_manager().resume_active_engagements()
         except Exception:
             logger.warning("Failed to resume engagements", exc_info=True)
+        # Restore scheduled jobs from DB
+        try:
+            from kryon.server.scheduler import ScanScheduler
+            _scheduler = ScanScheduler()
+            restored = await _scheduler.restore_from_db()
+            if restored:
+                logger.info("Restored %d scheduled scan jobs", restored)
+        except Exception:
+            logger.warning("Failed to restore scheduled jobs", exc_info=True)
         # Start knowledge auto-updater if enabled
         if config.auto_update_enabled:
             try:

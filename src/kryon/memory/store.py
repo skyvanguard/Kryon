@@ -1415,6 +1415,64 @@ class MemoryStore:
         rows = conn.execute(sql, params).fetchall()
         return [dict(r) for r in rows]
 
+    # -----------------------------------------------------------------------
+    # Scheduled Jobs
+    # -----------------------------------------------------------------------
+    def save_scheduled_job(self, job: dict) -> None:
+        conn = self._get_conn()
+        conn.execute(
+            "INSERT OR REPLACE INTO scheduled_jobs "
+            "(id, client_id, agent_key, profile, cron, interval_seconds, "
+            "webhook_url, status, next_run, last_run, created_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                job["id"],
+                job["client_id"],
+                job["agent_key"],
+                job.get("profile", "standard"),
+                job.get("cron", ""),
+                job.get("interval_seconds", 0),
+                job.get("webhook_url", ""),
+                job.get("status", "scheduled"),
+                job.get("next_run", ""),
+                job.get("last_run", ""),
+                job.get("created_at", self._now()),
+            ),
+        )
+        conn.commit()
+
+    def list_scheduled_jobs(self, status: str | None = None) -> list[dict]:
+        conn = self._get_conn()
+        if status:
+            rows = conn.execute(
+                "SELECT * FROM scheduled_jobs WHERE status = ?", (status,)
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM scheduled_jobs").fetchall()
+        return [dict(r) for r in rows]
+
+    def update_scheduled_job_status(
+        self, job_id: str, status: str, last_run: str = ""
+    ) -> None:
+        conn = self._get_conn()
+        if last_run:
+            conn.execute(
+                "UPDATE scheduled_jobs SET status = ?, last_run = ? WHERE id = ?",
+                (status, last_run, job_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE scheduled_jobs SET status = ? WHERE id = ?",
+                (status, job_id),
+            )
+        conn.commit()
+
+    def delete_scheduled_job(self, job_id: str) -> bool:
+        conn = self._get_conn()
+        cursor = conn.execute("DELETE FROM scheduled_jobs WHERE id = ?", (job_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
     def _now(self) -> str:
         from datetime import datetime, timezone
         return datetime.now(timezone.utc).isoformat()

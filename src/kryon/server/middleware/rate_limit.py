@@ -1,4 +1,4 @@
-"""API rate limiting middleware — sliding window per IP."""
+"""API rate limiting middleware — sliding window per identity+bucket."""
 
 from __future__ import annotations
 
@@ -12,9 +12,40 @@ from starlette.responses import JSONResponse, Response
 # Paths excluded from rate limiting
 _EXCLUDED_PATHS = {"/api/v1/health"}
 
+# Per-endpoint RPM overrides (matched by prefix)
+_ENDPOINT_LIMITS: dict[str, int] = {
+    "/api/v1/auth/": 10,
+    "/api/v1/runs/": 15,
+    "/api/v1/scans/": 15,
+    "/api/v1/engagements/": 15,
+}
+
+
+def _extract_user_id(request: Request) -> str | None:
+    """Extract user_id from JWT Bearer token if present."""
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header[7:]
+    try:
+        import jwt as pyjwt
+
+        payload = pyjwt.decode(token, options={"verify_signature": False})
+        return payload.get("sub") or payload.get("user_id")
+    except Exception:
+        return None
+
+
+def _get_bucket(path: str) -> tuple[str, int | None]:
+    """Return (bucket_name, limit_override) for the given path."""
+    for prefix, limit in _ENDPOINT_LIMITS.items():
+        if path.startswith(prefix):
+            return prefix, limit
+    return "default", None
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Sliding-window rate limiter per client IP."""
+    """Sliding-window rate limiter per (identity, bucket)."""
 
     def __init__(self, app, rpm: int = 60, trusted_proxies: set[str] | None = None):
         super().__init__(app)
@@ -35,17 +66,21 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.url.path in _EXCLUDED_PATHS:
             return await call_next(request)
 
-        ip = self._get_client_ip(request)
+        identity = _extract_user_id(request) or self._get_client_ip(request)
+        bucket, limit_override = _get_bucket(request.url.path)
+        effective_limit = limit_override if limit_override is not None else self._rpm
+
+        key = f"{identity}:{bucket}"
         now = time.monotonic()
         window_start = now - 60.0
 
-        dq = self._requests[ip]
+        dq = self._requests[key]
 
         # Prune old entries
         while dq and dq[0] < window_start:
             dq.popleft()
 
-        if len(dq) >= self._rpm:
+        if len(dq) >= effective_limit:
             retry_after = int(dq[0] - window_start + 1)
             return JSONResponse(
                 status_code=429,
@@ -56,6 +91,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         dq.append(now)
 
         response = await call_next(request)
-        response.headers["X-RateLimit-Limit"] = str(self._rpm)
-        response.headers["X-RateLimit-Remaining"] = str(max(0, self._rpm - len(dq)))
+        response.headers["X-RateLimit-Limit"] = str(effective_limit)
+        response.headers["X-RateLimit-Remaining"] = str(max(0, effective_limit - len(dq)))
         return response
