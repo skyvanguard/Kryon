@@ -1,31 +1,68 @@
 ## Legal Disclaimer
 
-KRYON is an AI-powered cybersecurity platform designed for authorized security testing, research, and education.
+KRYON is an AI-powered autonomous cybersecurity platform designed exclusively for authorized security testing, research, and education.
 
 ### Authorized Use Only
 
 This software must only be used against systems you own or have explicit written permission to test. Authorized use cases include:
 
-- Penetration testing with written authorization
-- Bug bounty programs with defined scope
+- Penetration testing with written authorization (scope agreement, SOW, or equivalent)
+- Bug bounty programs with defined scope and rules of engagement
 - CTF competitions and security challenges
 - Security research and education in controlled environments
+- Internal security assessments by authorized personnel
+- Compliance auditing and verification
+
+### Prohibited Use
+
+The following uses are strictly prohibited:
+
+- Testing systems without explicit written authorization
+- Unauthorized access to computer systems or networks
+- Denial of service attacks against production systems
+- Data exfiltration or destruction of data without authorization
+- Any activity that violates applicable local, state, national, or international laws
+- Using the platform to develop malware for malicious purposes
+
+### AI/LLM Considerations
+
+KRYON uses Large Language Models (LLMs) to drive autonomous agents. Users should be aware that:
+
+- AI-generated actions and recommendations should be reviewed and validated by qualified security professionals
+- LLM outputs may contain inaccuracies or hallucinations -- always verify findings independently
+- The platform may use uncensored or fine-tuned models optimized for security tasks; these models are intended for professional use only
+- AI-generated exploit code or attack strategies must only be used within authorized scope
+- Users are responsible for all actions taken by autonomous agents, including unintended consequences
+- The quality and safety of results depends on the underlying LLM model and its configuration
 
 ### No Warranty
 
-The software is provided "as is", without warranty of any kind. The authors and contributors assume no liability for any damages, data loss, or legal consequences arising from its use.
+The software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement. The authors and contributors assume no liability for any damages, data loss, system disruption, or legal consequences arising from its use.
 
 ### User Responsibility
 
-- Users are solely responsible for ensuring compliance with all applicable laws
-- Users must validate and test before deploying in any environment
-- This tool is not a substitute for formal security audits or compliance assessments
+- Users are solely responsible for ensuring compliance with all applicable laws and regulations
+- Users must validate all findings and recommendations before acting on them
+- Users must maintain proper authorization documentation for all testing activities
+- This tool is not a substitute for formal security audits or compliance assessments conducted by certified professionals
 - Misuse of this software for unauthorized access is illegal and unethical
+- Users accept all risks associated with running autonomous AI agents against target systems
+
+### Data and Privacy
+
+- KRYON may store scan results, findings, and credentials locally in its database
+- Users are responsible for securing access to the platform and its data
+- Ensure compliance with data protection regulations (GDPR, HIPAA, etc.) when handling sensitive information
+- Credential storage uses encryption (Fernet), but users should evaluate whether this meets their security requirements
+
+### Third-Party Tools
+
+KRYON integrates with various third-party security tools (Nmap, Metasploit, Nuclei, etc.). Users must comply with the respective licenses and terms of use for each tool.
 
 ### Contributions
 
-To report issues or contribute, use [GitHub Issues](https://github.com/skyvanguard/Kryon/issues).
+To report security issues, please use responsible disclosure. For general issues, use [GitHub Issues](https://github.com/skyvanguard/Kryon/issues).
 
 ---
 
-By using or modifying this software, you agree to the terms of the `LICENSE` and this disclaimer.
+By using, modifying, or distributing this software, you acknowledge that you have read, understood, and agree to the terms of the `LICENSE` and this disclaimer.
