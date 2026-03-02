@@ -10,9 +10,17 @@ import threading
 import time
 from typing import Any, Optional
 
-import schedule
-
 logger = logging.getLogger(__name__)
+
+
+def _get_schedule():
+    """Lazy import of schedule module (optional dependency in 'rag' extra)."""
+    try:
+        import schedule
+
+        return schedule
+    except ImportError:
+        raise ImportError("schedule is required for auto-updater. Install with: pip install schedule") from None
 
 
 class AutoUpdater:
@@ -53,12 +61,13 @@ class AutoUpdater:
 
             sources = [k for k in SCRAPER_REGISTRY if k != "static-seed"]
 
+        sched = _get_schedule()
         if schedule_type == "hourly":
-            schedule.every().hour.do(self._update_knowledge, sources=sources)
+            sched.every().hour.do(self._update_knowledge, sources=sources)
         elif schedule_type == "daily":
-            schedule.every().day.at(time_of_day).do(self._update_knowledge, sources=sources)
+            sched.every().day.at(time_of_day).do(self._update_knowledge, sources=sources)
         elif schedule_type == "weekly":
-            schedule.every().week.at(time_of_day).do(self._update_knowledge, sources=sources)
+            sched.every().week.at(time_of_day).do(self._update_knowledge, sources=sources)
         else:
             raise ValueError(f"Invalid schedule type: {schedule_type}")
 
@@ -78,7 +87,7 @@ class AutoUpdater:
         self.running = False
         if self.thread:
             self.thread.join(timeout=5)
-        schedule.clear()
+        _get_schedule().clear()
         logger.info("Auto-updater stopped")
 
     def run_once(self, sources: Optional[list[str]] = None) -> dict[str, Any]:
@@ -101,7 +110,7 @@ class AutoUpdater:
     def _run_scheduler(self):
         """Run scheduler loop."""
         while self.running:
-            schedule.run_pending()
+            _get_schedule().run_pending()
             time.sleep(60)
 
     def _update_knowledge(self, sources: list[str]) -> dict[str, Any]:
