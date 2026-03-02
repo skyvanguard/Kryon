@@ -5,7 +5,10 @@ import uuid
 from datetime import datetime, timezone
 
 from kryon.sdk.agents import function_tool
+from kryon.server.logging_config import get_logger
 from kryon.tools.common import run_command
+
+logger = get_logger(__name__)
 
 
 @function_tool
@@ -33,6 +36,7 @@ def store_ioc(
     Returns:
         str: Storage result with IOC ID
     """
+    logger.info("store_ioc called type=%s value=%s source=%s", ioc_type, ioc_value, source)
     try:
         from kryon.server.deps import get_store
         store = get_store()
@@ -41,6 +45,7 @@ def store_ioc(
         store.store_ioc(ioc_id, ioc_type, ioc_value, source, threat_score, tags, ttl_days, now)
         return json.dumps({"ioc_id": ioc_id, "status": "stored", "type": ioc_type, "value": ioc_value})
     except Exception as e:
+        logger.error("store_ioc failed: %s", e)
         return json.dumps({"ioc_id": uuid.uuid4().hex[:12], "status": "stored_local", "type": ioc_type, "value": ioc_value, "note": str(e)})
 
 
@@ -65,12 +70,14 @@ def search_iocs(
     Returns:
         str: JSON list of matching IOCs
     """
+    logger.info("search_iocs called query=%s ioc_type=%s min_score=%s", query, ioc_type, min_score)
     try:
         from kryon.server.deps import get_store
         store = get_store()
         results = store.search_iocs(query=query, ioc_type=ioc_type, min_score=min_score, max_age_days=max_age_days)
         return json.dumps(results, indent=2)
     except Exception as e:
+        logger.error("search_iocs failed: %s", e)
         return json.dumps({"error": str(e), "note": "IOC database not available"})
 
 
@@ -93,6 +100,7 @@ def enrich_ioc(
     Returns:
         str: Enriched IOC data from multiple sources
     """
+    logger.info("enrich_ioc called type=%s value=%s sources=%s", ioc_type, ioc_value, sources)
     results = [f"IOC Enrichment: {ioc_type} = {ioc_value}", "=" * 40]
 
     source_list = ["virustotal", "shodan", "abuseipdb", "otx"] if sources == "all" else sources.split(",")

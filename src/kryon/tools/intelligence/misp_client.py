@@ -4,7 +4,10 @@ import json
 import os
 
 from kryon.sdk.agents import function_tool
+from kryon.server.logging_config import get_logger
 from kryon.tools.common import run_command
+
+logger = get_logger(__name__)
 
 
 @function_tool
@@ -26,28 +29,33 @@ def misp_search_events(
     Returns:
         str: MISP events matching the query
     """
+    logger.info("misp_search_events called query=%s type_attribute=%s limit=%d", query, type_attribute, limit)
     misp_url = os.getenv("MISP_URL", "")
     misp_key = os.getenv("MISP_KEY", "")
 
     if not misp_url or not misp_key:
-        return "Error: MISP_URL and MISP_KEY environment variables required."
+        return json.dumps({"error": "MISP_URL and MISP_KEY environment variables required", "status": "failed"})
 
-    search_body = {"limit": limit, "returnFormat": "json"}
-    if query:
-        search_body["value"] = query
-    if type_attribute:
-        search_body["type_attribute"] = type_attribute
+    try:
+        search_body = {"limit": limit, "returnFormat": "json"}
+        if query:
+            search_body["value"] = query
+        if type_attribute:
+            search_body["type_attribute"] = type_attribute
 
-    body_json = json.dumps(search_body)
-    cmd = (
-        f"curl -s -X POST '{misp_url}/events/restSearch' "
-        f"-H 'Authorization: {misp_key}' "
-        f"-H 'Content-Type: application/json' "
-        f"-H 'Accept: application/json' "
-        f"-d '{body_json}'"
-    )
+        body_json = json.dumps(search_body)
+        cmd = (
+            f"curl -s -X POST '{misp_url}/events/restSearch' "
+            f"-H 'Authorization: {misp_key}' "
+            f"-H 'Content-Type: application/json' "
+            f"-H 'Accept: application/json' "
+            f"-d '{body_json}'"
+        )
 
-    return run_command(cmd, ctf=ctf)
+        return run_command(cmd, ctf=ctf)
+    except Exception as exc:
+        logger.error("misp_search_events failed: %s", exc)
+        return json.dumps({"error": str(exc), "status": "failed"})
 
 
 @function_tool
@@ -71,41 +79,47 @@ def misp_add_event(
     Returns:
         str: Created event details
     """
+    logger.info("misp_add_event called title=%s threat_level=%d", title, threat_level)
     misp_url = os.getenv("MISP_URL", "")
     misp_key = os.getenv("MISP_KEY", "")
 
     if not misp_url or not misp_key:
-        return "Error: MISP_URL and MISP_KEY environment variables required."
+        return json.dumps({"error": "MISP_URL and MISP_KEY environment variables required", "status": "failed"})
 
     try:
         attributes = json.loads(attributes_json) if isinstance(attributes_json, str) else attributes_json
     except json.JSONDecodeError:
-        return "Error: Invalid JSON for attributes"
+        logger.error("misp_add_event: invalid JSON for attributes")
+        return json.dumps({"error": "Invalid JSON for attributes", "status": "failed"})
 
-    event_body = {
-        "Event": {
-            "info": title,
-            "threat_level_id": str(threat_level),
-            "analysis": "0",
-            "distribution": "0",
-            "Attribute": [
-                {
-                    "type": attr.get("type", "text"),
-                    "value": attr.get("value", ""),
-                    "category": attr.get("category", "External analysis"),
-                }
-                for attr in attributes
-            ],
+    try:
+        event_body = {
+            "Event": {
+                "info": title,
+                "threat_level_id": str(threat_level),
+                "analysis": "0",
+                "distribution": "0",
+                "Attribute": [
+                    {
+                        "type": attr.get("type", "text"),
+                        "value": attr.get("value", ""),
+                        "category": attr.get("category", "External analysis"),
+                    }
+                    for attr in attributes
+                ],
+            }
         }
-    }
 
-    body_json = json.dumps(event_body)
-    cmd = (
-        f"curl -s -X POST '{misp_url}/events/add' "
-        f"-H 'Authorization: {misp_key}' "
-        f"-H 'Content-Type: application/json' "
-        f"-H 'Accept: application/json' "
-        f"-d '{body_json}'"
-    )
+        body_json = json.dumps(event_body)
+        cmd = (
+            f"curl -s -X POST '{misp_url}/events/add' "
+            f"-H 'Authorization: {misp_key}' "
+            f"-H 'Content-Type: application/json' "
+            f"-H 'Accept: application/json' "
+            f"-d '{body_json}'"
+        )
 
-    return run_command(cmd, ctf=ctf)
+        return run_command(cmd, ctf=ctf)
+    except Exception as exc:
+        logger.error("misp_add_event failed: %s", exc)
+        return json.dumps({"error": str(exc), "status": "failed"})

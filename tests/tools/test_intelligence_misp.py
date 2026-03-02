@@ -27,7 +27,7 @@ async def test_search_no_creds(monkeypatch):
     monkeypatch.delenv("MISP_KEY", raising=False)
 
     result = await _invoke(misp_search_events, {"query": "malware"})
-    assert "Error" in result
+    assert "error" in result.lower()
     assert "MISP_URL" in result
 
 
@@ -84,7 +84,7 @@ async def test_add_event_no_creds(monkeypatch):
         "title": "Test Event",
         "description": "Test description",
     })
-    assert "Error" in result
+    assert "error" in result.lower()
     assert "MISP_URL" in result
 
 

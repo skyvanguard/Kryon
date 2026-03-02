@@ -15,6 +15,9 @@ from kryon.server.auth.password import hash_password, validate_password_complexi
 from kryon.server.auth.rbac import require_permission
 from kryon.server.deps import get_store
 from kryon.server.exceptions import not_found
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["admin"], dependencies=[Depends(require_api_key)])
 
@@ -24,15 +27,93 @@ router = APIRouter(tags=["admin"], dependencies=[Depends(require_api_key)])
 # -----------------------------------------------------------------------
 
 
+_BACKUP_DIR = Path.home() / ".kryon" / "backups"
+
+_EXPORTABLE_TABLES = {
+    "clients", "scans", "findings", "assets", "engagements",
+    "audit_log", "notification_log", "iocs",
+}
+
+
 @router.post("/admin/backup")
 async def create_backup(_user=Depends(require_permission("admin:write"))):
     """Create a SQLite database backup. Admin only."""
     store = get_store()
-    backup_dir = Path.home() / ".kryon" / "backups"
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    backup_path = backup_dir / f"kryon_backup_{ts}.db"
+    backup_path = _BACKUP_DIR / f"kryon_backup_{ts}.db"
     store.backup(backup_path)
+    logger.info("Database backup created: %s", backup_path)
     return {"path": str(backup_path), "timestamp": ts}
+
+
+@router.get("/admin/backups")
+async def list_backups(_user=Depends(require_permission("admin:read"))):
+    """List all database backups with metadata."""
+    if not _BACKUP_DIR.exists():
+        return []
+    backups = []
+    for f in sorted(_BACKUP_DIR.glob("kryon_backup_*.db")):
+        stat = f.stat()
+        backups.append({
+            "filename": f.name,
+            "size_bytes": stat.st_size,
+            "created_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+        })
+    return backups
+
+
+@router.delete("/admin/backups/{filename}")
+async def delete_backup(filename: str, _user=Depends(require_permission("admin:write"))):
+    """Delete a specific backup file."""
+    # Path traversal protection
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(400, "Invalid filename")
+    target = _BACKUP_DIR / filename
+    if not target.exists() or not target.name.startswith("kryon_backup_"):
+        raise not_found("Backup", filename)
+    target.unlink()
+    logger.info("Backup deleted: %s", filename)
+    return {"deleted": True, "filename": filename}
+
+
+class RotateRequest(BaseModel):
+    keep: int = Field(10, ge=1, le=1000)
+
+
+@router.post("/admin/backup/rotate")
+async def rotate_backups(req: RotateRequest, _user=Depends(require_permission("admin:write"))):
+    """Delete oldest backups, keeping only the most recent N."""
+    if not _BACKUP_DIR.exists():
+        return {"deleted_count": 0}
+    files = sorted(_BACKUP_DIR.glob("kryon_backup_*.db"), key=lambda f: f.stat().st_mtime)
+    to_delete = files[: max(0, len(files) - req.keep)]
+    for f in to_delete:
+        f.unlink()
+    logger.info("Backup rotation: deleted %d, kept %d", len(to_delete), req.keep)
+    return {"deleted_count": len(to_delete), "kept": req.keep}
+
+
+@router.get("/admin/export/{table}")
+async def export_table(
+    table: str,
+    client_id: str = Query("", description="Filter by client_id"),
+    _user=Depends(require_permission("admin:read")),
+):
+    """Export a table as JSON. Only whitelisted tables allowed."""
+    if table not in _EXPORTABLE_TABLES:
+        raise HTTPException(400, f"Table not exportable. Allowed: {sorted(_EXPORTABLE_TABLES)}")
+    store = get_store()
+    conn = store._get_conn()
+    try:
+        if client_id:
+            rows = conn.execute(f"SELECT * FROM {table} WHERE client_id = ?", (client_id,)).fetchall()
+        else:
+            rows = conn.execute(f"SELECT * FROM {table}").fetchall()
+    except Exception:
+        # Fallback: table may not have client_id column
+        rows = conn.execute(f"SELECT * FROM {table}").fetchall()
+    logger.info("Exported table %s (%d rows)", table, len(rows))
+    return [dict(r) for r in rows]
 
 
 # -----------------------------------------------------------------------
@@ -124,6 +205,7 @@ async def create_user(req: AdminCreateUser, _user=Depends(require_permission("ad
         role=req.role,
     )
     store.create_user(user)
+    logger.info("User created: %s role=%s", req.username, req.role)
     return UserPublic(**user.model_dump())
 
 
@@ -133,6 +215,7 @@ async def update_user(user_id: str, req: AdminUpdateUser, _user=Depends(require_
     store = get_store()
     existing = store.get_user_by_id(user_id)
     if not existing:
+        logger.warning("User not found: %s", user_id)
         raise not_found("User", user_id)
 
     updates = {k: v for k, v in req.model_dump().items() if v is not None}
@@ -140,6 +223,7 @@ async def update_user(user_id: str, req: AdminUpdateUser, _user=Depends(require_
         raise HTTPException(400, "No fields to update")
 
     store.update_user(user_id, **updates)
+    logger.info("User updated: %s fields=%s", user_id, list(updates.keys()))
     updated = store.get_user_by_id(user_id)
     return UserPublic(**updated.model_dump())
 
@@ -149,5 +233,7 @@ async def delete_user(user_id: str, _user=Depends(require_permission("admin:writ
     """Delete a user. Admin only."""
     store = get_store()
     if not store.delete_user(user_id):
+        logger.warning("User not found for delete: %s", user_id)
         raise not_found("User", user_id)
+    logger.info("User deleted: %s", user_id)
     return {"deleted": True}

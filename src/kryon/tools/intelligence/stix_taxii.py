@@ -5,7 +5,10 @@ import uuid
 from datetime import datetime, timezone
 
 from kryon.sdk.agents import function_tool
+from kryon.server.logging_config import get_logger
 from kryon.tools.common import run_command
+
+logger = get_logger(__name__)
 
 
 @function_tool
@@ -31,6 +34,7 @@ def create_stix_indicator(
     Returns:
         str: STIX 2.1 Indicator JSON
     """
+    logger.info("create_stix_indicator called ioc_type=%s ioc_value=%s confidence=%d", ioc_type, ioc_value, confidence)
     pattern_map = {
         "ipv4-addr": f"[ipv4-addr:value = '{ioc_value}']",
         "domain-name": f"[domain-name:value = '{ioc_value}']",
@@ -89,9 +93,11 @@ def create_stix_bundle(
     Returns:
         str: STIX 2.1 Bundle JSON
     """
+    logger.info("create_stix_bundle called include_relationships=%s", include_relationships)
     try:
         indicators = json.loads(indicators_json) if isinstance(indicators_json, str) else indicators_json
     except json.JSONDecodeError:
+        logger.error("create_stix_bundle: invalid JSON for indicators")
         return "Error: Invalid JSON for indicators"
 
     if not isinstance(indicators, list):
@@ -143,14 +149,19 @@ def taxii_poll_feed(
     Returns:
         str: STIX objects from the TAXII feed
     """
-    if not collection_id:
-        # List available collections
-        cmd = f"curl -s '{server_url}/{api_root}/collections/' -H 'Accept: application/taxii+json;version=2.1'"
+    logger.info("taxii_poll_feed called server_url=%s collection_id=%s", server_url, collection_id)
+    try:
+        if not collection_id:
+            # List available collections
+            cmd = f"curl -s '{server_url}/{api_root}/collections/' -H 'Accept: application/taxii+json;version=2.1'"
+            return run_command(cmd, ctf=ctf)
+
+        url = f"{server_url}/{api_root}/collections/{collection_id}/objects/"
+        if added_after:
+            url += f"?added_after={added_after}"
+
+        cmd = f"curl -s '{url}' -H 'Accept: application/taxii+json;version=2.1'"
         return run_command(cmd, ctf=ctf)
-
-    url = f"{server_url}/{api_root}/collections/{collection_id}/objects/"
-    if added_after:
-        url += f"?added_after={added_after}"
-
-    cmd = f"curl -s '{url}' -H 'Accept: application/taxii+json;version=2.1'"
-    return run_command(cmd, ctf=ctf)
+    except Exception as exc:
+        logger.error("taxii_poll_feed failed: %s", exc)
+        return json.dumps({"error": str(exc), "status": "failed"})
