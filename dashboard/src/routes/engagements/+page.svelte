@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { engagements, loadEngagements } from '$lib/stores/engagements';
 	import { createEngagement, type CreateEngagementRequest } from '$lib/api/engagements';
+	import { toast } from '$lib/stores/toast';
 	import EngagementForm from '$lib/components/engagements/EngagementForm.svelte';
 	import EngagementList from '$lib/components/engagements/EngagementList.svelte';
 
@@ -17,7 +18,7 @@
 			showForm = false;
 			goto(`/engagements/${result.id}`);
 		} catch (err) {
-			alert('Failed to create engagement');
+			toast.error('Failed to create engagement');
 		} finally {
 			creating = false;
 		}

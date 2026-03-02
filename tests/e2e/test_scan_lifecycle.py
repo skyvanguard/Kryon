@@ -24,4 +24,4 @@ def test_create_scan_button_exists(authenticated_page):
     page.wait_for_timeout(1000)
     buttons = page.locator("button, a").all_text_contents()
     has_create = any("new" in b.lower() or "create" in b.lower() or "scan" in b.lower() for b in buttons)
-    assert has_create or True  # Soft assertion — UI may vary
+    assert has_create, "Scans page must have a create/new/scan button"

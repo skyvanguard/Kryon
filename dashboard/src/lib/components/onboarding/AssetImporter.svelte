@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { importAssets, type AssetImport } from '$lib/api/onboarding';
+  import { toast } from '$lib/stores/toast';
 
   const dispatch = createEventDispatcher();
 
@@ -23,10 +24,10 @@
         } else if (file.name.endsWith('.csv')) {
           previewData = parseCSV(content);
         } else {
-          alert('Formato no soportado. Usa JSON o CSV.');
+          toast.warning('Formato no soportado. Usa JSON o CSV.');
         }
       } catch (err) {
-        alert('Error al parsear archivo: ' + (err as Error).message);
+        toast.error('Error al parsear archivo: ' + (err as Error).message);
       }
     };
     reader.readAsText(file);
@@ -55,7 +56,7 @@
       const result = await importAssets(previewData);
       dispatch('imported', result.imported);
     } catch (e) {
-      alert('Error al importar activos: ' + (e as Error).message);
+      toast.error('Error al importar activos: ' + (e as Error).message);
     } finally {
       importing = false;
     }

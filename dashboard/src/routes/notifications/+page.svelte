@@ -13,6 +13,7 @@
     type NotificationRule,
     type NotificationLogEntry
   } from '$lib/api/notifications';
+  import { toast } from '$lib/stores/toast';
   import ChannelForm from '$lib/components/notifications/ChannelForm.svelte';
   import RuleEditor from '$lib/components/notifications/RuleEditor.svelte';
 
@@ -82,7 +83,11 @@
   async function handleTestChannel(id: number) {
     try {
       const result = await testChannel(id);
-      alert(result.success ? 'Test exitoso: ' + result.message : 'Test falló: ' + result.message);
+      if (result.success) {
+        toast.success('Test exitoso: ' + result.message);
+      } else {
+        toast.warning('Test falló: ' + result.message);
+      }
     } catch (e) {
       error = 'Error al probar canal: ' + (e as Error).message;
     }

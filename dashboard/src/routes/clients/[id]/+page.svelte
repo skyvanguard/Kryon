@@ -4,6 +4,7 @@
 	import { getClient, getClientProgress, getClientFindings, deleteClient, type Client, type ClientProgress } from '$lib/api/clients';
 	import { parseFinding, type ParsedFinding } from '$lib/api/findings';
 	import { goto } from '$app/navigation';
+	import { toast } from '$lib/stores/toast';
 	import RiskChart from '$lib/components/clients/RiskChart.svelte';
 	import SeverityBadge from '$lib/components/common/SeverityBadge.svelte';
 
@@ -39,7 +40,7 @@
 			await deleteClient(clientId);
 			goto('/clients');
 		} catch {
-			alert('Failed to delete client');
+			toast.error('Failed to delete client');
 		}
 	}
 

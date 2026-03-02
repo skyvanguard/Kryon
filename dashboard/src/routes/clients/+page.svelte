@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { clients, clientsLoading, clientsError, loadClients } from '$lib/stores/clients';
 	import { createClient } from '$lib/api/clients';
+	import { toast } from '$lib/stores/toast';
 	import ClientCard from '$lib/components/clients/ClientCard.svelte';
 	import ClientForm from '$lib/components/clients/ClientForm.svelte';
 
@@ -14,8 +15,9 @@
 			await createClient(e.detail);
 			await loadClients();
 			showForm = false;
+			toast.success('Client created successfully');
 		} catch (err) {
-			alert('Failed to create client');
+			toast.error('Failed to create client');
 		} finally {
 			creating = false;
 		}

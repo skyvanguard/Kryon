@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { validateScope, type ScopeValidation } from '$lib/api/onboarding';
+  import { toast } from '$lib/stores/toast';
 
   const dispatch = createEventDispatcher();
 
@@ -20,7 +21,7 @@
       validating = true;
       results = await validateScope(targets);
     } catch (e) {
-      alert('Error al validar alcance: ' + (e as Error).message);
+      toast.error('Error al validar alcance: ' + (e as Error).message);
     } finally {
       validating = false;
     }

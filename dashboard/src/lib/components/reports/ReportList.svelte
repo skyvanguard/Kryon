@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Report } from '$lib/api/reports';
 	import { downloadReport } from '$lib/api/reports';
+	import { toast } from '$lib/stores/toast';
 
 	export let reports: Report[] = [];
 
@@ -20,7 +21,7 @@
 			a.click();
 			URL.revokeObjectURL(url);
 		} catch {
-			alert('Failed to download report');
+			toast.error('Failed to download report');
 		}
 	}
 </script>

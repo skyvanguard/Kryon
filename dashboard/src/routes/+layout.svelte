@@ -3,11 +3,14 @@
 	import { page } from '$app/stores';
 	import Navbar from '$lib/components/layout/Navbar.svelte';
 	import Footer from '$lib/components/layout/Footer.svelte';
+	import Toast from '$lib/components/ui/Toast.svelte';
 	import { isAuthenticated } from '$lib/stores/auth';
 
 	// Login page doesn't need the navbar/footer chrome
 	$: isLoginPage = $page.url.pathname === '/login';
 </script>
+
+<Toast></Toast>
 
 {#if isLoginPage}
 	<slot />

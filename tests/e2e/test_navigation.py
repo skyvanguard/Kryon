@@ -37,7 +37,7 @@ def test_sidebar_links_exist(authenticated_page):
     page = authenticated_page
     links = page.locator("nav a, aside a, .sidebar a").all_text_contents()
     # Just verify sidebar has some navigation
-    assert len(links) >= 0  # Soft assertion — layout may vary
+    assert len(links) >= 1, "Dashboard must have at least one navigation link"
 
 
 @pytest.mark.e2e
@@ -57,4 +57,4 @@ def test_api_returns_401_without_auth(page):
         resp = page.request.get("/api/v1/scans")
     except Exception:
         pytest.skip("Server not running")
-    assert resp.status in (401, 403, 200)  # 200 if auth disabled in dev
+    assert resp.status in (401, 403), "Protected endpoint must return 401 or 403 without auth"
