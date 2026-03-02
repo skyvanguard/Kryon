@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import sys
 import types
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from kryon.server.routes.health import _ping_llm, _llm_cache
+from kryon.server.routes.health import _llm_cache, _ping_llm
 
 
 @pytest.fixture(autouse=True)

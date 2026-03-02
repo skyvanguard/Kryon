@@ -6,8 +6,8 @@ import pytest
 from starlette.testclient import TestClient
 
 from kryon.server.middleware.rate_limit import (
-    RateLimitMiddleware,
     _ENDPOINT_LIMITS,
+    RateLimitMiddleware,
     _extract_user_id,
     _get_bucket,
 )

@@ -30,7 +30,8 @@ def _extract_user_id(request: Request) -> str | None:
     try:
         import jwt as pyjwt
 
-        payload = pyjwt.decode(token, options={"verify_signature": False})
+        # Identity extraction only — full verification happens in auth middleware
+        payload = pyjwt.decode(token, options={"verify_signature": False})  # nosemgrep: unverified-jwt-decode
         return payload.get("sub") or payload.get("user_id")
     except Exception:
         return None

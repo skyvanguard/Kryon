@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -37,9 +37,9 @@ class _SafeStore(MemoryStore):
 @pytest.fixture
 def admin_client(tmp_path, monkeypatch):
     """Create test app with auth disabled (api_keys=[])."""
+    import kryon.server.deps as deps_mod
     from kryon.server.app import create_app
     from kryon.server.config import ServerConfig
-    import kryon.server.deps as deps_mod
 
     store = _SafeStore(db_path=tmp_path / "test.db")
     monkeypatch.setattr(deps_mod, "_store", store)

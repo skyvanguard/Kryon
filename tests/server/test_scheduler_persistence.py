@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from kryon.server.scheduler import ScheduledJob, ScanScheduler
+from kryon.server.scheduler import ScanScheduler, ScheduledJob
 
 
 @pytest.fixture

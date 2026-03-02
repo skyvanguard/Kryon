@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import smtplib
 from abc import ABC, abstractmethod
@@ -110,7 +109,9 @@ class SlackChannel(NotificationChannel):
                         {"type": "section", "text": {"type": "mrkdwn", "text": body}},
                         {
                             "type": "context",
-                            "elements": [{"type": "mrkdwn", "text": f"Severity: *{severity}* | {self._format_timestamp()}"}],
+                            "elements": [
+                                {"type": "mrkdwn", "text": f"Severity: *{severity}* | {self._format_timestamp()}"},
+                            ],
                         },
                     ],
                 }
@@ -145,7 +146,10 @@ class TeamsChannel(NotificationChannel):
                         "type": "AdaptiveCard",
                         "version": "1.4",
                         "body": [
-                            {"type": "TextBlock", "size": "Large", "weight": "Bolder", "text": f"KRYON: {subject}", "style": style},
+                            {
+                                "type": "TextBlock", "size": "Large", "weight": "Bolder",
+                                "text": f"KRYON: {subject}", "style": style,
+                            },
                             {"type": "TextBlock", "text": body, "wrap": True},
                             {"type": "FactSet", "facts": [
                                 {"title": "Severity", "value": severity},

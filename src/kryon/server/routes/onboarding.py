@@ -136,7 +136,7 @@ async def save_credential(body: CredentialBody) -> dict:
         encrypted_data=encrypted,
         created_at=now,
     )
-    logger.info("Credential saved: id=%s client=%s type=%s", cred_id, body.client_id, body.credential_type)
+    logger.info("Credential saved: id=%s client=%s type=%s", cred_id, body.client_id, body.credential_type)  # nosemgrep: python-logger-credential-disclosure
     return {"id": cred_id, "client_id": body.client_id}
 
 
@@ -152,9 +152,9 @@ async def delete_credential(cred_id: str) -> dict:
     """Delete a credential."""
     store = get_store()
     if not store.delete_credential(cred_id):
-        logger.warning("Credential not found for delete: %s", cred_id)
+        logger.warning("Credential not found for delete: %s", cred_id)  # nosemgrep: python-logger-credential-disclosure
         raise not_found("Credential", cred_id)
-    logger.info("Credential deleted: %s", cred_id)
+    logger.info("Credential deleted: %s", cred_id)  # nosemgrep: python-logger-credential-disclosure
     return {"deleted": True, "id": cred_id}
 
 

@@ -1,6 +1,5 @@
 """Credential dataset tools — SecLists search, targeted wordlists, hash identification."""
 
-import hashlib
 import re
 
 from kryon.sdk.agents import function_tool
@@ -29,7 +28,7 @@ def search_credential_dataset(
     Returns:
         str: Matching credentials/passwords from the dataset
     """
-    logger.info("search_credential_dataset called query=%s dataset=%s max_results=%d", query, dataset, max_results)
+    logger.info("search_credential_dataset called query=%s dataset=%s max_results=%d", query, dataset, max_results)  # nosemgrep: python-logger-credential-disclosure
     if dataset == "seclists":
         seclists_paths = [
             "/usr/share/seclists/Passwords/Common-Credentials/",

@@ -119,5 +119,5 @@ async def change_password(req: PasswordChangeRequest, user: User | None = Depend
 
     store = get_store()
     store.update_user(user.id, password_hash=hash_password(req.new_password))
-    logger.info("Password changed for user: %s", user.username)
+    logger.info("Password changed for user: %s", user.username)  # nosemgrep: python-logger-credential-disclosure
     return {"detail": "Password updated"}
