@@ -1,6 +1,10 @@
 """Tests for knowledge base API endpoints."""
 
+import importlib
+
 import pytest
+
+_has_sentence_transformers = importlib.util.find_spec("sentence_transformers") is not None
 
 
 class TestKnowledgeStats:
@@ -31,6 +35,7 @@ class TestKnowledgeQuery:
 
 
 class TestKnowledgeAdd:
+    @pytest.mark.skipif(not _has_sentence_transformers, reason="sentence_transformers not installed")
     def test_add_document(self, client):
         resp = client.post(
             "/api/v1/knowledge/add",
