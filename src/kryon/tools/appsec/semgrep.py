@@ -1,7 +1,10 @@
 """Semgrep — Static Application Security Testing (SAST) wrapper."""
 
 from kryon.sdk.agents import function_tool
+from kryon.server.logging_config import get_logger
 from kryon.tools.common import run_command
+
+logger = get_logger(__name__)
 
 
 @function_tool
@@ -32,6 +35,7 @@ def semgrep_scan(
     Returns:
         str: Semgrep scan results with vulnerability findings
     """
+    logger.info("semgrep_scan called target_path=%s config=%s severity=%s", target_path, config, severity)
     cmd_parts = ["semgrep", "scan", f"--config {config}", f"--severity {severity}"]
 
     if output_format != "text":
@@ -70,6 +74,7 @@ def semgrep_scan_with_rules(
     Returns:
         str: Scan results matching the custom rules
     """
+    logger.info("semgrep_scan_with_rules called target_path=%s rule_file=%s", target_path, rule_file)
     cmd_parts = ["semgrep", "scan", f"--config {rule_file}"]
 
     if output_format == "json":

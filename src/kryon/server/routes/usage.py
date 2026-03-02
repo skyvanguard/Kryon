@@ -3,7 +3,10 @@
 from fastapi import APIRouter, Depends
 
 from kryon.server.auth import require_api_key
+from kryon.server.logging_config import get_logger
 from kryon.server.models import DailyUsage, ModelUsage, UsageSummary
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["usage"], dependencies=[Depends(require_api_key)])
 

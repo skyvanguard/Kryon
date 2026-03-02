@@ -12,6 +12,9 @@ from kryon.server.auth import require_api_key
 from kryon.server.auth.rbac import require_permission
 from kryon.server.deps import get_store
 from kryon.server.exceptions import not_found
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["scope"], dependencies=[Depends(require_api_key)])
 
@@ -40,6 +43,7 @@ async def create_scope_rule(req: CreateScopeRuleRequest) -> ScopeRuleResponse:
     rule_id = uuid.uuid4().hex[:12]
     now = datetime.now(timezone.utc).isoformat()
     store.create_scope_rule(rule_id, req.client_id, req.rule_type, req.value, req.description, now)
+    logger.info("Scope rule created: id=%s client=%s type=%s", rule_id, req.client_id, req.rule_type)
     return ScopeRuleResponse(
         id=rule_id, client_id=req.client_id, rule_type=req.rule_type,
         value=req.value, description=req.description, created_at=now, created_by=None,
@@ -60,6 +64,7 @@ async def get_scope_rule(rule_id: str) -> ScopeRuleResponse:
     store = get_store()
     row = store.get_scope_rule(rule_id)
     if not row:
+        logger.warning("Scope rule not found: %s", rule_id)
         raise not_found("Scope rule", rule_id)
     return ScopeRuleResponse(**row)
 
@@ -70,5 +75,7 @@ async def delete_scope_rule(rule_id: str) -> dict:
     store = get_store()
     deleted = store.delete_scope_rule(rule_id)
     if not deleted:
+        logger.warning("Scope rule not found for delete: %s", rule_id)
         raise not_found("Scope rule", rule_id)
+    logger.info("Scope rule deleted: %s", rule_id)
     return {"deleted": True, "id": rule_id}

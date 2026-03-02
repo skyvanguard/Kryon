@@ -10,6 +10,9 @@ from pydantic import BaseModel
 from kryon.server.auth import require_api_key
 from kryon.server.deps import get_store
 from kryon.server.exceptions import not_found
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["attack_paths"], dependencies=[Depends(require_api_key)])
 
@@ -40,6 +43,7 @@ async def analyze_attack_paths(body: AnalyzeBody) -> dict:
     correlation = correlate_vulnerabilities_impl(json.dumps(findings))
 
     from kryon.intelligence.graph_formatter import format_graph_for_d3
+    logger.info("Attack paths analyzed: %d findings", len(findings))
     return format_graph_for_d3(correlation)
 
 

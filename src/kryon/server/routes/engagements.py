@@ -14,7 +14,10 @@ from kryon.server.auth.isolation import verify_client_access
 from kryon.server.auth.models import User
 from kryon.server.deps import get_engagement_manager
 from kryon.server.models import CreateEngagementRequest, EngagementResponse
+from kryon.server.logging_config import get_logger
 from kryon.server.sse import sse_response
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["engagements"], dependencies=[Depends(require_api_key)])
 
@@ -37,6 +40,7 @@ async def create_engagement(req: CreateEngagementRequest, user: User | None = De
 
     manager = get_engagement_manager()
     eng = await manager.create_engagement(engagement)
+    logger.info("Engagement created: id=%s client=%s targets=%d", eng.id, req.client_name, len(req.targets))
     return EngagementResponse(
         id=eng.id, status=eng.status.value, message="Engagement created, planning started"
     )
@@ -57,6 +61,7 @@ async def get_engagement(engagement_id: str) -> dict:
     manager = get_engagement_manager()
     eng = manager.store.get_engagement(engagement_id)
     if not eng:
+        logger.warning("Engagement not found: %s", engagement_id)
         raise not_found("Engagement", engagement_id)
     phases = manager.store.get_engagement_phases(engagement_id)
     result = eng.model_dump(mode="json")
@@ -115,6 +120,7 @@ async def pause_engagement(engagement_id: str) -> dict:
     if eng.status.value != "active":
         raise HTTPException(409, f"Cannot pause engagement in '{eng.status.value}' state")
     await manager.pause_engagement(engagement_id)
+    logger.info("Engagement paused: %s", engagement_id)
     return {"status": "paused"}
 
 
@@ -128,6 +134,7 @@ async def resume_engagement(engagement_id: str) -> dict:
     if eng.status.value != "paused":
         raise HTTPException(409, f"Cannot resume engagement in '{eng.status.value}' state")
     await manager.resume_engagement(engagement_id)
+    logger.info("Engagement resumed: %s", engagement_id)
     return {"status": "active"}
 
 
@@ -139,4 +146,5 @@ async def cancel_engagement(engagement_id: str) -> dict:
     if not eng:
         raise not_found("Engagement", engagement_id)
     await manager.cancel_engagement(engagement_id)
+    logger.info("Engagement cancelled: %s", engagement_id)
     return {"status": "cancelled"}

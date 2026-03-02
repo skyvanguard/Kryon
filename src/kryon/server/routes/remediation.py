@@ -10,6 +10,9 @@ from pydantic import BaseModel, Field
 from kryon.server.auth import require_api_key
 from kryon.server.deps import get_store
 from kryon.server.exceptions import not_found
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["remediation"], dependencies=[Depends(require_api_key)])
 
@@ -34,6 +37,7 @@ async def assign_finding(finding_id: str, body: AssignBody) -> dict:
     store = get_store()
     finding = store.get_finding_by_id(finding_id)
     if not finding:
+        logger.warning("Finding not found for assign: %s", finding_id)
         raise not_found("Finding", finding_id)
 
     from kryon.remediation.sla import calculate_sla_deadline
@@ -47,6 +51,7 @@ async def assign_finding(finding_id: str, body: AssignBody) -> dict:
         sla_deadline=sla_deadline,
         assigned_at=now.isoformat(),
     )
+    logger.info("Finding assigned: id=%s to=%s priority=%s", finding_id, body.assigned_to, body.priority)
     return {"id": finding_id, "assigned_to": body.assigned_to, "priority": body.priority, "sla_deadline": sla_deadline}
 
 
@@ -55,7 +60,9 @@ async def add_note(finding_id: str, body: NoteBody) -> dict:
     """Add a remediation note to a finding."""
     store = get_store()
     if not store.add_remediation_note(finding_id, body.note):
+        logger.warning("Finding not found for note: %s", finding_id)
         raise not_found("Finding", finding_id)
+    logger.info("Remediation note added: finding=%s", finding_id)
     return {"id": finding_id, "note_added": True}
 
 
@@ -65,11 +72,13 @@ async def schedule_retest(finding_id: str, body: RetestBody) -> dict:
     store = get_store()
     finding = store.get_finding_by_id(finding_id)
     if not finding:
+        logger.warning("Finding not found for retest: %s", finding_id)
         raise not_found("Finding", finding_id)
     # Mark retest status
     conn = store._get_conn()
     conn.execute("UPDATE findings SET retest_status = 'scheduled' WHERE id = ?", (finding_id,))
     conn.commit()
+    logger.info("Retest scheduled: finding=%s agent=%s", finding_id, body.agent_key)
     return {"id": finding_id, "retest_status": "scheduled", "agent_key": body.agent_key}
 
 

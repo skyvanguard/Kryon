@@ -7,6 +7,9 @@ from fastapi import APIRouter, Depends, Query
 from kryon.server.auth import require_api_key
 from kryon.server.deps import get_store
 from kryon.server.exceptions import not_found
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["assets"], dependencies=[Depends(require_api_key)])
 
@@ -32,6 +35,7 @@ async def get_asset(asset_id: str) -> dict:
     store = get_store()
     asset = store.get_asset(asset_id)
     if not asset:
+        logger.warning("Asset not found: %s", asset_id)
         raise not_found("Asset", asset_id)
     return asset
 
@@ -64,6 +68,7 @@ async def create_asset(body: dict) -> dict:
         metadata_json=body.get("metadata_json", "{}"),
         now=now,
     )
+    logger.info("Asset created: id=%s type=%s", asset_id, body.get("asset_type", "unknown"))
     return {"id": asset_id, "status": "created"}
 
 
@@ -73,6 +78,7 @@ async def update_asset(asset_id: str, body: dict) -> dict:
     store = get_store()
     asset = store.get_asset(asset_id)
     if not asset:
+        logger.warning("Asset not found for update: %s", asset_id)
         raise not_found("Asset", asset_id)
 
     conn = store._get_conn()
@@ -83,4 +89,5 @@ async def update_asset(asset_id: str, body: dict) -> dict:
         conn.execute(f"UPDATE assets SET {set_clause} WHERE id = ?", (*updates.values(), asset_id))
         conn.commit()
 
+    logger.info("Asset updated: %s", asset_id)
     return {"id": asset_id, "status": "updated"}

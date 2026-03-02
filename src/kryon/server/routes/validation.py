@@ -9,7 +9,10 @@ import uuid
 from fastapi import APIRouter, Depends, Query
 
 from kryon.server.auth import require_api_key
+from kryon.server.logging_config import get_logger
 from kryon.server.models import DetectRequest, SimulateRequest
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["validation"], dependencies=[Depends(require_api_key)])
 
@@ -24,7 +27,9 @@ async def simulate_attack(body: SimulateRequest) -> dict:
         None,
         body.model_dump_json(),
     )
-    return {"simulation_id": uuid.uuid4().hex[:12], "technique_id": body.technique_id, "result": result}
+    sim_id = uuid.uuid4().hex[:12]
+    logger.info("Attack simulation completed: id=%s technique=%s", sim_id, body.technique_id)
+    return {"simulation_id": sim_id, "technique_id": body.technique_id, "result": result}
 
 
 @router.post("/validation/detect")
@@ -37,6 +42,7 @@ async def validate_detection(body: DetectRequest) -> dict:
         None,
         body.model_dump_json(),
     )
+    logger.info("Detection validation completed: technique=%s", body.technique_id)
     return {"technique_id": body.technique_id, "result": result}
 
 

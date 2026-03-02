@@ -13,6 +13,9 @@ from pydantic import BaseModel, Field
 from kryon.server.auth import require_api_key
 from kryon.server.deps import get_store
 from kryon.server.exceptions import not_found
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["onboarding"], dependencies=[Depends(require_api_key)])
 
@@ -60,6 +63,7 @@ async def start_onboarding(body: StartBody) -> dict:
     # Create onboarding session
     store.save_onboarding_session(session_id=session_id, client_id=client_id, started_at=now)
 
+    logger.info("Onboarding started: session=%s client=%s", session_id, client_id)
     return {"session_id": session_id, "client_id": client_id}
 
 
@@ -69,6 +73,7 @@ async def update_step(session_id: str, body: StepBody) -> dict:
     store = get_store()
     session = store.get_onboarding_session(session_id)
     if not session:
+        logger.warning("Onboarding session not found: %s", session_id)
         raise not_found("OnboardingSession", session_id)
 
     # Merge step data
@@ -79,6 +84,7 @@ async def update_step(session_id: str, body: StepBody) -> dict:
         current_step=body.step,
         data_json=json.dumps(existing_data),
     )
+    logger.info("Onboarding step updated: session=%s step=%d", session_id, body.step)
     return {"session_id": session_id, "current_step": body.step}
 
 
@@ -88,6 +94,7 @@ async def get_session(session_id: str) -> dict:
     store = get_store()
     session = store.get_onboarding_session(session_id)
     if not session:
+        logger.warning("Onboarding session not found: %s", session_id)
         raise not_found("OnboardingSession", session_id)
     return session
 
@@ -103,6 +110,7 @@ async def complete_onboarding(session_id: str) -> dict:
     now = datetime.now(timezone.utc).isoformat()
     store.update_onboarding_session(session_id, completed_at=now)
 
+    logger.info("Onboarding completed: session=%s client=%s", session_id, session["client_id"])
     return {"session_id": session_id, "completed": True, "client_id": session["client_id"]}
 
 
@@ -128,6 +136,7 @@ async def save_credential(body: CredentialBody) -> dict:
         encrypted_data=encrypted,
         created_at=now,
     )
+    logger.info("Credential saved: id=%s client=%s type=%s", cred_id, body.client_id, body.credential_type)
     return {"id": cred_id, "client_id": body.client_id}
 
 
@@ -143,7 +152,9 @@ async def delete_credential(cred_id: str) -> dict:
     """Delete a credential."""
     store = get_store()
     if not store.delete_credential(cred_id):
+        logger.warning("Credential not found for delete: %s", cred_id)
         raise not_found("Credential", cred_id)
+    logger.info("Credential deleted: %s", cred_id)
     return {"deleted": True, "id": cred_id}
 
 
@@ -157,6 +168,7 @@ async def import_assets(body: ImportBody) -> dict:
     else:
         from kryon.onboarding.importer import import_assets_json
         count = import_assets_json(body.data, body.client_id, store)
+    logger.info("Assets imported: count=%d client=%s format=%s", count, body.client_id, body.format)
     return {"imported": count, "client_id": body.client_id}
 
 
@@ -165,4 +177,5 @@ async def validate_scope_endpoint(body: ValidateScopeBody) -> dict:
     """Validate scope target reachability."""
     from kryon.onboarding.importer import validate_scope
     results = validate_scope(body.targets)
+    logger.info("Scope validated: %d targets, %d reachable", len(results), sum(1 for r in results if r["reachable"]))
     return {"results": results, "total": len(results), "reachable": sum(1 for r in results if r["reachable"])}

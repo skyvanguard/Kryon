@@ -8,7 +8,10 @@ import uuid
 from fastapi import APIRouter, Depends
 
 from kryon.server.auth import require_api_key
+from kryon.server.logging_config import get_logger
 from kryon.server.models import DASTScanRequest, SASTScanRequest, SBOMRequest
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["appsec"], dependencies=[Depends(require_api_key)])
 
@@ -23,7 +26,9 @@ async def run_sast_scan(body: SASTScanRequest) -> dict:
         None,
         body.model_dump_json(),
     )
-    return {"scan_id": uuid.uuid4().hex[:12], "tool": "semgrep", "result": result}
+    scan_id = uuid.uuid4().hex[:12]
+    logger.info("SAST scan completed: id=%s", scan_id)
+    return {"scan_id": scan_id, "tool": "semgrep", "result": result}
 
 
 @router.post("/appsec/dast")
@@ -36,7 +41,9 @@ async def run_dast_scan(body: DASTScanRequest) -> dict:
         None,
         body.model_dump_json(),
     )
-    return {"scan_id": uuid.uuid4().hex[:12], "tool": "zap", "result": result}
+    scan_id = uuid.uuid4().hex[:12]
+    logger.info("DAST scan completed: id=%s", scan_id)
+    return {"scan_id": scan_id, "tool": "zap", "result": result}
 
 
 @router.post("/appsec/sbom")
@@ -49,4 +56,6 @@ async def run_sbom_scan(body: SBOMRequest) -> dict:
         None,
         body.model_dump_json(),
     )
-    return {"scan_id": uuid.uuid4().hex[:12], "tool": "syft", "result": result}
+    scan_id = uuid.uuid4().hex[:12]
+    logger.info("SBOM scan completed: id=%s", scan_id)
+    return {"scan_id": scan_id, "tool": "syft", "result": result}

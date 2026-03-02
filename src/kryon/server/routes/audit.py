@@ -6,6 +6,9 @@ from fastapi import APIRouter, Depends, Query
 
 from kryon.server.auth import require_api_key
 from kryon.server.auth.rbac import require_permission
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["audit"], dependencies=[Depends(require_api_key)])
 

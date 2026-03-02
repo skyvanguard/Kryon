@@ -7,6 +7,9 @@ from pydantic import BaseModel, Field
 
 from kryon.server.auth import require_api_key
 from kryon.server.deps import get_store
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["billing"], dependencies=[Depends(require_api_key)])
 
@@ -28,7 +31,9 @@ async def validate_license(body: LicenseValidateBody) -> dict:
     payload = validator.validate(body.license_key)
 
     if payload:
+        logger.info("License validated: tenant=%s tier=%s", payload.get("tenant_id"), payload.get("tier"))
         return {"valid": True, "tenant_id": payload.get("tenant_id"), "tier": payload.get("tier"), "features": payload.get("features", [])}
+    logger.warning("Invalid license validation attempt")
     return {"valid": False, "error": "Invalid or expired license"}
 
 
@@ -73,4 +78,5 @@ async def get_limits(tenant_id: str = "") -> dict:
 @router.post("/billing/webhooks/stripe")
 async def stripe_webhook() -> dict:
     """Stripe webhook receiver (future-ready stub)."""
+    logger.info("Stripe webhook received")
     return {"received": True, "status": "not_implemented"}

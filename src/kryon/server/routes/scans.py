@@ -20,7 +20,10 @@ from kryon.server.models import (
     AutoScanStatus,
     ScheduleScanRequest,
 )
+from kryon.server.logging_config import get_logger
 from kryon.server.sse import sse_response
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["scans"], dependencies=[Depends(require_api_key)])
 
@@ -42,6 +45,7 @@ async def schedule_scan(req: ScheduleScanRequest, user: User | None = Depends(ge
         cron=req.cron,
         webhook_url=req.webhook_url,
     )
+    logger.info("Scan scheduled: job=%s client=%s agent=%s", job_id, req.client_id, req.agent_key)
     return {"job_id": job_id, "status": "scheduled"}
 
 
@@ -59,6 +63,7 @@ async def get_scan(job_id: str) -> dict:
     scheduler = get_scheduler()
     job = scheduler.jobs.get(job_id)
     if not job:
+        logger.warning("Scan job not found: %s", job_id)
         raise not_found("Job", job_id)
     return job.model_dump()
 
@@ -68,7 +73,9 @@ async def cancel_scan(job_id: str) -> dict:
     """Cancel a scheduled scan."""
     scheduler = get_scheduler()
     if not await scheduler.cancel_scan(job_id):
+        logger.warning("Scan job not found for cancel: %s", job_id)
         raise not_found("Job", job_id)
+    logger.info("Scan cancelled: %s", job_id)
     return {"cancelled": True}
 
 
@@ -127,6 +134,7 @@ async def start_auto_scan(req: AutoScanRequest, user: User | None = Depends(get_
         "task": task,
     }
 
+    logger.info("Auto-scan started: id=%s client=%s targets=%d", scan_id, req.client_id, len(req.targets))
     return AutoScanResponse(
         scan_id=scan_id,
         status="started",
@@ -207,6 +215,7 @@ async def cancel_auto_scan(scan_id: str) -> dict:
     """Cancel a running autonomous scan."""
     entry = _auto_scans.get(scan_id)
     if not entry:
+        logger.warning("Auto-scan not found for cancel: %s", scan_id)
         raise not_found("Auto-scan", scan_id)
 
     task = entry["task"]
@@ -214,4 +223,5 @@ async def cancel_auto_scan(scan_id: str) -> dict:
         task.cancel()
     _auto_scans.pop(scan_id, None)
 
+    logger.info("Auto-scan cancelled: %s", scan_id)
     return {"scan_id": scan_id, "status": "cancelled"}

@@ -7,7 +7,10 @@ import json
 from fastapi import APIRouter, Depends, Query
 
 from kryon.server.auth import require_api_key
+from kryon.server.logging_config import get_logger
 from kryon.server.models import ComplianceAssessRequest
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["compliance"], dependencies=[Depends(require_api_key)])
 
@@ -55,6 +58,7 @@ async def assess_compliance(body: ComplianceAssessRequest) -> dict:
             continue
 
     report = map_findings_to_framework(findings, body.framework)
+    logger.info("Compliance assessment completed: framework=%s client=%s", body.framework, body.client_id)
     return report.model_dump()
 
 

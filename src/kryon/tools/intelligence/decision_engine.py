@@ -11,6 +11,9 @@ import re
 from typing import Any
 
 from kryon.sdk.agents import function_tool
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 # Tool capability database
 TOOL_CAPABILITIES = {
@@ -205,6 +208,7 @@ def analyze_target(
             time_constraint="quick"
         )
     """
+    logger.info("analyze_target called target=%s target_type=%s scope=%s stealth=%s", target, target_type, scope, stealth_level)
     # Detect target type if auto
     if target_type == "auto":
         target_type = _detect_target_type(target)
@@ -272,6 +276,7 @@ def recommend_tools(
             priority="speed"
         )
     """
+    logger.info("recommend_tools called objective=%s target_type=%s priority=%s", objective, target_type, priority)
     # Parse objective
     objective_keywords = _extract_keywords(objective.lower())
 
@@ -343,6 +348,7 @@ def create_strategy(
             stealth_required=True
         )
     """
+    logger.info("create_strategy called target=%s available_time=%s stealth=%s", target, available_time, stealth_required)
     goal_list = [g.strip() for g in goals.split(",")]
 
     # Build multi-phase strategy
@@ -391,6 +397,7 @@ def optimize_workflow(tools: str, target: str, optimize_for: str = "speed", ctf=
             optimize_for="stealth"
         )
     """
+    logger.info("optimize_workflow called tools=%s target=%s optimize_for=%s", tools, target, optimize_for)
     tool_list = [t.strip() for t in tools.split(",")]
 
     # Analyze dependencies and optimal order

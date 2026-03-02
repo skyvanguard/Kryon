@@ -17,6 +17,9 @@ from kryon.server.auth.jwt_auth import (
 from kryon.server.auth.models import User, UserPublic
 from kryon.server.auth.password import hash_password, validate_password_complexity, verify_password
 from kryon.server.deps import get_store
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["auth"])
 
@@ -59,6 +62,7 @@ async def login(req: LoginRequest):
     # Update last login
     store.update_user(user.id, last_login=datetime.now(timezone.utc).isoformat())
 
+    logger.info("User logged in: %s", user.username)
     access = create_access_token(user.id, user.username, user.role)
     refresh = create_refresh_token(user.id)
 
@@ -115,4 +119,5 @@ async def change_password(req: PasswordChangeRequest, user: User | None = Depend
 
     store = get_store()
     store.update_user(user.id, password_hash=hash_password(req.new_password))
+    logger.info("Password changed for user: %s", user.username)
     return {"detail": "Password updated"}

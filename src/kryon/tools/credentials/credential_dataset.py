@@ -4,7 +4,10 @@ import hashlib
 import re
 
 from kryon.sdk.agents import function_tool
+from kryon.server.logging_config import get_logger
 from kryon.tools.common import run_command
+
+logger = get_logger(__name__)
 
 
 @function_tool
@@ -26,6 +29,7 @@ def search_credential_dataset(
     Returns:
         str: Matching credentials/passwords from the dataset
     """
+    logger.info("search_credential_dataset called query=%s dataset=%s max_results=%d", query, dataset, max_results)
     if dataset == "seclists":
         seclists_paths = [
             "/usr/share/seclists/Passwords/Common-Credentials/",
@@ -72,6 +76,7 @@ def generate_targeted_wordlist(
     Returns:
         str: Generated wordlist (one password per line)
     """
+    logger.info("generate_targeted_wordlist called target_name=%s min_length=%d max_length=%d", target_name, min_length, max_length)
     base_words = [target_name, target_name.lower(), target_name.upper(), target_name.capitalize()]
 
     if keywords:
@@ -164,6 +169,7 @@ def identify_hash_type(
     Returns:
         str: Identified hash type(s) with confidence levels
     """
+    logger.info("identify_hash_type called hash_value=%s", hash_value[:20])
     hash_value = hash_value.strip()
     matches = []
 

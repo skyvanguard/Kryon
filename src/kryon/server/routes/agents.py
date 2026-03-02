@@ -4,7 +4,10 @@ from fastapi import APIRouter, Depends
 
 from kryon.server.auth import require_api_key
 from kryon.server.exceptions import not_found
+from kryon.server.logging_config import get_logger
 from kryon.server.models import AgentDetail, AgentSummary
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["agents"], dependencies=[Depends(require_api_key)])
 
@@ -64,6 +67,7 @@ async def get_agent(key: str) -> AgentDetail:
     agents = get_available_agents()
     agent = agents.get(key)
     if agent is None:
+        logger.warning("Agent not found: %s", key)
         raise not_found("Agent", key)
 
     input_guards = getattr(agent, "input_guardrails", None) or []

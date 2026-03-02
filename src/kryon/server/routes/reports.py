@@ -8,6 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from kryon.server.auth import require_api_key
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["reports"], dependencies=[Depends(require_api_key)])
 
@@ -64,6 +67,7 @@ async def generate_report(request: ReportRequest) -> ReportResponse:
     else:
         path = save_report(html, request.client_name, request.report_type)
 
+    logger.info("Report generated: type=%s format=%s client=%s", request.report_type, request.format, request.client_name)
     return ReportResponse(filename=path.name, format=request.format, path=str(path))
 
 

@@ -7,6 +7,9 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from kryon.server.auth import require_api_key
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["evaluations"], dependencies=[Depends(require_api_key)])
 

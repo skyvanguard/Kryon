@@ -19,7 +19,10 @@ from kryon.server.models import (
     ScrapeRequest,
     ScrapeResponse,
 )
+from kryon.server.logging_config import get_logger
 from kryon.server.sse import sse_response
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["knowledge"], dependencies=[Depends(require_api_key)])
 
@@ -97,6 +100,7 @@ async def add_knowledge(req: KnowledgeAddRequest) -> KnowledgeAddResponse:
         add_document, content=req.content, source=req.source, **(req.metadata or {})
     )
 
+    logger.info("Knowledge document added: source=%s", req.source)
     return KnowledgeAddResponse(doc_id=doc_id, success=True)
 
 
@@ -154,6 +158,7 @@ async def start_scrape(req: ScrapeRequest) -> ScrapeResponse:
     _scrape_tasks[task_id] = {"status": "running", "documents_added": 0, "errors": []}
     asyncio.create_task(_run_scrape())
 
+    logger.info("Scrape task started: id=%s sources=%s", task_id, req.sources)
     return ScrapeResponse(
         task_id=task_id,
         status="started",
@@ -166,5 +171,6 @@ async def get_scrape_status(task_id: str) -> dict:
     """Get status of a scraping task."""
     task = _scrape_tasks.get(task_id)
     if not task:
+        logger.warning("Scrape task not found: %s", task_id)
         raise not_found("Scrape task", task_id)
     return {"task_id": task_id, **task}

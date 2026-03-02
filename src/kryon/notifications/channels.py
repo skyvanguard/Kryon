@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import smtplib
@@ -9,6 +10,8 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+from kryon.server.webhooks import _retry_post
 
 logger = logging.getLogger(__name__)
 
@@ -63,19 +66,24 @@ class EmailChannel(NotificationChannel):
         msg.attach(MIMEText(body, "plain"))
         msg.attach(MIMEText(html, "html"))
 
-        try:
-            server = smtplib.SMTP(host, port, timeout=10)
-            if use_tls:
-                server.starttls()
-            if username:
-                server.login(username, password)
-            server.sendmail(from_addr, to_addrs, msg.as_string())
-            server.quit()
+        def _send_smtp() -> bool:
+            try:
+                srv = smtplib.SMTP(host, port, timeout=10)
+                if use_tls:
+                    srv.starttls()
+                if username:
+                    srv.login(username, password)
+                srv.sendmail(from_addr, to_addrs, msg.as_string())
+                srv.quit()
+                return True
+            except Exception:
+                logger.warning("Email send failed", exc_info=True)
+                return False
+
+        ok = await asyncio.to_thread(_send_smtp)
+        if ok:
             logger.info("Email sent to %s: %s", to_addrs, subject)
-            return True
-        except Exception:
-            logger.warning("Email send failed", exc_info=True)
-            return False
+        return ok
 
 
 class SlackChannel(NotificationChannel):
@@ -109,20 +117,7 @@ class SlackChannel(NotificationChannel):
             ]
         }
 
-        return await self._post(webhook_url, slack_payload)
-
-    async def _post(self, url: str, data: dict) -> bool:
-        try:
-            import httpx
-
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(url, json=data)
-                resp.raise_for_status()
-                logger.info("Slack notification sent")
-                return True
-        except Exception:
-            logger.warning("Slack send failed", exc_info=True)
-            return False
+        return await _retry_post(webhook_url, slack_payload)
 
 
 class TeamsChannel(NotificationChannel):
@@ -162,17 +157,7 @@ class TeamsChannel(NotificationChannel):
             ],
         }
 
-        try:
-            import httpx
-
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(webhook_url, json=card)
-                resp.raise_for_status()
-                logger.info("Teams notification sent")
-                return True
-        except Exception:
-            logger.warning("Teams send failed", exc_info=True)
-            return False
+        return await _retry_post(webhook_url, card)
 
 
 class PagerDutyChannel(NotificationChannel):
@@ -200,17 +185,9 @@ class PagerDutyChannel(NotificationChannel):
             },
         }
 
-        try:
-            import httpx
-
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post("https://events.pagerduty.com/v2/enqueue", json=event)
-                resp.raise_for_status()
-                logger.info("PagerDuty event triggered")
-                return True
-        except Exception:
-            logger.warning("PagerDuty send failed", exc_info=True)
-            return False
+        return await _retry_post(
+            "https://events.pagerduty.com/v2/enqueue", event
+        )
 
 
 class WebhookChannel(NotificationChannel):
@@ -232,17 +209,7 @@ class WebhookChannel(NotificationChannel):
             **(payload or {}),
         }
 
-        try:
-            import httpx
-
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(url, json=data, headers=headers)
-                resp.raise_for_status()
-                logger.info("Webhook delivered to %s", url)
-                return True
-        except Exception:
-            logger.warning("Webhook delivery failed to %s", url, exc_info=True)
-            return False
+        return await _retry_post(url, data, headers=headers)
 
 
 _CHANNEL_REGISTRY: dict[str, type[NotificationChannel]] = {

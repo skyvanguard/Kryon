@@ -7,6 +7,9 @@ from fastapi import APIRouter, Depends, Query
 from kryon.server.auth import require_api_key
 from kryon.server.deps import get_store
 from kryon.server.exceptions import not_found
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["findings"], dependencies=[Depends(require_api_key)])
 
@@ -50,6 +53,7 @@ async def get_finding(finding_id: str) -> dict:
     store = get_store()
     finding = store.get_finding_by_id(finding_id)
     if not finding:
+        logger.warning("Finding not found: %s", finding_id)
         raise not_found("Finding", finding_id)
     return finding.model_dump()
 
@@ -65,5 +69,7 @@ async def update_finding_status(finding_id: str, body: dict) -> dict:
         raise HTTPException(400, f"Invalid status. Must be one of: {allowed}")
     store = get_store()
     if not store.update_finding_status(finding_id, new_status):
+        logger.warning("Finding not found for status update: %s", finding_id)
         raise not_found("Finding", finding_id)
+    logger.info("Finding status updated: id=%s status=%s", finding_id, new_status)
     return {"id": finding_id, "status": new_status}

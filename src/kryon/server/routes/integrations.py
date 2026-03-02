@@ -12,6 +12,9 @@ from kryon.server.auth import require_api_key
 from kryon.server.auth.rbac import require_permission
 from kryon.server.deps import get_store
 from kryon.server.exceptions import not_found
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["integrations"], dependencies=[Depends(require_api_key)])
 
@@ -48,6 +51,7 @@ async def create_siem_config(req: CreateSIEMConfigRequest) -> SIEMConfigResponse
         "index_name": req.index_name, "enabled": req.enabled,
         "config_json": req.config_json, "created_at": now,
     })
+    logger.info("SIEM config created: id=%s type=%s name=%s", config_id, req.siem_type, req.name)
     return SIEMConfigResponse(
         id=config_id, name=req.name, siem_type=req.siem_type,
         endpoint=req.endpoint, index_name=req.index_name,
@@ -73,5 +77,7 @@ async def delete_siem_config(config_id: str) -> dict:
     store = get_store()
     deleted = store.delete_siem_config(config_id)
     if not deleted:
+        logger.warning("SIEM config not found for delete: %s", config_id)
         raise not_found("SIEM config", config_id)
+    logger.info("SIEM config deleted: %s", config_id)
     return {"deleted": True, "id": config_id}

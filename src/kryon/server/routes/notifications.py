@@ -12,6 +12,9 @@ from pydantic import BaseModel, Field
 from kryon.server.auth import require_api_key
 from kryon.server.deps import get_store
 from kryon.server.exceptions import not_found
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["notifications"], dependencies=[Depends(require_api_key)])
 
@@ -56,6 +59,7 @@ async def create_channel(body: ChannelCreate) -> dict:
         enabled=body.enabled,
         created_at=now,
     )
+    logger.info("Notification channel created: id=%s type=%s", channel_id, body.channel_type)
     return {"id": channel_id, "name": body.name, "channel_type": body.channel_type}
 
 
@@ -72,6 +76,7 @@ async def update_channel(channel_id: str, body: ChannelUpdate) -> dict:
     store = get_store()
     existing = store.get_notification_channel(channel_id)
     if not existing:
+        logger.warning("Notification channel not found: %s", channel_id)
         raise not_found("NotificationChannel", channel_id)
     updates = {}
     if body.name is not None:
@@ -82,6 +87,7 @@ async def update_channel(channel_id: str, body: ChannelUpdate) -> dict:
         updates["enabled"] = body.enabled
     if updates:
         store.update_notification_channel(channel_id, **updates)
+        logger.info("Notification channel updated: %s", channel_id)
     return store.get_notification_channel(channel_id)
 
 
@@ -90,7 +96,9 @@ async def delete_channel(channel_id: str) -> dict:
     """Delete a notification channel."""
     store = get_store()
     if not store.delete_notification_channel(channel_id):
+        logger.warning("Notification channel not found for delete: %s", channel_id)
         raise not_found("NotificationChannel", channel_id)
+    logger.info("Notification channel deleted: %s", channel_id)
     return {"deleted": True, "id": channel_id}
 
 
@@ -112,6 +120,7 @@ async def create_rule(body: RuleCreate) -> dict:
         enabled=body.enabled,
         created_at=now,
     )
+    logger.info("Notification rule created: id=%s event=%s", rule_id, body.event_type)
     return {"id": rule_id, "event_type": body.event_type}
 
 
@@ -127,7 +136,9 @@ async def delete_rule(rule_id: str) -> dict:
     """Delete a notification rule."""
     store = get_store()
     if not store.delete_notification_rule(rule_id):
+        logger.warning("Notification rule not found for delete: %s", rule_id)
         raise not_found("NotificationRule", rule_id)
+    logger.info("Notification rule deleted: %s", rule_id)
     return {"deleted": True, "id": rule_id}
 
 
@@ -150,6 +161,7 @@ async def test_channel(channel_id: str) -> dict:
     store = get_store()
     ch = store.get_notification_channel(channel_id)
     if not ch:
+        logger.warning("Notification channel not found for test: %s", channel_id)
         raise not_found("NotificationChannel", channel_id)
 
     from kryon.notifications.channels import get_channel
@@ -175,4 +187,5 @@ async def test_channel(channel_id: str) -> dict:
         error_message="" if success else "Test delivery failed",
     )
 
+    logger.info("Test notification sent: channel=%s success=%s", channel_id, success)
     return {"success": success, "channel_id": channel_id}

@@ -11,7 +11,10 @@ from kryon.server.exceptions import not_found
 from kryon.server.models import RunRequest, RunResponse, RunStatus, SessionCreateRequest, SessionResponse
 from kryon.server.sessions import SessionManager
 from kryon.server.sse import sse_response
+from kryon.server.logging_config import get_logger
 from kryon.server.streaming import done_event, error_event, stream_event_to_sse
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["runs"], dependencies=[Depends(require_api_key)])
 
@@ -58,6 +61,7 @@ async def create_run(req: RunRequest):
             ]
 
     run_state = sm.create_run(req.agent_key, session_id=req.session_id)
+    logger.info("Run created: agent=%s stream=%s", req.agent_key, req.stream)
 
     if req.stream:
         # Return run_id immediately; client connects to /runs/{id}/stream
@@ -174,7 +178,9 @@ async def cancel_run(run_id: str):
     """Cancel a running execution."""
     sm = _get_sm()
     if not sm.cancel_run(run_id):
+        logger.warning("Run not found for cancel: %s", run_id)
         raise not_found("Run", run_id)
+    logger.info("Run cancelled: %s", run_id)
     return {"status": "cancelled", "run_id": run_id}
 
 
@@ -193,6 +199,7 @@ async def create_session(req: SessionCreateRequest):
         raise HTTPException(status_code=404, detail=str(e))
 
     session = sm.create_session(req.agent_key, agent)
+    logger.info("Session created: agent=%s session_id=%s", req.agent_key, session.session_id)
     return SessionResponse(
         session_id=session.session_id,
         agent_key=session.agent_key,

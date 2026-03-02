@@ -11,6 +11,9 @@ from pydantic import BaseModel, Field
 from kryon.server.auth import require_api_key
 from kryon.server.deps import get_store
 from kryon.server.exceptions import not_found
+from kryon.server.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["report_settings"], dependencies=[Depends(require_api_key)])
 
@@ -46,6 +49,7 @@ async def save_branding(body: BrandingBody) -> dict:
         footer_text=body.footer_text,
         created_at=existing["created_at"] if existing else now,
     )
+    logger.info("Branding saved: client=%s", body.client_id)
     return {"id": branding_id, "client_id": body.client_id}
 
 
@@ -55,5 +59,6 @@ async def get_branding(client_id: str) -> dict:
     store = get_store()
     branding = store.get_branding(client_id)
     if not branding:
+        logger.warning("Branding not found: client=%s", client_id)
         raise not_found("Branding", client_id)
     return branding
