@@ -37,18 +37,20 @@ def test_write_and_read_audit_log(store):
 
 def test_audit_log_filters(store):
     for i in range(3):
-        store.write_audit_log({
-            "id": f"aud-{i}",
-            "timestamp": f"2026-01-0{i + 1}T00:00:00Z",
-            "user_id": "u1" if i < 2 else "u2",
-            "username": "admin" if i < 2 else "analyst",
-            "action": f"action-{i}",
-            "resource_type": "clients" if i == 0 else "scans",
-            "resource_id": None,
-            "details": {},
-            "ip_address": "127.0.0.1",
-            "request_id": f"r{i}",
-        })
+        store.write_audit_log(
+            {
+                "id": f"aud-{i}",
+                "timestamp": f"2026-01-0{i + 1}T00:00:00Z",
+                "user_id": "u1" if i < 2 else "u2",
+                "username": "admin" if i < 2 else "analyst",
+                "action": f"action-{i}",
+                "resource_type": "clients" if i == 0 else "scans",
+                "resource_id": None,
+                "details": {},
+                "ip_address": "127.0.0.1",
+                "request_id": f"r{i}",
+            }
+        )
 
     logs = store.get_audit_logs(user_id="u1")
     assert len(logs) == 2
@@ -62,13 +64,15 @@ def test_audit_log_filters(store):
 
 def test_audit_log_limit(store):
     for i in range(5):
-        store.write_audit_log({
-            "id": f"aud-{i}",
-            "timestamp": f"2026-01-0{i + 1}T00:00:00Z",
-            "action": f"action-{i}",
-            "resource_type": "clients",
-            "details": {},
-        })
+        store.write_audit_log(
+            {
+                "id": f"aud-{i}",
+                "timestamp": f"2026-01-0{i + 1}T00:00:00Z",
+                "action": f"action-{i}",
+                "resource_type": "clients",
+                "details": {},
+            }
+        )
 
     logs = store.get_audit_logs(limit=3)
     assert len(logs) == 3
@@ -76,7 +80,6 @@ def test_audit_log_limit(store):
 
 def test_audit_endpoint_accessible(tmp_path, monkeypatch):
     """Audit endpoint should be accessible (no JWT = admin by default)."""
-    import sqlite3
 
     from kryon.server import ServerConfig, create_app
 
@@ -92,6 +95,7 @@ def test_audit_endpoint_accessible(tmp_path, monkeypatch):
 
     s = _SafeStore(db_path=tmp_path / "audit_ep.db")
     import kryon.server.deps as deps_mod
+
     monkeypatch.setattr(deps_mod, "_store", s)
 
     from starlette.testclient import TestClient

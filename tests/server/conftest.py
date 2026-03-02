@@ -9,6 +9,7 @@ from kryon.server import ServerConfig, create_app
 def _reset_deps_store():
     """Reset the deps singleton store before each test to avoid cross-thread SQLite errors."""
     import kryon.server.deps as deps_mod
+
     old = deps_mod._store
     deps_mod._store = None
     yield

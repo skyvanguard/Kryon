@@ -44,12 +44,14 @@ class TestDefaultPlan:
 
 class TestPlanParsing:
     def test_valid_json(self):
-        text = json.dumps({
-            "days": [
-                {"day": 1, "phases": [{"phase_type": "reconnaissance", "agent_key": "recon_scout"}]},
-            ],
-            "rationale": "test",
-        })
+        text = json.dumps(
+            {
+                "days": [
+                    {"day": 1, "phases": [{"phase_type": "reconnaissance", "agent_key": "recon_scout"}]},
+                ],
+                "rationale": "test",
+            }
+        )
         plan = _parse_plan_json(text)
         assert plan is not None
         assert len(plan["days"]) == 1
@@ -71,11 +73,7 @@ class TestPlanParsing:
         assert _validate_plan(plan) is None
 
     def test_auto_fix_agent_key(self):
-        plan = {
-            "days": [
-                {"day": 1, "phases": [{"phase_type": "reconnaissance", "agent_key": "wrong_agent"}]}
-            ]
-        }
+        plan = {"days": [{"day": 1, "phases": [{"phase_type": "reconnaissance", "agent_key": "wrong_agent"}]}]}
         validated = _validate_plan(plan)
         assert validated is not None
         assert validated["days"][0]["phases"][0]["agent_key"] == "recon_scout"

@@ -39,7 +39,9 @@ def aggregate_cloud_posture(
         else:
             # Run Prowler if no output provided
             if provider in ("all", "aws"):
-                results.append(f"\n[Prowler - AWS]\n{run_command('prowler aws --output-formats json -M json 2>/dev/null || echo Prowler not available', ctf=ctf)}")
+                results.append(
+                    f"\n[Prowler - AWS]\n{run_command('prowler aws --output-formats json -M json 2>/dev/null || echo Prowler not available', ctf=ctf)}"
+                )
 
         if scoutsuite_output:
             cmd = f"cat {scoutsuite_output} 2>/dev/null | head -100"
@@ -47,6 +49,7 @@ def aggregate_cloud_posture(
     except Exception as exc:
         logger.error("aggregate_cloud_posture failed: %s", exc)
         import json
+
         return json.dumps({"error": str(exc), "status": "failed"})
 
     return "\n".join(results)

@@ -8,7 +8,6 @@ import pytest
 
 from kryon.agents import get_available_agents
 
-
 MAX_TOOLS_PER_AGENT = 25  # Hard limit — forensic_analyzer has DFIR specialization tools
 
 
@@ -22,9 +21,8 @@ def test_no_agent_exceeds_tool_limit():
         if tool_count > MAX_TOOLS_PER_AGENT:
             violations.append(f"{name}: {tool_count} tools (max {MAX_TOOLS_PER_AGENT})")
 
-    assert not violations, (
-        f"Agents exceeding {MAX_TOOLS_PER_AGENT} tool limit:\n"
-        + "\n".join(f"  - {v}" for v in violations)
+    assert not violations, f"Agents exceeding {MAX_TOOLS_PER_AGENT} tool limit:\n" + "\n".join(
+        f"  - {v}" for v in violations
     )
 
 
@@ -53,6 +51,4 @@ def test_all_agents_have_tools():
         if not agent.tools or len(agent.tools) == 0:
             no_tools.append(name)
 
-    assert not no_tools, (
-        f"Agents with no tools:\n" + "\n".join(f"  - {n}" for n in no_tools)
-    )
+    assert not no_tools, "Agents with no tools:\n" + "\n".join(f"  - {n}" for n in no_tools)

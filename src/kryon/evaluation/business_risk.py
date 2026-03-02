@@ -59,7 +59,7 @@ class BusinessRiskScorer:
 
     def categorize_business_impact(self, findings: list[dict]) -> dict:
         """Categorize findings by business impact type."""
-        impact: dict[str, int] = {cat: 0 for cat in IMPACT_CATEGORIES}
+        impact: dict[str, int] = dict.fromkeys(IMPACT_CATEGORIES, 0)
 
         for f in findings:
             severity = self._extract_severity(f)
@@ -99,7 +99,7 @@ class BusinessRiskScorer:
             findings.append(parsed)
 
         if not findings:
-            return {"total_score": 0.0, "impact_breakdown": {cat: 0 for cat in IMPACT_CATEGORIES}, "finding_count": 0}
+            return {"total_score": 0.0, "impact_breakdown": dict.fromkeys(IMPACT_CATEGORIES, 0), "finding_count": 0}
 
         # Calculate average contextual risk
         scores = [self.calculate_contextual_risk(f) for f in findings]

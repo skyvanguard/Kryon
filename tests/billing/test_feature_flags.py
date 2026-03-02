@@ -1,7 +1,8 @@
 """Tests for feature flags."""
 
 import pytest
-from kryon.billing.feature_flags import get_tier_features, is_feature_available, FEATURE_FLAGS
+
+from kryon.billing.feature_flags import FEATURE_FLAGS, get_tier_features, is_feature_available
 
 
 def test_free_tier():

@@ -15,12 +15,8 @@ from .base_scraper import BaseScraper
 
 logger = logging.getLogger(__name__)
 
-_INDEX_URL = (
-    "https://raw.githubusercontent.com/OWASP/CheatSheetSeries/master/Index.md"
-)
-_RAW_BASE = (
-    "https://raw.githubusercontent.com/OWASP/CheatSheetSeries/master/cheatsheets/"
-)
+_INDEX_URL = "https://raw.githubusercontent.com/OWASP/CheatSheetSeries/master/Index.md"
+_RAW_BASE = "https://raw.githubusercontent.com/OWASP/CheatSheetSeries/master/cheatsheets/"
 
 
 class OWASPScraper(BaseScraper):
@@ -68,15 +64,17 @@ class OWASPScraper(BaseScraper):
                 if len(content) > 8000:
                     content = content[:8000] + "\n\n[Truncated]"
 
-                items.append({
-                    "content": content,
-                    "metadata": {
-                        "source": self.source_name,
-                        "category": "web-security",
-                        "sheet_name": name,
-                        "type": "cheatsheet",
-                    },
-                })
+                items.append(
+                    {
+                        "content": content,
+                        "metadata": {
+                            "source": self.source_name,
+                            "category": "web-security",
+                            "sheet_name": name,
+                            "type": "cheatsheet",
+                        },
+                    }
+                )
                 self.rate_limit(0.5)
             except Exception as e:
                 self.log_error(f"Error fetching sheet '{name}': {e}")

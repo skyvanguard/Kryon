@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import uuid
 from datetime import datetime, timezone
 
 from kryon.intelligence.models import Finding, MITREMapping

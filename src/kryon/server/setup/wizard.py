@@ -15,6 +15,7 @@ def needs_setup(db_path: Path | None = None) -> bool:
     """Check if setup is needed (no admin users exist)."""
     try:
         from kryon.memory.store import MemoryStore
+
         store = MemoryStore(db_path=db_path)
         users = store.list_users()
         store.close()

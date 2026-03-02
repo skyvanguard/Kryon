@@ -60,6 +60,9 @@ def create_refresh_token(user_id: str) -> str:
 def decode_token(token: str) -> dict:
     """Decode and validate a JWT token. Raises jwt.PyJWTError on failure."""
     return jwt.decode(
-        token, _jwt_secret, algorithms=[_algorithm],
-        issuer=_jwt_issuer, audience=_jwt_audience,
+        token,
+        _jwt_secret,
+        algorithms=[_algorithm],
+        issuer=_jwt_issuer,
+        audience=_jwt_audience,
     )

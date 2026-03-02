@@ -36,12 +36,15 @@ async def execute_phase(
     store.update_engagement(engagement.id, current_phase_id=phase.id)
 
     if emit_event:
-        emit_event("phase_start", {
-            "phase_id": phase.id,
-            "phase_type": phase.phase_type.value,
-            "agent_key": phase.agent_key,
-            "day_number": phase.day_number,
-        })
+        emit_event(
+            "phase_start",
+            {
+                "phase_id": phase.id,
+                "phase_type": phase.phase_type.value,
+                "agent_key": phase.agent_key,
+                "day_number": phase.day_number,
+            },
+        )
 
     try:
         if phase.phase_type in (PhaseType.RECONNAISSANCE, PhaseType.VULNERABILITY_ASSESSMENT):
@@ -67,8 +70,11 @@ async def execute_phase(
 
 
 async def _run_orchestrator_phase(
-    phase: EngagementPhase, engagement: Engagement, store: MemoryStore,
-    rate_limiter, emit_event: Callable | None,
+    phase: EngagementPhase,
+    engagement: Engagement,
+    store: MemoryStore,
+    rate_limiter,
+    emit_event: Callable | None,
 ) -> None:
     """Use EnterpriseOrchestrator for recon/vuln phases."""
     from kryon.tools.autonomous.enterprise_orchestrator import EnterpriseOrchestrator
@@ -86,12 +92,15 @@ async def _run_orchestrator_phase(
             findings_count=progress.findings_count,
         )
         if emit_event:
-            emit_event("phase_update", {
-                "phase_id": phase.id,
-                "progress": progress.phase_progress,
-                "findings_count": progress.findings_count,
-                "status_msg": progress.log_messages[-1] if progress.log_messages else "",
-            })
+            emit_event(
+                "phase_update",
+                {
+                    "phase_id": phase.id,
+                    "progress": progress.phase_progress,
+                    "findings_count": progress.findings_count,
+                    "status_msg": progress.log_messages[-1] if progress.log_messages else "",
+                },
+            )
 
     orch = EnterpriseOrchestrator(
         scope=targets,
@@ -115,8 +124,11 @@ async def _run_orchestrator_phase(
 
 
 async def _run_agent_phase(
-    phase: EngagementPhase, engagement: Engagement, store: MemoryStore,
-    rate_limiter, emit_event: Callable | None,
+    phase: EngagementPhase,
+    engagement: Engagement,
+    store: MemoryStore,
+    rate_limiter,
+    emit_event: Callable | None,
 ) -> None:
     """Execute a phase using an agent via Runner."""
     if rate_limiter:
@@ -142,7 +154,7 @@ Perform thorough {phase.phase_type.value} and report all findings in detail."""
     if emit_event:
         emit_event("log", {"message": f"Running {phase.agent_key} for {phase.phase_type.value}..."})
 
-    result = await Runner.run(agent, input=prompt, max_turns=_DEFAULT_AGENT_MAX_TURNS)
+    await Runner.run(agent, input=prompt, max_turns=_DEFAULT_AGENT_MAX_TURNS)
 
     store.update_engagement_phase(phase.id, progress=1.0)
 
@@ -151,7 +163,9 @@ Perform thorough {phase.phase_type.value} and report all findings in detail."""
 
 
 async def _run_reporting_phase(
-    phase: EngagementPhase, engagement: Engagement, store: MemoryStore,
+    phase: EngagementPhase,
+    engagement: Engagement,
+    store: MemoryStore,
     emit_event: Callable | None,
 ) -> None:
     """Generate final engagement report."""

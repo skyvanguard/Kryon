@@ -8,7 +8,7 @@ os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 import pytest
 
 from kryon.sdk.agents import RunContextWrapper
-from kryon.tools.validation.detection_validator import validate_detection, check_siem_alert
+from kryon.tools.validation.detection_validator import check_siem_alert, validate_detection
 
 
 def _invoke(tool, args: dict):
@@ -23,9 +23,12 @@ def _invoke(tool, args: dict):
 @pytest.mark.asyncio
 async def test_validate_no_endpoint(monkeypatch):
     """No SIEM endpoint returns SKIPPED status."""
-    result = await _invoke(validate_detection, {
-        "technique_id": "T1046",
-    })
+    result = await _invoke(
+        validate_detection,
+        {
+            "technique_id": "T1046",
+        },
+    )
     assert "SKIPPED" in result
     assert "no SIEM endpoint" in result.lower() or "no SIEM endpoint" in result
 
@@ -41,11 +44,14 @@ async def test_validate_elastic(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.validation.detection_validator.run_command", fake_run)
 
-    result = await _invoke(validate_detection, {
-        "technique_id": "T1046",
-        "siem_type": "elastic",
-        "siem_endpoint": "https://elastic.local:9200",
-    })
+    result = await _invoke(
+        validate_detection,
+        {
+            "technique_id": "T1046",
+            "siem_type": "elastic",
+            "siem_endpoint": "https://elastic.local:9200",
+        },
+    )
     assert "_search" in captured["cmd"]
     assert "T1046" in captured["cmd"]
     assert "elastic" in result.lower()
@@ -62,11 +68,14 @@ async def test_validate_splunk(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.validation.detection_validator.run_command", fake_run)
 
-    result = await _invoke(validate_detection, {
-        "technique_id": "T1110",
-        "siem_type": "splunk",
-        "siem_endpoint": "https://splunk.local:8089",
-    })
+    result = await _invoke(
+        validate_detection,
+        {
+            "technique_id": "T1110",
+            "siem_type": "splunk",
+            "siem_endpoint": "https://splunk.local:8089",
+        },
+    )
     assert "services/search" in captured["cmd"]
     assert "T1110" in captured["cmd"]
 
@@ -74,11 +83,14 @@ async def test_validate_splunk(monkeypatch):
 @pytest.mark.asyncio
 async def test_validate_unknown_siem(monkeypatch):
     """Unknown SIEM type returns error."""
-    result = await _invoke(validate_detection, {
-        "technique_id": "T1046",
-        "siem_type": "unknown_siem",
-        "siem_endpoint": "https://siem.local",
-    })
+    result = await _invoke(
+        validate_detection,
+        {
+            "technique_id": "T1046",
+            "siem_type": "unknown_siem",
+            "siem_endpoint": "https://siem.local",
+        },
+    )
     assert "Error" in result or "Unsupported" in result
 
 
@@ -93,12 +105,15 @@ async def test_validate_with_time_window(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.validation.detection_validator.run_command", fake_run)
 
-    result = await _invoke(validate_detection, {
-        "technique_id": "T1046",
-        "siem_type": "elastic",
-        "siem_endpoint": "https://elastic.local:9200",
-        "time_window_minutes": 30,
-    })
+    result = await _invoke(
+        validate_detection,
+        {
+            "technique_id": "T1046",
+            "siem_type": "elastic",
+            "siem_endpoint": "https://elastic.local:9200",
+            "time_window_minutes": 30,
+        },
+    )
     assert "30m" in result
     assert "now-30m" in captured["cmd"]
 
@@ -119,11 +134,14 @@ async def test_check_siem_elastic(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.validation.detection_validator.run_command", fake_run)
 
-    result = await _invoke(check_siem_alert, {
-        "query": '{"query": {"match_all": {}}}',
-        "siem_type": "elastic",
-        "siem_endpoint": "https://elastic.local:9200",
-    })
+    result = await _invoke(
+        check_siem_alert,
+        {
+            "query": '{"query": {"match_all": {}}}',
+            "siem_type": "elastic",
+            "siem_endpoint": "https://elastic.local:9200",
+        },
+    )
     assert "_search" in captured["cmd"]
 
 
@@ -138,20 +156,26 @@ async def test_check_siem_splunk(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.validation.detection_validator.run_command", fake_run)
 
-    result = await _invoke(check_siem_alert, {
-        "query": "search index=main sourcetype=syslog",
-        "siem_type": "splunk",
-        "siem_endpoint": "https://splunk.local:8089",
-    })
+    result = await _invoke(
+        check_siem_alert,
+        {
+            "query": "search index=main sourcetype=syslog",
+            "siem_type": "splunk",
+            "siem_endpoint": "https://splunk.local:8089",
+        },
+    )
     assert "services/search" in captured["cmd"]
 
 
 @pytest.mark.asyncio
 async def test_check_siem_no_endpoint(monkeypatch):
     """No endpoint returns error."""
-    result = await _invoke(check_siem_alert, {
-        "query": "test query",
-        "siem_type": "elastic",
-    })
+    result = await _invoke(
+        check_siem_alert,
+        {
+            "query": "test query",
+            "siem_type": "elastic",
+        },
+    )
     assert "Error" in result
     assert "endpoint" in result.lower()

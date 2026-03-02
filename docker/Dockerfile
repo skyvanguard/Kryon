@@ -63,10 +63,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tini \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy optional security tools from stage 2
+# Copy optional security tools from stage 2 (only if installed)
 ARG INSTALL_SECURITY_TOOLS=false
-COPY --from=security-tools /usr/bin/nmap /usr/bin/nmap* 2>/dev/null || true
-COPY --from=security-tools /usr/bin/dig /usr/bin/dig* 2>/dev/null || true
+RUN --mount=from=security-tools,src=/usr/bin,dst=/tmp/sectools \
+    if [ "$INSTALL_SECURITY_TOOLS" = "true" ]; then \
+        cp /tmp/sectools/nmap /usr/bin/nmap 2>/dev/null || true; \
+        cp /tmp/sectools/dig /usr/bin/dig 2>/dev/null || true; \
+    fi
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv

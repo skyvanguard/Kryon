@@ -1,8 +1,10 @@
 """Tests for SLA calculations."""
 
-import pytest
 from datetime import datetime, timedelta, timezone
-from kryon.remediation.sla import calculate_sla_deadline, SLA_DEADLINES
+
+import pytest
+
+from kryon.remediation.sla import SLA_DEADLINES, calculate_sla_deadline
 
 
 def test_calculate_sla_critical():

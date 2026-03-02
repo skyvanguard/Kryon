@@ -282,8 +282,6 @@ suppress_aiohttp_warnings()
 # OpenAI imports
 from rich.console import Console
 
-from kryon.repl.ui.spinner import AgentSpinner
-
 # KRYON agents and metrics imports
 from kryon.agents import get_agent_by_name
 from kryon.compat import is_pentestperf_available
@@ -294,15 +292,14 @@ from kryon.repl.commands import FuzzyCommandCompleter, handle_command as command
 
 # Add import for parallel configs at the top of the file
 from kryon.repl.commands.parallel import PARALLEL_AGENT_INSTANCES, PARALLEL_CONFIGS, ParallelConfig
+from kryon.repl.ui.spinner import AgentSpinner
 from kryon.sdk.agents.parallel_isolation import PARALLEL_ISOLATION
 
 # Global storage for shared message histories (keyed by a unique identifier)
 UNIFIED_MESSAGE_HISTORIES: dict[str, list] = {}
 from kryon.repl.ui.banner import (
-    display_banner,
     display_compact_banner,
     display_first_run_welcome,
-    display_quick_guide,
     is_first_run,
 )
 from kryon.repl.ui.keybindings import create_key_bindings
@@ -1651,7 +1648,9 @@ def run_kryon_cli(
                             new_loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(new_loop)
                             try:
-                                new_loop.run_until_complete(process_streamed_response(agent, conversation_input, spinner))
+                                new_loop.run_until_complete(
+                                    process_streamed_response(agent, conversation_input, spinner)
+                                )
                             except OutputGuardrailTripwireTriggered as e:
                                 # Display a user-friendly warning instead of crashing (new event loop)
                                 guardrail_name = e.guardrail_result.guardrail.get_name()
@@ -1684,7 +1683,11 @@ def run_kryon_cli(
                         if hasattr(agent, "tools"):
                             spinner.patch_tools(agent.tools)
                         with spinner:
-                            response = asyncio.run(Runner.run(agent, conversation_input, run_config=run_config, hooks=spinner.create_hooks()))
+                            response = asyncio.run(
+                                Runner.run(
+                                    agent, conversation_input, run_config=run_config, hooks=spinner.create_hooks()
+                                )
+                            )
                     except InputGuardrailTripwireTriggered as e:
                         # Display a user-friendly warning for input guardrails
                         reason = "Potential security threat detected in input"
@@ -1942,14 +1945,25 @@ def main():
     autoscan_parser.add_argument(
         "--profile",
         default="standard",
-        choices=["quick", "standard", "deep", "compliance", "enterprise_quick", "enterprise_standard", "enterprise_deep", "enterprise_compliance"],
+        choices=[
+            "quick",
+            "standard",
+            "deep",
+            "compliance",
+            "enterprise_quick",
+            "enterprise_standard",
+            "enterprise_deep",
+            "enterprise_compliance",
+        ],
         help="Scan profile (default: standard)",
     )
     autoscan_parser.add_argument("--client", default="", help="Client name/ID")
     autoscan_parser.add_argument("--max-time", type=float, default=4.0, help="Max scan time in hours (default: 4)")
     autoscan_parser.add_argument("--stealth", default="normal", choices=["low", "normal", "high"], help="Stealth level")
     autoscan_parser.add_argument("--output", default=None, help="Report output path")
-    autoscan_parser.add_argument("--format", dest="report_format", default="html", choices=["html", "pdf", "json"], help="Report format")
+    autoscan_parser.add_argument(
+        "--format", dest="report_format", default="html", choices=["html", "pdf", "json"], help="Report format"
+    )
     autoscan_parser.add_argument("--compliance", action="append", default=[], help="Compliance framework (repeatable)")
 
     # --- default (REPL) arguments ---
@@ -2160,7 +2174,9 @@ def main():
 
         if result["status"] == "completed":
             print(color("Scan completed successfully!", fg="green"))
-            print(f"  Findings: {result['findings_count']} ({result['critical_count']} critical, {result['high_count']} high)")
+            print(
+                f"  Findings: {result['findings_count']} ({result['critical_count']} critical, {result['high_count']} high)"
+            )
             if result.get("report_path"):
                 print(f"  Report: {result['report_path']}")
         else:
@@ -2183,12 +2199,14 @@ def main():
 
             dashboard_port = getattr(args, "dashboard_port", 8700)
             config = ServerConfig(host="127.0.0.1", port=dashboard_port, api_keys=[])
-            _uvicorn_server = uvicorn.Server(uvicorn.Config(
-                create_app(config),
-                host=config.host,
-                port=config.port,
-                log_level="warning",
-            ))
+            _uvicorn_server = uvicorn.Server(
+                uvicorn.Config(
+                    create_app(config),
+                    host=config.host,
+                    port=config.port,
+                    log_level="warning",
+                )
+            )
 
             _dashboard_thread = threading.Thread(target=_uvicorn_server.run, daemon=True)
             _dashboard_thread.start()

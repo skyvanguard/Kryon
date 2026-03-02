@@ -43,6 +43,7 @@ def test_run_once(mock_update):
 @patch("kryon.knowledge.auto_updater.AutoUpdater._update_from_source")
 def test_run_once_handles_errors(mock_update):
     """Errors in one source shouldn't stop others."""
+
     def side_effect(source):
         if source == "nvd":
             raise RuntimeError("API down")

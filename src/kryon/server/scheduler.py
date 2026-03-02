@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 def _get_store():
     """Lazy import to avoid circular dependencies."""
     from kryon.server.deps import get_store
+
     return get_store()
 
 
@@ -149,9 +150,7 @@ class ScanScheduler:
                 await self.run_scan_job(job)
                 # Persist last_run to DB
                 try:
-                    _get_store().update_scheduled_job_status(
-                        job.id, job.status, last_run=job.last_run
-                    )
+                    _get_store().update_scheduled_job_status(job.id, job.status, last_run=job.last_run)
                 except Exception:
                     logger.debug("Failed to persist last_run for job %s", job.id)
                 if job.interval_seconds > 0:

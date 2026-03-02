@@ -33,6 +33,7 @@ class TestSeparateDatabaseStrategy:
 
         # Create client in tenant A
         from kryon.memory.models import Client
+
         client = Client(name="Test Client")
         store_a.create_client(client)
 
@@ -63,6 +64,7 @@ class TestSeparateDatabaseStrategy:
         store = strategy.get_store_for_tenant("schema-test")
         # Should be able to create clients (schema initialized)
         from kryon.memory.models import Client
+
         client = Client(name="Schema Test")
         store.create_client(client)
         clients = store.list_clients()

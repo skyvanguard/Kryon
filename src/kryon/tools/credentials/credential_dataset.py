@@ -28,7 +28,9 @@ def search_credential_dataset(
     Returns:
         str: Matching credentials/passwords from the dataset
     """
-    logger.info("search_credential_dataset called query=%s dataset=%s max_results=%d", query, dataset, max_results)  # nosemgrep: python-logger-credential-disclosure
+    logger.info(
+        "search_credential_dataset called query=%s dataset=%s max_results=%d", query, dataset, max_results
+    )  # nosemgrep: python-logger-credential-disclosure
     if dataset == "seclists":
         seclists_paths = [
             "/usr/share/seclists/Passwords/Common-Credentials/",
@@ -75,7 +77,12 @@ def generate_targeted_wordlist(
     Returns:
         str: Generated wordlist (one password per line)
     """
-    logger.info("generate_targeted_wordlist called target_name=%s min_length=%d max_length=%d", target_name, min_length, max_length)
+    logger.info(
+        "generate_targeted_wordlist called target_name=%s min_length=%d max_length=%d",
+        target_name,
+        min_length,
+        max_length,
+    )
     base_words = [target_name, target_name.lower(), target_name.upper(), target_name.capitalize()]
 
     if keywords:
@@ -183,4 +190,6 @@ def identify_hash_type(
         if hash_value.startswith("$"):
             matches.append("Possibly a Unix crypt variant")
 
-    return f"Hash: {hash_value[:40]}{'...' if len(hash_value) > 40 else ''}\nPossible types:\n" + "\n".join(f"  - {m}" for m in matches)
+    return f"Hash: {hash_value[:40]}{'...' if len(hash_value) > 40 else ''}\nPossible types:\n" + "\n".join(
+        f"  - {m}" for m in matches
+    )

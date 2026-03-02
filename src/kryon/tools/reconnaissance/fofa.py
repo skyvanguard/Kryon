@@ -70,9 +70,6 @@ def fofa_host_detail(
     if not api_email or not api_key:
         return "Error: FOFA_EMAIL and FOFA_KEY environment variables required."
 
-    cmd = (
-        f"curl -s 'https://fofa.info/api/v1/host/{host}"
-        f"?email={api_email}&key={api_key}&detail=true'"
-    )
+    cmd = f"curl -s 'https://fofa.info/api/v1/host/{host}?email={api_email}&key={api_key}&detail=true'"
 
     return run_command(cmd, ctf=ctf)

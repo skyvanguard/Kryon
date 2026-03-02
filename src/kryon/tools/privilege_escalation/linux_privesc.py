@@ -210,9 +210,7 @@ def find_writable_files(search_paths: Optional[list[str]] = None, exclude_proc: 
             exclude_args = "-path /proc -prune -o -path /sys -prune -o"
 
         # Find world-writable files
-        cmd_result = run_command(
-            "find", f"{' '.join(search_paths)} {exclude_args} -type f -perm -002 2>/dev/null"
-        )
+        cmd_result = run_command("find", f"{' '.join(search_paths)} {exclude_args} -type f -perm -002 2>/dev/null")
 
         if cmd_result.get("success"):
             output = cmd_result.get("output", "")
@@ -222,9 +220,7 @@ def find_writable_files(search_paths: Optional[list[str]] = None, exclude_proc: 
             result["count"] = len(files)
 
         # Find world-writable directories
-        dir_result = run_command(
-            "find", f"{' '.join(search_paths)} {exclude_args} -type d -perm -002 2>/dev/null"
-        )
+        dir_result = run_command("find", f"{' '.join(search_paths)} {exclude_args} -type d -perm -002 2>/dev/null")
 
         if dir_result.get("success"):
             output = dir_result.get("output", "")

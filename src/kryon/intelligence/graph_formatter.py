@@ -27,12 +27,14 @@ def format_graph_for_d3(correlation_result: dict | str) -> dict:
     for vuln in correlation_result.get("exploitation_priority", []):
         vid = vuln.get("id", str(len(nodes)))
         if vid not in node_ids:
-            nodes.append({
-                "id": vid,
-                "label": vuln.get("type", "unknown"),
-                "severity": vuln.get("severity", "medium"),
-                "group": _severity_group(vuln.get("severity", "medium")),
-            })
+            nodes.append(
+                {
+                    "id": vid,
+                    "label": vuln.get("type", "unknown"),
+                    "severity": vuln.get("severity", "medium"),
+                    "group": _severity_group(vuln.get("severity", "medium")),
+                }
+            )
             node_ids.add(vid)
 
     # Build edges from relationships
@@ -40,12 +42,14 @@ def format_graph_for_d3(correlation_result: dict | str) -> dict:
         source = rel.get("vulnerability_1")
         target = rel.get("vulnerability_2")
         if source and target:
-            edges.append({
-                "source": source,
-                "target": target,
-                "type": rel.get("relationship_type", "related"),
-                "label": rel.get("description", ""),
-            })
+            edges.append(
+                {
+                    "source": source,
+                    "target": target,
+                    "type": rel.get("relationship_type", "related"),
+                    "label": rel.get("description", ""),
+                }
+            )
 
     # Build chain data
     chains = []
@@ -61,12 +65,14 @@ def format_graph_for_d3(correlation_result: dict | str) -> dict:
 
         # Add chain edges
         for i in range(len(stages) - 1):
-            edges.append({
-                "source": stages[i].get("id"),
-                "target": stages[i + 1].get("id"),
-                "type": "chain",
-                "label": chain.get("chain_type", ""),
-            })
+            edges.append(
+                {
+                    "source": stages[i].get("id"),
+                    "target": stages[i + 1].get("id"),
+                    "type": "chain",
+                    "label": chain.get("chain_type", ""),
+                }
+            )
 
     risk_amp = correlation_result.get("combined_impact_score", 0.0)
 
@@ -84,15 +90,17 @@ def format_kill_chain(chain: dict) -> list[dict]:
     stages = chain.get("stages", chain.get("steps", []))
 
     for i, stage in enumerate(stages):
-        steps.append({
-            "order": i + 1,
-            "id": stage.get("id", f"step-{i}"),
-            "type": stage.get("type", "unknown"),
-            "severity": stage.get("severity", "medium"),
-            "description": stage.get("description", ""),
-            "is_first": i == 0,
-            "is_last": i == len(stages) - 1,
-        })
+        steps.append(
+            {
+                "order": i + 1,
+                "id": stage.get("id", f"step-{i}"),
+                "type": stage.get("type", "unknown"),
+                "severity": stage.get("severity", "medium"),
+                "description": stage.get("description", ""),
+                "is_first": i == 0,
+                "is_last": i == len(stages) - 1,
+            }
+        )
 
     return steps
 

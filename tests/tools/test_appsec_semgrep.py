@@ -116,10 +116,13 @@ async def test_semgrep_scan_with_rules_default(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.semgrep.run_command", fake_run)
 
-    result = await _invoke(semgrep_scan_with_rules, {
-        "target_path": "/app",
-        "rule_file": "/rules/custom.yml",
-    })
+    result = await _invoke(
+        semgrep_scan_with_rules,
+        {
+            "target_path": "/app",
+            "rule_file": "/rules/custom.yml",
+        },
+    )
     assert "--config /rules/custom.yml" in captured["cmd"]
     assert "--json" in captured["cmd"]
     assert "/app" in captured["cmd"]
@@ -136,11 +139,14 @@ async def test_semgrep_scan_with_rules_sarif(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.semgrep.run_command", fake_run)
 
-    result = await _invoke(semgrep_scan_with_rules, {
-        "target_path": "/app",
-        "rule_file": "/rules/xss.yml",
-        "output_format": "sarif",
-    })
+    result = await _invoke(
+        semgrep_scan_with_rules,
+        {
+            "target_path": "/app",
+            "rule_file": "/rules/xss.yml",
+            "output_format": "sarif",
+        },
+    )
     assert "--sarif" in captured["cmd"]
 
 
@@ -155,10 +161,13 @@ async def test_semgrep_scan_with_rules_text(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.semgrep.run_command", fake_run)
 
-    result = await _invoke(semgrep_scan_with_rules, {
-        "target_path": "/app",
-        "rule_file": "/rules/custom.yml",
-        "output_format": "text",
-    })
+    result = await _invoke(
+        semgrep_scan_with_rules,
+        {
+            "target_path": "/app",
+            "rule_file": "/rules/custom.yml",
+            "output_format": "text",
+        },
+    )
     assert "--json" not in captured["cmd"]
     assert "--sarif" not in captured["cmd"]

@@ -14,8 +14,8 @@ class CredentialVault:
     def __init__(self, encryption_key: bytes | str):
         try:
             from cryptography.fernet import Fernet
-        except ImportError:
-            raise ImportError("cryptography is required. Install with: pip install cryptography")
+        except ImportError as exc:
+            raise ImportError("cryptography is required. Install with: pip install cryptography") from exc
 
         if isinstance(encryption_key, str):
             encryption_key = encryption_key.encode()
@@ -25,6 +25,7 @@ class CredentialVault:
     def generate_key() -> bytes:
         """Generate a new Fernet encryption key."""
         from cryptography.fernet import Fernet
+
         return Fernet.generate_key()
 
     def encrypt_credential(self, data: dict) -> str:

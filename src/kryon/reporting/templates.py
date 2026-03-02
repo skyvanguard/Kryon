@@ -80,7 +80,4 @@ def get_template_css(template_name: str) -> str:
 
 def list_templates() -> list[dict]:
     """List available report templates."""
-    return [
-        {"id": k, "name": v["name"], "description": v["description"]}
-        for k, v in TEMPLATES.items()
-    ]
+    return [{"id": k, "name": v["name"], "description": v["description"]} for k, v in TEMPLATES.items()]

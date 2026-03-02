@@ -74,7 +74,11 @@ def check_typosquatting(
     """
     patterns = [
         ("hyphen swap", package_name.replace("-", "_"), package_name.replace("_", "-")),
-        ("missing char", package_name[1:] if len(package_name) > 1 else "", package_name[:-1] if len(package_name) > 1 else ""),
+        (
+            "missing char",
+            package_name[1:] if len(package_name) > 1 else "",
+            package_name[:-1] if len(package_name) > 1 else "",
+        ),
         ("prefix", f"get-{package_name}", f"node-{package_name}"),
         ("suffix", f"{package_name}-js", f"{package_name}-lib"),
     ]

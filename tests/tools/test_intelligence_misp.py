@@ -8,7 +8,7 @@ os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 import pytest
 
 from kryon.sdk.agents import RunContextWrapper
-from kryon.tools.intelligence.misp_client import misp_search_events, misp_add_event
+from kryon.tools.intelligence.misp_client import misp_add_event, misp_search_events
 
 
 def _invoke(tool, args: dict):
@@ -62,10 +62,13 @@ async def test_search_with_type_filter(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.intelligence.misp_client.run_command", fake_run)
 
-    result = await _invoke(misp_search_events, {
-        "query": "10.0.0.1",
-        "type_attribute": "ip-src",
-    })
+    result = await _invoke(
+        misp_search_events,
+        {
+            "query": "10.0.0.1",
+            "type_attribute": "ip-src",
+        },
+    )
     assert "ip-src" in captured["cmd"]
 
 
@@ -80,10 +83,13 @@ async def test_add_event_no_creds(monkeypatch):
     monkeypatch.delenv("MISP_URL", raising=False)
     monkeypatch.delenv("MISP_KEY", raising=False)
 
-    result = await _invoke(misp_add_event, {
-        "title": "Test Event",
-        "description": "Test description",
-    })
+    result = await _invoke(
+        misp_add_event,
+        {
+            "title": "Test Event",
+            "description": "Test description",
+        },
+    )
     assert "error" in result.lower()
     assert "MISP_URL" in result
 
@@ -101,10 +107,13 @@ async def test_add_event_with_creds(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.intelligence.misp_client.run_command", fake_run)
 
-    result = await _invoke(misp_add_event, {
-        "title": "Phishing Campaign",
-        "description": "Detected phishing targeting finance team",
-    })
+    result = await _invoke(
+        misp_add_event,
+        {
+            "title": "Phishing Campaign",
+            "description": "Detected phishing targeting finance team",
+        },
+    )
     assert "misp.local/events/add" in captured["cmd"]
     assert "Phishing Campaign" in captured["cmd"]
 
@@ -126,10 +135,13 @@ async def test_add_event_with_attributes(monkeypatch):
         {"type": "ip-src", "value": "10.0.0.1", "category": "Network activity"},
         {"type": "domain", "value": "evil.com", "category": "Network activity"},
     ]
-    result = await _invoke(misp_add_event, {
-        "title": "IOC Event",
-        "description": "New IOCs discovered",
-        "attributes_json": json.dumps(attrs),
-    })
+    result = await _invoke(
+        misp_add_event,
+        {
+            "title": "IOC Event",
+            "description": "New IOCs discovered",
+            "attributes_json": json.dumps(attrs),
+        },
+    )
     assert "10.0.0.1" in captured["cmd"]
     assert "evil.com" in captured["cmd"]

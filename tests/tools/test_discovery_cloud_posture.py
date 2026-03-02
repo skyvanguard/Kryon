@@ -63,9 +63,12 @@ async def test_aggregate_with_prowler_output(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.discovery.cloud_posture.run_command", fake_run)
 
-    result = await _invoke(aggregate_cloud_posture, {
-        "prowler_output": "/tmp/prowler-results.json",
-    })
+    result = await _invoke(
+        aggregate_cloud_posture,
+        {
+            "prowler_output": "/tmp/prowler-results.json",
+        },
+    )
     assert "Prowler" in result
     assert "prowler-results.json" in captured["cmd"]
 
@@ -81,8 +84,11 @@ async def test_aggregate_with_scoutsuite_output(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.discovery.cloud_posture.run_command", fake_run)
 
-    result = await _invoke(aggregate_cloud_posture, {
-        "scoutsuite_output": "/tmp/scoutsuite-results.json",
-    })
+    result = await _invoke(
+        aggregate_cloud_posture,
+        {
+            "scoutsuite_output": "/tmp/scoutsuite-results.json",
+        },
+    )
     assert "ScoutSuite" in result
     assert any("scoutsuite-results.json" in c for c in calls)

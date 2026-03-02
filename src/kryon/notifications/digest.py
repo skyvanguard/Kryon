@@ -26,10 +26,12 @@ class DigestAggregator:
             return True
 
         key = (channel_id, digest_mode)
-        self._pending[key].append({
-            **event,
-            "queued_at": datetime.now(timezone.utc).isoformat(),
-        })
+        self._pending[key].append(
+            {
+                **event,
+                "queued_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
         logger.debug("Queued event for %s digest: channel=%s", digest_mode, channel_id)
         return False
 

@@ -67,7 +67,9 @@ async def generate_report(request: ReportRequest) -> ReportResponse:
     else:
         path = save_report(html, request.client_name, request.report_type)
 
-    logger.info("Report generated: type=%s format=%s client=%s", request.report_type, request.format, request.client_name)
+    logger.info(
+        "Report generated: type=%s format=%s client=%s", request.report_type, request.format, request.client_name
+    )
     return ReportResponse(filename=path.name, format=request.format, path=str(path))
 
 

@@ -56,6 +56,7 @@ async def start_onboarding(body: StartBody) -> dict:
 
     # Create client
     from kryon.memory.models import Client
+
     client_id = str(uuid.uuid4())
     client = Client(id=client_id, name=body.client_name, contact=body.contact, created_at=now)
     store.create_client(client)
@@ -122,6 +123,7 @@ async def save_credential(body: CredentialBody) -> dict:
         raise HTTPException(500, "KRYON_CREDENTIAL_KEY not configured")
 
     from kryon.onboarding.vault import CredentialVault
+
     vault = CredentialVault(encryption_key)
     encrypted = vault.encrypt_credential(body.data)
 
@@ -136,7 +138,9 @@ async def save_credential(body: CredentialBody) -> dict:
         encrypted_data=encrypted,
         created_at=now,
     )
-    logger.info("Credential saved: id=%s client=%s type=%s", cred_id, body.client_id, body.credential_type)  # nosemgrep: python-logger-credential-disclosure
+    logger.info(
+        "Credential saved: id=%s client=%s type=%s", cred_id, body.client_id, body.credential_type
+    )  # nosemgrep: python-logger-credential-disclosure
     return {"id": cred_id, "client_id": body.client_id}
 
 
@@ -164,9 +168,11 @@ async def import_assets(body: ImportBody) -> dict:
     store = get_store()
     if body.format == "csv":
         from kryon.onboarding.importer import import_assets_csv
+
         count = import_assets_csv(body.data, body.client_id, store)
     else:
         from kryon.onboarding.importer import import_assets_json
+
         count = import_assets_json(body.data, body.client_id, store)
     logger.info("Assets imported: count=%d client=%s format=%s", count, body.client_id, body.format)
     return {"imported": count, "client_id": body.client_id}
@@ -176,6 +182,7 @@ async def import_assets(body: ImportBody) -> dict:
 async def validate_scope_endpoint(body: ValidateScopeBody) -> dict:
     """Validate scope target reachability."""
     from kryon.onboarding.importer import validate_scope
+
     results = validate_scope(body.targets)
     logger.info("Scope validated: %d targets, %d reachable", len(results), sum(1 for r in results if r["reachable"]))
     return {"results": results, "total": len(results), "reachable": sum(1 for r in results if r["reachable"])}

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -20,8 +19,8 @@ class LicenseValidator:
         """Validate a license key. Returns decoded payload or None."""
         try:
             import jwt
-        except ImportError:
-            raise ImportError("PyJWT is required. Install with: pip install PyJWT[crypto]")
+        except ImportError as exc:
+            raise ImportError("PyJWT is required. Install with: pip install PyJWT[crypto]") from exc
 
         if not self._public_key:
             logger.warning("No public key configured for license validation")
@@ -59,8 +58,8 @@ class LicenseValidator:
         """Generate a new license key (admin CLI use)."""
         try:
             import jwt
-        except ImportError:
-            raise ImportError("PyJWT[crypto] is required for license generation")
+        except ImportError as exc:
+            raise ImportError("PyJWT[crypto] is required for license generation") from exc
 
         if not self._private_key:
             raise ValueError("Private key required for license generation")

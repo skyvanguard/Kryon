@@ -11,7 +11,6 @@ import socket
 import urllib.request
 import uuid  # Add uuid import
 from datetime import datetime
-from urllib.error import URLError
 
 import pytz  # pylint: disable=import-error
 

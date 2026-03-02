@@ -1,12 +1,12 @@
 """Tests for engagement data models."""
 
 from kryon.engagements.models import (
+    PHASE_AGENT_MAP,
     Engagement,
     EngagementPhase,
     EngagementStatus,
     PhaseStatus,
     PhaseType,
-    PHASE_AGENT_MAP,
 )
 
 

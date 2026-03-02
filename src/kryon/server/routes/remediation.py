@@ -41,6 +41,7 @@ async def assign_finding(finding_id: str, body: AssignBody) -> dict:
         raise not_found("Finding", finding_id)
 
     from kryon.remediation.sla import calculate_sla_deadline
+
     now = datetime.now(timezone.utc)
     sla_deadline = calculate_sla_deadline(body.priority, now)
 
@@ -98,6 +99,7 @@ async def list_overdue(
 async def get_metrics(client_id: str = "") -> dict:
     """Get remediation metrics including MTTR and SLA compliance."""
     from kryon.remediation.sla import calculate_mttr
+
     store = get_store()
     return calculate_mttr(store, client_id=client_id)
 

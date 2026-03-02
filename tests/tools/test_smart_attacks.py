@@ -8,7 +8,7 @@ os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 import pytest
 
 from kryon.sdk.agents import RunContextWrapper
-from kryon.tools.password_cracking.smart_attacks import smart_password_attack, credential_spray
+from kryon.tools.password_cracking.smart_attacks import credential_spray, smart_password_attack
 
 
 def _invoke(tool, args: dict):
@@ -31,10 +31,13 @@ async def test_ssh_attack(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.password_cracking.smart_attacks.run_command", fake_run)
 
-    result = await _invoke(smart_password_attack, {
-        "target": "10.0.0.1",
-        "service": "ssh",
-    })
+    result = await _invoke(
+        smart_password_attack,
+        {
+            "target": "10.0.0.1",
+            "service": "ssh",
+        },
+    )
     assert "hydra" in captured["cmd"]
     assert "ssh" in captured["cmd"]
     assert "Smart Password Attack" in result
@@ -51,20 +54,26 @@ async def test_ftp_attack(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.password_cracking.smart_attacks.run_command", fake_run)
 
-    result = await _invoke(smart_password_attack, {
-        "target": "10.0.0.1",
-        "service": "ftp",
-    })
+    result = await _invoke(
+        smart_password_attack,
+        {
+            "target": "10.0.0.1",
+            "service": "ftp",
+        },
+    )
     assert "ftp" in captured["cmd"]
 
 
 @pytest.mark.asyncio
 async def test_unknown_service(monkeypatch):
     """Unknown service returns error."""
-    result = await _invoke(smart_password_attack, {
-        "target": "10.0.0.1",
-        "service": "telnet_custom",
-    })
+    result = await _invoke(
+        smart_password_attack,
+        {
+            "target": "10.0.0.1",
+            "service": "telnet_custom",
+        },
+    )
     assert "Error" in result
     assert "Unknown service" in result
 
@@ -80,12 +89,15 @@ async def test_attack_with_lockout_params(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.password_cracking.smart_attacks.run_command", fake_run)
 
-    result = await _invoke(smart_password_attack, {
-        "target": "10.0.0.1",
-        "service": "ssh",
-        "lockout_threshold": 3,
-        "lockout_window_minutes": 15,
-    })
+    result = await _invoke(
+        smart_password_attack,
+        {
+            "target": "10.0.0.1",
+            "service": "ssh",
+            "lockout_threshold": 3,
+            "lockout_window_minutes": 15,
+        },
+    )
     assert "Lockout threshold: 3" in result
     assert "15min" in result
     # safe_attempts = max(1, 3-2) = 1
@@ -103,11 +115,14 @@ async def test_attack_dictionary_strategy(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.password_cracking.smart_attacks.run_command", fake_run)
 
-    result = await _invoke(smart_password_attack, {
-        "target": "10.0.0.1",
-        "service": "ssh",
-        "strategy": "dictionary",
-    })
+    result = await _invoke(
+        smart_password_attack,
+        {
+            "target": "10.0.0.1",
+            "service": "ssh",
+            "strategy": "dictionary",
+        },
+    )
     assert "-L" in captured["cmd"]
     assert "-P" in captured["cmd"]
     assert "Strategy: dictionary" in result
@@ -124,11 +139,14 @@ async def test_attack_spray_strategy(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.password_cracking.smart_attacks.run_command", fake_run)
 
-    result = await _invoke(smart_password_attack, {
-        "target": "10.0.0.1",
-        "service": "ssh",
-        "strategy": "spray",
-    })
+    result = await _invoke(
+        smart_password_attack,
+        {
+            "target": "10.0.0.1",
+            "service": "ssh",
+            "strategy": "spray",
+        },
+    )
     assert "-p" in captured["cmd"]
     assert "Password123!" in captured["cmd"]
     assert "Strategy: spray" in result
@@ -150,11 +168,14 @@ async def test_spray_multi_target(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.password_cracking.smart_attacks.run_command", fake_run)
 
-    result = await _invoke(credential_spray, {
-        "targets": "10.0.0.1,10.0.0.2,10.0.0.3",
-        "service": "ssh",
-        "password": "Winter2024!",
-    })
+    result = await _invoke(
+        credential_spray,
+        {
+            "targets": "10.0.0.1,10.0.0.2,10.0.0.3",
+            "service": "ssh",
+            "password": "Winter2024!",
+        },
+    )
     assert len(calls) == 3
     assert "Credential Spray: 3 targets" in result
     assert "[10.0.0.1]" in result
@@ -172,11 +193,14 @@ async def test_spray_custom_delay(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.password_cracking.smart_attacks.run_command", fake_run)
 
-    result = await _invoke(credential_spray, {
-        "targets": "10.0.0.1",
-        "service": "ssh",
-        "password": "test",
-        "delay_seconds": 5.0,
-    })
+    result = await _invoke(
+        credential_spray,
+        {
+            "targets": "10.0.0.1",
+            "service": "ssh",
+            "password": "test",
+            "delay_seconds": 5.0,
+        },
+    )
     assert "-W 5.0" in captured["cmd"]
     assert "Delay: 5.0s" in result

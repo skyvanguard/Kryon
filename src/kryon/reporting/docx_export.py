@@ -16,26 +16,26 @@ def html_to_docx(html: str) -> bytes:
     """
     try:
         from docx import Document
-        from docx.shared import Inches, Pt, RGBColor
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
-    except ImportError:
-        raise ImportError("python-docx is required for DOCX export. Install with: pip install python-docx")
+        from docx.enum.text import WD_ALIGN_PARAGRAPH  # noqa: F401
+        from docx.shared import Inches, Pt, RGBColor  # noqa: F401
+    except ImportError as exc:
+        raise ImportError("python-docx is required for DOCX export. Install with: pip install python-docx") from exc
 
     doc = Document()
 
     # Strip HTML tags for plain text extraction
-    text = _strip_html(html)
+    _strip_html(html)
 
     # Parse sections from HTML
     sections = _extract_sections(html)
 
     for section in sections:
         if section["type"] == "h1":
-            p = doc.add_heading(section["text"], level=1)
+            doc.add_heading(section["text"], level=1)
         elif section["type"] == "h2":
-            p = doc.add_heading(section["text"], level=2)
+            doc.add_heading(section["text"], level=2)
         elif section["type"] == "h3":
-            p = doc.add_heading(section["text"], level=3)
+            doc.add_heading(section["text"], level=3)
         elif section["type"] == "table":
             _add_table(doc, section["rows"])
         elif section["type"] == "p":

@@ -26,8 +26,8 @@ from kryon.tools.common._executors import (
     _run_ssh,
 )
 from kryon.tools.common._lazy_imports import (
-    _RunCommandProxy,
     _get_run_command,
+    _RunCommandProxy,
     run_command_tool,
 )
 from kryon.tools.common._sessions import (

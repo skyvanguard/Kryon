@@ -15,9 +15,7 @@ class ServerConfig:
     api_keys: list[str] = field(default_factory=list)
     reload: bool = False
     max_concurrent_runs: int = 10
-    cors_origins: list[str] = field(
-        default_factory=lambda: ["http://localhost:5173", "http://localhost:8700"]
-    )
+    cors_origins: list[str] = field(default_factory=lambda: ["http://localhost:5173", "http://localhost:8700"])
     debug: bool = False
     rate_limit_rpm: int = 60
 
@@ -39,6 +37,5 @@ class ServerConfig:
     def __post_init__(self):
         if self.auth_enabled and not self.jwt_secret:
             raise ValueError(
-                "auth_enabled=True but jwt_secret is empty. "
-                "Set KRYON_JWT_SECRET or run the setup wizard: kryon --setup"
+                "auth_enabled=True but jwt_secret is empty. Set KRYON_JWT_SECRET or run the setup wizard: kryon --setup"
             )

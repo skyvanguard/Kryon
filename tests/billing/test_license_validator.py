@@ -1,6 +1,7 @@
 """Tests for license validation."""
 
 import pytest
+
 from kryon.billing.license_validator import LicenseValidator
 
 

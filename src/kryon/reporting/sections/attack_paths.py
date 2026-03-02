@@ -11,12 +11,16 @@ def render_attack_path_summary(findings: list) -> str:
     vuln_list = []
     for f in findings:
         if hasattr(f, "title"):
-            vuln_list.append({
-                "id": getattr(f, "id", ""),
-                "type": getattr(f, "title", "unknown"),
-                "severity": getattr(f, "severity", "medium").value if hasattr(getattr(f, "severity", ""), "value") else str(getattr(f, "severity", "medium")),
-                "location": getattr(f, "affected_asset", ""),
-            })
+            vuln_list.append(
+                {
+                    "id": getattr(f, "id", ""),
+                    "type": getattr(f, "title", "unknown"),
+                    "severity": getattr(f, "severity", "medium").value
+                    if hasattr(getattr(f, "severity", ""), "value")
+                    else str(getattr(f, "severity", "medium")),
+                    "location": getattr(f, "affected_asset", ""),
+                }
+            )
         elif isinstance(f, dict):
             vuln_list.append(f)
 
@@ -24,6 +28,7 @@ def render_attack_path_summary(findings: list) -> str:
         return '<div class="section"><h2>Attack Path Analysis</h2><p>No findings to analyze.</p></div>'
 
     from kryon.tools.intelligence.vulnerability_correlator import correlate_vulnerabilities
+
     result = json.loads(correlate_vulnerabilities(json.dumps(vuln_list)))
 
     chains = result.get("attack_chains", [])

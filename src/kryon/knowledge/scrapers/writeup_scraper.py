@@ -170,17 +170,19 @@ class WriteupScraper(BaseScraper):
                 if response.status_code == 200:
                     repo = response.json()
                     content = self._format_github_writeup(repo)
-                    writeups.append({
-                        "content": content,
-                        "metadata": {
-                            "source": self.source_name,
-                            "subsource": "ctf-collection",
-                            "repo_name": repo.get("full_name", ""),
-                            "url": repo.get("html_url", ""),
-                            "type": "writeup",
-                            "timestamp": time.time(),
-                        },
-                    })
+                    writeups.append(
+                        {
+                            "content": content,
+                            "metadata": {
+                                "source": self.source_name,
+                                "subsource": "ctf-collection",
+                                "repo_name": repo.get("full_name", ""),
+                                "url": repo.get("html_url", ""),
+                                "type": "writeup",
+                                "timestamp": time.time(),
+                            },
+                        }
+                    )
                 self.rate_limit(1.5)
             except Exception as e:
                 self.log_error(f"CTF collection error for {repo_name}: {e}")

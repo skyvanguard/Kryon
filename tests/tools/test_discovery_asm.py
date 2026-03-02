@@ -8,7 +8,7 @@ os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 import pytest
 
 from kryon.sdk.agents import RunContextWrapper
-from kryon.tools.discovery.asm_engine import asm_discovery_scan, asm_diff
+from kryon.tools.discovery.asm_engine import asm_diff, asm_discovery_scan
 
 
 def _invoke(tool, args: dict):
@@ -52,10 +52,13 @@ async def test_scan_without_subdomains(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.discovery.asm_engine.run_command", fake_run)
 
-    result = await _invoke(asm_discovery_scan, {
-        "domain": "example.com",
-        "include_subdomains": False,
-    })
+    result = await _invoke(
+        asm_discovery_scan,
+        {
+            "domain": "example.com",
+            "include_subdomains": False,
+        },
+    )
     data = json.loads(result)
     assert data["subdomains"] == []
     assert not any("subfinder" in c for c in calls)
@@ -72,10 +75,13 @@ async def test_scan_without_ports(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.discovery.asm_engine.run_command", fake_run)
 
-    result = await _invoke(asm_discovery_scan, {
-        "domain": "example.com",
-        "include_ports": False,
-    })
+    result = await _invoke(
+        asm_discovery_scan,
+        {
+            "domain": "example.com",
+            "include_ports": False,
+        },
+    )
     data = json.loads(result)
     assert data["services"] == []
     assert not any("nmap" in c for c in calls)
@@ -103,16 +109,20 @@ async def test_scan_with_ports(monkeypatch):
 @pytest.mark.asyncio
 async def test_scan_result_has_scan_id(monkeypatch):
     """Scan result includes a unique scan_id."""
+
     def fake_run(cmd, **kwargs):
         return ""
 
     monkeypatch.setattr("kryon.tools.discovery.asm_engine.run_command", fake_run)
 
-    result = await _invoke(asm_discovery_scan, {
-        "domain": "example.com",
-        "include_subdomains": False,
-        "include_ports": False,
-    })
+    result = await _invoke(
+        asm_discovery_scan,
+        {
+            "domain": "example.com",
+            "include_subdomains": False,
+            "include_ports": False,
+        },
+    )
     data = json.loads(result)
     assert "scan_id" in data
     assert len(data["scan_id"]) == 12
@@ -121,16 +131,20 @@ async def test_scan_result_has_scan_id(monkeypatch):
 @pytest.mark.asyncio
 async def test_scan_result_has_timestamp(monkeypatch):
     """Scan result includes a timestamp."""
+
     def fake_run(cmd, **kwargs):
         return ""
 
     monkeypatch.setattr("kryon.tools.discovery.asm_engine.run_command", fake_run)
 
-    result = await _invoke(asm_discovery_scan, {
-        "domain": "example.com",
-        "include_subdomains": False,
-        "include_ports": False,
-    })
+    result = await _invoke(
+        asm_discovery_scan,
+        {
+            "domain": "example.com",
+            "include_subdomains": False,
+            "include_ports": False,
+        },
+    )
     data = json.loads(result)
     assert "timestamp" in data
 
@@ -164,10 +178,13 @@ async def test_scan_domain_only(monkeypatch):
 @pytest.mark.asyncio
 async def test_diff_returns_info(monkeypatch):
     """Diff returns informational JSON about needing stored scan data."""
-    result = await _invoke(asm_diff, {
-        "scan_id_old": "abc123",
-        "scan_id_new": "def456",
-    })
+    result = await _invoke(
+        asm_diff,
+        {
+            "scan_id_old": "abc123",
+            "scan_id_new": "def456",
+        },
+    )
     data = json.loads(result)
     assert data["old_scan_id"] == "abc123"
     assert data["new_scan_id"] == "def456"

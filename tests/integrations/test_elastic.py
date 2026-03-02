@@ -21,7 +21,12 @@ def _make_config():
 
 
 def _make_event(**kwargs):
-    defaults = {"event_type": "finding", "severity": "critical", "title": "RCE Found", "description": "Remote code execution"}
+    defaults = {
+        "event_type": "finding",
+        "severity": "critical",
+        "title": "RCE Found",
+        "description": "Remote code execution",
+    }
     defaults.update(kwargs)
     return SIEMEvent(**defaults)
 

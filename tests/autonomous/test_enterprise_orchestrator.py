@@ -120,9 +120,7 @@ class TestEnterpriseOrchestratorRun:
     @patch("kryon.tools.autonomous.enterprise_orchestrator.EnterpriseOrchestrator._phase_recon")
     @patch("kryon.tools.autonomous.enterprise_orchestrator.EnterpriseOrchestrator._phase_vuln_scan")
     @patch("kryon.tools.autonomous.enterprise_orchestrator.EnterpriseOrchestrator._phase_reporting")
-    async def test_standard_profile_skips_exploitation(
-        self, mock_reporting, mock_vuln, mock_recon
-    ):
+    async def test_standard_profile_skips_exploitation(self, mock_reporting, mock_vuln, mock_recon):
         """Standard profile should not run exploitation phase."""
         mock_recon.return_value = None
         mock_vuln.return_value = None
@@ -141,9 +139,7 @@ class TestEnterpriseOrchestratorRun:
     @patch("kryon.tools.autonomous.enterprise_orchestrator.EnterpriseOrchestrator._phase_vuln_scan")
     @patch("kryon.tools.autonomous.enterprise_orchestrator.EnterpriseOrchestrator._phase_exploitation")
     @patch("kryon.tools.autonomous.enterprise_orchestrator.EnterpriseOrchestrator._phase_reporting")
-    async def test_deep_profile_runs_exploitation(
-        self, mock_reporting, mock_exploit, mock_vuln, mock_recon
-    ):
+    async def test_deep_profile_runs_exploitation(self, mock_reporting, mock_exploit, mock_vuln, mock_recon):
         """Deep profile should run exploitation phase."""
         mock_recon.return_value = None
         mock_vuln.return_value = None
@@ -198,9 +194,14 @@ class TestEnterpriseOrchestratorRun:
                     result = await orch.run()
 
         required_keys = [
-            "scan_id", "status", "findings_count",
-            "critical_count", "high_count", "report_path",
-            "elapsed_seconds", "error",
+            "scan_id",
+            "status",
+            "findings_count",
+            "critical_count",
+            "high_count",
+            "report_path",
+            "elapsed_seconds",
+            "error",
         ]
         for key in required_keys:
             assert key in result, f"Missing key: {key}"

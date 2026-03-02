@@ -58,6 +58,7 @@ class TenantResolutionMiddleware(BaseHTTPMiddleware):
     def _resolve_from_id(self, tenant_id: str) -> dict | None:
         try:
             from kryon.server.deps import get_store
+
             return get_store().get_tenant(tenant_id)
         except Exception:
             return None
@@ -65,6 +66,7 @@ class TenantResolutionMiddleware(BaseHTTPMiddleware):
     def _resolve_from_slug(self, slug: str) -> dict | None:
         try:
             from kryon.server.deps import get_store
+
             return get_store().get_tenant_by_slug(slug)
         except Exception:
             return None

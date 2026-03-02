@@ -8,7 +8,7 @@ os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 import pytest
 
 from kryon.sdk.agents import RunContextWrapper
-from kryon.tools.reconnaissance.fofa import fofa_search, fofa_host_detail
+from kryon.tools.reconnaissance.fofa import fofa_host_detail, fofa_search
 
 
 def _invoke(tool, args: dict):
@@ -65,10 +65,13 @@ async def test_search_custom_fields(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.reconnaissance.fofa.run_command", fake_run)
 
-    result = await _invoke(fofa_search, {
-        "query": 'port="443"',
-        "fields": "host,ip,port,protocol",
-    })
+    result = await _invoke(
+        fofa_search,
+        {
+            "query": 'port="443"',
+            "fields": "host,ip,port,protocol",
+        },
+    )
     assert "fields=host,ip,port,protocol" in captured["cmd"]
 
 
@@ -85,10 +88,13 @@ async def test_search_custom_size(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.reconnaissance.fofa.run_command", fake_run)
 
-    result = await _invoke(fofa_search, {
-        "query": 'app="Apache"',
-        "size": 500,
-    })
+    result = await _invoke(
+        fofa_search,
+        {
+            "query": 'app="Apache"',
+            "size": 500,
+        },
+    )
     assert "size=500" in captured["cmd"]
 
 

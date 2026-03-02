@@ -1,6 +1,7 @@
 """Tests for graph formatting utilities."""
 
 import pytest
+
 from kryon.intelligence.graph_formatter import format_graph_for_d3, format_kill_chain
 
 
@@ -22,10 +23,12 @@ def test_invalid_string():
 
 
 def test_nodes_from_priority():
-    data = {"exploitation_priority": [
-        {"id": "v1", "type": "sqli", "severity": "high"},
-        {"id": "v2", "type": "rce", "severity": "critical"},
-    ]}
+    data = {
+        "exploitation_priority": [
+            {"id": "v1", "type": "sqli", "severity": "high"},
+            {"id": "v2", "type": "rce", "severity": "critical"},
+        ]
+    }
     result = format_graph_for_d3(data)
     assert len(result["nodes"]) == 2
     assert result["nodes"][0]["id"] == "v1"
@@ -36,7 +39,12 @@ def test_edges_from_relationships():
     data = {
         "exploitation_priority": [{"id": "v1", "type": "sqli", "severity": "high"}],
         "relationships": [
-            {"vulnerability_1": "v1", "vulnerability_2": "v2", "relationship_type": "enables", "description": "Enables attack"},
+            {
+                "vulnerability_1": "v1",
+                "vulnerability_2": "v2",
+                "relationship_type": "enables",
+                "description": "Enables attack",
+            },
         ],
     }
     result = format_graph_for_d3(data)
@@ -48,15 +56,17 @@ def test_edges_from_relationships():
 def test_chain_edges():
     data = {
         "exploitation_priority": [],
-        "attack_chains": [{
-            "chain_type": "sqli_to_rce",
-            "description": "SQL injection to RCE",
-            "impact": "critical",
-            "stages": [
-                {"id": "s1", "type": "sqli"},
-                {"id": "s2", "type": "rce"},
-            ],
-        }],
+        "attack_chains": [
+            {
+                "chain_type": "sqli_to_rce",
+                "description": "SQL injection to RCE",
+                "impact": "critical",
+                "stages": [
+                    {"id": "s1", "type": "sqli"},
+                    {"id": "s2", "type": "rce"},
+                ],
+            }
+        ],
     }
     result = format_graph_for_d3(data)
     assert len(result["chains"]) == 1
@@ -66,10 +76,12 @@ def test_chain_edges():
 
 
 def test_kill_chain_format():
-    chain = {"stages": [
-        {"id": "s1", "type": "recon", "severity": "info"},
-        {"id": "s2", "type": "exploit", "severity": "high"},
-    ]}
+    chain = {
+        "stages": [
+            {"id": "s1", "type": "recon", "severity": "info"},
+            {"id": "s2", "type": "exploit", "severity": "high"},
+        ]
+    }
     steps = format_kill_chain(chain)
     assert len(steps) == 2
     assert steps[0]["order"] == 1
@@ -85,9 +97,11 @@ def test_risk_amplification():
 
 
 def test_duplicate_nodes():
-    data = {"exploitation_priority": [
-        {"id": "v1", "type": "sqli", "severity": "high"},
-        {"id": "v1", "type": "sqli", "severity": "high"},
-    ]}
+    data = {
+        "exploitation_priority": [
+            {"id": "v1", "type": "sqli", "severity": "high"},
+            {"id": "v1", "type": "sqli", "severity": "high"},
+        ]
+    }
     result = format_graph_for_d3(data)
     assert len(result["nodes"]) == 1  # Deduped

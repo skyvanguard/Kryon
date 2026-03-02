@@ -20,12 +20,14 @@ def test_needs_setup_with_user(tmp_path):
 
     db_path = tmp_path / "setup.db"
     store = MemoryStore(db_path=db_path)
-    store.create_user(User(
-        username="admin",
-        email="a@t.com",
-        password_hash=hash_password("test1234"),
-        role="admin",
-    ))
+    store.create_user(
+        User(
+            username="admin",
+            email="a@t.com",
+            password_hash=hash_password("test1234"),
+            role="admin",
+        )
+    )
     store.close()
 
     assert needs_setup(db_path=db_path) is False

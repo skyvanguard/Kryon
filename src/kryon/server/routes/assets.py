@@ -25,7 +25,9 @@ async def list_assets(
 ) -> dict:
     """List assets with optional filtering."""
     store = get_store()
-    items = store.list_assets(query=query, asset_type=asset_type, client_id=client_id, status=status, offset=offset, limit=limit)
+    items = store.list_assets(
+        query=query, asset_type=asset_type, client_id=client_id, status=status, offset=offset, limit=limit
+    )
     return {"items": items, "total": len(items), "offset": offset, "limit": limit}
 
 

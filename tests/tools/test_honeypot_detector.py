@@ -99,6 +99,7 @@ async def test_detect_timing_only(monkeypatch):
 @pytest.mark.asyncio
 async def test_honeypot_score_high(monkeypatch):
     """High score (>0.7) returns HIGH probability assessment."""
+
     def fake_run(cmd, **kwargs):
         return "0.85"
 
@@ -112,6 +113,7 @@ async def test_honeypot_score_high(monkeypatch):
 @pytest.mark.asyncio
 async def test_honeypot_score_low(monkeypatch):
     """Low score (<0.4) returns LOW probability assessment."""
+
     def fake_run(cmd, **kwargs):
         return "0.15"
 

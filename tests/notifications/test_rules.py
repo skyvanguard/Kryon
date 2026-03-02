@@ -1,7 +1,9 @@
 """Tests for notification rule evaluation."""
 
 import json
+
 import pytest
+
 from kryon.notifications.rules import evaluate_rules
 
 

@@ -28,9 +28,7 @@ async def _retry_post(
             async with httpx.AsyncClient(timeout=timeout) as client:
                 resp = await client.post(url, json=payload, headers=headers or {})
                 resp.raise_for_status()
-                logger.info(
-                    "POST delivered to %s (attempt %d/%d)", url, attempt, max_attempts
-                )
+                logger.info("POST delivered to %s (attempt %d/%d)", url, attempt, max_attempts)
                 return True
         except Exception:
             if attempt < max_attempts:
@@ -47,9 +45,7 @@ async def _retry_post(
                 )
                 await asyncio.sleep(delay)
             else:
-                logger.error(
-                    "POST to %s failed after %d attempts", url, max_attempts, exc_info=True
-                )
+                logger.error("POST to %s failed after %d attempts", url, max_attempts, exc_info=True)
     return False
 
 

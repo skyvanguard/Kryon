@@ -84,11 +84,13 @@ def zap_full_scan(
         cmd_parts.append("-j")
 
     if auth_header:
-        cmd_parts.append(f'-z "-config replacer.full_list(0).description=auth '
-                         f'-config replacer.full_list(0).enabled=true '
-                         f'-config replacer.full_list(0).matchtype=REQ_HEADER '
-                         f'-config replacer.full_list(0).matchstr=Authorization '
-                         f'-config replacer.full_list(0).replacement={auth_header}"')
+        cmd_parts.append(
+            f'-z "-config replacer.full_list(0).description=auth '
+            f"-config replacer.full_list(0).enabled=true "
+            f"-config replacer.full_list(0).matchtype=REQ_HEADER "
+            f"-config replacer.full_list(0).matchstr=Authorization "
+            f'-config replacer.full_list(0).replacement={auth_header}"'
+        )
 
     return run_command(" ".join(cmd_parts), ctf=ctf)
 

@@ -39,7 +39,9 @@ def semgrep_scan(
     cmd_parts = ["semgrep", "scan", f"--config {config}", f"--severity {severity}"]
 
     if output_format != "text":
-        cmd_parts.append(f"--{output_format}" if output_format in ("json", "sarif") else f"--output-format {output_format}")
+        cmd_parts.append(
+            f"--{output_format}" if output_format in ("json", "sarif") else f"--output-format {output_format}"
+        )
 
     if language:
         cmd_parts.append(f"--lang {language}")

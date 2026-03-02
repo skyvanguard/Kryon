@@ -50,10 +50,13 @@ async def test_scan_specific_checks(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.api_security.run_command", fake_run)
 
-    result = await _invoke(api_security_scan, {
-        "target_url": "https://api.example.com",
-        "checks": "auth,injection",
-    })
+    result = await _invoke(
+        api_security_scan,
+        {
+            "target_url": "https://api.example.com",
+            "checks": "auth,injection",
+        },
+    )
     assert "-tags auth,injection" in captured["cmd"]
 
 
@@ -68,10 +71,13 @@ async def test_scan_with_auth(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.api_security.run_command", fake_run)
 
-    result = await _invoke(api_security_scan, {
-        "target_url": "https://api.example.com",
-        "auth_token": "secrettoken",
-    })
+    result = await _invoke(
+        api_security_scan,
+        {
+            "target_url": "https://api.example.com",
+            "auth_token": "secrettoken",
+        },
+    )
     assert "Bearer secrettoken" in captured["cmd"]
 
 
@@ -86,10 +92,13 @@ async def test_scan_with_openapi_spec(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.api_security.run_command", fake_run)
 
-    result = await _invoke(api_security_scan, {
-        "target_url": "https://api.example.com",
-        "openapi_spec": "https://api.example.com/openapi.json",
-    })
+    result = await _invoke(
+        api_security_scan,
+        {
+            "target_url": "https://api.example.com",
+            "openapi_spec": "https://api.example.com/openapi.json",
+        },
+    )
     # Should have 2 calls: nuclei + zap
     assert len(calls) == 2
     assert "nuclei" in calls[0]
@@ -132,8 +141,11 @@ async def test_owasp_api_top10_threshold(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.api_security.run_command", fake_run)
 
-    result = await _invoke(owasp_api_top10_check, {
-        "target_url": "https://api.example.com",
-        "severity_threshold": "critical",
-    })
+    result = await _invoke(
+        owasp_api_top10_check,
+        {
+            "target_url": "https://api.example.com",
+            "severity_threshold": "critical",
+        },
+    )
     assert len(calls) == 5

@@ -1,7 +1,8 @@
 """Tests for report branding utilities."""
 
 import pytest
-from kryon.reporting.branding import apply_branding, BrandingConfig
+
+from kryon.reporting.branding import BrandingConfig, apply_branding
 
 
 def test_branding_config_defaults():
@@ -13,7 +14,9 @@ def test_branding_config_defaults():
 
 def test_apply_branding_with_body():
     html = "<html><body><h1>Report</h1></body></html>"
-    branding = BrandingConfig(company_name="ACME Corp", primary_color="#ff0000", logo_url="https://example.com/logo.png")
+    branding = BrandingConfig(
+        company_name="ACME Corp", primary_color="#ff0000", logo_url="https://example.com/logo.png"
+    )
     result = apply_branding(html, branding)
     assert "ACME Corp" in result
     assert "#ff0000" in result

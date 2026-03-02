@@ -142,11 +142,13 @@ def list_attack_techniques(
     for tid, info in _TECHNIQUE_SIMULATIONS.items():
         if tactic and info["tactic"].lower() != tactic.lower():
             continue
-        results.append({
-            "technique_id": tid,
-            "name": info["name"],
-            "tactic": info["tactic"],
-            "description": info["description"],
-        })
+        results.append(
+            {
+                "technique_id": tid,
+                "name": info["name"],
+                "tactic": info["tactic"],
+                "description": info["description"],
+            }
+        )
 
     return json.dumps(results, indent=2)

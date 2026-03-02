@@ -8,7 +8,7 @@ os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 import pytest
 
 from kryon.sdk.agents import RunContextWrapper
-from kryon.tools.appsec.supply_chain import detect_dependency_confusion, check_typosquatting
+from kryon.tools.appsec.supply_chain import check_typosquatting, detect_dependency_confusion
 
 
 def _invoke(tool, args: dict):
@@ -31,9 +31,12 @@ async def test_npm_confusion(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.supply_chain.run_command", fake_run)
 
-    result = await _invoke(detect_dependency_confusion, {
-        "package_manifest": "/app/package.json",
-    })
+    result = await _invoke(
+        detect_dependency_confusion,
+        {
+            "package_manifest": "/app/package.json",
+        },
+    )
     assert "NPM Audit" in result
     assert "npm audit" in captured["cmd"]
 
@@ -49,9 +52,12 @@ async def test_pip_confusion(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.supply_chain.run_command", fake_run)
 
-    result = await _invoke(detect_dependency_confusion, {
-        "package_manifest": "/app/requirements.txt",
-    })
+    result = await _invoke(
+        detect_dependency_confusion,
+        {
+            "package_manifest": "/app/requirements.txt",
+        },
+    )
     assert "Pip Audit" in result
     assert "pip-audit" in captured["cmd"]
 
@@ -67,9 +73,12 @@ async def test_pom_confusion(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.supply_chain.run_command", fake_run)
 
-    result = await _invoke(detect_dependency_confusion, {
-        "package_manifest": "/app/pom.xml",
-    })
+    result = await _invoke(
+        detect_dependency_confusion,
+        {
+            "package_manifest": "/app/pom.xml",
+        },
+    )
     assert "Maven Analysis" in result
     assert "mvn dependency:analyze" in captured["cmd"]
 
@@ -85,9 +94,12 @@ async def test_generic_confusion(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.supply_chain.run_command", fake_run)
 
-    result = await _invoke(detect_dependency_confusion, {
-        "package_manifest": "/app/Gemfile.lock",
-    })
+    result = await _invoke(
+        detect_dependency_confusion,
+        {
+            "package_manifest": "/app/Gemfile.lock",
+        },
+    )
     assert "Syft Analysis" in result
     assert "syft" in captured["cmd"]
 
@@ -108,10 +120,13 @@ async def test_typosquatting_npm(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.supply_chain.run_command", fake_run)
 
-    result = await _invoke(check_typosquatting, {
-        "package_name": "express",
-        "ecosystem": "npm",
-    })
+    result = await _invoke(
+        check_typosquatting,
+        {
+            "package_name": "express",
+            "ecosystem": "npm",
+        },
+    )
     assert "express" in result
     assert "npm" in result.lower()
     assert "npm search" in captured["cmd"]
@@ -128,9 +143,12 @@ async def test_typosquatting_pypi(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.supply_chain.run_command", fake_run)
 
-    result = await _invoke(check_typosquatting, {
-        "package_name": "requests",
-        "ecosystem": "pypi",
-    })
+    result = await _invoke(
+        check_typosquatting,
+        {
+            "package_name": "requests",
+            "ecosystem": "pypi",
+        },
+    )
     assert "requests" in result
     assert "pip index" in captured["cmd"]

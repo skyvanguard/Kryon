@@ -208,7 +208,9 @@ def analyze_target(
             time_constraint="quick"
         )
     """
-    logger.info("analyze_target called target=%s target_type=%s scope=%s stealth=%s", target, target_type, scope, stealth_level)
+    logger.info(
+        "analyze_target called target=%s target_type=%s scope=%s stealth=%s", target, target_type, scope, stealth_level
+    )
     # Detect target type if auto
     if target_type == "auto":
         target_type = _detect_target_type(target)
@@ -348,7 +350,9 @@ def create_strategy(
             stealth_required=True
         )
     """
-    logger.info("create_strategy called target=%s available_time=%s stealth=%s", target, available_time, stealth_required)
+    logger.info(
+        "create_strategy called target=%s available_time=%s stealth=%s", target, available_time, stealth_required
+    )
     goal_list = [g.strip() for g in goals.split(",")]
 
     # Build multi-phase strategy

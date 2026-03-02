@@ -21,9 +21,10 @@ async def test_asm_discovery_scan_error_handling():
     from kryon.tools.discovery.asm_engine import asm_discovery_scan
 
     with patch("kryon.tools.discovery.asm_engine.run_command", side_effect=RuntimeError("subfinder crash")):
-        result = await _invoke_tool(asm_discovery_scan, json.dumps({
-            "domain": "example.com", "include_subdomains": True, "include_ports": False
-        }))
+        result = await _invoke_tool(
+            asm_discovery_scan,
+            json.dumps({"domain": "example.com", "include_subdomains": True, "include_ports": False}),
+        )
 
     data = json.loads(result)
     assert "error" in data
@@ -37,9 +38,9 @@ async def test_cloud_posture_error_handling():
     from kryon.tools.discovery.cloud_posture import aggregate_cloud_posture
 
     with patch("kryon.tools.discovery.cloud_posture.run_command", side_effect=RuntimeError("prowler crash")):
-        result = await _invoke_tool(aggregate_cloud_posture, json.dumps({
-            "provider": "aws", "prowler_output": "/tmp/test.json"
-        }))
+        result = await _invoke_tool(
+            aggregate_cloud_posture, json.dumps({"provider": "aws", "prowler_output": "/tmp/test.json"})
+        )
 
     data = json.loads(result)
     assert "error" in data
@@ -52,9 +53,7 @@ async def test_ioc_store_graceful_fallback():
     from kryon.tools.intelligence.ioc_manager import store_ioc
 
     with patch("kryon.server.deps.get_store", side_effect=RuntimeError("no DB")):
-        result = await _invoke_tool(store_ioc, json.dumps({
-            "ioc_type": "ip", "ioc_value": "1.2.3.4", "source": "test"
-        }))
+        result = await _invoke_tool(store_ioc, json.dumps({"ioc_type": "ip", "ioc_value": "1.2.3.4", "source": "test"}))
 
     data = json.loads(result)
     assert data["status"] == "stored_local"
@@ -81,10 +80,15 @@ async def test_taxii_poll_feed_error_handling():
     from kryon.tools.intelligence.stix_taxii import taxii_poll_feed
 
     with patch("kryon.tools.intelligence.stix_taxii.run_command", side_effect=RuntimeError("network error")):
-        result = await _invoke_tool(taxii_poll_feed, json.dumps({
-            "server_url": "https://taxii.example.com",
-            "collection_id": "col1",
-        }))
+        result = await _invoke_tool(
+            taxii_poll_feed,
+            json.dumps(
+                {
+                    "server_url": "https://taxii.example.com",
+                    "collection_id": "col1",
+                }
+            ),
+        )
 
     data = json.loads(result)
     assert "error" in data

@@ -61,10 +61,12 @@ class TestScopeEnforcer:
         assert allowed is True
 
     def test_validate_targets_mixed(self):
-        enforcer = self._make_enforcer([
-            {"rule_type": "cidr", "value": "10.0.0.0/24"},
-            {"rule_type": "domain", "value": "target.com"},
-        ])
+        enforcer = self._make_enforcer(
+            [
+                {"rule_type": "cidr", "value": "10.0.0.0/24"},
+                {"rule_type": "domain", "value": "target.com"},
+            ]
+        )
         violations = enforcer.validate_targets(["10.0.0.1", "target.com", "evil.com", "192.168.1.1"])
         assert len(violations) == 2
         assert any("evil.com" in v for v in violations)

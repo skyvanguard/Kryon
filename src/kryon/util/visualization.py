@@ -138,9 +138,7 @@ def visualize_agent_graph(start_agent):
                                 break
 
                     if next_agent:
-                        transfer_node = transfers_node.add(
-                            f"🤖 {handoff_name} via {handoff_fn.tool_name}"
-                        )
+                        transfer_node = transfers_node.add(f"🤖 {handoff_name} via {handoff_fn.tool_name}")
                         add_agent_node(next_agent, transfer_node, True)
                     else:
                         # If we can't find the agent, just show the name

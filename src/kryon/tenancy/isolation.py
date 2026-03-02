@@ -68,6 +68,7 @@ class SharedDatabaseStrategy(IsolationStrategy):
 
     def get_store_for_tenant(self, tenant_id: str):
         from kryon.server.deps import get_store
+
         return get_store()
 
     def initialize_tenant(self, tenant_id: str) -> None:

@@ -43,6 +43,7 @@ async def get_current_user(
 
     # Resolve user from store
     from kryon.server.deps import get_store
+
     store = get_store()
     user = store.get_user_by_id(payload["sub"])
     if user is None or not user.is_active:

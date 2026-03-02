@@ -5,16 +5,16 @@ from __future__ import annotations
 import asyncio
 import json
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from kryon.server.auth import require_api_key
-from kryon.server.exceptions import not_found
 from kryon.server.auth.deps import get_current_user
 from kryon.server.auth.isolation import verify_client_access
 from kryon.server.auth.models import User
 from kryon.server.deps import get_engagement_manager
-from kryon.server.models import CreateEngagementRequest, EngagementResponse
+from kryon.server.exceptions import not_found
 from kryon.server.logging_config import get_logger
+from kryon.server.models import CreateEngagementRequest, EngagementResponse
 from kryon.server.sse import sse_response
 
 logger = get_logger(__name__)
@@ -23,7 +23,9 @@ router = APIRouter(tags=["engagements"], dependencies=[Depends(require_api_key)]
 
 
 @router.post("/engagements", response_model=EngagementResponse)
-async def create_engagement(req: CreateEngagementRequest, user: User | None = Depends(get_current_user)) -> EngagementResponse:
+async def create_engagement(
+    req: CreateEngagementRequest, user: User | None = Depends(get_current_user)
+) -> EngagementResponse:
     """Create a new multi-day engagement."""
     from kryon.engagements.models import Engagement
 
@@ -41,13 +43,13 @@ async def create_engagement(req: CreateEngagementRequest, user: User | None = De
     manager = get_engagement_manager()
     eng = await manager.create_engagement(engagement)
     logger.info("Engagement created: id=%s client=%s targets=%d", eng.id, req.client_name, len(req.targets))
-    return EngagementResponse(
-        id=eng.id, status=eng.status.value, message="Engagement created, planning started"
-    )
+    return EngagementResponse(id=eng.id, status=eng.status.value, message="Engagement created, planning started")
 
 
 @router.get("/engagements")
-async def list_engagements(status: str | None = None, offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=500)) -> list[dict]:
+async def list_engagements(
+    status: str | None = None, offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=500)
+) -> list[dict]:
     """List all engagements, optionally filtered by status."""
     manager = get_engagement_manager()
     status_filter = [status] if status else None

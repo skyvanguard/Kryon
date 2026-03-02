@@ -8,7 +8,7 @@ os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 import pytest
 
 from kryon.sdk.agents import RunContextWrapper
-from kryon.tools.validation.attack_simulator import simulate_attack, list_attack_techniques
+from kryon.tools.validation.attack_simulator import list_attack_techniques, simulate_attack
 
 
 def _invoke(tool, args: dict):
@@ -31,10 +31,13 @@ async def test_simulate_t1046(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.validation.attack_simulator.run_command", fake_run)
 
-    result = await _invoke(simulate_attack, {
-        "technique_id": "T1046",
-        "target": "10.0.0.1",
-    })
+    result = await _invoke(
+        simulate_attack,
+        {
+            "technique_id": "T1046",
+            "target": "10.0.0.1",
+        },
+    )
     assert "T1046" in result
     assert "Network Service Discovery" in result
     assert "10.0.0.1" in result
@@ -52,10 +55,13 @@ async def test_simulate_t1190(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.validation.attack_simulator.run_command", fake_run)
 
-    result = await _invoke(simulate_attack, {
-        "technique_id": "T1190",
-        "target": "https://target.com",
-    })
+    result = await _invoke(
+        simulate_attack,
+        {
+            "technique_id": "T1190",
+            "target": "https://target.com",
+        },
+    )
     assert "T1190" in result
     assert "nuclei" in captured["cmd"]
 
@@ -69,10 +75,13 @@ async def test_simulate_unknown_technique(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.validation.attack_simulator.run_command", fake_run)
 
-    result = await _invoke(simulate_attack, {
-        "technique_id": "T9999",
-        "target": "10.0.0.1",
-    })
+    result = await _invoke(
+        simulate_attack,
+        {
+            "technique_id": "T9999",
+            "target": "10.0.0.1",
+        },
+    )
     assert "Error" in result
     assert "Unknown technique" in result
 
@@ -88,11 +97,14 @@ async def test_simulate_full_mode(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.validation.attack_simulator.run_command", fake_run)
 
-    result = await _invoke(simulate_attack, {
-        "technique_id": "T1046",
-        "target": "10.0.0.1",
-        "mode": "full",
-    })
+    result = await _invoke(
+        simulate_attack,
+        {
+            "technique_id": "T1046",
+            "target": "10.0.0.1",
+            "mode": "full",
+        },
+    )
     assert "Mode: full" in result
 
 
@@ -107,10 +119,13 @@ async def test_simulate_t1110(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.validation.attack_simulator.run_command", fake_run)
 
-    result = await _invoke(simulate_attack, {
-        "technique_id": "T1110",
-        "target": "10.0.0.1",
-    })
+    result = await _invoke(
+        simulate_attack,
+        {
+            "technique_id": "T1110",
+            "target": "10.0.0.1",
+        },
+    )
     assert "T1110" in result
     assert "Brute Force" in result
 

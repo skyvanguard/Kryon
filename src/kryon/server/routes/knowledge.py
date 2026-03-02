@@ -6,10 +6,11 @@ import asyncio
 import json
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from kryon.server.auth import require_api_key
 from kryon.server.exceptions import not_found
+from kryon.server.logging_config import get_logger
 from kryon.server.models import (
     KnowledgeAddRequest,
     KnowledgeAddResponse,
@@ -19,7 +20,6 @@ from kryon.server.models import (
     ScrapeRequest,
     ScrapeResponse,
 )
-from kryon.server.logging_config import get_logger
 from kryon.server.sse import sse_response
 
 logger = get_logger(__name__)
@@ -96,9 +96,7 @@ async def add_knowledge(req: KnowledgeAddRequest) -> KnowledgeAddResponse:
     """Add a document to the knowledge base."""
     from kryon.knowledge import add_document
 
-    doc_id = await asyncio.to_thread(
-        add_document, content=req.content, source=req.source, **(req.metadata or {})
-    )
+    doc_id = await asyncio.to_thread(add_document, content=req.content, source=req.source, **(req.metadata or {}))
 
     logger.info("Knowledge document added: source=%s", req.source)
     return KnowledgeAddResponse(doc_id=doc_id, success=True)

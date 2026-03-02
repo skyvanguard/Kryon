@@ -30,6 +30,7 @@ class BrandingBody(BaseModel):
 async def list_templates() -> list[dict]:
     """List available report templates."""
     from kryon.reporting.templates import list_templates
+
     return list_templates()
 
 

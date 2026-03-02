@@ -23,7 +23,10 @@ class ResourceQuotaEnforcer:
             if q["resource"] == resource:
                 remaining = q["max_value"] - q["current_value"]
                 if amount > remaining:
-                    return False, f"Quota exceeded for {resource}: {q['current_value']}/{q['max_value']} (need {amount})"
+                    return (
+                        False,
+                        f"Quota exceeded for {resource}: {q['current_value']}/{q['max_value']} (need {amount})",
+                    )
                 return True, None
 
         # No quota defined — check tier defaults
@@ -46,6 +49,7 @@ class ResourceQuotaEnforcer:
             return False
 
         from kryon.server.deps import get_store
+
         return get_store().increment_quota_usage(tenant_id, resource, amount)
 
     def reset_monthly_quotas(self) -> None:

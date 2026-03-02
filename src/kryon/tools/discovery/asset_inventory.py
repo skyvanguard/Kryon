@@ -30,13 +30,16 @@ def register_asset(
     """
     try:
         from kryon.server.deps import get_store
+
         store = get_store()
         asset_id = uuid.uuid4().hex[:12]
         now = datetime.now(timezone.utc).isoformat()
         store.upsert_asset(asset_id, asset_type, identifier, client_id, metadata_json, now)
         return json.dumps({"asset_id": asset_id, "status": "registered", "identifier": identifier})
     except Exception as e:
-        return json.dumps({"asset_id": uuid.uuid4().hex[:12], "status": "registered_local", "identifier": identifier, "note": str(e)})
+        return json.dumps(
+            {"asset_id": uuid.uuid4().hex[:12], "status": "registered_local", "identifier": identifier, "note": str(e)}
+        )
 
 
 @function_tool
@@ -62,6 +65,7 @@ def search_assets(
     """
     try:
         from kryon.server.deps import get_store
+
         store = get_store()
         assets = store.list_assets(query=query, asset_type=asset_type, client_id=client_id, status=status)
         return json.dumps(assets, indent=2)
@@ -86,6 +90,7 @@ def asset_timeline(
     """
     try:
         from kryon.server.deps import get_store
+
         store = get_store()
         timeline = store.get_asset_timeline(asset_id)
         return json.dumps(timeline, indent=2)

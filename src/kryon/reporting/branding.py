@@ -43,6 +43,7 @@ body {{ font-family: 'Inter', 'Segoe UI', sans-serif; }}
         html = html.replace("<body>", f"<body>{css_vars}{header}", 1)
         # Handle body with attributes
         import re
+
         if "<body>" not in html:
             html = re.sub(r"(<body[^>]*>)", rf"\1{css_vars}{header}", html, count=1)
     else:

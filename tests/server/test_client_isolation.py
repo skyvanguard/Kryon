@@ -55,6 +55,7 @@ def test_verify_access_allowed(store, analyst_user):
 def test_verify_access_denied(store, analyst_user):
     """HTTPException 403 for unauthorized client."""
     from fastapi import HTTPException
+
     with pytest.raises(HTTPException) as exc_info:
         verify_client_access(analyst_user, "client-X", store)
     assert exc_info.value.status_code == 403

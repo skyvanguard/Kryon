@@ -1,9 +1,15 @@
 """Tests for notification channels."""
 
 import pytest
+
 from kryon.notifications.channels import (
-    EmailChannel, SlackChannel, TeamsChannel, PagerDutyChannel,
-    WebhookChannel, get_channel, NotificationChannel,
+    EmailChannel,
+    NotificationChannel,
+    PagerDutyChannel,
+    SlackChannel,
+    TeamsChannel,
+    WebhookChannel,
+    get_channel,
 )
 
 

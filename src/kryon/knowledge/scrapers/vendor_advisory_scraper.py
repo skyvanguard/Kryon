@@ -92,17 +92,19 @@ class VendorAdvisoryScraper(BaseScraper):
         items: list[dict[str, Any]] = []
         for vuln in vulns[:max_results]:
             content = self._format_kev(vuln)
-            items.append({
-                "content": content,
-                "metadata": {
-                    "source": "cisa-kev",
-                    "category": "advisory",
-                    "cve_id": vuln.get("cveID", ""),
-                    "vendor": vuln.get("vendorProject", ""),
-                    "product": vuln.get("product", ""),
-                    "type": "advisory",
-                },
-            })
+            items.append(
+                {
+                    "content": content,
+                    "metadata": {
+                        "source": "cisa-kev",
+                        "category": "advisory",
+                        "cve_id": vuln.get("cveID", ""),
+                        "vendor": vuln.get("vendorProject", ""),
+                        "product": vuln.get("product", ""),
+                        "type": "advisory",
+                    },
+                }
+            )
 
         return items
 
@@ -149,17 +151,19 @@ class VendorAdvisoryScraper(BaseScraper):
                         cve_id = ident.get("value", "")
                         break
 
-                items.append({
-                    "content": content,
-                    "metadata": {
-                        "source": "github-advisory",
-                        "category": "advisory",
-                        "ghsa_id": adv.get("ghsa_id", ""),
-                        "cve_id": cve_id,
-                        "severity": adv.get("severity", ""),
-                        "type": "advisory",
-                    },
-                })
+                items.append(
+                    {
+                        "content": content,
+                        "metadata": {
+                            "source": "github-advisory",
+                            "category": "advisory",
+                            "ghsa_id": adv.get("ghsa_id", ""),
+                            "cve_id": cve_id,
+                            "severity": adv.get("severity", ""),
+                            "type": "advisory",
+                        },
+                    }
+                )
 
         except Exception as e:
             self.log_error(f"GitHub advisories error: {e}")

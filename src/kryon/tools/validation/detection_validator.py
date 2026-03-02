@@ -39,17 +39,19 @@ def validate_detection(
         )
 
     if siem_type == "elastic":
-        query = json.dumps({
-            "query": {
-                "bool": {
-                    "must": [
-                        {"match": {"threat.technique.id": technique_id}},
-                        {"range": {"@timestamp": {"gte": f"now-{time_window_minutes}m"}}},
-                    ]
-                }
-            },
-            "size": 10,
-        })
+        query = json.dumps(
+            {
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"match": {"threat.technique.id": technique_id}},
+                            {"range": {"@timestamp": {"gte": f"now-{time_window_minutes}m"}}},
+                        ]
+                    }
+                },
+                "size": 10,
+            }
+        )
         cmd = f"curl -s -X POST '{siem_endpoint}/_search' -H 'Content-Type: application/json' -d '{query}'"
     elif siem_type == "splunk":
         search_query = f'search index=* mitre_technique_id="{technique_id}" earliest=-{time_window_minutes}m'
@@ -58,7 +60,9 @@ def validate_detection(
         return f"Error: Unsupported SIEM type '{siem_type}'. Supported: elastic, splunk, sentinel"
 
     result = run_command(cmd, ctf=ctf)
-    return f"Detection validation for {technique_id}:\nSIEM: {siem_type}\nTime window: {time_window_minutes}m\n\n{result}"
+    return (
+        f"Detection validation for {technique_id}:\nSIEM: {siem_type}\nTime window: {time_window_minutes}m\n\n{result}"
+    )
 
 
 @function_tool
@@ -83,7 +87,7 @@ def check_siem_alert(
         str: Query results from the SIEM
     """
     if not siem_endpoint:
-        return f"Error: No SIEM endpoint configured. Set siem_endpoint parameter."
+        return "Error: No SIEM endpoint configured. Set siem_endpoint parameter."
 
     if siem_type == "elastic":
         cmd = f"curl -s -X POST '{siem_endpoint}/_search' -H 'Content-Type: application/json' -d '{query}'"

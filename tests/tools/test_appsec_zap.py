@@ -8,7 +8,7 @@ os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 import pytest
 
 from kryon.sdk.agents import RunContextWrapper
-from kryon.tools.appsec.zap import zap_baseline_scan, zap_full_scan, zap_api_scan
+from kryon.tools.appsec.zap import zap_api_scan, zap_baseline_scan, zap_full_scan
 
 
 def _invoke(tool, args: dict):
@@ -49,10 +49,13 @@ async def test_baseline_with_ajax(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.zap.run_command", fake_run)
 
-    result = await _invoke(zap_baseline_scan, {
-        "target_url": "https://spa.example.com",
-        "ajax_spider": True,
-    })
+    result = await _invoke(
+        zap_baseline_scan,
+        {
+            "target_url": "https://spa.example.com",
+            "ajax_spider": True,
+        },
+    )
     assert "-j" in captured["cmd"]
 
 
@@ -67,10 +70,13 @@ async def test_baseline_html_output(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.zap.run_command", fake_run)
 
-    result = await _invoke(zap_baseline_scan, {
-        "target_url": "https://example.com",
-        "output_format": "html",
-    })
+    result = await _invoke(
+        zap_baseline_scan,
+        {
+            "target_url": "https://example.com",
+            "output_format": "html",
+        },
+    )
     assert "-r zap-report.html" in captured["cmd"]
 
 
@@ -107,10 +113,13 @@ async def test_full_scan_with_auth(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.zap.run_command", fake_run)
 
-    result = await _invoke(zap_full_scan, {
-        "target_url": "https://target.com",
-        "auth_header": "Bearer tok123",
-    })
+    result = await _invoke(
+        zap_full_scan,
+        {
+            "target_url": "https://target.com",
+            "auth_header": "Bearer tok123",
+        },
+    )
     assert "Bearer tok123" in captured["cmd"]
     assert "Authorization" in captured["cmd"]
 
@@ -131,9 +140,12 @@ async def test_api_scan_openapi(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.zap.run_command", fake_run)
 
-    result = await _invoke(zap_api_scan, {
-        "openapi_url": "https://api.example.com/openapi.json",
-    })
+    result = await _invoke(
+        zap_api_scan,
+        {
+            "openapi_url": "https://api.example.com/openapi.json",
+        },
+    )
     assert "zap-api-scan.py" in captured["cmd"]
     assert "-f openapi" in captured["cmd"]
     assert "-t https://api.example.com/openapi.json" in captured["cmd"]
@@ -150,10 +162,13 @@ async def test_api_scan_target_override(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.zap.run_command", fake_run)
 
-    result = await _invoke(zap_api_scan, {
-        "openapi_url": "https://docs.example.com/spec.json",
-        "target_url": "https://staging.example.com",
-    })
+    result = await _invoke(
+        zap_api_scan,
+        {
+            "openapi_url": "https://docs.example.com/spec.json",
+            "target_url": "https://staging.example.com",
+        },
+    )
     assert "-O https://staging.example.com" in captured["cmd"]
 
 
@@ -168,8 +183,11 @@ async def test_api_scan_soap_format(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.appsec.zap.run_command", fake_run)
 
-    result = await _invoke(zap_api_scan, {
-        "openapi_url": "https://api.example.com/service?wsdl",
-        "format": "soap",
-    })
+    result = await _invoke(
+        zap_api_scan,
+        {
+            "openapi_url": "https://api.example.com/service?wsdl",
+            "format": "soap",
+        },
+    )
     assert "-f soap" in captured["cmd"]

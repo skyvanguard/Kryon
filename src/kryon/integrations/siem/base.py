@@ -20,6 +20,7 @@ class BaseSIEMForwarder(abc.ABC):
         self.extra = config.get("config_json", {})
         if isinstance(self.extra, str):
             import json
+
             try:
                 self.extra = json.loads(self.extra)
             except (json.JSONDecodeError, ValueError):

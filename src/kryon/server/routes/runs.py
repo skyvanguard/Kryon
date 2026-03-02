@@ -8,10 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from kryon.server.auth import require_api_key
 from kryon.server.exceptions import not_found
+from kryon.server.logging_config import get_logger
 from kryon.server.models import RunRequest, RunResponse, RunStatus, SessionCreateRequest, SessionResponse
 from kryon.server.sessions import SessionManager
 from kryon.server.sse import sse_response
-from kryon.server.logging_config import get_logger
 from kryon.server.streaming import done_event, error_event, stream_event_to_sse
 
 logger = get_logger(__name__)

@@ -147,14 +147,20 @@ class TeamsChannel(NotificationChannel):
                         "version": "1.4",
                         "body": [
                             {
-                                "type": "TextBlock", "size": "Large", "weight": "Bolder",
-                                "text": f"KRYON: {subject}", "style": style,
+                                "type": "TextBlock",
+                                "size": "Large",
+                                "weight": "Bolder",
+                                "text": f"KRYON: {subject}",
+                                "style": style,
                             },
                             {"type": "TextBlock", "text": body, "wrap": True},
-                            {"type": "FactSet", "facts": [
-                                {"title": "Severity", "value": severity},
-                                {"title": "Time", "value": self._format_timestamp()},
-                            ]},
+                            {
+                                "type": "FactSet",
+                                "facts": [
+                                    {"title": "Severity", "value": severity},
+                                    {"title": "Time", "value": self._format_timestamp()},
+                                ],
+                            },
                         ],
                     },
                 }
@@ -189,9 +195,7 @@ class PagerDutyChannel(NotificationChannel):
             },
         }
 
-        return await _retry_post(
-            "https://events.pagerduty.com/v2/enqueue", event
-        )
+        return await _retry_post("https://events.pagerduty.com/v2/enqueue", event)
 
 
 class WebhookChannel(NotificationChannel):

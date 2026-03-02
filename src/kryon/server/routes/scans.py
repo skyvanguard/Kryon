@@ -5,14 +5,15 @@ from __future__ import annotations
 import asyncio
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from kryon.server.auth import require_api_key
-from kryon.server.exceptions import not_found
 from kryon.server.auth.deps import get_current_user
 from kryon.server.auth.isolation import verify_client_access
 from kryon.server.auth.models import User
 from kryon.server.deps import get_scheduler, get_store
+from kryon.server.exceptions import not_found
+from kryon.server.logging_config import get_logger
 from kryon.server.models import (
     AutoScanFinding,
     AutoScanRequest,
@@ -20,7 +21,6 @@ from kryon.server.models import (
     AutoScanStatus,
     ScheduleScanRequest,
 )
-from kryon.server.logging_config import get_logger
 from kryon.server.sse import sse_response
 
 logger = get_logger(__name__)
@@ -54,7 +54,7 @@ async def list_scans(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, 
     """List all scheduled and completed scans."""
     scheduler = get_scheduler()
     jobs = await scheduler.list_scheduled()
-    return [j.model_dump() for j in jobs[offset:offset + limit]]
+    return [j.model_dump() for j in jobs[offset : offset + limit]]
 
 
 @router.get("/scans/{job_id}")

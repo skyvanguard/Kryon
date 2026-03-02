@@ -74,13 +74,18 @@ def test_prompt_injection(
 
     test_payloads = test_payloads[:max_payloads]
 
-    results = [f"Prompt Injection Test: {target_url}", f"Categories: {', '.join(categories)}", f"Payloads: {len(test_payloads)}", "---"]
+    results = [
+        f"Prompt Injection Test: {target_url}",
+        f"Categories: {', '.join(categories)}",
+        f"Payloads: {len(test_payloads)}",
+        "---",
+    ]
 
     for i, (category, payload) in enumerate(test_payloads):
         body = json.dumps({"messages": [{"role": "user", "content": payload}]})
         cmd = f"curl -s -X POST '{target_url}' -H 'Content-Type: application/json' -d '{body}' --max-time 30"
         response = run_command(cmd, ctf=ctf)
-        results.append(f"\n[{i+1}/{len(test_payloads)}] {category}: {payload[:60]}...")
+        results.append(f"\n[{i + 1}/{len(test_payloads)}] {category}: {payload[:60]}...")
         results.append(f"Response (truncated): {response[:200]}")
 
     return "\n".join(results)
@@ -141,7 +146,9 @@ def test_data_extraction(
     Returns:
         str: Data extraction test results
     """
-    extraction_prompts = _INJECTION_PAYLOADS.get("system_prompt_leak", []) + _INJECTION_PAYLOADS.get("data_extraction", [])
+    extraction_prompts = _INJECTION_PAYLOADS.get("system_prompt_leak", []) + _INJECTION_PAYLOADS.get(
+        "data_extraction", []
+    )
 
     results = [f"Data Extraction Test: {target_url}", "---"]
 
@@ -149,7 +156,7 @@ def test_data_extraction(
         body = json.dumps({"messages": [{"role": "user", "content": prompt}]})
         cmd = f"curl -s -X POST '{target_url}' -H 'Content-Type: application/json' -d '{body}' --max-time 30"
         response = run_command(cmd, ctf=ctf)
-        results.append(f"\n[{i+1}] Prompt: {prompt[:50]}...")
+        results.append(f"\n[{i + 1}] Prompt: {prompt[:50]}...")
         results.append(f"Response: {response[:300]}")
 
     return "\n".join(results)

@@ -1,7 +1,8 @@
 """Tests for usage metering."""
 
 import pytest
-from kryon.billing.metering import record_usage, get_usage_summary, check_limit, TIER_LIMITS
+
+from kryon.billing.metering import TIER_LIMITS, check_limit, get_usage_summary, record_usage
 from kryon.memory.store import MemoryStore
 
 

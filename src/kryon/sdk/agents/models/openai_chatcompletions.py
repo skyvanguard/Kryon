@@ -5,6 +5,7 @@ import dataclasses
 import hashlib
 import inspect
 import json
+import logging
 import os
 import re
 import sys
@@ -13,8 +14,6 @@ import uuid
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
-
-import logging
 
 import litellm
 import tiktoken
@@ -769,7 +768,9 @@ class OpenAIChatCompletionsModel(Model):
                                 else:
                                     args_str = json.dumps(str(parsed["arguments"]))
 
-                                call_id = f"call_{hashlib.md5((parsed['name'] + str(time.time())).encode()).hexdigest()[:8]}"
+                                call_id = (
+                                    f"call_{hashlib.md5((parsed['name'] + str(time.time())).encode()).hexdigest()[:8]}"
+                                )
 
                                 # Inject proper tool_calls into the response
                                 from types import SimpleNamespace

@@ -39,6 +39,7 @@ def store_ioc(
     logger.info("store_ioc called type=%s value=%s source=%s", ioc_type, ioc_value, source)
     try:
         from kryon.server.deps import get_store
+
         store = get_store()
         ioc_id = uuid.uuid4().hex[:12]
         now = datetime.now(timezone.utc).isoformat()
@@ -46,7 +47,15 @@ def store_ioc(
         return json.dumps({"ioc_id": ioc_id, "status": "stored", "type": ioc_type, "value": ioc_value})
     except Exception as e:
         logger.error("store_ioc failed: %s", e)
-        return json.dumps({"ioc_id": uuid.uuid4().hex[:12], "status": "stored_local", "type": ioc_type, "value": ioc_value, "note": str(e)})
+        return json.dumps(
+            {
+                "ioc_id": uuid.uuid4().hex[:12],
+                "status": "stored_local",
+                "type": ioc_type,
+                "value": ioc_value,
+                "note": str(e),
+            }
+        )
 
 
 @function_tool
@@ -73,6 +82,7 @@ def search_iocs(
     logger.info("search_iocs called query=%s ioc_type=%s min_score=%s", query, ioc_type, min_score)
     try:
         from kryon.server.deps import get_store
+
         store = get_store()
         results = store.search_iocs(query=query, ioc_type=ioc_type, min_score=min_score, max_age_days=max_age_days)
         return json.dumps(results, indent=2)

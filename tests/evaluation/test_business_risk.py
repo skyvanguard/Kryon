@@ -1,8 +1,12 @@
 """Tests for business risk scoring."""
 
 import pytest
+
 from kryon.evaluation.business_risk import (
-    BusinessRiskScorer, CRITICALITY_MULTIPLIERS, EXPOSURE_MULTIPLIERS, SEVERITY_SCORES,
+    CRITICALITY_MULTIPLIERS,
+    EXPOSURE_MULTIPLIERS,
+    SEVERITY_SCORES,
+    BusinessRiskScorer,
 )
 
 

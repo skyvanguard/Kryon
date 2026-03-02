@@ -89,6 +89,7 @@ class TestTierLimits:
 class TestTenantMiddleware:
     def test_default_tenant_context(self):
         from kryon.tenancy import get_tenant, set_tenant
+
         set_tenant({"id": "test", "name": "Test", "tier": "free"})
         tenant = get_tenant()
         assert tenant["id"] == "test"
@@ -96,6 +97,7 @@ class TestTenantMiddleware:
 
     def test_extract_subdomain(self):
         from kryon.tenancy.middleware import TenantResolutionMiddleware
+
         mw = TenantResolutionMiddleware(app=None, enabled=False)
         assert mw._extract_subdomain("acme.kryon.app") == "acme"
         assert mw._extract_subdomain("kryon.app") is None

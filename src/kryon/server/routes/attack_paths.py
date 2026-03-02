@@ -9,7 +9,6 @@ from pydantic import BaseModel
 
 from kryon.server.auth import require_api_key
 from kryon.server.deps import get_store
-from kryon.server.exceptions import not_found
 from kryon.server.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -40,9 +39,11 @@ async def analyze_attack_paths(body: AnalyzeBody) -> dict:
         return {"nodes": [], "edges": [], "chains": [], "risk_amplification": 0.0}
 
     from kryon.tools.intelligence.vulnerability_correlator import correlate_vulnerabilities_impl
+
     correlation = correlate_vulnerabilities_impl(json.dumps(findings))
 
     from kryon.intelligence.graph_formatter import format_graph_for_d3
+
     logger.info("Attack paths analyzed: %d findings", len(findings))
     return format_graph_for_d3(correlation)
 
@@ -65,9 +66,11 @@ async def client_attack_paths(client_id: str) -> dict:
             continue
 
     from kryon.tools.intelligence.vulnerability_correlator import correlate_vulnerabilities_impl
+
     correlation = correlate_vulnerabilities_impl(json.dumps(findings))
 
     from kryon.intelligence.graph_formatter import format_graph_for_d3
+
     return format_graph_for_d3(correlation)
 
 
@@ -86,16 +89,20 @@ async def client_chains(client_id: str) -> dict:
             continue
 
     from kryon.tools.intelligence.vulnerability_correlator import correlate_vulnerabilities_impl
+
     result = json.loads(correlate_vulnerabilities_impl(json.dumps(findings)))
 
     from kryon.intelligence.graph_formatter import format_kill_chain
+
     chains = []
     for chain in result.get("attack_chains", []):
-        chains.append({
-            "type": chain.get("chain_type"),
-            "description": chain.get("description"),
-            "impact": chain.get("impact"),
-            "steps": format_kill_chain(chain),
-        })
+        chains.append(
+            {
+                "type": chain.get("chain_type"),
+                "description": chain.get("description"),
+                "impact": chain.get("impact"),
+                "steps": format_kill_chain(chain),
+            }
+        )
 
     return {"chains": chains, "total": len(chains)}

@@ -30,7 +30,7 @@ def test_decrypt_wrong_key():
     vault1 = CredentialVault(key1)
     vault2 = CredentialVault(key2)
     encrypted = vault1.encrypt_credential({"secret": "data"})
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017
         vault2.decrypt_credential(encrypted)
 
 

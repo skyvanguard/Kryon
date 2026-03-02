@@ -16,8 +16,11 @@ def login(page, username: str = "admin", password: str = "Admin123!"):
 
 def api_login(page, username: str = "admin", password: str = "Admin123!") -> str:
     """Login via API and return JWT token."""
-    resp = page.request.post(f"{API_BASE}/auth/login", data={
-        "username": username,
-        "password": password,
-    })
+    resp = page.request.post(
+        f"{API_BASE}/auth/login",
+        data={
+            "username": username,
+            "password": password,
+        },
+    )
     return resp.json().get("access_token", "")

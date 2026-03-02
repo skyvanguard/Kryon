@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from kryon.providers.rate_limiter import PRESETS, RateLimiter, RateLimitConfig
+from kryon.providers.rate_limiter import PRESETS, RateLimitConfig, RateLimiter
 
 
 class TestRateLimitConfig:

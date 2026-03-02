@@ -36,7 +36,9 @@ class ScopeRuleResponse(BaseModel):
     created_by: str | None
 
 
-@router.post("/scope/rules", response_model=ScopeRuleResponse, dependencies=[Depends(require_permission("scope:write"))])
+@router.post(
+    "/scope/rules", response_model=ScopeRuleResponse, dependencies=[Depends(require_permission("scope:write"))]
+)
 async def create_scope_rule(req: CreateScopeRuleRequest) -> ScopeRuleResponse:
     """Create a new scope whitelist rule."""
     store = get_store()
@@ -45,13 +47,20 @@ async def create_scope_rule(req: CreateScopeRuleRequest) -> ScopeRuleResponse:
     store.create_scope_rule(rule_id, req.client_id, req.rule_type, req.value, req.description, now)
     logger.info("Scope rule created: id=%s client=%s type=%s", rule_id, req.client_id, req.rule_type)
     return ScopeRuleResponse(
-        id=rule_id, client_id=req.client_id, rule_type=req.rule_type,
-        value=req.value, description=req.description, created_at=now, created_by=None,
+        id=rule_id,
+        client_id=req.client_id,
+        rule_type=req.rule_type,
+        value=req.value,
+        description=req.description,
+        created_at=now,
+        created_by=None,
     )
 
 
 @router.get("/scope/rules", dependencies=[Depends(require_permission("scope:read"))])
-async def list_scope_rules(client_id: str | None = None, offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=500)) -> list[ScopeRuleResponse]:
+async def list_scope_rules(
+    client_id: str | None = None, offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=500)
+) -> list[ScopeRuleResponse]:
     """List scope whitelist rules, optionally filtered by client."""
     store = get_store()
     rows = store.list_scope_rules(client_id=client_id, offset=offset, limit=limit)

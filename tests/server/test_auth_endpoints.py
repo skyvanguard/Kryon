@@ -40,6 +40,7 @@ def jwt_app_and_client(tmp_path, monkeypatch):
     app = create_app(config)
 
     import kryon.server.deps as deps_mod
+
     monkeypatch.setattr(deps_mod, "_store", store)
 
     with TestClient(app) as c:
@@ -49,10 +50,13 @@ def jwt_app_and_client(tmp_path, monkeypatch):
 
 def test_login_success(jwt_app_and_client):
     client, user, _ = jwt_app_and_client
-    resp = client.post("/api/v1/auth/login", json={
-        "username": "testadmin",
-        "password": "admin123",
-    })
+    resp = client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": "testadmin",
+            "password": "admin123",
+        },
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert "access_token" in data
@@ -64,50 +68,68 @@ def test_login_success(jwt_app_and_client):
 
 def test_login_wrong_password(jwt_app_and_client):
     client, _, _ = jwt_app_and_client
-    resp = client.post("/api/v1/auth/login", json={
-        "username": "testadmin",
-        "password": "wrong",
-    })
+    resp = client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": "testadmin",
+            "password": "wrong",
+        },
+    )
     assert resp.status_code == 401
 
 
 def test_login_nonexistent_user(jwt_app_and_client):
     client, _, _ = jwt_app_and_client
-    resp = client.post("/api/v1/auth/login", json={
-        "username": "nobody",
-        "password": "secret",
-    })
+    resp = client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": "nobody",
+            "password": "secret",
+        },
+    )
     assert resp.status_code == 401
 
 
 def test_refresh_token_flow(jwt_app_and_client):
     client, _, _ = jwt_app_and_client
-    login_resp = client.post("/api/v1/auth/login", json={
-        "username": "testadmin",
-        "password": "admin123",
-    })
+    login_resp = client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": "testadmin",
+            "password": "admin123",
+        },
+    )
     refresh = login_resp.json()["refresh_token"]
-    resp = client.post("/api/v1/auth/refresh", json={
-        "refresh_token": refresh,
-    })
+    resp = client.post(
+        "/api/v1/auth/refresh",
+        json={
+            "refresh_token": refresh,
+        },
+    )
     assert resp.status_code == 200
     assert "access_token" in resp.json()
 
 
 def test_refresh_with_invalid_token(jwt_app_and_client):
     client, _, _ = jwt_app_and_client
-    resp = client.post("/api/v1/auth/refresh", json={
-        "refresh_token": "bad-token",
-    })
+    resp = client.post(
+        "/api/v1/auth/refresh",
+        json={
+            "refresh_token": "bad-token",
+        },
+    )
     assert resp.status_code == 401
 
 
 def test_me_endpoint(jwt_app_and_client):
     client, _, _ = jwt_app_and_client
-    login_resp = client.post("/api/v1/auth/login", json={
-        "username": "testadmin",
-        "password": "admin123",
-    })
+    login_resp = client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": "testadmin",
+            "password": "admin123",
+        },
+    )
     token = login_resp.json()["access_token"]
     resp = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
@@ -118,8 +140,11 @@ def test_login_disabled_without_jwt():
     """Without JWT secret, login should return 501."""
     app = create_app(ServerConfig(api_keys=[]))
     with TestClient(app) as c:
-        resp = c.post("/api/v1/auth/login", json={
-            "username": "admin",
-            "password": "pass",
-        })
+        resp = c.post(
+            "/api/v1/auth/login",
+            json={
+                "username": "admin",
+                "password": "pass",
+            },
+        )
     assert resp.status_code == 501

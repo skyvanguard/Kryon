@@ -284,12 +284,8 @@ class EnterpriseOrchestrator:
                 findings = await self._assess_host_vulns(target, recon)
                 self._findings.extend(findings)
                 self.progress.findings_count = len(self._findings)
-                self.progress.critical_count = sum(
-                    1 for f in self._findings if f.severity.value == "critical"
-                )
-                self.progress.high_count = sum(
-                    1 for f in self._findings if f.severity.value == "high"
-                )
+                self.progress.critical_count = sum(1 for f in self._findings if f.severity.value == "critical")
+                self.progress.high_count = sum(1 for f in self._findings if f.severity.value == "high")
                 self.progress.log(f"  {target}: {len(findings)} findings")
             except Exception as exc:
                 self.progress.log(f"  {target}: assessment error — {exc}")
@@ -414,8 +410,7 @@ class EnterpriseOrchestrator:
 
             # Build a focused prompt from recon data
             services_summary = "\n".join(
-                f"- Port {s['port']}: {s['name']} {s.get('version', '')}"
-                for s in recon.get("services_detected", [])
+                f"- Port {s['port']}: {s['name']} {s.get('version', '')}" for s in recon.get("services_detected", [])
             )
             prompt = (
                 f"Analyze the following target for vulnerabilities.\n"
@@ -503,7 +498,7 @@ class EnterpriseOrchestrator:
                         )
                     )
                     self.progress.findings_count = len(self._findings)
-                    self.progress.log(f"  Exploitation output captured")
+                    self.progress.log("  Exploitation output captured")
 
             except Exception as exc:
                 self.progress.log(f"  Exploitation error: {exc}")

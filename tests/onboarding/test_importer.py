@@ -1,8 +1,9 @@
 """Tests for asset importer."""
 
 import pytest
-from kryon.onboarding.importer import import_assets_csv, import_assets_json, validate_scope
+
 from kryon.memory.store import MemoryStore
+from kryon.onboarding.importer import import_assets_csv, import_assets_json, validate_scope
 
 
 @pytest.fixture
@@ -37,7 +38,9 @@ def test_import_csv_missing_identifier(store):
 
 def test_import_json(store):
     """Test importing assets from JSON string."""
-    json_data = '[{"identifier": "app-server-01", "asset_type": "host"}, {"identifier": "mail-server", "asset_type": "mail"}]'
+    json_data = (
+        '[{"identifier": "app-server-01", "asset_type": "host"}, {"identifier": "mail-server", "asset_type": "mail"}]'
+    )
     count = import_assets_json(json_data, "client-1", store)
     assert count == 2
 

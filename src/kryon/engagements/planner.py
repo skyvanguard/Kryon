@@ -9,10 +9,10 @@ import re
 logger = logging.getLogger(__name__)
 
 from kryon.engagements.models import (
+    PHASE_AGENT_MAP,
     Engagement,
     EngagementPhase,
     PhaseType,
-    PHASE_AGENT_MAP,
 )
 
 __all__ = ["generate_engagement_plan", "create_phases_from_plan"]
@@ -51,9 +51,9 @@ async def _generate_llm_plan(engagement: Engagement, rate_limiter) -> dict | Non
 
     prompt = f"""Plan a {engagement.duration_days}-day penetration testing engagement.
 
-Targets: {', '.join(engagement.targets)}
+Targets: {", ".join(engagement.targets)}
 Client: {engagement.client_name}
-Objectives: {', '.join(engagement.objectives)}
+Objectives: {", ".join(engagement.objectives)}
 Stealth: {engagement.stealth_level}
 Profile: {engagement.profile}
 
@@ -112,9 +112,7 @@ def _get_strategic_context(engagement: Engagement) -> str:
         from kryon.tools.autonomous.learning_engine import get_learning_engine
 
         engine = get_learning_engine()
-        recs = engine.get_learned_recommendations(
-            target_profile={"os": "unknown", "services": []}, top_n=3
-        )
+        recs = engine.get_learned_recommendations(target_profile={"os": "unknown", "services": []}, top_n=3)
         if recs.get("recommended_exploits"):
             lines.append("Historical recommendations:")
             lines.append(json.dumps(recs["recommended_exploits"][:3], indent=2, default=str))
@@ -187,25 +185,33 @@ def _generate_default_plan(engagement: Engagement) -> dict:
     days = []
 
     # Day 1: Reconnaissance
-    days.append({
-        "day": 1,
-        "phases": [{
-            "phase_type": "reconnaissance",
-            "agent_key": "recon_scout",
-            "description": "Full network reconnaissance and service enumeration",
-        }],
-    })
+    days.append(
+        {
+            "day": 1,
+            "phases": [
+                {
+                    "phase_type": "reconnaissance",
+                    "agent_key": "recon_scout",
+                    "description": "Full network reconnaissance and service enumeration",
+                }
+            ],
+        }
+    )
 
     # Day 2: Vulnerability assessment
     if d >= 2:
-        days.append({
-            "day": 2,
-            "phases": [{
-                "phase_type": "vulnerability_assessment",
-                "agent_key": "vuln_hunter",
-                "description": "Comprehensive vulnerability scanning and assessment",
-            }],
-        })
+        days.append(
+            {
+                "day": 2,
+                "phases": [
+                    {
+                        "phase_type": "vulnerability_assessment",
+                        "agent_key": "vuln_hunter",
+                        "description": "Comprehensive vulnerability scanning and assessment",
+                    }
+                ],
+            }
+        )
 
     # Middle days: exploitation + optional lateral movement
     exploit_end = d - 1 if d >= 3 else d
@@ -214,34 +220,46 @@ def _generate_default_plan(engagement: Engagement) -> dict:
 
     for day_num in range(3, exploit_end + 1):
         phase_type = "exploitation" if day_num == 3 else "deep_exploitation"
-        days.append({
-            "day": day_num,
-            "phases": [{
-                "phase_type": phase_type,
-                "agent_key": "pentest_agent",
-                "description": f"{'Initial' if day_num == 3 else 'Deep'} exploitation of discovered vulnerabilities",
-            }],
-        })
+        days.append(
+            {
+                "day": day_num,
+                "phases": [
+                    {
+                        "phase_type": phase_type,
+                        "agent_key": "pentest_agent",
+                        "description": f"{'Initial' if day_num == 3 else 'Deep'} exploitation of discovered vulnerabilities",
+                    }
+                ],
+            }
+        )
 
     if d >= 5:
-        days.append({
-            "day": d - 1,
-            "phases": [{
-                "phase_type": "lateral_movement",
-                "agent_key": "network_analyst",
-                "description": "Lateral movement and network pivoting",
-            }],
-        })
+        days.append(
+            {
+                "day": d - 1,
+                "phases": [
+                    {
+                        "phase_type": "lateral_movement",
+                        "agent_key": "network_analyst",
+                        "description": "Lateral movement and network pivoting",
+                    }
+                ],
+            }
+        )
 
     # Last day: Reporting
-    days.append({
-        "day": d,
-        "phases": [{
-            "phase_type": "reporting",
-            "agent_key": "reporter",
-            "description": "Final engagement report with all findings and recommendations",
-        }],
-    })
+    days.append(
+        {
+            "day": d,
+            "phases": [
+                {
+                    "phase_type": "reporting",
+                    "agent_key": "reporter",
+                    "description": "Final engagement report with all findings and recommendations",
+                }
+            ],
+        }
+    )
 
     return {"days": days, "rationale": "Default plan (deterministic fallback)"}
 

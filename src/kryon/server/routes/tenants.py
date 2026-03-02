@@ -40,15 +40,25 @@ async def create_tenant(req: CreateTenantRequest) -> TenantResponse:
     store = get_store()
     tenant_id = uuid.uuid4().hex[:12]
     now = datetime.now(timezone.utc).isoformat()
-    store.create_tenant({
-        "id": tenant_id, "name": req.name, "slug": req.slug,
-        "tier": req.tier, "is_active": True, "config_json": {},
-        "created_at": now,
-    })
+    store.create_tenant(
+        {
+            "id": tenant_id,
+            "name": req.name,
+            "slug": req.slug,
+            "tier": req.tier,
+            "is_active": True,
+            "config_json": {},
+            "created_at": now,
+        }
+    )
     logger.info("Tenant created: id=%s slug=%s", tenant_id, req.slug)
     return TenantResponse(
-        id=tenant_id, name=req.name, slug=req.slug,
-        tier=req.tier, is_active=True, created_at=now,
+        id=tenant_id,
+        name=req.name,
+        slug=req.slug,
+        tier=req.tier,
+        is_active=True,
+        created_at=now,
     )
 
 
@@ -57,11 +67,17 @@ async def list_tenants() -> list[TenantResponse]:
     """List all tenants."""
     store = get_store()
     tenants = store.list_tenants()
-    return [TenantResponse(
-        id=t["id"], name=t["name"], slug=t["slug"],
-        tier=t.get("tier", "free"), is_active=bool(t.get("is_active", True)),
-        created_at=t["created_at"],
-    ) for t in tenants]
+    return [
+        TenantResponse(
+            id=t["id"],
+            name=t["name"],
+            slug=t["slug"],
+            tier=t.get("tier", "free"),
+            is_active=bool(t.get("is_active", True)),
+            created_at=t["created_at"],
+        )
+        for t in tenants
+    ]
 
 
 @router.get("/tenants/{tenant_id}", dependencies=[Depends(require_permission("admin:read"))])
@@ -73,8 +89,11 @@ async def get_tenant(tenant_id: str) -> TenantResponse:
         logger.warning("Tenant not found: %s", tenant_id)
         raise not_found("Tenant", tenant_id)
     return TenantResponse(
-        id=t["id"], name=t["name"], slug=t["slug"],
-        tier=t.get("tier", "free"), is_active=bool(t.get("is_active", True)),
+        id=t["id"],
+        name=t["name"],
+        slug=t["slug"],
+        tier=t.get("tier", "free"),
+        is_active=bool(t.get("is_active", True)),
         created_at=t["created_at"],
     )
 

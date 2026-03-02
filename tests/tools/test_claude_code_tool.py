@@ -122,9 +122,7 @@ async def test_json_response(monkeypatch):
     payload = json.dumps({"result": "Here is your exploit code..."})
 
     def fake_run(*args, **kwargs):
-        return sp.CompletedProcess(
-            args=args[0], returncode=0, stdout=payload, stderr=""
-        )
+        return sp.CompletedProcess(args=args[0], returncode=0, stdout=payload, stderr="")
 
     monkeypatch.setattr(sp, "run", fake_run)
 
@@ -138,9 +136,7 @@ async def test_plain_text_response(monkeypatch):
     import subprocess as sp
 
     def fake_run(*args, **kwargs):
-        return sp.CompletedProcess(
-            args=args[0], returncode=0, stdout="plain text answer", stderr=""
-        )
+        return sp.CompletedProcess(args=args[0], returncode=0, stdout="plain text answer", stderr="")
 
     monkeypatch.setattr(sp, "run", fake_run)
 
@@ -154,9 +150,7 @@ async def test_empty_response(monkeypatch):
     import subprocess as sp
 
     def fake_run(*args, **kwargs):
-        return sp.CompletedProcess(
-            args=args[0], returncode=0, stdout="", stderr=""
-        )
+        return sp.CompletedProcess(args=args[0], returncode=0, stdout="", stderr="")
 
     monkeypatch.setattr(sp, "run", fake_run)
 
@@ -177,16 +171,12 @@ async def test_save_to_file(monkeypatch, tmp_path):
     payload = json.dumps({"result": "saved content"})
 
     def fake_run(*args, **kwargs):
-        return sp.CompletedProcess(
-            args=args[0], returncode=0, stdout=payload, stderr=""
-        )
+        return sp.CompletedProcess(args=args[0], returncode=0, stdout=payload, stderr="")
 
     monkeypatch.setattr(sp, "run", fake_run)
 
     out_file = str(tmp_path / "subdir" / "output.txt")
-    result = await _invoke(
-        {"task": "generate report", "save_to_file": out_file}
-    )
+    result = await _invoke({"task": "generate report", "save_to_file": out_file})
     assert os.path.exists(out_file)
     with open(out_file, encoding="utf-8") as f:
         assert "saved content" in f.read()
@@ -201,9 +191,7 @@ async def test_save_to_file_error(monkeypatch, tmp_path):
     payload = json.dumps({"result": "important data"})
 
     def fake_run(*args, **kwargs):
-        return sp.CompletedProcess(
-            args=args[0], returncode=0, stdout=payload, stderr=""
-        )
+        return sp.CompletedProcess(args=args[0], returncode=0, stdout=payload, stderr="")
 
     monkeypatch.setattr(sp, "run", fake_run)
 

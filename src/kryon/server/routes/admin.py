@@ -29,8 +29,14 @@ router = APIRouter(tags=["admin"], dependencies=[Depends(require_api_key)])
 _BACKUP_DIR = Path.home() / ".kryon" / "backups"
 
 _EXPORTABLE_TABLES = {
-    "clients", "scans", "findings", "assets", "engagements",
-    "audit_log", "notification_log", "iocs",
+    "clients",
+    "scans",
+    "findings",
+    "assets",
+    "engagements",
+    "audit_log",
+    "notification_log",
+    "iocs",
 }
 
 
@@ -53,11 +59,13 @@ async def list_backups(_user=Depends(require_permission("admin:read"))):
     backups = []
     for f in sorted(_BACKUP_DIR.glob("kryon_backup_*.db")):
         stat = f.stat()
-        backups.append({
-            "filename": f.name,
-            "size_bytes": stat.st_size,
-            "created_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
-        })
+        backups.append(
+            {
+                "filename": f.name,
+                "size_bytes": stat.st_size,
+                "created_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+            }
+        )
     return backups
 
 
@@ -175,11 +183,13 @@ class AdminUpdateUser(BaseModel):
 
 
 @router.get("/admin/users", response_model=list[UserPublic])
-async def list_users(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=500), _user=Depends(require_permission("admin:read"))):
+async def list_users(
+    offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=500), _user=Depends(require_permission("admin:read"))
+):
     """List all users. Admin only."""
     store = get_store()
     users = store.list_users()
-    return [UserPublic(**u.model_dump()) for u in users[offset:offset + limit]]
+    return [UserPublic(**u.model_dump()) for u in users[offset : offset + limit]]
 
 
 @router.post("/admin/users", response_model=UserPublic)

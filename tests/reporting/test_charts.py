@@ -1,11 +1,12 @@
 """Tests for SVG chart generation."""
 
 import pytest
+
 from kryon.reporting.charts import (
+    generate_remediation_status_svg,
     generate_risk_gauge_svg,
     generate_severity_pie_svg,
     generate_trend_chart_svg,
-    generate_remediation_status_svg,
 )
 
 

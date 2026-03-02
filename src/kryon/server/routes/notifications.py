@@ -6,7 +6,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
 from kryon.server.auth import require_api_key
@@ -20,6 +20,7 @@ router = APIRouter(tags=["notifications"], dependencies=[Depends(require_api_key
 
 
 # --- Models ---
+
 
 class ChannelCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
@@ -44,6 +45,7 @@ class RuleCreate(BaseModel):
 
 
 # --- Channel endpoints ---
+
 
 @router.post("/notifications/channels")
 async def create_channel(body: ChannelCreate) -> dict:
@@ -104,6 +106,7 @@ async def delete_channel(channel_id: str) -> dict:
 
 # --- Rule endpoints ---
 
+
 @router.post("/notifications/rules")
 async def create_rule(body: RuleCreate) -> dict:
     """Create a notification rule."""
@@ -144,6 +147,7 @@ async def delete_rule(rule_id: str) -> dict:
 
 # --- Log + Test ---
 
+
 @router.get("/notifications/log")
 async def get_notification_log(
     offset: int = Query(0, ge=0),
@@ -166,7 +170,9 @@ async def test_channel(channel_id: str) -> dict:
 
     from kryon.notifications.channels import get_channel
 
-    config = json.loads(ch.get("config_json", "{}")) if isinstance(ch.get("config_json"), str) else ch.get("config_json", {})
+    config = (
+        json.loads(ch.get("config_json", "{}")) if isinstance(ch.get("config_json"), str) else ch.get("config_json", {})
+    )
     channel = get_channel(ch["channel_type"], config)
     success = await channel.send(
         subject="Test Notification",

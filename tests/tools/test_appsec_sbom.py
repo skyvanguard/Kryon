@@ -8,7 +8,7 @@ os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 import pytest
 
 from kryon.sdk.agents import RunContextWrapper
-from kryon.tools.appsec.sbom import generate_sbom, scan_sbom_vulns, dependency_tree
+from kryon.tools.appsec.sbom import dependency_tree, generate_sbom, scan_sbom_vulns
 
 
 def _invoke(tool, args: dict):

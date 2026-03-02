@@ -35,7 +35,12 @@ def asm_discovery_scan(
     Returns:
         str: JSON discovery results with scan_id for future diffing
     """
-    logger.info("asm_discovery_scan started for domain=%s include_subdomains=%s include_ports=%s", domain, include_subdomains, include_ports)
+    logger.info(
+        "asm_discovery_scan started for domain=%s include_subdomains=%s include_ports=%s",
+        domain,
+        include_subdomains,
+        include_ports,
+    )
     scan_id = uuid.uuid4().hex[:12]
     results = {
         "scan_id": scan_id,
@@ -90,9 +95,12 @@ def asm_diff(
         str: Diff results showing changes between scans
     """
     logger.info("asm_diff started old=%s new=%s", scan_id_old, scan_id_new)
-    return json.dumps({
-        "old_scan_id": scan_id_old,
-        "new_scan_id": scan_id_new,
-        "status": "Diff requires stored scan data. Use the asset inventory to track changes over time.",
-        "note": "Store scan results in the asset database for automated diffing.",
-    }, indent=2)
+    return json.dumps(
+        {
+            "old_scan_id": scan_id_old,
+            "new_scan_id": scan_id_new,
+            "status": "Diff requires stored scan data. Use the asset inventory to track changes over time.",
+            "note": "Store scan results in the asset database for automated diffing.",
+        },
+        indent=2,
+    )

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from kryon.server.auth import require_api_key
@@ -22,17 +22,24 @@ class LicenseValidateBody(BaseModel):
 async def validate_license(body: LicenseValidateBody) -> dict:
     """Validate a license key."""
     import os
+
     public_key = os.environ.get("KRYON_LICENSE_PUBLIC_KEY", "")
     if not public_key:
         return {"valid": False, "error": "License validation not configured"}
 
     from kryon.billing.license_validator import LicenseValidator
+
     validator = LicenseValidator(public_key=public_key)
     payload = validator.validate(body.license_key)
 
     if payload:
         logger.info("License validated: tenant=%s tier=%s", payload.get("tenant_id"), payload.get("tier"))
-        return {"valid": True, "tenant_id": payload.get("tenant_id"), "tier": payload.get("tier"), "features": payload.get("features", [])}
+        return {
+            "valid": True,
+            "tenant_id": payload.get("tenant_id"),
+            "tier": payload.get("tier"),
+            "features": payload.get("features", []),
+        }
     logger.warning("Invalid license validation attempt")
     return {"valid": False, "error": "Invalid or expired license"}
 
@@ -42,6 +49,7 @@ async def get_usage(tenant_id: str = "", period: str = "") -> dict:
     """Get usage summary for a tenant."""
     store = get_store()
     from kryon.billing.metering import get_usage_summary
+
     summary = get_usage_summary(store, tenant_id=tenant_id, period=period)
     return {"tenant_id": tenant_id, "usage": summary}
 
@@ -54,6 +62,7 @@ async def get_features(tenant_id: str = "") -> dict:
     tier = license_data.get("tier", "free") if license_data else "free"
 
     from kryon.billing.feature_flags import get_tier_features
+
     return {"tenant_id": tenant_id, "tier": tier, "features": get_tier_features(tier)}
 
 
@@ -65,6 +74,7 @@ async def get_limits(tenant_id: str = "") -> dict:
     tier = license_data.get("tier", "free") if license_data else "free"
 
     from kryon.billing.metering import TIER_LIMITS, check_limit
+
     limits = TIER_LIMITS.get(tier, TIER_LIMITS["free"])
 
     result = {}

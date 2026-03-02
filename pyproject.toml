@@ -210,7 +210,7 @@ convention = "google"
 # Files with security tool documentation
 "src/kryon/tools/**/*.py" = ["E501"]
 # Files with UI strings and long messages
-"src/kryon/repl/**/*.py" = ["E501"]
+"src/kryon/repl/**/*.py" = ["E501", "E402"]
 "src/kryon/sdk/**/*.py" = ["E501", "E402"]
 "src/kryon/knowledge/**/*.py" = ["E501"]
 "src/kryon/intelligence/**/*.py" = ["E501"]
@@ -218,6 +218,13 @@ convention = "google"
 "src/kryon/server/**/*.py" = ["E501", "B904", "B008"]
 "src/kryon/memory/**/*.py" = ["E501"]
 "src/kryon/evaluation/**/*.py" = ["E501"]
+"src/kryon/compliance/**/*.py" = ["E501"]
+"src/kryon/engagements/**/*.py" = ["E501", "E402"]
+"src/kryon/remediation/**/*.py" = ["E501"]
+"src/kryon/tenancy/**/*.py" = ["E501"]
+"src/kryon/onboarding/**/*.py" = ["B904"]
+"src/kryon/billing/**/*.py" = ["B904"]
+"src/kryon/notifications/**/*.py" = ["E501"]
 "src/kryon/tui/**/*.py" = ["E501"]
 # Files with intentional late imports (warning config, circular import avoidance)
 "src/kryon/cli/*.py" = ["E402", "E501"]

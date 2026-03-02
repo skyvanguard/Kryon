@@ -1,7 +1,8 @@
 """Tests for DOCX export utilities."""
 
 import pytest
-from kryon.reporting.docx_export import _strip_html, _extract_sections
+
+from kryon.reporting.docx_export import _extract_sections, _strip_html
 
 
 def test_strip_html():
@@ -35,6 +36,7 @@ def test_html_to_docx():
     """Test DOCX conversion (requires python-docx)."""
     docx = pytest.importorskip("docx")
     from kryon.reporting.docx_export import html_to_docx
+
     result = html_to_docx("<h1>Test Report</h1><p>Hello world</p>")
     assert isinstance(result, bytes)
     assert len(result) > 0

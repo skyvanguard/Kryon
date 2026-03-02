@@ -17,15 +17,41 @@ _SCHEMA_VERSION = 1
 _CLIENT_COLUMNS = {"name", "scope", "contact", "notes", "tags", "owner_user_id"}
 _SCAN_COLUMNS = {"status", "completed_at", "finding_count", "risk_score", "report_id", "agent_key"}
 _ENGAGEMENT_COLUMNS = {
-    "client_name", "targets", "objectives", "duration_days", "status", "plan_json",
-    "current_phase_id", "total_findings", "critical_findings", "high_findings",
-    "risk_score", "started_at", "completed_at", "paused_at", "error",
-    "stealth_level", "profile", "phase_interval_minutes",
+    "client_name",
+    "targets",
+    "objectives",
+    "duration_days",
+    "status",
+    "plan_json",
+    "current_phase_id",
+    "total_findings",
+    "critical_findings",
+    "high_findings",
+    "risk_score",
+    "started_at",
+    "completed_at",
+    "paused_at",
+    "error",
+    "stealth_level",
+    "profile",
+    "phase_interval_minutes",
 }
 _ENGAGEMENT_PHASE_COLUMNS = {
-    "phase_type", "day_number", "order_index", "status", "agent_key", "scan_id",
-    "targets_subset", "config_json", "findings_count", "progress",
-    "started_at", "completed_at", "error", "checkpoint_json", "log_messages",
+    "phase_type",
+    "day_number",
+    "order_index",
+    "status",
+    "agent_key",
+    "scan_id",
+    "targets_subset",
+    "config_json",
+    "findings_count",
+    "progress",
+    "started_at",
+    "completed_at",
+    "error",
+    "checkpoint_json",
+    "log_messages",
 }
 _USER_COLUMNS = {"username", "email", "password_hash", "role", "is_active", "last_login"}
 
@@ -169,6 +195,7 @@ class MemoryStore:
         else:
             current_version = row["version"]
         from kryon.memory.migrations import run_migrations
+
         run_migrations(conn, current_version)
 
     def close(self) -> None:
@@ -534,12 +561,26 @@ class MemoryStore:
         conn.execute(
             "INSERT INTO engagements (id, client_name, targets, objectives, duration_days, status, plan_json, current_phase_id, total_findings, critical_findings, high_findings, risk_score, created_at, started_at, completed_at, paused_at, error, stealth_level, profile, phase_interval_minutes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
-                eng.id, eng.client_name, json.dumps(eng.targets),
-                json.dumps(eng.objectives), eng.duration_days, eng.status.value,
-                eng.plan_json, eng.current_phase_id, eng.total_findings,
-                eng.critical_findings, eng.high_findings, eng.risk_score,
-                eng.created_at, eng.started_at, eng.completed_at, eng.paused_at,
-                eng.error, eng.stealth_level, eng.profile, eng.phase_interval_minutes,
+                eng.id,
+                eng.client_name,
+                json.dumps(eng.targets),
+                json.dumps(eng.objectives),
+                eng.duration_days,
+                eng.status.value,
+                eng.plan_json,
+                eng.current_phase_id,
+                eng.total_findings,
+                eng.critical_findings,
+                eng.high_findings,
+                eng.risk_score,
+                eng.created_at,
+                eng.started_at,
+                eng.completed_at,
+                eng.paused_at,
+                eng.error,
+                eng.stealth_level,
+                eng.profile,
+                eng.phase_interval_minutes,
             ),
         )
         conn.commit()
@@ -552,7 +593,9 @@ class MemoryStore:
             return None
         return self._row_to_engagement(row)
 
-    def list_engagements(self, status_filter: list[str] | None = None, offset: int = 0, limit: int = 0) -> list[Engagement]:
+    def list_engagements(
+        self, status_filter: list[str] | None = None, offset: int = 0, limit: int = 0
+    ) -> list[Engagement]:
         conn = self._get_conn()
         if status_filter:
             placeholders = ",".join("?" for _ in status_filter)
@@ -599,19 +642,25 @@ class MemoryStore:
 
     def _row_to_engagement(self, row: sqlite3.Row) -> Engagement:
         return Engagement(
-            id=row["id"], client_name=row["client_name"],
+            id=row["id"],
+            client_name=row["client_name"],
             targets=json.loads(row["targets"]),
             objectives=json.loads(row["objectives"]),
-            duration_days=row["duration_days"], status=row["status"],
+            duration_days=row["duration_days"],
+            status=row["status"],
             plan_json=row["plan_json"] or "",
             current_phase_id=row["current_phase_id"],
             total_findings=row["total_findings"],
             critical_findings=row["critical_findings"],
             high_findings=row["high_findings"],
-            risk_score=row["risk_score"], created_at=row["created_at"],
-            started_at=row["started_at"], completed_at=row["completed_at"],
-            paused_at=row["paused_at"], error=row["error"],
-            stealth_level=row["stealth_level"], profile=row["profile"],
+            risk_score=row["risk_score"],
+            created_at=row["created_at"],
+            started_at=row["started_at"],
+            completed_at=row["completed_at"],
+            paused_at=row["paused_at"],
+            error=row["error"],
+            stealth_level=row["stealth_level"],
+            profile=row["profile"],
             phase_interval_minutes=row["phase_interval_minutes"],
         )
 
@@ -623,12 +672,23 @@ class MemoryStore:
         conn.execute(
             "INSERT INTO engagement_phases (id, engagement_id, phase_type, day_number, order_index, status, agent_key, scan_id, targets_subset, config_json, findings_count, progress, started_at, completed_at, error, checkpoint_json, log_messages) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
-                phase.id, phase.engagement_id, phase.phase_type.value,
-                phase.day_number, phase.order_index, phase.status.value,
-                phase.agent_key, phase.scan_id, phase.targets_subset,
-                phase.config_json, phase.findings_count, phase.progress,
-                phase.started_at, phase.completed_at, phase.error,
-                phase.checkpoint_json, phase.log_messages,
+                phase.id,
+                phase.engagement_id,
+                phase.phase_type.value,
+                phase.day_number,
+                phase.order_index,
+                phase.status.value,
+                phase.agent_key,
+                phase.scan_id,
+                phase.targets_subset,
+                phase.config_json,
+                phase.findings_count,
+                phase.progress,
+                phase.started_at,
+                phase.completed_at,
+                phase.error,
+                phase.checkpoint_json,
+                phase.log_messages,
             ),
         )
         conn.commit()
@@ -672,15 +732,22 @@ class MemoryStore:
 
     def _row_to_phase(self, row: sqlite3.Row) -> EngagementPhase:
         return EngagementPhase(
-            id=row["id"], engagement_id=row["engagement_id"],
-            phase_type=row["phase_type"], day_number=row["day_number"],
-            order_index=row["order_index"], status=row["status"],
-            agent_key=row["agent_key"], scan_id=row["scan_id"],
+            id=row["id"],
+            engagement_id=row["engagement_id"],
+            phase_type=row["phase_type"],
+            day_number=row["day_number"],
+            order_index=row["order_index"],
+            status=row["status"],
+            agent_key=row["agent_key"],
+            scan_id=row["scan_id"],
             targets_subset=row["targets_subset"],
             config_json=row["config_json"],
-            findings_count=row["findings_count"], progress=row["progress"],
-            started_at=row["started_at"], completed_at=row["completed_at"],
-            error=row["error"], checkpoint_json=row["checkpoint_json"] or "{}",
+            findings_count=row["findings_count"],
+            progress=row["progress"],
+            started_at=row["started_at"],
+            completed_at=row["completed_at"],
+            error=row["error"],
+            checkpoint_json=row["checkpoint_json"] or "{}",
             log_messages=row["log_messages"] or "[]",
         )
 
@@ -692,8 +759,16 @@ class MemoryStore:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO users (id, username, email, password_hash, role, is_active, created_at, last_login) VALUES (?,?,?,?,?,?,?,?)",
-            (user.id, user.username, user.email, user.password_hash,
-             user.role, int(user.is_active), user.created_at, user.last_login),
+            (
+                user.id,
+                user.username,
+                user.email,
+                user.password_hash,
+                user.role,
+                int(user.is_active),
+                user.created_at,
+                user.last_login,
+            ),
         )
         conn.commit()
 
@@ -749,9 +824,7 @@ class MemoryStore:
     def get_user_client_ids(self, user_id: str) -> list[str]:
         """Get list of client IDs a user can access."""
         conn = self._get_conn()
-        rows = conn.execute(
-            "SELECT client_id FROM user_client_access WHERE user_id = ?", (user_id,)
-        ).fetchall()
+        rows = conn.execute("SELECT client_id FROM user_client_access WHERE user_id = ?", (user_id,)).fetchall()
         return [r["client_id"] for r in rows]
 
     def assign_client_to_user(self, user_id: str, client_id: str) -> None:
@@ -775,10 +848,15 @@ class MemoryStore:
     def _row_to_user(self, row: sqlite3.Row):
         """Convert a DB row to a User model."""
         from kryon.server.auth.models import User
+
         return User(
-            id=row["id"], username=row["username"], email=row["email"],
-            password_hash=row["password_hash"], role=row["role"],
-            is_active=bool(row["is_active"]), created_at=row["created_at"],
+            id=row["id"],
+            username=row["username"],
+            email=row["email"],
+            password_hash=row["password_hash"],
+            role=row["role"],
+            is_active=bool(row["is_active"]),
+            created_at=row["created_at"],
             last_login=row["last_login"],
         )
 
@@ -790,14 +868,24 @@ class MemoryStore:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO audit_log (id, timestamp, user_id, username, action, resource_type, resource_id, details, ip_address, request_id) VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (entry["id"], entry["timestamp"], entry.get("user_id"), entry.get("username"),
-             entry["action"], entry["resource_type"], entry.get("resource_id"),
-             json.dumps(entry.get("details", {})), entry.get("ip_address"), entry.get("request_id")),
+            (
+                entry["id"],
+                entry["timestamp"],
+                entry.get("user_id"),
+                entry.get("username"),
+                entry["action"],
+                entry["resource_type"],
+                entry.get("resource_id"),
+                json.dumps(entry.get("details", {})),
+                entry.get("ip_address"),
+                entry.get("request_id"),
+            ),
         )
         conn.commit()
 
-    def get_audit_logs(self, limit: int = 100, user_id: str | None = None,
-                       action: str | None = None, resource_type: str | None = None) -> list[dict]:
+    def get_audit_logs(
+        self, limit: int = 100, user_id: str | None = None, action: str | None = None, resource_type: str | None = None
+    ) -> list[dict]:
         """Query audit logs with optional filters."""
         conn = self._get_conn()
         query = "SELECT * FROM audit_log WHERE 1=1"
@@ -819,9 +907,16 @@ class MemoryStore:
     # -----------------------------------------------------------------------
     # Scope Whitelist
     # -----------------------------------------------------------------------
-    def create_scope_rule(self, rule_id: str, client_id: str, rule_type: str,
-                          value: str, description: str, created_at: str,
-                          created_by: str | None = None) -> None:
+    def create_scope_rule(
+        self,
+        rule_id: str,
+        client_id: str,
+        rule_type: str,
+        value: str,
+        description: str,
+        created_at: str,
+        created_by: str | None = None,
+    ) -> None:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO scope_whitelist (id, client_id, rule_type, value, description, created_at, created_by) VALUES (?,?,?,?,?,?,?)",
@@ -856,9 +951,7 @@ class MemoryStore:
 
     def get_scope_rules_for_client(self, client_id: str) -> list[dict]:
         conn = self._get_conn()
-        rows = conn.execute(
-            "SELECT * FROM scope_whitelist WHERE client_id = ?", (client_id,)
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM scope_whitelist WHERE client_id = ?", (client_id,)).fetchall()
         return [dict(r) for r in rows]
 
     # -----------------------------------------------------------------------
@@ -868,10 +961,18 @@ class MemoryStore:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO siem_configs (id, name, siem_type, endpoint, token, index_name, enabled, config_json, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (config["id"], config["name"], config["siem_type"], config["endpoint"],
-             config.get("token", ""), config.get("index_name", ""),
-             int(config.get("enabled", True)), json.dumps(config.get("config_json", {})),
-             config["created_at"], config.get("updated_at")),
+            (
+                config["id"],
+                config["name"],
+                config["siem_type"],
+                config["endpoint"],
+                config.get("token", ""),
+                config.get("index_name", ""),
+                int(config.get("enabled", True)),
+                json.dumps(config.get("config_json", {})),
+                config["created_at"],
+                config.get("updated_at"),
+            ),
         )
         conn.commit()
 
@@ -918,9 +1019,16 @@ class MemoryStore:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO tenants (id, name, slug, tier, is_active, config_json, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
-            (tenant["id"], tenant["name"], tenant["slug"], tenant.get("tier", "free"),
-             int(tenant.get("is_active", True)), json.dumps(tenant.get("config_json", {})),
-             tenant["created_at"], tenant.get("updated_at")),
+            (
+                tenant["id"],
+                tenant["name"],
+                tenant["slug"],
+                tenant.get("tier", "free"),
+                int(tenant.get("is_active", True)),
+                json.dumps(tenant.get("config_json", {})),
+                tenant["created_at"],
+                tenant.get("updated_at"),
+            ),
         )
         conn.commit()
 
@@ -967,7 +1075,9 @@ class MemoryStore:
         return cur.rowcount > 0
 
     # Tenant quotas
-    def set_tenant_quota(self, quota_id: str, tenant_id: str, resource: str, max_value: int, reset_at: str | None = None) -> None:
+    def set_tenant_quota(
+        self, quota_id: str, tenant_id: str, resource: str, max_value: int, reset_at: str | None = None
+    ) -> None:
         conn = self._get_conn()
         conn.execute(
             "INSERT OR REPLACE INTO tenant_quotas (id, tenant_id, resource, max_value, current_value, reset_at) VALUES (?,?,?,?,0,?)",
@@ -1001,9 +1111,19 @@ class MemoryStore:
     # -----------------------------------------------------------------------
     # Assets (v8)
     # -----------------------------------------------------------------------
-    def upsert_asset(self, asset_id: str, asset_type: str, identifier: str, client_id: str = "", metadata_json: str = "{}", now: str = "") -> str:
+    def upsert_asset(
+        self,
+        asset_id: str,
+        asset_type: str,
+        identifier: str,
+        client_id: str = "",
+        metadata_json: str = "{}",
+        now: str = "",
+    ) -> str:
         conn = self._get_conn()
-        existing = conn.execute("SELECT id FROM assets WHERE asset_type = ? AND identifier = ?", (asset_type, identifier)).fetchone()
+        existing = conn.execute(
+            "SELECT id FROM assets WHERE asset_type = ? AND identifier = ?", (asset_type, identifier)
+        ).fetchone()
         if existing:
             conn.execute(
                 "UPDATE assets SET last_seen = ?, metadata_json = ?, updated_at = ? WHERE id = ?",
@@ -1018,7 +1138,15 @@ class MemoryStore:
         conn.commit()
         return asset_id
 
-    def list_assets(self, query: str = "", asset_type: str = "", client_id: str = "", status: str = "", offset: int = 0, limit: int = 50) -> list[dict]:
+    def list_assets(
+        self,
+        query: str = "",
+        asset_type: str = "",
+        client_id: str = "",
+        status: str = "",
+        offset: int = 0,
+        limit: int = 50,
+    ) -> list[dict]:
         conn = self._get_conn()
         sql = "SELECT * FROM assets WHERE 1=1"
         params: list = []
@@ -1044,7 +1172,16 @@ class MemoryStore:
         row = conn.execute("SELECT * FROM assets WHERE id = ?", (asset_id,)).fetchone()
         return dict(row) if row else None
 
-    def record_asset_change(self, change_id: str, asset_id: str, change_type: str, old_value: str, new_value: str, detected_at: str, scan_id: str = "") -> None:
+    def record_asset_change(
+        self,
+        change_id: str,
+        asset_id: str,
+        change_type: str,
+        old_value: str,
+        new_value: str,
+        detected_at: str,
+        scan_id: str = "",
+    ) -> None:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO asset_changes (id, asset_id, change_type, old_value, new_value, detected_at, scan_id) VALUES (?,?,?,?,?,?,?)",
@@ -1054,15 +1191,29 @@ class MemoryStore:
 
     def get_asset_timeline(self, asset_id: str) -> list[dict]:
         conn = self._get_conn()
-        rows = conn.execute("SELECT * FROM asset_changes WHERE asset_id = ? ORDER BY detected_at DESC", (asset_id,)).fetchall()
+        rows = conn.execute(
+            "SELECT * FROM asset_changes WHERE asset_id = ? ORDER BY detected_at DESC", (asset_id,)
+        ).fetchall()
         return [dict(r) for r in rows]
 
     # -----------------------------------------------------------------------
     # IOCs (v9)
     # -----------------------------------------------------------------------
-    def store_ioc(self, ioc_id: str, ioc_type: str, ioc_value: str, source: str = "", threat_score: float = 0.5, tags: str = "", ttl_days: int = 90, now: str = "") -> str:
+    def store_ioc(
+        self,
+        ioc_id: str,
+        ioc_type: str,
+        ioc_value: str,
+        source: str = "",
+        threat_score: float = 0.5,
+        tags: str = "",
+        ttl_days: int = 90,
+        now: str = "",
+    ) -> str:
         conn = self._get_conn()
-        existing = conn.execute("SELECT id FROM iocs WHERE ioc_type = ? AND ioc_value = ?", (ioc_type, ioc_value)).fetchone()
+        existing = conn.execute(
+            "SELECT id FROM iocs WHERE ioc_type = ? AND ioc_value = ?", (ioc_type, ioc_value)
+        ).fetchone()
         if existing:
             conn.execute(
                 "UPDATE iocs SET last_seen = ?, threat_score = ?, tags = ? WHERE id = ?",
@@ -1077,7 +1228,9 @@ class MemoryStore:
         conn.commit()
         return ioc_id
 
-    def search_iocs(self, query: str = "", ioc_type: str = "", min_score: float = 0.0, max_age_days: int = 0) -> list[dict]:
+    def search_iocs(
+        self, query: str = "", ioc_type: str = "", min_score: float = 0.0, max_age_days: int = 0
+    ) -> list[dict]:
         conn = self._get_conn()
         sql = "SELECT * FROM iocs WHERE 1=1"
         params: list = []
@@ -1111,9 +1264,16 @@ class MemoryStore:
     # -----------------------------------------------------------------------
     # Notification Channels (v10)
     # -----------------------------------------------------------------------
-    def save_notification_channel(self, channel_id: str, name: str, channel_type: str,
-                                   config_json: str = "{}", enabled: bool = True,
-                                   created_at: str = "", created_by: str | None = None) -> None:
+    def save_notification_channel(
+        self,
+        channel_id: str,
+        name: str,
+        channel_type: str,
+        config_json: str = "{}",
+        enabled: bool = True,
+        created_at: str = "",
+        created_by: str | None = None,
+    ) -> None:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO notification_channels (id, name, channel_type, config_json, enabled, created_at, created_by) VALUES (?,?,?,?,?,?,?)",
@@ -1155,10 +1315,17 @@ class MemoryStore:
         conn.commit()
         return cur.rowcount > 0
 
-    def save_notification_rule(self, rule_id: str, event_type: str, severity_filter: str = "",
-                                client_filter: str = "", channel_ids: str = "[]",
-                                digest_mode: str = "immediate", enabled: bool = True,
-                                created_at: str = "") -> None:
+    def save_notification_rule(
+        self,
+        rule_id: str,
+        event_type: str,
+        severity_filter: str = "",
+        client_filter: str = "",
+        channel_ids: str = "[]",
+        digest_mode: str = "immediate",
+        enabled: bool = True,
+        created_at: str = "",
+    ) -> None:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO notification_rules (id, event_type, severity_filter, client_filter, channel_ids, digest_mode, enabled, created_at) VALUES (?,?,?,?,?,?,?,?)",
@@ -1177,9 +1344,16 @@ class MemoryStore:
         conn.commit()
         return cur.rowcount > 0
 
-    def log_notification(self, log_id: str, channel_id: str, event_type: str,
-                         payload_json: str = "{}", sent_at: str = "",
-                         success: bool = False, error_message: str = "") -> None:
+    def log_notification(
+        self,
+        log_id: str,
+        channel_id: str,
+        event_type: str,
+        payload_json: str = "{}",
+        sent_at: str = "",
+        success: bool = False,
+        error_message: str = "",
+    ) -> None:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO notification_log (id, channel_id, event_type, payload_json, sent_at, success, error_message) VALUES (?,?,?,?,?,?,?)",
@@ -1197,8 +1371,15 @@ class MemoryStore:
     # -----------------------------------------------------------------------
     # Remediation (v11)
     # -----------------------------------------------------------------------
-    def assign_finding(self, finding_id: str, assigned_to: str, priority: str,
-                       sla_deadline: str, assigned_at: str, changed_by: str = "") -> bool:
+    def assign_finding(
+        self,
+        finding_id: str,
+        assigned_to: str,
+        priority: str,
+        sla_deadline: str,
+        assigned_at: str,
+        changed_by: str = "",
+    ) -> bool:
         conn = self._get_conn()
         cur = conn.execute(
             "UPDATE findings SET assigned_to = ?, priority = ?, sla_deadline = ?, assigned_at = ? WHERE id = ?",
@@ -1251,6 +1432,7 @@ class MemoryStore:
         for r in rows:
             try:
                 from datetime import datetime as dt
+
                 assigned = dt.fromisoformat(r["assigned_at"])
                 remediated = dt.fromisoformat(r["remediated_at"])
                 total_days += (remediated - assigned).total_seconds() / 86400
@@ -1258,9 +1440,11 @@ class MemoryStore:
                 continue
         return {"mttr_days": round(total_days / len(rows), 1) if rows else 0, "sample_size": len(rows)}
 
-    def _save_finding_history(self, finding_id: str, change_type: str,
-                               old_value: str, new_value: str, changed_by: str) -> None:
+    def _save_finding_history(
+        self, finding_id: str, change_type: str, old_value: str, new_value: str, changed_by: str
+    ) -> None:
         import uuid
+
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO finding_history (id, finding_id, change_type, old_value, new_value, changed_by, changed_at) VALUES (?,?,?,?,?,?,?)",
@@ -1304,9 +1488,16 @@ class MemoryStore:
     # -----------------------------------------------------------------------
     # Report Branding (v13)
     # -----------------------------------------------------------------------
-    def save_branding(self, branding_id: str, client_id: str, logo_url: str = "",
-                      primary_color: str = "#00d4ff", company_name: str = "",
-                      footer_text: str = "", created_at: str = "") -> None:
+    def save_branding(
+        self,
+        branding_id: str,
+        client_id: str,
+        logo_url: str = "",
+        primary_color: str = "#00d4ff",
+        company_name: str = "",
+        footer_text: str = "",
+        created_at: str = "",
+    ) -> None:
         conn = self._get_conn()
         conn.execute(
             "INSERT OR REPLACE INTO report_brandings (id, client_id, logo_url, primary_color, company_name, footer_text, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
@@ -1322,9 +1513,16 @@ class MemoryStore:
     # -----------------------------------------------------------------------
     # Credentials & Onboarding (v14)
     # -----------------------------------------------------------------------
-    def save_credential(self, cred_id: str, client_id: str, credential_type: str,
-                        label: str, encrypted_data: str, created_at: str,
-                        created_by: str | None = None) -> None:
+    def save_credential(
+        self,
+        cred_id: str,
+        client_id: str,
+        credential_type: str,
+        label: str,
+        encrypted_data: str,
+        created_at: str,
+        created_by: str | None = None,
+    ) -> None:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO credentials (id, client_id, credential_type, label, encrypted_data, created_at, created_by) VALUES (?,?,?,?,?,?,?)",
@@ -1378,8 +1576,16 @@ class MemoryStore:
     # -----------------------------------------------------------------------
     # Licenses & Usage Metering (v15)
     # -----------------------------------------------------------------------
-    def save_license(self, license_id: str, tenant_id: str, license_key: str,
-                     tier: str, features: str, issued_at: str, expires_at: str) -> None:
+    def save_license(
+        self,
+        license_id: str,
+        tenant_id: str,
+        license_key: str,
+        tier: str,
+        features: str,
+        issued_at: str,
+        expires_at: str,
+    ) -> None:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO licenses (id, tenant_id, license_key, tier, features, issued_at, expires_at) VALUES (?,?,?,?,?,?,?)",
@@ -1395,8 +1601,7 @@ class MemoryStore:
         ).fetchone()
         return dict(row) if row else None
 
-    def record_usage(self, usage_id: str, tenant_id: str, resource: str,
-                     amount: int, recorded_at: str) -> None:
+    def record_usage(self, usage_id: str, tenant_id: str, resource: str, amount: int, recorded_at: str) -> None:
         conn = self._get_conn()
         conn.execute(
             "INSERT INTO usage_metering (id, tenant_id, resource, amount, recorded_at) VALUES (?,?,?,?,?)",
@@ -1444,16 +1649,12 @@ class MemoryStore:
     def list_scheduled_jobs(self, status: str | None = None) -> list[dict]:
         conn = self._get_conn()
         if status:
-            rows = conn.execute(
-                "SELECT * FROM scheduled_jobs WHERE status = ?", (status,)
-            ).fetchall()
+            rows = conn.execute("SELECT * FROM scheduled_jobs WHERE status = ?", (status,)).fetchall()
         else:
             rows = conn.execute("SELECT * FROM scheduled_jobs").fetchall()
         return [dict(r) for r in rows]
 
-    def update_scheduled_job_status(
-        self, job_id: str, status: str, last_run: str = ""
-    ) -> None:
+    def update_scheduled_job_status(self, job_id: str, status: str, last_run: str = "") -> None:
         conn = self._get_conn()
         if last_run:
             conn.execute(
@@ -1475,6 +1676,7 @@ class MemoryStore:
 
     def _now(self) -> str:
         from datetime import datetime, timezone
+
         return datetime.now(timezone.utc).isoformat()
 
     # -----------------------------------------------------------------------

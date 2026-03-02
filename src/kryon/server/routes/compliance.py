@@ -36,7 +36,7 @@ async def list_frameworks() -> dict:
 async def assess_compliance(body: ComplianceAssessRequest) -> dict:
     """Assess findings against a compliance framework."""
     from kryon.compliance import map_findings_to_framework
-    from kryon.intelligence.models import Finding, Severity
+    from kryon.intelligence.models import Finding
     from kryon.server.deps import get_store
 
     store = get_store()
@@ -47,13 +47,15 @@ async def assess_compliance(body: ComplianceAssessRequest) -> dict:
     for fr in findings_records:
         try:
             parsed = json.loads(fr.finding_json) if fr.finding_json else {}
-            findings.append(Finding(
-                title=parsed.get("title", "Untitled"),
-                description=parsed.get("description", ""),
-                severity=parsed.get("severity", "info"),
-                affected_asset=parsed.get("affected_asset", ""),
-                tool_source=parsed.get("tool_source", ""),
-            ))
+            findings.append(
+                Finding(
+                    title=parsed.get("title", "Untitled"),
+                    description=parsed.get("description", ""),
+                    severity=parsed.get("severity", "info"),
+                    affected_asset=parsed.get("affected_asset", ""),
+                    tool_source=parsed.get("tool_source", ""),
+                )
+            )
         except Exception:
             continue
 
@@ -76,17 +78,20 @@ async def zero_trust_assessment(
     for fr in findings_records:
         try:
             parsed = json.loads(fr.finding_json) if fr.finding_json else {}
-            findings.append(Finding(
-                title=parsed.get("title", "Untitled"),
-                description=parsed.get("description", ""),
-                severity=parsed.get("severity", "info"),
-                affected_asset=parsed.get("affected_asset", ""),
-            ))
+            findings.append(
+                Finding(
+                    title=parsed.get("title", "Untitled"),
+                    description=parsed.get("description", ""),
+                    severity=parsed.get("severity", "info"),
+                    affected_asset=parsed.get("affected_asset", ""),
+                )
+            )
         except Exception:
             continue
 
     try:
         from kryon.compliance.zero_trust import assess_zero_trust
+
         assessments = assess_zero_trust(findings)
         return {"assessments": [a.model_dump() if hasattr(a, "model_dump") else a.__dict__ for a in assessments]}
     except ImportError:

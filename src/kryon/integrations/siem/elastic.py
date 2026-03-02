@@ -11,7 +11,11 @@ from kryon.integrations.siem.base import BaseSIEMForwarder
 logger = logging.getLogger(__name__)
 
 _SEVERITY_TO_ECS = {
-    "critical": 1, "high": 2, "medium": 3, "low": 4, "info": 5,
+    "critical": 1,
+    "high": 2,
+    "medium": 3,
+    "low": 4,
+    "info": 5,
 }
 
 _EVENT_TYPE_TO_CATEGORY = {
@@ -79,6 +83,7 @@ class ElasticSIEMForwarder(BaseSIEMForwarder):
         for event in events:
             lines.append(f'{{"index": {{"_index": "{index}"}}}}')
             import json
+
             lines.append(json.dumps(self.to_ecs(event)))
 
         body = "\n".join(lines) + "\n"

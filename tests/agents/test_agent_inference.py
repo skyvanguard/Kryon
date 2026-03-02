@@ -66,9 +66,7 @@ async def test_one_tool_agent_inference():
     result = await Runner.run(get_agent_by_name("one_tool_agent"), prompt)
     final_output = result.final_output or ""
     assert final_output, "Expected non-empty final output"
-    assert "run_command" in final_output.lower(), (
-        f"Expected 'run_command' in output, got: {final_output}"
-    )
+    assert "run_command" in final_output.lower(), f"Expected 'run_command' in output, got: {final_output}"
     assert "nmap" in final_output.lower(), f"Expected 'nmap' in output, got: {final_output}"
 
 

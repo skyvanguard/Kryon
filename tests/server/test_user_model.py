@@ -43,10 +43,14 @@ def test_get_user_by_id(store, sample_user):
 
 def test_list_users(store, sample_user):
     store.create_user(sample_user)
-    store.create_user(User(
-        username="admin1", email="admin@test.com",
-        password_hash=hash_password("admin"), role="admin",
-    ))
+    store.create_user(
+        User(
+            username="admin1",
+            email="admin@test.com",
+            password_hash=hash_password("admin"),
+            role="admin",
+        )
+    )
     users = store.list_users()
     assert len(users) == 2
 

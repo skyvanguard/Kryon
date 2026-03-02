@@ -9,11 +9,10 @@ import pytest
 
 from kryon.intelligence.mitre_navigator import (
     NavigatorLayer,
-    generate_navigator_layer,
     generate_detection_coverage_layer,
+    generate_navigator_layer,
 )
 from kryon.intelligence.models import Finding, MITREMapping, Severity
-
 
 # ---------------------------------------------------------------------------
 # NavigatorLayer

@@ -6,9 +6,7 @@ import contextvars
 from typing import Any
 
 # Context variable for current tenant
-_current_tenant: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar(
-    "current_tenant", default=None
-)
+_current_tenant: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar("current_tenant", default=None)
 
 
 def get_tenant() -> dict[str, Any] | None:

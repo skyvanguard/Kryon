@@ -29,9 +29,7 @@ def scheduler():
 @pytest.mark.asyncio
 async def test_schedule_scan_persists_to_db(scheduler, mock_store):
     with patch("kryon.server.scheduler._get_store", return_value=mock_store):
-        job_id = await scheduler.schedule_scan(
-            client_id="c1", agent_key="network_recon", interval_seconds=3600
-        )
+        job_id = await scheduler.schedule_scan(client_id="c1", agent_key="network_recon", interval_seconds=3600)
 
     assert job_id in scheduler.jobs
     mock_store.save_scheduled_job.assert_called_once()
@@ -86,9 +84,7 @@ async def test_restore_from_db_loads_jobs(scheduler, mock_store):
 @pytest.mark.asyncio
 async def test_restore_from_db_skips_existing(scheduler, mock_store):
     # Pre-populate a job
-    scheduler.jobs["job1"] = ScheduledJob(
-        id="job1", client_id="c1", agent_key="recon"
-    )
+    scheduler.jobs["job1"] = ScheduledJob(id="job1", client_id="c1", agent_key="recon")
     mock_store.list_scheduled_jobs.return_value = [
         {
             "id": "job1",

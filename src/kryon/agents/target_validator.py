@@ -18,7 +18,7 @@ import os
 from openai import AsyncOpenAI
 
 from kryon.agents.recon_scout import recon_scout
-from kryon.agents.toolsets import RAG_TOOLS, AI_TOOLS
+from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
 from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel, handoff
 
 model = os.getenv("KRYON_MODEL", "gpt-4o")

@@ -28,6 +28,7 @@ def admin_client(tmp_path, monkeypatch):
     store = _SafeStore(db_path=tmp_path / "admin_test.db")
 
     import kryon.server.deps as deps_mod
+
     monkeypatch.setattr(deps_mod, "_store", store)
 
     app = create_app(ServerConfig(api_keys=[]))
@@ -61,12 +62,15 @@ def test_admin_user_crud(admin_client):
     client, store = admin_client
 
     # Create user
-    resp = client.post("/api/v1/admin/users", json={
-        "username": "newuser",
-        "email": "new@test.com",
-        "password": "Secret1234!",
-        "role": "analyst",
-    })
+    resp = client.post(
+        "/api/v1/admin/users",
+        json={
+            "username": "newuser",
+            "email": "new@test.com",
+            "password": "Secret1234!",
+            "role": "analyst",
+        },
+    )
     assert resp.status_code == 200
     user_data = resp.json()
     assert user_data["username"] == "newuser"
@@ -79,9 +83,12 @@ def test_admin_user_crud(admin_client):
     assert len(resp.json()) == 1
 
     # Update user
-    resp = client.put(f"/api/v1/admin/users/{user_id}", json={
-        "role": "viewer",
-    })
+    resp = client.put(
+        f"/api/v1/admin/users/{user_id}",
+        json={
+            "role": "viewer",
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["role"] == "viewer"
 
@@ -96,14 +103,20 @@ def test_admin_user_crud(admin_client):
 
 def test_admin_create_duplicate_username(admin_client):
     client, _ = admin_client
-    client.post("/api/v1/admin/users", json={
-        "username": "dup",
-        "email": "dup@test.com",
-        "password": "Secret1234!",
-    })
-    resp = client.post("/api/v1/admin/users", json={
-        "username": "dup",
-        "email": "dup2@test.com",
-        "password": "Secret1234!",
-    })
+    client.post(
+        "/api/v1/admin/users",
+        json={
+            "username": "dup",
+            "email": "dup@test.com",
+            "password": "Secret1234!",
+        },
+    )
+    resp = client.post(
+        "/api/v1/admin/users",
+        json={
+            "username": "dup",
+            "email": "dup2@test.com",
+            "password": "Secret1234!",
+        },
+    )
     assert resp.status_code == 400

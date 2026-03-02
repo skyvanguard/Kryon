@@ -1,7 +1,5 @@
 """Honeypot detection — identify deceptive services and honeypots."""
 
-import json
-
 from kryon.sdk.agents import function_tool
 from kryon.tools.common import run_command
 
@@ -52,14 +50,23 @@ def detect_honeypot(
 
         # Common honeypot indicators in headers
         honeypot_indicators = [
-            "Cowrie", "Kippo", "Dionaea", "Conpot", "Glastopf",
-            "HoneyD", "Artillery", "Thinkst", "T-Pot",
+            "Cowrie",
+            "Kippo",
+            "Dionaea",
+            "Conpot",
+            "Glastopf",
+            "HoneyD",
+            "Artillery",
+            "Thinkst",
+            "T-Pot",
         ]
         results.append(f"\nKnown honeypot signatures checked: {', '.join(honeypot_indicators)}")
 
     if "behavior" in check_list:
         # Behavioral analysis - send invalid requests
-        behavior_cmd = f"curl -s -o /dev/null -w '%{{http_code}}' http://{target}/AAAA../../../../etc/passwd 2>/dev/null"
+        behavior_cmd = (
+            f"curl -s -o /dev/null -w '%{{http_code}}' http://{target}/AAAA../../../../etc/passwd 2>/dev/null"
+        )
         behavior_result = run_command(behavior_cmd, ctf=ctf)
         results.append(f"\n[Behavior Analysis]\nPath traversal response code: {behavior_result}")
 

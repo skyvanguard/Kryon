@@ -8,6 +8,7 @@ from kryon.server.setup.tls import get_uvicorn_ssl_kwargs
 def test_ssl_kwargs_disabled():
     """No SSL kwargs when HTTPS is disabled."""
     from kryon.server.config import ServerConfig
+
     config = ServerConfig(https_enabled=False)
     assert get_uvicorn_ssl_kwargs(config) == {}
 
@@ -15,6 +16,7 @@ def test_ssl_kwargs_disabled():
 def test_ssl_kwargs_enabled():
     """SSL kwargs when HTTPS is enabled with cert paths."""
     from kryon.server.config import ServerConfig
+
     config = ServerConfig(
         https_enabled=True,
         ssl_certfile="/path/to/cert.pem",
@@ -29,6 +31,7 @@ def test_generate_self_signed_cert(tmp_path):
     """Self-signed cert generation (only if cryptography is installed)."""
     try:
         from kryon.server.setup.tls import generate_self_signed_cert
+
         cert_path, key_path = generate_self_signed_cert(
             domain="test.local",
             output_dir=tmp_path / "tls",

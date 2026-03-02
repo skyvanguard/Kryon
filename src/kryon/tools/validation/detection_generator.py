@@ -121,6 +121,7 @@ def generate_sigma_rule(
 
     # Format as YAML-like output
     import yaml
+
     try:
         return yaml.dump(rule, default_flow_style=False, sort_keys=False)
     except ImportError:
@@ -157,7 +158,7 @@ def generate_yara_rule(
 
     meta = [
         f'        description = "{description or f"Detects {ioc_type}: {ioc_value}"}"',
-        f'        author = "KRYON"',
+        '        author = "KRYON"',
         f'        date = "{datetime.now(timezone.utc).strftime("%Y-%m-%d")}"',
         f'        ioc_type = "{ioc_type}"',
     ]
@@ -165,13 +166,13 @@ def generate_yara_rule(
     if ioc_type == "hash":
         condition = f'        hash.md5(0, filesize) == "{ioc_value}" or hash.sha256(0, filesize) == "{ioc_value}"'
         strings_section = ""
-        imports = "import \"hash\"\n\n"
+        imports = 'import "hash"\n\n'
     elif ioc_type in ("string", "domain", "url", "ip"):
         strings_section = f'    strings:\n        $ioc = "{ioc_value}" ascii wide nocase\n'
         condition = "        $ioc"
         imports = ""
     elif ioc_type == "regex":
-        strings_section = f'    strings:\n        $ioc = /{ioc_value}/ ascii wide\n'
+        strings_section = f"    strings:\n        $ioc = /{ioc_value}/ ascii wide\n"
         condition = "        $ioc"
         imports = ""
     else:
@@ -181,7 +182,7 @@ def generate_yara_rule(
 {{
     meta:
 {chr(10).join(meta)}
-{('    ' + strings_section) if strings_section else ''}
+{("    " + strings_section) if strings_section else ""}
     condition:
 {condition}
 }}"""
@@ -212,37 +213,48 @@ def generate_suricata_rule(
     """
     if sid == 0:
         import hashlib
+
         sid = int(hashlib.md5(f"{ioc_type}{ioc_value}".encode()).hexdigest()[:7], 16) % 9000000 + 1000000
 
     if ioc_type == "ip":
-        rule = (f'alert ip {ioc_value} any -> $HOME_NET any '
-                f'(msg:"KRYON - Suspicious IP {ioc_value}"; '
-                f'sid:{sid}; rev:1; priority:{severity}; '
-                f'classtype:trojan-activity;)')
+        rule = (
+            f"alert ip {ioc_value} any -> $HOME_NET any "
+            f'(msg:"KRYON - Suspicious IP {ioc_value}"; '
+            f"sid:{sid}; rev:1; priority:{severity}; "
+            f"classtype:trojan-activity;)"
+        )
     elif ioc_type == "domain":
-        rule = (f'alert dns $HOME_NET any -> any any '
-                f'(msg:"KRYON - Suspicious domain {ioc_value}"; '
-                f'dns.query; content:"{ioc_value}"; nocase; '
-                f'sid:{sid}; rev:1; priority:{severity}; '
-                f'classtype:trojan-activity;)')
+        rule = (
+            f"alert dns $HOME_NET any -> any any "
+            f'(msg:"KRYON - Suspicious domain {ioc_value}"; '
+            f'dns.query; content:"{ioc_value}"; nocase; '
+            f"sid:{sid}; rev:1; priority:{severity}; "
+            f"classtype:trojan-activity;)"
+        )
     elif ioc_type == "url":
-        rule = (f'alert http $HOME_NET any -> $EXTERNAL_NET any '
-                f'(msg:"KRYON - Suspicious URL {ioc_value}"; '
-                f'http.uri; content:"{ioc_value}"; nocase; '
-                f'sid:{sid}; rev:1; priority:{severity}; '
-                f'classtype:trojan-activity;)')
+        rule = (
+            f"alert http $HOME_NET any -> $EXTERNAL_NET any "
+            f'(msg:"KRYON - Suspicious URL {ioc_value}"; '
+            f'http.uri; content:"{ioc_value}"; nocase; '
+            f"sid:{sid}; rev:1; priority:{severity}; "
+            f"classtype:trojan-activity;)"
+        )
     elif ioc_type == "content":
-        rule = (f'alert tcp $HOME_NET any -> $EXTERNAL_NET any '
-                f'(msg:"KRYON - Suspicious content pattern"; '
-                f'content:"{ioc_value}"; nocase; '
-                f'sid:{sid}; rev:1; priority:{severity}; '
-                f'classtype:trojan-activity;)')
+        rule = (
+            f"alert tcp $HOME_NET any -> $EXTERNAL_NET any "
+            f'(msg:"KRYON - Suspicious content pattern"; '
+            f'content:"{ioc_value}"; nocase; '
+            f"sid:{sid}; rev:1; priority:{severity}; "
+            f"classtype:trojan-activity;)"
+        )
     elif ioc_type == "user-agent":
-        rule = (f'alert http $HOME_NET any -> $EXTERNAL_NET any '
-                f'(msg:"KRYON - Suspicious User-Agent {ioc_value}"; '
-                f'http.user_agent; content:"{ioc_value}"; nocase; '
-                f'sid:{sid}; rev:1; priority:{severity}; '
-                f'classtype:trojan-activity;)')
+        rule = (
+            f"alert http $HOME_NET any -> $EXTERNAL_NET any "
+            f'(msg:"KRYON - Suspicious User-Agent {ioc_value}"; '
+            f'http.user_agent; content:"{ioc_value}"; nocase; '
+            f"sid:{sid}; rev:1; priority:{severity}; "
+            f"classtype:trojan-activity;)"
+        )
     else:
         return f"Error: Unknown IOC type '{ioc_type}'. Supported: ip, domain, url, content, user-agent"
 

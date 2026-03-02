@@ -225,12 +225,17 @@ async def test_fetch_response_non_stream(monkeypatch) -> None:
         return chat
 
     import litellm
+
     monkeypatch.setattr(litellm, "acompletion", fake_acompletion)
 
-    dummy_client = type("_C", (), {
-        "chat": type("_Ch", (), {"completions": None})(),
-        "base_url": httpx.URL("http://fake"),
-    })()
+    dummy_client = type(
+        "_C",
+        (),
+        {
+            "chat": type("_Ch", (), {"completions": None})(),
+            "base_url": httpx.URL("http://fake"),
+        },
+    )()
     model = OpenAIChatCompletionsModel(model=kryon_model, openai_client=dummy_client)  # type: ignore
     model.message_history = []  # Clear any leaked state from AGENT_MANAGER
 
@@ -278,12 +283,17 @@ async def test_fetch_response_stream(monkeypatch) -> None:
         return event_stream()
 
     import litellm
+
     monkeypatch.setattr(litellm, "acompletion", fake_acompletion)
 
-    dummy_client = type("_C", (), {
-        "chat": type("_Ch", (), {"completions": None})(),
-        "base_url": httpx.URL("http://fake"),
-    })()
+    dummy_client = type(
+        "_C",
+        (),
+        {
+            "chat": type("_Ch", (), {"completions": None})(),
+            "base_url": httpx.URL("http://fake"),
+        },
+    )()
     model = OpenAIChatCompletionsModel(model=kryon_model, openai_client=dummy_client)  # type: ignore
     with generation_span(disabled=True) as span:
         response, stream = await model._fetch_response(

@@ -50,6 +50,7 @@ class AutoUpdater:
 
         if sources is None:
             from .scrapers import SCRAPER_REGISTRY
+
             sources = [k for k in SCRAPER_REGISTRY if k != "static-seed"]
 
         if schedule_type == "hourly":
@@ -92,6 +93,7 @@ class AutoUpdater:
         """
         if sources is None:
             from .scrapers import SCRAPER_REGISTRY
+
             sources = [k for k in SCRAPER_REGISTRY if k != "static-seed"]
 
         return self._update_knowledge(sources)

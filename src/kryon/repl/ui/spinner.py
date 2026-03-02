@@ -195,13 +195,13 @@ class AgentSpinner:
             original_invoke = tool.on_invoke_tool
             spinner = self
 
-            async def wrapped_invoke(ctx, input_json_str, _orig=original_invoke):
+            async def wrapped_invoke(ctx, input_json_str, _orig=original_invoke, _spinner=spinner):
                 try:
                     args = _json.loads(input_json_str)
                     cmd = args.get("command", "")
                     if cmd:
                         display = cmd[:50] + "..." if len(cmd) > 50 else cmd
-                        spinner.update(tool_name=f"run_command: {display}")
+                        _spinner.update(tool_name=f"run_command: {display}")
                 except Exception:
                     pass
                 return await _orig(ctx, input_json_str)

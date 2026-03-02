@@ -39,7 +39,9 @@ def calculate_mttr(store, client_id: str = "") -> dict:
     conn = store._get_conn()
 
     sql_total = "SELECT COUNT(*) FROM findings WHERE sla_deadline IS NOT NULL"
-    sql_overdue = "SELECT COUNT(*) FROM findings WHERE sla_deadline IS NOT NULL AND sla_deadline < ? AND status = 'open'"
+    sql_overdue = (
+        "SELECT COUNT(*) FROM findings WHERE sla_deadline IS NOT NULL AND sla_deadline < ? AND status = 'open'"
+    )
     params_total: list = []
     params_overdue: list = [now]
 

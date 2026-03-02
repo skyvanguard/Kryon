@@ -130,10 +130,7 @@ def test_scrape_deduplicates(mock_get):
     index_resp = MagicMock()
     index_resp.status_code = 200
     # Same sheet name appears twice
-    index_resp.text = (
-        "- [SQL](cheatsheets/SQL_Cheat_Sheet.md)\n"
-        "- [SQL Again](cheatsheets/SQL_Cheat_Sheet.md)\n"
-    )
+    index_resp.text = "- [SQL](cheatsheets/SQL_Cheat_Sheet.md)\n- [SQL Again](cheatsheets/SQL_Cheat_Sheet.md)\n"
 
     sheet_resp = MagicMock()
     sheet_resp.status_code = 200

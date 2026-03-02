@@ -52,14 +52,13 @@ def generate_severity_pie_svg(distribution: dict[str, int], size: int = 200) -> 
     """Generate a donut chart SVG for severity distribution."""
     total = sum(distribution.values())
     if total == 0:
-        return f'<svg viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg"><text x="{size//2}" y="{size//2}" text-anchor="middle" fill="#666">No data</text></svg>'
+        return f'<svg viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg"><text x="{size // 2}" y="{size // 2}" text-anchor="middle" fill="#666">No data</text></svg>'
 
     colors = {"critical": "#FF0000", "high": "#FF6600", "medium": "#FFCC00", "low": "#00CC00", "info": "#0066FF"}
     cx, cy, r = size // 2, size // 2, size // 2 - 20
     inner_r = r * 0.6
     start_angle = 0
     paths = []
-    legend_y = 15
 
     for severity, count in distribution.items():
         if count == 0:
@@ -81,7 +80,9 @@ def generate_severity_pie_svg(distribution: dict[str, int], size: int = 200) -> 
 
     paths_str = "\n  ".join(paths)
     # Center text
-    center_text = f'<text x="{cx}" y="{cy}" text-anchor="middle" font-size="20" font-weight="bold" fill="#333">{total}</text>'
+    center_text = (
+        f'<text x="{cx}" y="{cy}" text-anchor="middle" font-size="20" font-weight="bold" fill="#333">{total}</text>'
+    )
     center_label = f'<text x="{cx}" y="{cy + 16}" text-anchor="middle" font-size="10" fill="#666">findings</text>'
 
     return f"""<svg viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg">
@@ -94,7 +95,7 @@ def generate_severity_pie_svg(distribution: dict[str, int], size: int = 200) -> 
 def generate_trend_chart_svg(data_points: list[dict], width: int = 500, height: int = 200) -> str:
     """Generate a line chart SVG for risk trend over time."""
     if not data_points:
-        return f'<svg viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg"><text x="{width//2}" y="{height//2}" text-anchor="middle" fill="#666">No trend data</text></svg>'
+        return f'<svg viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg"><text x="{width // 2}" y="{height // 2}" text-anchor="middle" fill="#666">No trend data</text></svg>'
 
     padding = 40
     chart_w = width - 2 * padding

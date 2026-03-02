@@ -8,7 +8,7 @@ os.environ["OPENAI_API_KEY"] = "test_key_for_ci_environment"
 import pytest
 
 from kryon.sdk.agents import RunContextWrapper
-from kryon.tools.llm_security.garak_wrapper import garak_scan, garak_list_probes
+from kryon.tools.llm_security.garak_wrapper import garak_list_probes, garak_scan
 
 
 def _invoke(tool, args: dict):
@@ -51,10 +51,13 @@ async def test_scan_specific_probes(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.llm_security.garak_wrapper.run_command", fake_run)
 
-    result = await _invoke(garak_scan, {
-        "target_model": "openai:gpt-4",
-        "probes": "promptinject,encoding",
-    })
+    result = await _invoke(
+        garak_scan,
+        {
+            "target_model": "openai:gpt-4",
+            "probes": "promptinject,encoding",
+        },
+    )
     assert "--probes promptinject,encoding" in captured["cmd"]
 
 
@@ -69,9 +72,12 @@ async def test_scan_custom_model(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.llm_security.garak_wrapper.run_command", fake_run)
 
-    result = await _invoke(garak_scan, {
-        "target_model": "huggingface:meta-llama/Llama-2-7b",
-    })
+    result = await _invoke(
+        garak_scan,
+        {
+            "target_model": "huggingface:meta-llama/Llama-2-7b",
+        },
+    )
     assert "--model_type huggingface" in captured["cmd"]
     assert "--model_name meta-llama/Llama-2-7b" in captured["cmd"]
 
@@ -87,10 +93,13 @@ async def test_scan_custom_generations(monkeypatch):
 
     monkeypatch.setattr("kryon.tools.llm_security.garak_wrapper.run_command", fake_run)
 
-    result = await _invoke(garak_scan, {
-        "target_model": "openai:gpt-4",
-        "generations": 20,
-    })
+    result = await _invoke(
+        garak_scan,
+        {
+            "target_model": "openai:gpt-4",
+            "generations": 20,
+        },
+    )
     assert "--generations 20" in captured["cmd"]
 
 

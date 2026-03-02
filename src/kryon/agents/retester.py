@@ -24,7 +24,7 @@ ratio in operational reporting.
 import os
 
 from kryon.agents.base import create_agent
-from kryon.agents.toolsets import RAG_TOOLS, AI_TOOLS
+from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
 from kryon.tools.reconnaissance.exec_code import (
     execute_code,
 )

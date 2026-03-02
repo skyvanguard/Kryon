@@ -49,9 +49,12 @@ async def test_findings_with_mitre_data():
             ]
         },
     ]
-    result = await _invoke(calculate_mitre_coverage, {
-        "findings_json": json.dumps(findings),
-    })
+    result = await _invoke(
+        calculate_mitre_coverage,
+        {
+            "findings_json": json.dumps(findings),
+        },
+    )
     data = json.loads(result)
     assert data["techniques_covered"] == 3
     assert data["tactics_covered"] == 3
@@ -65,15 +68,31 @@ async def test_full_coverage_check():
     """Coverage percentage is calculated correctly."""
     findings = [
         {"mitre": [{"technique_id": f"T{i}", "tactic_id": tid}]}
-        for i, tid in enumerate([
-            "TA0043", "TA0042", "TA0001", "TA0002", "TA0003", "TA0004",
-            "TA0005", "TA0006", "TA0007", "TA0008", "TA0009", "TA0011",
-            "TA0010", "TA0040",
-        ])
+        for i, tid in enumerate(
+            [
+                "TA0043",
+                "TA0042",
+                "TA0001",
+                "TA0002",
+                "TA0003",
+                "TA0004",
+                "TA0005",
+                "TA0006",
+                "TA0007",
+                "TA0008",
+                "TA0009",
+                "TA0011",
+                "TA0010",
+                "TA0040",
+            ]
+        )
     ]
-    result = await _invoke(calculate_mitre_coverage, {
-        "findings_json": json.dumps(findings),
-    })
+    result = await _invoke(
+        calculate_mitre_coverage,
+        {
+            "findings_json": json.dumps(findings),
+        },
+    )
     data = json.loads(result)
     assert data["tactics_covered"] == 14
     assert data["tactic_coverage_pct"] == 100.0
@@ -86,9 +105,12 @@ async def test_partial_coverage():
     findings = [
         {"mitre": [{"technique_id": "T1046", "tactic_id": "TA0007"}]},
     ]
-    result = await _invoke(calculate_mitre_coverage, {
-        "findings_json": json.dumps(findings),
-    })
+    result = await _invoke(
+        calculate_mitre_coverage,
+        {
+            "findings_json": json.dumps(findings),
+        },
+    )
     data = json.loads(result)
     assert data["tactics_covered"] == 1
     assert len(data["uncovered_tactics"]) == 13
@@ -110,10 +132,13 @@ async def test_text_report_format():
     findings = [
         {"mitre": [{"technique_id": "T1046", "tactic_id": "TA0007"}]},
     ]
-    result = await _invoke(generate_coverage_report, {
-        "findings_json": json.dumps(findings),
-        "output_format": "text",
-    })
+    result = await _invoke(
+        generate_coverage_report,
+        {
+            "findings_json": json.dumps(findings),
+            "output_format": "text",
+        },
+    )
     # The wrapper catches the internal error — result is always a string.
     assert isinstance(result, str)
     assert len(result) > 0
@@ -131,10 +156,13 @@ async def test_json_report_format():
         {"mitre": [{"technique_id": "T1190", "tactic_id": "TA0001"}]},
     ]
     try:
-        result = await _invoke(generate_coverage_report, {
-            "findings_json": json.dumps(findings),
-            "output_format": "json",
-        })
+        result = await _invoke(
+            generate_coverage_report,
+            {
+                "findings_json": json.dumps(findings),
+                "output_format": "json",
+            },
+        )
     except Exception:
         # The tool may fail because of the unawaited coroutine.
         # This is a known pre-existing bug.

@@ -13,8 +13,8 @@ Module for displaying the KRYON banner and system initialization message.
 import glob
 import logging
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Configure UTF-8 encoding for Windows console
 if sys.platform == "win32":
@@ -57,6 +57,7 @@ def get_version():
     # 1. Try importlib.metadata (works when package is installed)
     try:
         from importlib.metadata import version as pkg_version
+
         return pkg_version("kryon")
     except Exception:
         pass
@@ -102,7 +103,9 @@ def get_supported_models_count():
 
             # Try to get Ollama models count
             try:
-                ollama_api_base = os.getenv("OLLAMA_API_BASE", os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1"))
+                ollama_api_base = os.getenv(
+                    "OLLAMA_API_BASE", os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
+                )
                 ollama_response = requests.get(f"{ollama_api_base.replace('/v1', '')}/api/tags", timeout=1)
 
                 if ollama_response.status_code == 200:

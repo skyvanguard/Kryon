@@ -150,7 +150,7 @@ def get_available_agents(include_patterns: bool = True) -> dict[str, Agent]:  # 
 
     # Phase 3: Build deduplicated dict, filtering sub-agents
     agents_to_display = {}
-    for aid, key in seen_ids.items():
+    for _aid, key in seen_ids.items():
         agent = raw_agents[key]
         desc = (getattr(agent, "description", "") or "").lower()
         # Filter out sub-agents (embedded helper agents inside other agents)
