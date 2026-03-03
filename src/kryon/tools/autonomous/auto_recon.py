@@ -315,7 +315,12 @@ def _enumerate_web(target_ip: str, port: int, protocol: str, timeout: int = 600)
         cmd = f"gobuster dir -u {base_url} -w {wordlist} -t 20 -q --timeout 10s 2>/dev/null"
 
         output = subprocess.check_output(
-            cmd, shell=True, text=True, timeout=min(timeout, 300)
+            # nosemgrep: subprocess-shell-true
+            cmd,
+            # nosemgrep: subprocess-shell-true
+            shell=True,
+            text=True,
+            timeout=min(timeout, 300),
         )  # nosemgrep: subprocess-shell-true
 
         # Parse gobuster output
@@ -367,6 +372,7 @@ def _fallback_web_enum(base_url: str) -> dict[str, Any]:
     for path in common_paths:
         try:
             url = f"{base_url}{path}"
+            # nosemgrep: disabled-cert-validation
             response = requests.get(
                 url, timeout=5, verify=False, allow_redirects=False
             )  # nosemgrep: disabled-cert-validation

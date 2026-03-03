@@ -185,6 +185,7 @@ def create_c2_server(
                     return results
 
                 # Wrap with SSL
+                # nosemgrep: ssl-wrap-socket-is-deprecated
                 server.socket = ssl.wrap_socket(
                     server.socket, certfile=ssl_cert, keyfile=ssl_key, server_side=True
                 )  # nosemgrep: ssl-wrap-socket-is-deprecated

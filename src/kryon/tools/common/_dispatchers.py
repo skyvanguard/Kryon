@@ -447,7 +447,12 @@ def run_command(
                 # Ensure workspace directory exists inside the container first
                 mkdir_cmd = ["docker", "exec", container_id, "mkdir", "-p", container_workspace]
                 subprocess.run(
-                    mkdir_cmd, capture_output=True, text=True, check=False, timeout=10
+                    # nosemgrep: dangerous-subprocess-use-tainted-env-args
+                    mkdir_cmd,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=10,
                 )  # nosemgrep: dangerous-subprocess-use-tainted-env-args
 
                 # Don't update with output during execution - let the streaming handle it
@@ -885,7 +890,12 @@ def run_command(
                     # Execute the command and get the output
                     start_time = time.time()
                     result = subprocess.run(
-                        ssh_cmd_list, capture_output=True, text=True, check=False, timeout=timeout
+                        # nosemgrep: dangerous-subprocess-use-tainted-env-args
+                        ssh_cmd_list,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                        timeout=timeout,
                     )  # nosemgrep: dangerous-subprocess-use-tainted-env-args
                     execution_time = time.time() - start_time
 

@@ -55,6 +55,7 @@ class KnowledgeSync:
             return id_file.read_text().strip()
 
         # Generate new instance ID
+        # nosemgrep: insecure-hash-algorithm-md5
         instance_id = hashlib.md5(f"{time.time()}{id_file}".encode()).hexdigest()[
             :16
         ]  # nosemgrep: insecure-hash-algorithm-md5

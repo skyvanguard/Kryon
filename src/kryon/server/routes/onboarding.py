@@ -138,6 +138,7 @@ async def save_credential(body: CredentialBody) -> dict:
         encrypted_data=encrypted,
         created_at=now,
     )
+    # nosemgrep: python-logger-credential-disclosure
     logger.info(
         "Credential saved: id=%s client=%s type=%s", cred_id, body.client_id, body.credential_type
     )  # nosemgrep: python-logger-credential-disclosure

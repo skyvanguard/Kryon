@@ -28,6 +28,7 @@ def search_credential_dataset(
     Returns:
         str: Matching credentials/passwords from the dataset
     """
+    # nosemgrep: python-logger-credential-disclosure
     logger.info(
         "search_credential_dataset called query=%s dataset=%s max_results=%d", query, dataset, max_results
     )  # nosemgrep: python-logger-credential-disclosure

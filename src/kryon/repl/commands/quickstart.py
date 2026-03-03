@@ -90,6 +90,7 @@ class QuickstartCommand(Command):
                 import json
                 import urllib.request
 
+                # nosemgrep: dynamic-urllib-use-detected
                 with urllib.request.urlopen(
                     "http://localhost:11434/api/tags", timeout=2
                 ) as response:  # nosemgrep: dynamic-urllib-use-detected

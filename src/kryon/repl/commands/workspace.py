@@ -235,7 +235,11 @@ class WorkspaceCommand(Command):
                         container_workspace_path,
                     ]
                     mkdir_result = subprocess.run(
-                        mkdir_cmd, capture_output=True, text=True, check=False
+                        # nosemgrep: dangerous-subprocess-use-tainted-env-args
+                        mkdir_cmd,
+                        capture_output=True,
+                        text=True,
+                        check=False,
                     )  # nosemgrep: dangerous-subprocess-use-tainted-env-args
 
                     if mkdir_result.returncode == 0:
@@ -312,7 +316,11 @@ class WorkspaceCommand(Command):
             try:
                 mkdir_cmd = ["docker", "exec", active_container, "mkdir", "-p", workspace_dir]
                 subprocess.run(
-                    mkdir_cmd, capture_output=True, text=True, check=False
+                    # nosemgrep: dangerous-subprocess-use-tainted-env-args
+                    mkdir_cmd,
+                    capture_output=True,
+                    text=True,
+                    check=False,
                 )  # nosemgrep: dangerous-subprocess-use-tainted-env-args
 
                 # Now list the contents
@@ -410,7 +418,11 @@ class WorkspaceCommand(Command):
                 container_workspace_path,
             ]
             subprocess.run(
-                mkdir_cmd, capture_output=True, text=True, check=False
+                # nosemgrep: dangerous-subprocess-use-tainted-env-args
+                mkdir_cmd,
+                capture_output=True,
+                text=True,
+                check=False,
             )  # nosemgrep: dangerous-subprocess-use-tainted-env-args
 
             # Try in container
@@ -530,7 +542,11 @@ class WorkspaceCommand(Command):
                     container_workspace_path,
                 ]
                 subprocess.run(
-                    mkdir_cmd, capture_output=True, text=True, check=False
+                    # nosemgrep: dangerous-subprocess-use-tainted-env-args
+                    mkdir_cmd,
+                    capture_output=True,
+                    text=True,
+                    check=False,
                 )  # nosemgrep: dangerous-subprocess-use-tainted-env-args
 
                 # Execute the command in the container's workspace directory

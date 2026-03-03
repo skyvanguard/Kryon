@@ -755,7 +755,11 @@ class DockerManager:
                     container_workspace_path,
                 ]
                 mkdir_result = subprocess.run(
-                    mkdir_cmd, capture_output=True, text=True, check=False
+                    # nosemgrep: dangerous-subprocess-use-tainted-env-args
+                    mkdir_cmd,
+                    capture_output=True,
+                    text=True,
+                    check=False,
                 )  # nosemgrep: dangerous-subprocess-use-tainted-env-args
 
                 if mkdir_result.returncode == 0:

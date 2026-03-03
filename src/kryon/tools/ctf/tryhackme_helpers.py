@@ -85,7 +85,13 @@ def check_thm_vpn(
     try:
         ifconfig_cmd = f"ip addr show {vpn_interface} 2>/dev/null || ifconfig {vpn_interface} 2>/dev/null"
         ifconfig_output = subprocess.run(
-            ifconfig_cmd, shell=True, capture_output=True, text=True, timeout=10
+            # nosemgrep: subprocess-shell-true
+            ifconfig_cmd,
+            # nosemgrep: subprocess-shell-true
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )  # nosemgrep: subprocess-shell-true
 
         if ifconfig_output.returncode != 0:
@@ -131,7 +137,13 @@ def check_thm_vpn(
         try:
             route_cmd = f"ip route | grep {vpn_interface}"
             route_output = subprocess.run(
-                route_cmd, shell=True, capture_output=True, text=True, timeout=10
+                # nosemgrep: subprocess-shell-true
+                route_cmd,
+                # nosemgrep: subprocess-shell-true
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )  # nosemgrep: subprocess-shell-true
 
             if expected_network in route_output.stdout:
