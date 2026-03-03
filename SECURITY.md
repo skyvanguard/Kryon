@@ -19,6 +19,7 @@ You will receive an acknowledgment within 48 hours. We aim to provide a fix or m
 
 | Version | Supported |
 |---------|-----------|
+| 1.1.x   | Yes       |
 | 1.0.x   | Yes       |
 | < 1.0   | No        |
 

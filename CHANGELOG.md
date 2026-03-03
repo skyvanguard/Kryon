@@ -5,6 +5,32 @@ All notable changes to KRYON will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-03-03
+
+### Fixed
+
+- **Security**: Updated 7 vulnerable dependencies (starlette, python-multipart, pyasn1, protobuf, pillow, mcp, cryptography)
+- **Security**: Suppressed 78 Semgrep false positives (legitimate pentesting tool patterns)
+- **CI**: Resolved all lint errors (347 ruff errors + 140 unformatted files)
+- **CI**: Fixed Docker build (COPY shell syntax, missing README.md)
+- **CI**: Replaced Trivy action with apt install for reliability
+- **CI**: Resolved 8 pre-existing test failures (docs + schedule module)
+- **Tests**: Lazy import for `schedule` module in auto_updater (optional `rag` dependency)
+- **Tests**: Skip `test_add_document` when `sentence_transformers` not installed
+
+### Added
+
+- All documentation markdown files committed to repository (62 files)
+- Dependabot configuration for pip, npm, and GitHub Actions
+- CI/CD status badges in README
+
+### Changed
+
+- Project version bumped to 1.1.1
+- README stats updated (1896 tests, 21 agents, 136 endpoints, 1082 RAG docs)
+- SECURITY.md updated to include v1.1.x as supported
+- LICENSE year updated to 2025-2026
+
 ## [1.1.0] - 2026-02-27
 
 ### Added

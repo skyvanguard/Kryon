@@ -13,10 +13,13 @@
 
 **Autonomous Cybersecurity Intelligence Platform**
 
+[![CI](https://github.com/skyvanguard/Kryon/actions/workflows/ci.yml/badge.svg)](https://github.com/skyvanguard/Kryon/actions/workflows/ci.yml)
+[![Security Scan](https://github.com/skyvanguard/Kryon/actions/workflows/security-scan.yml/badge.svg)](https://github.com/skyvanguard/Kryon/actions/workflows/security-scan.yml)
+[![Docker Build](https://github.com/skyvanguard/Kryon/actions/workflows/docker-build.yml/badge.svg)](https://github.com/skyvanguard/Kryon/actions/workflows/docker-build.yml)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-1855_passed-brightgreen.svg)](#testing)
-[![Agents](https://img.shields.io/badge/agents-24-orange.svg)](#security-agents)
+[![Tests](https://img.shields.io/badge/tests-1896_passed-brightgreen.svg)](#testing)
+[![Agents](https://img.shields.io/badge/agents-21-orange.svg)](#security-agents)
 [![Tools](https://img.shields.io/badge/tools-204+-red.svg)](#tool-categories)
 [![Stars](https://img.shields.io/github/stars/skyvanguard/Kryon?style=social)](https://github.com/skyvanguard/Kryon)
 
@@ -34,23 +37,24 @@ KRYON is an open-source platform for building and deploying autonomous AI agents
 
 | Component | Count |
 |-----------|:-----:|
-| Security Agents | 24 |
+| Security Agents | 21 |
 | Tool Implementations | 204+ |
 | Tool Categories | 35 |
-| API Endpoints | 132 |
+| API Endpoints | 136 |
 | Dashboard Pages | 25 |
 | Compliance Frameworks | 9 |
-| RAG Knowledge Documents | 1000+ |
-| Test Suite | 1855 passed |
+| RAG Knowledge Documents | 1082 |
+| DB Migrations | 16 |
+| Test Suite | 1896 passed |
 
 ### Core Capabilities
 
-- **24 Autonomous Agents** - Pre-built agents for pentesting, forensics, AppSec, red team, CTF, and more
+- **21 Autonomous Agents** - Pre-built agents for pentesting, forensics, AppSec, red team, CTF, and more
 - **204+ Security Tools** - Across 35 categories covering the full kill chain
 - **Multi-Model Support** - Works with 300+ LLMs including GPT-4o, Claude, DeepSeek, Llama, and local models via Ollama
-- **RAG Knowledge Base** - 1000+ documents from ExploitDB, NVD, GitHub, CTF writeups, and custom seed data with ChromaDB vector search
+- **RAG Knowledge Base** - 1082 documents from ExploitDB, NVD, GitHub, CTF writeups, and custom seed data with ChromaDB vector search
 - **Web Dashboard** - Full SvelteKit dashboard with 25 pages for managing operations
-- **REST API** - 132 endpoints across 28 routers for full programmatic control
+- **REST API** - 136 endpoints across 28 routers for full programmatic control
 - **Compliance** - PCI-DSS, HIPAA, SOC2, NIST 800-53, ISO 27001, GDPR, OWASP, CIS, MITRE ATT&CK
 - **Enterprise Features** - Multi-tenancy, JWT auth, RBAC, audit logging, SIEM integration, billing/licensing
 - **Attack Path Visualization** - D3.js force-directed graphs with kill chain analysis
@@ -252,7 +256,7 @@ Full-featured SvelteKit web interface with 25 pages:
 
 ## API
 
-132 REST endpoints across 28 routers. Base URL: `/api/v1`
+136 REST endpoints across 28 routers. Base URL: `/api/v1`
 
 ### Key Endpoints
 
@@ -387,7 +391,7 @@ my_agent = Agent(
 ```
 Kryon/
 ├── src/kryon/
-│   ├── agents/          # 24 security agents + patterns
+│   ├── agents/          # 21 security agents + patterns
 │   ├── sdk/             # Agent SDK (Agent, Runner, Handoff, Guardrail)
 │   ├── tools/           # 204+ tools in 35 categories
 │   ├── knowledge/       # RAG engine + ChromaDB + scrapers
@@ -399,7 +403,7 @@ Kryon/
 │   ├── onboarding/      # Client onboarding + credential vault
 │   ├── billing/         # Licensing (JWT RS256) + metering
 │   ├── compliance/      # 9 compliance frameworks
-│   ├── memory/          # SQLite store + 15 migrations
+│   ├── memory/          # SQLite store + 16 migrations
 │   ├── server/          # FastAPI + 28 routers + middleware
 │   ├── repl/            # Interactive CLI + commands
 │   └── prompts/         # System prompts (markdown)
@@ -407,7 +411,7 @@ Kryon/
 ├── docker/              # Docker Compose (Kali + Ollama)
 ├── k8s/                 # Kubernetes manifests
 ├── helm/                # Helm chart
-├── tests/               # 1855 tests
+├── tests/               # 1896 tests
 └── scripts/             # Deployment and utility scripts
 ```
 
@@ -425,7 +429,7 @@ pytest tests/server/ -v
 pytest tests/agents/ -v
 ```
 
-Current status: **1855 passed, 18 skipped, 0 failed**
+Current status: **1896 passed, 24 skipped, 0 failed**
 
 ---
 
