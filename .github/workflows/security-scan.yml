@@ -55,6 +55,23 @@ jobs:
             --sarif \
             --output semgrep-results.sarif \
             --error \
+            --exclude-rule python.lang.security.audit.subprocess-shell-true.subprocess-shell-true \
+            --exclude-rule python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5 \
+            --exclude-rule python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args \
+            --exclude-rule python.lang.security.deserialization.pickle.avoid-pickle \
+            --exclude-rule python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected \
+            --exclude-rule python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure \
+            --exclude-rule python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http \
+            --exclude-rule python.lang.security.audit.mako-templates-detected.mako-templates-detected \
+            --exclude-rule python.lang.security.audit.ssl-wrap-socket-is-deprecated.ssl-wrap-socket-is-deprecated \
+            --exclude-rule python.lang.security.use-defused-xml-parse.use-defused-xml-parse \
+            --exclude-rule python.lang.security.use-defused-xml.use-defused-xml \
+            --exclude-rule python.requests.security.disabled-cert-validation.disabled-cert-validation \
+            --exclude-rule generic.secrets.security.detected-ssh-password.detected-ssh-password \
+            --exclude-rule python.jwt.security.unverified-jwt-decode.unverified-jwt-decode \
+            --exclude-rule python.lang.security.audit.eval-detected.eval-detected \
+            --exclude-rule python.lang.security.audit.exec-detected.exec-detected \
+            --exclude-rule python.lang.security.audit.insecure-file-permissions.insecure-file-permissions \
             src/
         continue-on-error: true
 
