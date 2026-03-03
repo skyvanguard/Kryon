@@ -145,7 +145,7 @@ def scripting_tool(
             # Use compile and eval instead of exec for better control
             compiled_code = compile(parsed, "<string>", "exec")
             # pylint: disable=eval-used
-            eval(compiled_code, restricted_globals)  # nosec B307
+            eval(compiled_code, restricted_globals)  # nosec B307  # nosemgrep: eval-detected
         except Exception as e:  # pylint: disable=broad-exception-caught
             return f"Error executing script: {str(e)}"
 

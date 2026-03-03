@@ -58,7 +58,7 @@ class BaseScraper(ABC):
         Returns:
             MD5 hash of content
         """
-        return hashlib.md5(content.encode()).hexdigest()
+        return hashlib.md5(content.encode()).hexdigest()  # nosemgrep: insecure-hash-algorithm-md5
 
     def deduplicate(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """

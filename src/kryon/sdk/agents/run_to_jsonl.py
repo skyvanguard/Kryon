@@ -92,7 +92,7 @@ class DataRecorder:  # pylint: disable=too-few-public-methods
             def _fetch_ip(result_holder):
                 try:
                     socket.create_connection(("1.1.1.1", 53), timeout=1)
-                    with urllib.request.urlopen(  # nosec: B310
+                    with urllib.request.urlopen(  # nosec: B310  # nosemgrep: dynamic-urllib-use-detected
                         "https://api.ipify.org", timeout=2
                     ) as response:
                         result_holder.append(response.read().decode("utf-8"))

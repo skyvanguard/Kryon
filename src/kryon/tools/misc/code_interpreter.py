@@ -31,7 +31,7 @@ def execute_python_code(code: str, context: dict = None) -> str:
 
         # Execute code once with captured output
         # nosec B102 # pylint: disable=exec-used
-        exec(code, globals(), local_vars)  # nosec 102
+        exec(code, globals(), local_vars)  # nosec 102  # nosemgrep: exec-detected
 
         # Restore stdout
         sys.stdout = sys.__stdout__

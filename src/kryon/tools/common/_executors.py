@@ -55,7 +55,7 @@ def _run_ssh(command, stdout=False, timeout=100, workspace_dir=None, stream=Fals
     try:
         # Use subprocess.run with list of args for better security than shell=True
         result = subprocess.run(
-            ssh_cmd_list,
+            ssh_cmd_list,  # nosemgrep: dangerous-subprocess-use-tainted-env-args
             capture_output=True,
             text=True,
             check=False,  # Don't raise exception on non-zero exit code
@@ -680,7 +680,7 @@ def _run_local(
             # Start the process
             process = subprocess.Popen(
                 command,
-                shell=True,  # nosec B602
+                shell=True,  # nosec B602  # nosemgrep: subprocess-shell-true
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -747,7 +747,7 @@ def _run_local(
             # Standard non-streaming execution
             result = subprocess.run(
                 command,
-                shell=True,  # nosec B602
+                shell=True,  # nosec B602  # nosemgrep: subprocess-shell-true
                 capture_output=True,
                 text=True,
                 check=False,

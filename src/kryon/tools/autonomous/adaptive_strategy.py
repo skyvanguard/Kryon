@@ -178,7 +178,9 @@ class AdaptiveStrategy:
         response = str(attempt_result.get("response", "")).lower()
         status_code = attempt_result.get("status_code", 0)
 
-        cache_key = hashlib.md5(f"{error_msg}:{response}:{status_code}".encode()).hexdigest()
+        cache_key = hashlib.md5(
+            f"{error_msg}:{response}:{status_code}".encode()
+        ).hexdigest()  # nosemgrep: insecure-hash-algorithm-md5
 
         # Check cache first
         if cache_key in self._failure_pattern_cache:

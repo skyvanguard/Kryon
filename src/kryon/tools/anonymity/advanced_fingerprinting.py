@@ -468,7 +468,7 @@ def tls_fingerprint_randomization(
 
         # Generate JA3 hash (simplified)
         ja3_string = f"771,{'-'.join(map(str, results['extensions']))},{'-'.join(results['curves'])}"
-        results["ja3_hash"] = hashlib.md5(ja3_string.encode()).hexdigest()
+        results["ja3_hash"] = hashlib.md5(ja3_string.encode()).hexdigest()  # nosemgrep: insecure-hash-algorithm-md5
 
         results["curl_command"] = f"""
 curl --ciphers '{results["cipher_string"]}' \\

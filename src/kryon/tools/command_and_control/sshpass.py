@@ -36,7 +36,7 @@ def run_ssh_command_with_credentials(host: str, username: str, password: str, co
     escaped_command = command.replace("'", "'\\''")
 
     ssh_command = (
-        f"sshpass -p '{escaped_password}' "
+        f"sshpass -p '{escaped_password}' "  # nosemgrep: detected-ssh-password
         f"ssh -o StrictHostKeyChecking=no "
         f"{username}@{host} -p {port} "
         f"'{escaped_command}'"

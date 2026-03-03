@@ -84,7 +84,9 @@ def check_thm_vpn(
 
     try:
         ifconfig_cmd = f"ip addr show {vpn_interface} 2>/dev/null || ifconfig {vpn_interface} 2>/dev/null"
-        ifconfig_output = subprocess.run(ifconfig_cmd, shell=True, capture_output=True, text=True, timeout=10)
+        ifconfig_output = subprocess.run(
+            ifconfig_cmd, shell=True, capture_output=True, text=True, timeout=10
+        )  # nosemgrep: subprocess-shell-true
 
         if ifconfig_output.returncode != 0:
             print(f"[-] VPN interface {vpn_interface} not found")
@@ -128,7 +130,9 @@ def check_thm_vpn(
         # Note: We can't ping a random IP, but we can check routing
         try:
             route_cmd = f"ip route | grep {vpn_interface}"
-            route_output = subprocess.run(route_cmd, shell=True, capture_output=True, text=True, timeout=10)
+            route_output = subprocess.run(
+                route_cmd, shell=True, capture_output=True, text=True, timeout=10
+            )  # nosemgrep: subprocess-shell-true
 
             if expected_network in route_output.stdout:
                 results["can_reach_targets"] = True

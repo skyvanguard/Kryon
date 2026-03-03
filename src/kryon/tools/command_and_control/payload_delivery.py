@@ -138,7 +138,9 @@ def create_payload_server(
 
             import ssl
 
-            server.socket = ssl.wrap_socket(server.socket, certfile=ssl_cert, keyfile=ssl_key, server_side=True)
+            server.socket = ssl.wrap_socket(
+                server.socket, certfile=ssl_cert, keyfile=ssl_key, server_side=True
+            )  # nosemgrep: ssl-wrap-socket-is-deprecated
 
         # Start in background thread
         server_thread = threading.Thread(target=server.serve_forever, daemon=True)

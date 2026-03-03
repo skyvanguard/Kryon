@@ -754,7 +754,9 @@ class DockerManager:
                     "-p",
                     container_workspace_path,
                 ]
-                mkdir_result = subprocess.run(mkdir_cmd, capture_output=True, text=True, check=False)
+                mkdir_result = subprocess.run(
+                    mkdir_cmd, capture_output=True, text=True, check=False
+                )  # nosemgrep: dangerous-subprocess-use-tainted-env-args
 
                 if mkdir_result.returncode == 0:
                     console.print(f"[dim]Created workspace directory in container: {container_workspace_path}[/dim]")

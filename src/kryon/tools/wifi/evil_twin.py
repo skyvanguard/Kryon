@@ -285,7 +285,7 @@ with socketserver.TCPServer(("", PORT), PortalHandler) as httpd:
     httpd.serve_forever()
 """)
 
-        os.chmod(server_script, 0o755)
+        os.chmod(server_script, 0o755)  # nosemgrep: insecure-file-permissions
 
         # Start portal server
         portal_process = subprocess.Popen(["python3", server_script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)

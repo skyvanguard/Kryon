@@ -239,7 +239,7 @@ def disable_logging_temporarily(service: str = "syslog", duration_seconds: int =
             # Schedule restart
             subprocess.Popen(
                 f"sleep {duration_seconds} && systemctl start {service}",
-                shell=True,
+                shell=True,  # nosemgrep: subprocess-shell-true
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )

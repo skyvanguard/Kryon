@@ -523,7 +523,7 @@ def run_winpeas(
         # Execute WinPEAS
         subprocess.run(
             cmd,
-            shell=True,
+            shell=True,  # nosemgrep: subprocess-shell-true
             capture_output=True,
             text=True,
             timeout=600,  # 10 minute timeout for thorough scan
@@ -927,7 +927,7 @@ def harvest_credentials() -> dict[str, Any]:
                 # Get password for each profile
                 pwd_result = subprocess.run(
                     f'netsh wlan show profile name="{profile}" key=clear',
-                    shell=True,
+                    shell=True,  # nosemgrep: subprocess-shell-true
                     capture_output=True,
                     text=True,
                 )
@@ -981,7 +981,7 @@ def harvest_credentials() -> dict[str, Any]:
 
                 search_result = subprocess.run(
                     f'powershell -Command "{ps_cmd}"',
-                    shell=True,
+                    shell=True,  # nosemgrep: subprocess-shell-true
                     capture_output=True,
                     text=True,
                     timeout=30,

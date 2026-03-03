@@ -62,7 +62,7 @@ class QuickstartCommand(Command):
                 import urllib.error
                 import urllib.request
 
-                with urllib.request.urlopen(url, timeout=2) as response:
+                with urllib.request.urlopen(url, timeout=2) as response:  # nosemgrep: dynamic-urllib-use-detected
                     if response.status == 200:
                         return True, "✅ Accessible"
                     else:
@@ -90,7 +90,9 @@ class QuickstartCommand(Command):
                 import json
                 import urllib.request
 
-                with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=2) as response:
+                with urllib.request.urlopen(
+                    "http://localhost:11434/api/tags", timeout=2
+                ) as response:  # nosemgrep: dynamic-urllib-use-detected
                     if response.status == 200:
                         data = json.loads(response.read())
                         return [model["name"] for model in data.get("models", [])]

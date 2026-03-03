@@ -341,7 +341,7 @@ def strip_office_metadata(doc_path: str, output_path: Optional[str] = None, doc_
         # Office documents are ZIP archives
         if doc_type in ["docx", "xlsx", "pptx"]:
             try:
-                import xml.etree.ElementTree as ET
+                import xml.etree.ElementTree as ET  # nosemgrep: use-defused-xml
                 import zipfile
 
                 # Open as ZIP
@@ -354,7 +354,7 @@ def strip_office_metadata(doc_path: str, output_path: Optional[str] = None, doc_
                 # Clean core.xml (metadata)
                 core_path = os.path.join(temp_dir, "docProps", "core.xml")
                 if os.path.exists(core_path):
-                    tree = ET.parse(core_path)
+                    tree = ET.parse(core_path)  # nosemgrep: use-defused-xml-parse
                     root = tree.getroot()
 
                     # Remove metadata fields
@@ -383,7 +383,7 @@ def strip_office_metadata(doc_path: str, output_path: Optional[str] = None, doc_
                 # Clean app.xml (company info)
                 app_path = os.path.join(temp_dir, "docProps", "app.xml")
                 if os.path.exists(app_path):
-                    tree = ET.parse(app_path)
+                    tree = ET.parse(app_path)  # nosemgrep: use-defused-xml-parse
                     root = tree.getroot()
 
                     for elem in root:

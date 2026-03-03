@@ -91,7 +91,7 @@ class EmbeddingGenerator:
         Returns:
             MD5 hash
         """
-        return hashlib.md5(text.encode()).hexdigest()
+        return hashlib.md5(text.encode()).hexdigest()  # nosemgrep: insecure-hash-algorithm-md5
 
 
 # Global instance

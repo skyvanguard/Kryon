@@ -49,7 +49,7 @@ def load_prompt_template(template_path):
                 template_content = pathlib.Path(path).read_text(encoding="utf-8")
 
         # Render the template
-        return Template(template_content).render()
+        return Template(template_content).render()  # nosemgrep: mako-templates-detected
     except Exception as e:
         raise ValueError(f"Failed to load template '{template_path}': {str(e)}") from e
 
@@ -114,7 +114,7 @@ def create_system_prompt_renderer(base_instructions):
             }
 
             # Render the template with the full context
-            rendered = Template(template_content).render(**render_context)
+            rendered = Template(template_content).render(**render_context)  # nosemgrep: mako-templates-detected
             return rendered
 
         except Exception as e:

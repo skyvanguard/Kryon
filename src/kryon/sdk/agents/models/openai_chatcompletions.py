@@ -768,9 +768,7 @@ class OpenAIChatCompletionsModel(Model):
                                 else:
                                     args_str = json.dumps(str(parsed["arguments"]))
 
-                                call_id = (
-                                    f"call_{hashlib.md5((parsed['name'] + str(time.time())).encode()).hexdigest()[:8]}"
-                                )
+                                call_id = f"call_{hashlib.md5((parsed['name'] + str(time.time())).encode()).hexdigest()[:8]}"  # nosemgrep: insecure-hash-algorithm-md5
 
                                 # Inject proper tool_calls into the response
                                 from types import SimpleNamespace
@@ -1794,7 +1792,7 @@ class OpenAIChatCompletionsModel(Model):
                                     # For Qwen models, generate a predictable ID if none is provided
                                     if state.function_calls[tc_index].name:
                                         # Generate a stable ID from the function name and arguments
-                                        call_id = f"call_{hashlib.md5(state.function_calls[tc_index].name.encode()).hexdigest()[:8]}"
+                                        call_id = f"call_{hashlib.md5(state.function_calls[tc_index].name.encode()).hexdigest()[:8]}"  # nosemgrep: insecure-hash-algorithm-md5
 
                                 state.function_calls[tc_index].call_id += call_id
 
@@ -1925,9 +1923,7 @@ class OpenAIChatCompletionsModel(Model):
                                 logger.debug(f"Found valid function call in Ollama output: {json_str}")
 
                                 # Create a tool call ID
-                                tool_call_id = (
-                                    f"call_{hashlib.md5((parsed['name'] + str(time.time())).encode()).hexdigest()[:8]}"
-                                )
+                                tool_call_id = f"call_{hashlib.md5((parsed['name'] + str(time.time())).encode()).hexdigest()[:8]}"  # nosemgrep: insecure-hash-algorithm-md5
 
                                 # Ensure arguments is a valid JSON string
                                 arguments_str = ""

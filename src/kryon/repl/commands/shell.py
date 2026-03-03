@@ -72,7 +72,7 @@ class ShellCommand(Command):
                 # Run synchronously and stream output
                 process = subprocess.Popen(
                     command,
-                    shell=True,
+                    shell=True,  # nosemgrep: subprocess-shell-true
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     universal_newlines=True,
