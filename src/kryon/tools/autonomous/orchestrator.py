@@ -21,7 +21,10 @@ import time
 from datetime import datetime
 from typing import Any, Optional
 
+from kryon.sdk.agents import function_tool
 
+
+@function_tool(strict_mode=False)
 def autonomous_ctf_solver(
     target_ip: str,
     target_type: str = "auto",

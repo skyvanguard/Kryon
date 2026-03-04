@@ -22,7 +22,10 @@ import subprocess
 from datetime import datetime
 from typing import Any, Optional
 
+from kryon.sdk.agents import function_tool
 
+
+@function_tool(strict_mode=False)
 def check_thm_vpn(
     expected_network: str = "10.10.",
     vpn_interface: str = "tun0",

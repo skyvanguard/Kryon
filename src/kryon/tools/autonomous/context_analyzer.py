@@ -24,6 +24,8 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
+from kryon.sdk.agents import function_tool
+
 
 class ContextAnalyzer:
     """
@@ -596,6 +598,7 @@ class ContextAnalyzer:
 
 
 # Convenience functions
+@function_tool(strict_mode=False)
 def analyze_context(target_data: dict[str, Any], operation_objective: str = "general") -> dict[str, Any]:
     """
     Analyze context and extract intelligence.
@@ -611,6 +614,7 @@ def analyze_context(target_data: dict[str, Any], operation_objective: str = "gen
     return analyzer.autonomous_context_analysis(target_data, operation_objective)
 
 
+@function_tool(strict_mode=False)
 def extract_credentials(text: str, context: str = "general") -> list[dict[str, Any]]:
     """
     Extract credentials from text.
@@ -626,6 +630,7 @@ def extract_credentials(text: str, context: str = "general") -> list[dict[str, A
     return analyzer.extract_credentials_from_text(text, context)
 
 
+@function_tool(strict_mode=False)
 def follow_hints(hints: list[dict[str, Any]], current_access: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Generate tasks from hints.

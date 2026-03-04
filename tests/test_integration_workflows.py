@@ -9,6 +9,15 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from kryon.sdk.agents.tool import FunctionTool
+
+
+def _call(tool_or_fn, *args, **kwargs):
+    """Call a function or extract the raw function from a FunctionTool."""
+    if isinstance(tool_or_fn, FunctionTool):
+        return tool_or_fn._raw_fn(*args, **kwargs)
+    return tool_or_fn(*args, **kwargs)
+
 
 @pytest.mark.integration
 class TestAgentTransferWorkflows:
@@ -82,7 +91,7 @@ class TestToolChainWorkflows:
 
             # Step 2: Search for exploits based on nmap results
             with patch("subprocess.run", return_value=Mock(returncode=0, stdout="{}")):
-                exploit_result = search_exploits("openssh", "7.6p1")
+                exploit_result = _call(search_exploits, "openssh", "7.6p1")
 
                 assert exploit_result is not None
                 assert "searchsploit_results" in exploit_result
@@ -109,7 +118,7 @@ class TestToolChainWorkflows:
                 assert "exploitable" in sudo_result
 
             # Step 2: Lookup GTFOBins for found binary
-            gtfo_result = gtfobins_lookup("vim", escalation_type="sudo")
+            gtfo_result = _call(gtfobins_lookup, "vim", escalation_type="sudo")
 
             assert gtfo_result["found"] is True
             assert "command" in gtfo_result
@@ -141,7 +150,7 @@ class TestCTFCompleteWorkflow:
 
             # Step 1: VPN Check
             with patch("subprocess.run", return_value=Mock(returncode=0, stdout="inet 10.10.245.100")):
-                vpn_status = check_thm_vpn()
+                vpn_status = _call(check_thm_vpn)
                 assert vpn_status is not None
 
             # Step 2: Enumeration
@@ -152,12 +161,12 @@ class TestCTFCompleteWorkflow:
                     stdout="22/tcp   open  ssh     OpenSSH 7.6p1\n80/tcp   open  http    Apache 2.4.29",
                 ),
             ):
-                enum_results = auto_enumerate_target("10.10.245.67", quick_mode=True)
+                enum_results = _call(auto_enumerate_target, "10.10.245.67", quick_mode=True)
                 assert len(enum_results["open_ports"]) > 0
 
             # Step 3: Exploit Search
             with patch("subprocess.run", return_value=Mock(returncode=0, stdout="{}")):
-                exploit_results = search_exploits("apache", "2.4.29")
+                exploit_results = _call(search_exploits, "apache", "2.4.29")
                 assert "searchsploit_results" in exploit_results
 
             # Step 4: Privilege Escalation (mocked)
@@ -175,7 +184,7 @@ class TestCTFCompleteWorkflow:
             # Step 5: Flag Hunting
             with patch("subprocess.run", return_value=Mock(returncode=0, stdout="")):
                 with patch("os.path.isfile", return_value=False):
-                    flag_results = hunt_flags()
+                    flag_results = _call(hunt_flags)
                     assert "flags_found" in flag_results
 
             # Step 6: Answer Formatting
@@ -332,7 +341,7 @@ class TestErrorHandling:
             from kryon.tools.ctf.ctf_automation import auto_enumerate_target
 
             # Should not crash even with invalid input
-            result = auto_enumerate_target("invalid_ip", quick_mode=True)
+            result = _call(auto_enumerate_target, "invalid_ip", quick_mode=True)
 
             # Should return some kind of result (even if error)
             assert isinstance(result, dict)

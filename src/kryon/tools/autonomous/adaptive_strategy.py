@@ -24,6 +24,8 @@ import time
 from enum import Enum
 from typing import Any, Optional
 
+from kryon.sdk.agents import function_tool
+
 
 class FailureReason(Enum):
     """Classification of failure reasons."""
@@ -526,6 +528,7 @@ class AdaptiveStrategy:
 
 
 # Convenience function
+@function_tool(strict_mode=False)
 def execute_with_adaptation(
     target_ip: str, exploit: dict[str, Any], service: dict[str, Any], max_attempts: int = 5
 ) -> dict[str, Any]:

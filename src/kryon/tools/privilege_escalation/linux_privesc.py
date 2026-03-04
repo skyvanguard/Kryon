@@ -13,6 +13,7 @@ Primary Users:
 import os
 from typing import Any, Optional
 
+from kryon.sdk.agents import function_tool
 from kryon.tools.common import run_command
 
 
@@ -561,6 +562,7 @@ def _get_groups() -> list[str]:
 # ═══════════════════════════════════════════════════════════════
 
 
+@function_tool(strict_mode=False)
 def run_linpeas(output_file: str = "/tmp/linpeas.txt", thorough: bool = False) -> dict[str, Any]:
     """
     Execute LinPEAS (Linux Privilege Escalation Awesome Script).
@@ -736,6 +738,7 @@ def run_linenum() -> dict[str, Any]:
     return result
 
 
+@function_tool(strict_mode=False)
 def gtfobins_lookup(binary: str, escalation_type: str = "sudo") -> dict[str, Any]:
     """
     Lookup privilege escalation techniques for a binary from GTFOBins.

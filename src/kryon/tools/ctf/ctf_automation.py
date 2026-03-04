@@ -24,7 +24,10 @@ import subprocess
 from datetime import datetime
 from typing import Any, Optional
 
+from kryon.sdk.agents import function_tool
 
+
+@function_tool(strict_mode=False)
 def auto_enumerate_target(
     ip: str,
     quick_mode: bool = False,
@@ -228,6 +231,7 @@ def auto_enumerate_target(
     return results
 
 
+@function_tool(strict_mode=False)
 def search_exploits(
     service: str,
     version: Optional[str] = None,
@@ -571,6 +575,7 @@ def auto_privilege_escalation(
     return results
 
 
+@function_tool(strict_mode=False)
 def hunt_flags(
     search_paths: Optional[list[str]] = None,
     flag_patterns: Optional[list[str]] = None,

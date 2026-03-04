@@ -58,6 +58,12 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
 
     setup_logging(debug=config.debug)
 
+    # Disable OpenAI tracing — not needed for server and blocks in Docker
+    # (container cannot resolve api.openai.com for trace uploads)
+    from kryon.sdk.agents import set_tracing_disabled
+
+    set_tracing_disabled(True)
+
     # Configure JWT auth
     from kryon.server.auth.jwt_auth import configure_jwt
 

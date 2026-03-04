@@ -3281,8 +3281,11 @@ class OpenAIChatCompletionsModel(Model):
         if "extra_headers" in kwargs:
             ollama_supported_params["extra_headers"] = kwargs["extra_headers"]
 
-        # Add tools for compatibility with Qwen
-        if "tools" in kwargs and kwargs.get("tools") and kwargs.get("tools") is not NOT_GIVEN:
+        # Track whether we have tools for potential fallback
+        has_tools = "tools" in kwargs and kwargs.get("tools") and kwargs.get("tools") is not NOT_GIVEN
+
+        # Add tools for models that support native tool calling
+        if has_tools:
             ollama_supported_params["tools"] = kwargs.get("tools")
 
         # Add tool_choice so the model knows it should use tools
@@ -3296,6 +3299,72 @@ class OpenAIChatCompletionsModel(Model):
 
         api_base = get_ollama_api_base()
 
+        try:
+            return await self._do_ollama_completion(
+                ollama_kwargs, api_base, model_settings, tool_choice, stream, parallel_tool_calls
+            )
+        except litellm.exceptions.BadRequestError as e:
+            if "does not support tools" not in str(e) or not has_tools:
+                raise
+
+            # Model doesn't support native tool calling — inject tool
+            # descriptions into the system prompt so the model can output
+            # tool calls as JSON text, which get_response() parses via the
+            # text-based tool-call fallback (lines 744-787).
+            logger.debug("Model does not support native tools, falling back to prompt-based tools")
+
+            tools_list = kwargs.get("tools", [])
+            tool_descriptions = []
+            for t in tools_list:
+                func = t.get("function", {}) if isinstance(t, dict) else {}
+                name = func.get("name", "unknown")
+                desc = func.get("description", "")
+                params = func.get("parameters", {})
+                props = params.get("properties", {})
+                required = params.get("required", [])
+                param_lines = []
+                for pname, pinfo in props.items():
+                    req_marker = " (required)" if pname in required else ""
+                    param_lines.append(f"    - {pname}: {pinfo.get('type', 'any')}{req_marker} — {pinfo.get('description', '')}")
+                param_str = "\n".join(param_lines) if param_lines else "    (no parameters)"
+                tool_descriptions.append(f"- {name}: {desc}\n  Parameters:\n{param_str}")
+
+            tool_prompt = (
+                "\n\nYou have access to these tools. To use a tool, respond with ONLY a JSON object "
+                "in this exact format (no other text):\n"
+                '{"name": "tool_name", "arguments": {"param1": "value1"}}\n\n'
+                "Available tools:\n" + "\n".join(tool_descriptions)
+            )
+
+            # Inject into system message or first message
+            fallback_messages = list(ollama_kwargs.get("messages", []))
+            injected = False
+            for i, msg in enumerate(fallback_messages):
+                if msg.get("role") == "system":
+                    fallback_messages[i] = {**msg, "content": msg.get("content", "") + tool_prompt}
+                    injected = True
+                    break
+            if not injected:
+                fallback_messages.insert(0, {"role": "system", "content": tool_prompt.strip()})
+
+            # Retry without native tools
+            fallback_kwargs = {k: v for k, v in ollama_kwargs.items() if k not in ("tools", "tool_choice")}
+            fallback_kwargs["messages"] = fallback_messages
+
+            return await self._do_ollama_completion(
+                fallback_kwargs, api_base, model_settings, tool_choice, stream, parallel_tool_calls
+            )
+
+    async def _do_ollama_completion(
+        self,
+        ollama_kwargs: dict,
+        api_base: str,
+        model_settings: ModelSettings,
+        tool_choice,
+        stream: bool,
+        parallel_tool_calls: bool,
+    ) -> ChatCompletion:
+        """Execute the actual litellm.acompletion call for Ollama."""
         if stream:
             response = Response(
                 id=FAKE_RESPONSES_ID,

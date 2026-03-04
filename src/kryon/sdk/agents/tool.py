@@ -302,13 +302,16 @@ def function_tool(
                 )
                 return result
 
-        return FunctionTool(
+        tool = FunctionTool(
             name=schema.name,
             description=schema.description or "",
             params_json_schema=schema.params_json_schema,
             on_invoke_tool=_on_invoke_tool,
             strict_json_schema=strict_mode,
         )
+        # Store the original function for direct invocation in tests
+        tool._raw_fn = the_func  # type: ignore[attr-defined]
+        return tool
 
     # If func is actually a callable, we were used as @function_tool with no parentheses
     if callable(func):

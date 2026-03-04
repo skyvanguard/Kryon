@@ -10,12 +10,20 @@ import time
 
 import pytest
 
+from kryon.sdk.agents.tool import FunctionTool
 from kryon.tools.autonomous.strategic_planner import (
     StrategicPlanner,
     adjust_plan_dynamically,
     calculate_all_attack_paths,
     plan_autonomous_mission,
 )
+
+
+def _call(tool_or_fn, *args, **kwargs):
+    """Call a function or extract the raw function from a FunctionTool."""
+    if isinstance(tool_or_fn, FunctionTool):
+        return tool_or_fn._raw_fn(*args, **kwargs)
+    return tool_or_fn(*args, **kwargs)
 
 
 class TestStrategicPlannerInitialization:
@@ -64,7 +72,7 @@ class TestMissionPlanning:
 
     def test_basic_mission_planning(self):
         """Test basic mission plan generation."""
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["initial_access", "privilege_escalation"],
             constraints={"max_time_hours": 2},
@@ -77,7 +85,7 @@ class TestMissionPlanning:
 
     def test_primary_plan_structure(self):
         """Test primary plan has required structure."""
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="10.10.10.0/24",
             objectives=["initial_access", "escalate_privileges"],
             constraints={"max_time_hours": 3},
@@ -94,7 +102,7 @@ class TestMissionPlanning:
 
     def test_alternative_plans_generated(self):
         """Test that 3 alternative plans are generated."""
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["initial_access", "privilege_escalation", "exfiltrate_data"],
             constraints={"max_time_hours": 4},
@@ -106,7 +114,7 @@ class TestMissionPlanning:
 
     def test_objectives_ordering(self):
         """Test objectives are ordered correctly based on dependencies."""
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["exfiltrate_data", "privilege_escalation", "initial_access"],
             constraints={"max_time_hours": 4},
@@ -125,7 +133,7 @@ class TestMissionPlanning:
 
     def test_with_resources(self):
         """Test mission planning with resource constraints."""
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="10.10.0.0/16",
             objectives=["initial_access", "privilege_escalation"],
             constraints={"max_time_hours": 2, "stealth_level": "high", "noise_tolerance": "low"},
@@ -143,7 +151,7 @@ class TestMissionPlanning:
 
     def test_stealth_focused_strategy(self):
         """Test stealth-focused strategy selection."""
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["initial_access"],
             constraints={
@@ -163,7 +171,7 @@ class TestMissionPlanning:
 
     def test_speed_focused_strategy(self):
         """Test speed-focused strategy selection."""
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["initial_access", "privilege_escalation"],
             constraints={
@@ -237,7 +245,7 @@ class TestDynamicPlanAdjustment:
     def test_basic_plan_adjustment(self):
         """Test basic plan adjustment with progress update."""
         # First create a plan
-        initial_plan = plan_autonomous_mission(
+        initial_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["initial_access", "privilege_escalation"],
             constraints={"max_time_hours": 2},
@@ -263,7 +271,7 @@ class TestDynamicPlanAdjustment:
 
     def test_behind_schedule_adjustment(self):
         """Test adjustment when behind schedule."""
-        initial_plan = plan_autonomous_mission(
+        initial_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["initial_access", "privilege_escalation", "exfiltrate_data"],
             constraints={"max_time_hours": 2},
@@ -286,7 +294,7 @@ class TestDynamicPlanAdjustment:
 
     def test_new_discoveries_adjustment(self):
         """Test adjustment with new discoveries."""
-        initial_plan = plan_autonomous_mission(
+        initial_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["initial_access", "privilege_escalation"],
             constraints={"max_time_hours": 3},
@@ -312,7 +320,7 @@ class TestDynamicPlanAdjustment:
 
     def test_repeated_failures_adjustment(self):
         """Test adjustment after repeated failures."""
-        initial_plan = plan_autonomous_mission(
+        initial_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["initial_access", "privilege_escalation"],
             constraints={"max_time_hours": 2},
@@ -340,7 +348,7 @@ class TestPlanRanking:
 
     def test_plan_scoring(self):
         """Test plans have valid scores."""
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["initial_access", "privilege_escalation"],
             constraints={"max_time_hours": 2},
@@ -354,7 +362,7 @@ class TestPlanRanking:
 
     def test_primary_plan_highest_score(self):
         """Test primary plan has highest score."""
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["initial_access"],
             constraints={"max_time_hours": 2},
@@ -368,7 +376,7 @@ class TestPlanRanking:
 
     def test_success_probability(self):
         """Test success probabilities are reasonable."""
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["initial_access", "privilege_escalation", "exfiltrate_data"],
             constraints={"max_time_hours": 4},
@@ -385,7 +393,7 @@ class TestEdgeCases:
 
     def test_single_objective(self):
         """Test planning with single objective."""
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["initial_access"],
             constraints={"max_time_hours": 1},
@@ -396,14 +404,14 @@ class TestEdgeCases:
 
     def test_no_constraints(self):
         """Test planning without constraints."""
-        mission_plan = plan_autonomous_mission(target_network="192.168.1.0/24", objectives=["initial_access"])
+        mission_plan = _call(plan_autonomous_mission, target_network="192.168.1.0/24", objectives=["initial_access"])
 
         assert mission_plan is not None
         assert mission_plan["primary_plan"] is not None
 
     def test_no_resources(self):
         """Test planning without resource specification."""
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24", objectives=["initial_access", "privilege_escalation"]
         )
 
@@ -414,7 +422,7 @@ class TestEdgeCases:
     def test_unknown_objective(self):
         """Test handling of unknown objectives."""
         # Should handle gracefully or skip unknown objectives
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["initial_access", "unknown_objective", "privilege_escalation"],
         )
@@ -433,7 +441,7 @@ class TestPerformance:
         """Test planning completes in reasonable time."""
         start_time = time.time()
 
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="192.168.1.0/24",
             objectives=["initial_access", "privilege_escalation", "lateral_movement"],
             constraints={"max_time_hours": 4},
@@ -457,7 +465,7 @@ class TestPerformance:
 
         start_time = time.time()
 
-        mission_plan = plan_autonomous_mission(
+        mission_plan = _call(plan_autonomous_mission,
             target_network="10.0.0.0/8",
             objectives=all_objectives,
             constraints={"max_time_hours": 8},

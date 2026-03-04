@@ -9,11 +9,19 @@ import time
 
 import pytest
 
+from kryon.sdk.agents.tool import FunctionTool
 from kryon.tools.autonomous.adaptive_strategy import (
     AdaptiveStrategy,
     FailureReason,
     execute_with_adaptation,
 )
+
+
+def _call(tool_or_fn, *args, **kwargs):
+    """Call a function or extract the raw function from a FunctionTool."""
+    if isinstance(tool_or_fn, FunctionTool):
+        return tool_or_fn._raw_fn(*args, **kwargs)
+    return tool_or_fn(*args, **kwargs)
 
 
 class TestFailureDetection:
@@ -248,7 +256,7 @@ class TestConvenienceFunction:
         exploit = {"name": "test_exploit", "type": "rce"}
         service = {"name": "http", "version": "1.0"}
 
-        result = execute_with_adaptation(target_ip="192.168.1.1", exploit=exploit, service=service, max_attempts=3)
+        result = _call(execute_with_adaptation, target_ip="192.168.1.1", exploit=exploit, service=service, max_attempts=3)
 
         assert result is not None
         assert "success" in result

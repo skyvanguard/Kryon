@@ -23,6 +23,8 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Optional
 
+from kryon.sdk.agents import function_tool
+
 
 class StrategicPlanner:
     """
@@ -820,6 +822,7 @@ class StrategicPlanner:
 
 
 # Convenience functions
+@function_tool(strict_mode=False)
 def plan_autonomous_mission(
     target_network: str,
     objectives: list[str],

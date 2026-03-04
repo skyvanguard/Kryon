@@ -8,6 +8,7 @@ and documentation.
 
 import pytest
 
+from kryon.sdk.agents.tool import FunctionTool
 from kryon.tools.autonomous.context_analyzer import (
     ContextAnalyzer,
     analyze_context,
@@ -15,6 +16,13 @@ from kryon.tools.autonomous.context_analyzer import (
     extract_credentials,
     follow_hints,
 )
+
+
+def _call(tool_or_fn, *args, **kwargs):
+    """Call a function or extract the raw function from a FunctionTool."""
+    if isinstance(tool_or_fn, FunctionTool):
+        return tool_or_fn._raw_fn(*args, **kwargs)
+    return tool_or_fn(*args, **kwargs)
 
 
 class TestContextAnalyzerInitialization:
@@ -51,7 +59,7 @@ class TestCredentialExtraction:
         # Use password without @ to avoid regex issues
         text = "Database connection: mysql://dbuser:Passw0rd123@10.10.10.5:3306/webapp_db"
 
-        credentials = extract_credentials(text=text, context="server_logs")
+        credentials = _call(extract_credentials, text=text, context="server_logs")
 
         assert len(credentials) > 0
         mysql_cred = next((c for c in credentials if c["type"] == "mysql_connection"), None)
@@ -65,7 +73,7 @@ class TestCredentialExtraction:
         """Test extracting PostgreSQL connection string."""
         text = "postgresql://admin:secret123@localhost/production_db"
 
-        credentials = extract_credentials(text=text)
+        credentials = _call(extract_credentials, text=text)
 
         assert len(credentials) > 0
         pg_cred = next((c for c in credentials if c["type"] == "postgresql_connection"), None)
@@ -82,7 +90,7 @@ class TestCredentialExtraction:
         api_key = "sk_live_abc123def456"
         """
 
-        credentials = extract_credentials(text=text, context="code")
+        credentials = _call(extract_credentials, text=text, context="code")
 
         assert len(credentials) >= 2
         # Should find password assignment
@@ -95,7 +103,7 @@ class TestCredentialExtraction:
 MIIEpAIBAAKCAQEAtest_key_here
 -----END RSA PRIVATE KEY-----"""
 
-        credentials = extract_credentials(text=text)
+        credentials = _call(extract_credentials, text=text)
 
         assert len(credentials) > 0
         ssh_cred = next(
@@ -110,7 +118,7 @@ MIIEpAIBAAKCAQEAtest_key_here
         """Test extracting username/password pairs."""
         text = "username=admin password=password123"
 
-        credentials = extract_credentials(text=text)
+        credentials = _call(extract_credentials, text=text)
 
         assert len(credentials) >= 1  # Should find at least password
         # Check we found password credential
@@ -121,7 +129,7 @@ MIIEpAIBAAKCAQEAtest_key_here
         """Test extracting JWT tokens."""
         text = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMjMiLCJyb2xlIjoiYWRtaW4ifQ.abc123"
 
-        credentials = extract_credentials(text=text)
+        credentials = _call(extract_credentials, text=text)
 
         assert len(credentials) > 0
         jwt = next((c for c in credentials if "jwt" in c["type"].lower()), None)
@@ -131,7 +139,7 @@ MIIEpAIBAAKCAQEAtest_key_here
         """Test extracting AWS access keys."""
         text = "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE"
 
-        credentials = extract_credentials(text=text)
+        credentials = _call(extract_credentials, text=text)
 
         assert len(credentials) > 0
         aws_key = next((c for c in credentials if "aws" in c["type"].lower()), None)
@@ -141,7 +149,7 @@ MIIEpAIBAAKCAQEAtest_key_here
         """Test extracting API keys."""
         text = "API_KEY=sk_live_abc123def456ghi789jkl"
 
-        credentials = extract_credentials(text=text)
+        credentials = _call(extract_credentials, text=text)
 
         assert len(credentials) > 0
         api_key = next((c for c in credentials if "api_key" in c["type"].lower()), None)
@@ -154,7 +162,7 @@ MIIEpAIBAAKCAQEAtest_key_here
         [2025-01-15 10:35:22] WARNING: Using default password=backup123 for user admin
         """
 
-        credentials = extract_credentials(text=logs, context="server_logs")
+        credentials = _call(extract_credentials, text=logs, context="server_logs")
 
         # Should find at least the MySQL connection and password
         assert len(credentials) >= 1
@@ -176,7 +184,7 @@ MIIEpAIBAAKCAQEAtest_key_here
         api_secret = secret_abc123def456
         """
 
-        credentials = extract_credentials(text=config, context="config")
+        credentials = _call(extract_credentials, text=config, context="config")
 
         assert len(credentials) >= 2
 
@@ -184,7 +192,7 @@ MIIEpAIBAAKCAQEAtest_key_here
         """Test handling text with no credentials."""
         text = "This is just normal text with no credentials at all."
 
-        credentials = extract_credentials(text=text)
+        credentials = _call(extract_credentials, text=text)
 
         assert len(credentials) == 0
 
@@ -211,7 +219,7 @@ class TestContextAnalysis:
             ],
         }
 
-        analysis = analyze_context(target_data=recon_data, operation_objective="initial_access")
+        analysis = _call(analyze_context, target_data=recon_data, operation_objective="initial_access")
 
         # Implementation uses different field names
         assert "credentials_found" in analysis
@@ -223,7 +231,7 @@ class TestContextAnalysis:
         """Test credentials are discovered in context analysis."""
         target_data = {"logs": "mysql://user:pass123@localhost/db"}
 
-        analysis = analyze_context(target_data=target_data)
+        analysis = _call(analyze_context, target_data=target_data)
 
         assert len(analysis["credentials_found"]) > 0
 
@@ -236,7 +244,7 @@ class TestContextAnalysis:
             """
         }
 
-        analysis = analyze_context(target_data=target_data)
+        analysis = _call(analyze_context, target_data=target_data)
 
         # Implementation may detect hints differently - just validate at least one found
         assert len(analysis["hints_discovered"]) >= 1
@@ -250,7 +258,7 @@ class TestContextAnalysis:
             ]
         }
 
-        analysis = analyze_context(target_data=target_data)
+        analysis = _call(analyze_context, target_data=target_data)
 
         # attack_surface is a list, not a dict with endpoints/services
         attack_surface = analysis["attack_surface"]
@@ -260,7 +268,7 @@ class TestContextAnalysis:
         """Test recommended actions are generated."""
         target_data = {"recon_output": "TODO: Patch vulnerable service on port 8080"}
 
-        analysis = analyze_context(target_data=target_data, operation_objective="initial_access")
+        analysis = _call(analyze_context, target_data=target_data, operation_objective="initial_access")
 
         # Recommendations field exists but may be empty depending on context
         assert "recommendations" in analysis
@@ -282,7 +290,7 @@ class TestHintFollowing:
 
         current_access = {"level": "external", "services_accessible": ["http"]}
 
-        tasks = follow_hints(hints=hints, current_access=current_access)
+        tasks = _call(follow_hints, hints=hints, current_access=current_access)
 
         assert len(tasks) > 0
         # Should recommend exploiting the CVE
@@ -305,7 +313,7 @@ class TestHintFollowing:
 
         current_access = {"level": "external", "services_accessible": ["mysql"]}
 
-        tasks = follow_hints(hints=hints, current_access=current_access)
+        tasks = _call(follow_hints, hints=hints, current_access=current_access)
 
         assert len(tasks) > 0
         task = tasks[0]
@@ -324,7 +332,7 @@ class TestHintFollowing:
 
         current_access = {"level": "external", "services_accessible": ["http"]}
 
-        tasks = follow_hints(hints=hints, current_access=current_access)
+        tasks = _call(follow_hints, hints=hints, current_access=current_access)
 
         assert len(tasks) > 0
         task = tasks[0]
@@ -346,7 +354,7 @@ class TestHintFollowing:
 
         current_access = {"level": "external", "services_accessible": ["http"]}
 
-        tasks = follow_hints(hints=hints, current_access=current_access)
+        tasks = _call(follow_hints, hints=hints, current_access=current_access)
 
         # Should generate multiple tasks
         assert len(tasks) >= 2
@@ -364,7 +372,7 @@ class TestHintFollowing:
 
         current_access = {"level": "external"}
 
-        tasks = follow_hints(hints=hints, current_access=current_access)
+        tasks = _call(follow_hints, hints=hints, current_access=current_access)
 
         # High confidence vulnerability should be high priority
         high_conf_task = next(
@@ -380,7 +388,7 @@ class TestHintFollowing:
 
         current_access = {"level": "external", "services_accessible": ["http"]}
 
-        tasks = follow_hints(hints=hints, current_access=current_access)
+        tasks = _call(follow_hints, hints=hints, current_access=current_access)
 
         assert len(tasks) > 0
         # Should recommend sqlmap or similar for SQL injection
@@ -520,7 +528,7 @@ class TestPerformance:
         )  # Repeat 10 times
 
         start_time = time.time()
-        credentials = extract_credentials(text=text)
+        credentials = _call(extract_credentials, text=text)
         elapsed = time.time() - start_time
 
         assert len(credentials) > 0
@@ -535,12 +543,12 @@ class TestPerformance:
 
         # First call (uncached)
         start1 = time.time()
-        result1 = extract_credentials(text=text)
+        result1 = _call(extract_credentials, text=text)
         time1 = time.time() - start1
 
         # Second call (should be cached)
         start2 = time.time()
-        result2 = extract_credentials(text=text)
+        result2 = _call(extract_credentials, text=text)
         time2 = time.time() - start2
 
         # Results should be identical
@@ -556,14 +564,14 @@ class TestEdgeCases:
 
     def test_empty_text(self):
         """Test handling empty text."""
-        credentials = extract_credentials(text="")
+        credentials = _call(extract_credentials, text="")
         assert len(credentials) == 0
 
     def test_malformed_credentials(self):
         """Test handling malformed credentials."""
         text = "mysql://broken@incomplete"  # Missing parts
 
-        credentials = extract_credentials(text=text)
+        credentials = _call(extract_credentials, text=text)
 
         # Should either skip or handle gracefully
         # No exception should be raised
@@ -573,7 +581,7 @@ class TestEdgeCases:
         """Test handling very long text."""
         text = "a" * 100000  # 100KB of text
 
-        credentials = extract_credentials(text=text)
+        credentials = _call(extract_credentials, text=text)
 
         # Should complete without error
         assert isinstance(credentials, list)
@@ -582,7 +590,7 @@ class TestEdgeCases:
         """Test handling special characters."""
         text = "password = 'P@$$w0rd!@#$%^&*()'"
 
-        credentials = extract_credentials(text=text)
+        credentials = _call(extract_credentials, text=text)
 
         # Should handle special characters in passwords
         if len(credentials) > 0:
@@ -593,7 +601,7 @@ class TestEdgeCases:
         """Test handling unicode text."""
         text = "contraseña = 'Pass123' # Spanish for password"
 
-        credentials = extract_credentials(text=text)
+        credentials = _call(extract_credentials, text=text)
 
         # Should handle unicode without errors
         assert isinstance(credentials, list)

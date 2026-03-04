@@ -11,6 +11,15 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from kryon.sdk.agents.tool import FunctionTool
+
+
+def _call(tool_or_fn, *args, **kwargs):
+    """Call a function or extract the raw function from a FunctionTool."""
+    if isinstance(tool_or_fn, FunctionTool):
+        return tool_or_fn._raw_fn(*args, **kwargs)
+    return tool_or_fn(*args, **kwargs)
+
 
 # Test auto_enumerate_target
 class TestAutoEnumerateTarget:
@@ -27,7 +36,7 @@ class TestAutoEnumerateTarget:
             stdout="22/tcp   open  ssh     OpenSSH 7.6p1\n80/tcp   open  http    Apache 2.4.29",
         )
 
-        result = auto_enumerate_target("10.10.245.67", quick_mode=True)
+        result = _call(auto_enumerate_target, "10.10.245.67", quick_mode=True)
 
         assert result["target"] == "10.10.245.67"
         assert len(result["open_ports"]) == 2
@@ -44,7 +53,7 @@ class TestAutoEnumerateTarget:
             stdout="80/tcp   open  http    Apache 2.4.29\n443/tcp  open  ssl/http nginx",
         )
 
-        result = auto_enumerate_target("10.10.245.67", quick_mode=True)
+        result = _call(auto_enumerate_target, "10.10.245.67", quick_mode=True)
 
         assert len(result["web_services"]) >= 1
         assert (
@@ -55,7 +64,7 @@ class TestAutoEnumerateTarget:
         """Test handling of invalid IP addresses"""
         from kryon.tools.ctf.ctf_automation import auto_enumerate_target
 
-        result = auto_enumerate_target("invalid.ip.address", quick_mode=True)
+        result = _call(auto_enumerate_target, "invalid.ip.address", quick_mode=True)
 
         # Should not crash, should return error
         assert "error" in result or "open_ports" in result
@@ -87,7 +96,7 @@ class TestSearchExploits:
             ),
         )
 
-        result = search_exploits("vsftpd", "2.3.4")
+        result = _call(search_exploits, "vsftpd", "2.3.4")
 
         assert result["query"] == "vsftpd 2.3.4"
         assert len(result["searchsploit_results"]) > 0
@@ -114,7 +123,7 @@ class TestSearchExploits:
             ),
         )
 
-        result = search_exploits("apache", "2.4.49")
+        result = _call(search_exploits, "apache", "2.4.49")
 
         assert len(result["cve_references"]) > 0
         assert "CVE-2021-41773" in result["cve_references"]
@@ -124,7 +133,7 @@ class TestSearchExploits:
         from kryon.tools.ctf.ctf_automation import search_exploits
 
         with patch("subprocess.run", return_value=Mock(returncode=0, stdout="{}")):
-            result = search_exploits("nonexistent", "99.99.99")
+            result = _call(search_exploits, "nonexistent", "99.99.99")
 
             assert result["searchsploit_results"] == []
             assert any("no public exploits" in rec.lower() for rec in result["recommendations"])
@@ -143,7 +152,7 @@ class TestHuntFlags:
         mock_isfile.return_value = True
         mock_open.return_value.__enter__.return_value.read.return_value = "THM{us3r_fl4g_h3r3}"
 
-        result = hunt_flags(check_common_locations=True, search_files=False)
+        result = _call(hunt_flags, check_common_locations=True, search_files=False)
 
         # Should find a flag
         assert len(result["flags_found"]) >= 0  # May or may not find depending on mocking
@@ -155,7 +164,7 @@ class TestHuntFlags:
 
         mock_subprocess.return_value = Mock(returncode=0, stdout="/var/www/flag.txt:THM{custom_flag_pattern}")
 
-        result = hunt_flags(flag_patterns=[r"THM\{[^}]+\}"], check_common_locations=False, search_files=True)
+        result = _call(hunt_flags, flag_patterns=[r"THM\{[^}]+\}"], check_common_locations=False, search_files=True)
 
         # Check that flags can be found
         assert "flags_found" in result
@@ -166,7 +175,7 @@ class TestHuntFlags:
 
         with patch("subprocess.run", return_value=Mock(returncode=0, stdout="")):
             with patch("os.path.isfile", return_value=False):
-                result = hunt_flags(check_common_locations=True, search_files=False)
+                result = _call(hunt_flags, check_common_locations=True, search_files=False)
 
                 assert len(result["recommendations"]) > 0
                 assert any("no flags found" in rec.lower() for rec in result["recommendations"])
@@ -243,7 +252,7 @@ class TestTryHackMeHelpers:
         # Mock ifconfig showing tun0 with 10.10.x.x IP
         mock_subprocess.return_value = Mock(returncode=0, stdout="inet 10.10.245.100 netmask 255.255.254.0")
 
-        result = check_thm_vpn()
+        result = _call(check_thm_vpn)
 
         assert result["connected"] is True
         assert result["vpn_ip"] == "10.10.245.100"
@@ -256,7 +265,7 @@ class TestTryHackMeHelpers:
         # Mock ifconfig failure (interface not found)
         mock_subprocess.return_value = Mock(returncode=1, stdout="")
 
-        result = check_thm_vpn()
+        result = _call(check_thm_vpn)
 
         assert result["connected"] is False
         assert len(result["recommendations"]) > 0
@@ -321,7 +330,7 @@ class TestLinuxPrivescEnhancements:
         """Test GTFOBins database lookup for sudo escalation"""
         from kryon.tools.privilege_escalation.linux_privesc import gtfobins_lookup
 
-        result = gtfobins_lookup("vim", escalation_type="sudo")
+        result = _call(gtfobins_lookup, "vim", escalation_type="sudo")
 
         assert result["found"] is True
         assert "sudo vim" in result["command"].lower()
@@ -331,7 +340,7 @@ class TestLinuxPrivescEnhancements:
         """Test GTFOBins database lookup for SUID escalation"""
         from kryon.tools.privilege_escalation.linux_privesc import gtfobins_lookup
 
-        result = gtfobins_lookup("python3", escalation_type="suid")
+        result = _call(gtfobins_lookup, "python3", escalation_type="suid")
 
         assert result["found"] is True
         assert "python3" in result["command"].lower()
@@ -340,7 +349,7 @@ class TestLinuxPrivescEnhancements:
         """Test GTFOBins lookup for non-existent binary"""
         from kryon.tools.privilege_escalation.linux_privesc import gtfobins_lookup
 
-        result = gtfobins_lookup("nonexistent_binary_xyz123", escalation_type="sudo")
+        result = _call(gtfobins_lookup, "nonexistent_binary_xyz123", escalation_type="sudo")
 
         assert result["found"] is False
         # Function returns empty strings when not found, not a message
@@ -385,18 +394,18 @@ class TestCTFWorkflowIntegration:
             "subprocess.run",
             return_value=Mock(returncode=0, stdout="22/tcp   open  ssh     OpenSSH 7.6p1"),
         ):
-            enum_results = auto_enumerate_target(target_ip, quick_mode=True)
+            enum_results = _call(auto_enumerate_target, target_ip, quick_mode=True)
             assert len(enum_results["open_ports"]) > 0
 
         # Step 2: Exploit search (mocked)
         with patch("subprocess.run", return_value=Mock(returncode=0, stdout="{}")):
-            exploit_results = search_exploits("openssh", "7.6p1")
+            exploit_results = _call(search_exploits, "openssh", "7.6p1")
             assert "searchsploit_results" in exploit_results
 
         # Step 3: Flag hunting (mocked)
         with patch("subprocess.run", return_value=Mock(returncode=0, stdout="")):
             with patch("os.path.isfile", return_value=False):
-                flag_results = hunt_flags()
+                flag_results = _call(hunt_flags)
                 assert "flags_found" in flag_results
 
         # Step 4: Report generation

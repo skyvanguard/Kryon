@@ -12,11 +12,19 @@ from pathlib import Path
 
 import pytest
 
+from kryon.sdk.agents.tool import FunctionTool
 from kryon.tools.autonomous.learning_engine import (
     LearningEngine,
     get_learned_recommendations,
     record_operation,
 )
+
+
+def _call(tool_or_fn, *args, **kwargs):
+    """Call a function or extract the raw function from a FunctionTool."""
+    if isinstance(tool_or_fn, FunctionTool):
+        return tool_or_fn._raw_fn(*args, **kwargs)
+    return tool_or_fn(*args, **kwargs)
 
 
 class TestLearningEngine:
@@ -217,7 +225,7 @@ class TestConvenienceFunctions:
         results = {"success": True, "exploits_successful": []}
 
         # Should not raise error
-        operation_id = record_operation(operation_data, results)
+        operation_id = _call(record_operation, operation_data, results)
         assert operation_id is not None
 
     def test_get_recommendations_convenience(self):
@@ -225,7 +233,7 @@ class TestConvenienceFunctions:
         target_profile = {"os": "linux"}
 
         # Should not raise error
-        recommendations = get_learned_recommendations(target_profile)
+        recommendations = _call(get_learned_recommendations, target_profile)
         assert "recommended_exploits" in recommendations
 
 

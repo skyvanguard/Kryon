@@ -12,7 +12,7 @@
 #   docker exec -it kryon python -m kryon          # REPL
 #   docker exec -it kryon bash                     # Kali shell
 #   docker exec -it -u root kryon bash             # Root shell (VPN, etc.)
-#   docker exec -it kryon-ollama ollama pull qwen2.5:7b
+#   docker exec -it kryon-ollama ollama pull dolphin-mistral:7b
 #
 # VPN for CTFs:
 #   docker exec -u root -d kryon openvpn --config /workspace/htb.ovpn
@@ -34,7 +34,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-ollama}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://ollama:11434/v1}
       - OLLAMA=${OLLAMA:-true}
-      - KRYON_MODEL=${KRYON_MODEL:-qwen2.5:7b}
+      - KRYON_MODEL=${KRYON_MODEL:-dolphin-mistral:7b}
       - KRYON_DEBUG=${KRYON_DEBUG:-0}
       - KRYON_GUARDRAILS=${KRYON_GUARDRAILS:-true}
       - KRYON_MAX_TURNS=${KRYON_MAX_TURNS:-50}

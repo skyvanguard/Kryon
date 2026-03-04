@@ -25,12 +25,20 @@ import pytest
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
+from kryon.sdk.agents.tool import FunctionTool
 from kryon.tools.autonomous.orchestrator import (
     autonomous_ctf_solver,
     autonomous_network_pivot,
     autonomous_pentest,
     multi_agent_coordination,
 )
+
+
+def _call(tool_or_fn, *args, **kwargs):
+    """Call a function or extract the raw function from a FunctionTool."""
+    if isinstance(tool_or_fn, FunctionTool):
+        return tool_or_fn._raw_fn(*args, **kwargs)
+    return tool_or_fn(*args, **kwargs)
 
 
 class TestAutonomousCTFSolver:
@@ -102,7 +110,7 @@ class TestAutonomousCTFSolver:
         }
 
         # Execute
-        result = autonomous_ctf_solver(target_ip="10.10.10.5", difficulty="medium", max_time_hours=2)
+        result = _call(autonomous_ctf_solver, target_ip="10.10.10.5", difficulty="medium", max_time_hours=2)
 
         # Verify workflow executed
         assert mock_planner.autonomous_mission_planner.called
@@ -145,7 +153,7 @@ class TestAutonomousCTFSolver:
         }
 
         # Execute
-        result = autonomous_ctf_solver(target_ip="192.168.1.99", max_time_hours=1)
+        result = _call(autonomous_ctf_solver, target_ip="192.168.1.99", max_time_hours=1)
 
         # Should fail gracefully
         assert result["success"] is False
@@ -190,7 +198,7 @@ class TestAutonomousCTFSolver:
         mock_learned.return_value = {"recommended_exploits": []}
 
         # Execute
-        result = autonomous_ctf_solver(target_ip="10.10.10.1", max_time_hours=1)
+        result = _call(autonomous_ctf_solver, target_ip="10.10.10.1", max_time_hours=1)
 
         # Should complete but with no exploits
         assert "exploitation_path" in result
@@ -237,7 +245,7 @@ class TestAutonomousCTFSolver:
 
         # Execute with very short timeout
         start_time = time.time()
-        result = autonomous_ctf_solver(
+        result = _call(autonomous_ctf_solver,
             target_ip="10.10.10.5",
             max_time_hours=0.01,  # ~36 seconds
         )
@@ -284,7 +292,7 @@ class TestAutonomousCTFSolver:
         mock_learned.return_value = {"recommended_exploits": []}
 
         # Execute
-        result = autonomous_ctf_solver(target_ip="10.10.10.5", max_time_hours=1)
+        result = _call(autonomous_ctf_solver, target_ip="10.10.10.5", max_time_hours=1)
 
         # Verify credentials were noted
         phases = list(result["exploitation_path"])
@@ -363,7 +371,7 @@ class TestAutonomousCTFSolver:
         ]
 
         # Execute
-        autonomous_ctf_solver(target_ip="10.10.10.5", max_time_hours=1)
+        _call(autonomous_ctf_solver, target_ip="10.10.10.5", max_time_hours=1)
 
         # Should have called exploit selection for each service
         assert mock_exploit_select.call_count == 3
@@ -390,10 +398,10 @@ class TestAutonomousCTFSolver:
         }
 
         # Test easy difficulty
-        autonomous_ctf_solver(target_ip="10.10.10.5", difficulty="easy", max_time_hours=1)
+        _call(autonomous_ctf_solver, target_ip="10.10.10.5", difficulty="easy", max_time_hours=1)
 
         # Test hard difficulty
-        autonomous_ctf_solver(target_ip="10.10.10.5", difficulty="hard", max_time_hours=1)
+        _call(autonomous_ctf_solver, target_ip="10.10.10.5", difficulty="hard", max_time_hours=1)
 
         # Hard should enable deep scan
         recon_calls = mock_recon.call_args_list
@@ -536,7 +544,7 @@ class TestPhaseIntegration:
         }
 
         # Execute
-        autonomous_ctf_solver(target_ip="10.10.10.5", max_time_hours=1)
+        _call(autonomous_ctf_solver, target_ip="10.10.10.5", max_time_hours=1)
 
         # Verify context analyzer received recon data
         analyzer_call = mock_analyzer.autonomous_context_analysis.call_args
@@ -561,7 +569,7 @@ class TestErrorRecovery:
         mock_planner.autonomous_mission_planner.side_effect = Exception("Planning failed")
 
         # Should not crash
-        result = autonomous_ctf_solver(target_ip="10.10.10.5", max_time_hours=1)
+        result = _call(autonomous_ctf_solver, target_ip="10.10.10.5", max_time_hours=1)
 
         assert "error" in result
         assert result["success"] is False
@@ -592,7 +600,7 @@ class TestErrorRecovery:
         mock_analyzer_class.side_effect = Exception("Analysis failed")
 
         # Should continue despite failure
-        result = autonomous_ctf_solver(target_ip="10.10.10.5", max_time_hours=1)
+        result = _call(autonomous_ctf_solver, target_ip="10.10.10.5", max_time_hours=1)
 
         # May have error but should have attempted recon
         assert "exploitation_path" in result
@@ -636,7 +644,7 @@ class TestPerformance:
         mock_learned.return_value = {"recommended_exploits": []}
 
         # Execute
-        result = autonomous_ctf_solver(target_ip="10.10.10.5", max_time_hours=0.1)
+        result = _call(autonomous_ctf_solver, target_ip="10.10.10.5", max_time_hours=0.1)
 
         # Should have time_elapsed
         assert "time_elapsed" in result
@@ -663,7 +671,7 @@ class TestResultStructure:
 
         mock_recon.return_value = {"success": False, "open_ports": [], "error": "Failed"}
 
-        result = autonomous_ctf_solver(target_ip="10.10.10.5", max_time_hours=1)
+        result = _call(autonomous_ctf_solver, target_ip="10.10.10.5", max_time_hours=1)
 
         # Required fields
         required_fields = [
@@ -712,7 +720,7 @@ class TestResultStructure:
 
         mock_learned.return_value = {"recommended_exploits": []}
 
-        result = autonomous_ctf_solver(target_ip="10.10.10.5", max_time_hours=1)
+        result = _call(autonomous_ctf_solver, target_ip="10.10.10.5", max_time_hours=1)
 
         # Verify exploitation path structure
         assert isinstance(result["exploitation_path"], list)

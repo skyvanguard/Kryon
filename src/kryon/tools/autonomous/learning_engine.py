@@ -26,6 +26,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from kryon.sdk.agents import function_tool
+
 
 class LearningEngine:
     """
@@ -794,11 +796,13 @@ def get_learning_engine() -> LearningEngine:
 
 
 # Convenience functions
+@function_tool(strict_mode=False)
 def record_operation(operation_data: dict[str, Any], results: dict[str, Any]) -> str:
     """Record an operation for learning."""
     return get_learning_engine().record_operation(operation_data, results)
 
 
+@function_tool(strict_mode=False)
 def get_learned_recommendations(
     target_profile: dict[str, Any], top_n: int = 5, min_confidence: float = 0.5
 ) -> dict[str, Any]:
