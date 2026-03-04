@@ -30,7 +30,7 @@
 	onMount(async () => {
 		loadAgents();
 		try {
-			const resp = await fetch('/api/health');
+			const resp = await fetch('/api/v1/health');
 			health = await resp.json();
 		} catch {
 			// API not available
