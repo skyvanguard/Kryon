@@ -77,7 +77,6 @@ async def create_run(req: RunRequest):
                         sse = stream_event_to_sse(event)
                         if sse:
                             run_state.events.append({"sse": sse})
-                    await result.wait()
                     run_state.output = result.final_output or ""
                     run_state.agent_name = result.last_agent.name if result.last_agent else ""
                     run_state.status = "completed"
