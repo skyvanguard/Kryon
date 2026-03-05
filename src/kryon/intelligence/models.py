@@ -17,6 +17,13 @@ class Severity(str, Enum):
     INFO = "info"
 
 
+class ValidationStatus(str, Enum):
+    UNVALIDATED = "unvalidated"
+    CONFIRMED = "confirmed"
+    POTENTIAL = "potential"
+    FALSE_POSITIVE = "false_positive"
+
+
 class MITREMapping(BaseModel):
     """Mapping of a finding to a MITRE ATT&CK technique."""
 
@@ -70,3 +77,7 @@ class Finding(BaseModel):
     tool_source: str = ""
     remediation: str = ""
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    validation_status: ValidationStatus = ValidationStatus.UNVALIDATED
+    exploit_proof: str = ""
+    validated_at: str | None = None
+    validation_method: str = ""
