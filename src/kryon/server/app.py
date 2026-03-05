@@ -45,6 +45,7 @@ from kryon.server.routes import (
     tenants,
     usage,
     validation,
+    vm_integration,
 )
 from kryon.server.sessions import SessionManager
 
@@ -162,6 +163,7 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
             {"name": "report_settings", "description": "Report branding and template configuration"},
             {"name": "onboarding", "description": "Customer onboarding wizard"},
             {"name": "billing", "description": "License validation and usage metering"},
+            {"name": "vm-integration", "description": "VM scanner import (Qualys, Tenable, Rapid7, nmap, nuclei)"},
         ],
     )
 
@@ -224,6 +226,7 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
     app.include_router(report_settings.router, prefix="/api/v1")
     app.include_router(onboarding.router, prefix="/api/v1")
     app.include_router(billing.router, prefix="/api/v1")
+    app.include_router(vm_integration.router, prefix="/api/v1")
 
     # Serve dashboard static files if the build directory exists
     dashboard_build = Path(__file__).resolve().parent.parent.parent.parent / "dashboard" / "build"
