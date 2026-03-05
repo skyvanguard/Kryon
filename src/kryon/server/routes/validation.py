@@ -1,12 +1,14 @@
-"""Validation API routes — attack simulation, detection validation, coverage."""
+"""Validation API routes — attack simulation, detection validation, coverage, and EVE exploit validation."""
 
 from __future__ import annotations
 
 import asyncio
 import json
 import uuid
+from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from kryon.server.auth import require_api_key
 from kryon.server.logging_config import get_logger
@@ -15,6 +17,170 @@ from kryon.server.models import DetectRequest, SimulateRequest
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["validation"], dependencies=[Depends(require_api_key)])
+
+# ---------------------------------------------------------------------------
+# EVE (Exploit Validation Engine) — Pydantic models
+# ---------------------------------------------------------------------------
+
+
+class ValidateRequest(BaseModel):
+    """Request to validate a single security finding."""
+
+    finding_id: str = Field(..., description="Unique identifier for the finding")
+    finding_type: str = Field(..., description="Type of finding (sqli, xss, rce, auth_bypass, etc.)")
+    target: str = Field(..., description="Target URL or host to validate against")
+    parameter: str = Field("", description="Specific parameter to test")
+    extra_context: str = Field("", description="Additional context for validation")
+
+
+class ValidateResponse(BaseModel):
+    """Response after submitting a finding for validation."""
+
+    finding_id: str
+    status: str = "queued"
+
+
+class ValidationResult(BaseModel):
+    """Full validation result for a finding."""
+
+    finding_id: str
+    status: str
+    validation_status: Optional[str] = None
+    exploit_proof: Optional[str] = None
+    validation_method: Optional[str] = None
+    details: Optional[str] = None
+
+
+class ValidateBatchRequest(BaseModel):
+    """Request to validate multiple findings at once."""
+
+    findings: list[ValidateRequest] = Field(..., description="List of findings to validate")
+
+
+class ValidateBatchResponse(BaseModel):
+    """Response after submitting a batch of findings for validation."""
+
+    results: list[ValidateResponse]
+
+
+# In-memory store for validation results (keyed by finding_id)
+_validation_results: dict[str, ValidationResult] = {}
+
+
+# ---------------------------------------------------------------------------
+# EVE background task
+# ---------------------------------------------------------------------------
+
+
+async def _run_validation(finding: ValidateRequest) -> None:
+    """Run exploit validation in the background and store the result."""
+    try:
+        from kryon.tools.validation.exploit_validator import validate_finding
+
+        result_json = await asyncio.to_thread(
+            validate_finding.on_invoke_tool,
+            None,
+            json.dumps(
+                {
+                    "finding_title": finding.finding_id,
+                    "finding_type": finding.finding_type,
+                    "target": finding.target,
+                    "parameter": finding.parameter,
+                    "extra_context": finding.extra_context,
+                }
+            ),
+        )
+
+        try:
+            parsed = json.loads(result_json)
+        except (json.JSONDecodeError, TypeError):
+            parsed = {"raw": result_json}
+
+        _validation_results[finding.finding_id] = ValidationResult(
+            finding_id=finding.finding_id,
+            status="completed",
+            validation_status=parsed.get("validation_status"),
+            exploit_proof=parsed.get("exploit_proof"),
+            validation_method=parsed.get("validation_method"),
+            details=parsed.get("details"),
+        )
+        logger.info(
+            "EVE validation completed: finding_id=%s status=%s",
+            finding.finding_id,
+            parsed.get("validation_status", "unknown"),
+        )
+    except Exception:
+        _validation_results[finding.finding_id] = ValidationResult(
+            finding_id=finding.finding_id,
+            status="error",
+            details="Validation failed due to an internal error",
+        )
+        logger.exception("EVE validation failed: finding_id=%s", finding.finding_id)
+
+
+# ---------------------------------------------------------------------------
+# EVE API routes
+# ---------------------------------------------------------------------------
+
+
+@router.post("/validate", status_code=202)
+async def submit_validation(
+    body: ValidateRequest,
+    background_tasks: BackgroundTasks,
+) -> ValidateResponse:
+    """Submit a security finding for exploit validation (EVE).
+
+    The validation runs asynchronously in the background.
+    Use GET /validate/{finding_id} to retrieve the result.
+    """
+    _validation_results[body.finding_id] = ValidationResult(
+        finding_id=body.finding_id,
+        status="queued",
+    )
+    background_tasks.add_task(_run_validation, body)
+    logger.info(
+        "EVE validation queued: finding_id=%s type=%s target=%s",
+        body.finding_id,
+        body.finding_type,
+        body.target,
+    )
+    return ValidateResponse(finding_id=body.finding_id, status="queued")
+
+
+@router.get("/validate/{finding_id}")
+async def get_validation_result(finding_id: str) -> ValidationResult:
+    """Get the validation result for a finding by its ID."""
+    result = _validation_results.get(finding_id)
+    if result is None:
+        logger.warning("EVE validation result not found: finding_id=%s", finding_id)
+        raise HTTPException(status_code=404, detail=f"Validation result not found for finding_id={finding_id}")
+    return result
+
+
+@router.post("/validate/batch", status_code=202)
+async def submit_batch_validation(
+    body: ValidateBatchRequest,
+    background_tasks: BackgroundTasks,
+) -> ValidateBatchResponse:
+    """Submit multiple findings for exploit validation (EVE).
+
+    Each finding is validated independently in the background.
+    Use GET /validate/{finding_id} to retrieve individual results.
+    """
+    results: list[ValidateResponse] = []
+    for finding in body.findings:
+        _validation_results[finding.finding_id] = ValidationResult(
+            finding_id=finding.finding_id,
+            status="queued",
+        )
+        background_tasks.add_task(_run_validation, finding)
+        results.append(ValidateResponse(finding_id=finding.finding_id, status="queued"))
+        logger.info(
+            "EVE batch validation queued: finding_id=%s type=%s",
+            finding.finding_id,
+            finding.finding_type,
+        )
+    return ValidateBatchResponse(results=results)
 
 
 @router.post("/validation/simulate")
