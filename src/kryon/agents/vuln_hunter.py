@@ -57,6 +57,19 @@ vuln_hunter = create_agent(
 )
 
 
+# Add handoffs (deferred import to avoid circular dependencies)
+from kryon.agents.exploit_validator import exploit_validator as _exploit_validator  # noqa: E402
+from kryon.sdk.agents import handoff  # noqa: E402
+
+vuln_hunter.handoffs = [
+    handoff(
+        agent=_exploit_validator,
+        tool_name_override="exploit_validator",
+        tool_description_override="Validate discovered vulnerabilities by attempting real exploitation.",
+    ),
+]
+
+
 # Handoff functions
 def transfer_to_vuln_hunter(**kwargs):
     """Transfer to Vuln Hunter for vulnerability research.

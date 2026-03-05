@@ -51,6 +51,7 @@ When to engage Central Core:
 
 from kryon.agents.base import create_agent
 from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
+from kryon.sdk.agents import handoff
 from kryon.tools.misc.reasoning import think
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
@@ -64,7 +65,7 @@ cognitive_systems = [
     think,  # Advanced reasoning and strategic planning capability
 ]
 
-# Initialize Central Core Command Unit
+# Initialize Central Core Command Unit (handoffs added below after imports)
 central_core = create_agent(
     name="Central Core",
     description="""Strategic command and control unit from KRYON's Command-Class series.
@@ -85,6 +86,51 @@ Use Central Core for:
 - Mission intelligence synthesis and reporting""",
     instructions=create_system_prompt_renderer(central_core_system_prompt),
     tools=cognitive_systems,
+)
+
+# Add handoffs after creation (deferred imports to avoid circular dependencies)
+from kryon.agents.recon_scout import recon_scout  # noqa: E402
+from kryon.agents.pentest_agent import pentest_agent  # noqa: E402
+from kryon.agents.ctf_master import ctf_master as ctf_master_agent  # noqa: E402
+from kryon.agents.vuln_hunter import vuln_hunter  # noqa: E402
+from kryon.agents.reporter import intel_reporter  # noqa: E402
+
+central_core.handoffs = [
+    handoff(
+        agent=recon_scout,
+        tool_name_override="recon_scout",
+        tool_description_override="Hand off to Recon Scout for fast target reconnaissance, port scanning, and service enumeration. Use for: nmap scans, initial target analysis, web directory enumeration.",
+    ),
+    handoff(
+        agent=pentest_agent,
+        tool_name_override="pentest_agent",
+        tool_description_override="Hand off to Pentest Agent for full penetration testing — exploitation, post-exploitation, and privilege escalation.",
+    ),
+    handoff(
+        agent=ctf_master_agent,
+        tool_name_override="ctf_master",
+        tool_description_override="Hand off to CTF Master for autonomous CTF challenge solving on TryHackMe, HackTheBox, and similar platforms.",
+    ),
+    handoff(
+        agent=vuln_hunter,
+        tool_name_override="vuln_hunter",
+        tool_description_override="Hand off to Vuln Hunter for deep vulnerability research, exploit development, and advanced vulnerability analysis.",
+    ),
+    handoff(
+        agent=intel_reporter,
+        tool_name_override="reporter",
+        tool_description_override="Hand off to Reporter for generating professional security assessment reports, executive summaries, and findings documentation.",
+    ),
+]
+
+from kryon.agents.exploit_validator import exploit_validator as _exploit_validator  # noqa: E402
+
+central_core.handoffs.append(
+    handoff(
+        agent=_exploit_validator,
+        tool_name_override="exploit_validator",
+        tool_description_override="Validate vulnerabilities by attempting real exploitation. Zero false positives.",
+    )
 )
 
 
