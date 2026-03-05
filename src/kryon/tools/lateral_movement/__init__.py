@@ -20,6 +20,14 @@ Agents using this module:
 Authorization: Only use within authorized penetration testing scope.
 """
 
+from .ad_attacks import (
+    asreproast,
+    bloodhound_collect,
+    dcsync_attack,
+    enumerate_ad,
+    find_attack_path,
+    kerberoast,
+)
 from .pivoting import (
     check_pivot_connectivity,
     setup_port_forward,
@@ -43,6 +51,13 @@ from .remote_execution import (
 )
 
 __all__ = [
+    # AD Attacks
+    "bloodhound_collect",
+    "kerberoast",
+    "asreproast",
+    "enumerate_ad",
+    "dcsync_attack",
+    "find_attack_path",
     # PTH Attacks
     "pass_the_hash",
     "pass_the_ticket",
