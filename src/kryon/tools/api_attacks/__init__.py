@@ -14,6 +14,14 @@ Tool Categories:
 KRYON Integration: Phase 9
 """
 
+from kryon.tools.api_attacks.api_fuzzer import (
+    discover_api_endpoints,
+    fuzz_api_endpoint,
+    parse_openapi_spec,
+    test_auth_mechanisms,
+    test_idor,
+    test_rate_limiting,
+)
 from kryon.tools.api_attacks.ffuf_api import ffuf_api_fuzz
 from kryon.tools.api_attacks.hydra import hydra_attack
 from kryon.tools.api_attacks.jwt_tool import jwt_crack, jwt_decode, jwt_forge
@@ -28,4 +36,10 @@ __all__ = [
     "jwt_decode",
     "hydra_attack",
     "medusa_attack",
+    "parse_openapi_spec",
+    "discover_api_endpoints",
+    "fuzz_api_endpoint",
+    "test_idor",
+    "test_rate_limiting",
+    "test_auth_mechanisms",
 ]
