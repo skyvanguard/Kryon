@@ -14,7 +14,7 @@ import os
 from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
 from kryon.agents.lazy_handoff import lazy_handoff
-from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS_FULL
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, MEMORY_TOOLS, RAG_TOOLS_FULL
 from kryon.tools.osint.shodan_cli import shodan_host
 from kryon.tools.osint.theharvester import theharvester_search
 from kryon.tools.osint.threat_intel import censys_search, virustotal_search
@@ -30,6 +30,8 @@ tools_list = [
     *CORE_TOOLS,
     *RAG_TOOLS_FULL,
     *AI_TOOLS,
+    # Memory/learning
+    *MEMORY_TOOLS,
     # OSINT & Threat Intelligence (3)
     theharvester_search,
     shodan_host,

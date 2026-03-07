@@ -23,7 +23,7 @@ Environment Variables (Optional):
 
 from kryon.agents.base import create_agent
 from kryon.agents.lazy_handoff import lazy_handoff
-from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, MEMORY_TOOLS, RAG_TOOLS
 
 # Autonomous framework — core CTF solving capabilities
 from kryon.tools.autonomous import (
@@ -56,6 +56,8 @@ ctf_arsenal = [
     *CORE_TOOLS,
     *RAG_TOOLS,
     *AI_TOOLS,
+    # Memory/learning
+    *MEMORY_TOOLS,
     # Autonomous CTF solving (3)
     autonomous_ctf_solver,
     plan_autonomous_mission,

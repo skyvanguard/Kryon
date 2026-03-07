@@ -9,7 +9,7 @@ Operational Status: ACTIVE
 
 from kryon.agents.base import create_agent
 from kryon.agents.lazy_handoff import lazy_handoff
-from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
+from kryon.agents.toolsets import AI_TOOLS, MEMORY_TOOLS, RAG_TOOLS
 from kryon.tools.reconnaissance.run_command import run_command
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
@@ -22,6 +22,7 @@ analytical_systems = [
     # RAG + AI (4)
     *RAG_TOOLS,
     *AI_TOOLS,
+    *MEMORY_TOOLS,  # Memory/learning
 ]
 
 # Initialize Mission Analyst Unit

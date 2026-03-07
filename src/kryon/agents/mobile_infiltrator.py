@@ -14,7 +14,7 @@ authorization to test.
 
 from kryon.agents.base import create_agent
 from kryon.agents.lazy_handoff import lazy_handoff
-from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, MEMORY_TOOLS, RAG_TOOLS
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
 # Load Mobile Infiltrator operational directives
@@ -27,6 +27,7 @@ mobile_systems = [
     *CORE_TOOLS,
     *RAG_TOOLS,
     *AI_TOOLS,
+    *MEMORY_TOOLS,  # Memory/learning
 ]
 
 # Sub-Unit: Application Logic Mapper

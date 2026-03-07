@@ -136,3 +136,11 @@ DISCOVERY_TOOLS = [
     asset_timeline,
     aggregate_cloud_posture,
 ]
+
+# Memory / learning tools — agents can store and recall operational knowledge
+try:
+    from kryon.tools.misc.rag import add_to_memory_semantic, query_memory  # noqa: E402
+
+    MEMORY_TOOLS = [query_memory, add_to_memory_semantic]
+except ImportError:
+    MEMORY_TOOLS = []

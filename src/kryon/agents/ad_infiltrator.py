@@ -12,7 +12,7 @@ Kerberoasting, DCSync, and Pass-the-Hash/Ticket techniques.
 from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
 from kryon.agents.lazy_handoff import lazy_handoff
-from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, MEMORY_TOOLS, RAG_TOOLS
 from kryon.tools.lateral_movement.ad_attacks import (
     asreproast,
     bloodhound_collect,
@@ -48,6 +48,7 @@ ad_infiltrator = create_agent(
         *CORE_TOOLS,
         *RAG_TOOLS,
         *AI_TOOLS,
+        *MEMORY_TOOLS,  # Memory/learning
         bloodhound_collect,
         kerberoast,
         asreproast,

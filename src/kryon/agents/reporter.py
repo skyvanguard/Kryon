@@ -8,7 +8,7 @@ Operational Status: ACTIVE
 """
 
 from kryon.agents.base import create_agent
-from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, MEMORY_TOOLS, RAG_TOOLS
 from kryon.util import load_prompt_template
 
 # Load Intel Reporter operational directives
@@ -20,6 +20,7 @@ documentation_systems = [
     *CORE_TOOLS,
     *RAG_TOOLS,
     *AI_TOOLS,
+    *MEMORY_TOOLS,  # Memory/learning
 ]
 
 # Initialize Intel Reporter Unit

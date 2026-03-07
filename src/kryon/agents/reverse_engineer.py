@@ -30,6 +30,7 @@ from kryon.tools.reconnaissance.run_command import (
 from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
 )
+from kryon.agents.toolsets import MEMORY_TOOLS
 from kryon.util import load_prompt_template
 
 # Load Reverse Engineer system prompt
@@ -51,6 +52,9 @@ tools_list = [
 # Enhanced intelligence gathering if Perplexity API available
 if os.getenv("PERPLEXITY_API_KEY"):
     tools_list.append(make_web_search_with_explanation)
+
+# Memory/learning tools
+tools_list.extend(MEMORY_TOOLS)
 
 # Initialize Reverse Engineer
 reverse_engineer = create_agent(

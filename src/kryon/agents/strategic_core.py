@@ -21,7 +21,7 @@ automated strategy generation based on target analysis.
 
 from kryon.agents.base import create_agent
 from kryon.agents.lazy_handoff import lazy_handoff
-from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
+from kryon.agents.toolsets import AI_TOOLS, MEMORY_TOOLS, RAG_TOOLS
 from kryon.tools.intelligence.decision_engine import (
     analyze_target,
     create_strategy,
@@ -45,6 +45,8 @@ intelligence_systems = [
     # RAG + AI (4)
     *RAG_TOOLS,
     *AI_TOOLS,
+    # Memory/learning
+    *MEMORY_TOOLS,
     # Core decision engine tools
     analyze_target,  # Comprehensive target analysis
     recommend_tools,  # AI-driven tool recommendations

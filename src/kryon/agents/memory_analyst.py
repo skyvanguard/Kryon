@@ -17,7 +17,7 @@ import os
 
 from kryon.agents.base import create_agent
 from kryon.agents.lazy_handoff import lazy_handoff
-from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, MEMORY_TOOLS, RAG_TOOLS
 from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
 )
@@ -36,6 +36,8 @@ tools_list = [
     *CORE_TOOLS,
     *RAG_TOOLS,
     *AI_TOOLS,
+    # Memory/learning
+    *MEMORY_TOOLS,
     # Remote access
     run_ssh_command_with_credentials,
     # Additional RAG — exploit techniques for memory attacks

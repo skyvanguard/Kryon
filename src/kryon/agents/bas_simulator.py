@@ -12,7 +12,7 @@ identify defensive gaps.
 from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
 from kryon.agents.lazy_handoff import lazy_handoff
-from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, MEMORY_TOOLS, RAG_TOOLS
 from kryon.tools.validation.attack_simulator import list_attack_techniques, simulate_attack
 from kryon.tools.validation.bas_scenarios import (
     bas_ad_reconnaissance,
@@ -40,6 +40,7 @@ bas_simulator = create_agent(
         *CORE_TOOLS,
         *RAG_TOOLS,
         *AI_TOOLS,
+        *MEMORY_TOOLS,  # Memory/learning
         bas_endpoint_security,
         bas_data_exfiltration,
         bas_ad_reconnaissance,

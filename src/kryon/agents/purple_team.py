@@ -8,7 +8,7 @@ Authorization: Authorized environments only
 from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
 from kryon.agents.lazy_handoff import lazy_handoff
-from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS, VALIDATION_TOOLS
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, MEMORY_TOOLS, RAG_TOOLS, VALIDATION_TOOLS
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
 purple_team_system_prompt = load_prompt_template("prompts/system_purple_team.md")
@@ -18,6 +18,7 @@ tools_list = [
     *RAG_TOOLS,
     *AI_TOOLS,
     *VALIDATION_TOOLS,
+    *MEMORY_TOOLS,  # Memory/learning
 ]
 
 input_guardrails, output_guardrails = get_security_guardrails()

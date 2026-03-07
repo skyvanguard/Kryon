@@ -79,3 +79,65 @@ def test_agent_names_match_keys(agents):
         # Name should be non-empty and not just whitespace
         name = agent.name.strip()
         assert len(name) >= 3, f"Agent '{key}' has too-short name: '{name}'"
+
+
+# --- Memory tools integration tests ---
+
+# Agents excluded from MEMORY_TOOLS requirement
+_MEMORY_EXEMPT = {"central_core", "code_agent"}
+
+MEMORY_TOOL_NAMES = {"query_memory", "add_to_memory_semantic"}
+
+
+def test_agents_have_memory_tools(agents):
+    """All specialist agents (except central_core) should have memory tools when available."""
+    from kryon.agents.toolsets import MEMORY_TOOLS
+
+    if not MEMORY_TOOLS:
+        pytest.skip("MEMORY_TOOLS empty — kryon.rag not available in this environment")
+    for key, agent in agents.items():
+        if key in _MEMORY_EXEMPT:
+            continue
+        tool_names = {
+            t.name if isinstance(t, FunctionTool) else getattr(t, "__name__", str(t))
+            for t in agent.tools
+        }
+        missing = MEMORY_TOOL_NAMES - tool_names
+        assert not missing, f"Agent '{key}' missing memory tools: {missing}"
+
+
+# --- Handoff schema validation tests ---
+
+def test_central_core_handoffs_use_router_schema(agents):
+    """Central Core handoffs should use ROUTER_HANDOFF_SCHEMA."""
+    from kryon.agents.lazy_handoff import ROUTER_HANDOFF_SCHEMA
+
+    if "central_core" not in agents:
+        pytest.skip("central_core not found")
+    central = agents["central_core"]
+    for h in central.handoffs:
+        assert h.input_json_schema == ROUTER_HANDOFF_SCHEMA, (
+            f"Central Core handoff '{h.tool_name}' doesn't use ROUTER_HANDOFF_SCHEMA"
+        )
+
+
+def test_specialist_handoffs_use_briefing_schema(agents):
+    """Specialist agent handoffs should use HANDOFF_BRIEFING_SCHEMA."""
+    from kryon.agents.lazy_handoff import HANDOFF_BRIEFING_SCHEMA
+
+    for key, agent in agents.items():
+        if key == "central_core":
+            continue
+        for h in agent.handoffs:
+            assert h.input_json_schema == HANDOFF_BRIEFING_SCHEMA, (
+                f"Agent '{key}' handoff '{h.tool_name}' doesn't use HANDOFF_BRIEFING_SCHEMA"
+            )
+
+
+def test_all_handoffs_strict_json_disabled(agents):
+    """All handoffs should have strict_json_schema=False for Ollama compatibility."""
+    for key, agent in agents.items():
+        for h in agent.handoffs:
+            assert h.strict_json_schema is False, (
+                f"Agent '{key}' handoff '{h.tool_name}' has strict_json_schema=True"
+            )

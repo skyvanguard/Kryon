@@ -15,7 +15,7 @@ vulnerabilities that traditional scanners miss.
 
 from kryon.agents.base import create_agent
 from kryon.agents.lazy_handoff import lazy_handoff
-from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
+from kryon.agents.toolsets import AI_TOOLS, MEMORY_TOOLS, RAG_TOOLS
 from kryon.tools.browser.playwright_tools import (
     browser_analyze_dom,
     browser_execute_js,
@@ -37,6 +37,8 @@ browser_tools = [
     # RAG + AI (4)
     *RAG_TOOLS,
     *AI_TOOLS,
+    # Memory/learning
+    *MEMORY_TOOLS,
     # Core browser automation
     browser_navigate,
     browser_screenshot,

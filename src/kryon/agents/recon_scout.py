@@ -18,6 +18,7 @@ from kryon.tools.reconnaissance.nmap import nmap
 from kryon.tools.reconnaissance.run_command import run_command
 from kryon.tools.reconnaissance.whatweb import whatweb_scan
 from kryon.tools.web.nuclei import nuclei_scan
+from kryon.agents.toolsets import MEMORY_TOOLS
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
 # Load system prompt from markdown file
@@ -48,6 +49,9 @@ tools = [
 
 if _ddg_available:
     tools.append(duckduckgo_search)
+
+# Memory/learning tools
+tools.extend(MEMORY_TOOLS)
 
 recon_scout = create_agent(
     name="Recon Scout",

@@ -12,7 +12,7 @@ OWASP API Security Top 10 (2023).
 from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
 from kryon.agents.lazy_handoff import lazy_handoff
-from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
+from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, MEMORY_TOOLS, RAG_TOOLS
 from kryon.tools.api_attacks.api_fuzzer import (
     discover_api_endpoints,
     fuzz_api_endpoint,
@@ -42,6 +42,7 @@ api_fuzzer = create_agent(
         *CORE_TOOLS,
         *RAG_TOOLS,
         *AI_TOOLS,
+        *MEMORY_TOOLS,  # Memory/learning
         parse_openapi_spec,
         discover_api_endpoints,
         fuzz_api_endpoint,

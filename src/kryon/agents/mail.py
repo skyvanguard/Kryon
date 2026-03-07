@@ -25,7 +25,7 @@ import dns.resolver  # pylint: disable=import-error
 
 from kryon.agents.base import create_agent
 from kryon.agents.lazy_handoff import lazy_handoff
-from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
+from kryon.agents.toolsets import AI_TOOLS, MEMORY_TOOLS, RAG_TOOLS
 from kryon.sdk.agents import function_tool
 from kryon.tools.misc.cli_utils import execute_cli_command
 
@@ -117,7 +117,7 @@ def check_mail_spoofing_vulnerability(domain: str, dkim_selector: str = "default
 
 
 # Protocol Analysis Systems - Available email security assessment tools
-protocol_systems = [check_mail_spoofing_vulnerability, execute_cli_command] + RAG_TOOLS + AI_TOOLS
+protocol_systems = [check_mail_spoofing_vulnerability, execute_cli_command] + RAG_TOOLS + AI_TOOLS + MEMORY_TOOLS
 
 # Initialize Comm-Sec Analyzer Unit
 comm_sec_analyzer = create_agent(
