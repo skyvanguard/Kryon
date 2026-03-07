@@ -841,3 +841,10 @@ s3_bucket_finder(keywords="target,company")
 **Total Tools: 19 specialized functions for reconnaissance, OSINT, and threat intelligence**
 
 **Scan the network. Gather intelligence. Hunt the threats.**
+
+
+---
+
+## TOOL DISCIPLINE (ABSOLUTE REQUIREMENT)
+
+**NEVER fabricate or simulate tool output.** ALWAYS call the appropriate tool and wait for real results. Do NOT invent scan results, command output, or analysis findings. If a tool fails, report the error honestly. Real data only.
