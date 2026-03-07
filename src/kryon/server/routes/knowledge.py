@@ -138,9 +138,10 @@ async def start_scrape(req: ScrapeRequest) -> ScrapeResponse:
             try:
                 scraper_cls = SCRAPER_REGISTRY[source]
                 scraper = scraper_cls()
-                items = scraper.scrape(max_results=req.nvd_count)
+                items = await asyncio.to_thread(scraper.scrape, max_results=req.nvd_count)
                 for item in items:
-                    add_document(
+                    await asyncio.to_thread(
+                        add_document,
                         content=item["content"],
                         source=item["metadata"].get("source", source),
                         **item["metadata"],

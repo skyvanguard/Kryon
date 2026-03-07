@@ -29,12 +29,14 @@ def execute_python_code(code: str, context: dict = None) -> str:
         stdout = io.StringIO()
         sys.stdout = stdout
 
-        # Execute code once with captured output
-        # nosec B102 # pylint: disable=exec-used
-        exec(code, globals(), local_vars)  # nosec 102  # nosemgrep: exec-detected
+        try:
+            # Execute code once with captured output
+            # nosec B102 # pylint: disable=exec-used
+            exec(code, globals(), local_vars)  # nosec 102  # nosemgrep: exec-detected
+        finally:
+            # Always restore stdout even if exec raises
+            sys.stdout = sys.__stdout__
 
-        # Restore stdout
-        sys.stdout = sys.__stdout__
         output = stdout.getvalue()
 
         # Return captured output or last expression value

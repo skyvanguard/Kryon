@@ -230,7 +230,6 @@ convention = "google"
 "src/kryon/tui/**/*.py" = ["E501"]
 # Files with intentional late imports (warning config, circular import avoidance)
 "src/kryon/cli/*.py" = ["E402", "E501"]
-"src/kryon/util_legacy.py" = ["E402"]
 "src/kryon/agents/hk_aerial.py" = ["E402"]
 "src/kryon/agents/patterns/__init__.py" = ["E402"]
 

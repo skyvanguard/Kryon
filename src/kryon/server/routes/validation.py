@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import uuid
 from typing import Optional
@@ -77,8 +76,7 @@ async def _run_validation(finding: ValidateRequest) -> None:
     try:
         from kryon.tools.validation.exploit_validator import validate_finding
 
-        result_json = await asyncio.to_thread(
-            validate_finding.on_invoke_tool,
+        result_json = await validate_finding.on_invoke_tool(
             None,
             json.dumps(
                 {
@@ -188,11 +186,7 @@ async def simulate_attack(body: SimulateRequest) -> dict:
     """Simulate a MITRE ATT&CK technique."""
     from kryon.tools.validation.attack_simulator import simulate_attack as _simulate
 
-    result = await asyncio.to_thread(
-        _simulate.on_invoke_tool,
-        None,
-        body.model_dump_json(),
-    )
+    result = await _simulate.on_invoke_tool(None, body.model_dump_json())
     sim_id = uuid.uuid4().hex[:12]
     logger.info("Attack simulation completed: id=%s technique=%s", sim_id, body.technique_id)
     return {"simulation_id": sim_id, "technique_id": body.technique_id, "result": result}
@@ -203,11 +197,7 @@ async def validate_detection(body: DetectRequest) -> dict:
     """Validate SIEM detection for a technique."""
     from kryon.tools.validation.detection_validator import validate_detection as _validate
 
-    result = await asyncio.to_thread(
-        _validate.on_invoke_tool,
-        None,
-        body.model_dump_json(),
-    )
+    result = await _validate.on_invoke_tool(None, body.model_dump_json())
     logger.info("Detection validation completed: technique=%s", body.technique_id)
     return {"technique_id": body.technique_id, "result": result}
 
@@ -231,8 +221,7 @@ async def get_coverage(
 
     from kryon.tools.validation.coverage_scorer import calculate_mitre_coverage
 
-    result = await asyncio.to_thread(
-        calculate_mitre_coverage.on_invoke_tool,
+    result = await calculate_mitre_coverage.on_invoke_tool(
         None,
         json.dumps({"findings_json": json.dumps(findings_data)}),
     )

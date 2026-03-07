@@ -31,7 +31,17 @@ from kryon.agents.meta.local_python_executor import (
     fix_final_answer_code,
     truncate_content,
 )
-from kryon.sdk.agents import Agent, Result
+from kryon.sdk.agents import Agent
+
+
+class Result:
+    """Simple result container for CodeAgent execution output."""
+
+    __slots__ = ("value", "context_variables")
+
+    def __init__(self, value: str = "", context_variables: dict | None = None):
+        self.value = value
+        self.context_variables = context_variables or {}
 
 
 class CodeAgentException(Exception):
@@ -231,14 +241,15 @@ class CodeAgent(Agent):
             instructions = self._create_instructions()
 
         # Initialize parent class first
+        from kryon.sdk.agents import ModelSettings
+
         super().__init__(
             name=name,
             model=model,
             description=description,
             instructions=instructions,
             tools=tools or [],
-            reasoning_effort=reasoning_effort,
-            temperature=0.2,  # Lower temperature for predictable code
+            model_settings=ModelSettings(temperature=0.2),
         )
 
         # Store remaining attributes as instance variables

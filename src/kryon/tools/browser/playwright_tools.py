@@ -12,7 +12,7 @@ import json
 import os
 from typing import Optional
 
-from kryon.sdk.tools import function_tool
+from kryon.sdk.agents import function_tool
 
 # Playwright will be imported dynamically to avoid initialization errors
 try:

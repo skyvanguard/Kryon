@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import uuid
 
@@ -79,46 +78,27 @@ async def _run_import(job_id: str, source: str, params: dict) -> None:
     """Run import in background and update job status."""
     _import_jobs[job_id]["status"] = "running"
     try:
+        ctx = type("Ctx", (), {"context": None})()
         if source == "qualys":
             from kryon.tools.intelligence.vm_importers import import_qualys_findings
 
-            result = await asyncio.to_thread(
-                import_qualys_findings.on_invoke_tool,
-                type("Ctx", (), {"context": None})(),
-                json.dumps(params),
-            )
+            result = await import_qualys_findings.on_invoke_tool(ctx, json.dumps(params))
         elif source == "tenable":
             from kryon.tools.intelligence.vm_importers import import_tenable_findings
 
-            result = await asyncio.to_thread(
-                import_tenable_findings.on_invoke_tool,
-                type("Ctx", (), {"context": None})(),
-                json.dumps(params),
-            )
+            result = await import_tenable_findings.on_invoke_tool(ctx, json.dumps(params))
         elif source == "rapid7":
             from kryon.tools.intelligence.vm_importers import import_rapid7_findings
 
-            result = await asyncio.to_thread(
-                import_rapid7_findings.on_invoke_tool,
-                type("Ctx", (), {"context": None})(),
-                json.dumps(params),
-            )
+            result = await import_rapid7_findings.on_invoke_tool(ctx, json.dumps(params))
         elif source == "nmap":
             from kryon.tools.intelligence.vm_importers import import_nmap_xml
 
-            result = await asyncio.to_thread(
-                import_nmap_xml.on_invoke_tool,
-                type("Ctx", (), {"context": None})(),
-                json.dumps(params),
-            )
+            result = await import_nmap_xml.on_invoke_tool(ctx, json.dumps(params))
         elif source == "nuclei":
             from kryon.tools.intelligence.vm_importers import import_nuclei_jsonl
 
-            result = await asyncio.to_thread(
-                import_nuclei_jsonl.on_invoke_tool,
-                type("Ctx", (), {"context": None})(),
-                json.dumps(params),
-            )
+            result = await import_nuclei_jsonl.on_invoke_tool(ctx, json.dumps(params))
         else:
             raise ValueError(f"Unknown source: {source}")
 
