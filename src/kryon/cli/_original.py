@@ -1478,11 +1478,11 @@ def run_kryon_cli(
                         # Add to main message history for context
                         agent.model.add_to_message_history({"role": "assistant", "content": f"{result.final_output}"})
             else:
-                # Disable streaming by default, unless specifically enabled
-                kryon_stream = os.getenv("KRYON_STREAM", "false")
+                # Enable streaming by default for live tool output
+                kryon_stream = os.getenv("KRYON_STREAM", "true")
                 # Handle empty string or None values
                 if not kryon_stream or kryon_stream.strip() == "":
-                    kryon_stream = "false"
+                    kryon_stream = "true"
                 stream = kryon_stream.lower() == "true"
 
                 # Single agent execution (original behavior)

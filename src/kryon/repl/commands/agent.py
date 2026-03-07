@@ -266,6 +266,17 @@ class AgentCommand(Command):
             True if the command was handled successfully, False otherwise
         """
         if not args:
+            # Try interactive menu first
+            from kryon.repl.ui.menus import is_interactive_available, select_agent_interactive
+
+            if is_interactive_available():
+                agents = get_available_agents()
+                current = os.getenv("KRYON_CURRENT_AGENT")
+                selected = select_agent_interactive(agents, current)
+                if selected:
+                    return self.handle_select([selected])
+                console.print("[dim]Selection cancelled.[/dim]")
+                return False
             console.print("[red]Error: No agent specified[/red]")
             console.print("Usage: /agent select <agent_key|number|pattern>")
             return False

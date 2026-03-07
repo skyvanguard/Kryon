@@ -215,8 +215,9 @@ class TestAgentCommand:
         assert result is False
         assert "KRYON_AGENT_TYPE" not in os.environ
 
-    def test_handle_select_no_args(self, agent_command):
-        """Test select command with no arguments."""
+    @patch("kryon.repl.ui.menus.is_interactive_available", return_value=False)
+    def test_handle_select_no_args(self, _mock_interactive, agent_command):
+        """Test select command with no arguments (no interactive menu)."""
         result = agent_command.handle_select([])
         assert result is False
 

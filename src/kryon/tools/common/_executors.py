@@ -165,12 +165,17 @@ async def _run_local_async(
             buffer_size = 0
             update_interval = 10  # lines - default for most tools
 
-            # Use a smaller interval for run_command for better responsiveness
-            if tool_name == "run_command":
-                update_interval = 3  # Update more frequently for terminal commands
+            # Use a smaller interval for known long-running tools
+            if tool_name in ("run_command", "nmap_command", "nmap_scan"):
+                update_interval = 1
+            elif tool_name in ("hashcat_command", "gobuster_command", "ffuf_command"):
+                update_interval = 3
 
-                # Don't add refresh_rate to tool_args as it affects command deduplication
-                # The refresh behavior is already handled by the streaming update logic
+            # Set up progress parser
+            from kryon.repl.ui.progress import ProgressState, get_parser_for_command
+
+            progress_parser = get_parser_for_command(command)
+            progress_state = ProgressState(tool_name=tool_name)
 
             # Stream stdout in real-time
             async for line in process.stdout:
@@ -180,10 +185,16 @@ async def _run_local_async(
                 output_buffer.append(line_str)
                 buffer_size += 1
 
+                # Update progress state
+                progress_state = progress_parser.parse_line(line_str, progress_state)
+
                 # Only update periodically to reduce UI refreshes
                 if buffer_size >= update_interval:
                     current_output = "".join(output_buffer)
-                    update_tool_streaming(tool_name, tool_args, current_output, call_id, token_info)
+                    update_tool_streaming(
+                        tool_name, tool_args, current_output, call_id, token_info,
+                        progress_state=progress_state,
+                    )
                     buffer_size = 0
 
             # Wait for process to complete with timeout
@@ -470,9 +481,15 @@ async def _run_docker_async(
             # Stream output
             output_buffer = []
             buffer_size = 0
-            update_interval = 3 if tool_name == "run_command" else 10
+            update_interval = 1 if tool_name in ("run_command", "nmap_command", "nmap_scan") else 10
 
             start_time = time.time()
+
+            # Set up progress parser
+            from kryon.repl.ui.progress import ProgressState, get_parser_for_command
+
+            progress_parser = get_parser_for_command(command)
+            progress_state = ProgressState(tool_name=tool_name)
 
             # Read stdout line by line
             async for line in process.stdout:
@@ -480,11 +497,17 @@ async def _run_docker_async(
                 output_buffer.append(line_str)
                 buffer_size += 1
 
+                # Update progress state
+                progress_state = progress_parser.parse_line(line_str, progress_state)
+
                 # Only update periodically to reduce UI refreshes
                 if buffer_size >= update_interval:
                     # Show actual output as it's being collected
                     current_output = "".join(output_buffer)
-                    update_tool_streaming(tool_name, tool_args, current_output, call_id, token_info)
+                    update_tool_streaming(
+                        tool_name, tool_args, current_output, call_id, token_info,
+                        progress_state=progress_state,
+                    )
                     buffer_size = 0
 
             # Wait for process completion
@@ -693,12 +716,17 @@ def _run_local(
             buffer_size = 0
             update_interval = 10  # lines - default for most tools
 
-            # Use a smaller interval for run_command for better responsiveness
-            if tool_name == "run_command":
-                update_interval = 3  # Update more frequently for terminal commands
+            # Use a smaller interval for known long-running tools
+            if tool_name in ("run_command", "nmap_command", "nmap_scan"):
+                update_interval = 1
+            elif tool_name in ("hashcat_command", "gobuster_command", "ffuf_command"):
+                update_interval = 3
 
-                # Don't add refresh_rate to tool_args as it affects command deduplication
-                # The refresh behavior is already handled by the streaming update logic
+            # Set up progress parser
+            from kryon.repl.ui.progress import ProgressState, get_parser_for_command
+
+            progress_parser = get_parser_for_command(command)
+            progress_state = ProgressState(tool_name=tool_name)
 
             # Stream stdout in real-time
             for line in iter(process.stdout.readline, ""):
@@ -709,10 +737,16 @@ def _run_local(
                 output_buffer.append(line)
                 buffer_size += 1
 
+                # Update progress state
+                progress_state = progress_parser.parse_line(line, progress_state)
+
                 # Only update periodically to reduce UI refreshes
                 if buffer_size >= update_interval:
                     current_output = "".join(output_buffer)
-                    update_tool_streaming(tool_name, tool_args, current_output, call_id, token_info)
+                    update_tool_streaming(
+                        tool_name, tool_args, current_output, call_id, token_info,
+                        progress_state=progress_state,
+                    )
                     buffer_size = 0
 
             # Finish process

@@ -47,6 +47,7 @@ class AgentSpinner:
         self._handoff_agent: str | None = None
         self._tools_run: list[str] = []
         self._llm_turn: int = 0
+        self._progress_state = None  # ProgressState from progress parser
         self._lock = threading.Lock()
         self._patched_models: list[tuple] = []  # (model, original_get_response)
         self._patched_tools: list[tuple] = []  # (tool, original_on_invoke_tool)
@@ -69,7 +70,15 @@ class AgentSpinner:
             parts.append(f"-> [bold yellow]{self._handoff_agent}[/bold yellow]")
 
         if self._tool_name:
-            parts.append(f"is calling [bold green]{self._tool_name}[/bold green]...")
+            tool_display = f"is calling [bold green]{self._tool_name}[/bold green]..."
+            # Append progress info if available
+            if self._progress_state is not None:
+                ps = self._progress_state
+                if ps.percentage is not None:
+                    tool_display += f" [bold cyan][{ps.percentage:.0f}%][/bold cyan]"
+                if ps.total_lines > 0:
+                    tool_display += f" [dim]{ps.total_lines}L[/dim]"
+            parts.append(tool_display)
         elif self._llm_turn > 1:
             parts.append(f"is thinking... [dim](turn {self._llm_turn})[/dim]")
         else:

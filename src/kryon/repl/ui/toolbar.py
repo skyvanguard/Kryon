@@ -165,6 +165,23 @@ def update_toolbar_in_background():
         trace_str = "✓" if tracing_enabled else "✗"
         trace_color = "ansigreen" if tracing_enabled else "ansigray"
 
+        # Get active tool progress indicator
+        active_tool_str = ""
+        try:
+            from kryon.util.streaming import _ACTIVE_TOOL_PROGRESS
+
+            if _ACTIVE_TOOL_PROGRESS:
+                # Get the most recent progress state
+                last_key = list(_ACTIVE_TOOL_PROGRESS.keys())[-1]
+                ps = _ACTIVE_TOOL_PROGRESS[last_key]
+                tool_label = ps.tool_name or "tool"
+                if ps.percentage is not None:
+                    active_tool_str = f" | <ansicyan>🔧 {tool_label} {ps.percentage:.0f}%</ansicyan>"
+                elif ps.total_lines > 0:
+                    active_tool_str = f" | <ansicyan>🔧 {tool_label} {ps.total_lines}L</ansicyan>"
+        except Exception:
+            pass
+
         # Get terminal width to decide on toolbar format
         terminal_width = get_terminal_width()
 
@@ -181,7 +198,8 @@ def update_toolbar_in_background():
                 f"<ansigreen>{model_name}</ansigreen> | "
                 f"<{auto_compact_color}>AC:{auto_compact_str}</{auto_compact_color}> | "
                 f"<{stream_color}>S:{stream_str}</{stream_color}> | "
-                f"<ansiblue>${os.getenv('KRYON_PRICE_LIMIT', 'inf')}</ansiblue> | "
+                f"<ansiblue>${os.getenv('KRYON_PRICE_LIMIT', 'inf')}</ansiblue>"
+                f"{active_tool_str} | "
                 f"<ansigray>{current_time}</ansigray>"
             )
         elif terminal_width < 160:  # Medium mode
@@ -191,7 +209,8 @@ def update_toolbar_in_background():
                 f"<ansicyan><b>AutoC:</b></ansicyan> <{auto_compact_color}>{auto_compact_str}</{auto_compact_color}> | "
                 f"<ansicyan><b>Mem:</b></ansicyan> <{memory_color}>{memory_str}</{memory_color}> | "
                 f"<ansicyan><b>Stream:</b></ansicyan> <{stream_color}>{stream_str}</{stream_color}> | "
-                f"<ansiyellow><b>$:</b></ansiyellow> <ansiblue>${os.getenv('KRYON_PRICE_LIMIT', 'inf')}</ansiblue> | "
+                f"<ansiyellow><b>$:</b></ansiyellow> <ansiblue>${os.getenv('KRYON_PRICE_LIMIT', 'inf')}</ansiblue>"
+                f"{active_tool_str} | "
                 f"<ansigray>{current_time_with_tz}</ansigray>"
             )
         else:  # Full mode
@@ -204,7 +223,8 @@ def update_toolbar_in_background():
                 f"<ansicyan><b>Parallel:</b></ansicyan> <{parallel_color}>{parallel_count}</{parallel_color}> | "
                 f"<ansicyan><b>Trace:</b></ansicyan> <{trace_color}>{trace_str}</{trace_color}> | "
                 f"<ansiyellow><b>Turns:</b></ansiyellow> <ansiblue>{os.getenv('KRYON_MAX_TURNS', 'inf')}</ansiblue> | "
-                f"<ansiyellow><b>$Limit:</b></ansiyellow> <ansiblue>${os.getenv('KRYON_PRICE_LIMIT', 'inf')}</ansiblue> | "
+                f"<ansiyellow><b>$Limit:</b></ansiyellow> <ansiblue>${os.getenv('KRYON_PRICE_LIMIT', 'inf')}</ansiblue>"
+                f"{active_tool_str} | "
                 f"<ansigray>{current_time_with_tz}</ansigray>"
             )
         toolbar_cache["last_update"] = datetime.datetime.now()

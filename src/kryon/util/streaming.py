@@ -64,6 +64,9 @@ _LIVE_STREAMING_PANELS: dict[str, Any] = {}
 # Global lock for coordinating parallel panel updates
 _PANEL_UPDATE_LOCK = threading.Lock()
 
+# Active tool progress states (call_id -> ProgressState), used by toolbar
+_ACTIVE_TOOL_PROGRESS: dict[str, Any] = {}
+
 # Track parallel execution state
 _PARALLEL_EXECUTION_STATE = {
     "active": False,
@@ -488,9 +491,18 @@ def _print_simple_tool_output(tool_name, args, output, execution_info=None, toke
     print()
 
 
-def _create_tool_panel_content(tool_name, args, output, execution_info=None, token_info=None):
+def _create_tool_panel_content(
+    tool_name, args, output, execution_info=None, token_info=None, progress_state=None,
+):
     """Create the header and content for a tool output panel."""
-    if output and len(str(output)) > 10000:
+    is_running = execution_info and execution_info.get("status") == "running"
+
+    # Truncate output during streaming to last 30 lines
+    if is_running and output:
+        lines = str(output).splitlines()
+        if len(lines) > 30:
+            output = f"... {len(lines) - 30} lines above ...\n" + "\n".join(lines[-30:])
+    elif output and len(str(output)) > 10000:
         output_str = str(output)
         first_part = output_str[:5000]
         last_part = output_str[-5000:]
@@ -699,6 +711,14 @@ def _create_tool_panel_content(tool_name, args, output, execution_info=None, tok
         )
         group_content.extend([Text("\n"), output_display_panel])
 
+    # Add progress bar if available
+    if progress_state is not None:
+        from kryon.repl.ui.progress import format_progress_bar
+
+        progress_text = Text()
+        progress_text.append(format_progress_bar(progress_state), style="cyan")
+        group_content.extend([Text("\n"), progress_text])
+
     if token_content:
         group_content.extend([Text("\n"), token_content])
 
@@ -713,6 +733,7 @@ def cli_print_tool_output(
     execution_info=None,
     token_info=None,
     streaming=False,
+    progress_state=None,
 ):
     """
     Print a tool call output to the command line.
@@ -725,6 +746,7 @@ def cli_print_tool_output(
         execution_info: Optional execution information
         token_info: Optional token information
         streaming: Flag indicating if this is part of a streaming output
+        progress_state: Optional ProgressState for progress bar rendering
     """
     if not output and not call_id and not streaming:
         return
@@ -875,6 +897,7 @@ def cli_print_tool_output(
                     cli_print_tool_output._streaming_sessions[call_id]["buffer"],
                     execution_info,
                     token_info,
+                    progress_state=progress_state,
                 )
 
                 status = "running"
@@ -1065,7 +1088,10 @@ def cli_print_tool_output(
         if isinstance(args, dict):
             display_args = {k: v for k, v in args.items() if k not in ["call_counter", "input_to_session"]}
 
-        header, content = _create_tool_panel_content(tool_name, display_args, output, execution_info, token_info)
+        header, content = _create_tool_panel_content(
+            tool_name, display_args, output, execution_info, token_info,
+            progress_state=progress_state,
+        )
         args_str = _format_tool_args(display_args, tool_name=tool_name)
 
         border_style = "blue"
@@ -1746,10 +1772,14 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
     return call_id
 
 
-def update_tool_streaming(tool_name, args, output, call_id, token_info=None):
+def update_tool_streaming(tool_name, args, output, call_id, token_info=None, progress_state=None):
     """Update a streaming tool execution with new output."""
     if tool_name and tool_name.startswith("_internal_"):
         return
+
+    # Store progress state in global tracker for toolbar access
+    if progress_state is not None:
+        _ACTIVE_TOOL_PROGRESS[call_id] = progress_state
 
     is_parallel = False
     if token_info and isinstance(token_info, dict):
@@ -1774,11 +1804,15 @@ def update_tool_streaming(tool_name, args, output, call_id, token_info=None):
         execution_info={"status": "running", "replace_buffer": True},
         token_info=token_info,
         streaming=True,
+        progress_state=progress_state,
     )
 
 
 def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None, token_info=None):
     """Complete a streaming tool execution."""
+    # Clean up progress state
+    _ACTIVE_TOOL_PROGRESS.pop(call_id, None)
+
     if tool_name and tool_name.startswith("_internal_"):
         return
 

@@ -23,6 +23,7 @@ dependencies = [
     "wasabi>=1.1.3",
     "rich>=13.9.4",
     "prompt_toolkit>=3.0.39",
+    "questionary>=2.0.0",
     "dotenv>=0.9.9",
     "litellm>=1.63.7",  # Note: [proxy] removed for Windows compatibility (uvloop not supported)
     "mako>=1.3.8",
