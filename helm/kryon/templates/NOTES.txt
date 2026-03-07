@@ -24,20 +24,16 @@ KRYON Security Platform has been deployed!
 {{- end }}
 
 2. Initial Setup:
-   - Access the dashboard and complete the first-run wizard
    - Set up your admin credentials
    - Configure API keys and integrations
 
 3. View server logs:
    kubectl logs -f -n {{ .Values.namespace }} -l app.kubernetes.io/component=server
 
-4. View dashboard logs:
-   kubectl logs -f -n {{ .Values.namespace }} -l app.kubernetes.io/component=dashboard
-
-5. Check deployment status:
+4. Check deployment status:
    kubectl get all -n {{ .Values.namespace }}
 
-6. Monitor autoscaling (if enabled):
+5. Monitor autoscaling (if enabled):
 {{- if .Values.autoscaling.enabled }}
    kubectl get hpa -n {{ .Values.namespace }} {{ include "kryon.fullname" . }}-server
 {{- else }}

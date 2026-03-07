@@ -55,9 +55,6 @@ ingress:
         - path: /api
           pathType: Prefix
           backend: server
-        - path: /
-          pathType: Prefix
-          backend: dashboard
   tls:
     - secretName: kryon-tls-cert
       hosts:
@@ -94,9 +91,6 @@ helm install kryon ./kryon -f my-values.yaml
 | `server.resources.requests.cpu` | CPU solicitada | `500m` |
 | `server.resources.limits.memory` | Límite de memoria | `512Mi` |
 | `server.resources.limits.cpu` | Límite de CPU | `1000m` |
-| `dashboard.replicaCount` | Número de réplicas del dashboard | `1` |
-| `dashboard.image.repository` | Repositorio de imagen del dashboard | `kryon/dashboard` |
-| `dashboard.image.tag` | Tag de imagen del dashboard | `latest` |
 | `ingress.enabled` | Habilitar Ingress | `true` |
 | `ingress.className` | Clase de Ingress | `nginx` |
 | `ingress.hosts[0].host` | Hostname | `kryon.example.com` |
@@ -157,9 +151,6 @@ ingress:
         - path: /api
           pathType: Prefix
           backend: server
-        - path: /
-          pathType: Prefix
-          backend: dashboard
   tls:
     - secretName: kryon-tls-cert
       hosts:
@@ -180,14 +171,6 @@ server:
       memory: "1Gi"
       cpu: "2000m"
 
-dashboard:
-  resources:
-    requests:
-      memory: "128Mi"
-      cpu: "200m"
-    limits:
-      memory: "256Mi"
-      cpu: "400m"
 ```
 
 ### Configuración de Autoscaling
@@ -223,8 +206,7 @@ helm upgrade kryon ./kryon -f my-values.yaml
 
 ```bash
 helm upgrade kryon ./kryon \
-  --set server.image.tag=v1.1.0 \
-  --set dashboard.image.tag=v1.1.0
+  --set server.image.tag=v1.1.0
 ```
 
 ### Actualizar Configuración
@@ -325,9 +307,6 @@ config:
 server:
   replicaCount: 1
 
-dashboard:
-  replicaCount: 1
-
 ingress:
   enabled: false
 
@@ -341,7 +320,6 @@ persistence:
 ```bash
 helm install kryon ./kryon -f dev-values.yaml
 kubectl port-forward -n kryon-system svc/kryon-server 8700:8700
-kubectl port-forward -n kryon-system svc/kryon-dashboard 8080:80
 ```
 
 ### Staging
@@ -388,9 +366,6 @@ server:
     limits:
       memory: "2Gi"
       cpu: "4000m"
-
-dashboard:
-  replicaCount: 2
 
 ingress:
   hosts:

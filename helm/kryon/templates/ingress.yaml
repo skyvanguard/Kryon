@@ -35,15 +35,9 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                {{- if eq .backend "server" }}
                 name: {{ include "kryon.fullname" $ }}-server
                 port:
                   number: {{ $.Values.server.service.port }}
-                {{- else if eq .backend "dashboard" }}
-                name: {{ include "kryon.fullname" $ }}-dashboard
-                port:
-                  number: {{ $.Values.dashboard.service.port }}
-                {{- end }}
           {{- end }}
     {{- end }}
 {{- end }}

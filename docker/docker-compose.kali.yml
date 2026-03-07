@@ -92,22 +92,6 @@ services:
       - kryon-mgmt
 
   # ---------------------------------------------------------------------------
-  # Dashboard — SvelteKit SPA (nginx)
-  # ---------------------------------------------------------------------------
-  dashboard:
-    build:
-      context: ..
-      dockerfile: docker/dashboard.Dockerfile
-    container_name: kryon-dashboard
-    restart: unless-stopped
-    depends_on:
-      - kryon
-    ports:
-      - "3000:80"
-    networks:
-      - kryon-mgmt
-
-  # ---------------------------------------------------------------------------
   # Nginx — Reverse proxy with TLS (optional, enable with --profile proxy)
   # ---------------------------------------------------------------------------
   nginx:
@@ -125,7 +109,6 @@ services:
       - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
       - kryon
-      - dashboard
     networks:
       - kryon-mgmt
 
@@ -149,8 +132,8 @@ volumes:
 # =============================================================================
 # Networks
 # =============================================================================
-# mgmt:    Kryon <-> Ollama <-> Dashboard (internal comms)
-# pentest: Kryon <-> targets (isolated, no LLM/dashboard access)
+# mgmt:    Kryon <-> Ollama (internal comms)
+# pentest: Kryon <-> targets (isolated, no LLM access)
 # =============================================================================
 networks:
   kryon-mgmt:

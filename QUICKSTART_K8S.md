@@ -37,9 +37,7 @@ kubectl apply -f configmap.yaml
 kubectl apply -f secret.yaml
 kubectl apply -f pvc.yaml
 kubectl apply -f deployment-server.yaml
-kubectl apply -f deployment-dashboard.yaml
 kubectl apply -f service-server.yaml
-kubectl apply -f service-dashboard.yaml
 kubectl apply -f ingress.yaml
 kubectl apply -f hpa.yaml
 
@@ -73,15 +71,10 @@ kubectl get pods -n kryon-system
 ### Desarrollo (sin Ingress)
 
 ```bash
-# Terminal 1 - Server
 kubectl port-forward -n kryon-system svc/kryon-server 8700:8700
-
-# Terminal 2 - Dashboard
-kubectl port-forward -n kryon-system svc/kryon-dashboard 8080:80
 ```
 
 Acceder a:
-- Dashboard: http://localhost:8080
 - API: http://localhost:8700
 - Health: http://localhost:8700/api/v1/health
 

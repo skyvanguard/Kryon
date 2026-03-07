@@ -45,7 +45,7 @@ class TestDockerCompose:
         data = _load_yaml(path)
         services = set(data["services"].keys())
         assert "kryon-server" in services
-        assert "dashboard" in services
+        assert "chromadb" in services
 
     def test_prod_compose_valid(self):
         path = ROOT / "docker" / "docker-compose.production.yml"

@@ -28,17 +28,6 @@ jobs:
       - name: Install Playwright browsers
         run: playwright install --with-deps chromium
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Build dashboard
-        run: |
-          cd dashboard
-          npm ci
-          npm run build
-
       - name: Run E2E tests
         env:
           OPENAI_API_KEY: sk-dummy-key-for-ci

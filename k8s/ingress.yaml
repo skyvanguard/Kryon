@@ -27,17 +27,10 @@ spec:
   - host: kryon.example.com
     http:
       paths:
-      - path: /api
+      - path: /
         pathType: Prefix
         backend:
           service:
             name: kryon-server
             port:
               number: 8700
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: kryon-dashboard
-            port:
-              number: 80

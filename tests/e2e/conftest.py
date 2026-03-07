@@ -40,15 +40,3 @@ def page(context):
     p = context.new_page()
     yield p
     p.close()
-
-
-@pytest.fixture
-def authenticated_page(page):
-    """A page that is already logged in."""
-    from tests.e2e.helpers import login
-
-    try:
-        login(page)
-    except Exception:
-        pytest.skip("Dashboard not running or login failed")
-    return page

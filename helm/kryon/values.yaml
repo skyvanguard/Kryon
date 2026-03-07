@@ -44,27 +44,6 @@ server:
     timeoutSeconds: 5
     failureThreshold: 3
 
-# Dashboard configuration
-dashboard:
-  replicaCount: 1
-  image:
-    repository: kryon/dashboard
-    pullPolicy: IfNotPresent
-    tag: "latest"
-
-  service:
-    type: ClusterIP
-    port: 80
-    targetPort: 80
-
-  resources:
-    requests:
-      memory: "64Mi"
-      cpu: "100m"
-    limits:
-      memory: "128Mi"
-      cpu: "200m"
-
 # Ingress configuration
 ingress:
   enabled: true
@@ -79,12 +58,9 @@ ingress:
   hosts:
     - host: kryon.example.com
       paths:
-        - path: /api
-          pathType: Prefix
-          backend: server
         - path: /
           pathType: Prefix
-          backend: dashboard
+          backend: server
   tls:
     - secretName: kryon-tls-cert
       hosts:
@@ -130,10 +106,6 @@ securityContext:
     runAsNonRoot: true
     runAsUser: 1000
     fsGroup: 1000
-  dashboard:
-    runAsNonRoot: true
-    runAsUser: 101
-    fsGroup: 101
 
 # Image pull secrets (if using private registry)
 imagePullSecrets: []

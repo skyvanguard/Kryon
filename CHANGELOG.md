@@ -73,7 +73,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RAG knowledge base with 408+ documents
 - Multi-day autonomous pentesting engagements
 - HTML/PDF security reporting
-- SvelteKit web dashboard
 
 ### Fixed
 

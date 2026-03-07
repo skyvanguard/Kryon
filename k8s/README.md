@@ -44,9 +44,7 @@ kubectl apply -f configmap.yaml
 kubectl apply -f secret.yaml
 kubectl apply -f pvc.yaml
 kubectl apply -f deployment-server.yaml
-kubectl apply -f deployment-dashboard.yaml
 kubectl apply -f service-server.yaml
-kubectl apply -f service-dashboard.yaml
 kubectl apply -f ingress.yaml
 kubectl apply -f hpa.yaml
 ```
@@ -69,8 +67,6 @@ kubectl get pods -n kryon-system
 # Ver logs del servidor
 kubectl logs -f -n kryon-system -l app.kubernetes.io/component=server
 
-# Ver logs del dashboard
-kubectl logs -f -n kryon-system -l app.kubernetes.io/component=dashboard
 ```
 
 ### 4. Acceder a la Aplicación
@@ -87,12 +83,9 @@ Si estás en desarrollo local, puedes usar port-forward:
 # Port-forward del servidor
 kubectl port-forward -n kryon-system svc/kryon-server 8700:8700
 
-# Port-forward del dashboard
-kubectl port-forward -n kryon-system svc/kryon-dashboard 8080:80
 ```
 
 Luego accede a:
-- Dashboard: http://localhost:8080
 - API: http://localhost:8700/api/v1/health
 
 ## Configuración del Ingress
@@ -132,8 +125,6 @@ kubectl create secret tls kryon-tls-cert \
 # Escalar el servidor
 kubectl scale deployment kryon-server -n kryon-system --replicas=5
 
-# Escalar el dashboard
-kubectl scale deployment kryon-dashboard -n kryon-system --replicas=2
 ```
 
 ### Automático (HPA)
@@ -194,10 +185,6 @@ kubectl set image deployment/kryon-server \
   server=kryon/server:v1.1.0 \
   -n kryon-system
 
-# Actualizar dashboard
-kubectl set image deployment/kryon-dashboard \
-  dashboard=kryon/dashboard:v1.1.0 \
-  -n kryon-system
 ```
 
 ### Rolling Update

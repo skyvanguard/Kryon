@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -227,12 +226,5 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
     app.include_router(onboarding.router, prefix="/api/v1")
     app.include_router(billing.router, prefix="/api/v1")
     app.include_router(vm_integration.router, prefix="/api/v1")
-
-    # Serve dashboard static files if the build directory exists
-    dashboard_build = Path(__file__).resolve().parent.parent.parent.parent / "dashboard" / "build"
-    if dashboard_build.is_dir():
-        from fastapi.staticfiles import StaticFiles
-
-        app.mount("/", StaticFiles(directory=str(dashboard_build), html=True), name="dashboard")
 
     return app

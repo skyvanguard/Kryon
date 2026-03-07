@@ -23,7 +23,7 @@
 [![Tools](https://img.shields.io/badge/tools-204+-red.svg)](#tool-categories)
 [![Stars](https://img.shields.io/github/stars/skyvanguard/Kryon?style=social)](https://github.com/skyvanguard/Kryon)
 
-[Installation](#installation) | [Quick Start](#quick-start) | [Agents](#security-agents) | [Dashboard](#web-dashboard) | [Docker](#docker-deployment) | [Kubernetes](#kubernetes) | [API](#api) | [Contributing](#contributing)
+[Installation](#installation) | [Quick Start](#quick-start) | [Agents](#security-agents) | [Docker](#docker-deployment) | [Kubernetes](#kubernetes) | [API](#api) | [Contributing](#contributing)
 
 </div>
 
@@ -41,7 +41,6 @@ KRYON is an open-source platform for building and deploying autonomous AI agents
 | Tool Implementations | 204+ |
 | Tool Categories | 35 |
 | API Endpoints | 136 |
-| Dashboard Pages | 25 |
 | Compliance Frameworks | 9 |
 | RAG Knowledge Documents | 1082 |
 | DB Migrations | 16 |
@@ -53,7 +52,6 @@ KRYON is an open-source platform for building and deploying autonomous AI agents
 - **204+ Security Tools** - Across 35 categories covering the full kill chain
 - **Multi-Model Support** - Works with 300+ LLMs including GPT-4o, Claude, DeepSeek, Llama, and local models via Ollama
 - **RAG Knowledge Base** - 1082 documents from ExploitDB, NVD, GitHub, CTF writeups, and custom seed data with ChromaDB vector search
-- **Web Dashboard** - Full SvelteKit dashboard with 25 pages for managing operations
 - **REST API** - 136 endpoints across 28 routers for full programmatic control
 - **Compliance** - PCI-DSS, HIPAA, SOC2, NIST 800-53, ISO 27001, GDPR, OWASP, CIS, MITRE ATT&CK
 - **Enterprise Features** - Multi-tenancy, JWT auth, RBAC, audit logging, SIEM integration, billing/licensing
@@ -151,14 +149,6 @@ kryon-server
 docker compose -f docker/docker-compose.kali.yml up -d
 ```
 
-### Dashboard
-
-```bash
-cd dashboard
-npm install && npm run dev
-# Open http://localhost:3000
-```
-
 ---
 
 ## Security Agents
@@ -232,28 +222,6 @@ KRYON supports advanced multi-agent execution patterns:
 
 ---
 
-## Web Dashboard
-
-Full-featured SvelteKit web interface with 25 pages:
-
-- **Findings** - Consolidated security findings with filtering and export
-- **Clients** - Multi-tenant client management
-- **Scans** - Scan scheduling, monitoring, and results
-- **Engagements** - Multi-day pentesting engagement management
-- **Compliance** - Framework compliance reports (PCI-DSS, HIPAA, SOC2, etc.)
-- **Attack Paths** - D3.js interactive attack path visualization
-- **Risk** - Business risk scoring with contextual analysis
-- **Remediation** - Kanban board with SLA tracking and MTTR metrics
-- **Reports** - Professional branded report generation (PDF/DOCX)
-- **Knowledge** - RAG knowledge base management
-- **Notifications** - Multi-channel alerts (Email, Slack, Teams, PagerDuty)
-- **Billing** - License management and usage metering
-- **Onboarding** - Multi-step client onboarding wizard
-- **Admin** - User management, backups, system settings
-- **Assets / Scope** - Asset inventory and scope management
-
----
-
 ## API
 
 136 REST endpoints across 28 routers. Base URL: `/api/v1`
@@ -286,7 +254,7 @@ Full-featured SvelteKit web interface with 25 pages:
 
 ### Kali Linux Stack (Recommended)
 
-Full deployment with Kali Linux tools, Ollama for local LLM, and the web dashboard:
+Full deployment with Kali Linux tools and Ollama for local LLM:
 
 ```bash
 # Copy and configure environment
@@ -299,8 +267,7 @@ docker compose -f docker/docker-compose.kali.yml up -d
 docker exec kryon-ollama ollama pull dolphin-mistral:7b
 
 # Access
-# API:       http://localhost:8000/api/v1/health
-# Dashboard: http://localhost:3000
+# API: http://localhost:8000/api/v1/health
 ```
 
 ### Stack Components
@@ -309,7 +276,6 @@ docker exec kryon-ollama ollama pull dolphin-mistral:7b
 |-----------|-------|---------|
 | `kryon` | Kali Linux + Python | Main platform with all security tools |
 | `kryon-ollama` | Ollama (GPU) | Local LLM inference |
-| `kryon-dashboard` | Nginx + SvelteKit | Web dashboard |
 
 ---
 
@@ -407,7 +373,6 @@ Kryon/
 │   ├── server/          # FastAPI + 28 routers + middleware
 │   ├── repl/            # Interactive CLI + commands
 │   └── prompts/         # System prompts (markdown)
-├── dashboard/           # SvelteKit web dashboard (25 pages)
 ├── docker/              # Docker Compose (Kali + Ollama)
 ├── k8s/                 # Kubernetes manifests
 ├── helm/                # Helm chart

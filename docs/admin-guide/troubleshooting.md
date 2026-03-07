@@ -33,12 +33,6 @@ curl -X POST http://localhost:8700/api/v1/auth/refresh \
   -d '{"refresh_token": "your-refresh-token"}'
 ```
 
-### Dashboard Not Loading
-
-1. Check if the build directory exists: `dashboard/build/`
-2. Rebuild: `cd dashboard && npm run build`
-3. Verify the server is mounting static files
-
 ### ChromaDB Connection Issues
 
 If using RAG with external ChromaDB:

@@ -39,26 +39,15 @@ Total de **967 líneas** de YAML, scripts y documentación.
    - Security context: runAsNonRoot, runAsUser 1000
    - Volume mount: /data (PVC)
 
-✅ `deployment-dashboard.yaml` (1568 bytes)
-   - 1 réplica
-   - Image: kryon/dashboard:latest
-   - Resources: requests(64Mi/100m), limits(128Mi/200m)
-   - Security context: runAsNonRoot, runAsUser 101
-   - Health probes en puerto 80
-
 ✅ `service-server.yaml` (376 bytes)
    - ClusterIP service
    - Puerto 8700 → targetPort http
-
-✅ `service-dashboard.yaml` (383 bytes)
-   - ClusterIP service
-   - Puerto 80 → targetPort http
 
 ✅ `ingress.yaml` (1232 bytes)
    - nginx-ingress-controller
    - TLS habilitado
    - Host: kryon.example.com
-   - Rutas: /api → server:8700, / → dashboard:80
+   - Ruta: /api → server:8700
    - Annotations para SSE (Server-Sent Events)
    - cert-manager integration
 
@@ -84,9 +73,9 @@ Total de **967 líneas** de YAML, scripts y documentación.
 
 ✅ `values.yaml` (3286 bytes)
    - Valores por defecto completos
-   - Server, dashboard, ingress, autoscaling
+   - Server, ingress, autoscaling
    - Persistence, config, secrets
-   - Security contexts, service account
+   - Security context, service account
    - Node selector, tolerations, affinity
 
 ✅ `templates/namespace.yaml` (181 bytes)
@@ -100,14 +89,14 @@ Total de **967 líneas** de YAML, scripts y documentación.
    - Condicionales para cada secret
 
 ✅ `templates/deployment.yaml` (4910 bytes)
-   - Deployments para server y dashboard
+   - Deployment para server
    - Templating completo: replicas, resources, probes
    - Checksum annotation para force rolling updates
    - Condicional de persistence
    - Affinity, tolerations, node selectors
 
 ✅ `templates/service.yaml` (1070 bytes)
-   - Services para server y dashboard
+   - Service para server
    - Ports desde values
 
 ✅ `templates/ingress.yaml` (1476 bytes)
@@ -218,7 +207,7 @@ Total de **967 líneas** de YAML, scripts y documentación.
 ✅ **Labels consistentes** - app.kubernetes.io/name, app.kubernetes.io/component
 ✅ **Selectors matching** - matchLabels coinciden con template labels
 ✅ **Resource limits** - Definidos para todos los containers
-✅ **Security contexts** - runAsNonRoot en server y dashboard
+✅ **Security contexts** - runAsNonRoot en server
 ✅ **Health probes** - readiness y liveness configurados
 ✅ **Volume mounts** - PVC correctamente montado en /data
 
@@ -251,9 +240,6 @@ Total de **967 líneas** de YAML, scripts y documentación.
 | Server replicas | 2 |
 | Server image | kryon/server:latest |
 | Server resources | 256Mi-512Mi / 500m-1000m |
-| Dashboard replicas | 1 |
-| Dashboard image | kryon/dashboard:latest |
-| Dashboard resources | 64Mi-128Mi / 100m-200m |
 | PVC size | 10Gi |
 | PVC access mode | ReadWriteMany |
 | HPA min | 2 |
@@ -269,7 +255,6 @@ Total de **967 líneas** de YAML, scripts y documentación.
 | namespace | kryon-system |
 | server.replicaCount | 2 |
 | server.image.tag | latest |
-| dashboard.replicaCount | 1 |
 | ingress.enabled | true |
 | ingress.className | nginx |
 | autoscaling.enabled | true |

@@ -125,7 +125,6 @@ Export in `src/kryon/tools/{category}/__init__.py` and add tests.
 - `src/kryon/integrations/` — SIEM/SOAR (Splunk, QRadar, Elastic)
 - `src/kryon/tenancy/` — Multi-tenancy with per-tenant DB isolation
 - `src/kryon/engagements/` — Multi-day autonomous pentesting
-- `dashboard/` — SvelteKit web dashboard
 
 ## Security
 

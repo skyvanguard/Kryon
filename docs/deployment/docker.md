@@ -15,7 +15,6 @@ docker compose down
 
 Services:
 - **kryon-server** — API on port 8700
-- **dashboard** — Web UI on port 5173
 - **chromadb** — RAG vector store on port 8000
 
 ## Production

@@ -64,22 +64,6 @@ services:
     networks:
       - kryon-net
 
-  # Dashboard (optional, enable with --profile dashboard)
-  dashboard:
-    build:
-      context: ..
-      dockerfile: docker/dashboard.Dockerfile
-    container_name: kryon-dashboard
-    profiles:
-      - dashboard
-    restart: unless-stopped
-    depends_on:
-      - kryon
-    ports:
-      - "3000:80"
-    networks:
-      - kryon-net
-
   # ChromaDB for RAG functionality (optional, enable with --profile rag)
   chromadb:
     image: chromadb/chroma:latest

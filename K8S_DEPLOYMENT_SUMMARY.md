@@ -11,21 +11,19 @@ Componente: Manifiestos de Kubernetes y Helm Chart para KRYON Security Platform
 2. **configmap.yaml** - ConfigMap con variables de entorno (debug, log format, rate limit)
 3. **secret.yaml.example** - Template de secrets (JWT, API keys) con valores placeholder en base64
 4. **deployment-server.yaml** - Deployment del servidor (2 réplicas, health probes, resource limits)
-5. **deployment-dashboard.yaml** - Deployment del dashboard (1 réplica, nginx)
-6. **service-server.yaml** - ClusterIP service para el servidor (puerto 8700)
-7. **service-dashboard.yaml** - ClusterIP service para el dashboard (puerto 80)
-8. **ingress.yaml** - Ingress con nginx, TLS, rutas /api→server, /→dashboard
-9. **hpa.yaml** - HorizontalPodAutoscaler (min=2, max=10, CPU 70%, Memory 80%)
-10. **pvc.yaml** - PersistentVolumeClaim de 10Gi para datos persistentes
-11. **README.md** - Documentación completa de deployment con Kubernetes
-12. **.gitignore** - Ignora secret.yaml y archivos de configuración sensibles
+5. **service-server.yaml** - ClusterIP service para el servidor (puerto 8700)
+6. **ingress.yaml** - Ingress con nginx, TLS, ruta /api→server
+7. **hpa.yaml** - HorizontalPodAutoscaler (min=2, max=10, CPU 70%, Memory 80%)
+8. **pvc.yaml** - PersistentVolumeClaim de 10Gi para datos persistentes
+9. **README.md** - Documentación completa de deployment con Kubernetes
+10. **.gitignore** - Ignora secret.yaml y archivos de configuración sensibles
 
 ### Helm Chart (`helm/kryon/`)
 
 13. **Chart.yaml** - Metadata del chart (nombre, versión 1.0.0, descripción)
 14. **values.yaml** - Valores por defecto (réplicas, imágenes, recursos, ingress, secrets)
-15. **templates/deployment.yaml** - Deployment templado para server y dashboard
-16. **templates/service.yaml** - Services templados
+15. **templates/deployment.yaml** - Deployment templado para server
+16. **templates/service.yaml** - Service templado
 17. **templates/ingress.yaml** - Ingress templado con condicional
 18. **templates/hpa.yaml** - HPA templado con condicional
 19. **templates/configmap.yaml** - ConfigMap templado
@@ -62,19 +60,13 @@ Componente: Manifiestos de Kubernetes y Helm Chart para KRYON Security Platform
   - ReadinessProbe: GET /api/v1/health (puerto 8700)
   - LivenessProbe: GET /api/v1/health (puerto 8700)
   - Volume mount: /data (PVC)
-- **Dashboard Deployment:**
-  - 1 réplica
-  - Nginx sirviendo archivos estáticos
-  - Resource requests: 64Mi/100m
-  - Resource limits: 128Mi/200m
 - **Services:**
   - ClusterIP para comunicación interna
   - Server: puerto 8700
-  - Dashboard: puerto 80
 - **Ingress:**
   - nginx-ingress-controller
   - TLS habilitado
-  - Rutas: /api → server, / → dashboard
+  - Ruta: /api → server
   - Soporte SSE (Server-Sent Events)
   - cert-manager annotations
 - **HPA:**
@@ -137,9 +129,7 @@ kubectl apply -f configmap.yaml
 kubectl apply -f secret.yaml
 kubectl apply -f pvc.yaml
 kubectl apply -f deployment-server.yaml
-kubectl apply -f deployment-dashboard.yaml
 kubectl apply -f service-server.yaml
-kubectl apply -f service-dashboard.yaml
 kubectl apply -f ingress.yaml
 kubectl apply -f hpa.yaml
 
@@ -297,9 +287,6 @@ autoscaling:
 ```bash
 # Server
 kubectl logs -f -n kryon-system -l app.kubernetes.io/component=server
-
-# Dashboard
-kubectl logs -f -n kryon-system -l app.kubernetes.io/component=dashboard
 
 # Pod específico
 kubectl logs -f -n kryon-system <pod-name>

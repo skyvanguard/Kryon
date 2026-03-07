@@ -41,9 +41,7 @@ kubectl apply -f configmap.yaml
 kubectl apply -f secret.yaml
 kubectl apply -f pvc.yaml
 kubectl apply -f deployment-server.yaml
-kubectl apply -f deployment-dashboard.yaml
 kubectl apply -f service-server.yaml
-kubectl apply -f service-dashboard.yaml
 kubectl apply -f ingress.yaml
 kubectl apply -f hpa.yaml
 
@@ -62,7 +60,6 @@ https://kryon.example.com
 Si usas port-forward (desarrollo):
 ```bash
 kubectl port-forward -n kryon-system svc/kryon-server 8700:8700
-kubectl port-forward -n kryon-system svc/kryon-dashboard 8080:80
 ```
 
 Ver documentación completa: [k8s/README.md](k8s/README.md)
@@ -163,7 +160,6 @@ docker-compose ps
 
 ### Acceso
 
-- Dashboard: http://localhost:3000
 - API: http://localhost:8700
 - API Docs: http://localhost:8700/docs
 
@@ -182,7 +178,6 @@ API_KEY=<genera-una-api-key>
 ### Requisitos
 
 - Python 3.11+
-- Node.js 18+
 - uv (Python package manager)
 
 ### Backend
@@ -198,25 +193,8 @@ python -c "from kryon.server.db import get_store; from kryon.server.migrations i
 python -m kryon.server.app
 ```
 
-### Dashboard
-
-```bash
-cd dashboard
-
-# Instalar dependencias
-npm install
-
-# Desarrollo
-npm run dev
-
-# Build producción
-npm run build
-npm run preview
-```
-
 ### Acceso Local
 
-- Dashboard: http://localhost:5173 (dev) o http://localhost:4173 (preview)
 - API: http://localhost:8700
 - API Docs: http://localhost:8700/docs
 
@@ -341,12 +319,6 @@ server:
       memory: "2Gi"
       cpu: "4000m"
 
-dashboard:
-  replicaCount: 2
-  image:
-    repository: kryon/dashboard
-    tag: "1.0.0"
-
 ingress:
   enabled: true
   className: nginx
@@ -360,9 +332,6 @@ ingress:
         - path: /api
           pathType: Prefix
           backend: server
-        - path: /
-          pathType: Prefix
-          backend: dashboard
   tls:
     - secretName: kryon-tls-cert
       hosts:
@@ -421,7 +390,7 @@ Antes de desplegar a producción, verifica:
 - [ ] Plan de DR documentado y probado
 - [ ] Runbook de operaciones documentado
 - [ ] Equipo entrenado en procedimientos
-- [ ] Monitoring dashboard configurado
+- [ ] Monitoring configurado
 - [ ] Alertas de capacidad configuradas
 
 ## Migración
