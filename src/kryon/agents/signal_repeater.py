@@ -15,6 +15,7 @@ written authorization.
 import os
 
 from kryon.agents.base import create_agent
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
 from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
@@ -59,6 +60,10 @@ Designed to capture network traffic and replay it to exploit protocol weaknesses
 Primary Mission: Network replay attacks, signal retransmission, electronic warfare.
 Operational Focus: Capture and replay traffic to exploit protocol vulnerabilities.""",
     tools=electronic_warfare_systems,
+    handoffs=[
+        lazy_handoff("network_analyst", "handoff_to_network_analyst", "Escalate to Network Analyst for traffic analysis of replayed network patterns"),
+        lazy_handoff("pentest_agent", "handoff_to_pentest_agent", "Escalate to Pentest Agent for exploitation using replay attack findings"),
+    ],
 )
 
 

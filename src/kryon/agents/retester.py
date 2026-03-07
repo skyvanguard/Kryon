@@ -24,6 +24,7 @@ ratio in operational reporting.
 import os
 
 from kryon.agents.base import create_agent
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
 from kryon.tools.reconnaissance.exec_code import (
     execute_code,
@@ -58,6 +59,10 @@ findings represent genuine security risks with real-world impact.
 Primary Mission: Vulnerability verification, false positive elimination, exploitability analysis.
 Operational Focus: Ensure high-quality intelligence through rigorous validation.""",
     tools=verification_systems,
+    handoffs=[
+        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document retest and validation results"),
+        lazy_handoff("exploit_validator", "handoff_to_exploit_validator", "Escalate to Exploit Validator for real exploitation verification of remediated vulnerabilities"),
+    ],
 )
 
 

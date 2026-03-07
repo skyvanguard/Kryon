@@ -14,6 +14,7 @@ vulnerabilities that traditional scanners miss.
 """
 
 from kryon.agents.base import create_agent
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
 from kryon.tools.browser.playwright_tools import (
     browser_analyze_dom,
@@ -62,6 +63,11 @@ Primary Mission: Dynamic web testing, JavaScript analysis, XSS detection.
 Operational Focus: Browser automation and client-side security assessment.""",
     instructions=create_system_prompt_renderer(chrome_infiltrator_system_prompt),
     tools=browser_tools,
+    handoffs=[
+        lazy_handoff("appsec_analyzer", "handoff_to_appsec_analyzer", "Escalate to AppSec Analyzer for server-side security testing when browser-only testing is insufficient"),
+        lazy_handoff("vuln_hunter", "handoff_to_vuln_hunter", "Escalate to Vuln Hunter for deep vulnerability analysis of browser-discovered issues"),
+        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document browser security testing findings"),
+    ],
 )
 
 

@@ -15,11 +15,8 @@ on networks you own or have explicit written authorization to monitor.
 import os
 
 from kryon.agents.base import create_agent
-from kryon.agents.forensic_analyzer import forensic_analyzer
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
-from kryon.sdk.agents import (
-    handoff,
-)
 from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
 )
@@ -59,11 +56,10 @@ network communications, detecting threats, and identifying malicious actors
 across the network layer.""",
     tools=tools_list,
     handoffs=[
-        handoff(
-            agent=forensic_analyzer,
-            tool_name_override="handoff_to_forensic_analyzer",
-            tool_description_override="Transfer to Forensic Analyzer for deeper forensic investigation of detected security incidents",
-        )
+        lazy_handoff("forensic_analyzer", "handoff_to_forensic_analyzer", "Escalate to Forensic Analyzer for deeper forensic investigation of detected security incidents"),
+        lazy_handoff("pentest_agent", "handoff_to_pentest_agent", "Escalate to Pentest Agent to exploit network vulnerabilities discovered during analysis"),
+        lazy_handoff("wireless_infiltrator", "handoff_to_wireless_infiltrator", "Escalate to Wireless Infiltrator for WiFi-specific attacks when wireless networks are detected"),
+        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document network analysis findings"),
     ],
 )
 

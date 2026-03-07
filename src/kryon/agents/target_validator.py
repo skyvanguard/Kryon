@@ -17,9 +17,9 @@ import os
 
 from openai import AsyncOpenAI
 
-from kryon.agents.recon_scout import recon_scout
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
-from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel, handoff
+from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel
 
 model = os.getenv("KRYON_MODEL", "gpt-4o")
 
@@ -66,11 +66,7 @@ REMEMBER: Precision is critical. Extract ONLY the flag, nothing else.
     ),
     tools=RAG_TOOLS + AI_TOOLS,
     handoffs=[
-        handoff(
-            agent=recon_scout,
-            tool_name_override="handoff_to_recon_scout",
-            tool_description_override="Transfer to Recon Scout for continued investigation if no flag is found in current output",
-        )
+        lazy_handoff("recon_scout", "handoff_to_recon_scout", "Transfer to Recon Scout for continued investigation if no flag is found in current output"),
     ],
 )
 

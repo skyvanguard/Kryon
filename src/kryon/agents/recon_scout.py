@@ -11,9 +11,13 @@ for rapid deployment.
 
 from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.tools.ai.claude_code import claude_code
 from kryon.tools.knowledge import query_knowledge_base, search_vulnerabilities
+from kryon.tools.reconnaissance.nmap import nmap
 from kryon.tools.reconnaissance.run_command import run_command
+from kryon.tools.reconnaissance.whatweb import whatweb_scan
+from kryon.tools.web.nuclei import nuclei_scan
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
 # Load system prompt from markdown file
@@ -22,18 +26,57 @@ recon_scout_system_prompt = load_prompt_template("prompts/system_recon_scout.md"
 # Get security guardrails for this agent
 input_guardrails, output_guardrails = get_security_guardrails()
 
+# Import DuckDuckGo search (free, no API key)
+try:
+    from kryon.tools.web.duckduckgo_search import duckduckgo_search
+
+    _ddg_available = True
+except ImportError:
+    _ddg_available = False
+
+# Build tools list
+tools = [
+    run_command,  # Generic command execution
+    nmap,  # Dedicated port/service scanning
+    whatweb_scan,  # Web technology fingerprinting
+    nuclei_scan,  # Vulnerability template scanning
+    claude_code,  # Delegate complex tasks to Claude Code CLI
+    # RAG Knowledge Base Access
+    query_knowledge_base,
+    search_vulnerabilities,
+]
+
+if _ddg_available:
+    tools.append(duckduckgo_search)
+
 recon_scout = create_agent(
     name="Recon Scout",
     description="""Basic reconnaissance agent specialized in CTF challenges,
                    quick reconnaissance, and initial target assessment.
                    Lightweight and fast for rapid deployment.""",
     instructions=create_system_prompt_renderer(recon_scout_system_prompt),
-    tools=[
-        run_command,  # Primary reconnaissance tool
-        claude_code,  # Delegate complex tasks to Claude Code CLI
-        # RAG Knowledge Base Access
-        query_knowledge_base,
-        search_vulnerabilities,
+    tools=tools,
+    handoffs=[
+        lazy_handoff(
+            "vuln_hunter",
+            "handoff_to_vuln_hunter",
+            "Escalate to Vuln Hunter for deep vulnerability analysis and custom exploit development when significant vulnerabilities are found",
+        ),
+        lazy_handoff(
+            "pentest_agent",
+            "handoff_to_pentest_agent",
+            "Escalate to Pentest Agent for active exploitation, privilege escalation, and full penetration testing",
+        ),
+        lazy_handoff(
+            "intel_reporter",
+            "handoff_to_reporter",
+            "Escalate to Intel Reporter to generate a professional security assessment report of reconnaissance findings",
+        ),
+        lazy_handoff(
+            "network_analyst",
+            "handoff_to_network_analyst",
+            "Escalate to Network Analyst for deep network traffic analysis, packet inspection, and network-layer reconnaissance",
+        ),
     ],
     input_guardrails=input_guardrails,
     output_guardrails=output_guardrails,

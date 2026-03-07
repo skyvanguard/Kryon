@@ -16,6 +16,7 @@ or have explicit written authorization to test.
 import os
 
 from kryon.agents.base import create_agent
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
 from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
@@ -54,6 +55,11 @@ process memory extraction, and data recovery. Examines process memory space,
 extracts sensitive runtime data, identifies memory vulnerabilities, and
 analyzes runtime behavior for security assessment.""",
     tools=tools_list,
+    handoffs=[
+        lazy_handoff("forensic_analyzer", "handoff_to_forensic_analyzer", "Escalate to Forensic Analyzer for full forensic investigation when memory analysis reveals compromise"),
+        lazy_handoff("reverse_engineer", "handoff_to_reverse_engineer", "Escalate to Reverse Engineer for binary analysis of suspicious processes found in memory"),
+        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document memory analysis findings"),
+    ],
 )
 
 

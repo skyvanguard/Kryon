@@ -21,11 +21,15 @@ def _get_tool_names(agent):
 
 
 def test_all_agents_have_query_knowledge_base():
-    """Every agent should have query_knowledge_base tool."""
+    """Every agent should have query_knowledge_base tool (except pure routers)."""
     agents = get_available_agents(include_patterns=False)
+    # Central Core is a pure router — only has 'think' tool + 26 handoffs
+    pure_routers = {"central_core"}
     missing = []
 
     for name, agent in agents.items():
+        if name in pure_routers:
+            continue
         tool_names = _get_tool_names(agent)
         if "query_knowledge_base" not in tool_names:
             missing.append(name)
@@ -55,7 +59,7 @@ def test_main_agents_have_claude_code():
         "Signal Repeater",
         "Mission Analyst",
         "Reverse Engineer",
-        "Central Core",
+        # Central Core is a pure router — no claude_code needed
         "Strategic Core",
     ]
 

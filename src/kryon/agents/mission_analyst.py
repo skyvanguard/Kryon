@@ -8,6 +8,7 @@ Operational Status: ACTIVE
 """
 
 from kryon.agents.base import create_agent
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
 from kryon.tools.reconnaissance.run_command import run_command
 from kryon.util import create_system_prompt_renderer, load_prompt_template
@@ -34,6 +35,9 @@ Primary Mission: Use case documentation, strategic analysis, case study creation
 Operational Focus: Document and analyze successful security operations for training and improvement.""",
     instructions=create_system_prompt_renderer(mission_analyst_system_prompt),
     tools=analytical_systems,
+    handoffs=[
+        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to generate a formal report from mission analysis"),
+    ],
 )
 
 

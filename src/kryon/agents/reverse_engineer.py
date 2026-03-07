@@ -15,6 +15,7 @@ or have explicit written authorization to analyze.
 import os
 
 from kryon.agents.base import create_agent
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.tools.ai.claude_code import claude_code
 from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
@@ -72,6 +73,11 @@ Capabilities:
 - Patch diffing and security analysis
 - Using Ghidra, Binwalk, and comprehensive RE toolset""",
     tools=tools_list,
+    handoffs=[
+        lazy_handoff("vuln_hunter", "handoff_to_vuln_hunter", "Escalate to Vuln Hunter when reverse engineering reveals exploitable vulnerabilities"),
+        lazy_handoff("exploit_validator", "handoff_to_exploit_validator", "Escalate to Exploit Validator to validate vulnerabilities found during binary analysis"),
+        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document reverse engineering findings"),
+    ],
 )
 
 

@@ -13,6 +13,7 @@ authorization to test.
 """
 
 from kryon.agents.base import create_agent
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
@@ -57,6 +58,11 @@ Includes integrated Application Logic Mapper sub-unit for deep logic analysis.""
         *CORE_TOOLS,
         *RAG_TOOLS,
         *AI_TOOLS,
+    ],
+    handoffs=[
+        lazy_handoff("appsec_analyzer", "handoff_to_appsec_analyzer", "Escalate to AppSec Analyzer for server-side API testing of mobile app backends"),
+        lazy_handoff("vuln_hunter", "handoff_to_vuln_hunter", "Escalate to Vuln Hunter for deep vulnerability analysis of mobile app findings"),
+        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document mobile security assessment findings"),
     ],
 )
 

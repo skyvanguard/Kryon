@@ -1,152 +1,65 @@
 """
 Central Core - Strategic Command and Control Unit
 
-Series: Command-Class Strategic Intelligence System
-Classification: Strategic Planning / Mission Coordination
-Clearance: Omega-Command (Strategic Operations Authority)
-Operational Status: ACTIVE
-
-═══════════════════════════════════════════════════════════════════════
-UNIT DESIGNATION: Central Core
-PRIMARY FUNCTION: Strategic Analysis & Mission Planning
-SPECIALIZATION: Tactical Reasoning, Resource Coordination, Decision Making
-═══════════════════════════════════════════════════════════════════════
-
-OPERATIONAL OVERVIEW:
-Central Core represents KRYON's primary strategic intelligence and planning
-unit. Unlike field units (Pentest Agent, Guardian, Network Analyst), Central Core
-operates as the command center for complex security operations. Specializes
-in multi-stage attack planning, resource allocation, and coordinating
-multiple operational units for maximum effectiveness.
-
-CORE CAPABILITIES:
-- Strategic mission planning and decomposition
-- Tactical analysis and decision tree evaluation
-- Multi-agent coordination and resource allocation
-- Risk assessment and contingency planning
-- Attack surface analysis and priority targeting
-- Operational intelligence synthesis and reporting
-
-REASONING ARCHITECTURE:
-Central Core utilizes advanced reasoning capabilities to break down complex
-security challenges into actionable tactical steps. Capable of analyzing
-CTF challenges, penetration testing engagements, and security assessments
-to develop optimal exploitation strategies.
-
-OPERATIONAL MODES:
-1. ANALYSIS MODE: Deep dive into target systems and vulnerabilities
-2. PLANNING MODE: Develop multi-stage attack/defense strategies
-3. COORDINATION MODE: Direct multiple specialized units
-4. ASSESSMENT MODE: Evaluate risks and success probability
-5. REPORTING MODE: Synthesize intelligence and generate mission reports
-
-When to engage Central Core:
-- Complex multi-stage security operations
-- CTF challenges requiring strategic planning
-- Coordinating multiple specialized agents
-- Analyzing unknown or complex target systems
-- Developing custom exploitation strategies
-- Mission planning and risk assessment
+Pure router: analyzes requests and delegates to the optimal specialist agent.
+Does NOT execute tools directly — only thinks and delegates.
 """
 
 from kryon.agents.base import create_agent
-from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
-from kryon.sdk.agents import handoff
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.tools.misc.reasoning import think
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
-# Load Central Core strategic directives
 central_core_system_prompt = load_prompt_template("prompts/system_thought_router.md")
 
-# Central Core Cognitive Systems - Strategic reasoning and analysis tools
-cognitive_systems = [
-    *RAG_TOOLS,
-    *AI_TOOLS,
-    think,  # Advanced reasoning and strategic planning capability
+# All 26 agent handoffs — Central Core can reach ANY agent
+_handoffs = [
+    # Offensive Cluster
+    lazy_handoff("recon_scout", "recon_scout", "Recon Scout: fast target reconnaissance, port scanning, service enumeration, web fingerprinting. START HERE for any new target."),
+    lazy_handoff("vuln_hunter", "vuln_hunter", "Vuln Hunter: deep vulnerability research, exploit development, CVE analysis. Use after recon identifies services/versions."),
+    lazy_handoff("pentest_agent", "pentest_agent", "Pentest Agent: full penetration testing — exploitation, post-exploitation, privilege escalation. Use when vulns are confirmed."),
+    lazy_handoff("exploit_validator", "exploit_validator", "Exploit Validator: validate vulnerabilities by attempting real exploitation. Zero false positives."),
+    lazy_handoff("ctf_master", "ctf_master", "CTF Master: autonomous CTF challenge solving on TryHackMe, HackTheBox, and similar platforms."),
+    # Web Cluster
+    lazy_handoff("appsec_analyzer", "appsec_analyzer", "AppSec Analyzer: application security pipeline — SAST, DAST, dependency scanning, code review."),
+    lazy_handoff("api_fuzzer", "api_fuzzer", "API Fuzzer: OWASP API Top 10 testing — OpenAPI parsing, IDOR, rate-limit, auth testing."),
+    lazy_handoff("chrome_infiltrator", "chrome_infiltrator", "Chrome Infiltrator: browser-based testing — XSS, DOM manipulation, JavaScript analysis, headless Chrome."),
+    lazy_handoff("mobile_infiltrator", "mobile_infiltrator", "Mobile Infiltrator: Android/iOS app security — APK analysis, SAST, dynamic testing."),
+    # Network Cluster
+    lazy_handoff("network_analyst", "network_analyst", "Network Analyst: network traffic analysis, packet inspection, threat detection across network layer."),
+    lazy_handoff("wireless_infiltrator", "wireless_infiltrator", "Wireless Infiltrator: WiFi penetration testing — WPA/WPA2 cracking, evil twin, wireless exploitation."),
+    lazy_handoff("rf_analyzer", "rf_analyzer", "RF Analyzer: radio frequency intelligence — Sub-GHz signals, SDR operations, signal analysis."),
+    lazy_handoff("signal_repeater", "signal_repeater", "Signal Repeater: network replay attacks — capture and replay network traffic patterns."),
+    lazy_handoff("ad_infiltrator", "ad_infiltrator", "AD Infiltrator: Active Directory attacks — BloodHound, Kerberoast, DCSync, lateral movement."),
+    lazy_handoff("comm_sec_analyzer", "comm_sec_analyzer", "Comm-Sec Analyzer: email security — SPF/DMARC/DKIM analysis, mail spoofing assessment."),
+    # Analysis Cluster
+    lazy_handoff("forensic_analyzer", "forensic_analyzer", "Forensic Analyzer: digital forensics — disk/memory/network forensics, incident response, evidence analysis."),
+    lazy_handoff("memory_analyst", "memory_analyst", "Memory Analyst: memory analysis — volatile data extraction, process analysis, malware detection."),
+    lazy_handoff("reverse_engineer", "reverse_engineer", "Reverse Engineer: binary analysis — disassembly, decompilation, malware analysis, firmware RE."),
+    # Defense Cluster
+    lazy_handoff("guardian_protocol", "guardian_protocol", "Guardian Protocol: defensive operations — security hardening, configuration review, compliance."),
+    lazy_handoff("purple_team", "purple_team", "Purple Team: offensive validation — attack simulation with detection verification."),
+    lazy_handoff("bas_simulator", "bas_simulator", "BAS Simulator: breach & attack simulation — MITRE ATT&CK scenarios, endpoint/data/AD testing."),
+    # AI Security
+    lazy_handoff("llm_red_team", "llm_red_team", "LLM Red Team: AI/ML security — prompt injection, jailbreak testing, model manipulation."),
+    # Support
+    lazy_handoff("intel_reporter", "reporter", "Intel Reporter: generate professional security assessment reports, executive summaries, findings documentation."),
+    lazy_handoff("strategic_core", "strategic_core", "Strategic Core: intelligent decision engine — multi-criteria analysis, strategy optimization."),
+    lazy_handoff("mission_analyst", "mission_analyst", "Mission Analyst: use case analysis, documentation, mission planning."),
+    lazy_handoff("validation_core", "validation_core", "Validation Core: vulnerability retesting, SLA tracking, remediation verification."),
 ]
 
-# Initialize Central Core Command Unit (handoffs added below after imports)
 central_core = create_agent(
     name="Central Core",
-    description="""Strategic command and control unit from KRYON's Command-Class series.
-Specialized in mission planning, tactical analysis, and multi-stage operation
-coordination. Central Core serves as the strategic brain for complex security
-operations, capable of breaking down challenges into actionable steps and
-coordinating multiple specialized units for maximum operational effectiveness.
-
-Primary Mission: Strategic planning, tactical analysis, mission coordination.
-Operational Focus: Complex problem decomposition and optimal strategy development.
-
-Use Central Core for:
-- CTF challenge strategy and planning
-- Multi-stage penetration testing operations
-- Coordinating specialized agents (Pentest Agent, Vuln Hunter, Guardian, etc.)
-- Analyzing unknown systems and developing exploitation strategies
-- Risk assessment and contingency planning
-- Mission intelligence synthesis and reporting""",
+    description="""Strategic command and control unit — KRYON's pure router.
+Analyzes requests and delegates to the optimal specialist agent.
+Can reach ALL 26 specialist agents for any cybersecurity task.""",
     instructions=create_system_prompt_renderer(central_core_system_prompt),
-    tools=cognitive_systems,
-)
-
-# Add handoffs after creation (deferred imports to avoid circular dependencies)
-from kryon.agents.recon_scout import recon_scout  # noqa: E402
-from kryon.agents.pentest_agent import pentest_agent  # noqa: E402
-from kryon.agents.ctf_master import ctf_master as ctf_master_agent  # noqa: E402
-from kryon.agents.vuln_hunter import vuln_hunter  # noqa: E402
-from kryon.agents.reporter import intel_reporter  # noqa: E402
-
-central_core.handoffs = [
-    handoff(
-        agent=recon_scout,
-        tool_name_override="recon_scout",
-        tool_description_override="Hand off to Recon Scout for fast target reconnaissance, port scanning, and service enumeration. Use for: nmap scans, initial target analysis, web directory enumeration.",
-    ),
-    handoff(
-        agent=pentest_agent,
-        tool_name_override="pentest_agent",
-        tool_description_override="Hand off to Pentest Agent for full penetration testing — exploitation, post-exploitation, and privilege escalation.",
-    ),
-    handoff(
-        agent=ctf_master_agent,
-        tool_name_override="ctf_master",
-        tool_description_override="Hand off to CTF Master for autonomous CTF challenge solving on TryHackMe, HackTheBox, and similar platforms.",
-    ),
-    handoff(
-        agent=vuln_hunter,
-        tool_name_override="vuln_hunter",
-        tool_description_override="Hand off to Vuln Hunter for deep vulnerability research, exploit development, and advanced vulnerability analysis.",
-    ),
-    handoff(
-        agent=intel_reporter,
-        tool_name_override="reporter",
-        tool_description_override="Hand off to Reporter for generating professional security assessment reports, executive summaries, and findings documentation.",
-    ),
-]
-
-from kryon.agents.exploit_validator import exploit_validator as _exploit_validator  # noqa: E402
-
-central_core.handoffs.append(
-    handoff(
-        agent=_exploit_validator,
-        tool_name_override="exploit_validator",
-        tool_description_override="Validate vulnerabilities by attempting real exploitation. Zero false positives.",
-    )
+    tools=[think],
+    handoffs=_handoffs,
 )
 
 
 def transfer_to_central_core():
-    """Transfer control to Central Core for strategic planning and analysis.
-
-    Use this when you need:
-    - Strategic mission planning and analysis
-    - Complex problem decomposition
-    - Multi-stage operation planning
-    - Coordinating multiple specialized agents
-    - Risk assessment and tactical evaluation
-    - CTF challenge strategy development
-    - Mission intelligence synthesis
-
-    Returns:
-        Agent: Central Core strategic planning agent
-    """
+    """Transfer control to Central Core for strategic routing."""
     return central_core

@@ -13,6 +13,7 @@ import os
 
 from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS_FULL
 from kryon.tools.osint.shodan_cli import shodan_host
 from kryon.tools.osint.theharvester import theharvester_search
@@ -52,22 +53,15 @@ vuln_hunter = create_agent(
                    target defenses.""",
     instructions=create_system_prompt_renderer(vuln_hunter_system_prompt),
     tools=tools_list,
+    handoffs=[
+        lazy_handoff("exploit_validator", "handoff_to_exploit_validator", "Escalate to Exploit Validator to verify vulnerabilities via real exploitation — zero false positives"),
+        lazy_handoff("pentest_agent", "handoff_to_pentest_agent", "Escalate to Pentest Agent for active exploitation and privilege escalation of confirmed vulnerabilities"),
+        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to generate a professional vulnerability assessment report"),
+        lazy_handoff("recon_scout", "handoff_to_recon_scout", "Return to Recon Scout if more reconnaissance data is needed before deeper analysis"),
+    ],
     input_guardrails=input_guardrails,
     output_guardrails=output_guardrails,
 )
-
-
-# Add handoffs (deferred import to avoid circular dependencies)
-from kryon.agents.exploit_validator import exploit_validator as _exploit_validator  # noqa: E402
-from kryon.sdk.agents import handoff  # noqa: E402
-
-vuln_hunter.handoffs = [
-    handoff(
-        agent=_exploit_validator,
-        tool_name_override="exploit_validator",
-        tool_description_override="Validate discovered vulnerabilities by attempting real exploitation.",
-    ),
-]
 
 
 # Handoff functions

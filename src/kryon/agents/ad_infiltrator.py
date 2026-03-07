@@ -11,6 +11,7 @@ Kerberoasting, DCSync, and Pass-the-Hash/Ticket techniques.
 
 from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
 from kryon.tools.lateral_movement.ad_attacks import (
     asreproast,
@@ -58,6 +59,11 @@ ad_infiltrator = create_agent(
         extract_ntlm_hash,
         crack_ntlm_hash,
         validate_finding,
+    ],
+    handoffs=[
+        lazy_handoff("pentest_agent", "handoff_to_pentest_agent", "Escalate to Pentest Agent for lateral movement and privilege escalation after AD compromise"),
+        lazy_handoff("network_analyst", "handoff_to_network_analyst", "Escalate to Network Analyst for network-layer analysis of AD infrastructure"),
+        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document AD attack findings and compromised accounts"),
     ],
     input_guardrails=input_guardrails,
     output_guardrails=output_guardrails,

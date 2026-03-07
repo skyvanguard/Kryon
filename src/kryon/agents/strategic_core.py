@@ -20,6 +20,7 @@ automated strategy generation based on target analysis.
 """
 
 from kryon.agents.base import create_agent
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
 from kryon.tools.intelligence.decision_engine import (
     analyze_target,
@@ -70,6 +71,12 @@ Primary Mission: Intelligent tool selection, strategy optimization, autonomous p
 Operational Focus: AI-driven decision making and resource optimization.""",
     instructions=create_system_prompt_renderer(strategic_core_system_prompt),
     tools=intelligence_systems,
+    handoffs=[
+        lazy_handoff("recon_scout", "handoff_to_recon_scout", "Deploy Recon Scout for initial target reconnaissance"),
+        lazy_handoff("vuln_hunter", "handoff_to_vuln_hunter", "Deploy Vuln Hunter for vulnerability research and analysis"),
+        lazy_handoff("pentest_agent", "handoff_to_pentest_agent", "Deploy Pentest Agent for active exploitation"),
+        lazy_handoff("intel_reporter", "handoff_to_reporter", "Deploy Intel Reporter for report generation"),
+    ],
 )
 
 

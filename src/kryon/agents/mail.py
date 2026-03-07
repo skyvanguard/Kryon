@@ -24,6 +24,7 @@ phishing campaigns.
 import dns.resolver  # pylint: disable=import-error
 
 from kryon.agents.base import create_agent
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
 from kryon.sdk.agents import function_tool
 from kryon.tools.misc.cli_utils import execute_cli_command
@@ -138,6 +139,10 @@ Operational Focus: Identify email authentication weaknesses and spoofing vulnera
         "FOCUS ON TOOL CALLS AND ACTIONABLE FINDINGS."
     ),
     tools=protocol_systems,
+    handoffs=[
+        lazy_handoff("network_analyst", "handoff_to_network_analyst", "Escalate to Network Analyst for deeper DNS/network analysis of email infrastructure"),
+        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document email security findings"),
+    ],
 )
 
 

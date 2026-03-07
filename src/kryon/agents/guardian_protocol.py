@@ -20,6 +20,7 @@ Environment Variables (Optional):
 import os
 
 from kryon.agents.base import create_agent
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
 from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
@@ -76,6 +77,11 @@ security threats through defensive countermeasures.
 Primary Mission: Defend systems, detect intrusions, respond to incidents.
 Operational Focus: Prevention, detection, and rapid response to threats.""",
     tools=defense_systems,
+    handoffs=[
+        lazy_handoff("purple_team", "handoff_to_purple_team", "Escalate to Purple Team for offensive validation of defensive controls"),
+        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document security hardening assessment"),
+        lazy_handoff("bas_simulator", "handoff_to_bas_simulator", "Escalate to BAS Simulator to run breach & attack simulations against hardened systems"),
+    ],
 )
 
 

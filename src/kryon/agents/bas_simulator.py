@@ -11,6 +11,7 @@ identify defensive gaps.
 
 from kryon.agents.base import create_agent
 from kryon.agents.guardrails import get_security_guardrails
+from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, CORE_TOOLS, RAG_TOOLS
 from kryon.tools.validation.attack_simulator import list_attack_techniques, simulate_attack
 from kryon.tools.validation.bas_scenarios import (
@@ -46,6 +47,11 @@ bas_simulator = create_agent(
         simulate_attack,
         list_attack_techniques,
         validate_finding,
+    ],
+    handoffs=[
+        lazy_handoff("purple_team", "handoff_to_purple_team", "Escalate to Purple Team for manual offensive validation of simulation results"),
+        lazy_handoff("guardian_protocol", "handoff_to_guardian_protocol", "Escalate to Guardian Protocol for defensive recommendations based on simulation gaps"),
+        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document breach & attack simulation results"),
     ],
     input_guardrails=input_guardrails,
     output_guardrails=output_guardrails,
