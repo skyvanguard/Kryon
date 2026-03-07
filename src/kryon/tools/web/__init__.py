@@ -35,6 +35,14 @@ try:
 except ImportError:
     _GOOGLE_SEARCH_AVAILABLE = False
 
+# DuckDuckGo Search (free, no API key)
+try:
+    from .duckduckgo_search import duckduckgo_search as duckduckgo_search
+
+    _DUCKDUCKGO_AVAILABLE = True
+except ImportError:
+    _DUCKDUCKGO_AVAILABLE = False
+
 __all__ = [
     # Vulnerability Scanning
     "nuclei_scan",
@@ -51,3 +59,6 @@ if _SEARCH_AVAILABLE:
 
 if _GOOGLE_SEARCH_AVAILABLE:
     __all__.append("google_search")
+
+if _DUCKDUCKGO_AVAILABLE:
+    __all__.append("duckduckgo_search")

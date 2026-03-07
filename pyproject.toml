@@ -32,6 +32,7 @@ dependencies = [
     "flask>=3.0.0, <4",
     "networkx>=3.0, <4",
     "PyPDF2>=3.0.0, <4",
+    "duckduckgo-search>=7.0, <8",
 ]
 classifiers = [
     "Typing :: Typed",
