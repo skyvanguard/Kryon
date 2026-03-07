@@ -1,126 +1,92 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { agents, loadAgents } from '$lib/stores/agents';
-	import AgentCard from '$lib/components/agents/AgentCard.svelte';
+	import { currentAgentKey, currentSessionId, prefillInput } from '$lib/stores/session';
+	import { messages, clearChat, isRunning } from '$lib/stores/runs';
+	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
+	import AgentSelector from '$lib/components/agents/AgentSelector.svelte';
 
-	let health: { status: string; version: string; agents_count: number } | null = null;
-	let searchQuery = '';
-	let showPatterns = false;
+	let health: { status: string; version: string } | null = null;
 
-	$: coreAgents = $agents.filter((a) => a.category === 'agent');
-	$: patterns = $agents.filter((a) => a.category === 'pattern');
-
-	$: filteredAgents = searchQuery
-		? coreAgents.filter(
-				(a) =>
-					a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-					a.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-					(a.description || '').toLowerCase().includes(searchQuery.toLowerCase())
-			)
-		: coreAgents;
-
-	$: filteredPatterns = searchQuery
-		? patterns.filter(
-				(a) =>
-					a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-					(a.description || '').toLowerCase().includes(searchQuery.toLowerCase())
-			)
-		: patterns;
+	const examples = [
+		{ label: 'Analiza la seguridad de example.com', text: 'Analyze the security of example.com' },
+		{ label: 'Escanea vulnerabilidades en 10.10.10.1', text: 'Scan for vulnerabilities on 10.10.10.1' },
+		{ label: 'Genera un reporte de pentest', text: 'Generate a pentest report for the current engagement' },
+		{ label: 'Investiga el CVE-2024-1234', text: 'Research CVE-2024-1234 and assess its impact' }
+	];
 
 	onMount(async () => {
 		loadAgents();
+		if (!$currentAgentKey) {
+			currentAgentKey.set('central_core');
+		}
 		try {
 			const resp = await fetch('/api/v1/health');
 			health = await resp.json();
 		} catch {
-			// API not available
+			/* API not available */
 		}
 	});
+
+	function newChat() {
+		clearChat();
+		currentSessionId.set(null);
+	}
+
+	function fillInput(text: string) {
+		prefillInput.set(text);
+	}
 </script>
 
-<div class="flex-1 p-8 max-w-7xl mx-auto">
-	<!-- Hero -->
-	<div class="mb-8">
-		<h1 class="text-3xl font-bold mb-2">
-			<span class="text-kryon-500">KRYON</span> Dashboard
-		</h1>
-		<p class="text-gray-400">Autonomous Cybersecurity Intelligence Platform</p>
-		{#if health}
-			<div class="mt-3 flex gap-4 text-sm">
-				<span class="px-2 py-0.5 bg-green-500/10 text-green-400 rounded-full text-xs font-medium">
+<div class="flex-1 flex flex-col h-full">
+	<!-- Compact header -->
+	<div class="px-6 py-3 border-b border-gray-800/50 flex items-center justify-between">
+		<div class="flex items-center gap-4">
+			<h1 class="text-xl font-bold">
+				<span class="text-kryon-500">KRYON</span>
+			</h1>
+			<AgentSelector />
+			{#if health}
+				<span class="px-2 py-0.5 bg-green-500/10 text-green-400 rounded-full text-xs">
 					{health.status.toUpperCase()}
 				</span>
-				<span class="text-gray-500">v{health.version}</span>
-				<span class="text-gray-500">{coreAgents.length} agents</span>
-				{#if patterns.length > 0}
-					<span class="text-gray-500">{patterns.length} patterns</span>
-				{/if}
-			</div>
-		{:else}
-			<p class="mt-3 text-sm text-yellow-500/80">Connecting to API server...</p>
-		{/if}
-	</div>
-
-	<!-- Search -->
-	<div class="mb-6">
-		<input
-			type="text"
-			bind:value={searchQuery}
-			placeholder="Search agents..."
-			class="w-full max-w-md bg-gray-800/50 border border-gray-700/50 rounded-lg px-4 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-kryon-500/50 focus:ring-1 focus:ring-kryon-500/20"
-		/>
-	</div>
-
-	<!-- Core Agents -->
-	<section class="mb-10">
-		<h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-			<span class="text-kryon-400">Agents</span>
-			<span class="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">
-				{filteredAgents.length}
-			</span>
-		</h2>
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-			{#each filteredAgents as agent (agent.key)}
-				<AgentCard {agent} />
-			{/each}
-		</div>
-		{#if filteredAgents.length === 0 && searchQuery}
-			<p class="text-gray-500 text-sm">No agents match "{searchQuery}"</p>
-		{/if}
-	</section>
-
-	<!-- Patterns (collapsible) -->
-	{#if patterns.length > 0}
-		<section>
-			<button
-				on:click={() => (showPatterns = !showPatterns)}
-				class="text-lg font-semibold mb-4 flex items-center gap-2 hover:text-kryon-400 transition-colors"
-			>
-				<span class="text-gray-400 text-sm">{showPatterns ? '▼' : '▶'}</span>
-				<span class="text-gray-300">Agentic Patterns</span>
-				<span class="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">
-					{filteredPatterns.length}
-				</span>
-			</button>
-			{#if showPatterns}
-				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-					{#each filteredPatterns as pattern (pattern.key)}
-						<div
-							class="bg-gray-800/30 border border-gray-700/30 rounded-xl p-5 border-dashed"
-						>
-							<div class="flex items-start gap-3">
-								<span class="text-2xl mt-0.5">🔀</span>
-								<div class="flex-1 min-w-0">
-									<h3 class="text-gray-300 font-semibold truncate">{pattern.name}</h3>
-									<p class="text-gray-500 text-sm mt-1 line-clamp-2 leading-relaxed">
-										{pattern.description || 'Agentic pattern'}
-									</p>
-								</div>
-							</div>
-						</div>
-					{/each}
-				</div>
 			{/if}
-		</section>
-	{/if}
+		</div>
+		<button
+			on:click={newChat}
+			class="text-sm text-gray-400 hover:text-white px-3 py-1 rounded border border-gray-700/50 hover:border-gray-600 transition-colors"
+		>
+			+ New Chat
+		</button>
+	</div>
+
+	<!-- Chat area -->
+	<div class="flex-1 overflow-hidden relative">
+		<ChatPanel />
+
+		<!-- Welcome overlay when no messages -->
+		{#if $messages.length === 0 && !$isRunning}
+			<div
+				class="absolute inset-x-0 top-0 bottom-16 flex flex-col items-center justify-center pointer-events-none z-10"
+			>
+				<div class="pointer-events-auto text-center px-4">
+					<h2 class="text-2xl font-bold text-gray-200 mb-2">Describe tu objetivo</h2>
+					<p class="text-gray-500 mb-6 max-w-md mx-auto">
+						KRYON analiza tu solicitud y selecciona el agente adecuado automáticamente.
+					</p>
+					<div class="flex flex-wrap gap-2 justify-center max-w-lg mx-auto">
+						{#each examples as ex}
+							<button
+								on:click={() => fillInput(ex.text)}
+								class="text-sm px-3 py-1.5 rounded-full border border-gray-700/50
+									text-gray-400 hover:text-white hover:border-kryon-500/50 transition-colors"
+							>
+								{ex.label}
+							</button>
+						{/each}
+					</div>
+				</div>
+			</div>
+		{/if}
+	</div>
 </div>

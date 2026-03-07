@@ -108,7 +108,8 @@ class ScanScheduler:
                 continue
             job = ScheduledJob(**row)
             self.jobs[job.id] = job
-            task = asyncio.create_task(self._run_loop(job))
+            # skip_first=True: don't run immediately on restore, wait for next interval
+            task = asyncio.create_task(self._run_loop(job, skip_first=True))
             self._tasks[job.id] = task
             restored += 1
 
@@ -143,10 +144,18 @@ class ScanScheduler:
             logger.error("Scan job %s failed", job.id, exc_info=True)
             job.status = "scheduled"
 
-    async def _run_loop(self, job: ScheduledJob) -> None:
+    async def _run_loop(self, job: ScheduledJob, *, skip_first: bool = False) -> None:
         """Background loop for a scheduled job."""
         try:
+            first_iteration = True
             while job.status != "cancelled":
+                if first_iteration and skip_first:
+                    # Restored jobs wait for the next interval before running
+                    first_iteration = False
+                    if job.interval_seconds > 0:
+                        await asyncio.sleep(job.interval_seconds)
+                        continue
+                first_iteration = False
                 await self.run_scan_job(job)
                 # Persist last_run to DB
                 try:

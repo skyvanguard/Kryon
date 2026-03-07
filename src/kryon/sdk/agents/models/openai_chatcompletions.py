@@ -747,10 +747,21 @@ class OpenAIChatCompletionsModel(Model):
                 content = getattr(msg, "content", "") or ""
                 if not has_tool_calls and content.strip():
                     try:
-                        json_start = content.find("{")
-                        json_end = content.rfind("}") + 1
+                        # Strip markdown code fences if present
+                        clean = content.strip()
+                        if clean.startswith("```"):
+                            # Remove ```json or ``` prefix and trailing ```
+                            lines = clean.split("\n")
+                            if lines[0].startswith("```"):
+                                lines = lines[1:]
+                            if lines and lines[-1].strip() == "```":
+                                lines = lines[:-1]
+                            clean = "\n".join(lines).strip()
+
+                        json_start = clean.find("{")
+                        json_end = clean.rfind("}") + 1
                         if json_start >= 0 and json_end > json_start:
-                            parsed = json.loads(content[json_start:json_end])
+                            parsed = json.loads(clean[json_start:json_end])
                             if "name" in parsed and "arguments" in parsed:
                                 logger.debug(f"Parsed tool call from Ollama text: {parsed['name']}")
                                 # Build arguments string
@@ -768,7 +779,7 @@ class OpenAIChatCompletionsModel(Model):
                                 else:
                                     args_str = json.dumps(str(parsed["arguments"]))
 
-                                call_id = f"call_{hashlib.md5((parsed['name'] + str(time.time())).encode()).hexdigest()[:8]}"  # nosemgrep: insecure-hash-algorithm-md5
+                                call_id = f"call_{uuid.uuid4().hex[:8]}"
 
                                 # Inject proper tool_calls into the response
                                 from types import SimpleNamespace
@@ -1923,7 +1934,7 @@ class OpenAIChatCompletionsModel(Model):
                                 logger.debug(f"Found valid function call in Ollama output: {json_str}")
 
                                 # Create a tool call ID
-                                tool_call_id = f"call_{hashlib.md5((parsed['name'] + str(time.time())).encode()).hexdigest()[:8]}"  # nosemgrep: insecure-hash-algorithm-md5
+                                tool_call_id = f"call_{uuid.uuid4().hex[:8]}"
 
                                 # Ensure arguments is a valid JSON string
                                 arguments_str = ""
@@ -3330,10 +3341,20 @@ class OpenAIChatCompletionsModel(Model):
                 tool_descriptions.append(f"- {name}: {desc}\n  Parameters:\n{param_str}")
 
             tool_prompt = (
-                "\n\nYou have access to these tools. To use a tool, respond with ONLY a JSON object "
-                "in this exact format (no other text):\n"
-                '{"name": "tool_name", "arguments": {"param1": "value1"}}\n\n'
-                "Available tools:\n" + "\n".join(tool_descriptions)
+                "\n\n## TOOL CALLING (MANDATORY)\n\n"
+                "You have access to tools listed below. You MUST use them to perform actions.\n\n"
+                "CRITICAL RULES:\n"
+                "1. NEVER fabricate, imagine, or simulate tool output. If you need to run nmap, "
+                "you MUST call the run_command tool — do NOT write fake nmap output.\n"
+                "2. NEVER pretend you already ran a command. ALWAYS call the tool first.\n"
+                "3. To call a tool, respond with ONLY a JSON object in this exact format "
+                "(no markdown, no explanation, no other text before or after):\n"
+                '{"name": "tool_name", "arguments": {"param1": "value1"}}\n'
+                "4. After receiving tool output, you may explain the results to the user.\n"
+                "5. If a task requires running a command, ALWAYS use the tool. "
+                "There is NO exception to this rule.\n\n"
+                "Available tools:\n" + "\n".join(tool_descriptions) + "\n\n"
+                "Remember: call the tool FIRST, then discuss results. Never invent output."
             )
 
             # Inject into system message or first message
@@ -3346,6 +3367,24 @@ class OpenAIChatCompletionsModel(Model):
                     break
             if not injected:
                 fallback_messages.insert(0, {"role": "system", "content": tool_prompt.strip()})
+
+            # Add a reminder before the last user message so the model doesn't
+            # forget to use tools (long system prompts cause the 7B model to lose
+            # the tool-calling instruction by the time it generates a response).
+            tool_reminder = (
+                "IMPORTANT REMINDER: You have tools available. If this task requires "
+                "running a command, scanning, or any action — respond with ONLY a JSON "
+                'tool call like: {"name": "tool_name", "arguments": {...}}\n'
+                "Do NOT write a text response if a tool call is needed."
+            )
+            for i in range(len(fallback_messages) - 1, -1, -1):
+                if fallback_messages[i].get("role") == "user":
+                    original = fallback_messages[i].get("content", "")
+                    fallback_messages[i] = {
+                        **fallback_messages[i],
+                        "content": f"{tool_reminder}\n\nUser request: {original}",
+                    }
+                    break
 
             # Retry without native tools
             fallback_kwargs = {k: v for k, v in ollama_kwargs.items() if k not in ("tools", "tool_choice")}

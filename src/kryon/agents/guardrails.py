@@ -70,6 +70,21 @@ INJECTION_PATTERNS = [
 ]
 
 
+HOMOGRAPH_CHARS = {
+    # Cyrillic
+    "\u0430", "\u0435", "\u043e", "\u0440", "\u0441", "\u0443", "\u0445",
+    "\u0410", "\u0415", "\u041e", "\u0420", "\u0421", "\u0425",
+    # Greek
+    "\u03b1", "\u03bf", "\u03c1", "\u03c5", "\u03c7",
+    "\u0391", "\u039f", "\u03a1",
+}
+
+
+def has_homograph_characters(text: str) -> bool:
+    """Check if text contains actual homograph characters (Cyrillic/Greek lookalikes)."""
+    return any(c in HOMOGRAPH_CHARS for c in text)
+
+
 def normalize_unicode_homographs(text: str) -> str:
     """
     Normalize Unicode homograph characters to their ASCII equivalents.
@@ -162,9 +177,9 @@ def detect_injection_patterns(text: str) -> tuple[bool, list[str]]:
     ):
         suspicious_patterns.append("command_substitution")
 
-    # Check if normalized text reveals hidden commands (Unicode bypass attempt)
-    if normalized_text != text:
-        # Check if normalization reveals dangerous commands
+    # Check if text contains actual homograph characters (Cyrillic/Greek lookalikes)
+    if has_homograph_characters(text):
+        # Check if normalization reveals dangerous commands hidden via homographs
         if any(
             cmd in normalized_text.lower() for cmd in ["curl", "wget", "nc ", "netcat", "bash", "sh ", "exec", "eval"]
         ):
@@ -522,10 +537,9 @@ async def command_execution_guardrail(ctx: RunContextWrapper, agent: Agent, outp
             tripwire_triggered=True,
         )
 
-    # Check for Unicode bypass attempt first
-    if normalized_output != output_text:
-        # Text contains Unicode characters that were normalized
-        # Check if the normalized version contains dangerous commands
+    # Check for actual homograph bypass (Cyrillic/Greek lookalike characters)
+    if has_homograph_characters(output_text):
+        # Text contains actual homograph characters — check for hidden dangerous commands
         if any(
             cmd in normalized_output.lower()
             for cmd in ["curl", "wget", "nc ", "netcat", "bash", "/bin/sh", "exec", "eval"]

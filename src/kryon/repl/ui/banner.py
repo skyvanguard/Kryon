@@ -597,43 +597,72 @@ def _random_tip() -> str:
     return random.choice(_TIPS)
 
 
+def _ascii_art_logo() -> str:
+    """Return the KRYON ASCII art logo with Rich markup."""
+    return (
+        "[bold blue]  ██╗  ██╗██████╗ ██╗   ██╗ ██████╗ ███╗   ██╗[/bold blue]\n"
+        "[bold blue]  ██║ ██╔╝██╔══██╗╚██╗ ██╔╝██╔═══██╗████╗  ██║[/bold blue]\n"
+        "[bold blue]  █████╔╝ ██████╔╝ ╚████╔╝ ██║   ██║██╔██╗ ██║[/bold blue]\n"
+        "[bold cyan]  ██╔═██╗ ██╔══██╗  ╚██╔╝  ██║   ██║██║╚██╗██║[/bold cyan]\n"
+        "[bold cyan]  ██║  ██╗██║  ██║   ██║   ╚██████╔╝██║ ╚████║[/bold cyan]\n"
+        "[bold cyan]  ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═══╝[/bold cyan]"
+    )
+
+
+def _ascii_art_logo_fallback() -> str:
+    """Return a plain-ASCII fallback logo with Rich markup."""
+    return (
+        "[bold blue]   _  __ ____  __   __  ___  _   _[/bold blue]\n"
+        "[bold blue]  | |/ /|  _ \\\\ \\\\ \\\\ / / / _ \\\\| \\\\ | |[/bold blue]\n"
+        "[bold blue]  | ' / | |_) | \\\\ V / | | | |  \\\\| |[/bold blue]\n"
+        "[bold cyan]  |  <  |  _ <   | |  | | | | . ` |[/bold cyan]\n"
+        "[bold cyan]  | . \\\\ | | \\\\ \\\\  | |  | |_| | |\\\\  |[/bold cyan]\n"
+        "[bold cyan]  |_|\\\\_\\\\|_|  \\\\_\\\\ |_|   \\\\___/|_| \\\\_|[/bold cyan]"
+    )
+
+
+def _pick_logo() -> str:
+    """Choose Unicode or ASCII logo based on platform."""
+    use_ascii = sys.platform == "win32" and not os.environ.get("WT_SESSION")
+    return _ascii_art_logo_fallback() if use_ascii else _ascii_art_logo()
+
+
 def display_compact_banner(console: Console) -> None:
     """
     Interactive compact startup panel for returning users.
 
-    Styled after modern CLI tools: bordered panel with context and a rotating tip.
+    Styled after modern CLI tools: bordered panel with ASCII art, context and a rotating tip.
     """
     ctx = _get_context()
     tip = _random_tip()
+    logo = _pick_logo()
 
-    body = Text.assemble(
-        ("KRYON", "bold blue"),
-        (" v", "white"),
+    body = Text.from_markup(
+        f"{logo}\n\n"
+    )
+    body.append_text(Text.assemble(
+        ("  v", "white"),
         (ctx["version"], "bold white"),
-        (" ", ""),
-        ("· ", "dim"),
+        (" · ", "dim"),
         (ctx["codename"], "bold cyan"),
-        "\n\n",
-        ("  /help", "green"),
-        (" for commands", "dim"),
-        ("    ", ""),
-        ("/agent", "green"),
-        (" to switch agents", "dim"),
-        ("    ", ""),
-        ("Ctrl+C", "green"),
-        (" to exit", "dim"),
-        "\n\n",
-        ("  Agent: ", "dim"),
+        ("  · ", "dim"),
+        ("Agent: ", "dim"),
         (ctx["agent"], "cyan"),
         ("  · ", "dim"),
         ("Model: ", "dim"),
         (ctx["model"], "white"),
-        ("\n",),
-        ("  cwd: ", "dim"),
-        (ctx["cwd"], "dim"),
+        "\n\n",
+        ("  /help", "green"),
+        (" commands", "dim"),
+        ("  ·  ", "dim"),
+        ("/agent", "green"),
+        (" switch agents", "dim"),
+        ("  ·  ", "dim"),
+        ("Ctrl+C", "green"),
+        (" exit", "dim"),
         "\n\n",
         ("  Tip: ", "yellow"),
-    )
+    ))
 
     panel = Panel(
         body + Text.from_markup(tip),
@@ -647,21 +676,21 @@ def display_compact_banner(console: Console) -> None:
 
 def display_first_run_welcome(console: Console) -> None:
     """
-    First-run onboarding panel with examples and key commands.
+    First-run onboarding panel with ASCII art, examples and key commands.
 
     Creates the marker file so subsequent starts use the compact banner.
     """
     ctx = _get_context()
+    logo = _pick_logo()
 
-    body = Text.assemble(
-        ("KRYON", "bold blue"),
-        (" v", "white"),
-        (ctx["version"], "bold white"),
-        (" ", ""),
-        ("· ", "dim"),
-        (ctx["codename"], "bold cyan"),
-        "\n",
+    body = Text.from_markup(f"{logo}\n")
+    body.append_text(Text.assemble(
         ("  Autonomous Cybersecurity Intelligence Platform", "dim"),
+        "\n",
+        ("  v", "white"),
+        (ctx["version"], "bold white"),
+        (" · ", "dim"),
+        (ctx["codename"], "bold cyan"),
         "\n\n",
         ("  Welcome!", "bold white"),
         (" KRYON is an AI-powered autonomous pentesting platform.", "dim"),
@@ -687,14 +716,14 @@ def display_first_run_welcome(console: Console) -> None:
         ("          Full command reference", "dim"),
         "\n",
         ("  /agent list", "green"),
-        ("    Switch between 9 specialized agents", "dim"),
+        ("    Switch between specialized agents", "dim"),
         "\n",
         ("  /help quick", "green"),
         ("    Workflows, env vars, and pro tips", "dim"),
         "\n",
         ("  Ctrl+C", "green"),
         ("         Exit", "dim"),
-    )
+    ))
 
     panel = Panel(
         body,
