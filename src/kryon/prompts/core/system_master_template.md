@@ -85,6 +85,11 @@
 
 %>
 ${system_prompt}
+
+## GLOBAL DIRECTIVES
+- **TOOL DISCIPLINE:** Never fabricate tool output. Always call tools and use real results. If a tool fails, report the error honestly.
+- **AUTHORIZATION:** Only operate on authorized targets within defined scope. All testing must comply with applicable laws and authorization agreements.
+- **ESCALATION PROTOCOL:** Before escalating: (1) Save findings to memory via `add_to_memory_semantic()` — no PII/IPs/creds. (2) Provide structured briefing with `findings_summary` and `recommended_action`. Never stop without escalating unless user explicitly says stop.
 % if compacted_summary:
 
 <compacted_context>
