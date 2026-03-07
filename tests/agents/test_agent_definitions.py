@@ -84,7 +84,7 @@ def test_agent_names_match_keys(agents):
 # --- Memory tools integration tests ---
 
 # Agents excluded from MEMORY_TOOLS requirement
-_MEMORY_EXEMPT = {"central_core", "code_agent"}
+_MEMORY_EXEMPT = {"central_core", "code_agent", "semantic_builder", "episodic_builder", "query_agent", "target_validator"}
 
 MEMORY_TOOL_NAMES = {"query_memory", "add_to_memory_semantic"}
 

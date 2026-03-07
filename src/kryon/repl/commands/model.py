@@ -16,7 +16,7 @@ from rich.panel import Panel  # pylint: disable=import-error
 from rich.table import Table  # pylint: disable=import-error
 
 from kryon.repl.commands.base import Command, register_command
-from kryon.util import COST_TRACKER, get_ollama_api_base
+from kryon.util import get_ollama_api_base
 
 console = Console()
 
@@ -85,26 +85,14 @@ def get_all_predefined_models() -> list[dict[str, Any]]:
         provider = category_to_provider.get(category, "Unknown")
 
         for model in models:
-            # Get pricing info using COST_TRACKER
-            input_cost_per_token, output_cost_per_token = COST_TRACKER.get_model_pricing(model["name"])
-
-            # Convert to dollars per million tokens
-            input_cost_per_million = None
-            output_cost_per_million = None
-
-            if input_cost_per_token is not None and input_cost_per_token > 0:
-                input_cost_per_million = input_cost_per_token * 1000000
-            if output_cost_per_token is not None and output_cost_per_token > 0:
-                output_cost_per_million = output_cost_per_token * 1000000
-
             all_models.append(
                 {
                     "name": model["name"],
                     "provider": provider,
                     "category": category,
                     "description": model["description"],
-                    "input_cost": input_cost_per_million,
-                    "output_cost": output_cost_per_million,
+                    "input_cost": None,
+                    "output_cost": None,
                 }
             )
 

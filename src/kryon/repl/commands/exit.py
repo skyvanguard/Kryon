@@ -8,7 +8,6 @@ from typing import Optional
 
 from kryon.repl.commands.base import Command, register_command
 from kryon.sdk.agents.global_usage_tracker import GLOBAL_USAGE_TRACKER
-from kryon.util import COST_TRACKER
 
 
 class ExitCommand(Command):
@@ -19,17 +18,8 @@ class ExitCommand(Command):
         super().__init__(name="/exit", description="Exit the KRYON REPL", aliases=["/q", "/quit"])
 
     def handle(self, args: Optional[list[str]] = None) -> bool:
-        """Handle the exit command.
-
-        Args:
-            args: Optional list of command arguments
-
-        Returns:
-            True if the command was handled successfully, False otherwise
-        """
-        # End global usage tracking session before exit
-        GLOBAL_USAGE_TRACKER.end_session(final_cost=COST_TRACKER.session_total_cost)
-
+        """Handle the exit command."""
+        GLOBAL_USAGE_TRACKER.end_session()
         sys.exit(0)
 
 

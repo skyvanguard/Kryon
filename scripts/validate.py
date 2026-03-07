@@ -162,7 +162,7 @@ def check_agent_prompts():
     critical_prompts = [
         "src/kryon/prompts/system_pentest_agent.md",
         "src/kryon/prompts/system_ctf_master.md",
-        "src/kryon/prompts/system_central_core.md",
+        "src/kryon/prompts/system_thought_router.md",
         "src/kryon/prompts/system_guardian_protocol.md",
     ]
 

@@ -10,7 +10,6 @@ from kryon.repl.commands import (  # pylint: disable=import-error,unused-import,
     agent,
     compact,  # Add the compact command
     config,
-    cost,  # Add the cost command
     env,
     exit,
     flush,

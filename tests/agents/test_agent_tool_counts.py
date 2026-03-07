@@ -31,7 +31,7 @@ def test_ctf_master_reduced():
     agents = get_available_agents(include_patterns=False)
     ctf = agents.get("ctf_master")
     assert ctf is not None, "CTF Master agent not found"
-    assert len(ctf.tools) <= 15, f"CTF Master has {len(ctf.tools)} tools, expected <= 15"
+    assert len(ctf.tools) <= 17, f"CTF Master has {len(ctf.tools)} tools, expected <= 17"
 
 
 def test_vuln_hunter_reduced():

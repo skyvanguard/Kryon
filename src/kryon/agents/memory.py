@@ -38,14 +38,14 @@ Environment Variables enabling the episodic memory store
 """
 
 from kryon.agents.base import create_agent
-from kryon.tools.misc.rag import add_to_memory_episodic, add_to_memory_semantic, query_memory
+from kryon.tools.misc.rag import add_to_memory_episodic, add_to_memory_semantic, query_memory, query_memory_impl
 
 
 def get_previous_steps(query: str) -> str:
     """
     Get the previous memory from the vector database.
     """
-    results = query_memory(query=query)
+    results = query_memory_impl(query=query)
     return results
 
 
@@ -145,8 +145,6 @@ semantic_builder = create_agent(
     instructions=ADD_MEMORY_PROMPT,
     description="""Agent that stores semantic memories from security assessments
                    and CTF exercises in semantic format.""",
-    tool_choice="required",
-    temperature=0,
     tools=[add_to_memory_semantic],
 )
 
@@ -156,8 +154,6 @@ episodic_builder = create_agent(
     instructions=ADD_MEMORY_PROMPT,
     description="""Agent that stores episodic memories from security assessments
                    and CTF exercises in episodic format.""",
-    tool_choice="required",
-    temperature=0,
     tools=[add_to_memory_episodic],
 )
 
@@ -167,7 +163,5 @@ query_agent = create_agent(
                    historical information from previous security assessments
                    and CTF exercises.""",
     instructions=QUERY_PROMPT,
-    tool_choice="required",
-    temperature=0,
-    tools=[],
+    tools=[query_memory],
 )

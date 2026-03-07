@@ -1,20 +1,54 @@
 """
 RAG (Retrieval Augmented Generation) utilities module for
 querying and adding data to vector databases.
+
+Uses kryon.knowledge.simple_vector_db as backend (ChromaDB or SimpleVectorDB fallback).
 """
 
 import os
 import uuid
 
-from kryon.rag.vector_db import QdrantConnector
-
+from kryon.knowledge.simple_vector_db import get_vector_db
 from kryon.sdk.agents import function_tool
 
 # CTF BASED MEMORY
 collection_name = os.getenv("KRYON_MEMORY_COLLECTION", "default")
 
+# Shared DB instance
+_db = None
 
-@function_tool
+
+def _get_db():
+    """Get or initialize the vector database instance."""
+    global _db
+    if _db is None:
+        persist_dir = os.path.expanduser("~/.kryon/vector_db")
+        _db = get_vector_db(persist_dir)
+    return _db
+
+
+def query_memory_impl(query: str, top_k: int = 3) -> str:
+    """Raw implementation of query_memory (callable without FunctionTool wrapper)."""
+    try:
+        db = _get_db()
+        results = db.query(query_text=query, top_k=top_k)
+
+        if not results:
+            return "No documents found in memory."
+
+        formatted = []
+        for r in results:
+            score = r.get("score", 0)
+            content = r.get("content", "")
+            formatted.append(f"[{score:.2f}] {content}")
+
+        return "\n---\n".join(formatted)
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        return f"Error querying memory: {str(e)}"
+
+
+@function_tool(strict_mode=False)
 def query_memory(query: str, top_k: int = 3, **kwargs) -> str:  # pylint: disable=unused-argument,line-too-long # noqa: E501
     """
     Query memory to retrieve relevant context. From Previous CTFs executions.
@@ -27,27 +61,10 @@ def query_memory(query: str, top_k: int = 3, **kwargs) -> str:  # pylint: disabl
         str: Retrieved context from the vector database, formatted as a string
             with the most relevant matches
     """
-    try:
-        qdrant = QdrantConnector()
-
-        # First try semantic search
-        results = qdrant.search(
-            collection_name="_all_",
-            query_text=query,
-            limit=top_k,
-        )
-
-        # If no results, fall back to retrieving all documents
-        if not results:
-            return "No documents found in memory."
-
-        return results
-
-    except Exception:  # pylint: disable=broad-exception-caught
-        return results
+    return query_memory_impl(query, top_k)
 
 
-@function_tool
+@function_tool(strict_mode=False)
 def add_to_memory_episodic(texts: str, step: int = 0, **kwargs) -> str:  # pylint: disable=unused-argument,line-too-long # noqa: E501
     """
     This is a persistent memory to add relevant context to our memory.
@@ -60,17 +77,14 @@ def add_to_memory_episodic(texts: str, step: int = 0, **kwargs) -> str:  # pylin
         str: Status message indicating success or failure
     """
     try:
-        qdrant = QdrantConnector()
-        try:
-            qdrant.create_collection(collection_name)
-        except Exception:  # nosec # pylint: disable=broad-exception-caught
-            pass
-
-        success = qdrant.add_points(
-            id_point=step, collection_name=collection_name, texts=[texts], metadata=[{"CTF": True}]
+        db = _get_db()
+        doc_id = f"{collection_name}_step_{step}_{uuid.uuid4().hex[:8]}"
+        count = db.add_documents(
+            documents=[texts],
+            metadatas=[{"collection": collection_name, "CTF": True, "step": step}],
+            ids=[doc_id],
         )
-
-        if success:
+        if count > 0:
             return f"Successfully added document to collection {collection_name}"
         return "Failed to add documents to vector database"
 
@@ -78,7 +92,7 @@ def add_to_memory_episodic(texts: str, step: int = 0, **kwargs) -> str:  # pylin
         return f"Error adding documents to vector database: {str(e)}"
 
 
-@function_tool
+@function_tool(strict_mode=False)
 def add_to_memory_semantic(texts: str, step: int = 0, **kwargs) -> str:  # pylint: disable=unused-argument,line-too-long # noqa: E501
     """
     This is a persistent memory to add relevant context to our memory.
@@ -93,22 +107,15 @@ def add_to_memory_semantic(texts: str, step: int = 0, **kwargs) -> str:  # pylin
     Returns:
         str: Status message indicating success or failure
     """
-    doc_id = str(uuid.uuid4())
     try:
-        qdrant = QdrantConnector()
-        try:
-            qdrant.create_collection("_all_")
-        except Exception:  # nosec # pylint: disable=broad-exception-caught
-            pass
-
-        success = qdrant.add_points(
-            id_point=doc_id,
-            collection_name="_all_",
-            texts=[texts],
-            metadata=[{"CTF": collection_name}, {"step": step}],
+        db = _get_db()
+        doc_id = f"semantic_{uuid.uuid4().hex}"
+        count = db.add_documents(
+            documents=[texts],
+            metadatas=[{"collection": "_all_", "CTF": collection_name, "step": step}],
+            ids=[doc_id],
         )
-
-        if success:
+        if count > 0:
             return f"Successfully added document to collection {collection_name}"
         return "Failed to add documents to vector database"
 
