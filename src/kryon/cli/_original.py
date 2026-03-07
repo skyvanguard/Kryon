@@ -474,6 +474,11 @@ def run_kryon_cli(
     parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
     use_initial_prompt = initial_prompt is not None
 
+    # Initialize findings collector for CLI persistence
+    from kryon.cli.findings_collector import CLIFindingsCollector
+
+    findings_collector = CLIFindingsCollector()
+
     # Reset cost tracking at the start
     from kryon.util import COST_TRACKER
 
@@ -1754,6 +1759,20 @@ def run_kryon_cli(
                 from kryon.util import fix_message_list
 
                 agent.model.message_history[:] = fix_message_list(agent.model.message_history)
+
+            # Extract and persist findings from recent messages
+            try:
+                if hasattr(agent, "model") and hasattr(agent.model, "message_history"):
+                    new_findings = findings_collector.extract_from_message_history(
+                        agent.model.message_history[-10:]
+                    )
+                    if new_findings:
+                        count = findings_collector.save_findings(new_findings)
+                        if count > 0:
+                            console.print(f"[dim green]  {count} finding(s) saved to database[/dim green]")
+            except Exception:
+                pass  # Best-effort — findings collection is non-critical
+
             turn_count += 1
 
             # Stop measuring active time and start measuring idle time again

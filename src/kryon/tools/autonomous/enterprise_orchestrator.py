@@ -18,6 +18,7 @@ import asyncio
 import ipaddress
 import json
 import logging
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -114,6 +115,13 @@ def parse_scope(raw: str | list[str]) -> list[str]:
 class EnterpriseOrchestrator:
     """Orchestrates a multi-phase autonomous penetration test."""
 
+    # Max turns per phase, keyed by profile
+    _PROFILE_TURNS: dict[str, dict[str, int]] = {
+        "standard": {"recon": 3, "vuln": 3, "exploit": 5},
+        "deep": {"recon": 5, "vuln": 7, "exploit": 10},
+        "enterprise_deep": {"recon": 7, "vuln": 10, "exploit": 15},
+    }
+
     def __init__(
         self,
         scope: str | list[str],
@@ -127,6 +135,7 @@ class EnterpriseOrchestrator:
         output_format: str = "html",
         output_path: str | None = None,
         compliance_frameworks: list[str] | None = None,
+        max_turns_override: int | None = None,
     ):
         self.targets = parse_scope(scope)
         self.client_id = client_id
@@ -139,6 +148,32 @@ class EnterpriseOrchestrator:
         self.output_format = output_format
         self.output_path = output_path
         self.compliance_frameworks = compliance_frameworks or []
+
+        # Resolve max turns: profile defaults → override → env var
+        turns = dict(self._PROFILE_TURNS.get(profile, self._PROFILE_TURNS["standard"]))
+        if max_turns_override is not None:
+            turns = dict.fromkeys(turns, max_turns_override)
+        env_turns = os.getenv("KRYON_ORCHESTRATOR_MAX_TURNS")
+        if env_turns:
+            try:
+                t = int(env_turns)
+                turns = dict.fromkeys(turns, t)
+            except ValueError:
+                logger.warning("Invalid KRYON_ORCHESTRATOR_MAX_TURNS=%r, ignoring", env_turns)
+        self._turns = turns
+
+        # Initialize planner — sync its phase max_turns with resolved turns
+        from kryon.tools.autonomous.pentest_planner import PentestPlanner
+
+        self._planner = PentestPlanner()
+        self._plan = self._planner.generate_plan(self.targets, profile)
+        # Override planner phase turns with orchestrator's resolved turns
+        _turns_map = {"recon": "recon", "vuln_scan": "vuln", "exploitation": "exploit",
+                      "post_exploit": "exploit", "api_fuzzing": "vuln", "reporting": "vuln"}
+        for phase in self._plan.phases:
+            key = _turns_map.get(phase.name)
+            if key and key in self._turns:
+                phase.max_turns = self._turns[key]
 
         self.progress = ScanProgress()
         self._findings: list[Any] = []  # list[Finding]
@@ -155,25 +190,63 @@ class EnterpriseOrchestrator:
     async def run(self) -> dict[str, Any]:
         """Execute the full enterprise pentest pipeline.
 
+        Uses the planner to drive phases dynamically, adapting between each phase
+        based on findings collected so far.
+
         Returns a dict with scan_id, findings, report_path, progress.
         """
-        self.progress.log(f"Starting enterprise scan — {len(self.targets)} target(s), profile={self.profile}")
+        from kryon.tools.autonomous.pentest_planner import PhaseStatus
+
+        self._plan.status = "running"
+        self.progress.log(
+            f"Starting enterprise scan — {len(self.targets)} target(s), "
+            f"profile={self.profile}, phases={len(self._plan.phases)}"
+        )
         self._notify()
 
+        # Phase dispatch map
+        phase_handlers = {
+            "recon": self._phase_recon,
+            "vuln_scan": self._phase_vuln_scan,
+            "exploitation": self._phase_exploitation,
+            "post_exploit": self._phase_exploitation,  # reuse exploitation handler
+            "api_fuzzing": self._phase_vuln_scan,  # reuse vuln scan handler
+            "reporting": self._phase_reporting,
+        }
+
         try:
-            # Phase 1: Reconnaissance
-            await self._phase_recon()
+            # Use index-based loop so adapt_plan's injected phases are seen
+            phase_idx = 0
+            while phase_idx < len(self._plan.phases):
+                phase = self._plan.phases[phase_idx]
 
-            # Phase 2: Vulnerability Assessment
-            await self._phase_vuln_scan()
+                if phase.status == PhaseStatus.SKIPPED:
+                    self.progress.log(f"Skipping phase: {phase.name}")
+                    phase_idx += 1
+                    continue
 
-            # Phase 3: Exploitation (deep/enterprise_deep only)
-            if self.profile in ("deep", "enterprise_deep"):
-                await self._phase_exploitation()
+                phase.status = PhaseStatus.RUNNING
+                phase.findings_before = len(self._findings)
+                total = len(self._plan.phases)
+                self.progress.log(f"Phase {phase_idx + 1}/{total}: {phase.name}")
 
-            # Phase 4: Reporting
-            await self._phase_reporting()
+                handler = phase_handlers.get(phase.name)
+                if handler:
+                    await handler()
+                else:
+                    self.progress.log(f"Unknown phase '{phase.name}' — skipping")
+                    phase.status = PhaseStatus.SKIPPED
+                    phase_idx += 1
+                    continue
 
+                phase.findings_after = len(self._findings)
+                phase.status = PhaseStatus.COMPLETED
+
+                # Adapt remaining phases based on findings
+                self._plan = self._planner.adapt_plan(self._plan, self._findings)
+                phase_idx += 1
+
+            self._plan.status = "completed"
             self.progress.status = "completed"
             self.progress.phase_progress = 1.0
             self.progress.log(
@@ -210,7 +283,7 @@ class EnterpriseOrchestrator:
     async def _phase_recon(self) -> None:
         self.progress.status = "recon"
         self.progress.phase_progress = 0.0
-        self.progress.log(f"Phase 1/4: Reconnaissance — scanning {len(self.targets)} target(s)")
+        self.progress.log(f"Reconnaissance — scanning {len(self.targets)} target(s)")
         self._notify()
 
         for idx, target in enumerate(self.targets):
@@ -260,7 +333,7 @@ class EnterpriseOrchestrator:
     async def _phase_vuln_scan(self) -> None:
         self.progress.status = "vuln_scan"
         self.progress.phase_progress = 0.0
-        self.progress.log(f"Phase 2/4: Vulnerability assessment — {len(self._recon_results)} host(s)")
+        self.progress.log(f"Vulnerability assessment — {len(self._recon_results)} host(s)")
         self._notify()
 
         if not self._recon_results:
@@ -422,7 +495,7 @@ class EnterpriseOrchestrator:
             if self.rate_limiter:
                 await self.rate_limiter.acquire(estimated_tokens=2000)
 
-            result = await Runner.run(agent, input=prompt, max_turns=3)
+            result = await Runner.run(agent, input=prompt, max_turns=self._turns["vuln"])
             output = result.final_output or ""
 
             if output:
@@ -434,7 +507,7 @@ class EnterpriseOrchestrator:
                         severity=Severity.INFO,
                         affected_asset=target,
                         tool_source="vuln_hunter",
-                        evidence=f"Agent output (max_turns=3): {len(output)} chars",
+                        evidence=f"Agent output (max_turns={self._turns['vuln']}): {len(output)} chars",
                     )
                 )
         except Exception:
@@ -449,7 +522,7 @@ class EnterpriseOrchestrator:
     async def _phase_exploitation(self) -> None:
         self.progress.status = "exploitation"
         self.progress.phase_progress = 0.0
-        self.progress.log("Phase 3/4: Exploitation (deep profile)")
+        self.progress.log("Exploitation — assessing exploitable findings")
         self._notify()
 
         exploitable = [f for f in self._findings if f.severity.value in ("critical", "high")]
@@ -481,7 +554,7 @@ class EnterpriseOrchestrator:
                     f"Report your findings."
                 )
 
-                result = await Runner.run(agent, input=prompt, max_turns=5)
+                result = await Runner.run(agent, input=prompt, max_turns=self._turns["exploit"])
                 output = result.final_output or ""
 
                 if output:
@@ -513,7 +586,7 @@ class EnterpriseOrchestrator:
     async def _phase_reporting(self) -> None:
         self.progress.status = "reporting"
         self.progress.phase_progress = 0.0
-        self.progress.log(f"Phase 4/4: Generating {self.output_format.upper()} report")
+        self.progress.log(f"Reporting — generating {self.output_format.upper()} report")
         self._notify()
 
         try:

@@ -140,11 +140,21 @@ class TestEnterpriseOrchestratorRun:
     @patch("kryon.tools.autonomous.enterprise_orchestrator.EnterpriseOrchestrator._phase_exploitation")
     @patch("kryon.tools.autonomous.enterprise_orchestrator.EnterpriseOrchestrator._phase_reporting")
     async def test_deep_profile_runs_exploitation(self, mock_reporting, mock_exploit, mock_vuln, mock_recon):
-        """Deep profile should run exploitation phase."""
+        """Deep profile should run exploitation phase when high/critical findings exist."""
+        from kryon.intelligence.models import Finding, Severity
+
         mock_recon.return_value = None
-        mock_vuln.return_value = None
         mock_exploit.return_value = None
         mock_reporting.return_value = None
+
+        # vuln_scan must produce findings so adapt_plan doesn't skip exploitation
+        async def fake_vuln(self_=None):
+            orch._findings.append(
+                Finding(title="Test vuln", description="critical", severity=Severity.CRITICAL, affected_asset="10.0.0.1")
+            )
+            orch.progress.findings_count = len(orch._findings)
+
+        mock_vuln.side_effect = fake_vuln
 
         orch = EnterpriseOrchestrator(scope="10.0.0.1", profile="deep")
         result = await orch.run()

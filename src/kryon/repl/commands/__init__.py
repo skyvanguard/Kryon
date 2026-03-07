@@ -12,6 +12,7 @@ from kryon.repl.commands import (  # pylint: disable=import-error,unused-import,
     config,
     env,
     exit,
+    findings,  # Add the findings command
     flush,
     graph,
     help,

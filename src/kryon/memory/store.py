@@ -451,7 +451,9 @@ class MemoryStore:
         clauses: list[str] = []
         params: list[str | int] = []
         if severity:
-            clauses.append("finding_json LIKE ?")
+            # Match both compact ("severity":"x") and pretty ("severity": "x") JSON
+            clauses.append("(finding_json LIKE ? OR finding_json LIKE ?)")
+            params.append(f'%"severity":"{severity}"%')
             params.append(f'%"severity": "{severity}"%')
         if status:
             clauses.append("status = ?")
@@ -460,7 +462,8 @@ class MemoryStore:
             clauses.append("client_id = ?")
             params.append(client_id)
         if tool_source:
-            clauses.append("finding_json LIKE ?")
+            clauses.append("(finding_json LIKE ? OR finding_json LIKE ?)")
+            params.append(f'%"tool_source":"{tool_source}"%')
             params.append(f'%"tool_source": "{tool_source}"%')
         where = " AND ".join(clauses)
         sql = "SELECT * FROM findings"
@@ -483,7 +486,8 @@ class MemoryStore:
         clauses: list[str] = []
         params: list[str] = []
         if severity:
-            clauses.append("finding_json LIKE ?")
+            clauses.append("(finding_json LIKE ? OR finding_json LIKE ?)")
+            params.append(f'%"severity":"{severity}"%')
             params.append(f'%"severity": "{severity}"%')
         if status:
             clauses.append("status = ?")
@@ -492,7 +496,8 @@ class MemoryStore:
             clauses.append("client_id = ?")
             params.append(client_id)
         if tool_source:
-            clauses.append("finding_json LIKE ?")
+            clauses.append("(finding_json LIKE ? OR finding_json LIKE ?)")
+            params.append(f'%"tool_source":"{tool_source}"%')
             params.append(f'%"tool_source": "{tool_source}"%')
         where = " AND ".join(clauses)
         sql = "SELECT COUNT(*) FROM findings"
