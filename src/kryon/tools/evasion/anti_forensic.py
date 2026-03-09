@@ -18,6 +18,7 @@ This module provides:
 
 import os
 import random
+import shlex
 import subprocess
 from typing import Any, Optional
 
@@ -238,7 +239,7 @@ def disable_logging_temporarily(service: str = "syslog", duration_seconds: int =
 
             # Schedule restart
             subprocess.Popen(
-                f"sleep {duration_seconds} && systemctl start {service}",
+                f"sleep {shlex.quote(str(duration_seconds))} && systemctl start {shlex.quote(service)}",
                 shell=True,  # nosemgrep: subprocess-shell-true
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,

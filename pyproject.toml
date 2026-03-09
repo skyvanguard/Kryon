@@ -33,6 +33,7 @@ dependencies = [
     "networkx>=3.0, <4",
     "pypdf>=5.0.0, <6",
     "duckduckgo-search>=7.0, <8",
+    "defusedxml>=0.7.1, <1",
 ]
 classifiers = [
     "Typing :: Typed",

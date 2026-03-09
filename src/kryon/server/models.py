@@ -193,12 +193,12 @@ class ClientUpdate(BaseModel):
 
 
 class ScheduleScanRequest(BaseModel):
-    client_id: str
-    agent_key: str = "pentest_agent"
-    profile: str = "standard"
-    interval_seconds: int = 604800  # weekly
-    cron: str = ""
-    webhook_url: str | None = None
+    client_id: str = Field(..., min_length=1, max_length=100)
+    agent_key: str = Field("pentest_agent", min_length=1, max_length=100)
+    profile: str = Field("standard", max_length=50)
+    interval_seconds: int = Field(604800, ge=60, le=2592000)  # 1min–30days
+    cron: str = Field("", max_length=100)
+    webhook_url: str | None = Field(None, max_length=2000)
 
 
 # --- Knowledge Base ---
@@ -237,9 +237,9 @@ class KnowledgeStatsResponse(BaseModel):
 
 
 class ScrapeRequest(BaseModel):
-    sources: list[str] = ["intelligence", "nvd"]
-    nvd_days: int = 30
-    nvd_count: int = 200
+    sources: list[str] = Field(default=["intelligence", "nvd"], max_length=20)
+    nvd_days: int = Field(30, ge=1, le=365)
+    nvd_count: int = Field(200, ge=1, le=5000)
 
 
 class ScrapeResponse(BaseModel):

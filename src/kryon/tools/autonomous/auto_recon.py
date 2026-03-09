@@ -17,6 +17,7 @@ This module provides comprehensive automated reconnaissance including:
 """
 
 import re
+import shlex
 import subprocess
 import time
 from typing import Any, Optional
@@ -135,10 +136,10 @@ def _quick_port_scan(target_ip: str, deep: bool = False) -> dict[str, Any]:
         # Construct nmap command
         if deep:
             # Full port scan (slower but comprehensive)
-            cmd = f"nmap -p- -T4 -sV -O --version-intensity 5 {target_ip} -oN - 2>/dev/null"
+            cmd = f"nmap -p- -T4 -sV -O --version-intensity 5 {shlex.quote(target_ip)} -oN - 2>/dev/null"
         else:
             # Top 1000 ports (fast)
-            cmd = f"nmap -F -T4 -sV {target_ip} -oN - 2>/dev/null"
+            cmd = f"nmap -F -T4 -sV {shlex.quote(target_ip)} -oN - 2>/dev/null"
 
         # Execute nmap
         output = subprocess.check_output(cmd, shell=True, text=True, timeout=300)  # nosemgrep: subprocess-shell-true
@@ -312,7 +313,7 @@ def _enumerate_web(target_ip: str, port: int, protocol: str, timeout: int = 600)
     try:
         # Try gobuster first
         wordlist = "/usr/share/wordlists/dirb/common.txt"
-        cmd = f"gobuster dir -u {base_url} -w {wordlist} -t 20 -q --timeout 10s 2>/dev/null"
+        cmd = f"gobuster dir -u {shlex.quote(base_url)} -w {wordlist} -t 20 -q --timeout 10s 2>/dev/null"
 
         output = subprocess.check_output(
             # nosemgrep: subprocess-shell-true

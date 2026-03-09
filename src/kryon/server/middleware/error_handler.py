@@ -21,9 +21,9 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
     body: dict = {"detail": "Internal server error", "request_id": rid}
 
-    # In debug mode, include traceback for developer convenience
+    # In debug mode, log error type for correlation (traceback stays in server logs only)
     debug = os.environ.get("KRYON_DEBUG", "0")
     if debug.lower() in ("1", "true", "yes"):
-        body["traceback"] = traceback.format_exception(type(exc), exc, exc.__traceback__)
+        body["error_type"] = type(exc).__name__
 
     return JSONResponse(status_code=500, content=body)

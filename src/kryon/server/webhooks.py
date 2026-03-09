@@ -51,6 +51,13 @@ async def _retry_post(
 
 async def send_webhook(url: str, event: str, data: dict) -> bool:
     """Send a webhook notification with retry. Returns True if successful."""
+    from kryon.tools.common._url_validation import validate_external_url
+
+    ssrf_error = validate_external_url(url)
+    if ssrf_error:
+        logger.warning("Webhook URL blocked by SSRF policy: %s — %s", url, ssrf_error)
+        return False
+
     payload = {
         "event": event,
         "timestamp": datetime.now(timezone.utc).isoformat(),

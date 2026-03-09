@@ -176,8 +176,9 @@ class ScanScheduler:
         try:
             from kryon.tools.common._url_validation import validate_external_url
 
-            if not validate_external_url(job.webhook_url):
-                logger.warning("Webhook URL blocked by SSRF policy: %s", job.webhook_url)
+            ssrf_error = validate_external_url(job.webhook_url)
+            if ssrf_error:
+                logger.warning("Webhook URL blocked by SSRF policy: %s — %s", job.webhook_url, ssrf_error)
                 return
 
             import httpx

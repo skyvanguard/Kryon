@@ -19,6 +19,7 @@ KRYON Integration: Task 2.1 - API Fuzzer Agent
 
 import json
 import shlex
+import shutil
 import subprocess  # nosec B404
 import tempfile
 import time
@@ -209,47 +210,50 @@ def discover_api_endpoints(
 
     # Run ffuf for deeper discovery (use tempdir to avoid /tmp TOCTOU)
     output_dir = tempfile.mkdtemp(prefix="kryon_ffuf_")
-    output_file = f"{output_dir}/ffuf_api_discovery.json"
-    fuzz_url = f"{target}/FUZZ"
-    cmd_parts = [
-        "ffuf",
-        "-u",
-        fuzz_url,
-        "-w",
-        wordlist,
-        "-mc",
-        "200,201,202,204,301,302,307,401,403",
-        "-t",
-        str(threads),
-        "-s",
-        "-o",
-        output_file,
-        "-of",
-        "json",
-    ]
-
-    if extensions:
-        cmd_parts.extend(["-e", extensions])
-
-    if auth_header:
-        cmd_parts.extend(["-H", f"Authorization: {auth_header}"])
-
-    ffuf_output = _run_cmd(" ".join(cmd_parts), timeout=120)
-
-    # Try to parse ffuf JSON output
     try:
-        ffuf_json = json.loads(_run_cmd(f"cat {output_file} 2>/dev/null", timeout=5))
-        for r in ffuf_json.get("results", []):
-            results["ffuf_results"].append(
-                {
-                    "url": r.get("url", ""),
-                    "status": r.get("status", 0),
-                    "length": r.get("length", 0),
-                    "words": r.get("words", 0),
-                }
-            )
-    except (json.JSONDecodeError, ValueError):
-        results["ffuf_raw"] = ffuf_output[:2000]
+        output_file = f"{output_dir}/ffuf_api_discovery.json"
+        fuzz_url = f"{target}/FUZZ"
+        cmd_parts = [
+            "ffuf",
+            "-u",
+            fuzz_url,
+            "-w",
+            wordlist,
+            "-mc",
+            "200,201,202,204,301,302,307,401,403",
+            "-t",
+            str(threads),
+            "-s",
+            "-o",
+            output_file,
+            "-of",
+            "json",
+        ]
+
+        if extensions:
+            cmd_parts.extend(["-e", extensions])
+
+        if auth_header:
+            cmd_parts.extend(["-H", f"Authorization: {auth_header}"])
+
+        ffuf_output = _run_cmd(" ".join(cmd_parts), timeout=120)
+
+        # Try to parse ffuf JSON output
+        try:
+            ffuf_json = json.loads(_run_cmd(f"cat {output_file} 2>/dev/null", timeout=5))
+            for r in ffuf_json.get("results", []):
+                results["ffuf_results"].append(
+                    {
+                        "url": r.get("url", ""),
+                        "status": r.get("status", 0),
+                        "length": r.get("length", 0),
+                        "words": r.get("words", 0),
+                    }
+                )
+        except (json.JSONDecodeError, ValueError):
+            results["ffuf_raw"] = ffuf_output[:2000]
+    finally:
+        shutil.rmtree(output_dir, ignore_errors=True)
 
     results["total_found"] = len(results["discovered_endpoints"]) + len(results["ffuf_results"])
 

@@ -93,8 +93,8 @@ def bloodhound_collect(target_domain: str, method: str = "all") -> str:
 
     output_dir = "/tmp/bloodhound"
     cmd = (
-        f"bloodhound-python -d {target_domain} -c {method} "
-        f"--zip -o {output_dir}"
+        f"bloodhound-python -d {shlex.quote(target_domain)} -c {method} "
+        f"--zip -o {shlex.quote(output_dir)}"
     )
 
     raw_output = _run_cmd(cmd, timeout=300)
@@ -213,8 +213,8 @@ def asreproast(domain_controller: str, domain: str) -> str:
         asreproast(domain_controller="dc01.corp.local", domain="corp.local")
     """
     cmd = (
-        f"impacket-GetNPUsers {domain}/ "
-        f"-dc-ip {domain_controller} "
+        f"impacket-GetNPUsers {shlex.quote(domain)}/ "
+        f"-dc-ip {shlex.quote(domain_controller)} "
         f"-no-pass -usersfile /tmp/ad_users.txt "
         f"-format hashcat -outputfile /tmp/asrep_hashes.txt"
     )

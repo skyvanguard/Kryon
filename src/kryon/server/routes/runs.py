@@ -44,7 +44,8 @@ async def create_run(req: RunRequest):
     try:
         agent = get_agent_by_name(req.agent_key)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logger.warning("Agent not found: %s — %s", req.agent_key, e)
+        raise HTTPException(status_code=404, detail="Agent not found")
 
     # Build input history from session if provided
     input_items: str | list = req.input
@@ -86,8 +87,9 @@ async def create_run(req: RunRequest):
             except asyncio.CancelledError:
                 run_state.status = "cancelled"
             except Exception as exc:
+                logger.error("Agent execution failed: %s", exc, exc_info=True)
                 run_state.status = "failed"
-                run_state.output = str(exc)
+                run_state.output = "Agent execution failed"
 
         run_state.task = asyncio.create_task(_run_streamed())
 
@@ -200,7 +202,8 @@ async def create_session(req: SessionCreateRequest):
     try:
         agent = get_agent_by_name(req.agent_key)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logger.warning("Agent not found: %s — %s", req.agent_key, e)
+        raise HTTPException(status_code=404, detail="Agent not found")
 
     session = sm.create_session(req.agent_key, agent)
     logger.info("Session created: agent=%s session_id=%s", req.agent_key, session.session_id)

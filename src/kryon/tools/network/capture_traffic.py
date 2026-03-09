@@ -2,6 +2,7 @@
 import json as _json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -116,7 +117,11 @@ def _capture_remote_traffic_impl(ip, username, password, interface, capture_filt
         print(f"Capture running. Data available at: {fifo_path}")
         print(f"You can now use: tshark -r {fifo_path} -c 100 [options]")
 
-        subprocess.run(["tshark", "-r", fifo_path, "-c", "100"], timeout=300)
+        try:
+            subprocess.run(["tshark", "-r", fifo_path, "-c", "100"], timeout=300)
+        finally:
+            # Ensure tmpdir cleanup even if daemon thread doesn't complete
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
         return fifo_path
 

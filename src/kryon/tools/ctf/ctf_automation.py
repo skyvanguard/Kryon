@@ -20,6 +20,7 @@ Functions:
 import json
 import os
 import re
+import shlex
 import subprocess
 from datetime import datetime
 from typing import Any, Optional
@@ -89,10 +90,10 @@ def auto_enumerate_target(
 
     if quick_mode:
         # Quick scan: top 1000 ports
-        nmap_cmd = f"nmap -sV -sC -T4 {ip} -oN /tmp/nmap_{ip.replace('.', '_')}.txt"
+        nmap_cmd = f"nmap -sV -sC -T4 {shlex.quote(ip)} -oN /tmp/nmap_{ip.replace('.', '_')}.txt"
     else:
         # Full scan: all ports
-        nmap_cmd = f"nmap -p- -sV -sC -T4 {ip} -oN /tmp/nmap_{ip.replace('.', '_')}.txt"
+        nmap_cmd = f"nmap -p- -sV -sC -T4 {shlex.quote(ip)} -oN /tmp/nmap_{ip.replace('.', '_')}.txt"
 
     try:
         nmap_output = subprocess.run(
@@ -151,7 +152,7 @@ def auto_enumerate_target(
 
         for url in web_targets:
             try:
-                gobuster_cmd = f"gobuster dir -u {url} -w {wordlist} -t 50 -q -o /tmp/gobuster_{url.replace('://', '_').replace(':', '_')}.txt"
+                gobuster_cmd = f"gobuster dir -u {shlex.quote(url)} -w {shlex.quote(wordlist)} -t 50 -q -o /tmp/gobuster_{url.replace('://', '_').replace(':', '_')}.txt"
 
                 gobuster_output = subprocess.run(
                     gobuster_cmd,
@@ -183,7 +184,7 @@ def auto_enumerate_target(
     if "smb" in results["interesting_services"] or any(p["port"] in [139, 445] for p in results["open_ports"]):
         print("[*] Enumerating SMB shares...")
         try:
-            smbclient_cmd = f"smbclient -L //{ip} -N"
+            smbclient_cmd = f"smbclient -L //{shlex.quote(ip)} -N"
             smb_output = subprocess.run(
                 # nosemgrep: subprocess-shell-true
                 smbclient_cmd,
@@ -202,7 +203,7 @@ def auto_enumerate_target(
     if "ftp" in results["interesting_services"]:
         print("[*] Checking FTP anonymous login...")
         try:
-            ftp_cmd = f"ftp -n {ip} <<EOF\nuser anonymous anonymous\nls\nquit\nEOF"
+            ftp_cmd = f"ftp -n {shlex.quote(ip)} <<EOF\nuser anonymous anonymous\nls\nquit\nEOF"
             ftp_output = subprocess.run(
                 # nosemgrep: subprocess-shell-true
                 ftp_cmd,
@@ -661,7 +662,7 @@ def hunt_flags(
             try:
                 # Handle wildcards
                 if "*" in location:
-                    find_cmd = f"find {os.path.dirname(location)} -name {os.path.basename(location)} 2>/dev/null"
+                    find_cmd = f"find {shlex.quote(os.path.dirname(location))} -name {shlex.quote(os.path.basename(location))} 2>/dev/null"
                     find_output = subprocess.run(
                         # nosemgrep: subprocess-shell-true
                         find_cmd,
@@ -674,7 +675,7 @@ def hunt_flags(
 
                     for file_path in find_output.stdout.strip().split("\n"):
                         if file_path:
-                            cat_cmd = f"cat {file_path} 2>/dev/null"
+                            cat_cmd = f"cat {shlex.quote(file_path)} 2>/dev/null"
                             cat_output = subprocess.run(
                                 # nosemgrep: subprocess-shell-true
                                 cat_cmd,
@@ -725,7 +726,7 @@ def hunt_flags(
             for pattern in flag_patterns:
                 try:
                     # Use grep to search files
-                    grep_cmd = f"grep -r -E '{pattern}' {path} 2>/dev/null | head -20"
+                    grep_cmd = f"grep -r -E {shlex.quote(pattern)} {shlex.quote(path)} 2>/dev/null | head -20"
                     grep_output = subprocess.run(
                         # nosemgrep: subprocess-shell-true
                         grep_cmd,

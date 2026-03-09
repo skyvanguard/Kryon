@@ -40,15 +40,15 @@ def test_unhandled_exception_returns_500(monkeypatch):
     assert "traceback" not in body
 
 
-def test_debug_mode_includes_traceback(monkeypatch):
+def test_debug_mode_includes_error_type(monkeypatch):
     monkeypatch.setenv("KRYON_DEBUG", "1")
     app = _make_minimal_crash_app(debug=True)
     with TestClient(app, raise_server_exceptions=False) as c:
         resp = c.get("/api/v1/test-crash")
     assert resp.status_code == 500
     body = resp.json()
-    assert "traceback" in body
-    assert any("boom" in line for line in body["traceback"])
+    assert "traceback" not in body  # traceback must never leak to client
+    assert body["error_type"] == "RuntimeError"
 
 
 def test_error_response_has_request_id():

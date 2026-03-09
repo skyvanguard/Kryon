@@ -11,6 +11,7 @@ Primary Users:
 """
 
 import re
+import shlex
 from typing import Any
 
 from kryon.tools.common import run_command
@@ -514,7 +515,7 @@ def run_winpeas(
         if thorough:
             cmd_parts.append("full")
 
-        cmd_parts.append(f"> {output_file}")
+        cmd_parts.append(f"> {shlex.quote(output_file)}")
 
         cmd = " ".join(cmd_parts)
 

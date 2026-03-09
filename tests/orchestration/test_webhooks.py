@@ -12,7 +12,10 @@ async def test_send_webhook_success():
     mock_response = MagicMock()
     mock_response.raise_for_status = MagicMock()
 
-    with patch("httpx.AsyncClient") as mock_client:
+    with (
+        patch("kryon.tools.common._url_validation.validate_external_url", return_value=None),
+        patch("httpx.AsyncClient") as mock_client,
+    ):
         instance = AsyncMock()
         instance.post = AsyncMock(return_value=mock_response)
         instance.__aenter__ = AsyncMock(return_value=instance)
@@ -29,7 +32,10 @@ async def test_send_webhook_success():
 
 @pytest.mark.asyncio
 async def test_send_webhook_failure():
-    with patch("httpx.AsyncClient") as mock_client:
+    with (
+        patch("kryon.tools.common._url_validation.validate_external_url", return_value=None),
+        patch("httpx.AsyncClient") as mock_client,
+    ):
         instance = AsyncMock()
         instance.post = AsyncMock(side_effect=Exception("network error"))
         instance.__aenter__ = AsyncMock(return_value=instance)

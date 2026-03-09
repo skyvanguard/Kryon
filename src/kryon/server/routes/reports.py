@@ -42,11 +42,13 @@ async def generate_report(request: ReportRequest) -> ReportResponse:
     try:
         raw = json.loads(request.findings_json)
     except (json.JSONDecodeError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=f"Malformed findings_json: {e}")
+        logger.warning("Malformed findings_json: %s", e)
+        raise HTTPException(status_code=400, detail="Malformed findings_json")
     try:
         findings = [Finding(**f) for f in raw]
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid finding data: {e}")
+        logger.warning("Invalid finding data: %s", e)
+        raise HTTPException(status_code=400, detail="Invalid finding data")
 
     config = ReportConfig(
         report_type=ReportType(request.report_type),
@@ -64,7 +66,8 @@ async def generate_report(request: ReportRequest) -> ReportResponse:
             pdf_bytes = await gen.to_pdf(html)
             path = save_pdf(pdf_bytes, request.client_name, request.report_type)
         except ImportError as e:
-            raise HTTPException(status_code=501, detail=str(e))
+            logger.warning("PDF generation not available: %s", e)
+            raise HTTPException(status_code=501, detail="PDF generation not available")
     else:
         path = save_report(html, request.client_name, request.report_type)
 

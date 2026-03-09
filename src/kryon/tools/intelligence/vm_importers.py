@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-import xml.etree.ElementTree as ET  # noqa: N817
+import defusedxml.ElementTree as ET  # noqa: N817
 
 from kryon.sdk.agents import function_tool
 from kryon.tools.common._url_validation import validate_external_url
