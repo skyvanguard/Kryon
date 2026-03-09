@@ -126,7 +126,7 @@ async def start_auto_scan(req: AutoScanRequest, user: User | None = Depends(get_
         try:
             await orch.run()
         except Exception:
-            pass  # errors are captured in progress
+            logger.exception("Auto-scan background task failed: scan_id=%s", scan_id)
 
     task = asyncio.create_task(_run_scan())
     _auto_scans[scan_id] = {

@@ -74,7 +74,7 @@ async def delete_backup(filename: str, _user=Depends(require_permission("admin:w
     """Delete a specific backup file."""
     # Path traversal protection
     if "/" in filename or "\\" in filename or ".." in filename:
-        raise HTTPException(400, "Invalid filename")
+        raise HTTPException(status_code=400, detail="Invalid filename")
     target = _BACKUP_DIR / filename
     if not target.exists() or not target.name.startswith("kryon_backup_"):
         raise not_found("Backup", filename)
@@ -108,7 +108,7 @@ async def export_table(
 ):
     """Export a table as JSON. Only whitelisted tables allowed."""
     if table not in _EXPORTABLE_TABLES:
-        raise HTTPException(400, f"Table not exportable. Allowed: {sorted(_EXPORTABLE_TABLES)}")
+        raise HTTPException(status_code=400, detail=f"Table not exportable. Allowed: {sorted(_EXPORTABLE_TABLES)}")
     store = get_store()
     conn = store._get_conn()
     try:
@@ -199,13 +199,13 @@ async def create_user(req: AdminCreateUser, _user=Depends(require_permission("ad
 
     complexity_error = validate_password_complexity(req.password)
     if complexity_error:
-        raise HTTPException(400, complexity_error)
+        raise HTTPException(status_code=400, detail=complexity_error)
 
     store = get_store()
 
     # Check uniqueness
     if store.get_user_by_username(req.username):
-        raise HTTPException(400, "Username already exists")
+        raise HTTPException(status_code=400, detail="Username already exists")
 
     user = User(
         username=req.username,
@@ -229,7 +229,7 @@ async def update_user(user_id: str, req: AdminUpdateUser, _user=Depends(require_
 
     updates = {k: v for k, v in req.model_dump().items() if v is not None}
     if not updates:
-        raise HTTPException(400, "No fields to update")
+        raise HTTPException(status_code=400, detail="No fields to update")
 
     store.update_user(user_id, **updates)
     logger.info("User updated: %s fields=%s", user_id, list(updates.keys()))

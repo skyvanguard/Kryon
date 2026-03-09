@@ -120,7 +120,7 @@ async def pause_engagement(engagement_id: str) -> dict:
     if not eng:
         raise not_found("Engagement", engagement_id)
     if eng.status.value != "active":
-        raise HTTPException(409, f"Cannot pause engagement in '{eng.status.value}' state")
+        raise HTTPException(status_code=409, detail=f"Cannot pause engagement in '{eng.status.value}' state")
     await manager.pause_engagement(engagement_id)
     logger.info("Engagement paused: %s", engagement_id)
     return {"status": "paused"}
@@ -134,7 +134,7 @@ async def resume_engagement(engagement_id: str) -> dict:
     if not eng:
         raise not_found("Engagement", engagement_id)
     if eng.status.value != "paused":
-        raise HTTPException(409, f"Cannot resume engagement in '{eng.status.value}' state")
+        raise HTTPException(status_code=409, detail=f"Cannot resume engagement in '{eng.status.value}' state")
     await manager.resume_engagement(engagement_id)
     logger.info("Engagement resumed: %s", engagement_id)
     return {"status": "active"}

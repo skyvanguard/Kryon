@@ -4,8 +4,6 @@ import subprocess
 import sys
 import tempfile
 import time
-from contextlib import contextmanager
-
 import paramiko
 
 from kryon.sdk.agents import function_tool
@@ -95,7 +93,7 @@ def capture_remote_traffic(ip, username, password, interface, capture_filter="",
         print(f"You can now use: tshark -r {fifo_path} -c 100 [options]")
 
         # Example usage in the context manager
-        subprocess.run(["tshark", "-r", fifo_path, "-c", "100"])
+        subprocess.run(["tshark", "-r", fifo_path, "-c", "100"], timeout=300)
 
         return fifo_path
 
@@ -110,27 +108,30 @@ def capture_remote_traffic(ip, username, password, interface, capture_filter="",
 
 
 @function_tool
-@contextmanager
 def remote_capture_session(ip, username, password, interface, capture_filter="", port=22):
     """
-    Context manager for remote traffic capture that automatically cleans up resources.
+    Start a remote traffic capture session and return the FIFO path.
 
-    Usage:
-        with remote_capture_session("192.168.1.100", "admin", "password", "eth0") as fifo_path:
-            # Run tshark to read from the FIFO
-            subprocess.run(["tshark", "-r", fifo_path, "-T", "fields", "-e", "ip.src"])
+    Wraps capture_remote_traffic with automatic cleanup on failure.
+
+    Args:
+        ip: IP address of the remote VM
+        username: SSH username
+        password: SSH password
+        interface: Network interface to capture on
+        capture_filter: Optional tcpdump filter expression
+        port: SSH port (default: 22)
+
+    Returns:
+        JSON with fifo_path for reading captured traffic
     """
-    fifo_path = None
+    import json as _json
 
     try:
         fifo_path = capture_remote_traffic(ip, username, password, interface, capture_filter=capture_filter, port=port)
-        yield fifo_path
-    finally:
-        if fifo_path and os.path.exists(fifo_path):
-            try:
-                os.unlink(fifo_path)
-            except Exception:
-                pass
+        return _json.dumps({"success": True, "fifo_path": fifo_path, "ip": ip, "interface": interface})
+    except Exception as e:
+        return _json.dumps({"success": False, "error": str(e)})
 
 
 if __name__ == "__main__":
@@ -146,11 +147,11 @@ if __name__ == "__main__":
     capture_filter = sys.argv[5] if len(sys.argv) > 5 else ""
 
     try:
-        with remote_capture_session(ip, username, password, interface, capture_filter) as fifo_path:
-            # Keep the script running until interrupted
-            print("Press Ctrl+C to stop the capture")
-            while True:
-                time.sleep(1)
+        fifo_path = capture_remote_traffic(ip, username, password, interface, capture_filter)
+        print(f"Capture running at: {fifo_path}")
+        print("Press Ctrl+C to stop the capture")
+        while True:
+            time.sleep(1)
     except KeyboardInterrupt:
         print("\nCapture stopped")
     except Exception as e:

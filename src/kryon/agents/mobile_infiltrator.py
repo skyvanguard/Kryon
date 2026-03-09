@@ -49,7 +49,7 @@ discovery. Utilizes static application security testing (SAST) to identify secur
 flaws in Android applications.
 
 Primary Mission: Mobile application security testing, APK analysis, vulnerability discovery.
-Includes integrated Application Logic Mapper sub-unit for deep logic analysis.""",
+Includes integrated Application Logic Mapper module for deep logic analysis.""",
     instructions=create_system_prompt_renderer(mobile_infiltrator_system_prompt),
     tools=[
         app_logic_mapper.as_tool(
@@ -59,6 +59,7 @@ Includes integrated Application Logic Mapper sub-unit for deep logic analysis.""
         *CORE_TOOLS,
         *RAG_TOOLS,
         *AI_TOOLS,
+        *MEMORY_TOOLS,
     ],
     handoffs=[
         lazy_handoff("appsec_analyzer", "handoff_to_appsec_analyzer", "Escalate to AppSec Analyzer for server-side API testing of mobile app backends"),

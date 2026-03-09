@@ -56,16 +56,20 @@ async def risk_trend(client_id: str = "", days: int = Query(90, ge=7, le=365)) -
     from datetime import datetime, timedelta, timezone
 
     end = datetime.now(timezone.utc)
-    end - timedelta(days=days)
+    start = end - timedelta(days=days)
 
     findings = store.list_all_findings(client_id=client_id or None, limit=1000)
-    # Group by week
+    # Group by week, filtered to the requested date range
     from collections import defaultdict
 
     weekly: dict[str, int] = defaultdict(int)
     for f in findings:
         try:
             dt = datetime.fromisoformat(f.first_seen)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            if dt < start:
+                continue
             week = dt.strftime("%Y-W%W")
             weekly[week] += 1
         except (ValueError, TypeError):

@@ -66,7 +66,7 @@ async def update_finding_status(finding_id: str, body: dict) -> dict:
     if new_status not in allowed:
         from fastapi import HTTPException
 
-        raise HTTPException(400, f"Invalid status. Must be one of: {allowed}")
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {allowed}")
     store = get_store()
     if not store.update_finding_status(finding_id, new_status):
         logger.warning("Finding not found for status update: %s", finding_id)

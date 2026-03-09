@@ -120,7 +120,7 @@ async def save_credential(body: CredentialBody) -> dict:
     """Save an encrypted credential."""
     encryption_key = os.environ.get("KRYON_CREDENTIAL_KEY", "")
     if not encryption_key:
-        raise HTTPException(500, "KRYON_CREDENTIAL_KEY not configured")
+        raise HTTPException(status_code=500, detail="KRYON_CREDENTIAL_KEY not configured")
 
     from kryon.onboarding.vault import CredentialVault
 

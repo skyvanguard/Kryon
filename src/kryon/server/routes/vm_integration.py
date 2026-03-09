@@ -74,11 +74,17 @@ class ImportResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class _ToolContext:
+    """Minimal context for tool invocation from routes."""
+
+    context = None
+
+
 async def _run_import(job_id: str, source: str, params: dict) -> None:
     """Run import in background and update job status."""
     _import_jobs[job_id]["status"] = "running"
     try:
-        ctx = type("Ctx", (), {"context": None})()
+        ctx = _ToolContext()
         if source == "qualys":
             from kryon.tools.intelligence.vm_importers import import_qualys_findings
 
@@ -199,5 +205,5 @@ async def import_file(req: ImportFileRequest, bg: BackgroundTasks):
 async def get_import_status(job_id: str):
     """Get the status of an import job by its ID."""
     if job_id not in _import_jobs:
-        raise HTTPException(404, f"Import job {job_id} not found")
+        raise HTTPException(status_code=404, detail=f"Import job {job_id} not found")
     return _import_jobs[job_id]

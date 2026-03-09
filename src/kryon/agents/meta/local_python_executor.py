@@ -1456,6 +1456,10 @@ class LocalPythonInterpreter:
         Raises:
             ImportError: If any authorized import is not available locally
         """
+        # Wildcard "*" means all imports are allowed — skip validation
+        if "*" in self.authorized_imports:
+            return
+
         import importlib.util
 
         missing_imports = []

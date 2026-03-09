@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 
 from kryon.server.auth import require_api_key
 from kryon.server.deps import get_store
@@ -12,6 +13,22 @@ from kryon.server.logging_config import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["assets"], dependencies=[Depends(require_api_key)])
+
+
+class AssetCreateRequest(BaseModel):
+    """Request to create a new asset."""
+
+    asset_type: str = Field("unknown", description="Asset type (host, service, webapp, etc.)")
+    identifier: str = Field("", description="Asset identifier (hostname, IP, URL, etc.)")
+    client_id: str = Field("", description="Client ID this asset belongs to")
+    metadata_json: str = Field("{}", description="Additional metadata as JSON string")
+
+
+class AssetUpdateRequest(BaseModel):
+    """Request to update an existing asset."""
+
+    status: str | None = Field(None, description="New asset status")
+    metadata_json: str | None = Field(None, description="Updated metadata as JSON string")
 
 
 @router.get("/assets")
@@ -54,7 +71,7 @@ async def get_asset_timeline(asset_id: str) -> dict:
 
 
 @router.post("/assets")
-async def create_asset(body: dict) -> dict:
+async def create_asset(req: AssetCreateRequest) -> dict:
     """Register a new asset."""
     import uuid
     from datetime import datetime, timezone
@@ -64,18 +81,18 @@ async def create_asset(body: dict) -> dict:
     now = datetime.now(timezone.utc).isoformat()
     store.upsert_asset(
         asset_id=asset_id,
-        asset_type=body.get("asset_type", "unknown"),
-        identifier=body.get("identifier", ""),
-        client_id=body.get("client_id", ""),
-        metadata_json=body.get("metadata_json", "{}"),
+        asset_type=req.asset_type,
+        identifier=req.identifier,
+        client_id=req.client_id,
+        metadata_json=req.metadata_json,
         now=now,
     )
-    logger.info("Asset created: id=%s type=%s", asset_id, body.get("asset_type", "unknown"))
+    logger.info("Asset created: id=%s type=%s", asset_id, req.asset_type)
     return {"id": asset_id, "status": "created"}
 
 
 @router.put("/assets/{asset_id}")
-async def update_asset(asset_id: str, body: dict) -> dict:
+async def update_asset(asset_id: str, req: AssetUpdateRequest) -> dict:
     """Update an asset."""
     store = get_store()
     asset = store.get_asset(asset_id)
@@ -84,8 +101,7 @@ async def update_asset(asset_id: str, body: dict) -> dict:
         raise not_found("Asset", asset_id)
 
     conn = store._get_conn()
-    allowed = {"status", "metadata_json"}
-    updates = {k: v for k, v in body.items() if k in allowed}
+    updates = {k: v for k, v in req.model_dump(exclude_none=True).items()}
     if updates:
         set_clause = ", ".join(f"{k} = ?" for k in updates)
         conn.execute(f"UPDATE assets SET {set_clause} WHERE id = ?", (*updates.values(), asset_id))

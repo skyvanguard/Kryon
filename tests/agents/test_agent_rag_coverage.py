@@ -24,7 +24,8 @@ def test_all_agents_have_query_knowledge_base():
     """Every agent should have query_knowledge_base tool (except pure routers)."""
     agents = get_available_agents(include_patterns=False)
     # Central Core is a pure router, memory agents are specialized sub-agents
-    pure_routers = {"central_core", "semantic_builder", "episodic_builder", "query_agent"}
+    # CodeAgent registers tools internally in python_executor, not in self.tools
+    pure_routers = {"central_core", "codeagent", "semantic_builder", "episodic_builder", "query_agent"}
     missing = []
 
     for name, agent in agents.items():

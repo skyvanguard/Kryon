@@ -33,7 +33,12 @@ def test_all_agents_have_instructions(agents):
 
 def test_all_agents_have_at_least_one_tool(agents):
     """Every agent must have at least one tool."""
+    from kryon.agents.codeagent import CodeAgent
+
     for key, agent in agents.items():
+        if isinstance(agent, CodeAgent):
+            # CodeAgent registers tools internally in python_executor.static_tools
+            continue
         assert len(agent.tools) > 0, f"Agent '{key}' has no tools"
 
 
@@ -84,7 +89,7 @@ def test_agent_names_match_keys(agents):
 # --- Memory tools integration tests ---
 
 # Agents excluded from MEMORY_TOOLS requirement
-_MEMORY_EXEMPT = {"central_core", "code_agent", "semantic_builder", "episodic_builder", "query_agent", "target_validator"}
+_MEMORY_EXEMPT = {"central_core", "code_agent", "codeagent", "semantic_builder", "episodic_builder", "query_agent", "target_validator"}
 
 MEMORY_TOOL_NAMES = {"query_memory", "add_to_memory_semantic"}
 

@@ -186,7 +186,7 @@ def john_crack(
                 show_cmd.extend(["--format=" + john_format])
             show_cmd.append(hash_file)
 
-            show_process = subprocess.run(show_cmd, capture_output=True, text=True)
+            show_process = subprocess.run(show_cmd, capture_output=True, text=True, timeout=60)
 
             # Parse output (format: username:password:uid:gid:gecos:home:shell)
             for line in show_process.stdout.split("\n"):
@@ -436,7 +436,7 @@ def john_show_formats() -> dict[str, Any]:
 
     try:
         # Run john --list=formats
-        process = subprocess.run(["john", "--list=formats"], capture_output=True, text=True)
+        process = subprocess.run(["john", "--list=formats"], capture_output=True, text=True, timeout=30)
 
         # Parse output
         formats = []

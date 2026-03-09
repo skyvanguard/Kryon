@@ -479,11 +479,6 @@ def run_kryon_cli(
 
     findings_collector = CLIFindingsCollector()
 
-    # Reset cost tracking at the start
-    from kryon.util import COST_TRACKER
-
-    COST_TRACKER.reset_agent_costs()
-
     # Reset simple agent manager for clean start
     from kryon.sdk.agents.simple_agent_manager import AGENT_MANAGER
 
@@ -641,11 +636,6 @@ def run_kryon_cli(
                     # Now create the new agent
                     agent = get_agent_by_name(current_agent_type, agent_id="P1")
                     last_agent_type = current_agent_type
-
-                    # Reset cost tracking for the new agent
-                    from kryon.util import COST_TRACKER
-
-                    COST_TRACKER.reset_agent_costs()
 
                     # Use the new switch_to_single_agent method for proper cleanup
                     # IMPORTANT: Always use the agent's proper name, not the agent key
@@ -875,7 +865,7 @@ def run_kryon_cli(
 
             try:
                 # Get more accurate active and idle time measurements from the timer functions
-                from kryon.util import COST_TRACKER, get_active_time_seconds, get_idle_time_seconds
+                from kryon.util import get_active_time_seconds, get_idle_time_seconds
 
                 # Use the precise measurements from our timers
                 active_time_seconds = get_active_time_seconds()
@@ -885,16 +875,13 @@ def run_kryon_cli(
                 active_time_formatted = format_time(active_time_seconds)
                 idle_time_formatted = format_time(idle_time_seconds)
 
-                # Get session cost from the global cost tracker
-                session_cost = COST_TRACKER.session_total_cost
-
                 metrics = {
                     "session_time": format_time(Total),
                     "active_time": active_time_formatted,
                     "idle_time": idle_time_formatted,
                     "llm_time": format_time(active_time_seconds),  # Using active time as LLM time
                     "llm_percentage": round((active_time_seconds / Total) * 100, 1) if Total > 0 else 0.0,
-                    "session_cost": f"${session_cost:.6f}",  # Add formatted session cost
+                    "session_cost": "$0.00",  # Ollama is free — no cost tracking
                 }
                 logging_path = session_logger.filename if hasattr(session_logger, "filename") else None
 
@@ -954,14 +941,11 @@ def run_kryon_cli(
                     session_logger.log_session_end()
 
                 # End global usage tracking session
-                GLOBAL_USAGE_TRACKER.end_session(final_cost=COST_TRACKER.session_total_cost)
+                GLOBAL_USAGE_TRACKER.end_session(final_cost=0.0)
 
                 # Create symlink to the last log file
                 if session_logger and hasattr(session_logger, "filename"):
                     create_last_log_symlink(session_logger.filename)
-
-                # Prevent duplicate cost display from the COST_TRACKER exit handler
-                os.environ["KRYON_COST_DISPLAYED"] = "true"
 
                 if is_pentestperf_available() and os.getenv("CTF_NAME", None):
                     ctf.stop_ctf()

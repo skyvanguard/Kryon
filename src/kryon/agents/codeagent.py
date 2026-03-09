@@ -336,13 +336,13 @@ I'll execute your code and show you the results.
 
     def _register_functions_as_tools(self):
         """
-        Register agent functions as tools
+        Register agent tools as callable functions
         available in the Python executor.
         """
-        for func in self.functions:
-            # Use the function name as the tool name
-            func_name = func.__name__
-            self.python_executor.static_tools[func_name] = func
+        for tool in self.tools:
+            # FunctionTool has .name, raw callables have .__name__
+            func_name = getattr(tool, "name", None) or getattr(tool, "__name__", str(tool))
+            self.python_executor.static_tools[func_name] = tool
 
     def _setup_signal_handlers(self):
         """

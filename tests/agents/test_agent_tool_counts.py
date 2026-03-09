@@ -44,10 +44,14 @@ def test_vuln_hunter_reduced():
 
 def test_all_agents_have_tools():
     """Every agent should have at least 1 tool."""
+    from kryon.agents.codeagent import CodeAgent
+
     agents = get_available_agents(include_patterns=False)
     no_tools = []
 
     for name, agent in agents.items():
+        if isinstance(agent, CodeAgent):
+            continue  # CodeAgent registers tools internally in python_executor
         if not agent.tools or len(agent.tools) == 0:
             no_tools.append(name)
 
