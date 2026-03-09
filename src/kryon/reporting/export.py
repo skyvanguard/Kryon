@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
 _REPORTS_DIR = Path.home() / ".kryon" / "reports"
+
+
+def _safe_slug(value: str, fallback: str = "report") -> str:
+    """Sanitize a string for safe use in filenames (no path traversal)."""
+    slug = re.sub(r"[^a-zA-Z0-9_-]", "_", value.lower())[:30]
+    return slug or fallback
 
 
 def save_report(html: str, client_name: str = "", report_type: str = "technical") -> Path:
@@ -13,9 +20,12 @@ def save_report(html: str, client_name: str = "", report_type: str = "technical"
     _REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    slug = client_name.lower().replace(" ", "_")[:30] if client_name else "report"
-    filename = f"{slug}_{report_type}_{ts}.html"
-    path = _REPORTS_DIR / filename
+    slug = _safe_slug(client_name) if client_name else "report"
+    rtype = _safe_slug(report_type, "technical")
+    filename = f"{slug}_{rtype}_{ts}.html"
+    path = (_REPORTS_DIR / filename).resolve()
+    if not str(path).startswith(str(_REPORTS_DIR.resolve())):
+        raise ValueError("Invalid report path")
     path.write_text(html, encoding="utf-8")
     return path
 
@@ -25,9 +35,12 @@ def save_pdf(pdf_bytes: bytes, client_name: str = "", report_type: str = "techni
     _REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    slug = client_name.lower().replace(" ", "_")[:30] if client_name else "report"
-    filename = f"{slug}_{report_type}_{ts}.pdf"
-    path = _REPORTS_DIR / filename
+    slug = _safe_slug(client_name) if client_name else "report"
+    rtype = _safe_slug(report_type, "technical")
+    filename = f"{slug}_{rtype}_{ts}.pdf"
+    path = (_REPORTS_DIR / filename).resolve()
+    if not str(path).startswith(str(_REPORTS_DIR.resolve())):
+        raise ValueError("Invalid report path")
     path.write_bytes(pdf_bytes)
     return path
 

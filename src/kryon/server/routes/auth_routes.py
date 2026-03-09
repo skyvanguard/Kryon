@@ -15,6 +15,7 @@ from kryon.server.auth.jwt_auth import (
     create_refresh_token,
     decode_token,
     is_jwt_configured,
+    revoke_token,
 )
 from kryon.server.auth.models import User, UserPublic
 from kryon.server.auth.password import hash_password, validate_password_complexity, verify_password
@@ -25,10 +26,11 @@ logger = get_logger(__name__)
 
 router = APIRouter(tags=["auth"])
 
-# Login attempt tracking for brute-force protection
+# Login attempt tracking for brute-force protection (bounded)
 _login_attempts: dict[str, list[float]] = defaultdict(list)
 _MAX_ATTEMPTS = 5
 _LOCKOUT_WINDOW = 900  # 15 minutes
+_MAX_TRACKED_USERS = 10_000
 
 
 class LoginRequest(BaseModel):
@@ -60,6 +62,11 @@ async def login(req: LoginRequest):
 
     # Brute-force protection
     now = time.monotonic()
+    # Evict oldest tracked users if at capacity
+    if len(_login_attempts) > _MAX_TRACKED_USERS:
+        excess = len(_login_attempts) - _MAX_TRACKED_USERS
+        for key in list(_login_attempts.keys())[:excess]:
+            del _login_attempts[key]
     attempts = _login_attempts[req.username]
     # Prune old attempts outside the lockout window
     _login_attempts[req.username] = [t for t in attempts if now - t < _LOCKOUT_WINDOW]
@@ -137,3 +144,32 @@ async def change_password(req: PasswordChangeRequest, user: User | None = Depend
     store.update_user(user.id, password_hash=hash_password(req.new_password))
     logger.info("Password changed for user: %s", user.username)  # nosemgrep: python-logger-credential-disclosure
     return {"detail": "Password updated"}
+
+
+class LogoutRequest(BaseModel):
+    access_token: str = Field("", description="Access token to revoke (optional)")
+    refresh_token: str = Field("", description="Refresh token to revoke (optional)")
+
+
+@router.post("/auth/logout")
+async def logout(req: LogoutRequest, user: User | None = Depends(get_current_user)):
+    """Revoke tokens to log out."""
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    revoked = 0
+    for token_str in (req.access_token, req.refresh_token):
+        if not token_str:
+            continue
+        try:
+            payload = decode_token(token_str)
+            jti = payload.get("jti")
+            exp = payload.get("exp", 0)
+            if jti:
+                revoke_token(jti, exp)
+                revoked += 1
+        except Exception:
+            pass  # Token already invalid/expired
+
+    logger.info("User logged out: %s (tokens revoked: %d)", user.username, revoked)
+    return {"detail": "Logged out", "tokens_revoked": revoked}

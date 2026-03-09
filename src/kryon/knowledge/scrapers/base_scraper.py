@@ -8,6 +8,7 @@ Abstract base class for all knowledge scrapers.
 import hashlib
 import time
 from abc import ABC, abstractmethod
+from collections import deque
 from typing import Any
 
 
@@ -23,7 +24,7 @@ class BaseScraper(ABC):
     def __init__(self):
         """Initialize base scraper."""
         self.scraped_count = 0
-        self.errors = []
+        self.errors = deque(maxlen=500)
         self.last_scrape_time = None
 
     @abstractmethod

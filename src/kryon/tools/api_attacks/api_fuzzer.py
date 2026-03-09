@@ -18,11 +18,14 @@ KRYON Integration: Task 2.1 - API Fuzzer Agent
 """
 
 import json
+import shlex
 import subprocess  # nosec B404
 import tempfile
 import time
 
 from kryon.sdk.agents import function_tool
+
+_ALLOWED_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"}
 
 
 def _run_cmd(command: str, timeout: int = 120) -> str:
@@ -62,9 +65,9 @@ def parse_openapi_spec(spec_url: str, auth_header: str = "") -> str:
         parse_openapi_spec(spec_url="http://target.com/openapi.json")
         parse_openapi_spec(spec_url="http://target.com/v2/api-docs", auth_header="Bearer eyJ...")
     """
-    cmd = f'curl -sk -m 30 "{spec_url}"'
+    cmd = f"curl -sk -m 30 {shlex.quote(spec_url)}"
     if auth_header:
-        cmd += f' -H "Authorization: {auth_header}"'
+        cmd += f' -H "Authorization: {shlex.quote(auth_header)}"'
 
     raw = _run_cmd(cmd, timeout=60)
 
@@ -325,6 +328,9 @@ def fuzz_api_endpoint(
         "errors": [],
     }
 
+    safe_method = method.upper() if method.upper() in _ALLOWED_HTTP_METHODS else "GET"
+    safe_url = shlex.quote(url)
+
     for ptype in active_types:
         if ptype not in payloads:
             continue
@@ -332,11 +338,11 @@ def fuzz_api_endpoint(
             results["total_tests"] += 1
 
             # Build curl command
-            if method.upper() == "GET":
+            if safe_method == "GET":
                 # Inject payload as query parameter
                 sep = "&" if "?" in url else "?"
                 test_url = f"{url}{sep}test={payload}"
-                cmd = f'curl -sk -m 10 -w "\\n%{{http_code}}" "{test_url}"'
+                cmd = f'curl -sk -m 10 -w "\\n%{{http_code}}" {shlex.quote(test_url)}'
             else:
                 # Inject payload in body
                 if parameters:
@@ -344,15 +350,15 @@ def fuzz_api_endpoint(
                 else:
                     body = json.dumps({"input": payload})
                 cmd = (
-                    f"curl -sk -m 10 -X {method.upper()} "
-                    f'-H "Content-Type: {content_type}" '
-                    f"-d '{body}' "
+                    f"curl -sk -m 10 -X {safe_method} "
+                    f'-H "Content-Type: {shlex.quote(content_type)}" '
+                    f"-d {shlex.quote(body)} "
                     f'-w "\\n%{{http_code}}" '
-                    f'"{url}"'
+                    f"{safe_url}"
                 )
 
             if auth_header:
-                cmd += f' -H "Authorization: {auth_header}"'
+                cmd += f' -H "Authorization: {shlex.quote(auth_header)}"'
 
             output = _run_cmd(cmd, timeout=15)
             lines = output.strip().rsplit("\n", 1)
@@ -539,13 +545,16 @@ def test_rate_limiting(
         "rate_limit_threshold": None,
     }
 
+    safe_rl_method = method.upper() if method.upper() in _ALLOWED_HTTP_METHODS else "GET"
+    safe_rl_url = shlex.quote(url)
+
     for i in range(num_requests):
-        cmd = f'curl -sk -m 10 -X {method} -w "\\n%{{http_code}} %{{time_total}}" '
+        cmd = f'curl -sk -m 10 -X {safe_rl_method} -w "\\n%{{http_code}} %{{time_total}}" '
         if body:
-            cmd += f"-d '{body}' -H \"Content-Type: application/json\" "
+            cmd += f"-d {shlex.quote(body)} -H \"Content-Type: application/json\" "
         if auth_header:
-            cmd += f'-H "Authorization: {auth_header}" '
-        cmd += f'"{url}"'
+            cmd += f'-H "Authorization: {shlex.quote(auth_header)}" '
+        cmd += safe_rl_url
 
         start = time.time()
         output = _run_cmd(cmd, timeout=15)
@@ -618,9 +627,10 @@ def test_auth_mechanisms(
         "vulnerabilities": [],
     }
 
-    base_cmd = f"curl -sk -m 10 -X {method} "
+    safe_auth_method = method.upper() if method.upper() in _ALLOWED_HTTP_METHODS else "GET"
+    base_cmd = f"curl -sk -m 10 -X {safe_auth_method} "
     if body:
-        base_cmd += f"-d '{body}' -H \"Content-Type: application/json\" "
+        base_cmd += f"-d {shlex.quote(body)} -H \"Content-Type: application/json\" "
 
     # Test 1: No authentication header
     cmd = base_cmd + f'-w "\\n%{{http_code}}" "{url}"'

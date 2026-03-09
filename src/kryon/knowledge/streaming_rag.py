@@ -57,6 +57,7 @@ class StreamingRAGEngine:
 
         # Statistics
         self._stats = {"total_streams": 0, "total_tokens_streamed": 0, "average_latency": 0.0}
+        self._stats_lock = asyncio.Lock()
 
     def _load_llm_config(self) -> dict:
         """Load LLM configuration from environment variables."""
@@ -86,7 +87,8 @@ class StreamingRAGEngine:
             >>> async for token in engine.query_stream("What is XSS?"):
             ...     print(token, end='', flush=True)
         """
-        self._stats["total_streams"] += 1
+        async with self._stats_lock:
+            self._stats["total_streams"] += 1
 
         # Build metadata filter
         filter_metadata = None
@@ -163,7 +165,8 @@ class StreamingRAGEngine:
             async for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:
                     token = chunk.choices[0].delta.content
-                    self._stats["total_tokens_streamed"] += 1
+                    async with self._stats_lock:
+                        self._stats["total_tokens_streamed"] += 1
                     yield token
 
         except asyncio.TimeoutError:
@@ -232,17 +235,18 @@ class StreamingRAGEngine:
             "streaming": True,
         }
 
-    def get_stats(self) -> dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Get streaming statistics."""
-        return {
-            "total_streams": self._stats["total_streams"],
-            "total_tokens_streamed": self._stats["total_tokens_streamed"],
-            "average_tokens_per_stream": (
-                self._stats["total_tokens_streamed"] / self._stats["total_streams"]
-                if self._stats["total_streams"] > 0
-                else 0
-            ),
-        }
+        async with self._stats_lock:
+            return {
+                "total_streams": self._stats["total_streams"],
+                "total_tokens_streamed": self._stats["total_tokens_streamed"],
+                "average_tokens_per_stream": (
+                    self._stats["total_tokens_streamed"] / self._stats["total_streams"]
+                    if self._stats["total_streams"] > 0
+                    else 0
+                ),
+            }
 
 
 # Global instance

@@ -427,6 +427,7 @@ class KnowledgeSync:
 
         # Pull knowledge from remote
         if direction in ["pull", "both"]:
+            tmp_path = None
             try:
                 response = requests.get(f"{remote_url}/api/knowledge/export", headers=headers, timeout=30)
 
@@ -441,17 +442,18 @@ class KnowledgeSync:
                     stats["pulled"] = True
                     stats["pull_stats"] = import_stats
 
-                    # Cleanup
-                    Path(tmp_path).unlink()
-
                 else:
                     stats["errors"].append(f"Pull failed: HTTP {response.status_code}")
 
             except Exception as e:
                 stats["errors"].append(f"Pull error: {str(e)}")
+            finally:
+                if tmp_path:
+                    Path(tmp_path).unlink(missing_ok=True)
 
         # Push knowledge to remote
         if direction in ["push", "both"]:
+            tmp_path = None
             try:
                 # Export to temp file
                 with tempfile.NamedTemporaryFile(suffix=".json.gz", delete=False) as tmp:
@@ -474,24 +476,27 @@ class KnowledgeSync:
                 else:
                     stats["errors"].append(f"Push failed: HTTP {response.status_code}")
 
-                # Cleanup
-                Path(tmp_path).unlink()
-
             except Exception as e:
                 stats["errors"].append(f"Push error: {str(e)}")
+            finally:
+                if tmp_path:
+                    Path(tmp_path).unlink(missing_ok=True)
 
         return stats
 
 
 # Global instance
 _knowledge_sync = None
+_knowledge_sync_lock = __import__("threading").Lock()
 
 
 def get_knowledge_sync() -> KnowledgeSync:
     """Get global knowledge sync instance."""
     global _knowledge_sync
     if _knowledge_sync is None:
-        _knowledge_sync = KnowledgeSync()
+        with _knowledge_sync_lock:
+            if _knowledge_sync is None:
+                _knowledge_sync = KnowledgeSync()
     return _knowledge_sync
 
 

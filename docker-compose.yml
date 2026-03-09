@@ -15,7 +15,7 @@ services:
       - "127.0.0.1:8700:8700"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-not-set}
-      - KRYON_DEBUG=1
+      - KRYON_DEBUG=${KRYON_DEBUG:-0}
       - KRYON_MODEL=${KRYON_MODEL:-gpt-4o}
       - KRYON_GUARDRAILS=${KRYON_GUARDRAILS:-true}
     volumes:
@@ -24,7 +24,7 @@ services:
       - kryon-dev
 
   chromadb:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:0.6.3
     container_name: kryon-chromadb
     restart: unless-stopped
     environment:

@@ -61,12 +61,12 @@ class DocumentProcessor:
     def _process_pdf(self, file_path: Path) -> list[dict[str, Any]]:
         """Process PDF file."""
         try:
-            import PyPDF2
+            from pypdf import PdfReader
 
             chunks = []
 
             with open(file_path, "rb") as f:
-                pdf_reader = PyPDF2.PdfReader(f)
+                pdf_reader = PdfReader(f)
                 num_pages = len(pdf_reader.pages)
 
                 for page_num in range(num_pages):
@@ -92,7 +92,7 @@ class DocumentProcessor:
             return chunks
 
         except ImportError:
-            print("⚠️  PyPDF2 not installed. Install with: pip install PyPDF2")
+            print("⚠️  pypdf not installed. Install with: pip install pypdf")
             return []
         except Exception as e:
             print(f"Error processing PDF {file_path}: {e}")

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -219,8 +219,8 @@ class KnowledgeQueryResponse(BaseModel):
 
 
 class KnowledgeAddRequest(BaseModel):
-    content: str
-    source: str
+    content: str = Field(..., max_length=500_000)
+    source: str = Field(..., min_length=1, max_length=500)
     metadata: dict | None = None
 
 
@@ -281,7 +281,7 @@ class SimulateRequest(BaseModel):
 
 class DetectRequest(BaseModel):
     technique_id: str = Field(..., max_length=20, description="Technique to validate")
-    siem_type: str = Field("elastic", description="SIEM platform")
+    siem_type: Literal["elastic", "splunk"] = Field("elastic", description="SIEM platform")
     siem_endpoint: str = Field("", max_length=500, description="SIEM API endpoint")
     time_window_minutes: int = Field(15, ge=1, le=1440)
 

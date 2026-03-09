@@ -302,13 +302,16 @@ class CVEScraper:
 
 # Global instance
 _cve_scraper = None
+_cve_scraper_lock = __import__("threading").Lock()
 
 
 def get_cve_scraper() -> CVEScraper:
     """Get global CVE scraper instance."""
     global _cve_scraper
     if _cve_scraper is None:
-        _cve_scraper = CVEScraper()
+        with _cve_scraper_lock:
+            if _cve_scraper is None:
+                _cve_scraper = CVEScraper()
     return _cve_scraper
 
 

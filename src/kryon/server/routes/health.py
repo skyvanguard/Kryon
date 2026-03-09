@@ -120,9 +120,17 @@ async def readiness_check() -> ReadinessResponse:
         if c.status == "degraded":
             overall = "degraded"
 
+    # Sanitize check errors to avoid leaking provider/model details
+    sanitized_checks = {}
+    for name, c in checks.items():
+        sanitized_checks[name] = ReadinessCheck(
+            status=c.status,
+            error=c.status if c.status != "healthy" else None,
+        )
+
     return ReadinessResponse(
         status=overall,
         version=__version__,
         uptime_seconds=round(uptime, 1),
-        checks=checks,
+        checks=sanitized_checks,
     )

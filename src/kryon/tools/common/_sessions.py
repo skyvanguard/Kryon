@@ -7,6 +7,7 @@ import subprocess  # nosec B404
 import threading
 import time
 import uuid
+from collections import deque
 
 # Platform-specific imports
 if platform.system() != "Windows":
@@ -56,7 +57,8 @@ class ShellSession:  # pylint: disable=too-many-instance-attributes
         self.process = None
         self.master = None
         self.slave = None
-        self.output_buffer = []
+        self.output_buffer = deque(maxlen=10_000)
+        self._buffer_lock = threading.Lock()
         self.is_running = False
         self.last_activity = time.time()
 
@@ -171,7 +173,8 @@ class ShellSession:  # pylint: disable=too-many-instance-attributes
 
                     if output is not None and output != "":
                         # Append raw chunk so interactive tools (nc, tail -f) show partial states
-                        self.output_buffer.append(output)
+                        with self._buffer_lock:
+                            self.output_buffer.append(output)
                         self.last_activity = time.time()
                     else:
                         # os.read() returned empty. This does NOT necessarily mean
@@ -244,9 +247,10 @@ class ShellSession:  # pylint: disable=too-many-instance-attributes
 
     def get_output(self, clear=True):
         """Get and optionally clear the output buffer"""
-        output = "\n".join(self.output_buffer)
-        if clear:
-            self.output_buffer = []
+        with self._buffer_lock:
+            output = "\n".join(self.output_buffer)
+            if clear:
+                self.output_buffer.clear()
         return output
 
     def get_new_output(self, mark_position=True):
@@ -254,13 +258,15 @@ class ShellSession:  # pylint: disable=too-many-instance-attributes
         if not hasattr(self, "_last_output_position"):
             self._last_output_position = 0
 
-        # Get new output since last position
-        new_output_lines = self.output_buffer[self._last_output_position :]
-        new_output = "\n".join(new_output_lines)
+        with self._buffer_lock:
+            # Get new output since last position
+            buf_list = list(self.output_buffer)
+            new_output_lines = buf_list[self._last_output_position:]
+            new_output = "\n".join(new_output_lines)
 
-        # Update position marker if requested
-        if mark_position:
-            self._last_output_position = len(self.output_buffer)
+            # Update position marker if requested
+            if mark_position:
+                self._last_output_position = len(buf_list)
 
         return new_output
 

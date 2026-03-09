@@ -39,3 +39,8 @@ class ServerConfig:
             raise ValueError(
                 "auth_enabled=True but jwt_secret is empty. Set KRYON_JWT_SECRET or run the setup wizard: kryon --setup"
             )
+        if self.host == "0.0.0.0" and self.debug:
+            logger.warning(
+                "Server bound to 0.0.0.0 with debug=True — this exposes the debug server to the network. "
+                "Use 127.0.0.1 for local development."
+            )

@@ -39,7 +39,7 @@ services:
           cpus: "2"
           memory: 4G
     ports:
-      - "8700:8700"
+      - "127.0.0.1:8700:8700"
     networks:
       - kryon-net
     stdin_open: true
@@ -66,7 +66,7 @@ services:
 
   # ChromaDB for RAG functionality (optional, enable with --profile rag)
   chromadb:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:0.6.3
     container_name: kryon-chromadb
     profiles:
       - rag
@@ -76,8 +76,7 @@ services:
       - ANONYMIZED_TELEMETRY=FALSE
     volumes:
       - chromadb-data:/chroma/chroma
-    ports:
-      - "8000:8000"
+    # No ports exposed — only accessible via Docker internal network
     deploy:
       resources:
         limits:

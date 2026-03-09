@@ -144,24 +144,24 @@ class CacheManager:
             value: Value to cache
             ttl: Time-to-live in seconds (None for no expiration)
         """
+        # Create cache entry
+        entry = {
+            "value": value,
+            "timestamp": time.time(),
+            "ttl": ttl if ttl is not None else self.default_ttl,
+        }
+
         with self._lock:
             # Evict LRU if at capacity
             if key not in self._cache:
                 self._evict_lru()
 
-            # Create cache entry
-            entry = {
-                "value": value,
-                "timestamp": time.time(),
-                "ttl": ttl if ttl is not None else self.default_ttl,
-            }
-
             # Store in cache (will be moved to end automatically)
             self._cache[key] = entry
             self._cache.move_to_end(key)
 
-            # Persist to disk
-            self._save_to_disk(key, entry)
+        # Persist to disk (outside lock — blocking I/O)
+        self._save_to_disk(key, entry)
 
     def delete(self, key: str) -> bool:
         """

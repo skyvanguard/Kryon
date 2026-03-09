@@ -244,13 +244,13 @@ def strip_pdf_metadata(pdf_path: str, output_path: Optional[str] = None) -> dict
             results["success"] = True
 
         else:
-            # Method 2: Using PyPDF2/pypdf
+            # Method 2: Using pypdf
             try:
-                import PyPDF2
+                from pypdf import PdfReader, PdfWriter
 
                 with open(pdf_path, "rb") as file:
-                    reader = PyPDF2.PdfReader(file)
-                    writer = PyPDF2.PdfWriter()
+                    reader = PdfReader(file)
+                    writer = PdfWriter()
 
                     # Copy pages without metadata
                     for page in reader.pages:
@@ -267,9 +267,9 @@ def strip_pdf_metadata(pdf_path: str, output_path: Optional[str] = None) -> dict
                 results["success"] = True
 
             except ImportError:
-                results["error"] = "exiftool and PyPDF2 not available. Install one: pip install PyPDF2"
+                results["error"] = "exiftool and pypdf not available. Install one: pip install pypdf"
             except Exception as e:
-                results["error"] = f"PyPDF2 error: {str(e)}"
+                results["error"] = f"pypdf error: {str(e)}"
 
     except Exception as e:
         results["error"] = str(e)

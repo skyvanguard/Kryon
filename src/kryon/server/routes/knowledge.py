@@ -171,7 +171,8 @@ async def start_scrape(req: ScrapeRequest) -> ScrapeResponse:
 @router.get("/knowledge/scrape/{task_id}")
 async def get_scrape_status(task_id: str) -> dict:
     """Get status of a scraping task."""
-    task = _scrape_tasks.get(task_id)
+    async with _scrape_tasks_lock:
+        task = _scrape_tasks.get(task_id)
     if not task:
         logger.warning("Scrape task not found: %s", task_id)
         raise not_found("Scrape task", task_id)

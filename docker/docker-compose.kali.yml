@@ -54,7 +54,7 @@ services:
           cpus: "2"
           memory: 3G
     ports:
-      - "8700:8700"
+      - "127.0.0.1:8700:8700"
     cap_add:
       - NET_RAW
       - NET_ADMIN
@@ -71,7 +71,7 @@ services:
   # Ollama — Local LLM with GPU passthrough
   # ---------------------------------------------------------------------------
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.6.2
     container_name: kryon-ollama
     restart: unless-stopped
     volumes:

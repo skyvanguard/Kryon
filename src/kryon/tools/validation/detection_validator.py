@@ -1,9 +1,15 @@
 """Detection validation — verify SIEM/EDR alerts fire after attack simulation."""
 
 import json
+import logging
+import shlex
 
 from kryon.sdk.agents import function_tool
 from kryon.tools.common import run_command
+from kryon.tools.common._url_validation import validate_external_url
+
+_log = logging.getLogger(__name__)
+_VALID_SIEM_TYPES = {"elastic", "splunk"}
 
 
 @function_tool
@@ -22,7 +28,7 @@ def validate_detection(
 
     Args:
         technique_id: MITRE ATT&CK technique ID that was simulated
-        siem_type: SIEM platform (elastic, splunk, sentinel)
+        siem_type: SIEM platform (elastic, splunk)
         siem_endpoint: SIEM API endpoint URL
         time_window_minutes: Time window to search for alerts
         ctf: CTF context
@@ -30,6 +36,9 @@ def validate_detection(
     Returns:
         str: Detection validation results (detected/not detected + details)
     """
+    if siem_type not in _VALID_SIEM_TYPES:
+        return f"Error: Unsupported SIEM type '{siem_type}'. Supported: {sorted(_VALID_SIEM_TYPES)}"
+
     if not siem_endpoint:
         return (
             f"Detection validation for {technique_id}:\n"
@@ -38,6 +47,11 @@ def validate_detection(
             f"Configure siem_endpoint to enable live validation."
         )
 
+    if not validate_external_url(siem_endpoint):
+        return f"Error: SIEM endpoint URL blocked by SSRF policy: {siem_endpoint}"
+
+    safe_endpoint = shlex.quote(siem_endpoint)
+
     if siem_type == "elastic":
         query = json.dumps(
             {
@@ -45,19 +59,17 @@ def validate_detection(
                     "bool": {
                         "must": [
                             {"match": {"threat.technique.id": technique_id}},
-                            {"range": {"@timestamp": {"gte": f"now-{time_window_minutes}m"}}},
+                            {"range": {"@timestamp": {"gte": f"now-{int(time_window_minutes)}m"}}},
                         ]
                     }
                 },
                 "size": 10,
             }
         )
-        cmd = f"curl -s -X POST '{siem_endpoint}/_search' -H 'Content-Type: application/json' -d '{query}'"
-    elif siem_type == "splunk":
-        search_query = f'search index=* mitre_technique_id="{technique_id}" earliest=-{time_window_minutes}m'
-        cmd = f"curl -s -k '{siem_endpoint}/services/search/jobs/export' -d 'search={search_query}&output_mode=json'"
-    else:
-        return f"Error: Unsupported SIEM type '{siem_type}'. Supported: elastic, splunk, sentinel"
+        cmd = f"curl -s -X POST {safe_endpoint}/_search -H 'Content-Type: application/json' -d {shlex.quote(query)}"
+    else:  # splunk
+        search_query = f'search index=* mitre_technique_id="{technique_id}" earliest=-{int(time_window_minutes)}m'
+        cmd = f"curl -s -k {safe_endpoint}/services/search/jobs/export -d {shlex.quote(f'search={search_query}&output_mode=json')}"
 
     result = run_command(cmd, ctf=ctf)
     return (
@@ -78,7 +90,7 @@ def check_siem_alert(
 
     Args:
         query: Search query (Elasticsearch DSL, Splunk SPL, or KQL)
-        siem_type: SIEM platform (elastic, splunk, sentinel)
+        siem_type: SIEM platform (elastic, splunk)
         siem_endpoint: SIEM API endpoint URL
         time_range: Time range to search (e.g. 15m, 1h, 24h)
         ctf: CTF context
@@ -86,14 +98,21 @@ def check_siem_alert(
     Returns:
         str: Query results from the SIEM
     """
+    if siem_type not in _VALID_SIEM_TYPES:
+        return f"Error: Unsupported SIEM type '{siem_type}'"
+
     if not siem_endpoint:
         return "Error: No SIEM endpoint configured. Set siem_endpoint parameter."
 
+    if not validate_external_url(siem_endpoint):
+        return f"Error: SIEM endpoint URL blocked by SSRF policy: {siem_endpoint}"
+
+    safe_endpoint = shlex.quote(siem_endpoint)
+    safe_query = shlex.quote(query)
+
     if siem_type == "elastic":
-        cmd = f"curl -s -X POST '{siem_endpoint}/_search' -H 'Content-Type: application/json' -d '{query}'"
-    elif siem_type == "splunk":
-        cmd = f"curl -s -k '{siem_endpoint}/services/search/jobs/export' -d 'search={query}&output_mode=json'"
-    else:
-        return f"Error: Unsupported SIEM type '{siem_type}'"
+        cmd = f"curl -s -X POST {safe_endpoint}/_search -H 'Content-Type: application/json' -d {safe_query}"
+    else:  # splunk
+        cmd = f"curl -s -k {safe_endpoint}/services/search/jobs/export -d {shlex.quote(f'search={query}&output_mode=json')}"
 
     return run_command(cmd, ctf=ctf)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -32,11 +33,12 @@ class RunState:
     output: str = ""
     agent_name: str = ""
     usage: dict[str, Any] = field(default_factory=dict)
-    events: list[dict[str, Any]] = field(default_factory=list)
+    events: deque = field(default_factory=lambda: deque(maxlen=5_000))
     task: asyncio.Task | None = field(default=None, repr=False)
 
 
 _MAX_RUNS = 10_000
+_MAX_SESSIONS = 1_000
 
 
 class SessionManager:
@@ -52,6 +54,10 @@ class SessionManager:
     def create_session(self, agent_key: str, agent: Any) -> ServerSession:
         session_id = uuid.uuid4().hex[:12]
         session = ServerSession(session_id=session_id, agent_key=agent_key, agent=agent)
+        # Evict oldest session if at capacity
+        while len(self._sessions) >= _MAX_SESSIONS:
+            oldest_id = next(iter(self._sessions))
+            self._sessions.pop(oldest_id)
         self._sessions[session_id] = session
         return session
 

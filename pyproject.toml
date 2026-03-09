@@ -30,9 +30,8 @@ dependencies = [
     "mcp>=1.23.0; python_version >= '3.10'",
     "paramiko>=3.5.1",
     "dnspython>=2.4.0, <3",
-    "flask>=3.0.0, <4",
     "networkx>=3.0, <4",
-    "PyPDF2>=3.0.0, <4",
+    "pypdf>=5.0.0, <6",
     "duckduckgo-search>=7.0, <8",
 ]
 classifiers = [

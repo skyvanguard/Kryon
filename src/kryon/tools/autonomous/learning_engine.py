@@ -290,7 +290,6 @@ class LearningEngine:
 
         row = cursor.fetchone()
         if not row:
-            conn.close()
             return {"error": "Operation not found"}
 
         # Parse operation data
@@ -330,8 +329,6 @@ class LearningEngine:
                 self._update_service_vuln(
                     service, exploit, success_rate=1.0, time_taken=operation["time_to_first_shell"]
                 )
-
-        conn.close()
 
         return {
             "operation_id": operation_id,
@@ -417,7 +414,6 @@ class LearningEngine:
         if similar_ops:
             recommendations["learned_strategies"] = self._extract_strategies(similar_ops)
 
-        conn.close()
         return recommendations
 
     def _generate_operation_id(self, operation_data: dict, results: dict) -> str:
@@ -785,13 +781,16 @@ class LearningEngine:
 
 # Global learning engine instance
 _learning_engine = None
+_learning_engine_lock = __import__("threading").Lock()
 
 
 def get_learning_engine() -> LearningEngine:
     """Get global learning engine instance."""
     global _learning_engine
     if _learning_engine is None:
-        _learning_engine = LearningEngine()
+        with _learning_engine_lock:
+            if _learning_engine is None:
+                _learning_engine = LearningEngine()
     return _learning_engine
 
 
