@@ -100,10 +100,11 @@ async def update_asset(asset_id: str, req: AssetUpdateRequest) -> dict:
         logger.warning("Asset not found for update: %s", asset_id)
         raise not_found("Asset", asset_id)
 
-    conn = store._get_conn()
-    updates = {k: v for k, v in req.model_dump(exclude_none=True).items()}
+    _UPDATABLE_COLUMNS = {"status", "metadata_json"}
+    updates = {k: v for k, v in req.model_dump(exclude_none=True).items() if k in _UPDATABLE_COLUMNS}
     if updates:
         set_clause = ", ".join(f"{k} = ?" for k in updates)
+        conn = store._get_conn()
         conn.execute(f"UPDATE assets SET {set_clause} WHERE id = ?", (*updates.values(), asset_id))
         conn.commit()
 

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
+from collections import OrderedDict
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -15,8 +17,10 @@ logger = get_logger(__name__)
 
 router = APIRouter(tags=["vm-integration"], dependencies=[Depends(require_api_key)])
 
-# In-memory job tracking
-_import_jobs: dict[str, dict] = {}
+# In-memory job tracking (bounded, thread-safe via asyncio.Lock)
+_MAX_IMPORT_JOBS = 1_000
+_import_jobs: OrderedDict[str, dict] = OrderedDict()
+_import_jobs_lock = asyncio.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -82,7 +86,8 @@ class _ToolContext:
 
 async def _run_import(job_id: str, source: str, params: dict) -> None:
     """Run import in background and update job status."""
-    _import_jobs[job_id]["status"] = "running"
+    async with _import_jobs_lock:
+        _import_jobs[job_id]["status"] = "running"
     try:
         ctx = _ToolContext()
         if source == "qualys":
@@ -109,13 +114,14 @@ async def _run_import(job_id: str, source: str, params: dict) -> None:
             raise ValueError(f"Unknown source: {source}")
 
         parsed = json.loads(result) if isinstance(result, str) else result
-        _import_jobs[job_id].update(
-            {
-                "status": "completed",
-                "findings_count": parsed.get("count", 0),
-                "result": parsed,
-            }
-        )
+        async with _import_jobs_lock:
+            _import_jobs[job_id].update(
+                {
+                    "status": "completed",
+                    "findings_count": parsed.get("count", 0),
+                    "result": parsed,
+                }
+            )
         logger.info(
             "Import job %s completed: source=%s findings=%d",
             job_id,
@@ -124,12 +130,26 @@ async def _run_import(job_id: str, source: str, params: dict) -> None:
         )
     except Exception as exc:
         logger.error("Import job %s failed: %s", job_id, exc, exc_info=True)
-        _import_jobs[job_id].update(
-            {
-                "status": "failed",
-                "error": str(exc),
-            }
-        )
+        async with _import_jobs_lock:
+            _import_jobs[job_id].update(
+                {
+                    "status": "failed",
+                    "error": str(exc),
+                }
+            )
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+async def _register_job(job_id: str, source: str) -> None:
+    """Register a new job with bounded eviction."""
+    async with _import_jobs_lock:
+        _import_jobs[job_id] = {"job_id": job_id, "status": "queued", "source": source}
+        while len(_import_jobs) > _MAX_IMPORT_JOBS:
+            _import_jobs.popitem(last=False)
 
 
 # ---------------------------------------------------------------------------
@@ -141,7 +161,7 @@ async def _run_import(job_id: str, source: str, params: dict) -> None:
 async def import_qualys(req: ImportQualysRequest, bg: BackgroundTasks):
     """Import vulnerability findings from Qualys scanner."""
     job_id = uuid.uuid4().hex[:12]
-    _import_jobs[job_id] = {"job_id": job_id, "status": "queued", "source": "qualys"}
+    await _register_job(job_id, "qualys")
     bg.add_task(
         _run_import,
         job_id,
@@ -156,7 +176,7 @@ async def import_qualys(req: ImportQualysRequest, bg: BackgroundTasks):
 async def import_tenable(req: ImportTenableRequest, bg: BackgroundTasks):
     """Import vulnerability findings from Tenable.io scanner."""
     job_id = uuid.uuid4().hex[:12]
-    _import_jobs[job_id] = {"job_id": job_id, "status": "queued", "source": "tenable"}
+    await _register_job(job_id, "tenable")
     bg.add_task(
         _run_import,
         job_id,
@@ -176,7 +196,7 @@ async def import_tenable(req: ImportTenableRequest, bg: BackgroundTasks):
 async def import_rapid7(req: ImportRapid7Request, bg: BackgroundTasks):
     """Import vulnerability findings from Rapid7 InsightVM."""
     job_id = uuid.uuid4().hex[:12]
-    _import_jobs[job_id] = {"job_id": job_id, "status": "queued", "source": "rapid7"}
+    await _register_job(job_id, "rapid7")
     bg.add_task(
         _run_import,
         job_id,
@@ -192,7 +212,7 @@ async def import_file(req: ImportFileRequest, bg: BackgroundTasks):
     """Import vulnerability findings from a local nmap XML or nuclei JSONL file."""
     job_id = uuid.uuid4().hex[:12]
     source = req.source_type if req.source_type in ("nmap", "nuclei") else "nmap"
-    _import_jobs[job_id] = {"job_id": job_id, "status": "queued", "source": source}
+    await _register_job(job_id, source)
     if source == "nmap":
         bg.add_task(_run_import, job_id, "nmap", {"xml_file": req.file_path})
     else:
@@ -204,6 +224,8 @@ async def import_file(req: ImportFileRequest, bg: BackgroundTasks):
 @router.get("/import/{job_id}")
 async def get_import_status(job_id: str):
     """Get the status of an import job by its ID."""
-    if job_id not in _import_jobs:
+    async with _import_jobs_lock:
+        job = _import_jobs.get(job_id)
+    if job is None:
         raise HTTPException(status_code=404, detail=f"Import job {job_id} not found")
-    return _import_jobs[job_id]
+    return job

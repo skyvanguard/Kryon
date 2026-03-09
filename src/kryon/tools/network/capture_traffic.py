@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
+import json as _json
 import os
+import re
 import subprocess
 import sys
 import tempfile
+import threading
 import time
+
 import paramiko
 
 from kryon.sdk.agents import function_tool
 
+_SAFE_INTERFACE = re.compile(r'^[a-zA-Z0-9_-]+$')
 
-@function_tool
-def capture_remote_traffic(ip, username, password, interface, capture_filter="", port=22, timeout=10):
+
+def _capture_remote_traffic_impl(ip, username, password, interface, capture_filter="", port=22, timeout=10):
     """
-    Captures network traffic from a remote VM and returns a pipe that can be read by tshark.
+    Captures network traffic from a remote VM and returns a FIFO path that can be read by tshark.
 
     Args:
         ip (str): IP address of the remote VM
@@ -24,17 +29,22 @@ def capture_remote_traffic(ip, username, password, interface, capture_filter="",
         timeout (int, optional): Connection timeout in seconds (default: 10)
 
     Returns:
-        subprocess.Popen: A process with stdout that can be read by tshark
+        str: Path to the FIFO that tshark can read from
 
     Raises:
+        ValueError: If interface name contains invalid characters
         ConnectionError: If connection to the remote VM fails
         RuntimeError: If traffic capture fails to start
     """
-    try:
-        # Create SSH client and connect to remote VM
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    if not _SAFE_INTERFACE.match(interface):
+        raise ValueError(f"Invalid interface name: {interface}")
 
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.WarningPolicy())
+    fifo_path = None
+    tmpdir = None
+
+    try:
         print(f"Connecting to {ip}:{port} as {username}...")
         client.connect(ip, port=port, username=username, password=password, timeout=timeout)
 
@@ -65,14 +75,17 @@ def capture_remote_traffic(ip, username, password, interface, capture_filter="",
             error = stderr.read().decode().strip()
             raise RuntimeError(f"Failed to start tcpdump: {error}")
 
-        # Create a named pipe (FIFO) for tshark to read from
-        fifo_path = tempfile.mktemp()
+        # Create a named pipe (FIFO) inside a secure temp directory
+        tmpdir = tempfile.mkdtemp()
+        fifo_path = os.path.join(tmpdir, "capture.fifo")
         os.mkfifo(fifo_path)
 
         # Start a process to read from SSH and write to the FIFO
+        _fifo_path = fifo_path
+
         def pipe_ssh_to_fifo():
             try:
-                with open(fifo_path, "wb") as fifo:
+                with open(_fifo_path, "wb") as fifo:
                     while True:
                         data = stdout.read(4096)
                         if not data:
@@ -83,8 +96,19 @@ def capture_remote_traffic(ip, username, password, interface, capture_filter="",
                 print(f"Error in pipe_ssh_to_fifo: {str(e)}")
             finally:
                 print("Closing FIFO due to error or completion.")
-
-        import threading
+                try:
+                    client.close()
+                except Exception:
+                    pass
+                # Cleanup FIFO and tmpdir
+                try:
+                    os.unlink(_fifo_path)
+                except OSError:
+                    pass
+                try:
+                    os.rmdir(tmpdir)
+                except OSError:
+                    pass
 
         thread = threading.Thread(target=pipe_ssh_to_fifo, daemon=True)
         thread.start()
@@ -92,7 +116,6 @@ def capture_remote_traffic(ip, username, password, interface, capture_filter="",
         print(f"Capture running. Data available at: {fifo_path}")
         print(f"You can now use: tshark -r {fifo_path} -c 100 [options]")
 
-        # Example usage in the context manager
         subprocess.run(["tshark", "-r", fifo_path, "-c", "100"], timeout=300)
 
         return fifo_path
@@ -103,8 +126,36 @@ def capture_remote_traffic(ip, username, password, interface, capture_filter="",
         raise ConnectionError(f"SSH connection error: {str(e)}") from e
     except TimeoutError as e:
         raise ConnectionError(f"Connection timed out after {timeout} seconds") from e
+    except (ConnectionError, RuntimeError, ValueError):
+        raise
     except Exception as e:
         raise RuntimeError(f"Unexpected error: {str(e)}") from e
+    finally:
+        # Ensure SSH client is closed on error paths (thread handles its own cleanup)
+        try:
+            client.close()
+        except Exception:
+            pass
+
+
+@function_tool
+def capture_remote_traffic(ip, username, password, interface, capture_filter="", port=22, timeout=10):
+    """
+    Captures network traffic from a remote VM and returns a pipe that can be read by tshark.
+
+    Args:
+        ip (str): IP address of the remote VM
+        username (str): SSH username for the remote VM
+        password (str): SSH password for the remote VM
+        interface (str): Network interface to capture on (e.g., eth0)
+        capture_filter (str, optional): tcpdump filter expression
+        port (int, optional): SSH port (default: 22)
+        timeout (int, optional): Connection timeout in seconds (default: 10)
+
+    Returns:
+        str: Path to the FIFO that tshark can read from
+    """
+    return _capture_remote_traffic_impl(ip, username, password, interface, capture_filter, port, timeout)
 
 
 @function_tool
@@ -125,10 +176,8 @@ def remote_capture_session(ip, username, password, interface, capture_filter="",
     Returns:
         JSON with fifo_path for reading captured traffic
     """
-    import json as _json
-
     try:
-        fifo_path = capture_remote_traffic(ip, username, password, interface, capture_filter=capture_filter, port=port)
+        fifo_path = _capture_remote_traffic_impl(ip, username, password, interface, capture_filter=capture_filter, port=port)
         return _json.dumps({"success": True, "fifo_path": fifo_path, "ip": ip, "interface": interface})
     except Exception as e:
         return _json.dumps({"success": False, "error": str(e)})
@@ -147,7 +196,7 @@ if __name__ == "__main__":
     capture_filter = sys.argv[5] if len(sys.argv) > 5 else ""
 
     try:
-        fifo_path = capture_remote_traffic(ip, username, password, interface, capture_filter)
+        fifo_path = _capture_remote_traffic_impl(ip, username, password, interface, capture_filter)
         print(f"Capture running at: {fifo_path}")
         print("Press Ctrl+C to stop the capture")
         while True:

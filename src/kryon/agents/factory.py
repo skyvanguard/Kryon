@@ -4,6 +4,7 @@ Generic agent factory module for creating agent instances dynamically.
 
 import importlib
 import os
+import threading
 from typing import Callable
 
 from openai import AsyncOpenAI
@@ -161,8 +162,9 @@ def discover_agent_factories() -> dict[str, Callable[[], Agent]]:
     return agent_factories
 
 
-# Global registry of agent factories
+# Global registry of agent factories (thread-safe lazy init)
 AGENT_FACTORIES = None
+_factories_lock = threading.Lock()
 
 
 def get_agent_factory(agent_name: str) -> Callable[[], Agent]:
@@ -180,9 +182,11 @@ def get_agent_factory(agent_name: str) -> Callable[[], Agent]:
     """
     global AGENT_FACTORIES
 
-    # Lazy initialization
+    # Double-checked locking for thread-safe lazy initialization
     if AGENT_FACTORIES is None:
-        AGENT_FACTORIES = discover_agent_factories()
+        with _factories_lock:
+            if AGENT_FACTORIES is None:
+                AGENT_FACTORIES = discover_agent_factories()
 
     agent_name_lower = agent_name.lower()
 

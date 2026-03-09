@@ -118,14 +118,18 @@ async def create_run(req: RunRequest):
     if session is not None:
         session.input_history = list(result.to_input_list())
 
+    usage_data = {}
+    if result.raw_responses:
+        last_usage = result.raw_responses[-1].usage
+        if last_usage:
+            usage_data["total_tokens"] = last_usage.total_tokens
+
     return RunResponse(
         run_id=run_state.run_id,
         status="completed",
         output=output,
         agent=run_state.agent_name,
-        usage={
-            "total_tokens": result.raw_responses[-1].usage.total_tokens if result.raw_responses else 0,
-        },
+        usage=usage_data,
     )
 
 

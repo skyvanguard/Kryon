@@ -5,13 +5,13 @@ An advanced framework for building autonomous AI-powered cybersecurity operation
 KRYON provides state-of-the-art offensive and defensive security capabilities
 through intelligent agents powered by 300+ LLM models.
 
-Version: 1.0.0
+Version: 1.1.0
 Code Name: "Genesis"
 
 Website: https://kryon.com.py
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __codename__ = "Genesis"
 
 # Import submodules for proper namespace resolution

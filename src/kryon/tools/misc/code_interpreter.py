@@ -29,10 +29,19 @@ def execute_python_code(code: str, context: dict = None) -> str:
         stdout = io.StringIO()
         sys.stdout = stdout
 
+        safe_globals = {"__builtins__": {
+            "print": print, "len": len, "range": range, "str": str,
+            "int": int, "float": float, "list": list, "dict": dict,
+            "tuple": tuple, "set": set, "bool": bool, "type": type,
+            "enumerate": enumerate, "zip": zip, "map": map, "filter": filter,
+            "sorted": sorted, "reversed": reversed, "sum": sum, "min": min, "max": max,
+            "abs": abs, "round": round, "isinstance": isinstance,
+            "True": True, "False": False, "None": None,
+        }}
         try:
-            # Execute code once with captured output
+            # Execute code with restricted builtins
             # nosec B102 # pylint: disable=exec-used
-            exec(code, globals(), local_vars)  # nosec 102  # nosemgrep: exec-detected
+            exec(code, safe_globals, local_vars)  # nosec 102  # nosemgrep: exec-detected
         finally:
             # Always restore stdout even if exec raises
             sys.stdout = sys.__stdout__

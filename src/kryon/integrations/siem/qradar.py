@@ -33,7 +33,9 @@ class QRadarLEEFForwarder(BaseSIEMForwarder):
             attrs.append(f"{k}={v}")
 
         attr_str = "\t".join(attrs)
-        return f"LEEF:2.0|Kryon|KRYON|1.0.0|{event.event_type}|{attr_str}"
+        from kryon import __version__
+
+        return f"LEEF:2.0|Kryon|KRYON|{__version__}|{event.event_type}|{attr_str}"
 
     async def send_event(self, event: SIEMEvent) -> bool:
         import httpx

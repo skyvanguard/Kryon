@@ -7,6 +7,7 @@ import time
 
 from fastapi import APIRouter
 
+from kryon import __version__
 from kryon.server.logging_config import get_logger
 from kryon.server.models import HealthResponse, ReadinessCheck, ReadinessResponse
 
@@ -36,7 +37,7 @@ async def _ping_llm() -> ReadinessCheck:
         _llm_cache.update(check=check, ts=now)
         return check
 
-    model = "ollama/dolphin-mistral:7b" if has_ollama else "gpt-4o-mini"
+    model = f"ollama/{os.environ.get('KRYON_MODEL', 'qwen3:8b')}" if has_ollama else "gpt-4o-mini"
     try:
         import litellm
 
@@ -62,7 +63,7 @@ async def health_check() -> HealthResponse:
     agents = get_available_agents()
     return HealthResponse(
         status="ok",
-        version="1.0.0",
+        version=__version__,
         agents_count=len(agents),
     )
 
@@ -113,7 +114,7 @@ async def readiness_check() -> ReadinessResponse:
 
     return ReadinessResponse(
         status=overall,
-        version="1.0.0",
+        version=__version__,
         uptime_seconds=round(uptime, 1),
         checks=checks,
     )

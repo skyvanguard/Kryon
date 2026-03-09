@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections import OrderedDict
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -62,8 +63,9 @@ class ValidateBatchResponse(BaseModel):
     results: list[ValidateResponse]
 
 
-# In-memory store for validation results (keyed by finding_id)
-_validation_results: dict[str, ValidationResult] = {}
+# In-memory store for validation results (keyed by finding_id, bounded)
+_MAX_VALIDATION_RESULTS = 10_000
+_validation_results: OrderedDict[str, ValidationResult] = OrderedDict()
 
 
 # ---------------------------------------------------------------------------
@@ -102,6 +104,8 @@ async def _run_validation(finding: ValidateRequest) -> None:
             validation_method=parsed.get("validation_method"),
             details=parsed.get("details"),
         )
+        while len(_validation_results) > _MAX_VALIDATION_RESULTS:
+            _validation_results.popitem(last=False)
         logger.info(
             "EVE validation completed: finding_id=%s status=%s",
             finding.finding_id,
@@ -135,6 +139,8 @@ async def submit_validation(
         finding_id=body.finding_id,
         status="queued",
     )
+    while len(_validation_results) > _MAX_VALIDATION_RESULTS:
+        _validation_results.popitem(last=False)
     background_tasks.add_task(_run_validation, body)
     logger.info(
         "EVE validation queued: finding_id=%s type=%s target=%s",
@@ -171,6 +177,8 @@ async def submit_batch_validation(
             finding_id=finding.finding_id,
             status="queued",
         )
+        while len(_validation_results) > _MAX_VALIDATION_RESULTS:
+            _validation_results.popitem(last=False)
         background_tasks.add_task(_run_validation, finding)
         results.append(ValidateResponse(finding_id=finding.finding_id, status="queued"))
         logger.info(

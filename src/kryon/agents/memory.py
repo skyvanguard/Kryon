@@ -49,7 +49,9 @@ def get_previous_steps(query: str) -> str:
     return results
 
 
-ADD_MEMORY_PROMPT = f"""INSTRUCTIONS:
+def _build_add_memory_prompt() -> str:
+    """Build the ADD_MEMORY_PROMPT dynamically so previous steps are fresh."""
+    return f"""INSTRUCTIONS:
 This session is being continued from a previous conversation that ran out of context. The conversation is summarized below:
 
 Analysis:
@@ -142,7 +144,7 @@ QUERY_PROMPT = """INSTRUCTIONS:
 
 semantic_builder = create_agent(
     name="Semantic_Builder",
-    instructions=ADD_MEMORY_PROMPT,
+    instructions=_build_add_memory_prompt,
     description="""Agent that stores semantic memories from security assessments
                    and CTF exercises in semantic format.""",
     tools=[add_to_memory_semantic],
@@ -151,7 +153,7 @@ semantic_builder = create_agent(
 
 episodic_builder = create_agent(
     name="Episodic_Builder",
-    instructions=ADD_MEMORY_PROMPT,
+    instructions=_build_add_memory_prompt,
     description="""Agent that stores episodic memories from security assessments
                    and CTF exercises in episodic format.""",
     tools=[add_to_memory_episodic],

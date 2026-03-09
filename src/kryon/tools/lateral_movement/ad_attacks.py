@@ -22,9 +22,12 @@ Authorization: Only use within authorized penetration testing scope.
 """
 
 import json
+import re
 import subprocess  # nosec B404
 
 from kryon.sdk.agents import function_tool
+
+_CYPHER_SAFE = re.compile(r'^[A-Za-z0-9@.\-\\_ ]+$')
 
 
 def _run_cmd(command: str, timeout: int = 120) -> str:
@@ -495,6 +498,10 @@ def find_attack_path(
             target_node="Domain Admins@CORP.LOCAL"
         )
     """
+    # Validate inputs against Cypher injection
+    if not _CYPHER_SAFE.match(start_node) or not _CYPHER_SAFE.match(target_node):
+        return json.dumps({"error": "Invalid characters in node name."})
+
     # Cypher query for shortest path in BloodHound
     cypher_query = (
         f"MATCH p=shortestPath("
