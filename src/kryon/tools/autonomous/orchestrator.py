@@ -488,9 +488,9 @@ def autonomous_pentest(
 
     try:
         # Phase 1: Network Discovery
-        from kryon.tools.reconnaissance.nmap import run_nmap
+        from kryon.tools.reconnaissance.nmap import nmap
 
-        discovery = run_nmap(target=target_network, scan_type="ping" if stealth_level == "high" else "quick")
+        discovery = nmap._raw_fn(target=target_network, args="-sn" if stealth_level == "high" else "-F")
 
         hosts = discovery.get("hosts", [])[:max_targets]
         results["hosts_discovered"] = hosts
@@ -757,7 +757,7 @@ def _execute_exploit_autonomous(target_ip: str, exploit: dict, service: dict) ->
             from kryon.tools.web import nuclei
 
             # Try nuclei scan for Apache path traversal
-            nuclei_result = nuclei.run_nuclei_scan(target=f"http://{target_ip}", tags=["apache", "cve2021", "rce"])
+            nuclei_result = nuclei.nuclei_scan._raw_fn(target=f"http://{target_ip}", tags="apache,cve2021,rce")
 
             if nuclei_result.get("vulnerabilities"):
                 # Exploit confirmed, attempt RCE
@@ -789,8 +789,8 @@ def _execute_exploit_autonomous(target_ip: str, exploit: dict, service: dict) ->
         elif "sqli" in exploit_type or "sql" in exploit_name:
             from kryon.tools.web import sqlmap
 
-            sqlmap_result = sqlmap.run_sqlmap(
-                url=f"http://{target_ip}", crawl_depth=2, batch_mode=True, risk=2, level=2
+            sqlmap_result = sqlmap.sqlmap_scan._raw_fn(
+                url=f"http://{target_ip}", crawl=2, batch=True, risk=2, level=2
             )
 
             if sqlmap_result.get("vulnerabilities"):
@@ -808,10 +808,11 @@ def _execute_exploit_autonomous(target_ip: str, exploit: dict, service: dict) ->
         elif "ssh" in service_name and "brute" in exploit_name:
             from kryon.tools.api_attacks import hydra
 
-            hydra_result = hydra.run_hydra_ssh(
-                target_ip=target_ip,
-                username_list=["root", "admin", "user", "ubuntu"],
-                password_list=["password", "123456", "admin", "root", "toor"],
+            hydra_result = hydra.hydra_attack._raw_fn(
+                target=target_ip,
+                service="ssh",
+                username_list="/usr/share/wordlists/common-users.txt",
+                password_list="/usr/share/wordlists/common-passwords.txt",
                 threads=4,
             )
 
@@ -956,8 +957,8 @@ def _execute_exploit_autonomous(target_ip: str, exploit: dict, service: dict) ->
         elif "http" in service_name or "web" in service_name:
             from kryon.tools.reconnaissance import gobuster
 
-            gobuster_result = gobuster.run_gobuster(
-                target=f"http://{target_ip}",
+            gobuster_result = gobuster.gobuster_dir._raw_fn(
+                url=f"http://{target_ip}",
                 wordlist="/usr/share/wordlists/dirb/common.txt",
                 threads=20,
             )

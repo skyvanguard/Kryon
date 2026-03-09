@@ -7,6 +7,7 @@ and parallel patterns (for simultaneous execution).
 
 import importlib
 import pkgutil
+import threading
 from typing import Optional, Union
 
 __all__ = [
@@ -28,6 +29,7 @@ __all__ = [
 
 # Pattern registry for easy access
 PATTERNS = {}
+_patterns_lock = threading.Lock()
 
 
 def discover_patterns() -> dict[str, "Pattern"]:
@@ -147,8 +149,10 @@ def discover_patterns() -> dict[str, "Pattern"]:
 def _initialize_patterns():
     """Initialize patterns after all imports are complete."""
     global PATTERNS
-    if not PATTERNS:  # Only initialize once
-        PATTERNS.update(discover_patterns())
+    if not PATTERNS:
+        with _patterns_lock:
+            if not PATTERNS:
+                PATTERNS.update(discover_patterns())
 
 
 # Import Pattern and related items after defining functions to avoid circular imports

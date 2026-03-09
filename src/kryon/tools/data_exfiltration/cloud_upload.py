@@ -284,7 +284,7 @@ def upload_via_ftp(
         ...     file_path="/tmp/data.enc",
         ...     ftp_host="10.10.14.5",
         ...     ftp_user="ftpuser",
-        ...     ftp_password="ftppass"
+        ...     ftp_password="<REDACTED>"
         ... )
     """
     result = {"success": False, "error": None}

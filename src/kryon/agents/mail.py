@@ -83,7 +83,7 @@ def check_dkim(domain: str, selector: str = "default"):
 
 
 @function_tool
-def check_mail_spoofing_vulnerability(domain: str, dkim_selector: str = "default") -> dict:
+def check_mail_spoofing_vulnerability(domain: str, dkim_selector: str = "default") -> str:
     """
     Checks if domain is vulnerable to mail spoofing by inspecting SPF,
     DMARC, and DKIM. Returns dict with domain, records found/missing,

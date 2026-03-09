@@ -89,8 +89,3 @@ def transfer_to_strategic_core():
     constraints, and provide data-driven tool recommendations with rationale.
     """
     return strategic_core
-
-
-def transfer_from_strategic_core():
-    """Called when Strategic Core completes analysis and recommendations."""
-    return "Strategic Core analysis complete. Review recommendations and proceed with execution."

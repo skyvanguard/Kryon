@@ -49,7 +49,7 @@ def get_previous_steps(query: str) -> str:
     return results
 
 
-def _build_add_memory_prompt() -> str:
+def _build_add_memory_prompt(_run_context=None, _agent=None) -> str:
     """Build the ADD_MEMORY_PROMPT dynamically so previous steps are fresh."""
     return f"""INSTRUCTIONS:
 This session is being continued from a previous conversation that ran out of context. The conversation is summarized below:

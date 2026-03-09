@@ -775,12 +775,12 @@ def check_uac_bypasses() -> dict[str, Any]:
 
     try:
         # Get Windows version
-        ver_result = subprocess.run("ver", shell=True, capture_output=True, text=True)
+        ver_result = subprocess.run("ver", shell=True, capture_output=True, text=True, timeout=60)
 
         results["os_version"] = ver_result.stdout.strip()
 
         # Check if already admin
-        admin_check = subprocess.run('net session 2>&1 | find "Access is denied" >nul', shell=True)
+        admin_check = subprocess.run('net session 2>&1 | find "Access is denied" >nul', shell=True, timeout=60)
 
         results["is_admin"] = admin_check.returncode != 0
 
@@ -917,7 +917,7 @@ def harvest_credentials() -> dict[str, Any]:
     try:
         # 1. Harvest WiFi passwords
         print("[*] Extracting WiFi passwords...")
-        wifi_result = subprocess.run("netsh wlan show profiles", shell=True, capture_output=True, text=True)
+        wifi_result = subprocess.run("netsh wlan show profiles", shell=True, capture_output=True, text=True, timeout=60)
 
         if wifi_result.returncode == 0:
             profiles = re.findall(r"All User Profile\s*:\s*(.+)", wifi_result.stdout)
@@ -930,6 +930,7 @@ def harvest_credentials() -> dict[str, Any]:
                     shell=True,  # nosemgrep: subprocess-shell-true
                     capture_output=True,
                     text=True,
+                    timeout=60,
                 )
 
                 password_match = re.search(r"Key Content\s*:\s*(.+)", pwd_result.stdout)
@@ -938,7 +939,7 @@ def harvest_credentials() -> dict[str, Any]:
 
         # 2. Check cached credentials
         print("[*] Checking cached credentials...")
-        cmdkey_result = subprocess.run("cmdkey /list", shell=True, capture_output=True, text=True)
+        cmdkey_result = subprocess.run("cmdkey /list", shell=True, capture_output=True, text=True, timeout=60)
 
         if cmdkey_result.returncode == 0:
             creds = re.findall(r"Target:\s*(.+)", cmdkey_result.stdout)
@@ -1086,7 +1087,7 @@ def check_token_privileges_enhanced() -> dict[str, Any]:
 
     try:
         # Get current privileges
-        priv_result = subprocess.run("whoami /priv", shell=True, capture_output=True, text=True)
+        priv_result = subprocess.run("whoami /priv", shell=True, capture_output=True, text=True, timeout=60)
 
         if priv_result.returncode != 0:
             results["error"] = "Failed to get token privileges"

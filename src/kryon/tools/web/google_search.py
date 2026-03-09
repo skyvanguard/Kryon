@@ -99,7 +99,7 @@ def _perform_search(query: str, num_results: int = 10, is_dork: bool = False) ->
         if start_index > 1:
             params["start"] = start_index
 
-        response = requests.get(base_url, params=params)
+        response = requests.get(base_url, params=params, timeout=15)
 
         if response.status_code != 200:
             break

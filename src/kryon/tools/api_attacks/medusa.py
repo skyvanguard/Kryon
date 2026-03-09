@@ -156,7 +156,7 @@ def medusa_attack(
             target="192.168.1.100",
             service="ssh",
             username_file="/usr/share/wordlists/usernames.txt",
-            password="Summer2024!",
+            password="<REDACTED>",
             threads=1  # Slow to avoid lockout
         )
 

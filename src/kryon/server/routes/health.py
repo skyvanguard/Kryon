@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 
@@ -17,8 +18,9 @@ router = APIRouter(tags=["health"])
 
 _startup_time = time.monotonic()
 
-# LLM health cache (TTL 30s)
+# LLM health cache (TTL 30s, protected by asyncio.Lock to prevent thundering herd)
 _llm_cache: dict[str, object] = {"check": None, "ts": 0.0}
+_llm_cache_lock = asyncio.Lock()
 _LLM_CACHE_TTL = 30.0
 
 
@@ -28,31 +30,37 @@ async def _ping_llm() -> ReadinessCheck:
     if _llm_cache["check"] is not None and (now - _llm_cache["ts"]) < _LLM_CACHE_TTL:  # type: ignore[operator]
         return _llm_cache["check"]  # type: ignore[return-value]
 
-    has_ollama = os.environ.get("OLLAMA", "").lower() == "true"
-    has_openai = bool(os.environ.get("OPENAI_API_KEY"))
-    has_anthropic = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    async with _llm_cache_lock:
+        # Double-check after acquiring lock
+        now = time.monotonic()
+        if _llm_cache["check"] is not None and (now - _llm_cache["ts"]) < _LLM_CACHE_TTL:  # type: ignore[operator]
+            return _llm_cache["check"]  # type: ignore[return-value]
 
-    if not (has_ollama or has_openai or has_anthropic):
-        check = ReadinessCheck(status="degraded", error="No LLM provider configured")
+        has_ollama = os.environ.get("OLLAMA", "").lower() == "true"
+        has_openai = bool(os.environ.get("OPENAI_API_KEY"))
+        has_anthropic = bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+        if not (has_ollama or has_openai or has_anthropic):
+            check = ReadinessCheck(status="degraded", error="No LLM provider configured")
+            _llm_cache.update(check=check, ts=now)
+            return check
+
+        model = f"ollama/{os.environ.get('KRYON_MODEL', 'qwen3:8b')}" if has_ollama else "gpt-4o-mini"
+        try:
+            import litellm
+
+            await litellm.acompletion(
+                model=model,
+                messages=[{"role": "user", "content": "ping"}],
+                max_tokens=1,
+                timeout=5,
+            )
+            check = ReadinessCheck(status="healthy", error=None)
+        except Exception as exc:
+            check = ReadinessCheck(status="degraded", error=f"LLM ping failed: {exc}")
+
         _llm_cache.update(check=check, ts=now)
         return check
-
-    model = f"ollama/{os.environ.get('KRYON_MODEL', 'qwen3:8b')}" if has_ollama else "gpt-4o-mini"
-    try:
-        import litellm
-
-        await litellm.acompletion(
-            model=model,
-            messages=[{"role": "user", "content": "ping"}],
-            max_tokens=1,
-            timeout=5,
-        )
-        check = ReadinessCheck(status="healthy", error=None)
-    except Exception as exc:
-        check = ReadinessCheck(status="degraded", error=f"LLM ping failed: {exc}")
-
-    _llm_cache.update(check=check, ts=now)
-    return check
 
 
 @router.get("/health", response_model=HealthResponse)

@@ -38,15 +38,8 @@ def load_prompt_template(template_path):
         package = ".".join(package_path)
         filename = template_path_parts[-1]
 
-        # Read the content from the package resources
-        # Handle different importlib.resources APIs between Python versions
-        try:
-            # Python 3.9+ API
-            template_content = importlib.resources.read_text(package, filename)
-        except (TypeError, AttributeError):
-            # Fallback for Python 3.8 and earlier
-            with importlib.resources.path(package, filename) as path:
-                template_content = pathlib.Path(path).read_text(encoding="utf-8")
+        # Read the content from the package resources (Python 3.9+ files() API)
+        template_content = importlib.resources.files(package).joinpath(filename).read_text(encoding="utf-8")
 
         # Render the template
         return Template(template_content).render()  # nosemgrep: mako-templates-detected

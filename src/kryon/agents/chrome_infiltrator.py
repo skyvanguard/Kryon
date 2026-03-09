@@ -76,8 +76,3 @@ Operational Focus: Browser automation and client-side security assessment.""",
 def transfer_to_chrome_infiltrator():
     """Transfer control to Chrome Infiltrator for browser automation and dynamic testing."""
     return chrome_infiltrator
-
-
-def transfer_from_chrome_infiltrator():
-    """Called when Chrome Infiltrator completes testing."""
-    return "Chrome Infiltrator testing complete. Review findings and proceed with next phase."

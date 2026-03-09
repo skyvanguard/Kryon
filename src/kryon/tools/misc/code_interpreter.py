@@ -2,16 +2,28 @@
 Module for executing Python code and capturing its output.
 """
 
+import contextlib
 import io
-import sys
 
 from kryon.sdk.agents import function_tool
+
+
+# Sandboxed builtins for code execution (no __import__, open, exec, eval, compile)
+_SAFE_BUILTINS = {
+    "print": print, "len": len, "range": range, "str": str,
+    "int": int, "float": float, "list": list, "dict": dict,
+    "tuple": tuple, "set": set, "bool": bool, "type": type,
+    "enumerate": enumerate, "zip": zip, "map": map, "filter": filter,
+    "sorted": sorted, "reversed": reversed, "sum": sum, "min": min, "max": max,
+    "abs": abs, "round": round, "isinstance": isinstance,
+    "True": True, "False": False, "None": None,
+}
 
 
 @function_tool
 def execute_python_code(code: str, context: dict = None) -> str:
     """
-    Execute Python code and return the output.
+    Execute Python code in a sandboxed environment and return the output.
 
     Args:
         code (str): Python code to execute
@@ -25,30 +37,16 @@ def execute_python_code(code: str, context: dict = None) -> str:
         if context:
             local_vars.update(context)
 
-        # Capture output using StringIO
-        stdout = io.StringIO()
-        sys.stdout = stdout
+        safe_globals = {"__builtins__": _SAFE_BUILTINS}
 
-        safe_globals = {"__builtins__": {
-            "print": print, "len": len, "range": range, "str": str,
-            "int": int, "float": float, "list": list, "dict": dict,
-            "tuple": tuple, "set": set, "bool": bool, "type": type,
-            "enumerate": enumerate, "zip": zip, "map": map, "filter": filter,
-            "sorted": sorted, "reversed": reversed, "sum": sum, "min": min, "max": max,
-            "abs": abs, "round": round, "isinstance": isinstance,
-            "True": True, "False": False, "None": None,
-        }}
-        try:
-            # Execute code with restricted builtins
-            # nosec B102 # pylint: disable=exec-used
-            exec(code, safe_globals, local_vars)  # nosec 102  # nosemgrep: exec-detected
-        finally:
-            # Always restore stdout even if exec raises
-            sys.stdout = sys.__stdout__
+        # Thread-safe stdout capture using contextlib.redirect_stdout
+        stdout_capture = io.StringIO()
+        with contextlib.redirect_stdout(stdout_capture):
+            # Intentional sandboxed exec for KRYON code execution tool
+            # nosec B102 # pylint: disable=exec-used # nosemgrep: exec-detected
+            exec(code, safe_globals, local_vars)  # noqa: S102
 
-        output = stdout.getvalue()
-
-        # Return captured output or last expression value
+        output = stdout_capture.getvalue()
         return output if output else str(local_vars.get("__builtins__", {}).get("_", None))
 
     except Exception as e:  # pylint: disable=broad-except

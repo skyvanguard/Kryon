@@ -120,7 +120,7 @@ def shadowsocks_setup(
         >>> # Setup Shadowsocks server
         >>> ss = shadowsocks_setup(
         ...     server_port=8388,
-        ...     password="SecurePassword123",
+        ...     password="<REDACTED>",
         ...     method="aes-256-gcm"
         ... )
     """

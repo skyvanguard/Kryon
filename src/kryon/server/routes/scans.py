@@ -83,12 +83,13 @@ async def cancel_scan(job_id: str) -> dict:
 # Autonomous auto-scans
 # ---------------------------------------------------------------------------
 
-# In-memory registry of running/completed auto-scans
+# In-memory registry of running/completed auto-scans (protected by asyncio.Lock)
 _auto_scans: dict[str, dict] = {}  # scan_id -> {"orchestrator": ..., "task": ..., "progress": ...}
+_auto_scans_lock = asyncio.Lock()
 _AUTO_SCANS_MAX = 50
 
 
-def _cleanup_completed_scans() -> None:
+async def _cleanup_completed_scans() -> None:
     """Remove completed/failed scan entries when the registry grows too large."""
     if len(_auto_scans) <= _AUTO_SCANS_MAX:
         return
@@ -101,7 +102,8 @@ def _cleanup_completed_scans() -> None:
 async def start_auto_scan(req: AutoScanRequest, user: User | None = Depends(get_current_user)) -> AutoScanResponse:
     """Start an autonomous enterprise pentest in the background."""
     verify_client_access(user, req.client_id, get_store())
-    _cleanup_completed_scans()
+    async with _auto_scans_lock:
+        await _cleanup_completed_scans()
 
     from kryon.providers.rate_limiter import RateLimiter
     from kryon.tools.autonomous.enterprise_orchestrator import EnterpriseOrchestrator
@@ -129,10 +131,11 @@ async def start_auto_scan(req: AutoScanRequest, user: User | None = Depends(get_
             logger.exception("Auto-scan background task failed: scan_id=%s", scan_id)
 
     task = asyncio.create_task(_run_scan())
-    _auto_scans[scan_id] = {
-        "orchestrator": orch,
-        "task": task,
-    }
+    async with _auto_scans_lock:
+        _auto_scans[scan_id] = {
+            "orchestrator": orch,
+            "task": task,
+        }
 
     logger.info("Auto-scan started: id=%s client=%s targets=%d", scan_id, req.client_id, len(req.targets))
     return AutoScanResponse(

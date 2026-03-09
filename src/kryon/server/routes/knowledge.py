@@ -28,14 +28,15 @@ router = APIRouter(tags=["knowledge"], dependencies=[Depends(require_api_key)])
 
 
 # ---------------------------------------------------------------------------
-# In-memory scrape task registry
+# In-memory scrape task registry (protected by asyncio.Lock)
 # ---------------------------------------------------------------------------
 
 _scrape_tasks: dict[str, dict] = {}
+_scrape_tasks_lock = asyncio.Lock()
 _SCRAPE_TASKS_MAX = 50
 
 
-def _cleanup_completed_scrapes() -> None:
+async def _cleanup_completed_scrapes() -> None:
     """Remove completed scrape entries when the registry grows too large."""
     if len(_scrape_tasks) <= _SCRAPE_TASKS_MAX:
         return
@@ -120,8 +121,10 @@ async def get_knowledge_stats() -> KnowledgeStatsResponse:
 @router.post("/knowledge/scrape", response_model=ScrapeResponse)
 async def start_scrape(req: ScrapeRequest) -> ScrapeResponse:
     """Start a background scraping job."""
-    _cleanup_completed_scrapes()
-    task_id = str(uuid.uuid4())[:8]
+    async with _scrape_tasks_lock:
+        await _cleanup_completed_scrapes()
+        task_id = str(uuid.uuid4())[:8]
+        _scrape_tasks[task_id] = {"status": "running", "documents_added": 0, "errors": []}
 
     async def _run_scrape():
         from kryon.knowledge import add_document
@@ -150,11 +153,11 @@ async def start_scrape(req: ScrapeRequest) -> ScrapeResponse:
             except Exception as e:
                 errors.append(f"{source}: {e}")
 
-        _scrape_tasks[task_id]["status"] = "completed"
-        _scrape_tasks[task_id]["documents_added"] = count
-        _scrape_tasks[task_id]["errors"] = errors
+        async with _scrape_tasks_lock:
+            _scrape_tasks[task_id]["status"] = "completed"
+            _scrape_tasks[task_id]["documents_added"] = count
+            _scrape_tasks[task_id]["errors"] = errors
 
-    _scrape_tasks[task_id] = {"status": "running", "documents_added": 0, "errors": []}
     asyncio.create_task(_run_scrape())
 
     logger.info("Scrape task started: id=%s sources=%s", task_id, req.sources)

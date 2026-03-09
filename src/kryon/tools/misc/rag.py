@@ -6,6 +6,7 @@ Uses kryon.knowledge.simple_vector_db as backend (ChromaDB or SimpleVectorDB fal
 """
 
 import os
+import threading
 import uuid
 
 from kryon.knowledge.simple_vector_db import get_vector_db
@@ -14,16 +15,19 @@ from kryon.sdk.agents import function_tool
 # CTF BASED MEMORY
 collection_name = os.getenv("KRYON_MEMORY_COLLECTION", "default")
 
-# Shared DB instance
+# Shared DB instance (double-checked locking)
 _db = None
+_db_lock = threading.Lock()
 
 
 def _get_db():
     """Get or initialize the vector database instance."""
     global _db
     if _db is None:
-        persist_dir = os.path.expanduser("~/.kryon/vector_db")
-        _db = get_vector_db(persist_dir)
+        with _db_lock:
+            if _db is None:
+                persist_dir = os.path.expanduser("~/.kryon/vector_db")
+                _db = get_vector_db(persist_dir)
     return _db
 
 

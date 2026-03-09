@@ -111,13 +111,15 @@ async def export_table(
         raise HTTPException(status_code=400, detail=f"Table not exportable. Allowed: {sorted(_EXPORTABLE_TABLES)}")
     store = get_store()
     conn = store._get_conn()
+    # Defense-in-depth: assert table is in allowlist (already checked above)
+    assert table in _EXPORTABLE_TABLES, f"Table {table!r} not in allowlist"  # nosec
     try:
         if client_id:
             rows = conn.execute(f"SELECT * FROM {table} WHERE client_id = ?", (client_id,)).fetchall()
         else:
             rows = conn.execute(f"SELECT * FROM {table}").fetchall()
     except Exception:
-        # Fallback: table may not have client_id column
+        logger.debug("Table %s may not have client_id column, retrying without filter", table)
         rows = conn.execute(f"SELECT * FROM {table}").fetchall()
     logger.info("Exported table %s (%d rows)", table, len(rows))
     return [dict(r) for r in rows]
@@ -159,7 +161,7 @@ async def admin_health(_user=Depends(require_permission("admin:read"))):
         "schema_version": schema_version,
         "user_count": user_count,
         "db_size_bytes": db_size,
-        "db_path": str(db_path),
+        "db_exists": db_path.exists(),
         "tables": tables,
     }
 

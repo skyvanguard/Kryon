@@ -107,18 +107,21 @@ class ThreadWithResult(threading.Thread):
     """Thread class that can return a result and catch exceptions."""
 
     def __init__(self, target, args=(), kwargs=None):
-        super().__init__()
+        super().__init__(daemon=True)
         self.target = target
         self.args = args
         self.kwargs = kwargs or {}
         self.result = None
         self.exception = None
+        self.stop_event = threading.Event()
 
     def run(self):
         try:
             self.result = self.target(*self.args, **self.kwargs)
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.exception = e
+        finally:
+            self.stop_event.set()
 
 
 def parse_code_blobs(text: str) -> str:
@@ -503,6 +506,10 @@ I'll execute your code and show you the results.
                     "Python code block."
                 ),
             }
+
+            # Guard: kryon_instance is required for LLM calls
+            if kryon_instance is None:
+                return "", None
 
             # Clone the messages and add our code generation prompt
             messages_copy = copy.deepcopy(messages)

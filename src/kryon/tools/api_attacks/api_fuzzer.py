@@ -19,6 +19,7 @@ KRYON Integration: Task 2.1 - API Fuzzer Agent
 
 import json
 import subprocess  # nosec B404
+import tempfile
 import time
 
 from kryon.sdk.agents import function_tool
@@ -203,7 +204,9 @@ def discover_api_endpoints(
             if status in ("200", "201", "301", "302", "307", "401", "403"):
                 results["discovered_endpoints"].append({"url": url, "status": int(status), "size": parts[1]})
 
-    # Run ffuf for deeper discovery
+    # Run ffuf for deeper discovery (use tempdir to avoid /tmp TOCTOU)
+    output_dir = tempfile.mkdtemp(prefix="kryon_ffuf_")
+    output_file = f"{output_dir}/ffuf_api_discovery.json"
     fuzz_url = f"{target}/FUZZ"
     cmd_parts = [
         "ffuf",
@@ -217,7 +220,7 @@ def discover_api_endpoints(
         str(threads),
         "-s",
         "-o",
-        "/tmp/ffuf_api_discovery.json",
+        output_file,
         "-of",
         "json",
     ]
@@ -232,7 +235,7 @@ def discover_api_endpoints(
 
     # Try to parse ffuf JSON output
     try:
-        ffuf_json = json.loads(_run_cmd("cat /tmp/ffuf_api_discovery.json 2>/dev/null", timeout=5))
+        ffuf_json = json.loads(_run_cmd(f"cat {output_file} 2>/dev/null", timeout=5))
         for r in ffuf_json.get("results", []):
             results["ffuf_results"].append(
                 {

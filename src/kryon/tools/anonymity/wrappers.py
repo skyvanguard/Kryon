@@ -141,7 +141,7 @@ def anonymous_curl(args: str = "", target: str = "", tor_proxy: bool = True) -> 
         cmd_parts.append(target)
 
     # Execute
-    result = subprocess.run(cmd_parts, capture_output=True, text=True)
+    result = subprocess.run(cmd_parts, capture_output=True, text=True, timeout=300)
 
     return result.stdout
 
@@ -180,7 +180,7 @@ def anonymous_nmap(target: str, args: str = "") -> str:
     # Add proxychains if Tor enabled
     if context["tor_enabled"]:
         # Check if proxychains available
-        check = subprocess.run(["which", "proxychains4"], capture_output=True)
+        check = subprocess.run(["which", "proxychains4"], capture_output=True, timeout=10)
 
         if check.returncode == 0:
             cmd_parts.extend(["proxychains4", "-q"])
@@ -195,7 +195,7 @@ def anonymous_nmap(target: str, args: str = "") -> str:
     cmd_parts.append(target)
 
     # Execute
-    result = subprocess.run(cmd_parts, capture_output=True, text=True)
+    result = subprocess.run(cmd_parts, capture_output=True, text=True, timeout=300)
 
     return result.stdout
 
@@ -249,7 +249,7 @@ def anonymous_gobuster(url: str, wordlist: str, args: str = "") -> str:
         cmd_parts.extend(args.split())
 
     # Execute
-    result = subprocess.run(cmd_parts, capture_output=True, text=True)
+    result = subprocess.run(cmd_parts, capture_output=True, text=True, timeout=300)
 
     return result.stdout
 
@@ -335,7 +335,7 @@ def inject_anonymity_into_subprocess(command: list, use_tor: bool = True) -> lis
 
     # Check if proxychains available
     if context["tor_enabled"]:
-        check = subprocess.run(["which", "proxychains4"], capture_output=True)
+        check = subprocess.run(["which", "proxychains4"], capture_output=True, timeout=10)
 
         if check.returncode == 0:
             return ["proxychains4", "-q"] + command

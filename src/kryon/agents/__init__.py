@@ -55,31 +55,6 @@ import pkgutil
 from kryon.sdk.agents import Agent
 from kryon.sdk.agents.handoffs import handoff as handoff
 
-# Lazy imports - these will be loaded when first accessed
-_target_validator = None
-_transfer_to_flag_discriminator = None
-
-
-def _get_target_validator():
-    """Lazy load target_validator to avoid circular imports."""
-    global _target_validator
-    if _target_validator is None:
-        from kryon.agents.target_validator import target_validator
-
-        _target_validator = target_validator
-    return _target_validator
-
-
-def _get_transfer_to_flag_discriminator():
-    """Lazy load transfer_to_flag_discriminator to avoid circular imports."""
-    global _transfer_to_flag_discriminator
-    if _transfer_to_flag_discriminator is None:
-        from kryon.agents.target_validator import transfer_to_flag_discriminator
-
-        _transfer_to_flag_discriminator = transfer_to_flag_discriminator
-    return _transfer_to_flag_discriminator
-
-
 # Extend the search path for namespace packages (allows merging)
 __path__ = pkgutil.extend_path(__path__, __name__)
 

@@ -186,7 +186,7 @@ def create_smb_share(
         ...     payload_path="/tmp/beacon.exe",
         ...     share_name="tools",
         ...     username="admin",
-        ...     password="P@ssw0rd"
+        ...     password="<REDACTED>"
         ... )
         >>>
         >>> print(f"SMB path: {result['smb_path']}")

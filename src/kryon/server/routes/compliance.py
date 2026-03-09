@@ -57,6 +57,7 @@ async def assess_compliance(body: ComplianceAssessRequest) -> dict:
                 )
             )
         except Exception:
+            logger.debug("Skipping malformed finding record: %s", fr)
             continue
 
     report = map_findings_to_framework(findings, body.framework)
@@ -87,6 +88,7 @@ async def zero_trust_assessment(
                 )
             )
         except Exception:
+            logger.debug("Skipping malformed finding record: %s", fr)
             continue
 
     try:

@@ -149,7 +149,7 @@ def kerberoast(
             domain_controller="dc01.corp.local",
             domain="corp.local",
             username="jdoe",
-            password="P@ssw0rd"
+            password="<REDACTED>"
         )
     """
     cmd_parts = [
@@ -281,7 +281,7 @@ def enumerate_ad(
             domain_controller="10.10.10.100",
             domain="corp.local",
             username="jdoe",
-            password="P@ssw0rd"
+            password="<REDACTED>"
         )
     """
     results = {
@@ -413,7 +413,7 @@ def dcsync_attack(
             domain_controller="dc01.corp.local",
             domain="corp.local",
             username="Administrator",
-            password="P@ssw0rd!"
+            password="<REDACTED>"
         )
     """
     cmd = (

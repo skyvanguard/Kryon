@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -22,7 +23,7 @@ router = APIRouter(tags=["admin"], dependencies=[Depends(require_api_key)])
 class CreateTenantRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     slug: str = Field(..., min_length=1, max_length=50, pattern="^[a-z0-9-]+$")
-    tier: str = "free"
+    tier: Literal["free", "standard", "enterprise"] = "free"
 
 
 class TenantResponse(BaseModel):

@@ -84,7 +84,7 @@ def web_request_framework(  # noqa: E501 # pylint: disable=too-many-arguments,to
             data=data,
             cookies=cookies,
             params=params,
-            verify=False,
+            verify=False,  # nosec B501 — intentional: security header analysis must inspect all targets
             allow_redirects=True,
         )
 

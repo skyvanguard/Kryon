@@ -8,7 +8,9 @@ import uuid
 from collections import OrderedDict
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from pydantic import BaseModel, Field
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
 
 from kryon.server.auth import require_api_key
 from kryon.server.logging_config import get_logger
@@ -60,8 +62,21 @@ class ImportFileRequest(BaseModel):
     """Request to import findings from a local file (nmap XML or nuclei JSONL)."""
 
     file_path: str = Field(..., description="Path to nmap XML or nuclei JSONL file")
-    source_type: str = Field("nmap", description="File type: nmap or nuclei")
+    source_type: Literal["nmap", "nuclei"] = Field("nmap", description="File type: nmap or nuclei")
     auto_validate: bool = Field(False, description="Auto-validate with EVE")
+
+    @field_validator("file_path")
+    @classmethod
+    def validate_file_path(cls, v: str) -> str:
+        """Reject path traversal and validate file extension."""
+        if ".." in v:
+            raise ValueError("Path traversal not allowed")
+        from pathlib import Path
+
+        resolved = Path(v).resolve()
+        if resolved.suffix not in (".xml", ".jsonl"):
+            raise ValueError("Only .xml and .jsonl files are supported")
+        return str(resolved)
 
 
 class ImportResponse(BaseModel):

@@ -119,7 +119,7 @@ def _perform_shodan_search(query: str, limit: int = 10) -> list[dict[str, Any]]:
     }
 
     try:
-        response = requests.get(base_url, params=params)
+        response = requests.get(base_url, params=params, timeout=15)
 
         if response.status_code != 200:
             return []
@@ -159,7 +159,7 @@ def _get_shodan_host_info(ip: str) -> Optional[dict[str, Any]]:
     params = {"key": api_key}
 
     try:
-        response = requests.get(base_url, params=params)
+        response = requests.get(base_url, params=params, timeout=15)
 
         if response.status_code != 200:
             return None

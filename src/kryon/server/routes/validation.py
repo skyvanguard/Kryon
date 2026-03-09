@@ -26,7 +26,7 @@ router = APIRouter(tags=["validation"], dependencies=[Depends(require_api_key)])
 class ValidateRequest(BaseModel):
     """Request to validate a single security finding."""
 
-    finding_id: str = Field(..., description="Unique identifier for the finding")
+    finding_id: str = Field(..., min_length=1, max_length=200, description="Unique identifier for the finding")
     finding_type: str = Field(..., description="Type of finding (sqli, xss, rce, auth_bypass, etc.)")
     target: str = Field(..., description="Target URL or host to validate against")
     parameter: str = Field("", description="Specific parameter to test")

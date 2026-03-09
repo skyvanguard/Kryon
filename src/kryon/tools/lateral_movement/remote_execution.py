@@ -41,7 +41,7 @@ def psexec_execute(
         >>> result = psexec_execute(
         ...     target="192.168.1.100",
         ...     username="admin",
-        ...     password="P@ssw0rd",
+        ...     password="<REDACTED>",
         ...     command="whoami"
         ... )
     """

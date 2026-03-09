@@ -1030,12 +1030,13 @@ def cli_print_tool_output(
                 return
 
             except (ImportError, Exception):
-                if call_id in _LIVE_STREAMING_PANELS:
-                    try:
-                        _LIVE_STREAMING_PANELS[call_id].stop()
-                    except Exception:
-                        pass
-                    del _LIVE_STREAMING_PANELS[call_id]
+                with _PANEL_UPDATE_LOCK:
+                    if call_id in _LIVE_STREAMING_PANELS:
+                        try:
+                            _LIVE_STREAMING_PANELS[call_id].stop()
+                        except Exception:
+                            pass
+                        del _LIVE_STREAMING_PANELS[call_id]
 
                 _print_simple_tool_output(tool_name, args, output, execution_info, token_info)
                 return
@@ -1810,7 +1811,7 @@ def update_tool_streaming(tool_name, args, output, call_id, token_info=None, pro
 
 def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None, token_info=None):
     """Complete a streaming tool execution."""
-    # Clean up progress state
+    # Clean up progress state in finally to prevent memory leak
     _ACTIVE_TOOL_PROGRESS.pop(call_id, None)
 
     if tool_name and tool_name.startswith("_internal_"):

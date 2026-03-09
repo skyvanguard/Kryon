@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -17,8 +18,8 @@ router = APIRouter(tags=["reports"], dependencies=[Depends(require_api_key)])
 
 class ReportRequest(BaseModel):
     findings_json: str = "[]"  # JSON array of finding dicts
-    report_type: str = "technical"  # executive, technical, compliance
-    format: str = "html"  # html, pdf
+    report_type: Literal["executive", "technical", "compliance"] = "technical"
+    format: Literal["html", "pdf"] = "html"
     client_name: str = ""
     target_scope: str = ""
     include_compliance: list[str] = []

@@ -89,7 +89,7 @@ def scan_wifi_networks(interface: str = "wlan0", timeout: int = 30, channel: Opt
 
     try:
         # Verify interface exists
-        check_iface = subprocess.run(["iwconfig", interface], capture_output=True, text=True)
+        check_iface = subprocess.run(["iwconfig", interface], capture_output=True, text=True, timeout=30)
 
         if check_iface.returncode != 0:
             results["error"] = f"Interface {interface} not found"
@@ -196,10 +196,10 @@ def enable_monitor_mode(interface: str = "wlan0") -> dict[str, Any]:
 
     try:
         # Kill interfering processes
-        subprocess.run(["airmon-ng", "check", "kill"], capture_output=True)
+        subprocess.run(["airmon-ng", "check", "kill"], capture_output=True, timeout=30)
 
         # Enable monitor mode
-        process = subprocess.run(["airmon-ng", "start", interface], capture_output=True, text=True)
+        process = subprocess.run(["airmon-ng", "start", interface], capture_output=True, text=True, timeout=30)
 
         if process.returncode != 0:
             results["error"] = f"Failed to enable monitor mode: {process.stderr}"
@@ -243,10 +243,10 @@ def disable_monitor_mode(interface: str = "wlan0mon") -> dict[str, Any]:
     results = {"success": False, "error": None}
 
     try:
-        subprocess.run(["airmon-ng", "stop", interface], capture_output=True, text=True, check=True)
+        subprocess.run(["airmon-ng", "stop", interface], capture_output=True, text=True, check=True, timeout=30)
 
         # Restart NetworkManager
-        subprocess.run(["service", "NetworkManager", "start"], capture_output=True)
+        subprocess.run(["service", "NetworkManager", "start"], capture_output=True, timeout=30)
 
         results["success"] = True
 
@@ -366,7 +366,7 @@ def capture_handshake(
             cap_file = f"{output_file}-01.cap"
             if os.path.exists(cap_file):
                 # Verify handshake with aircrack-ng
-                check = subprocess.run(["aircrack-ng", cap_file], capture_output=True, text=True)
+                check = subprocess.run(["aircrack-ng", cap_file], capture_output=True, text=True, timeout=120)
 
                 if "1 handshake" in check.stdout or "handshake" in check.stdout.lower():
                     handshake_found = True

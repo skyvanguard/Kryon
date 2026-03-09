@@ -136,7 +136,14 @@ def scripting_tool(
         # Parse the script to check for potentially dangerous operations
         try:
             parsed = ast.parse(script)
-            # Add additional security checks here if needed
+
+            # AST-level security: block import and attribute access to dangerous names
+            _BLOCKED_ATTRS = {"__subclasses__", "__bases__", "__mro__", "__globals__", "__code__"}
+            for node in ast.walk(parsed):
+                if isinstance(node, (ast.Import, ast.ImportFrom)):
+                    return "Error: import statements are not allowed in sandboxed scripts"
+                if isinstance(node, ast.Attribute) and node.attr in _BLOCKED_ATTRS:
+                    return f"Error: access to '{node.attr}' is not allowed"
 
             # Execute in a restricted environment
             restricted_globals = {"__builtins__": safe_builtins}

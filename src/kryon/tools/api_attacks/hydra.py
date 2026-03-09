@@ -80,7 +80,7 @@ def hydra_attack(
             target="ftp.example.com",
             service="ftp",
             username_list="/usr/share/wordlists/usernames.txt",
-            password="Password123!",
+            password="<REDACTED>",
             threads=1  # Slow to avoid account lockout
         )
 

@@ -104,7 +104,7 @@ def encrypt_file(
         Dictionary with encryption result
 
     Example:
-        >>> result = encrypt_file("/tmp/data.txt", password="SecretPass123")
+        >>> result = encrypt_file("/tmp/data.txt", password="<REDACTED>")
     """
     result = {"success": False, "output_file": "", "error": None}
 
@@ -264,7 +264,7 @@ def prepare_for_exfil(
         ...     file_path="/tmp/sensitive_data.txt",
         ...     compress=True,
         ...     encrypt=True,
-        ...     password="SecretPass123",
+        ...     password="<REDACTED>",
         ...     split_chunks=True
         ... )
     """
