@@ -2,8 +2,12 @@
 Tool for executing code via LLM tool calls.
 """
 
+import re
+
 from kryon.sdk.agents import function_tool
 from kryon.tools.common import run_command  # pylint: disable=import-error
+
+_SAFE_FILENAME_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
 @function_tool
@@ -64,6 +68,11 @@ def execute_code(
     # Normalize language to lowercase
     language = language.lower()
     ext = extensions.get(language, "txt")
+
+    # Validate filename to prevent path traversal
+    if not _SAFE_FILENAME_RE.match(filename):
+        return "Error: filename must contain only alphanumeric characters, hyphens, and underscores."
+
     full_filename = f"{filename}.{ext}"
 
     # Create code file with content

@@ -15,6 +15,7 @@ Clearance Level: Omega-Strategic
 Classification: CORE INFRASTRUCTURE
 """
 
+import atexit
 import asyncio
 import json
 import pickle
@@ -72,6 +73,7 @@ class AsyncVectorDatabase:
 
         # Thread pool for CPU-intensive tasks
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
+        atexit.register(self.executor.shutdown, wait=False)
 
         # Load existing data
         self._load()
@@ -94,7 +96,7 @@ class AsyncVectorDatabase:
 
     async def _save_async(self):
         """Save database to disk (async)."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         # Save metadata in background
         await loop.run_in_executor(self.executor, self._save_metadata)
@@ -137,7 +139,7 @@ class AsyncVectorDatabase:
 
     async def _generate_embedding_async(self, text: str) -> np.ndarray:
         """Generate embedding for text (async)."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(self.executor, self._generate_embedding, text)
 
     async def _generate_embeddings_batch(self, texts: list[str]) -> list[np.ndarray]:
@@ -230,7 +232,7 @@ class AsyncVectorDatabase:
         query_embedding = await self._generate_embedding_async(query_text)
 
         # Compute similarities (CPU-bound - run in executor)
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         results = await loop.run_in_executor(
             self.executor, self._compute_similarities, query_embedding, filter_metadata, top_k
         )
@@ -317,13 +319,16 @@ class AsyncVectorDatabase:
 
 # Global instance
 _async_vector_db = None
+_async_vector_db_lock = __import__("threading").Lock()
 
 
 def get_async_vector_db() -> AsyncVectorDatabase:
     """Get global async vector database instance."""
     global _async_vector_db
     if _async_vector_db is None:
-        _async_vector_db = AsyncVectorDatabase()
+        with _async_vector_db_lock:
+            if _async_vector_db is None:
+                _async_vector_db = AsyncVectorDatabase()
     return _async_vector_db
 
 

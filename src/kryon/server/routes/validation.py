@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from collections import OrderedDict
@@ -54,7 +55,7 @@ class ValidationResult(BaseModel):
 class ValidateBatchRequest(BaseModel):
     """Request to validate multiple findings at once."""
 
-    findings: list[ValidateRequest] = Field(..., description="List of findings to validate")
+    findings: list[ValidateRequest] = Field(..., max_length=100, description="List of findings to validate")
 
 
 class ValidateBatchResponse(BaseModel):
@@ -66,6 +67,7 @@ class ValidateBatchResponse(BaseModel):
 # In-memory store for validation results (keyed by finding_id, bounded)
 _MAX_VALIDATION_RESULTS = 10_000
 _validation_results: OrderedDict[str, ValidationResult] = OrderedDict()
+_validation_lock = asyncio.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -96,27 +98,29 @@ async def _run_validation(finding: ValidateRequest) -> None:
         except (json.JSONDecodeError, TypeError):
             parsed = {"raw": result_json}
 
-        _validation_results[finding.finding_id] = ValidationResult(
-            finding_id=finding.finding_id,
-            status="completed",
-            validation_status=parsed.get("validation_status"),
-            exploit_proof=parsed.get("exploit_proof"),
-            validation_method=parsed.get("validation_method"),
-            details=parsed.get("details"),
-        )
-        while len(_validation_results) > _MAX_VALIDATION_RESULTS:
-            _validation_results.popitem(last=False)
+        async with _validation_lock:
+            _validation_results[finding.finding_id] = ValidationResult(
+                finding_id=finding.finding_id,
+                status="completed",
+                validation_status=parsed.get("validation_status"),
+                exploit_proof=parsed.get("exploit_proof"),
+                validation_method=parsed.get("validation_method"),
+                details=parsed.get("details"),
+            )
+            while len(_validation_results) > _MAX_VALIDATION_RESULTS:
+                _validation_results.popitem(last=False)
         logger.info(
             "EVE validation completed: finding_id=%s status=%s",
             finding.finding_id,
             parsed.get("validation_status", "unknown"),
         )
     except Exception:
-        _validation_results[finding.finding_id] = ValidationResult(
-            finding_id=finding.finding_id,
-            status="error",
-            details="Validation failed due to an internal error",
-        )
+        async with _validation_lock:
+            _validation_results[finding.finding_id] = ValidationResult(
+                finding_id=finding.finding_id,
+                status="error",
+                details="Validation failed due to an internal error",
+            )
         logger.exception("EVE validation failed: finding_id=%s", finding.finding_id)
 
 

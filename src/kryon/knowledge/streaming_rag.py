@@ -247,13 +247,16 @@ class StreamingRAGEngine:
 
 # Global instance
 _streaming_rag_engine = None
+_streaming_rag_engine_lock = __import__("threading").Lock()
 
 
 def get_streaming_rag_engine() -> StreamingRAGEngine:
     """Get global streaming RAG engine instance."""
     global _streaming_rag_engine
     if _streaming_rag_engine is None:
-        _streaming_rag_engine = StreamingRAGEngine()
+        with _streaming_rag_engine_lock:
+            if _streaming_rag_engine is None:
+                _streaming_rag_engine = StreamingRAGEngine()
     return _streaming_rag_engine
 
 

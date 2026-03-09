@@ -81,6 +81,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         while dq and dq[0] < window_start:
             dq.popleft()
 
+        # Clean up empty deques to prevent memory leak
+        if not dq:
+            del self._requests[key]
+            dq = self._requests[key]  # re-create via defaultdict
+
         if len(dq) >= effective_limit:
             retry_after = int(dq[0] - window_start + 1)
             return JSONResponse(

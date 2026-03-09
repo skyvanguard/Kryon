@@ -174,6 +174,7 @@ async def test_save_to_file(monkeypatch, tmp_path):
         return sp.CompletedProcess(args=args[0], returncode=0, stdout=payload, stderr="")
 
     monkeypatch.setattr(sp, "run", fake_run)
+    monkeypatch.setattr(os, "getcwd", lambda: str(tmp_path))
 
     out_file = str(tmp_path / "subdir" / "output.txt")
     result = await _invoke({"task": "generate report", "save_to_file": out_file})
@@ -194,6 +195,7 @@ async def test_save_to_file_error(monkeypatch, tmp_path):
         return sp.CompletedProcess(args=args[0], returncode=0, stdout=payload, stderr="")
 
     monkeypatch.setattr(sp, "run", fake_run)
+    monkeypatch.setattr(os, "getcwd", lambda: str(tmp_path))
 
     # Monkeypatch open to simulate OSError on write
     original_open = open

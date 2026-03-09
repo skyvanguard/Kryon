@@ -36,6 +36,9 @@ class RunState:
     task: asyncio.Task | None = field(default=None, repr=False)
 
 
+_MAX_RUNS = 10_000
+
+
 class SessionManager:
     """Manages sessions and concurrent runs."""
 
@@ -66,6 +69,13 @@ class SessionManager:
     def create_run(self, agent_key: str, session_id: str | None = None) -> RunState:
         run_id = uuid.uuid4().hex[:12]
         run = RunState(run_id=run_id, session_id=session_id, agent_key=agent_key)
+        # Evict completed/failed runs if at capacity
+        if len(self._runs) >= _MAX_RUNS:
+            to_remove = [
+                rid for rid, r in self._runs.items() if r.status in ("completed", "failed", "cancelled")
+            ]
+            for rid in to_remove[:100]:
+                del self._runs[rid]
         self._runs[run_id] = run
         return run
 

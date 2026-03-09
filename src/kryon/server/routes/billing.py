@@ -45,7 +45,7 @@ async def validate_license(body: LicenseValidateBody) -> dict:
 
 
 @router.get("/billing/usage")
-async def get_usage(tenant_id: str = "", period: str = "") -> dict:
+async def get_usage(tenant_id: str = "", period: str = "", request_user: dict = Depends(require_api_key)) -> dict:
     """Get usage summary for a tenant."""
     store = get_store()
     from kryon.billing.metering import get_usage_summary

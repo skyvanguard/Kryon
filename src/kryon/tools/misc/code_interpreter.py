@@ -35,7 +35,10 @@ def execute_python_code(code: str, context: dict = None) -> str:
     try:
         local_vars = {}
         if context:
-            local_vars.update(context)
+            for k, v in context.items():
+                if k.startswith("_") or callable(v):
+                    continue
+                local_vars[k] = v
 
         safe_globals = {"__builtins__": _SAFE_BUILTINS}
 

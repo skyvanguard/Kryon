@@ -471,7 +471,7 @@ I'll execute your code and show you the results.
                 None,
             )
 
-    def _generate_code(self, kryon_instance: object, messages: list[dict], debug: bool = False) -> str:
+    def _generate_code(self, kryon_instance: object, messages: list[dict], debug: bool = False) -> tuple[str, Any]:
         """
         Generate Python code based on the conversation history.
 

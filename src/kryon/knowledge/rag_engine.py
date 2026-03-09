@@ -195,8 +195,7 @@ class RAGEngine:
 
         except Exception as e:
             error_msg = f"Error generating answer: {str(e)}"
-            # Cache exceptions (5min TTL) to avoid repeated failures
-            cache_llm_response(question, context, error_msg, 0.0, ttl=300)
+            # Do not cache error responses to avoid serving stale errors
             return error_msg
 
     def _create_rag_prompt(self, question: str, context: str) -> str:
@@ -246,13 +245,16 @@ class RAGEngine:
 
 # Global instance
 _rag_engine = None
+_rag_engine_lock = __import__("threading").Lock()
 
 
 def get_rag_engine() -> RAGEngine:
     """Get global RAG engine instance."""
     global _rag_engine
     if _rag_engine is None:
-        _rag_engine = RAGEngine()
+        with _rag_engine_lock:
+            if _rag_engine is None:
+                _rag_engine = RAGEngine()
     return _rag_engine
 
 

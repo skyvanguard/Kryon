@@ -8,6 +8,7 @@ Automatic knowledge base updates from multiple sources.
 import logging
 import threading
 import time
+from collections import deque
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ class AutoUpdater:
         self.running = False
         self.thread = None
         self.last_update: dict[str, float] = {}
-        self.update_stats: list[dict[str, Any]] = []
+        self.update_stats: deque[dict[str, Any]] = deque(maxlen=100)
 
     def start(
         self,
@@ -188,19 +189,22 @@ class AutoUpdater:
             "running": self.running,
             "last_update": self.last_update,
             "total_updates": len(self.update_stats),
-            "recent_stats": self.update_stats[-10:] if self.update_stats else [],
+            "recent_stats": list(self.update_stats)[-10:] if self.update_stats else [],
         }
 
 
 # Global instance
 _auto_updater = None
+_auto_updater_lock = threading.Lock()
 
 
 def get_auto_updater() -> AutoUpdater:
     """Get global auto-updater instance."""
     global _auto_updater
     if _auto_updater is None:
-        _auto_updater = AutoUpdater()
+        with _auto_updater_lock:
+            if _auto_updater is None:
+                _auto_updater = AutoUpdater()
     return _auto_updater
 
 

@@ -18,8 +18,15 @@ from typing import Any, Optional
 
 import numpy as np
 
-# Fix encoding for Windows
-if sys.platform == "win32":
+_windows_encoding_fixed = False
+
+
+def _fix_windows_encoding() -> None:
+    """Apply UTF-8 encoding fix for Windows stdout/stderr (once)."""
+    global _windows_encoding_fixed
+    if _windows_encoding_fixed or sys.platform != "win32":
+        return
+    _windows_encoding_fixed = True
     import codecs
 
     if hasattr(sys.stdout, "buffer"):
@@ -43,6 +50,7 @@ class SimpleVectorDatabase:
         Args:
             persist_directory: Directory to persist database
         """
+        _fix_windows_encoding()
         self.persist_directory = Path(persist_directory)
         self.persist_directory.mkdir(parents=True, exist_ok=True)
 
@@ -67,7 +75,7 @@ class SimpleVectorDatabase:
 
         if self.vectors_file.exists():
             with open(self.vectors_file, "rb") as f:
-                self.vectors = pickle.load(f)  # nosemgrep: avoid-pickle
+                self.vectors = pickle.load(f)  # nosec B301 # nosemgrep: avoid-pickle
 
     def _save(self):
         """Save database to disk."""

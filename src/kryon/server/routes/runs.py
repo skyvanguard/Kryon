@@ -107,7 +107,8 @@ async def create_run(req: RunRequest):
     except Exception as exc:
         run_state.status = "failed"
         run_state.output = str(exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("Agent run failed: run_id=%s agent=%s", run_state.run_id, req.agent_key)
+        raise HTTPException(status_code=500, detail="Agent run failed due to an internal error")
 
     run_state.status = "completed"
     output = result.final_output or ""

@@ -91,8 +91,12 @@ async def claude_code(
     # Optionally save to file
     if save_to_file:
         try:
-            os.makedirs(os.path.dirname(save_to_file) or ".", exist_ok=True)
-            with open(save_to_file, "w", encoding="utf-8") as f:
+            workspace = os.path.realpath(os.getcwd())
+            resolved = os.path.realpath(save_to_file)
+            if not resolved.startswith(workspace + os.sep) and resolved != workspace:
+                return "Error: save_to_file must be within the current workspace directory."
+            os.makedirs(os.path.dirname(resolved) or ".", exist_ok=True)
+            with open(resolved, "w", encoding="utf-8") as f:
                 f.write(text)
             text += f"\n\n[Output saved to {save_to_file}]"
         except OSError as exc:

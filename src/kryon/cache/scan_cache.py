@@ -94,7 +94,12 @@ class ScanCache:
             "params": params or {},
         }
 
-        index[normalized_target].append(scan_metadata)
+        _MAX_INDEX_ENTRIES_PER_TARGET = 50
+        entries = index[normalized_target]
+        entries.append(scan_metadata)
+        # Prune oldest entries if over cap
+        if len(entries) > _MAX_INDEX_ENTRIES_PER_TARGET:
+            index[normalized_target] = entries[-_MAX_INDEX_ENTRIES_PER_TARGET:]
 
         # Save updated index (no expiration for index)
         self.cache.set(self.scan_index_key, index, ttl=None)
@@ -327,13 +332,16 @@ class ScanCache:
 
 # Global scan cache instance
 _global_scan_cache: Optional[ScanCache] = None
+_scan_cache_lock = __import__("threading").Lock()
 
 
 def get_scan_cache() -> ScanCache:
     """Get or create global scan cache instance."""
     global _global_scan_cache
     if _global_scan_cache is None:
-        _global_scan_cache = ScanCache()
+        with _scan_cache_lock:
+            if _global_scan_cache is None:
+                _global_scan_cache = ScanCache()
     return _global_scan_cache
 
 

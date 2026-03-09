@@ -6,6 +6,7 @@ Cache RAG query results for faster responses.
 """
 
 import hashlib
+import threading
 import time
 from collections import OrderedDict
 from typing import Any, Optional
@@ -30,6 +31,7 @@ class QueryCache:
         self.ttl = ttl
         self.cache = OrderedDict()
         self.stats = {"hits": 0, "misses": 0, "evictions": 0}
+        self._lock = threading.RLock()
 
     def _generate_key(self, query: str, top_k: int, source_filter: Optional[str]) -> str:
         """Generate cache key from query parameters."""
@@ -50,21 +52,22 @@ class QueryCache:
         """
         key = self._generate_key(query, top_k, source_filter)
 
-        if key in self.cache:
-            entry = self.cache[key]
+        with self._lock:
+            if key in self.cache:
+                entry = self.cache[key]
 
-            # Check TTL
-            if time.time() - entry["timestamp"] < self.ttl:
-                # Move to end (LRU)
-                self.cache.move_to_end(key)
-                self.stats["hits"] += 1
-                return entry["result"]
-            else:
-                # Expired
-                del self.cache[key]
+                # Check TTL
+                if time.time() - entry["timestamp"] < self.ttl:
+                    # Move to end (LRU)
+                    self.cache.move_to_end(key)
+                    self.stats["hits"] += 1
+                    return entry["result"]
+                else:
+                    # Expired
+                    del self.cache[key]
 
-        self.stats["misses"] += 1
-        return None
+            self.stats["misses"] += 1
+            return None
 
     def set(
         self,
@@ -84,21 +87,23 @@ class QueryCache:
         """
         key = self._generate_key(query, top_k, source_filter)
 
-        # Add to cache
-        self.cache[key] = {"result": result, "timestamp": time.time()}
+        with self._lock:
+            # Add to cache
+            self.cache[key] = {"result": result, "timestamp": time.time()}
 
-        # Move to end (most recently used)
-        self.cache.move_to_end(key)
+            # Move to end (most recently used)
+            self.cache.move_to_end(key)
 
-        # Evict if over max size
-        if len(self.cache) > self.max_size:
-            self.cache.popitem(last=False)  # Remove oldest
-            self.stats["evictions"] += 1
+            # Evict if over max size
+            if len(self.cache) > self.max_size:
+                self.cache.popitem(last=False)  # Remove oldest
+                self.stats["evictions"] += 1
 
     def clear(self):
         """Clear entire cache."""
-        self.cache.clear()
-        self.stats = {"hits": 0, "misses": 0, "evictions": 0}
+        with self._lock:
+            self.cache.clear()
+            self.stats = {"hits": 0, "misses": 0, "evictions": 0}
 
     def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
@@ -119,13 +124,16 @@ class QueryCache:
 
 # Global instance
 _query_cache = None
+_query_cache_lock = threading.Lock()
 
 
 def get_query_cache() -> QueryCache:
     """Get global query cache instance."""
     global _query_cache
     if _query_cache is None:
-        _query_cache = QueryCache(max_size=100, ttl=3600)
+        with _query_cache_lock:
+            if _query_cache is None:
+                _query_cache = QueryCache(max_size=100, ttl=3600)
     return _query_cache
 
 

@@ -96,13 +96,16 @@ class EmbeddingGenerator:
 
 # Global instance
 _embedding_generator = None
+_embedding_generator_lock = __import__("threading").Lock()
 
 
 def get_embedding_generator(model_name: str = "all-MiniLM-L6-v2") -> EmbeddingGenerator:
     """Get global embedding generator instance."""
     global _embedding_generator
     if _embedding_generator is None:
-        _embedding_generator = EmbeddingGenerator(model_name)
+        with _embedding_generator_lock:
+            if _embedding_generator is None:
+                _embedding_generator = EmbeddingGenerator(model_name)
     return _embedding_generator
 
 

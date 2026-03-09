@@ -9,6 +9,9 @@ from starlette.responses import Response
 # HTTP methods that mutate state
 _AUDITED_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 
+# Only trust X-Forwarded-For from these proxies
+_TRUSTED_PROXIES = {"127.0.0.1", "::1"}
+
 
 class AuditMiddleware(BaseHTTPMiddleware):
     """Logs POST/PUT/DELETE requests to the audit log."""
@@ -20,9 +23,12 @@ class AuditMiddleware(BaseHTTPMiddleware):
             try:
                 from kryon.server.audit import log_action
 
-                ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-                if not ip:
-                    ip = request.client.host if request.client else "unknown"
+                client_host = request.client.host if request.client else "unknown"
+                ip = client_host
+                if client_host in _TRUSTED_PROXIES:
+                    forwarded = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+                    if forwarded:
+                        ip = forwarded
 
                 # Extract resource info from path (skip /api/v1/ prefix)
                 parts = request.url.path.strip("/").split("/")

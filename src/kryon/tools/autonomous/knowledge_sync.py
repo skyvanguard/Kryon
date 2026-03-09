@@ -414,6 +414,13 @@ class KnowledgeSync:
 
         stats = {"pushed": False, "pulled": False, "errors": []}
 
+        from kryon.tools.common._url_validation import validate_external_url
+
+        ssrf_err = validate_external_url(remote_url)
+        if ssrf_err:
+            stats["errors"].append(ssrf_err)
+            return stats
+
         headers = {}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"

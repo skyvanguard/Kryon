@@ -86,6 +86,7 @@ def web_request_framework(  # noqa: E501 # pylint: disable=too-many-arguments,to
             params=params,
             verify=False,  # nosec B501 — intentional: security header analysis must inspect all targets
             allow_redirects=True,
+            timeout=30,
         )
 
         analysis.append("\n=== HTTP Response Analysis ===\n")

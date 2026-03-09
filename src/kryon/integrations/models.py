@@ -17,7 +17,7 @@ class SIEMEvent(BaseModel):
     source: str = "kryon"
     title: str = ""
     description: str = ""
-    metadata: dict[str, Any] = {}
+    metadata: dict[str, Any] = Field(default_factory=dict)
     client_id: str | None = None
     user: str | None = None
 
@@ -32,6 +32,6 @@ class SIEMConfig(BaseModel):
     token: str = ""
     index_name: str = ""
     enabled: bool = True
-    config_json: dict[str, Any] = {}
+    config_json: dict[str, Any] = Field(default_factory=dict)
     created_at: str = ""
     updated_at: str | None = None

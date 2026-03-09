@@ -44,7 +44,7 @@ class ImportBody(BaseModel):
 
 
 class ValidateScopeBody(BaseModel):
-    targets: list[str] = []
+    targets: list[str] = Field([], max_length=100)
 
 
 @router.post("/onboarding/start")
@@ -120,7 +120,7 @@ async def save_credential(body: CredentialBody) -> dict:
     """Save an encrypted credential."""
     encryption_key = os.environ.get("KRYON_CREDENTIAL_KEY", "")
     if not encryption_key:
-        raise HTTPException(status_code=500, detail="KRYON_CREDENTIAL_KEY not configured")
+        raise HTTPException(status_code=500, detail="Server configuration error")
 
     from kryon.onboarding.vault import CredentialVault
 

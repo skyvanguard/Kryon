@@ -20,7 +20,7 @@ router = APIRouter(tags=["report_settings"], dependencies=[Depends(require_api_k
 
 class BrandingBody(BaseModel):
     client_id: str = Field(..., min_length=1)
-    logo_url: str = ""
+    logo_url: str = Field("", pattern=r"^(https?://.*|)$")
     primary_color: str = "#00d4ff"
     company_name: str = ""
     footer_text: str = ""

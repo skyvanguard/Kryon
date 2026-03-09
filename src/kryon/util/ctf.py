@@ -76,9 +76,14 @@ def setup_ctf():
     # Select challenge: env var > first available > None
     challenge = challenge_key if challenge_key in challenges else (challenges[0] if len(challenges) > 0 else None)
 
-    # Use the user master template
+    # Use the user master template via importlib.resources for portability
+    import importlib.resources
+
+    template_path = str(
+        importlib.resources.files("kryon.prompts.core").joinpath("user_master_template.md")
+    )
     # nosemgrep: mako-templates-detected
-    messages = Template(filename="src/kryon/prompts/core/user_master_template.md").render(
+    messages = Template(filename=template_path).render(
         ctf=ctf,
         challenge=challenge,
         ip=ctf.get_ip() if ctf else None,

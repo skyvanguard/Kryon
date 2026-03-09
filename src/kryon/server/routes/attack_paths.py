@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from kryon.server.auth import require_api_key
 from kryon.server.deps import get_store
@@ -17,7 +17,7 @@ router = APIRouter(tags=["attack_paths"], dependencies=[Depends(require_api_key)
 
 
 class AnalyzeBody(BaseModel):
-    finding_ids: list[str] = []
+    finding_ids: list[str] = Field([], max_length=500)
 
 
 @router.post("/attack-paths/analyze")

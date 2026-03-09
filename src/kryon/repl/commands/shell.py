@@ -59,6 +59,7 @@ class ShellCommand(Command):
             """Execute the given command, optionally in a different working directory (cwd).
             Handles output, async vs sync execution, and user interrupts (Ctrl+C).
             """
+            original_sigint = signal.getsignal(signal.SIGINT)
             try:
                 # Temporary SIGINT handler to allow Ctrl+C to interrupt only this process
                 signal.signal(signal.SIGINT, lambda s, f: (_ for _ in ()).throw(KeyboardInterrupt()))
@@ -102,7 +103,7 @@ class ShellCommand(Command):
                 return False
             finally:
                 # Restore original SIGINT behavior
-                signal.signal(signal.SIGINT, signal.getsignal(signal.SIGINT))
+                signal.signal(signal.SIGINT, original_sigint)
 
         if active_container:
             # If running in a Docker container

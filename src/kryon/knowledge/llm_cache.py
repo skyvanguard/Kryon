@@ -17,6 +17,7 @@ Clearance Level: Omega-Strategic
 Classification: CORE INFRASTRUCTURE
 """
 
+import atexit
 import hashlib
 import json
 import pickle
@@ -82,6 +83,7 @@ class LLMResponseCache:
 
         # Load existing cache
         self._load_from_disk()
+        atexit.register(self._save_to_disk)
 
     def _generate_key(self, query: str, context: str) -> str:
         """
@@ -285,26 +287,21 @@ class LLMResponseCache:
                 print(f"Warning: Failed to load LLM cache: {e}")
                 self._cache = OrderedDict()
 
-    def __del__(self):
-        """Save cache on destruction."""
-        try:
-            # Check if builtin 'open' is still available (shutdown issue in Python 3.14)
-            if "open" in dir(__builtins__) or hasattr(__builtins__, "open"):
-                self._save_to_disk()
-        except Exception:
-            # Silently fail during interpreter shutdown
-            pass
+    # Persistent save is handled via atexit.register in __init__
 
 
 # Global cache instance
 _global_llm_cache: Optional[LLMResponseCache] = None
+_llm_cache_lock = threading.Lock()
 
 
 def get_llm_cache() -> LLMResponseCache:
     """Get or create global LLM cache instance."""
     global _global_llm_cache
     if _global_llm_cache is None:
-        _global_llm_cache = LLMResponseCache()
+        with _llm_cache_lock:
+            if _global_llm_cache is None:
+                _global_llm_cache = LLMResponseCache()
     return _global_llm_cache
 
 

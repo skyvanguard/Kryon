@@ -70,7 +70,8 @@ async def test_import_qualys_parses_response():
             }
         }
     )
-    with patch("kryon.tools.intelligence.vm_importers._http_request") as mock_req:
+    with patch("kryon.tools.intelligence.vm_importers._http_request") as mock_req, \
+         patch("kryon.tools.intelligence.vm_importers.validate_external_url", return_value=None):
         mock_req.return_value = mock_response
         result = await import_qualys_findings.on_invoke_tool(
             ctx,
@@ -100,7 +101,8 @@ async def test_import_tenable_parses_response():
             ]
         }
     )
-    with patch("kryon.tools.intelligence.vm_importers._http_request") as mock_req:
+    with patch("kryon.tools.intelligence.vm_importers._http_request") as mock_req, \
+         patch("kryon.tools.intelligence.vm_importers.validate_external_url", return_value=None):
         mock_req.return_value = mock_response
         result = await import_tenable_findings.on_invoke_tool(
             ctx,
@@ -136,7 +138,8 @@ async def test_import_rapid7_parses_response():
             ]
         }
     )
-    with patch("kryon.tools.intelligence.vm_importers._http_request") as mock_req:
+    with patch("kryon.tools.intelligence.vm_importers._http_request") as mock_req, \
+         patch("kryon.tools.intelligence.vm_importers.validate_external_url", return_value=None):
         mock_req.return_value = mock_response
         result = await import_rapid7_findings.on_invoke_tool(
             ctx,

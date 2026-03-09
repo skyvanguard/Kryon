@@ -137,6 +137,9 @@ class RAGMixin:
         """
         all_sources = []
 
+        if not keywords:
+            return []
+
         for keyword in keywords:
             result = self.query_rag(keyword, top_k=max_results // len(keywords), use_llm=False)
             all_sources.extend(result.get("sources", []))

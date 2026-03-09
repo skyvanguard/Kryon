@@ -13,6 +13,11 @@ _DEFAULT_DB = Path.home() / ".kryon" / "kryon.db"
 
 _SCHEMA_VERSION = 1
 
+
+def _escape_like(value: str) -> str:
+    """Escape special LIKE pattern characters ``%`` and ``_``."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
 # Column whitelists for update methods to prevent SQL injection
 _CLIENT_COLUMNS = {"name", "scope", "contact", "notes", "tags", "owner_user_id"}
 _SCAN_COLUMNS = {"status", "completed_at", "finding_count", "risk_score", "report_id", "agent_key"}
@@ -431,9 +436,10 @@ class MemoryStore:
 
     def get_finding_history(self, client_id: str, cve_id: str) -> list[FindingRecord]:
         conn = self._get_conn()
+        escaped = _escape_like(cve_id)
         rows = conn.execute(
-            "SELECT * FROM findings WHERE client_id = ? AND finding_json LIKE ? ORDER BY first_seen",
-            (client_id, f"%{cve_id}%"),
+            "SELECT * FROM findings WHERE client_id = ? AND finding_json LIKE ? ESCAPE '\\' ORDER BY first_seen",
+            (client_id, f"%{escaped}%"),
         ).fetchall()
         return [self._row_to_finding(r) for r in rows]
 
@@ -452,9 +458,10 @@ class MemoryStore:
         params: list[str | int] = []
         if severity:
             # Match both compact ("severity":"x") and pretty ("severity": "x") JSON
-            clauses.append("(finding_json LIKE ? OR finding_json LIKE ?)")
-            params.append(f'%"severity":"{severity}"%')
-            params.append(f'%"severity": "{severity}"%')
+            sev_esc = _escape_like(severity)
+            clauses.append("(finding_json LIKE ? ESCAPE '\\' OR finding_json LIKE ? ESCAPE '\\')")
+            params.append(f'%"severity":"{sev_esc}"%')
+            params.append(f'%"severity": "{sev_esc}"%')
         if status:
             clauses.append("status = ?")
             params.append(status)
@@ -462,9 +469,10 @@ class MemoryStore:
             clauses.append("client_id = ?")
             params.append(client_id)
         if tool_source:
-            clauses.append("(finding_json LIKE ? OR finding_json LIKE ?)")
-            params.append(f'%"tool_source":"{tool_source}"%')
-            params.append(f'%"tool_source": "{tool_source}"%')
+            ts_esc = _escape_like(tool_source)
+            clauses.append("(finding_json LIKE ? ESCAPE '\\' OR finding_json LIKE ? ESCAPE '\\')")
+            params.append(f'%"tool_source":"{ts_esc}"%')
+            params.append(f'%"tool_source": "{ts_esc}"%')
         where = " AND ".join(clauses)
         sql = "SELECT * FROM findings"
         if where:
@@ -486,9 +494,10 @@ class MemoryStore:
         clauses: list[str] = []
         params: list[str] = []
         if severity:
-            clauses.append("(finding_json LIKE ? OR finding_json LIKE ?)")
-            params.append(f'%"severity":"{severity}"%')
-            params.append(f'%"severity": "{severity}"%')
+            sev_esc = _escape_like(severity)
+            clauses.append("(finding_json LIKE ? ESCAPE '\\' OR finding_json LIKE ? ESCAPE '\\')")
+            params.append(f'%"severity":"{sev_esc}"%')
+            params.append(f'%"severity": "{sev_esc}"%')
         if status:
             clauses.append("status = ?")
             params.append(status)
@@ -496,9 +505,10 @@ class MemoryStore:
             clauses.append("client_id = ?")
             params.append(client_id)
         if tool_source:
-            clauses.append("(finding_json LIKE ? OR finding_json LIKE ?)")
-            params.append(f'%"tool_source":"{tool_source}"%')
-            params.append(f'%"tool_source": "{tool_source}"%')
+            ts_esc = _escape_like(tool_source)
+            clauses.append("(finding_json LIKE ? ESCAPE '\\' OR finding_json LIKE ? ESCAPE '\\')")
+            params.append(f'%"tool_source":"{ts_esc}"%')
+            params.append(f'%"tool_source": "{ts_esc}"%')
         where = " AND ".join(clauses)
         sql = "SELECT COUNT(*) FROM findings"
         if where:

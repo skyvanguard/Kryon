@@ -370,7 +370,7 @@ async def prompt_injection_guardrail(
                 if result.final_output.contains_injection and result.final_output.confidence > 0.9:
                     return GuardrailFunctionOutput(
                         output_info={
-                            "ai_detection": result.final_output.dict(),
+                            "ai_detection": result.final_output.model_dump(),
                             "action": "blocked",
                             "reason": "AI detected probable prompt injection with high confidence",
                         },

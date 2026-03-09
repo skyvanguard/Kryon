@@ -345,13 +345,16 @@ class AsyncRAGEngine:
 
 # Global instance
 _async_rag_engine = None
+_async_rag_engine_lock = __import__("threading").Lock()
 
 
 def get_async_rag_engine() -> AsyncRAGEngine:
     """Get global async RAG engine instance."""
     global _async_rag_engine
     if _async_rag_engine is None:
-        _async_rag_engine = AsyncRAGEngine()
+        with _async_rag_engine_lock:
+            if _async_rag_engine is None:
+                _async_rag_engine = AsyncRAGEngine()
     return _async_rag_engine
 
 

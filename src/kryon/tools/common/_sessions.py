@@ -22,12 +22,15 @@ from kryon.tools.common._workspace import _get_container_workspace_path, _get_wo
 
 # Global dictionary to store active sessions
 ACTIVE_SESSIONS = {}
+_sessions_lock = threading.Lock()
 
 # Friendly IDs for sessions to simplify LLM control
 # Maps like S1 -> <real_id> and reverse
 FRIENDLY_SESSION_MAP = {}
 REVERSE_SESSION_MAP = {}
 SESSION_COUNTER = 0
+
+_MAX_SESSIONS = 50
 
 # Global counter for session output commands to ensure they always display
 SESSION_OUTPUT_COUNTER = {}
@@ -346,12 +349,21 @@ def create_shell_session(command, ctf=None, container_id=None, **kwargs):
     if session.is_running or (ctf and not session.is_running):
         # Register session and assign friendly ID
         global SESSION_COUNTER
-        SESSION_COUNTER += 1
-        friendly = f"S{SESSION_COUNTER}"
-        session.friendly_id = friendly
-        ACTIVE_SESSIONS[session.session_id] = session
-        FRIENDLY_SESSION_MAP[friendly] = session.session_id
-        REVERSE_SESSION_MAP[session.session_id] = friendly
+        with _sessions_lock:
+            SESSION_COUNTER += 1
+            friendly = f"S{SESSION_COUNTER}"
+            session.friendly_id = friendly
+            # Evict oldest sessions if at capacity
+            while len(ACTIVE_SESSIONS) >= _MAX_SESSIONS:
+                oldest_id = next(iter(ACTIVE_SESSIONS))
+                oldest = ACTIVE_SESSIONS.pop(oldest_id)
+                oldest.terminate()
+                old_friendly = REVERSE_SESSION_MAP.pop(oldest_id, None)
+                if old_friendly:
+                    FRIENDLY_SESSION_MAP.pop(old_friendly, None)
+            ACTIVE_SESSIONS[session.session_id] = session
+            FRIENDLY_SESSION_MAP[friendly] = session.session_id
+            REVERSE_SESSION_MAP[session.session_id] = friendly
         return session.session_id
     else:
         error_msg = session.get_output(clear=True)
@@ -362,21 +374,22 @@ def create_shell_session(command, ctf=None, container_id=None, **kwargs):
 def list_shell_sessions():
     """List all active shell sessions"""
     result = []
-    for session_id, session in list(ACTIVE_SESSIONS.items()):
-        # Clean up terminated sessions
-        if not session.is_running:
-            del ACTIVE_SESSIONS[session_id]
-            continue
+    with _sessions_lock:
+        for session_id, session in list(ACTIVE_SESSIONS.items()):
+            # Clean up terminated sessions
+            if not session.is_running:
+                del ACTIVE_SESSIONS[session_id]
+                continue
 
-        result.append(
-            {
-                "friendly_id": getattr(session, "friendly_id", None),
-                "session_id": session_id,
-                "command": session.command,
-                "running": session.is_running,
-                "last_activity": time.strftime("%H:%M:%S", time.localtime(session.last_activity)),
-            }
-        )
+            result.append(
+                {
+                    "friendly_id": getattr(session, "friendly_id", None),
+                    "session_id": session_id,
+                    "command": session.command,
+                    "running": session.is_running,
+                    "last_activity": time.strftime("%H:%M:%S", time.localtime(session.last_activity)),
+                }
+            )
     return result
 
 

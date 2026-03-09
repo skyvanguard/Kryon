@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 
 from kryon.server.auth import require_api_key
 from kryon.server.deps import get_store
@@ -58,15 +61,14 @@ async def get_finding(finding_id: str) -> dict:
     return finding.model_dump()
 
 
-@router.put("/findings/{finding_id}/status")
-async def update_finding_status(finding_id: str, body: dict) -> dict:
-    """Update finding status (open, remediated, accepted, false_positive)."""
-    new_status = body.get("status", "")
-    allowed = {"open", "remediated", "accepted", "false_positive"}
-    if new_status not in allowed:
-        from fastapi import HTTPException
+class UpdateFindingStatus(BaseModel):
+    status: Literal["open", "remediated", "accepted", "false_positive"]
 
-        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {allowed}")
+
+@router.put("/findings/{finding_id}/status")
+async def update_finding_status(finding_id: str, body: UpdateFindingStatus) -> dict:
+    """Update finding status (open, remediated, accepted, false_positive)."""
+    new_status = body.status
     store = get_store()
     if not store.update_finding_status(finding_id, new_status):
         logger.warning("Finding not found for status update: %s", finding_id)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+from collections import defaultdict
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -22,6 +24,11 @@ from kryon.server.logging_config import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["auth"])
+
+# Login attempt tracking for brute-force protection
+_login_attempts: dict[str, list[float]] = defaultdict(list)
+_MAX_ATTEMPTS = 5
+_LOCKOUT_WINDOW = 900  # 15 minutes
 
 
 class LoginRequest(BaseModel):
@@ -51,9 +58,18 @@ async def login(req: LoginRequest):
     if not is_jwt_configured():
         raise HTTPException(status_code=501, detail="JWT auth not configured")
 
+    # Brute-force protection
+    now = time.monotonic()
+    attempts = _login_attempts[req.username]
+    # Prune old attempts outside the lockout window
+    _login_attempts[req.username] = [t for t in attempts if now - t < _LOCKOUT_WINDOW]
+    if len(_login_attempts[req.username]) >= _MAX_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="Too many login attempts. Try again later.")
+
     store = get_store()
     user = store.get_user_by_username(req.username)
     if user is None or not verify_password(req.password, user.password_hash):
+        _login_attempts[req.username].append(now)
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     if not user.is_active:

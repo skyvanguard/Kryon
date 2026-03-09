@@ -18,6 +18,7 @@ import subprocess
 import xml.etree.ElementTree as ET  # noqa: N817
 
 from kryon.sdk.agents import function_tool
+from kryon.tools.common._url_validation import validate_external_url
 
 # ---------------------------------------------------------------------------
 # Severity mappings
@@ -129,6 +130,10 @@ def import_qualys_findings(
     Returns:
         str: JSON with source, findings list [{title, severity, target, details}], count
     """
+    ssrf_err = validate_external_url(api_url)
+    if ssrf_err:
+        return json.dumps({"error": ssrf_err})
+
     endpoint = f"{api_url.rstrip('/')}/api/2.0/fo/asset/host/vm/detection/"
     params = "action=list&output_format=JSON"
     if scan_id:
@@ -204,6 +209,10 @@ def import_tenable_findings(
     Returns:
         str: JSON with source, findings list [{title, severity, target, details}], count
     """
+    ssrf_err = validate_external_url(api_url)
+    if ssrf_err:
+        return json.dumps({"error": ssrf_err})
+
     if scan_id:
         endpoint = f"{api_url.rstrip('/')}/scans/{scan_id}/vulnerabilities"
     else:
@@ -265,6 +274,10 @@ def import_rapid7_findings(
     Returns:
         str: JSON with source, findings list [{title, severity, target, details}], count
     """
+    ssrf_err = validate_external_url(api_url)
+    if ssrf_err:
+        return json.dumps({"error": ssrf_err})
+
     if site_id:
         endpoint = f"{api_url.rstrip('/')}/api/3/sites/{site_id}/vulnerabilities"
     else:

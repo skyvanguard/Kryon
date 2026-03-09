@@ -16,7 +16,7 @@ def test_auto_updater_init():
     updater = AutoUpdater()
     assert updater.running is False
     assert updater.last_update == {}
-    assert updater.update_stats == []
+    assert len(updater.update_stats) == 0
 
 
 def test_auto_updater_stats():
