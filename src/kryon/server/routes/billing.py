@@ -15,7 +15,7 @@ router = APIRouter(tags=["billing"], dependencies=[Depends(require_api_key)])
 
 
 class LicenseValidateBody(BaseModel):
-    license_key: str = Field(..., min_length=1)
+    license_key: str = Field(..., min_length=1, max_length=2000)
 
 
 @router.post("/billing/license/validate")

@@ -22,7 +22,7 @@ router = APIRouter(tags=["onboarding"], dependencies=[Depends(require_api_key)])
 
 class StartBody(BaseModel):
     client_name: str = Field(..., min_length=1, max_length=200)
-    contact: str = ""
+    contact: str = Field("", max_length=500)
 
 
 class StepBody(BaseModel):
@@ -31,16 +31,16 @@ class StepBody(BaseModel):
 
 
 class CredentialBody(BaseModel):
-    client_id: str = Field(..., min_length=1)
+    client_id: str = Field(..., min_length=1, max_length=100)
     credential_type: str = Field(..., min_length=1, max_length=100)
     label: str = Field("", max_length=200)
     data: dict = {}
 
 
 class ImportBody(BaseModel):
-    client_id: str = Field(..., min_length=1)
+    client_id: str = Field(..., min_length=1, max_length=100)
     format: str = Field("json", pattern=r"^(json|csv)$")
-    data: str = ""
+    data: str = Field("", max_length=10_000_000)
 
 
 class ValidateScopeBody(BaseModel):

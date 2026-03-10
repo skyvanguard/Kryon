@@ -27,8 +27,8 @@ class NoteBody(BaseModel):
 
 
 class RetestBody(BaseModel):
-    agent_key: str = Field(..., min_length=1)
-    targets: list[str] = []
+    agent_key: str = Field(..., min_length=1, max_length=100)
+    targets: list[str] = Field(default=[], max_length=100)
 
 
 @router.put("/remediation/findings/{finding_id}/assign")

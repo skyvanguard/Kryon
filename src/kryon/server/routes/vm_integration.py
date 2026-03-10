@@ -60,7 +60,7 @@ class ImportRapid7Request(BaseModel):
 class ImportFileRequest(BaseModel):
     """Request to import findings from a local file (nmap XML or nuclei JSONL)."""
 
-    file_path: str = Field(..., description="Path to nmap XML or nuclei JSONL file")
+    file_path: str = Field(..., max_length=500, description="Path to nmap XML or nuclei JSONL file")
     source_type: Literal["nmap", "nuclei"] = Field("nmap", description="File type: nmap or nuclei")
     auto_validate: bool = Field(False, description="Auto-validate with EVE")
 

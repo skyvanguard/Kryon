@@ -22,10 +22,13 @@ import os
 import re
 import shlex
 import subprocess
+import tempfile
 from datetime import datetime
 from typing import Any, Optional
 
 from kryon.sdk.agents import function_tool
+
+_SAFE_TARGET_RE = re.compile(r"^[a-zA-Z0-9._:/-]+$")
 
 
 @function_tool(strict_mode=False)
@@ -88,12 +91,21 @@ def auto_enumerate_target(
     # Phase 1: Nmap port scanning
     print(f"[*] Starting nmap scan on {ip}...")
 
+    # Validate target format to prevent injection in output paths
+    if not _SAFE_TARGET_RE.match(ip):
+        results["error"] = "Invalid target format"
+        return results
+
+    scan_dir = tempfile.mkdtemp(prefix="kryon_scan_")
+    safe_ip = ip.replace(".", "_").replace("/", "_").replace(":", "_")
+    nmap_outfile = os.path.join(scan_dir, f"nmap_{safe_ip}.txt")
+
     if quick_mode:
         # Quick scan: top 1000 ports
-        nmap_cmd = f"nmap -sV -sC -T4 {shlex.quote(ip)} -oN /tmp/nmap_{ip.replace('.', '_')}.txt"
+        nmap_cmd = f"nmap -sV -sC -T4 {shlex.quote(ip)} -oN {shlex.quote(nmap_outfile)}"
     else:
         # Full scan: all ports
-        nmap_cmd = f"nmap -p- -sV -sC -T4 {shlex.quote(ip)} -oN /tmp/nmap_{ip.replace('.', '_')}.txt"
+        nmap_cmd = f"nmap -p- -sV -sC -T4 {shlex.quote(ip)} -oN {shlex.quote(nmap_outfile)}"
 
     try:
         nmap_output = subprocess.run(
@@ -152,7 +164,9 @@ def auto_enumerate_target(
 
         for url in web_targets:
             try:
-                gobuster_cmd = f"gobuster dir -u {shlex.quote(url)} -w {shlex.quote(wordlist)} -t 50 -q -o /tmp/gobuster_{url.replace('://', '_').replace(':', '_')}.txt"
+                safe_url_part = re.sub(r"[^a-zA-Z0-9_.-]", "_", url)[:80]
+                gobuster_outfile = os.path.join(scan_dir, f"gobuster_{safe_url_part}.txt")
+                gobuster_cmd = f"gobuster dir -u {shlex.quote(url)} -w {shlex.quote(wordlist)} -t 50 -q -o {shlex.quote(gobuster_outfile)}"
 
                 gobuster_output = subprocess.run(
                     gobuster_cmd,

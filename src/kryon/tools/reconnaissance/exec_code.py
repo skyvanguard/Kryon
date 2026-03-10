@@ -3,6 +3,7 @@ Tool for executing code via LLM tool calls.
 """
 
 import re
+from pathlib import Path
 
 from kryon.sdk.agents import function_tool
 from kryon.tools.common import run_command  # pylint: disable=import-error
@@ -75,12 +76,11 @@ def execute_code(
 
     full_filename = f"{filename}.{ext}"
 
-    # Create code file with content
-    create_cmd = f"cat << 'EOF' > {full_filename}\n{code}\nEOF"
-    # Don't stream the file creation and suppress output display
-    result = run_command(create_cmd, ctf=ctf, stream=False, tool_name="_internal_file_creation")
-    if "error" in result.lower():
-        return f"Failed to create code file: {result}"
+    # Write code file directly with Python (avoids heredoc breakout via EOF in code)
+    try:
+        Path(full_filename).write_text(code, encoding="utf-8")
+    except OSError as e:
+        return f"Failed to create code file: {e}"
 
     # Prepare execution command based on language
     if language in ["python", "py"]:
@@ -94,8 +94,9 @@ def execute_code(
     elif language in ["perl", "pl"]:
         exec_cmd = f"perl {full_filename}"
     elif language in ["golang", "go"]:
-        temp_dir = f"/tmp/go_exec_{filename}"
-        run_command(f"mkdir -p {temp_dir}", ctf=ctf, stream=False, tool_name="_internal_setup")
+        import tempfile
+
+        temp_dir = tempfile.mkdtemp(prefix=f"kryon_go_{filename}_")
         run_command(
             f"cp {full_filename} {temp_dir}/main.go",
             ctf=ctf,

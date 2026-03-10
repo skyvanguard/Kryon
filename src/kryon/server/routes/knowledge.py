@@ -151,7 +151,8 @@ async def start_scrape(req: ScrapeRequest) -> ScrapeResponse:
                     )
                 count += len(items)
             except Exception as e:
-                errors.append(f"{source}: {e}")
+                logger.warning("Scrape error for source %s: %s", source, e, exc_info=True)
+                errors.append(f"{source}: scraping failed")
 
         async with _scrape_tasks_lock:
             _scrape_tasks[task_id]["status"] = "completed"

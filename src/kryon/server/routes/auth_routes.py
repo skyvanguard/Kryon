@@ -46,7 +46,7 @@ class TokenResponse(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str = Field(..., max_length=2000)
 
 
 class PasswordChangeRequest(BaseModel):

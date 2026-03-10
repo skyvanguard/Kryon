@@ -16,6 +16,7 @@ This module provides:
 
 import os
 import subprocess
+import tempfile
 import time
 from typing import Any
 
@@ -100,8 +101,7 @@ def create_evil_twin(
                 return results
 
         # Configuration directory
-        config_dir = "/tmp/kryon_evil_twin"
-        os.makedirs(config_dir, exist_ok=True)
+        config_dir = tempfile.mkdtemp(prefix="kryon_evil_twin_")
 
         # 1. Configure hostapd (fake AP)
         hostapd_conf = f"""{config_dir}/hostapd.conf"""

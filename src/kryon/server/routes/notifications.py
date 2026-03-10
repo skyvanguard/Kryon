@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from kryon.server.auth import require_api_key
 from kryon.server.deps import get_store
@@ -25,8 +25,14 @@ router = APIRouter(tags=["notifications"], dependencies=[Depends(require_api_key
 class ChannelCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     channel_type: str = Field(..., pattern=r"^(email|slack|teams|pagerduty|webhook)$")
-    config_json: dict = {}
+    config_json: dict = Field(default_factory=dict)
     enabled: bool = True
+
+    @model_validator(mode="after")
+    def validate_config_size(self):
+        if len(json.dumps(self.config_json)) > 10_000:
+            raise ValueError("config_json too large (max 10KB)")
+        return self
 
 
 class ChannelUpdate(BaseModel):
@@ -37,9 +43,9 @@ class ChannelUpdate(BaseModel):
 
 class RuleCreate(BaseModel):
     event_type: str = Field(..., min_length=1, max_length=100)
-    severity_filter: str = ""
-    client_filter: str = ""
-    channel_ids: list[str] = []
+    severity_filter: str = Field("", max_length=100)
+    client_filter: str = Field("", max_length=100)
+    channel_ids: list[str] = Field(default=[], max_length=50)
     digest_mode: str = Field("immediate", pattern=r"^(immediate|hourly|daily)$")
     enabled: bool = True
 

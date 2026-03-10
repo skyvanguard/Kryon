@@ -18,10 +18,10 @@ router = APIRouter(tags=["assets"], dependencies=[Depends(require_api_key)])
 class AssetCreateRequest(BaseModel):
     """Request to create a new asset."""
 
-    asset_type: str = Field("unknown", description="Asset type (host, service, webapp, etc.)")
-    identifier: str = Field("", description="Asset identifier (hostname, IP, URL, etc.)")
-    client_id: str = Field("", description="Client ID this asset belongs to")
-    metadata_json: str = Field("{}", description="Additional metadata as JSON string")
+    asset_type: str = Field("unknown", max_length=50, description="Asset type (host, service, webapp, etc.)")
+    identifier: str = Field("", max_length=500, description="Asset identifier (hostname, IP, URL, etc.)")
+    client_id: str = Field("", max_length=100, description="Client ID this asset belongs to")
+    metadata_json: str = Field("{}", max_length=50000, description="Additional metadata as JSON string")
 
 
 class AssetUpdateRequest(BaseModel):

@@ -11,6 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from kryon.server.webhooks import _retry_post
+from kryon.tools.common._url_validation import validate_external_url
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,10 @@ class SlackChannel(NotificationChannel):
         if not webhook_url:
             logger.warning("SlackChannel: no webhook_url configured")
             return False
+        ssrf_err = validate_external_url(webhook_url)
+        if ssrf_err:
+            logger.warning("SlackChannel: URL blocked by SSRF policy: %s", ssrf_err)
+            return False
 
         severity = (payload or {}).get("severity", "info")
         color_map = {"critical": "#FF0000", "high": "#FF6600", "medium": "#FFCC00", "low": "#00CC00", "info": "#0066FF"}
@@ -130,6 +135,10 @@ class TeamsChannel(NotificationChannel):
         webhook_url = self.config.get("webhook_url", "")
         if not webhook_url:
             logger.warning("TeamsChannel: no webhook_url configured")
+            return False
+        ssrf_err = validate_external_url(webhook_url)
+        if ssrf_err:
+            logger.warning("TeamsChannel: URL blocked by SSRF policy: %s", ssrf_err)
             return False
 
         severity = (payload or {}).get("severity", "info")
@@ -207,6 +216,10 @@ class WebhookChannel(NotificationChannel):
         url = self.config.get("url", "")
         if not url:
             logger.warning("WebhookChannel: no url configured")
+            return False
+        ssrf_err = validate_external_url(url)
+        if ssrf_err:
+            logger.warning("WebhookChannel: URL blocked by SSRF policy: %s", ssrf_err)
             return False
 
         headers = self.config.get("headers", {})

@@ -19,11 +19,11 @@ router = APIRouter(tags=["report_settings"], dependencies=[Depends(require_api_k
 
 
 class BrandingBody(BaseModel):
-    client_id: str = Field(..., min_length=1)
-    logo_url: str = Field("", pattern=r"^(https?://.*|)$")
-    primary_color: str = "#00d4ff"
-    company_name: str = ""
-    footer_text: str = ""
+    client_id: str = Field(..., min_length=1, max_length=100)
+    logo_url: str = Field("", max_length=2000, pattern=r"^(https?://.*|)$")
+    primary_color: str = Field("#00d4ff", max_length=20)
+    company_name: str = Field("", max_length=200)
+    footer_text: str = Field("", max_length=500)
 
 
 @router.get("/reports/templates")

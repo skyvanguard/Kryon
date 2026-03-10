@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # --- Requests ---
 
@@ -105,12 +105,20 @@ class DailyUsage(BaseModel):
 
 class AutoScanRequest(BaseModel):
     targets: list[str] = Field(..., max_length=100, description="List of targets (IPs, CIDRs, hostnames)")
-    profile: str = Field("standard", description="Scan profile name")
-    client_id: str = Field("", description="Client ID or name")
+    profile: str = Field("standard", max_length=50, description="Scan profile name")
+    client_id: str = Field("", max_length=100, description="Client ID or name")
     max_time_hours: float = Field(4.0, ge=0.1, le=24.0, description="Max scan duration in hours")
-    stealth_level: str = Field("normal", description="Stealth level: low, normal, high")
-    output_format: str = Field("html", description="Report format: html, pdf, json")
+    stealth_level: str = Field("normal", max_length=20, description="Stealth level: low, normal, high")
+    output_format: str = Field("html", max_length=10, description="Report format: html, pdf, json")
     compliance_frameworks: list[str] = Field(default_factory=list, description="Compliance frameworks")
+
+    @field_validator("targets")
+    @classmethod
+    def validate_target_items(cls, v: list[str]) -> list[str]:
+        for t in v:
+            if len(t) > 500:
+                raise ValueError("Each target must be max 500 characters")
+        return v
 
 
 class AutoScanResponse(BaseModel):
@@ -156,8 +164,16 @@ class CreateEngagementRequest(BaseModel):
         description="Engagement objectives",
     )
     duration_days: int = Field(5, ge=1, le=30, description="Planned duration in days")
-    stealth_level: str = Field("normal", description="Stealth level: low, normal, high")
+    stealth_level: str = Field("normal", max_length=20, description="Stealth level: low, normal, high")
     phase_interval_minutes: int = Field(30, ge=0, le=1440, description="Wait time between phases in minutes")
+
+    @field_validator("targets")
+    @classmethod
+    def validate_target_items(cls, v: list[str]) -> list[str]:
+        for t in v:
+            if len(t) > 500:
+                raise ValueError("Each target must be max 500 characters")
+        return v
 
 
 class EngagementResponse(BaseModel):
@@ -253,9 +269,9 @@ class ScrapeResponse(BaseModel):
 
 class SASTScanRequest(BaseModel):
     target_path: str = Field(..., max_length=500, description="Path to source code")
-    config: str = Field("auto", description="Semgrep config (auto, p/security-audit, etc.)")
-    severity: str = Field("ERROR,WARNING", description="Severity filter")
-    language: str = Field("", description="Limit to specific language")
+    config: str = Field("auto", max_length=200, description="Semgrep config (auto, p/security-audit, etc.)")
+    severity: str = Field("ERROR,WARNING", max_length=100, description="Severity filter")
+    language: str = Field("", max_length=50, description="Limit to specific language")
 
 
 class DASTScanRequest(BaseModel):
@@ -266,8 +282,8 @@ class DASTScanRequest(BaseModel):
 
 class SBOMRequest(BaseModel):
     target: str = Field(..., max_length=500, description="Target to analyze")
-    format: str = Field("cyclonedx-json", description="SBOM format")
-    source_type: str = Field("dir", description="Source type (dir, image)")
+    format: str = Field("cyclonedx-json", max_length=50, description="SBOM format")
+    source_type: str = Field("dir", max_length=20, description="Source type (dir, image)")
 
 
 # --- Validation ---
@@ -276,7 +292,7 @@ class SBOMRequest(BaseModel):
 class SimulateRequest(BaseModel):
     technique_id: str = Field(..., max_length=20, description="MITRE ATT&CK technique ID")
     target: str = Field(..., max_length=500, description="Target host/IP")
-    mode: str = Field("safe", description="Execution mode (safe, full)")
+    mode: str = Field("safe", max_length=10, description="Execution mode (safe, full)")
 
 
 class DetectRequest(BaseModel):
@@ -290,5 +306,5 @@ class DetectRequest(BaseModel):
 
 
 class ComplianceAssessRequest(BaseModel):
-    framework: str = Field(..., description="Framework ID (pci_dss, soc2, nist_csf, etc.)")
-    client_id: str = Field("", description="Client ID to scope findings")
+    framework: str = Field(..., max_length=50, description="Framework ID (pci_dss, soc2, nist_csf, etc.)")
+    client_id: str = Field("", max_length=100, description="Client ID to scope findings")
