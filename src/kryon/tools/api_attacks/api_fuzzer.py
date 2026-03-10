@@ -199,7 +199,7 @@ def discover_api_endpoints(
     for path in known_paths:
         url = f"{target}{path}"
         output = _run_cmd(
-            f'curl -sk -o /dev/null -w "%{{http_code}} %{{size_download}}" -m 5 "{url}"',
+            f'curl -sk -o /dev/null -w "%{{http_code}} %{{size_download}}" -m 5 {shlex.quote(url)}',
             timeout=10,
         )
         parts = output.strip().split()
@@ -355,14 +355,14 @@ def fuzz_api_endpoint(
                     body = json.dumps({"input": payload})
                 cmd = (
                     f"curl -sk -m 10 -X {safe_method} "
-                    f'-H "Content-Type: {shlex.quote(content_type)}" '
+                    f"-H {shlex.quote('Content-Type: ' + content_type)} "
                     f"-d {shlex.quote(body)} "
                     f'-w "\\n%{{http_code}}" '
                     f"{safe_url}"
                 )
 
             if auth_header:
-                cmd += f' -H "Authorization: {shlex.quote(auth_header)}"'
+                cmd += f" -H {shlex.quote('Authorization: ' + auth_header)}"
 
             output = _run_cmd(cmd, timeout=15)
             lines = output.strip().rsplit("\n", 1)
@@ -460,7 +460,7 @@ def test_idor(
         results["tests_run"] += 1
 
         # Request without auth (unauthenticated access)
-        cmd_noauth = f'curl -sk -m 10 -w "\\n%{{http_code}}" "{url}"'
+        cmd_noauth = f'curl -sk -m 10 -w "\\n%{{http_code}}" {shlex.quote(url)}'
         output_noauth = _run_cmd(cmd_noauth, timeout=15)
         lines = output_noauth.strip().rsplit("\n", 1)
         body_noauth = lines[0] if lines else ""
@@ -469,7 +469,7 @@ def test_idor(
         # Request with auth (for comparison)
         auth_status = None
         if auth_header:
-            cmd_auth = f'curl -sk -m 10 -H "Authorization: {auth_header}" -w "\\n%{{http_code}}" "{url}"'
+            cmd_auth = f'curl -sk -m 10 -H {shlex.quote("Authorization: " + auth_header)} -w "\\n%{{http_code}}" {shlex.quote(url)}'
             output_auth = _run_cmd(cmd_auth, timeout=15)
             lines_auth = output_auth.strip().rsplit("\n", 1)
             auth_status = lines_auth[-1] if len(lines_auth) > 1 else "0"
@@ -489,7 +489,7 @@ def test_idor(
 
         # Cross-account access test
         if second_user_auth and str(test_id) != valid_id:
-            cmd_cross = f'curl -sk -m 10 -H "Authorization: {second_user_auth}" -w "\\n%{{http_code}}" "{url}"'
+            cmd_cross = f'curl -sk -m 10 -H {shlex.quote("Authorization: " + second_user_auth)} -w "\\n%{{http_code}}" {shlex.quote(url)}'
             output_cross = _run_cmd(cmd_cross, timeout=15)
             lines_cross = output_cross.strip().rsplit("\n", 1)
             body_cross = lines_cross[0] if lines_cross else ""
@@ -557,7 +557,7 @@ def test_rate_limiting(
         if body:
             cmd += f"-d {shlex.quote(body)} -H \"Content-Type: application/json\" "
         if auth_header:
-            cmd += f'-H "Authorization: {shlex.quote(auth_header)}" '
+            cmd += f'-H {shlex.quote("Authorization: " + auth_header)} '
         cmd += safe_rl_url
 
         start = time.time()
@@ -637,7 +637,7 @@ def test_auth_mechanisms(
         base_cmd += f"-d {shlex.quote(body)} -H \"Content-Type: application/json\" "
 
     # Test 1: No authentication header
-    cmd = base_cmd + f'-w "\\n%{{http_code}}" "{url}"'
+    cmd = base_cmd + f'-w "\\n%{{http_code}}" {shlex.quote(url)}'
     output = _run_cmd(cmd, timeout=15)
     lines = output.strip().rsplit("\n", 1)
     status = lines[-1] if len(lines) > 1 else "0"
@@ -658,7 +658,7 @@ def test_auth_mechanisms(
         )
 
     # Test 2: Invalid/garbage token
-    cmd = base_cmd + '-H "Authorization: Bearer invalid_token_garbage_12345" ' + f'-w "\\n%{{http_code}}" "{url}"'
+    cmd = base_cmd + '-H "Authorization: Bearer invalid_token_garbage_12345" ' + f'-w "\\n%{{http_code}}" {shlex.quote(url)}'
     output = _run_cmd(cmd, timeout=15)
     lines = output.strip().rsplit("\n", 1)
     status = lines[-1] if len(lines) > 1 else "0"
@@ -695,7 +695,7 @@ def test_auth_mechanisms(
             payload_b64 = valid_token.split(".")[1]
             none_token = f"{none_header}.{payload_b64}."
 
-            cmd = base_cmd + f'-H "Authorization: Bearer {none_token}" ' + f'-w "\\n%{{http_code}}" "{url}"'
+            cmd = base_cmd + f'-H {shlex.quote("Authorization: Bearer " + none_token)} ' + f'-w "\\n%{{http_code}}" {shlex.quote(url)}'
             output = _run_cmd(cmd, timeout=15)
             lines = output.strip().rsplit("\n", 1)
             status = lines[-1] if len(lines) > 1 else "0"

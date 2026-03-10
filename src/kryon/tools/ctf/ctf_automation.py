@@ -331,7 +331,7 @@ def search_exploits(
         try:
             # Use msfconsole to search modules
             msf_search_query = f"{service} {version or ''}".strip()
-            msf_cmd = f"msfconsole -q -x 'search {msf_search_query}; exit' 2>/dev/null"
+            msf_cmd = f"msfconsole -q -x 'search {shlex.quote(msf_search_query)}; exit' 2>/dev/null"
 
             msf_output = subprocess.run(
                 # nosemgrep: subprocess-shell-true

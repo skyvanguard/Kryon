@@ -358,7 +358,7 @@ def get_captured_credentials(config_dir: str = "/tmp/kryon_evil_twin") -> dict[s
     try:
         creds_file = f"{config_dir}/captured_credentials.txt"
 
-        if os.path.exists(creds_file):
+        try:
             with open(creds_file) as f:
                 for line in f:
                     if "Username:" in line and "Password:" in line:
@@ -369,6 +369,8 @@ def get_captured_credentials(config_dir: str = "/tmp/kryon_evil_twin") -> dict[s
                         results["credentials"].append({"username": username, "password": password})
 
             results["count"] = len(results["credentials"])
+        except FileNotFoundError:
+            pass
 
         results["success"] = True
 

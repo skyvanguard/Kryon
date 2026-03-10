@@ -18,7 +18,7 @@ This module provides:
 """
 
 import os
-import random
+import secrets
 import socket
 import subprocess
 import time
@@ -448,7 +448,7 @@ def spoof_mac_address(
 
             # Generate new MAC if random
             if random_mac:
-                new_mac = ":".join([f"{random.randint(0, 255):02x}" for _ in range(6)])
+                new_mac = ":".join([f"{secrets.randbelow(256):02x}" for _ in range(6)])
                 # Ensure it's a valid MAC (not broadcast, not multicast)
                 new_mac = "02" + new_mac[2:]  # Set locally administered bit
             else:

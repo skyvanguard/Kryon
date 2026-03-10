@@ -6,7 +6,7 @@ import json
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from kryon.server.auth import require_api_key
 from kryon.server.logging_config import get_logger
@@ -17,12 +17,12 @@ router = APIRouter(tags=["reports"], dependencies=[Depends(require_api_key)])
 
 
 class ReportRequest(BaseModel):
-    findings_json: str = "[]"  # JSON array of finding dicts
+    findings_json: str = Field("[]", max_length=10_000_000)
     report_type: Literal["executive", "technical", "compliance"] = "technical"
     format: Literal["html", "pdf"] = "html"
-    client_name: str = ""
-    target_scope: str = ""
-    include_compliance: list[str] = []
+    client_name: str = Field("", max_length=200)
+    target_scope: str = Field("", max_length=500)
+    include_compliance: list[str] = Field(default=[], max_length=20)
 
 
 class ReportResponse(BaseModel):

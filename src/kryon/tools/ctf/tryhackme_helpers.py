@@ -18,6 +18,7 @@ Functions:
 
 import os
 import re
+import shlex
 import subprocess
 from datetime import datetime
 from typing import Any, Optional
@@ -86,7 +87,7 @@ def check_thm_vpn(
     print(f"[*] Checking VPN interface {vpn_interface}...")
 
     try:
-        ifconfig_cmd = f"ip addr show {vpn_interface} 2>/dev/null || ifconfig {vpn_interface} 2>/dev/null"
+        ifconfig_cmd = f"ip addr show {shlex.quote(vpn_interface)} 2>/dev/null || ifconfig {shlex.quote(vpn_interface)} 2>/dev/null"
         ifconfig_output = subprocess.run(
             # nosemgrep: subprocess-shell-true
             ifconfig_cmd,
@@ -138,7 +139,7 @@ def check_thm_vpn(
         # Try to ping a target in 10.10.x.x range (using your VPN IP to construct a test)
         # Note: We can't ping a random IP, but we can check routing
         try:
-            route_cmd = f"ip route | grep {vpn_interface}"
+            route_cmd = f"ip route | grep {shlex.quote(vpn_interface)}"
             route_output = subprocess.run(
                 # nosemgrep: subprocess-shell-true
                 route_cmd,

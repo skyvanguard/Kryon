@@ -6,10 +6,9 @@ import asyncio
 import json
 import uuid
 from collections import OrderedDict
-
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from typing import Literal
 
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from kryon.server.auth import require_api_key
@@ -33,28 +32,28 @@ _import_jobs_lock = asyncio.Lock()
 class ImportQualysRequest(BaseModel):
     """Request to import findings from Qualys."""
 
-    api_url: str = Field(..., description="Qualys API URL")
-    api_key: str = Field(..., description="Qualys API key")
-    scan_id: str = Field("", description="Optional scan ID filter")
+    api_url: str = Field(..., max_length=2000, description="Qualys API URL")
+    api_key: str = Field(..., max_length=500, description="Qualys API key")
+    scan_id: str = Field("", max_length=200, description="Optional scan ID filter")
     auto_validate: bool = Field(False, description="Auto-validate with EVE")
 
 
 class ImportTenableRequest(BaseModel):
     """Request to import findings from Tenable.io."""
 
-    api_url: str = Field(..., description="Tenable.io API URL")
-    access_key: str = Field(..., description="Tenable access key")
-    secret_key: str = Field(..., description="Tenable secret key")
-    scan_id: str = Field("", description="Optional scan ID filter")
+    api_url: str = Field(..., max_length=2000, description="Tenable.io API URL")
+    access_key: str = Field(..., max_length=500, description="Tenable access key")
+    secret_key: str = Field(..., max_length=500, description="Tenable secret key")
+    scan_id: str = Field("", max_length=200, description="Optional scan ID filter")
     auto_validate: bool = Field(False, description="Auto-validate with EVE")
 
 
 class ImportRapid7Request(BaseModel):
     """Request to import findings from Rapid7 InsightVM."""
 
-    api_url: str = Field(..., description="Rapid7 InsightVM API URL")
-    api_key: str = Field(..., description="Rapid7 API key")
-    site_id: str = Field("", description="Optional site ID filter")
+    api_url: str = Field(..., max_length=2000, description="Rapid7 InsightVM API URL")
+    api_key: str = Field(..., max_length=500, description="Rapid7 API key")
+    site_id: str = Field("", max_length=200, description="Optional site ID filter")
     auto_validate: bool = Field(False, description="Auto-validate with EVE")
 
 
@@ -149,7 +148,7 @@ async def _run_import(job_id: str, source: str, params: dict) -> None:
             _import_jobs[job_id].update(
                 {
                     "status": "failed",
-                    "error": str(exc),
+                    "error": "Import failed",
                 }
             )
 

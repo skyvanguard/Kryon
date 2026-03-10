@@ -22,9 +22,9 @@ router = APIRouter(tags=["integrations"], dependencies=[Depends(require_api_key)
 class CreateSIEMConfigRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     siem_type: str = Field(..., pattern="^(splunk|qradar|elastic)$")
-    endpoint: str = Field(..., min_length=1)
-    token: str = ""
-    index_name: str = ""
+    endpoint: str = Field(..., min_length=1, max_length=2000)
+    token: str = Field("", max_length=500)
+    index_name: str = Field("", max_length=200)
     enabled: bool = True
     config_json: dict = {}
 

@@ -106,9 +106,9 @@ async def create_run(req: RunRequest):
     try:
         async with sm.semaphore:
             result = await Runner.run(agent, input=input_items, max_turns=req.max_turns)
-    except Exception as exc:
+    except Exception:
         run_state.status = "failed"
-        run_state.output = str(exc)
+        run_state.output = "Agent execution failed"
         logger.exception("Agent run failed: run_id=%s agent=%s", run_state.run_id, req.agent_key)
         raise HTTPException(status_code=500, detail="Agent run failed due to an internal error")
 

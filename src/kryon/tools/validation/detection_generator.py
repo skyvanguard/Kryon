@@ -215,9 +215,8 @@ def generate_suricata_rule(
         import hashlib
 
         sid = (
-            # nosemgrep: insecure-hash-algorithm-md5
-            int(hashlib.md5(f"{ioc_type}{ioc_value}".encode()).hexdigest()[:7], 16) % 9000000 + 1000000
-        )  # nosemgrep: insecure-hash-algorithm-md5
+            int(hashlib.sha256(f"{ioc_type}{ioc_value}".encode()).hexdigest()[:7], 16) % 9000000 + 1000000
+        )
 
     if ioc_type == "ip":
         rule = (

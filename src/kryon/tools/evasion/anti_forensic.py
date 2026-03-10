@@ -76,7 +76,7 @@ def secure_delete_file(file_path: str, overwrite_passes: int = 3, method: str = 
             with open(file_path, "r+b") as f:
                 if method == "random":
                     # Write random bytes
-                    data = bytes([random.randint(0, 255) for _ in range(file_size)])
+                    data = os.urandom(file_size)
                 elif method == "zeros":
                     data = b"\x00" * file_size
                 elif method == "ones":
@@ -86,7 +86,7 @@ def secure_delete_file(file_path: str, overwrite_passes: int = 3, method: str = 
                     patterns = [b"\x00", b"\xff", b"\xaa", b"\x55"]
                     data = patterns[pass_num % len(patterns)] * file_size
                 else:
-                    data = bytes([random.randint(0, 255) for _ in range(file_size)])
+                    data = os.urandom(file_size)
 
                 f.seek(0)
                 f.write(data)

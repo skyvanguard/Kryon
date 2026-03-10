@@ -341,74 +341,78 @@ def strip_office_metadata(doc_path: str, output_path: Optional[str] = None, doc_
         # Office documents are ZIP archives
         if doc_type in ["docx", "xlsx", "pptx"]:
             try:
-                import xml.etree.ElementTree as ET  # nosemgrep: use-defused-xml
+                import shutil
+                import tempfile
                 import zipfile
 
+                import defusedxml.ElementTree as ET
+
                 # Open as ZIP
-                with zipfile.ZipFile(doc_path, "r") as zip_read:
-                    # Extract all files
-                    temp_dir = "/tmp/office_clean"
-                    os.makedirs(temp_dir, exist_ok=True)
-                    zip_read.extractall(temp_dir)
+                temp_dir = tempfile.mkdtemp(prefix="kryon_office_clean_")
+                try:
+                    with zipfile.ZipFile(doc_path, "r") as zip_read:
+                        # Validate members against zip slip (path traversal)
+                        for member in zip_read.namelist():
+                            member_path = os.path.realpath(os.path.join(temp_dir, member))
+                            if not member_path.startswith(os.path.realpath(temp_dir) + os.sep):
+                                raise ValueError(f"Zip slip detected: {member}")
+                        zip_read.extractall(temp_dir)
 
-                # Clean core.xml (metadata)
-                core_path = os.path.join(temp_dir, "docProps", "core.xml")
-                if os.path.exists(core_path):
-                    tree = ET.parse(core_path)  # nosemgrep: use-defused-xml-parse
-                    root = tree.getroot()
+                    # Clean core.xml (metadata)
+                    core_path = os.path.join(temp_dir, "docProps", "core.xml")
+                    if os.path.exists(core_path):
+                        tree = ET.parse(core_path)
+                        root = tree.getroot()
 
-                    # Remove metadata fields
-                    metadata_tags = [
-                        "creator",
-                        "lastModifiedBy",
-                        "created",
-                        "modified",
-                        "title",
-                        "subject",
-                        "keywords",
-                        "description",
-                    ]
+                        # Remove metadata fields
+                        metadata_tags = [
+                            "creator",
+                            "lastModifiedBy",
+                            "created",
+                            "modified",
+                            "title",
+                            "subject",
+                            "keywords",
+                            "description",
+                        ]
 
-                    for elem in root:
-                        tag_name = elem.tag.split("}")[-1]  # Remove namespace
-                        if tag_name in metadata_tags:
-                            elem.text = ""
-                            results["fields_removed"] += 1
+                        for elem in root:
+                            tag_name = elem.tag.split("}")[-1]  # Remove namespace
+                            if tag_name in metadata_tags:
+                                elem.text = ""
+                                results["fields_removed"] += 1
 
-                            if tag_name == "creator":
-                                results["author_removed"] = True
+                                if tag_name == "creator":
+                                    results["author_removed"] = True
 
-                    tree.write(core_path)
+                        tree.write(core_path)
 
-                # Clean app.xml (company info)
-                app_path = os.path.join(temp_dir, "docProps", "app.xml")
-                if os.path.exists(app_path):
-                    tree = ET.parse(app_path)  # nosemgrep: use-defused-xml-parse
-                    root = tree.getroot()
+                    # Clean app.xml (company info)
+                    app_path = os.path.join(temp_dir, "docProps", "app.xml")
+                    if os.path.exists(app_path):
+                        tree = ET.parse(app_path)
+                        root = tree.getroot()
 
-                    for elem in root:
-                        tag_name = elem.tag.split("}")[-1]
-                        if tag_name == "Company":
-                            elem.text = ""
-                            results["company_removed"] = True
-                            results["fields_removed"] += 1
+                        for elem in root:
+                            tag_name = elem.tag.split("}")[-1]
+                            if tag_name == "Company":
+                                elem.text = ""
+                                results["company_removed"] = True
+                                results["fields_removed"] += 1
 
-                    tree.write(app_path)
+                        tree.write(app_path)
 
-                # Repackage as ZIP
-                with zipfile.ZipFile(output_path or doc_path, "w", zipfile.ZIP_DEFLATED) as zip_write:
-                    for root_dir, _dirs, files in os.walk(temp_dir):
-                        for file in files:
-                            file_path = os.path.join(root_dir, file)
-                            arcname = os.path.relpath(file_path, temp_dir)
-                            zip_write.write(file_path, arcname)
+                    # Repackage as ZIP
+                    with zipfile.ZipFile(output_path or doc_path, "w", zipfile.ZIP_DEFLATED) as zip_write:
+                        for root_dir, _dirs, files in os.walk(temp_dir):
+                            for file in files:
+                                file_path = os.path.join(root_dir, file)
+                                arcname = os.path.relpath(file_path, temp_dir)
+                                zip_write.write(file_path, arcname)
 
-                # Cleanup
-                import shutil
-
-                shutil.rmtree(temp_dir)
-
-                results["success"] = True
+                    results["success"] = True
+                finally:
+                    shutil.rmtree(temp_dir, ignore_errors=True)
 
             except Exception as e:
                 results["error"] = f"Office cleaning error: {str(e)}"

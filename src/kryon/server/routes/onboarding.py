@@ -32,8 +32,8 @@ class StepBody(BaseModel):
 
 class CredentialBody(BaseModel):
     client_id: str = Field(..., min_length=1)
-    credential_type: str = Field(..., min_length=1)
-    label: str = ""
+    credential_type: str = Field(..., min_length=1, max_length=100)
+    label: str = Field("", max_length=200)
     data: dict = {}
 
 

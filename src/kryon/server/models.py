@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 
 class RunRequest(BaseModel):
-    agent_key: str = Field(..., description="Agent key (e.g. 'recon_scout')")
+    agent_key: str = Field(..., min_length=1, max_length=100, description="Agent key (e.g. 'recon_scout')")
     input: str = Field(..., max_length=50000, description="User prompt")
     session_id: Optional[str] = Field(None, description="Session ID to continue conversation")
     stream: bool = Field(False, description="Stream response via SSE")
@@ -18,7 +18,7 @@ class RunRequest(BaseModel):
 
 
 class SessionCreateRequest(BaseModel):
-    agent_key: str = Field(..., description="Agent key for the session")
+    agent_key: str = Field(..., min_length=1, max_length=100, description="Agent key for the session")
 
 
 # --- Responses ---
@@ -174,11 +174,11 @@ class ErrorResponse(BaseModel):
 
 
 class ClientCreate(BaseModel):
-    name: str
-    scope: list[str] = []
-    contact: str = ""
-    notes: str = ""
-    tags: list[str] = []
+    name: str = Field(..., min_length=1, max_length=200)
+    scope: list[str] = Field(default=[], max_length=100)
+    contact: str = Field("", max_length=500)
+    notes: str = Field("", max_length=10000)
+    tags: list[str] = Field(default=[], max_length=50)
 
 
 class ClientUpdate(BaseModel):

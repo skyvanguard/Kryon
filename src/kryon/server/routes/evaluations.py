@@ -23,11 +23,13 @@ async def get_metrics(findings_json: str = Query("[]")) -> dict:
     try:
         raw = json.loads(findings_json)
     except (json.JSONDecodeError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=f"Malformed JSON: {e}")
+        logger.warning("Malformed JSON in /evaluations/metrics: %s", e)
+        raise HTTPException(status_code=400, detail="Malformed JSON")
     try:
         findings = [Finding(**f) for f in raw]
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid finding data: {e}")
+        logger.warning("Invalid finding data in /evaluations/metrics: %s", e)
+        raise HTTPException(status_code=400, detail="Invalid finding data")
 
     metrics = DashboardMetrics()
     return metrics.compute(findings)
@@ -46,12 +48,14 @@ async def compare_scans(
         before_raw = json.loads(before_json)
         after_raw = json.loads(after_json)
     except (json.JSONDecodeError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=f"Malformed JSON: {e}")
+        logger.warning("Malformed JSON in /evaluations/compare: %s", e)
+        raise HTTPException(status_code=400, detail="Malformed JSON")
     try:
         before = [Finding(**f) for f in before_raw]
         after = [Finding(**f) for f in after_raw]
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid finding data: {e}")
+        logger.warning("Invalid finding data in /evaluations/compare: %s", e)
+        raise HTTPException(status_code=400, detail="Invalid finding data")
 
     comp = ScanComparator()
     result = comp.compare(before, after)

