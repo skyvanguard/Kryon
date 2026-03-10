@@ -65,7 +65,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install nuclei (latest from ProjectDiscovery)
-RUN curl -sSfL https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_$(curl -s https://api.github.com/repos/projectdiscovery/nuclei/releases/latest | jq -r '.tag_name' | tr -d 'v')_linux_amd64.zip -o /tmp/nuclei.zip \
+RUN NUCLEI_URL=$(curl -s https://api.github.com/repos/projectdiscovery/nuclei/releases/latest \
+        | jq -r '.assets[] | select(.name | test("linux_amd64.zip$")) | .browser_download_url') \
+    && curl -sSfL "$NUCLEI_URL" -o /tmp/nuclei.zip \
     && unzip -o /tmp/nuclei.zip -d /usr/local/bin/ nuclei \
     && chmod +x /usr/local/bin/nuclei \
     && rm /tmp/nuclei.zip \
@@ -117,10 +119,11 @@ RUN groupadd -r kryon && useradd -r -g kryon -m -s /bin/bash kryon
 RUN mkdir -p /workspace /logs /reports /home/kryon/.kryon /home/kryon/.config/chromadb && \
     chown -R kryon:kryon /workspace /logs /reports /home/kryon
 
-# Install Node.js (direct binary — avoids dependency on Kali mirrors)
+# Install Node.js + Claude Code CLI (optional — for hybrid delegation)
 RUN curl -fsSL https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz \
     | tar -xJ --strip-components=1 -C /usr/local/ && \
-    npm install -g @anthropic-ai/claude-code
+    npm install -g @anthropic-ai/claude-code \
+    || echo "WARNING: Node.js/Claude Code CLI install failed, skipping (not required for core functionality)"
 
 # Set environment
 ENV PATH="/opt/venv/bin:/home/kryon/.local/bin:$PATH" \

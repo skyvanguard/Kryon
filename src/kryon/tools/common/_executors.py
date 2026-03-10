@@ -17,7 +17,7 @@ from kryon.util import (
 )
 
 
-def _run_ctf(ctf, command, stdout=False, timeout=100, workspace_dir=None, stream=False):
+def _run_ctf(ctf, command, stdout=False, timeout=300, workspace_dir=None, stream=False):
     """Runs command in CTF env, changing to workspace_dir first."""
     target_dir = workspace_dir or _get_workspace_dir()
     full_command = f"{command}"
@@ -36,7 +36,7 @@ def _run_ctf(ctf, command, stdout=False, timeout=100, workspace_dir=None, stream
         return error_msg
 
 
-def _run_ssh(command, stdout=False, timeout=100, workspace_dir=None, stream=False):
+def _run_ssh(command, stdout=False, timeout=300, workspace_dir=None, stream=False):
     """Runs command via SSH. Assumes SSH agent or passwordless setup unless sshpass is used externally."""  # noqa E501
     ssh_user = os.environ.get("SSH_USER")
     ssh_host = os.environ.get("SSH_HOST")
@@ -88,7 +88,7 @@ def _run_ssh(command, stdout=False, timeout=100, workspace_dir=None, stream=Fals
 async def _run_local_async(
     command,
     stdout=False,
-    timeout=100,
+    timeout=300,
     stream=False,
     call_id=None,
     tool_name=None,
@@ -409,7 +409,7 @@ async def _run_docker_async(
     command,
     container_id,
     stdout=False,
-    timeout=100,
+    timeout=300,
     stream=False,
     call_id=None,
     tool_name=None,
@@ -646,7 +646,7 @@ async def _run_docker_async(
 def _run_local(
     command,
     stdout=False,
-    timeout=100,
+    timeout=300,
     stream=False,
     call_id=None,
     tool_name=None,

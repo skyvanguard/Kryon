@@ -257,7 +257,7 @@ async def run_command(command: str = "", interactive: bool = False, session_id: 
     if session_id:
         timeout = 10
     else:
-        timeout = 100
+        timeout = 300
 
     # Tools always stream EXCEPT in parallel mode or when KRYON_STREAM=False
     # In parallel mode, multiple agents run concurrently with Runner.run()

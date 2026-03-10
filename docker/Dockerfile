@@ -27,7 +27,7 @@ COPY src/ ./src/
 # Install kryon with all extras into a virtual environment
 RUN uv venv /opt/venv && \
     . /opt/venv/bin/activate && \
-    uv pip install --no-cache ".[rag,tracing,viz]"
+    uv pip install --no-cache ".[rag,server,tracing,viz]"
 
 # ---------------------------------------------------------------------------
 # Stage 2: Security tools (optional, controlled via ARG)
@@ -89,8 +89,8 @@ ENV PATH="/opt/venv/bin:$PATH" \
     KRYON_TRACING=false \
     KRYON_TELEMETRY=false
 
-# Copy application source
-COPY --chown=kryon:kryon src/ /opt/venv/lib/python3.11/site-packages/
+# Copy application source (only kryon package, preserve installed dependencies)
+COPY --chown=kryon:kryon src/kryon/ /opt/venv/lib/python3.11/site-packages/kryon/
 
 WORKDIR /workspace
 

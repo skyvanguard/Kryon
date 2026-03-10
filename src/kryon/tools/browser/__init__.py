@@ -15,24 +15,27 @@ Available Tools:
 - browser_test_xss: Test for XSS vulnerabilities dynamically
 """
 
-from .playwright_tools import (
-    browser_analyze_dom,
-    browser_execute_js,
-    browser_extract_cookies,
-    browser_fill_form,
-    browser_intercept_traffic,
-    browser_navigate,
-    browser_screenshot,
-    browser_test_xss,
-)
+try:
+    from .playwright_tools import (
+        browser_analyze_dom,
+        browser_execute_js,
+        browser_extract_cookies,
+        browser_fill_form,
+        browser_intercept_traffic,
+        browser_navigate,
+        browser_screenshot,
+        browser_test_xss,
+    )
 
-__all__ = [
-    "browser_navigate",
-    "browser_screenshot",
-    "browser_execute_js",
-    "browser_fill_form",
-    "browser_intercept_traffic",
-    "browser_analyze_dom",
-    "browser_extract_cookies",
-    "browser_test_xss",
-]
+    __all__ = [
+        "browser_navigate",
+        "browser_screenshot",
+        "browser_execute_js",
+        "browser_fill_form",
+        "browser_intercept_traffic",
+        "browser_analyze_dom",
+        "browser_extract_cookies",
+        "browser_test_xss",
+    ]
+except ImportError:
+    __all__ = []

@@ -31,7 +31,7 @@ async def run_command_async(
     stdout=False,  # pylint: disable=too-many-arguments # noqa: E501
     async_mode=False,
     session_id=None,
-    timeout=100,
+    timeout=300,
     stream=False,
     call_id=None,
     tool_name=None,
@@ -160,7 +160,7 @@ def run_command(
     stdout=False,  # pylint: disable=too-many-arguments # noqa: E501
     async_mode=False,
     session_id=None,
-    timeout=100,
+    timeout=300,
     stream=False,
     call_id=None,
     tool_name=None,

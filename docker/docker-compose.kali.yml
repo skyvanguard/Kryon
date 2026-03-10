@@ -28,13 +28,16 @@ services:
       dockerfile: docker/Dockerfile.kali
     container_name: kryon
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     env_file:
       - .env.docker
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-ollama}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://ollama:11434/v1}
       - OLLAMA=${OLLAMA:-true}
-      - KRYON_MODEL=${KRYON_MODEL:-qwen3:8b}
+      - KRYON_MODEL=${KRYON_MODEL:-qwen3:8b-fast}
       - KRYON_DEBUG=${KRYON_DEBUG:-0}
       - KRYON_GUARDRAILS=${KRYON_GUARDRAILS:-true}
       - KRYON_MAX_TURNS=${KRYON_MAX_TURNS:-50}
@@ -71,7 +74,7 @@ services:
   # Ollama — Local LLM with GPU passthrough
   # ---------------------------------------------------------------------------
   ollama:
-    image: ollama/ollama:0.6.2
+    image: ollama/ollama:latest
     container_name: kryon-ollama
     restart: unless-stopped
     volumes:

@@ -7,10 +7,12 @@ Provides headless and headed browser control with full JavaScript execution supp
 Chrome Infiltrator Series - Alpha-Chrome Clearance
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import os
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from kryon.sdk.agents import function_tool
 
@@ -21,6 +23,10 @@ try:
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
+    if not TYPE_CHECKING:
+        Browser = None
+        BrowserContext = None
+        Page = None
 
 
 class BrowserManager:
