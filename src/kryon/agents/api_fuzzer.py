@@ -52,9 +52,21 @@ api_fuzzer = create_agent(
         validate_finding,
     ],
     handoffs=[
-        lazy_handoff("vuln_hunter", "handoff_to_vuln_hunter", "Escalate to Vuln Hunter for deep analysis of API vulnerabilities found during fuzzing"),
-        lazy_handoff("appsec_analyzer", "handoff_to_appsec_analyzer", "Escalate to AppSec Analyzer for broader application security testing beyond API layer"),
-        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document API security testing findings"),
+        lazy_handoff(
+            "vuln_hunter",
+            "handoff_to_vuln_hunter",
+            "Escalate to Vuln Hunter for deep analysis of API vulnerabilities found during fuzzing",
+        ),
+        lazy_handoff(
+            "appsec_analyzer",
+            "handoff_to_appsec_analyzer",
+            "Escalate to AppSec Analyzer for broader application security testing beyond API layer",
+        ),
+        lazy_handoff(
+            "intel_reporter",
+            "handoff_to_reporter",
+            "Escalate to Intel Reporter to document API security testing findings",
+        ),
     ],
     input_guardrails=input_guardrails,
     output_guardrails=output_guardrails,

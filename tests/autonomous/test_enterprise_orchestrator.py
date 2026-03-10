@@ -150,7 +150,9 @@ class TestEnterpriseOrchestratorRun:
         # vuln_scan must produce findings so adapt_plan doesn't skip exploitation
         async def fake_vuln(self_=None):
             orch._findings.append(
-                Finding(title="Test vuln", description="critical", severity=Severity.CRITICAL, affected_asset="10.0.0.1")
+                Finding(
+                    title="Test vuln", description="critical", severity=Severity.CRITICAL, affected_asset="10.0.0.1"
+                )
             )
             orch.progress.findings_count = len(orch._findings)
 

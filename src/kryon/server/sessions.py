@@ -77,9 +77,7 @@ class SessionManager:
         run = RunState(run_id=run_id, session_id=session_id, agent_key=agent_key)
         # Evict completed/failed runs if at capacity
         if len(self._runs) >= _MAX_RUNS:
-            to_remove = [
-                rid for rid, r in self._runs.items() if r.status in ("completed", "failed", "cancelled")
-            ]
+            to_remove = [rid for rid, r in self._runs.items() if r.status in ("completed", "failed", "cancelled")]
             for rid in to_remove[:100]:
                 del self._runs[rid]
         self._runs[run_id] = run

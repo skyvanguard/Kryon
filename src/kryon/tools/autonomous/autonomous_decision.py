@@ -321,9 +321,7 @@ Answer with: APPROVE or REJECT, followed by brief reason.
             "mode": self.mode.value,
             "approved": approved,
             "reason": reason,
-            "decision_id": hashlib.sha256(f"{time.time()}{action.get('name')}".encode()).hexdigest()[
-                :12
-            ],
+            "decision_id": hashlib.sha256(f"{time.time()}{action.get('name')}".encode()).hexdigest()[:12],
         }
 
         self.decision_log.append(decision)

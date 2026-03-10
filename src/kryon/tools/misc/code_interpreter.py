@@ -7,16 +7,35 @@ import io
 
 from kryon.sdk.agents import function_tool
 
-
 # Sandboxed builtins for code execution (no __import__, open, exec, eval, compile)
 _SAFE_BUILTINS = {
-    "print": print, "len": len, "range": range, "str": str,
-    "int": int, "float": float, "list": list, "dict": dict,
-    "tuple": tuple, "set": set, "bool": bool, "type": type,
-    "enumerate": enumerate, "zip": zip, "map": map, "filter": filter,
-    "sorted": sorted, "reversed": reversed, "sum": sum, "min": min, "max": max,
-    "abs": abs, "round": round, "isinstance": isinstance,
-    "True": True, "False": False, "None": None,
+    "print": print,
+    "len": len,
+    "range": range,
+    "str": str,
+    "int": int,
+    "float": float,
+    "list": list,
+    "dict": dict,
+    "tuple": tuple,
+    "set": set,
+    "bool": bool,
+    "type": type,
+    "enumerate": enumerate,
+    "zip": zip,
+    "map": map,
+    "filter": filter,
+    "sorted": sorted,
+    "reversed": reversed,
+    "sum": sum,
+    "min": min,
+    "max": max,
+    "abs": abs,
+    "round": round,
+    "isinstance": isinstance,
+    "True": True,
+    "False": False,
+    "None": None,
 }
 
 

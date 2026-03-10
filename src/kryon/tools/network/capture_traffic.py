@@ -13,7 +13,7 @@ import paramiko
 
 from kryon.sdk.agents import function_tool
 
-_SAFE_INTERFACE = re.compile(r'^[a-zA-Z0-9_-]+$')
+_SAFE_INTERFACE = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
 def _capture_remote_traffic_impl(ip, username, password, interface, capture_filter="", port=22, timeout=10):
@@ -182,7 +182,9 @@ def remote_capture_session(ip, username, password, interface, capture_filter="",
         JSON with fifo_path for reading captured traffic
     """
     try:
-        fifo_path = _capture_remote_traffic_impl(ip, username, password, interface, capture_filter=capture_filter, port=port)
+        fifo_path = _capture_remote_traffic_impl(
+            ip, username, password, interface, capture_filter=capture_filter, port=port
+        )
         return _json.dumps({"success": True, "fifo_path": fifo_path, "ip": ip, "interface": interface})
     except Exception as e:
         return _json.dumps({"success": False, "error": str(e)})

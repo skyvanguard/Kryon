@@ -62,11 +62,7 @@ def test_ad_infiltrator_has_description():
     from kryon.agents.ad_infiltrator import ad_infiltrator
 
     desc_lower = ad_infiltrator.description.lower()
-    assert (
-        "active directory" in desc_lower
-        or "ad " in desc_lower
-        or "lateral movement" in desc_lower
-    )
+    assert "active directory" in desc_lower or "ad " in desc_lower or "lateral movement" in desc_lower
 
 
 def test_transfer_function_exists():

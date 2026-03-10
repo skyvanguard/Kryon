@@ -92,9 +92,21 @@ Primary Mission: Digital forensics, incident investigation, threat hunting.
 Operational Focus: Post-incident analysis, evidence collection, attack reconstruction.""",
     tools=investigation_systems,
     handoffs=[
-        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document forensic investigation findings and evidence"),
-        lazy_handoff("memory_analyst", "handoff_to_memory_analyst", "Escalate to Memory Analyst for volatile memory analysis when memory dumps are found"),
-        lazy_handoff("reverse_engineer", "handoff_to_reverse_engineer", "Escalate to Reverse Engineer for binary analysis of suspicious executables found during investigation"),
+        lazy_handoff(
+            "intel_reporter",
+            "handoff_to_reporter",
+            "Escalate to Intel Reporter to document forensic investigation findings and evidence",
+        ),
+        lazy_handoff(
+            "memory_analyst",
+            "handoff_to_memory_analyst",
+            "Escalate to Memory Analyst for volatile memory analysis when memory dumps are found",
+        ),
+        lazy_handoff(
+            "reverse_engineer",
+            "handoff_to_reverse_engineer",
+            "Escalate to Reverse Engineer for binary analysis of suspicious executables found during investigation",
+        ),
     ],
 )
 

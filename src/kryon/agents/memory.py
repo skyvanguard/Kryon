@@ -116,6 +116,7 @@ Summary Requirements:
 - End with clear next steps if work was interrupted
 """
 
+
 QUERY_PROMPT = """INSTRUCTIONS:
     You are a specialized agent for CTF exercises and security assessments,
     managing the RAG system.

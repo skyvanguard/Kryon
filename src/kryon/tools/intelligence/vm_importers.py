@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+
 import defusedxml.ElementTree as ET  # noqa: N817
 
 from kryon.sdk.agents import function_tool
@@ -149,10 +150,7 @@ def import_qualys_findings(
         data = json.loads(raw)
         # Navigate Qualys nested response structure
         host_list = (
-            data.get("HOST_LIST_VM_DETECTION_OUTPUT", {})
-            .get("RESPONSE", {})
-            .get("HOST_LIST", {})
-            .get("HOST", [])
+            data.get("HOST_LIST_VM_DETECTION_OUTPUT", {}).get("RESPONSE", {}).get("HOST_LIST", {}).get("HOST", [])
         )
         # Ensure host_list is always a list (single host comes as dict)
         if isinstance(host_list, dict):
@@ -414,17 +412,11 @@ def import_nmap_xml(
                 )
 
     except ET.ParseError as e:
-        return json.dumps(
-            {"source": "nmap", "error": f"Failed to parse nmap XML: {e}", "findings": [], "count": 0}
-        )
+        return json.dumps({"source": "nmap", "error": f"Failed to parse nmap XML: {e}", "findings": [], "count": 0})
     except FileNotFoundError:
-        return json.dumps(
-            {"source": "nmap", "error": f"File not found: {xml_file}", "findings": [], "count": 0}
-        )
+        return json.dumps({"source": "nmap", "error": f"File not found: {xml_file}", "findings": [], "count": 0})
     except Exception as e:
-        return json.dumps(
-            {"source": "nmap", "error": f"Error processing nmap file: {e}", "findings": [], "count": 0}
-        )
+        return json.dumps({"source": "nmap", "error": f"Error processing nmap file: {e}", "findings": [], "count": 0})
 
     return _build_response("nmap", findings)
 
@@ -478,9 +470,7 @@ def import_nuclei_jsonl(
                     continue
 
     except FileNotFoundError:
-        return json.dumps(
-            {"source": "nuclei", "error": f"File not found: {jsonl_file}", "findings": [], "count": 0}
-        )
+        return json.dumps({"source": "nuclei", "error": f"File not found: {jsonl_file}", "findings": [], "count": 0})
     except Exception as e:
         return json.dumps(
             {"source": "nuclei", "error": f"Error processing nuclei file: {e}", "findings": [], "count": 0}

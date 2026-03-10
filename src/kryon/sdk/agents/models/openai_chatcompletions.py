@@ -3336,7 +3336,9 @@ class OpenAIChatCompletionsModel(Model):
                 param_lines = []
                 for pname, pinfo in props.items():
                     req_marker = " (required)" if pname in required else ""
-                    param_lines.append(f"    - {pname}: {pinfo.get('type', 'any')}{req_marker} — {pinfo.get('description', '')}")
+                    param_lines.append(
+                        f"    - {pname}: {pinfo.get('type', 'any')}{req_marker} — {pinfo.get('description', '')}"
+                    )
                 param_str = "\n".join(param_lines) if param_lines else "    (no parameters)"
                 tool_descriptions.append(f"- {name}: {desc}\n  Parameters:\n{param_str}")
 

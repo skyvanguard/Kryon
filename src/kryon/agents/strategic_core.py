@@ -75,7 +75,9 @@ Operational Focus: AI-driven decision making and resource optimization.""",
     tools=intelligence_systems,
     handoffs=[
         lazy_handoff("recon_scout", "handoff_to_recon_scout", "Deploy Recon Scout for initial target reconnaissance"),
-        lazy_handoff("vuln_hunter", "handoff_to_vuln_hunter", "Deploy Vuln Hunter for vulnerability research and analysis"),
+        lazy_handoff(
+            "vuln_hunter", "handoff_to_vuln_hunter", "Deploy Vuln Hunter for vulnerability research and analysis"
+        ),
         lazy_handoff("pentest_agent", "handoff_to_pentest_agent", "Deploy Pentest Agent for active exploitation"),
         lazy_handoff("intel_reporter", "handoff_to_reporter", "Deploy Intel Reporter for report generation"),
     ],

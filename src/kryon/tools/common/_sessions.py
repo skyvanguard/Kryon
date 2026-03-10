@@ -261,7 +261,7 @@ class ShellSession:  # pylint: disable=too-many-instance-attributes
         with self._buffer_lock:
             # Get new output since last position
             buf_list = list(self.output_buffer)
-            new_output_lines = buf_list[self._last_output_position:]
+            new_output_lines = buf_list[self._last_output_position :]
             new_output = "\n".join(new_output_lines)
 
             # Update position marker if requested

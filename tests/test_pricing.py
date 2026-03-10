@@ -5,7 +5,7 @@ KRYON uses local Ollama models, so all costs are zero.
 These tests verify the no-op stub maintains backward compatibility.
 """
 
-from kryon.util import COST_TRACKER, calculate_model_cost, get_model_name, get_model_input_tokens
+from kryon.util import COST_TRACKER, calculate_model_cost, get_model_input_tokens, get_model_name
 
 
 def test_cost_tracker_returns_zero():

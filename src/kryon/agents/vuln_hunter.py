@@ -56,10 +56,26 @@ vuln_hunter = create_agent(
     instructions=create_system_prompt_renderer(vuln_hunter_system_prompt),
     tools=tools_list,
     handoffs=[
-        lazy_handoff("exploit_validator", "handoff_to_exploit_validator", "Escalate to Exploit Validator to verify vulnerabilities via real exploitation — zero false positives"),
-        lazy_handoff("pentest_agent", "handoff_to_pentest_agent", "Escalate to Pentest Agent for active exploitation and privilege escalation of confirmed vulnerabilities"),
-        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to generate a professional vulnerability assessment report"),
-        lazy_handoff("recon_scout", "handoff_to_recon_scout", "Return to Recon Scout if more reconnaissance data is needed before deeper analysis"),
+        lazy_handoff(
+            "exploit_validator",
+            "handoff_to_exploit_validator",
+            "Escalate to Exploit Validator to verify vulnerabilities via real exploitation — zero false positives",
+        ),
+        lazy_handoff(
+            "pentest_agent",
+            "handoff_to_pentest_agent",
+            "Escalate to Pentest Agent for active exploitation and privilege escalation of confirmed vulnerabilities",
+        ),
+        lazy_handoff(
+            "intel_reporter",
+            "handoff_to_reporter",
+            "Escalate to Intel Reporter to generate a professional vulnerability assessment report",
+        ),
+        lazy_handoff(
+            "recon_scout",
+            "handoff_to_recon_scout",
+            "Return to Recon Scout if more reconnaissance data is needed before deeper analysis",
+        ),
     ],
     input_guardrails=input_guardrails,
     output_guardrails=output_guardrails,

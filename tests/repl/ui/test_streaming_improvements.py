@@ -15,7 +15,10 @@ class TestStreamingOutputTruncation:
         execution_info = {"status": "running"}
 
         _header, _content = _create_tool_panel_content(
-            "nmap_scan", {"command": "nmap"}, long_output, execution_info,
+            "nmap_scan",
+            {"command": "nmap"},
+            long_output,
+            execution_info,
         )
         # The function truncates internally; we verify it doesn't crash
         # and produces valid output (Rich Group object)
@@ -29,7 +32,10 @@ class TestStreamingOutputTruncation:
         execution_info = {"status": "completed"}
 
         _header, _content = _create_tool_panel_content(
-            "nmap_scan", {"command": "nmap"}, long_output, execution_info,
+            "nmap_scan",
+            {"command": "nmap"},
+            long_output,
+            execution_info,
         )
         assert _content is not None
 
@@ -41,7 +47,10 @@ class TestStreamingOutputTruncation:
         execution_info = {"status": "running"}
 
         _header, _content = _create_tool_panel_content(
-            "run_command", {"command": "ls"}, short_output, execution_info,
+            "run_command",
+            {"command": "ls"},
+            short_output,
+            execution_info,
         )
         assert _content is not None
 
@@ -65,7 +74,10 @@ class TestProgressBarInPanel:
         execution_info = {"status": "running"}
 
         _header, content = _create_tool_panel_content(
-            "nmap_scan", {"command": "nmap"}, "some output",
-            execution_info, progress_state=state,
+            "nmap_scan",
+            {"command": "nmap"},
+            "some output",
+            execution_info,
+            progress_state=state,
         )
         assert content is not None

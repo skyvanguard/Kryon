@@ -66,9 +66,21 @@ Operational Focus: Browser automation and client-side security assessment.""",
     instructions=create_system_prompt_renderer(chrome_infiltrator_system_prompt),
     tools=browser_tools,
     handoffs=[
-        lazy_handoff("appsec_analyzer", "handoff_to_appsec_analyzer", "Escalate to AppSec Analyzer for server-side security testing when browser-only testing is insufficient"),
-        lazy_handoff("vuln_hunter", "handoff_to_vuln_hunter", "Escalate to Vuln Hunter for deep vulnerability analysis of browser-discovered issues"),
-        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document browser security testing findings"),
+        lazy_handoff(
+            "appsec_analyzer",
+            "handoff_to_appsec_analyzer",
+            "Escalate to AppSec Analyzer for server-side security testing when browser-only testing is insufficient",
+        ),
+        lazy_handoff(
+            "vuln_hunter",
+            "handoff_to_vuln_hunter",
+            "Escalate to Vuln Hunter for deep vulnerability analysis of browser-discovered issues",
+        ),
+        lazy_handoff(
+            "intel_reporter",
+            "handoff_to_reporter",
+            "Escalate to Intel Reporter to document browser security testing findings",
+        ),
     ],
 )
 

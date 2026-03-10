@@ -37,7 +37,11 @@ Operational Focus: Document and analyze successful security operations for train
     instructions=create_system_prompt_renderer(mission_analyst_system_prompt),
     tools=analytical_systems,
     handoffs=[
-        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to generate a formal report from mission analysis"),
+        lazy_handoff(
+            "intel_reporter",
+            "handoff_to_reporter",
+            "Escalate to Intel Reporter to generate a formal report from mission analysis",
+        ),
     ],
 )
 

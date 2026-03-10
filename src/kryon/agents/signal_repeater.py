@@ -63,8 +63,16 @@ Primary Mission: Network replay attacks, signal retransmission, electronic warfa
 Operational Focus: Capture and replay traffic to exploit protocol vulnerabilities.""",
     tools=electronic_warfare_systems,
     handoffs=[
-        lazy_handoff("network_analyst", "handoff_to_network_analyst", "Escalate to Network Analyst for traffic analysis of replayed network patterns"),
-        lazy_handoff("pentest_agent", "handoff_to_pentest_agent", "Escalate to Pentest Agent for exploitation using replay attack findings"),
+        lazy_handoff(
+            "network_analyst",
+            "handoff_to_network_analyst",
+            "Escalate to Network Analyst for traffic analysis of replayed network patterns",
+        ),
+        lazy_handoff(
+            "pentest_agent",
+            "handoff_to_pentest_agent",
+            "Escalate to Pentest Agent for exploitation using replay attack findings",
+        ),
     ],
 )
 

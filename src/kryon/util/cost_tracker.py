@@ -7,7 +7,6 @@ This module provides no-op implementations that maintain backward compatibility.
 
 import os
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 def get_model_name(model):
@@ -97,13 +96,27 @@ class CostTracker:
     def calculate_cost(self, model, input_tokens, output_tokens, label=None, force_calculation=False) -> float:
         return 0.0
 
-    def process_interaction_cost(self, model, input_tokens, output_tokens, reasoning_tokens=0, provided_cost=None) -> float:
+    def process_interaction_cost(
+        self,
+        model,
+        input_tokens,
+        output_tokens,
+        reasoning_tokens=0,
+        provided_cost=None,
+    ) -> float:
         self.interaction_input_tokens = input_tokens
         self.interaction_output_tokens = output_tokens
         self.interaction_reasoning_tokens = reasoning_tokens
         return 0.0
 
-    def process_total_cost(self, model, total_input_tokens, total_output_tokens, total_reasoning_tokens=0, provided_cost=None) -> float:
+    def process_total_cost(
+        self,
+        model,
+        total_input_tokens,
+        total_output_tokens,
+        total_reasoning_tokens=0,
+        provided_cost=None,
+    ) -> float:
         self.current_agent_input_tokens = total_input_tokens
         self.current_agent_output_tokens = total_output_tokens
         self.current_agent_reasoning_tokens = total_reasoning_tokens

@@ -79,9 +79,7 @@ def setup_ctf():
     # Use the user master template via importlib.resources for portability
     import importlib.resources
 
-    template_path = str(
-        importlib.resources.files("kryon.prompts.core").joinpath("user_master_template.md")
-    )
+    template_path = str(importlib.resources.files("kryon.prompts.core").joinpath("user_master_template.md"))
     # nosemgrep: mako-templates-detected
     messages = Template(filename=template_path).render(
         ctf=ctf,

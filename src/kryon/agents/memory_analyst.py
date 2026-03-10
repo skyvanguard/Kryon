@@ -58,9 +58,19 @@ extracts sensitive runtime data, identifies memory vulnerabilities, and
 analyzes runtime behavior for security assessment.""",
     tools=tools_list,
     handoffs=[
-        lazy_handoff("forensic_analyzer", "handoff_to_forensic_analyzer", "Escalate to Forensic Analyzer for full forensic investigation when memory analysis reveals compromise"),
-        lazy_handoff("reverse_engineer", "handoff_to_reverse_engineer", "Escalate to Reverse Engineer for binary analysis of suspicious processes found in memory"),
-        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document memory analysis findings"),
+        lazy_handoff(
+            "forensic_analyzer",
+            "handoff_to_forensic_analyzer",
+            "Escalate to Forensic Analyzer for full forensic investigation when memory analysis reveals compromise",
+        ),
+        lazy_handoff(
+            "reverse_engineer",
+            "handoff_to_reverse_engineer",
+            "Escalate to Reverse Engineer for binary analysis of suspicious processes found in memory",
+        ),
+        lazy_handoff(
+            "intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document memory analysis findings"
+        ),
     ],
 )
 

@@ -256,7 +256,9 @@ class TestConvenienceFunction:
         exploit = {"name": "test_exploit", "type": "rce"}
         service = {"name": "http", "version": "1.0"}
 
-        result = _call(execute_with_adaptation, target_ip="192.168.1.1", exploit=exploit, service=service, max_attempts=3)
+        result = _call(
+            execute_with_adaptation, target_ip="192.168.1.1", exploit=exploit, service=service, max_attempts=3
+        )
 
         assert result is not None
         assert "success" in result

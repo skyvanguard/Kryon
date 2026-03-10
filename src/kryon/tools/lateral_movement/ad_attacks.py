@@ -29,7 +29,7 @@ import subprocess  # nosec B404
 
 from kryon.sdk.agents import function_tool
 
-_CYPHER_SAFE = re.compile(r'^[A-Za-z0-9@.\-\\_ ]+$')
+_CYPHER_SAFE = re.compile(r"^[A-Za-z0-9@.\-\\_ ]+$")
 
 
 def _run_cmd(command: str, timeout: int = 120) -> str:
@@ -87,15 +87,10 @@ def bloodhound_collect(target_domain: str, method: str = "all") -> str:
         "container",
     }
     if method not in valid_methods:
-        return json.dumps(
-            {"error": f"Invalid method '{method}'. Valid: {sorted(valid_methods)}"}
-        )
+        return json.dumps({"error": f"Invalid method '{method}'. Valid: {sorted(valid_methods)}"})
 
     output_dir = "/tmp/bloodhound"
-    cmd = (
-        f"bloodhound-python -d {shlex.quote(target_domain)} -c {method} "
-        f"--zip -o {shlex.quote(output_dir)}"
-    )
+    cmd = f"bloodhound-python -d {shlex.quote(target_domain)} -c {method} --zip -o {shlex.quote(output_dir)}"
 
     raw_output = _run_cmd(cmd, timeout=300)
 
@@ -154,7 +149,11 @@ def kerberoast(
             password="<REDACTED>"
         )
     """
-    cred = f"{shlex.quote(domain)}/{shlex.quote(username)}:{shlex.quote(password)}" if username else f"{shlex.quote(domain)}/"
+    cred = (
+        f"{shlex.quote(domain)}/{shlex.quote(username)}:{shlex.quote(password)}"
+        if username
+        else f"{shlex.quote(domain)}/"
+    )
     cmd_parts = [
         "impacket-GetUserSPNs",
         cred,
@@ -303,10 +302,7 @@ def enumerate_ad(
     # 1. enum4linux-ng for basic enumeration
     safe_dc = shlex.quote(domain_controller)
     if username and password:
-        enum_cmd = (
-            f"enum4linux-ng -A -u {shlex.quote(username)} -p {shlex.quote(password)} "
-            f"{safe_dc}"
-        )
+        enum_cmd = f"enum4linux-ng -A -u {shlex.quote(username)} -p {shlex.quote(password)} {safe_dc}"
     else:
         enum_cmd = f"enum4linux-ng -A {safe_dc}"
 
@@ -332,24 +328,18 @@ def enumerate_ad(
     if username and password:
         ldap_cmd = (
             f"ldapdomaindump {safe_dc} "
-            f"-u {shlex.quote(f'{domain}\\\\{username}')} -p {shlex.quote(password)} "
+            f"-u {shlex.quote(domain + chr(92) + username)} -p {shlex.quote(password)} "
             f"-o /tmp/ldapdomaindump/"
         )
     else:
-        ldap_cmd = (
-            f"ldapdomaindump {safe_dc} "
-            f"-o /tmp/ldapdomaindump/"
-        )
+        ldap_cmd = f"ldapdomaindump {safe_dc} -o /tmp/ldapdomaindump/"
 
     ldap_output = _run_cmd(ldap_cmd, timeout=180)
     results["output"]["ldapdomaindump"] = ldap_output
 
     # 3. rpcclient for RPC-based queries (users, groups)
     if username and password:
-        rpc_base = (
-            f"rpcclient -U {shlex.quote(f'{domain}/{username}%{password}')} "
-            f"{safe_dc}"
-        )
+        rpc_base = f"rpcclient -U {shlex.quote(f'{domain}/{username}%{password}')} {safe_dc}"
     else:
         rpc_base = f"rpcclient -U '' -N {safe_dc}"
 
@@ -517,11 +507,7 @@ def find_attack_path(
 
     # Try neo4j-client CLI
     _neo4j_pass = os.environ.get("NEO4J_PASSWORD", "bloodhound")
-    cmd = (
-        f'cypher-shell -u neo4j -p {shlex.quote(_neo4j_pass)} '
-        f'-a bolt://localhost:7687 '
-        f'{shlex.quote(cypher_query)}'
-    )
+    cmd = f"cypher-shell -u neo4j -p {shlex.quote(_neo4j_pass)} -a bolt://localhost:7687 {shlex.quote(cypher_query)}"
 
     raw_output = _run_cmd(cmd, timeout=60)
 
@@ -559,7 +545,9 @@ def find_attack_path(
         "start_node": start_node,
         "target_node": target_node,
         "cypher_query": cypher_query,
-        "paths": paths if paths else [
+        "paths": paths
+        if paths
+        else [
             {
                 "start": start_node,
                 "end": target_node,

@@ -31,10 +31,26 @@ appsec_analyzer = create_agent(
     instructions=create_system_prompt_renderer(appsec_system_prompt),
     tools=tools_list,
     handoffs=[
-        lazy_handoff("vuln_hunter", "handoff_to_vuln_hunter", "Escalate to Vuln Hunter for deep vulnerability analysis of application security findings"),
-        lazy_handoff("api_fuzzer", "handoff_to_api_fuzzer", "Escalate to API Fuzzer for API-specific security testing when API endpoints are found"),
-        lazy_handoff("chrome_infiltrator", "handoff_to_chrome_infiltrator", "Escalate to Chrome Infiltrator for browser-based testing of XSS and DOM vulnerabilities"),
-        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document application security assessment findings"),
+        lazy_handoff(
+            "vuln_hunter",
+            "handoff_to_vuln_hunter",
+            "Escalate to Vuln Hunter for deep vulnerability analysis of application security findings",
+        ),
+        lazy_handoff(
+            "api_fuzzer",
+            "handoff_to_api_fuzzer",
+            "Escalate to API Fuzzer for API-specific security testing when API endpoints are found",
+        ),
+        lazy_handoff(
+            "chrome_infiltrator",
+            "handoff_to_chrome_infiltrator",
+            "Escalate to Chrome Infiltrator for browser-based testing of XSS and DOM vulnerabilities",
+        ),
+        lazy_handoff(
+            "intel_reporter",
+            "handoff_to_reporter",
+            "Escalate to Intel Reporter to document application security assessment findings",
+        ),
     ],
     input_guardrails=input_guardrails,
     output_guardrails=output_guardrails,

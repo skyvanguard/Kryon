@@ -89,7 +89,15 @@ def test_agent_names_match_keys(agents):
 # --- Memory tools integration tests ---
 
 # Agents excluded from MEMORY_TOOLS requirement
-_MEMORY_EXEMPT = {"central_core", "code_agent", "codeagent", "semantic_builder", "episodic_builder", "query_agent", "target_validator"}
+_MEMORY_EXEMPT = {
+    "central_core",
+    "code_agent",
+    "codeagent",
+    "semantic_builder",
+    "episodic_builder",
+    "query_agent",
+    "target_validator",
+}
 
 MEMORY_TOOL_NAMES = {"query_memory", "add_to_memory_semantic"}
 
@@ -103,15 +111,13 @@ def test_agents_have_memory_tools(agents):
     for key, agent in agents.items():
         if key in _MEMORY_EXEMPT:
             continue
-        tool_names = {
-            t.name if isinstance(t, FunctionTool) else getattr(t, "__name__", str(t))
-            for t in agent.tools
-        }
+        tool_names = {t.name if isinstance(t, FunctionTool) else getattr(t, "__name__", str(t)) for t in agent.tools}
         missing = MEMORY_TOOL_NAMES - tool_names
         assert not missing, f"Agent '{key}' missing memory tools: {missing}"
 
 
 # --- Handoff schema validation tests ---
+
 
 def test_central_core_handoffs_use_router_schema(agents):
     """Central Core handoffs should use ROUTER_HANDOFF_SCHEMA."""
@@ -143,6 +149,4 @@ def test_all_handoffs_strict_json_disabled(agents):
     """All handoffs should have strict_json_schema=False for Ollama compatibility."""
     for key, agent in agents.items():
         for h in agent.handoffs:
-            assert h.strict_json_schema is False, (
-                f"Agent '{key}' handoff '{h.tool_name}' has strict_json_schema=True"
-            )
+            assert h.strict_json_schema is False, f"Agent '{key}' handoff '{h.tool_name}' has strict_json_schema=True"

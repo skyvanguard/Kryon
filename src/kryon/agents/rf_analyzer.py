@@ -56,9 +56,19 @@ Primary Mission: RF signal intelligence, sub-GHz analysis, wireless protocol exp
 Operational Focus: Electromagnetic spectrum operations and wireless security testing.""",
     tools=rf_systems,
     handoffs=[
-        lazy_handoff("wireless_infiltrator", "handoff_to_wireless_infiltrator", "Escalate to Wireless Infiltrator for WiFi exploitation after RF reconnaissance"),
-        lazy_handoff("network_analyst", "handoff_to_network_analyst", "Escalate to Network Analyst for IP network analysis of discovered RF communications"),
-        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document RF analysis findings"),
+        lazy_handoff(
+            "wireless_infiltrator",
+            "handoff_to_wireless_infiltrator",
+            "Escalate to Wireless Infiltrator for WiFi exploitation after RF reconnaissance",
+        ),
+        lazy_handoff(
+            "network_analyst",
+            "handoff_to_network_analyst",
+            "Escalate to Network Analyst for IP network analysis of discovered RF communications",
+        ),
+        lazy_handoff(
+            "intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document RF analysis findings"
+        ),
     ],
 )
 

@@ -9,15 +9,11 @@ def test_central_core_has_exploit_validator_handoff():
     assert central_core.handoffs, "central_core has no handoffs at all"
     handoff_names = []
     for h in central_core.handoffs:
-        name = (
-            getattr(h, "agent_name", "")
-            or getattr(h, "tool_name", "")
-            or str(h)
-        )
+        name = getattr(h, "agent_name", "") or getattr(h, "tool_name", "") or str(h)
         handoff_names.append(name.lower())
-    assert any(
-        "exploit" in n or "validator" in n for n in handoff_names
-    ), f"No exploit_validator handoff found in: {handoff_names}"
+    assert any("exploit" in n or "validator" in n for n in handoff_names), (
+        f"No exploit_validator handoff found in: {handoff_names}"
+    )
 
 
 def test_vuln_hunter_has_exploit_validator_handoff():
@@ -26,12 +22,8 @@ def test_vuln_hunter_has_exploit_validator_handoff():
     assert vuln_hunter.handoffs, "vuln_hunter has no handoffs at all"
     handoff_names = []
     for h in vuln_hunter.handoffs:
-        name = (
-            getattr(h, "agent_name", "")
-            or getattr(h, "tool_name", "")
-            or str(h)
-        )
+        name = getattr(h, "agent_name", "") or getattr(h, "tool_name", "") or str(h)
         handoff_names.append(name.lower())
-    assert any(
-        "exploit" in n or "validator" in n for n in handoff_names
-    ), f"No exploit_validator handoff found in: {handoff_names}"
+    assert any("exploit" in n or "validator" in n for n in handoff_names), (
+        f"No exploit_validator handoff found in: {handoff_names}"
+    )

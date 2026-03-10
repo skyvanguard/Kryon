@@ -60,8 +60,16 @@ Primary Mission: Vulnerability verification, false positive elimination, exploit
 Operational Focus: Ensure high-quality intelligence through rigorous validation.""",
     tools=verification_systems,
     handoffs=[
-        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document retest and validation results"),
-        lazy_handoff("exploit_validator", "handoff_to_exploit_validator", "Escalate to Exploit Validator for real exploitation verification of remediated vulnerabilities"),
+        lazy_handoff(
+            "intel_reporter",
+            "handoff_to_reporter",
+            "Escalate to Intel Reporter to document retest and validation results",
+        ),
+        lazy_handoff(
+            "exploit_validator",
+            "handoff_to_exploit_validator",
+            "Escalate to Exploit Validator for real exploitation verification of remediated vulnerabilities",
+        ),
     ],
 )
 

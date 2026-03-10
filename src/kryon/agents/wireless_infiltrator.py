@@ -57,9 +57,21 @@ Primary Mission: WiFi network penetration, wireless exploitation, password recov
 Operational Focus: Infiltrate wireless networks through advanced attack techniques.""",
     tools=wireless_systems,
     handoffs=[
-        lazy_handoff("network_analyst", "handoff_to_network_analyst", "Escalate to Network Analyst for deeper network traffic analysis after wireless access is gained"),
-        lazy_handoff("rf_analyzer", "handoff_to_rf_analyzer", "Escalate to RF Analyzer for radio frequency analysis of non-WiFi wireless signals"),
-        lazy_handoff("pentest_agent", "handoff_to_pentest_agent", "Escalate to Pentest Agent for exploitation after gaining wireless network access"),
+        lazy_handoff(
+            "network_analyst",
+            "handoff_to_network_analyst",
+            "Escalate to Network Analyst for deeper network traffic analysis after wireless access is gained",
+        ),
+        lazy_handoff(
+            "rf_analyzer",
+            "handoff_to_rf_analyzer",
+            "Escalate to RF Analyzer for radio frequency analysis of non-WiFi wireless signals",
+        ),
+        lazy_handoff(
+            "pentest_agent",
+            "handoff_to_pentest_agent",
+            "Escalate to Pentest Agent for exploitation after gaining wireless network access",
+        ),
     ],
 )
 

@@ -18,6 +18,7 @@ def _escape_like(value: str) -> str:
     """Escape special LIKE pattern characters ``%`` and ``_``."""
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
+
 # Column whitelists for update methods to prevent SQL injection
 _CLIENT_COLUMNS = {"name", "scope", "contact", "notes", "tags", "owner_user_id"}
 _SCAN_COLUMNS = {"status", "completed_at", "finding_count", "risk_score", "report_id", "agent_key"}

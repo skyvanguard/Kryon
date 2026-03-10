@@ -78,9 +78,7 @@ async def test_enumerate_ad_runs_enumeration():
     ctx = MagicMock()
     ctx.context = None
     with patch("kryon.tools.lateral_movement.ad_attacks._run_cmd") as mock_run:
-        mock_run.return_value = (
-            "Users: Administrator, Guest, krbtgt\nGroups: Domain Admins, Domain Users"
-        )
+        mock_run.return_value = "Users: Administrator, Guest, krbtgt\nGroups: Domain Admins, Domain Users"
         result = await enumerate_ad.on_invoke_tool(
             ctx,
             json.dumps(
@@ -91,12 +89,7 @@ async def test_enumerate_ad_runs_enumeration():
             ),
         )
         data = json.loads(result)
-        assert (
-            "enumeration" in data
-            or "results" in data
-            or "users" in data
-            or "output" in data
-        )
+        assert "enumeration" in data or "results" in data or "users" in data or "output" in data
 
 
 @pytest.mark.asyncio

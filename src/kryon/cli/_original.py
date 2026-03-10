@@ -1747,9 +1747,7 @@ def run_kryon_cli(
             # Extract and persist findings from recent messages
             try:
                 if hasattr(agent, "model") and hasattr(agent.model, "message_history"):
-                    new_findings = findings_collector.extract_from_message_history(
-                        agent.model.message_history[-10:]
-                    )
+                    new_findings = findings_collector.extract_from_message_history(agent.model.message_history[-10:])
                     if new_findings:
                         count = findings_collector.save_findings(new_findings)
                         if count > 0:

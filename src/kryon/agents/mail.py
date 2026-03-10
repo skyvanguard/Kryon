@@ -140,8 +140,14 @@ Operational Focus: Identify email authentication weaknesses and spoofing vulnera
     ),
     tools=protocol_systems,
     handoffs=[
-        lazy_handoff("network_analyst", "handoff_to_network_analyst", "Escalate to Network Analyst for deeper DNS/network analysis of email infrastructure"),
-        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document email security findings"),
+        lazy_handoff(
+            "network_analyst",
+            "handoff_to_network_analyst",
+            "Escalate to Network Analyst for deeper DNS/network analysis of email infrastructure",
+        ),
+        lazy_handoff(
+            "intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document email security findings"
+        ),
     ],
 )
 

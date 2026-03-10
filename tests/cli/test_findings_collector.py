@@ -40,13 +40,15 @@ class TestExtractFromMessageHistory:
 
     def test_extracts_json_finding_from_content(self):
         collector = CLIFindingsCollector()
-        finding_json = json.dumps({
-            "title": "SQL Injection vulnerability",
-            "description": "Possible SQLi in login form",
-            "severity": "high",
-            "affected_asset": "10.0.0.1:443",
-            "cvss_score": 8.5,
-        })
+        finding_json = json.dumps(
+            {
+                "title": "SQL Injection vulnerability",
+                "description": "Possible SQLi in login form",
+                "severity": "high",
+                "affected_asset": "10.0.0.1:443",
+                "cvss_score": 8.5,
+            }
+        )
         messages = [
             {"role": "tool", "content": f"Found vulnerability: {finding_json}"},
         ]

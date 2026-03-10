@@ -70,8 +70,10 @@ async def test_import_qualys_parses_response():
             }
         }
     )
-    with patch("kryon.tools.intelligence.vm_importers._http_request") as mock_req, \
-         patch("kryon.tools.intelligence.vm_importers.validate_external_url", return_value=None):
+    with (
+        patch("kryon.tools.intelligence.vm_importers._http_request") as mock_req,
+        patch("kryon.tools.intelligence.vm_importers.validate_external_url", return_value=None),
+    ):
         mock_req.return_value = mock_response
         result = await import_qualys_findings.on_invoke_tool(
             ctx,
@@ -101,8 +103,10 @@ async def test_import_tenable_parses_response():
             ]
         }
     )
-    with patch("kryon.tools.intelligence.vm_importers._http_request") as mock_req, \
-         patch("kryon.tools.intelligence.vm_importers.validate_external_url", return_value=None):
+    with (
+        patch("kryon.tools.intelligence.vm_importers._http_request") as mock_req,
+        patch("kryon.tools.intelligence.vm_importers.validate_external_url", return_value=None),
+    ):
         mock_req.return_value = mock_response
         result = await import_tenable_findings.on_invoke_tool(
             ctx,
@@ -138,8 +142,10 @@ async def test_import_rapid7_parses_response():
             ]
         }
     )
-    with patch("kryon.tools.intelligence.vm_importers._http_request") as mock_req, \
-         patch("kryon.tools.intelligence.vm_importers.validate_external_url", return_value=None):
+    with (
+        patch("kryon.tools.intelligence.vm_importers._http_request") as mock_req,
+        patch("kryon.tools.intelligence.vm_importers.validate_external_url", return_value=None),
+    ):
         mock_req.return_value = mock_response
         result = await import_rapid7_findings.on_invoke_tool(
             ctx,
@@ -171,9 +177,7 @@ async def test_import_nmap_xml_parses_file():
         f.write(mock_xml)
         tmp_path = f.name
     try:
-        result = await import_nmap_xml.on_invoke_tool(
-            ctx, json.dumps({"xml_file": tmp_path})
-        )
+        result = await import_nmap_xml.on_invoke_tool(ctx, json.dumps({"xml_file": tmp_path}))
         data = json.loads(result)
         assert "findings" in data
         assert data["source"] == "nmap"
@@ -208,9 +212,7 @@ async def test_import_nuclei_jsonl_parses_file():
         f.write("\n".join(lines))
         tmp_path = f.name
     try:
-        result = await import_nuclei_jsonl.on_invoke_tool(
-            ctx, json.dumps({"jsonl_file": tmp_path})
-        )
+        result = await import_nuclei_jsonl.on_invoke_tool(ctx, json.dumps({"jsonl_file": tmp_path}))
         data = json.loads(result)
         assert "findings" in data
         assert len(data["findings"]) == 2

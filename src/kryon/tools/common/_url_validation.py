@@ -31,7 +31,7 @@ def validate_external_url(url: str) -> str | None:
     except socket.gaierror:
         return f"Cannot resolve hostname: {hostname}"
 
-    for family, _, _, _, sockaddr in infos:
+    for _family, _, _, _, sockaddr in infos:
         ip = ipaddress.ip_address(sockaddr[0])
         if ip.is_loopback:
             return f"Loopback address blocked: {ip}"

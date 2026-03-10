@@ -168,8 +168,14 @@ class EnterpriseOrchestrator:
         self._planner = PentestPlanner()
         self._plan = self._planner.generate_plan(self.targets, profile)
         # Override planner phase turns with orchestrator's resolved turns
-        _turns_map = {"recon": "recon", "vuln_scan": "vuln", "exploitation": "exploit",
-                      "post_exploit": "exploit", "api_fuzzing": "vuln", "reporting": "vuln"}
+        _turns_map = {
+            "recon": "recon",
+            "vuln_scan": "vuln",
+            "exploitation": "exploit",
+            "post_exploit": "exploit",
+            "api_fuzzing": "vuln",
+            "reporting": "vuln",
+        }
         for phase in self._plan.phases:
             key = _turns_map.get(phase.name)
             if key and key in self._turns:

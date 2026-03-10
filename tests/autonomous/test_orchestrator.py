@@ -245,7 +245,8 @@ class TestAutonomousCTFSolver:
 
         # Execute with very short timeout
         start_time = time.time()
-        result = _call(autonomous_ctf_solver,
+        result = _call(
+            autonomous_ctf_solver,
             target_ip="10.10.10.5",
             max_time_hours=0.01,  # ~36 seconds
         )

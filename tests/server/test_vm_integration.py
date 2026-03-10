@@ -1,7 +1,8 @@
 """Tests for VM integration API routes."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from starlette.testclient import TestClient
 
 from kryon.server import ServerConfig, create_app

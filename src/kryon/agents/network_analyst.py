@@ -58,10 +58,24 @@ network communications, detecting threats, and identifying malicious actors
 across the network layer.""",
     tools=tools_list,
     handoffs=[
-        lazy_handoff("forensic_analyzer", "handoff_to_forensic_analyzer", "Escalate to Forensic Analyzer for deeper forensic investigation of detected security incidents"),
-        lazy_handoff("pentest_agent", "handoff_to_pentest_agent", "Escalate to Pentest Agent to exploit network vulnerabilities discovered during analysis"),
-        lazy_handoff("wireless_infiltrator", "handoff_to_wireless_infiltrator", "Escalate to Wireless Infiltrator for WiFi-specific attacks when wireless networks are detected"),
-        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document network analysis findings"),
+        lazy_handoff(
+            "forensic_analyzer",
+            "handoff_to_forensic_analyzer",
+            "Escalate to Forensic Analyzer for deeper forensic investigation of detected security incidents",
+        ),
+        lazy_handoff(
+            "pentest_agent",
+            "handoff_to_pentest_agent",
+            "Escalate to Pentest Agent to exploit network vulnerabilities discovered during analysis",
+        ),
+        lazy_handoff(
+            "wireless_infiltrator",
+            "handoff_to_wireless_infiltrator",
+            "Escalate to Wireless Infiltrator for WiFi-specific attacks when wireless networks are detected",
+        ),
+        lazy_handoff(
+            "intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document network analysis findings"
+        ),
     ],
 )
 

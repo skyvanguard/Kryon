@@ -62,9 +62,21 @@ ad_infiltrator = create_agent(
         validate_finding,
     ],
     handoffs=[
-        lazy_handoff("pentest_agent", "handoff_to_pentest_agent", "Escalate to Pentest Agent for lateral movement and privilege escalation after AD compromise"),
-        lazy_handoff("network_analyst", "handoff_to_network_analyst", "Escalate to Network Analyst for network-layer analysis of AD infrastructure"),
-        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document AD attack findings and compromised accounts"),
+        lazy_handoff(
+            "pentest_agent",
+            "handoff_to_pentest_agent",
+            "Escalate to Pentest Agent for lateral movement and privilege escalation after AD compromise",
+        ),
+        lazy_handoff(
+            "network_analyst",
+            "handoff_to_network_analyst",
+            "Escalate to Network Analyst for network-layer analysis of AD infrastructure",
+        ),
+        lazy_handoff(
+            "intel_reporter",
+            "handoff_to_reporter",
+            "Escalate to Intel Reporter to document AD attack findings and compromised accounts",
+        ),
     ],
     input_guardrails=input_guardrails,
     output_guardrails=output_guardrails,

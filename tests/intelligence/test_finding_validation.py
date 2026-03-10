@@ -1,4 +1,5 @@
 import pytest
+
 from kryon.intelligence.models import Finding, Severity, ValidationStatus
 
 

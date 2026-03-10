@@ -84,9 +84,21 @@ and intelligent evasion capabilities.
 Primary Mission: Achieve root and capture all flags autonomously.""",
     tools=ctf_arsenal,
     handoffs=[
-        lazy_handoff("recon_scout", "handoff_to_recon_scout", "Escalate to Recon Scout for network/web reconnaissance when CTF requires target scanning"),
-        lazy_handoff("pentest_agent", "handoff_to_pentest_agent", "Escalate to Pentest Agent for exploitation and privilege escalation in CTF challenges"),
-        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to generate a CTF writeup or findings report"),
+        lazy_handoff(
+            "recon_scout",
+            "handoff_to_recon_scout",
+            "Escalate to Recon Scout for network/web reconnaissance when CTF requires target scanning",
+        ),
+        lazy_handoff(
+            "pentest_agent",
+            "handoff_to_pentest_agent",
+            "Escalate to Pentest Agent for exploitation and privilege escalation in CTF challenges",
+        ),
+        lazy_handoff(
+            "intel_reporter",
+            "handoff_to_reporter",
+            "Escalate to Intel Reporter to generate a CTF writeup or findings report",
+        ),
     ],
 )
 

@@ -88,9 +88,7 @@ def create_system_prompt_renderer(base_instructions):
 
             # Read the template content
             try:
-                template_content = (
-                    importlib.resources.files(package).joinpath(filename).read_text(encoding="utf-8")
-                )
+                template_content = importlib.resources.files(package).joinpath(filename).read_text(encoding="utf-8")
             except (TypeError, AttributeError):
                 with importlib.resources.path(package, filename) as path:
                     template_content = pathlib.Path(path).read_text(encoding="utf-8")

@@ -192,7 +192,11 @@ async def _run_local_async(
                 if buffer_size >= update_interval:
                     current_output = "".join(output_buffer)
                     update_tool_streaming(
-                        tool_name, tool_args, current_output, call_id, token_info,
+                        tool_name,
+                        tool_args,
+                        current_output,
+                        call_id,
+                        token_info,
                         progress_state=progress_state,
                     )
                     buffer_size = 0
@@ -505,7 +509,11 @@ async def _run_docker_async(
                     # Show actual output as it's being collected
                     current_output = "".join(output_buffer)
                     update_tool_streaming(
-                        tool_name, tool_args, current_output, call_id, token_info,
+                        tool_name,
+                        tool_args,
+                        current_output,
+                        call_id,
+                        token_info,
                         progress_state=progress_state,
                     )
                     buffer_size = 0
@@ -744,7 +752,11 @@ def _run_local(
                 if buffer_size >= update_interval:
                     current_output = "".join(output_buffer)
                     update_tool_streaming(
-                        tool_name, tool_args, current_output, call_id, token_info,
+                        tool_name,
+                        tool_args,
+                        current_output,
+                        call_id,
+                        token_info,
                         progress_state=progress_state,
                     )
                     buffer_size = 0

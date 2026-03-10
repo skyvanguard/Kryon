@@ -555,9 +555,9 @@ def test_rate_limiting(
     for i in range(num_requests):
         cmd = f'curl -sk -m 10 -X {safe_rl_method} -w "\\n%{{http_code}} %{{time_total}}" '
         if body:
-            cmd += f"-d {shlex.quote(body)} -H \"Content-Type: application/json\" "
+            cmd += f'-d {shlex.quote(body)} -H "Content-Type: application/json" '
         if auth_header:
-            cmd += f'-H {shlex.quote("Authorization: " + auth_header)} '
+            cmd += f"-H {shlex.quote('Authorization: ' + auth_header)} "
         cmd += safe_rl_url
 
         start = time.time()
@@ -634,7 +634,7 @@ def test_auth_mechanisms(
     safe_auth_method = method.upper() if method.upper() in _ALLOWED_HTTP_METHODS else "GET"
     base_cmd = f"curl -sk -m 10 -X {safe_auth_method} "
     if body:
-        base_cmd += f"-d {shlex.quote(body)} -H \"Content-Type: application/json\" "
+        base_cmd += f'-d {shlex.quote(body)} -H "Content-Type: application/json" '
 
     # Test 1: No authentication header
     cmd = base_cmd + f'-w "\\n%{{http_code}}" {shlex.quote(url)}'
@@ -658,7 +658,11 @@ def test_auth_mechanisms(
         )
 
     # Test 2: Invalid/garbage token
-    cmd = base_cmd + '-H "Authorization: Bearer invalid_token_garbage_12345" ' + f'-w "\\n%{{http_code}}" {shlex.quote(url)}'
+    cmd = (
+        base_cmd
+        + '-H "Authorization: Bearer invalid_token_garbage_12345" '
+        + f'-w "\\n%{{http_code}}" {shlex.quote(url)}'
+    )
     output = _run_cmd(cmd, timeout=15)
     lines = output.strip().rsplit("\n", 1)
     status = lines[-1] if len(lines) > 1 else "0"
@@ -695,7 +699,11 @@ def test_auth_mechanisms(
             payload_b64 = valid_token.split(".")[1]
             none_token = f"{none_header}.{payload_b64}."
 
-            cmd = base_cmd + f'-H {shlex.quote("Authorization: Bearer " + none_token)} ' + f'-w "\\n%{{http_code}}" {shlex.quote(url)}'
+            cmd = (
+                base_cmd
+                + f"-H {shlex.quote('Authorization: Bearer ' + none_token)} "
+                + f'-w "\\n%{{http_code}}" {shlex.quote(url)}'
+            )
             output = _run_cmd(cmd, timeout=15)
             lines = output.strip().rsplit("\n", 1)
             status = lines[-1] if len(lines) > 1 else "0"

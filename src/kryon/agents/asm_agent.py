@@ -30,9 +30,19 @@ asm_agent = create_agent(
     instructions=create_system_prompt_renderer(asm_system_prompt),
     tools=tools_list,
     handoffs=[
-        lazy_handoff("recon_scout", "handoff_to_recon_scout", "Escalate to Recon Scout for active reconnaissance of discovered attack surface assets"),
-        lazy_handoff("vuln_hunter", "handoff_to_vuln_hunter", "Escalate to Vuln Hunter for vulnerability analysis of discovered assets"),
-        lazy_handoff("intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document attack surface findings"),
+        lazy_handoff(
+            "recon_scout",
+            "handoff_to_recon_scout",
+            "Escalate to Recon Scout for active reconnaissance of discovered attack surface assets",
+        ),
+        lazy_handoff(
+            "vuln_hunter",
+            "handoff_to_vuln_hunter",
+            "Escalate to Vuln Hunter for vulnerability analysis of discovered assets",
+        ),
+        lazy_handoff(
+            "intel_reporter", "handoff_to_reporter", "Escalate to Intel Reporter to document attack surface findings"
+        ),
     ],
     input_guardrails=input_guardrails,
     output_guardrails=output_guardrails,

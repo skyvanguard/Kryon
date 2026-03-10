@@ -66,7 +66,11 @@ REMEMBER: Precision is critical. Extract ONLY the flag, nothing else.
     ),
     tools=RAG_TOOLS + AI_TOOLS,
     handoffs=[
-        lazy_handoff("recon_scout", "handoff_to_recon_scout", "Transfer to Recon Scout for continued investigation if no flag is found in current output"),
+        lazy_handoff(
+            "recon_scout",
+            "handoff_to_recon_scout",
+            "Transfer to Recon Scout for continued investigation if no flag is found in current output",
+        ),
     ],
 )
 

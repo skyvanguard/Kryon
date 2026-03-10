@@ -789,9 +789,7 @@ def _execute_exploit_autonomous(target_ip: str, exploit: dict, service: dict) ->
         elif "sqli" in exploit_type or "sql" in exploit_name:
             from kryon.tools.web import sqlmap
 
-            sqlmap_result = sqlmap.sqlmap_scan._raw_fn(
-                url=f"http://{target_ip}", crawl=2, batch=True, risk=2, level=2
-            )
+            sqlmap_result = sqlmap.sqlmap_scan._raw_fn(url=f"http://{target_ip}", crawl=2, batch=True, risk=2, level=2)
 
             if sqlmap_result.get("vulnerabilities"):
                 result["success"] = True

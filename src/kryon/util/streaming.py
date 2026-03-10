@@ -492,7 +492,12 @@ def _print_simple_tool_output(tool_name, args, output, execution_info=None, toke
 
 
 def _create_tool_panel_content(
-    tool_name, args, output, execution_info=None, token_info=None, progress_state=None,
+    tool_name,
+    args,
+    output,
+    execution_info=None,
+    token_info=None,
+    progress_state=None,
 ):
     """Create the header and content for a tool output panel."""
     is_running = execution_info and execution_info.get("status") == "running"
@@ -1090,7 +1095,11 @@ def cli_print_tool_output(
             display_args = {k: v for k, v in args.items() if k not in ["call_counter", "input_to_session"]}
 
         header, content = _create_tool_panel_content(
-            tool_name, display_args, output, execution_info, token_info,
+            tool_name,
+            display_args,
+            output,
+            execution_info,
+            token_info,
             progress_state=progress_state,
         )
         args_str = _format_tool_args(display_args, tool_name=tool_name)
