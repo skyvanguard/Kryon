@@ -145,9 +145,9 @@ def nmap(
     if not target:
         return (
             "Error: target is required. You must provide the IP or hostname.\n"
-            "Correct usage: nmap(target=\"10.10.10.5\", args=\"-sV -sC -T4\")\n"
+            'Correct usage: nmap(target="10.10.10.5", args="-sV -sC -T4")\n'
             "The parameter name MUST be 'target'. Example:\n"
-            "  nmap(target=\"10.64.189.65\", args=\"-sV -sC\")"
+            '  nmap(target="10.64.189.65", args="-sV -sC")'
         )
 
     nmap_flags = args

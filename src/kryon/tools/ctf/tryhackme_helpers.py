@@ -124,7 +124,9 @@ def check_thm_vpn(
                 print(f"[+] IP is in expected THM range: {expected_network}x.x")
             else:
                 # Different VPN server range — still connected, just note it
-                print(f"[+] VPN connected with IP {results['vpn_ip']} (note: not in {expected_network}x.x range, but VPN is active)")
+                print(
+                    f"[+] VPN connected with IP {results['vpn_ip']} (note: not in {expected_network}x.x range, but VPN is active)"
+                )
 
     except Exception as e:
         results["error"] = f"Failed to check VPN interface: {str(e)}"

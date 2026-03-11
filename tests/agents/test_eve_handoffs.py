@@ -25,6 +25,4 @@ def test_vuln_hunter_has_pentest_agent_handoff():
     for h in vuln_hunter.handoffs:
         name = getattr(h, "agent_name", "") or getattr(h, "tool_name", "") or str(h)
         handoff_names.append(name.lower())
-    assert any("pentest" in n for n in handoff_names), (
-        f"No pentest_agent handoff found in: {handoff_names}"
-    )
+    assert any("pentest" in n for n in handoff_names), f"No pentest_agent handoff found in: {handoff_names}"
