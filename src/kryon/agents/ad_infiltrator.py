@@ -27,6 +27,17 @@ from kryon.tools.lateral_movement.pth_attacks import (
     pass_the_hash,
     pass_the_ticket,
 )
+from kryon.tools.post_exploitation.credential_dumping import (
+    dump_kerberos_tickets,
+    dump_lsass,
+    dump_sam,
+)
+from kryon.tools.post_exploitation.lateral_movement import (
+    psexec_lateral_movement,
+    smb_lateral_movement,
+    winrm_lateral_movement,
+    wmi_lateral_movement,
+)
 from kryon.tools.validation.exploit_validator import validate_finding
 from kryon.util import create_system_prompt_renderer, load_prompt_template
 
@@ -60,6 +71,14 @@ ad_infiltrator = create_agent(
         extract_ntlm_hash,
         crack_ntlm_hash,
         validate_finding,
+        # Post-exploitation tools
+        dump_lsass,
+        dump_sam,
+        dump_kerberos_tickets,
+        psexec_lateral_movement,
+        wmi_lateral_movement,
+        winrm_lateral_movement,
+        smb_lateral_movement,
     ],
     handoffs=[
         lazy_handoff(

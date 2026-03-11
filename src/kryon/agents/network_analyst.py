@@ -21,6 +21,7 @@ from kryon.tools.command_and_control.sshpass import (
     run_ssh_command_with_credentials,
 )
 from kryon.tools.network.capture_traffic import capture_remote_traffic, remote_capture_session
+from kryon.tools.reconnaissance.nmap import nmap
 from kryon.tools.web.search_web import (
     make_web_search_with_explanation,
 )
@@ -37,6 +38,8 @@ tools_list = [
     *AI_TOOLS,
     # Memory/learning
     *MEMORY_TOOLS,
+    # Reconnaissance
+    nmap,
     # Remote access
     run_ssh_command_with_credentials,
     # Network capture

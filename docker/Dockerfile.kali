@@ -41,6 +41,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # SMB/AD
     crackmapexec \
     smbclient \
+    evil-winrm \
+    ldap-utils \
+    libldap2-dev \
+    libsasl2-dev \
     # Network
     proxychains4 \
     openvpn \
@@ -95,7 +99,8 @@ COPY src/ ./src/
 # Create venv and install with all relevant extras
 RUN uv venv /opt/venv && \
     . /opt/venv/bin/activate && \
-    uv pip install --no-cache ".[rag,server,tracing,viz,tui,reporting,orchestration]"
+    uv pip install --no-cache ".[rag,server,tracing,viz,tui,reporting,orchestration]" && \
+    uv pip install --no-cache impacket bloodhound
 
 # ---------------------------------------------------------------------------
 # Stage 3: runtime — Kali tools + Python venv + Claude Code CLI
@@ -111,6 +116,11 @@ COPY --from=builder /usr/local/bin/python3.11 /usr/local/bin/python3.11
 COPY --from=builder /usr/local/lib/python3.11 /usr/local/lib/python3.11
 COPY --from=builder /usr/local/lib/libpython3.11.so* /usr/local/lib/
 RUN ln -sf /usr/local/bin/python3.11 /usr/local/bin/python3 && ldconfig
+
+# Verify critical AD binaries are available
+RUN /opt/venv/bin/python3.11 -c "import impacket; print(f'impacket {impacket.__version__}')" && \
+    which bloodhound-python || echo "WARNING: bloodhound-python not in PATH" && \
+    which evil-winrm || echo "WARNING: evil-winrm not in PATH"
 
 # Create non-root user for default operation
 RUN groupadd -r kryon && useradd -r -g kryon -m -s /bin/bash kryon
