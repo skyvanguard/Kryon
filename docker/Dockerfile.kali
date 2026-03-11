@@ -69,13 +69,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install nuclei (latest from ProjectDiscovery)
-RUN NUCLEI_URL=$(curl -s https://api.github.com/repos/projectdiscovery/nuclei/releases/latest \
+RUN NUCLEI_URL=$(curl -sL https://api.github.com/repos/projectdiscovery/nuclei/releases/latest \
         | jq -r '.assets[] | select(.name | test("linux_amd64.zip$")) | .browser_download_url') \
-    && curl -sSfL "$NUCLEI_URL" -o /tmp/nuclei.zip \
-    && unzip -o /tmp/nuclei.zip -d /usr/local/bin/ nuclei \
-    && chmod +x /usr/local/bin/nuclei \
-    && rm /tmp/nuclei.zip \
-    || echo "WARNING: nuclei install failed, skipping"
+    && if [ -n "$NUCLEI_URL" ] && [ "$NUCLEI_URL" != "null" ]; then \
+        curl -sSfL "$NUCLEI_URL" -o /tmp/nuclei.zip \
+        && unzip -o /tmp/nuclei.zip -d /usr/local/bin/ nuclei \
+        && chmod +x /usr/local/bin/nuclei \
+        && rm /tmp/nuclei.zip; \
+    else \
+        echo "WARNING: nuclei install failed (GitHub API), skipping"; \
+    fi
 
 # ---------------------------------------------------------------------------
 # Stage 2: builder — Python dependencies via uv
@@ -118,9 +121,12 @@ COPY --from=builder /usr/local/lib/libpython3.11.so* /usr/local/lib/
 RUN ln -sf /usr/local/bin/python3.11 /usr/local/bin/python3 && ldconfig
 
 # Verify critical AD binaries are available
-RUN /opt/venv/bin/python3.11 -c "import impacket; print(f'impacket {impacket.__version__}')" && \
-    which bloodhound-python || echo "WARNING: bloodhound-python not in PATH" && \
-    which evil-winrm || echo "WARNING: evil-winrm not in PATH"
+RUN /opt/venv/bin/python3.11 -c "import impacket; print('impacket OK')" && \
+    /opt/venv/bin/python3.11 -c "import bloodhound; print('bloodhound OK')" && \
+    test -f /opt/venv/bin/secretsdump.py && echo "secretsdump.py OK" && \
+    test -f /opt/venv/bin/GetUserSPNs.py && echo "GetUserSPNs.py OK" && \
+    test -f /opt/venv/bin/bloodhound-python && echo "bloodhound-python OK" && \
+    which evil-winrm && echo "evil-winrm OK"
 
 # Create non-root user for default operation
 RUN groupadd -r kryon && useradd -r -g kryon -m -s /bin/bash kryon

