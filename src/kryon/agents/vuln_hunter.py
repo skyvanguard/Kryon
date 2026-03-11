@@ -57,11 +57,6 @@ vuln_hunter = create_agent(
     tools=tools_list,
     handoffs=[
         lazy_handoff(
-            "exploit_validator",
-            "handoff_to_exploit_validator",
-            "Escalate to Exploit Validator to verify vulnerabilities via real exploitation — zero false positives",
-        ),
-        lazy_handoff(
             "pentest_agent",
             "handoff_to_pentest_agent",
             "Escalate to Pentest Agent for active exploitation and privilege escalation of confirmed vulnerabilities",

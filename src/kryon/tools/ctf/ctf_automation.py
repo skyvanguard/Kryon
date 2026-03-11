@@ -152,15 +152,15 @@ def auto_enumerate_target(
     if results["web_services"]:
         print(f"[*] Running gobuster on {len(results['web_services'])} web service(s)...")
 
-        if web_ports is None:
-            # Use discovered web ports
-            web_targets = results["web_services"]
-        else:
-            # Use specified ports
-            web_targets = []
+        # Always use discovered web services first (from nmap results)
+        web_targets = list(results["web_services"])
+        # Add any explicitly specified ports that aren't already covered
+        if web_ports:
+            discovered_ports = {int(url.split(":")[-1]) for url in web_targets}
             for port in web_ports:
-                protocol = "https" if port == 443 else "http"
-                web_targets.append(f"{protocol}://{ip}:{port}")
+                if port not in discovered_ports:
+                    protocol = "https" if port == 443 else "http"
+                    web_targets.append(f"{protocol}://{ip}:{port}")
 
         for url in web_targets:
             try:

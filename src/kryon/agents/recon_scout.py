@@ -62,11 +62,6 @@ recon_scout = create_agent(
     tools=tools,
     handoffs=[
         lazy_handoff(
-            "vuln_hunter",
-            "handoff_to_vuln_hunter",
-            "Escalate to Vuln Hunter for deep vulnerability analysis and custom exploit development when significant vulnerabilities are found",
-        ),
-        lazy_handoff(
             "pentest_agent",
             "handoff_to_pentest_agent",
             "Escalate to Pentest Agent for active exploitation, privilege escalation, and full penetration testing",
@@ -75,11 +70,6 @@ recon_scout = create_agent(
             "intel_reporter",
             "handoff_to_reporter",
             "Escalate to Intel Reporter to generate a professional security assessment report of reconnaissance findings",
-        ),
-        lazy_handoff(
-            "network_analyst",
-            "handoff_to_network_analyst",
-            "Escalate to Network Analyst for deep network traffic analysis, packet inspection, and network-layer reconnaissance",
         ),
     ],
     input_guardrails=input_guardrails,

@@ -61,6 +61,8 @@ services:
     cap_add:
       - NET_RAW
       - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
     networks:
       - kryon-mgmt
       - kryon-pentest

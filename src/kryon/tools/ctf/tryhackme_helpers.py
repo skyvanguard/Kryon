@@ -118,15 +118,13 @@ def check_thm_vpn(
             results["vpn_ip"] = ip_match.group(1)
             print(f"[+] Found VPN IP: {results['vpn_ip']}")
 
-            # Verify it's in THM network range
+            # VPN interface has an IP — mark as connected
+            results["connected"] = True
             if results["vpn_ip"].startswith(expected_network):
-                results["connected"] = True
                 print(f"[+] IP is in expected THM range: {expected_network}x.x")
             else:
-                print(f"[-] IP {results['vpn_ip']} is not in expected THM range {expected_network}x.x")
-                results["recommendations"].append(
-                    f"VPN IP {results['vpn_ip']} is not in THM range - verify correct VPN config"
-                )
+                # Different VPN server range — still connected, just note it
+                print(f"[+] VPN connected with IP {results['vpn_ip']} (note: not in {expected_network}x.x range, but VPN is active)")
 
     except Exception as e:
         results["error"] = f"Failed to check VPN interface: {str(e)}"
@@ -150,12 +148,15 @@ def check_thm_vpn(
                 timeout=10,
             )  # nosemgrep: subprocess-shell-true
 
-            if expected_network in route_output.stdout:
+            if route_output.stdout.strip():
                 results["can_reach_targets"] = True
-                print(f"[+] Routing configured for {expected_network}x.x network")
+                if expected_network in route_output.stdout:
+                    print(f"[+] Routing configured for {expected_network}x.x network")
+                else:
+                    print(f"[+] VPN routing active via {vpn_interface}")
             else:
-                print(f"[-] No route found for {expected_network}x.x")
-                results["recommendations"].append(f"No route to {expected_network}x.x - check VPN configuration")
+                print(f"[-] No routes found for {vpn_interface}")
+                results["recommendations"].append(f"No routes via {vpn_interface} - check VPN configuration")
 
         except Exception as e:
             results["connectivity_error"] = str(e)
