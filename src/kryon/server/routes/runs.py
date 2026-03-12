@@ -70,10 +70,13 @@ async def create_run(req: RunRequest):
 
         async def _run_streamed():
             from kryon.sdk.agents import Runner
+            from kryon.sdk.agents.run_config_factory import get_run_config
 
             try:
                 async with sm.semaphore:
-                    result = Runner.run_streamed(agent, input=input_items, max_turns=req.max_turns)
+                    result = Runner.run_streamed(
+                        agent, input=input_items, max_turns=req.max_turns, run_config=get_run_config()
+                    )
                     async for event in result.stream_events():
                         sse = stream_event_to_sse(event)
                         if sse:
@@ -102,10 +105,11 @@ async def create_run(req: RunRequest):
 
     # Synchronous (non-streaming) run
     from kryon.sdk.agents import Runner
+    from kryon.sdk.agents.run_config_factory import get_run_config
 
     try:
         async with sm.semaphore:
-            result = await Runner.run(agent, input=input_items, max_turns=req.max_turns)
+            result = await Runner.run(agent, input=input_items, max_turns=req.max_turns, run_config=get_run_config())
     except Exception:
         run_state.status = "failed"
         run_state.output = "Agent execution failed"

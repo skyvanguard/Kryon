@@ -136,6 +136,7 @@ async def _run_agent_phase(
 
     from kryon.agents import get_agent_by_name
     from kryon.sdk.agents import Runner
+    from kryon.sdk.agents.run_config_factory import get_run_config
 
     agent = get_agent_by_name(phase.agent_key)
     prior_context = _gather_prior_findings(engagement.id, store)
@@ -154,7 +155,7 @@ Perform thorough {phase.phase_type.value} and report all findings in detail."""
     if emit_event:
         emit_event("log", {"message": f"Running {phase.agent_key} for {phase.phase_type.value}..."})
 
-    await Runner.run(agent, input=prompt, max_turns=_DEFAULT_AGENT_MAX_TURNS)
+    await Runner.run(agent, input=prompt, max_turns=_DEFAULT_AGENT_MAX_TURNS, run_config=get_run_config())
 
     store.update_engagement_phase(phase.id, progress=1.0)
 

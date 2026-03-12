@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import re
 import subprocess
 import uuid
 from collections.abc import AsyncIterator
@@ -33,15 +35,51 @@ if TYPE_CHECKING:
     from ..handoffs import Handoff
     from ..model_settings import ModelSettings
 
+logger = logging.getLogger(__name__)
+
+_MAX_OUTPUT_CHARS = 10_000
+_RETRY_DELAYS = [2, 4]
+_AUTH_ERROR_PATTERNS = re.compile(r"auth|unauthorized|forbidden|api.key|token.expired", re.IGNORECASE)
+
 
 @dataclass
 class ClaudeCodeConfig:
     """Configuration for Claude Code CLI integration."""
 
-    model: str = "sonnet"  # sonnet, opus, haiku
+    model: str = "opus"  # opus, sonnet, haiku
     timeout: int = 300  # seconds
     max_budget_usd: float | None = None
     extra_args: list[str] | None = None
+
+
+def _find_matching_brace(text: str, start: int) -> int:
+    """Find the index of the closing brace that matches the opening brace at *start*.
+
+    Respects JSON string literals (skips content inside double quotes).
+    Returns -1 if no matching brace is found.
+    """
+    depth = 0
+    in_string = False
+    i = start
+    while i < len(text):
+        ch = text[i]
+        if in_string:
+            if ch == "\\" and i + 1 < len(text):
+                i += 2  # skip escaped char
+                continue
+            if ch == '"':
+                in_string = False
+        else:
+            if ch == '"':
+                in_string = True
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    return i
+        i += 1
+    return -1
 
 
 class ClaudeCodeModel(Model):
@@ -54,7 +92,7 @@ class ClaudeCodeModel(Model):
 
     def __init__(
         self,
-        model: str = "sonnet",
+        model: str = "opus",
         timeout: int = 300,
         max_budget_usd: float | None = None,
     ):
@@ -62,22 +100,43 @@ class ClaudeCodeModel(Model):
         self.timeout = timeout
         self.max_budget_usd = max_budget_usd
 
+        # CLI compatibility attributes — the REPL/CLI code accesses these
+        # on whatever model object the agent holds.
+        self.message_history: list[dict[str, Any]] = []
+        self.disable_rich_streaming: bool = True
+        self.suppress_final_output: bool = False
+        self._agent_name: str = ""
+
+    def add_to_message_history(self, message: dict[str, Any]) -> None:
+        """Append a message dict to the local history buffer."""
+        self.message_history.append(message)
+
+    def set_agent_name(self, name: str) -> None:
+        """Store the agent display name (used by CLI spinners)."""
+        self._agent_name = name
+
     def _format_messages_as_prompt(
         self,
         system_instructions: str | None,
         input: str | list[TResponseInputItem],
         tools: list[Tool],
     ) -> str:
-        """Convert KRYON message format to a prompt string for Claude Code CLI."""
-        parts = []
+        """Convert KRYON message format to a prompt string for Claude Code CLI.
 
-        # Add system instructions
+        Handles three types of items in the input list:
+        - role messages (user/assistant): ``<user>...</user>`` / ``<assistant>...</assistant>``
+        - function_call items: ``<assistant>I called tool ...</assistant>``
+        - function_call_output items: ``<tool_result call_id="...">output</tool_result>``
+        """
+        parts: list[str] = []
+
+        # System instructions
         if system_instructions:
             parts.append(f"<system>\n{system_instructions}\n</system>\n")
 
-        # Add tool descriptions if any
+        # Tool descriptions
         if tools:
-            tool_descriptions = []
+            tool_descriptions: list[str] = []
             for tool in tools:
                 if isinstance(tool, FunctionTool):
                     desc = f"- {tool.name}: {tool.description}"
@@ -95,53 +154,106 @@ class ClaudeCodeModel(Model):
                     "</tool_use_instructions>\n"
                 )
 
-        # Add conversation history
+        # Conversation history
         if isinstance(input, str):
             parts.append(f"<user>\n{input}\n</user>")
         else:
             for item in input:
-                if isinstance(item, dict):
-                    role = item.get("role", "user")
-                    content = item.get("content", "")
-                    if isinstance(content, list):
-                        # Handle multi-part content
-                        text_parts = []
-                        for part in content:
-                            if isinstance(part, dict) and part.get("type") == "input_text":
-                                text_parts.append(part.get("text", ""))
-                            elif isinstance(part, dict) and part.get("type") == "output_text":
-                                text_parts.append(part.get("text", ""))
-                        content = "\n".join(text_parts)
-                    parts.append(f"<{role}>\n{content}\n</{role}>")
+                if not isinstance(item, dict):
+                    continue
+
+                item_type = item.get("type", "")
+
+                # function_call → assistant called a tool
+                if item_type == "function_call":
+                    call_id = item.get("call_id", "?")
+                    name = item.get("name", "unknown")
+                    args = item.get("arguments", "")
+                    parts.append(
+                        f'<assistant>I called tool "{name}" (call_id: {call_id}) with arguments: {args}</assistant>'
+                    )
+                    continue
+
+                # function_call_output → tool result
+                if item_type == "function_call_output":
+                    call_id = item.get("call_id", "?")
+                    output = item.get("output", "")
+                    if len(output) > _MAX_OUTPUT_CHARS:
+                        output = output[:_MAX_OUTPUT_CHARS] + "\n...[truncated]"
+                    parts.append(f'<tool_result call_id="{call_id}">\n{output}\n</tool_result>')
+                    continue
+
+                # Regular role message
+                role = item.get("role", "user")
+                content = item.get("content", "")
+                if isinstance(content, list):
+                    text_parts: list[str] = []
+                    for part in content:
+                        if isinstance(part, dict) and part.get("type") in ("input_text", "output_text"):
+                            text_parts.append(part.get("text", ""))
+                    content = "\n".join(text_parts)
+                parts.append(f"<{role}>\n{content}\n</{role}>")
 
         return "\n".join(parts)
 
     def _parse_tool_calls(self, text: str) -> tuple[str, list[dict]]:
-        """
-        Parse tool calls from Claude's response.
-        Returns (cleaned_text, tool_calls).
-        """
-        tool_calls = []
-        # Look for JSON tool call patterns
-        import re
+        """Parse tool calls from Claude's response using balanced-brace matching.
 
-        pattern = r'\{"tool_call":\s*\{[^}]+\}\}'
+        Returns ``(cleaned_text, tool_calls)`` where *tool_calls* is a list of
+        dicts with ``name`` and ``arguments`` keys.  Supports arbitrarily nested
+        JSON arguments.
+        """
+        tool_calls: list[dict] = []
+        # Collect (start, end) spans of successfully parsed tool-call JSON
+        spans: list[tuple[int, int]] = []
 
-        matches = re.findall(pattern, text, re.DOTALL)
-        for match in matches:
+        marker = '"tool_call"'
+        search_from = 0
+        while True:
+            idx = text.find(marker, search_from)
+            if idx == -1:
+                break
+
+            # Backtrack to the opening '{' before the marker
+            brace_start = text.rfind("{", 0, idx)
+            if brace_start == -1:
+                search_from = idx + len(marker)
+                continue
+
+            brace_end = _find_matching_brace(text, brace_start)
+            if brace_end == -1:
+                search_from = idx + len(marker)
+                continue
+
+            candidate = text[brace_start : brace_end + 1]
             try:
-                parsed = json.loads(match)
+                parsed = json.loads(candidate)
                 if "tool_call" in parsed:
                     tool_calls.append(parsed["tool_call"])
+                    spans.append((brace_start, brace_end + 1))
             except json.JSONDecodeError:
                 pass
 
-        # Remove tool call JSON from text
-        cleaned_text = re.sub(pattern, "", text).strip()
+            search_from = brace_end + 1
+
+        # Remove parsed tool-call JSON spans from text (reverse order to keep indices valid)
+        cleaned = list(text)
+        for start, end in reversed(spans):
+            del cleaned[start:end]
+        cleaned_text = "".join(cleaned).strip()
+
         return cleaned_text, tool_calls
 
-    async def _run_claude_cli(self, prompt: str) -> dict[str, Any]:
-        """Execute Claude Code CLI and return the response."""
+    async def _run_claude_cli(
+        self,
+        prompt: str,
+        model_settings: ModelSettings | None = None,
+    ) -> dict[str, Any]:
+        """Execute Claude Code CLI and return the response.
+
+        Includes retry logic (2 retries with exponential backoff).
+        Authentication errors are not retried.
+        """
         cmd = [
             "claude",
             "-p",
@@ -154,10 +266,41 @@ class ClaudeCodeModel(Model):
         if self.max_budget_usd:
             cmd.extend(["--max-budget-usd", str(self.max_budget_usd)])
 
-        # Run in subprocess
-        loop = asyncio.get_event_loop()
+        # Forward model_settings to CLI flags
+        if model_settings and getattr(model_settings, "max_tokens", None):
+            cmd.extend(["--max-tokens", str(model_settings.max_tokens)])
 
-        def run_subprocess():
+        last_error: Exception | None = None
+        attempts = 1 + len(_RETRY_DELAYS)
+
+        for attempt in range(attempts):
+            try:
+                return await self._exec_subprocess(cmd, prompt)
+            except RuntimeError as exc:
+                last_error = exc
+                err_msg = str(exc)
+                # Don't retry auth errors
+                if _AUTH_ERROR_PATTERNS.search(err_msg):
+                    logger.error("Claude CLI auth error (no retry): %s", err_msg)
+                    raise
+                if attempt < len(_RETRY_DELAYS):
+                    delay = _RETRY_DELAYS[attempt]
+                    logger.warning(
+                        "Claude CLI attempt %d/%d failed, retrying in %ds: %s",
+                        attempt + 1,
+                        attempts,
+                        delay,
+                        err_msg,
+                    )
+                    await asyncio.sleep(delay)
+
+        raise last_error  # type: ignore[misc]
+
+    async def _exec_subprocess(self, cmd: list[str], prompt: str) -> dict[str, Any]:
+        """Run the claude CLI subprocess and parse its output."""
+        loop = asyncio.get_running_loop()
+
+        def run_subprocess() -> tuple[str, str, int]:
             try:
                 result = subprocess.run(
                     cmd,
@@ -180,10 +323,8 @@ class ClaudeCodeModel(Model):
 
         # Parse JSON response
         try:
-            response = json.loads(stdout)
-            return response
+            return json.loads(stdout)
         except json.JSONDecodeError:
-            # If not valid JSON, treat as plain text response
             return {"result": stdout, "is_error": False}
 
     async def get_response(
@@ -199,23 +340,26 @@ class ClaudeCodeModel(Model):
         """Get a response from Claude Code CLI."""
         prompt = self._format_messages_as_prompt(system_instructions, input, tools)
 
-        response_data = await self._run_claude_cli(prompt)
+        response_data = await self._run_claude_cli(prompt, model_settings)
 
-        # Extract text content from response
+        # Extract text content
         if isinstance(response_data, dict):
             text = response_data.get("result", response_data.get("content", str(response_data)))
         else:
             text = str(response_data)
 
-        # Print the response (KRYON CLI expects the model to print its output)
-        if text:
-            from rich.console import Console
-            from rich.markdown import Markdown
-            from rich.panel import Panel
+        # Extract metadata from CLI response
+        cost_usd = response_data.get("cost_usd") if isinstance(response_data, dict) else None
+        duration_ms = response_data.get("duration_ms") if isinstance(response_data, dict) else None
+        session_id = response_data.get("session_id") if isinstance(response_data, dict) else None
 
-            console = Console()
-            md = Markdown(text)
-            console.print(Panel(md, title="🤖 Claude", border_style="cyan"))
+        if cost_usd is not None or duration_ms is not None:
+            logger.info(
+                "Claude CLI response: cost=$%.4f duration=%dms session=%s",
+                cost_usd or 0,
+                duration_ms or 0,
+                session_id or "n/a",
+            )
 
         # Parse any tool calls
         cleaned_text, tool_calls = self._parse_tool_calls(text)
@@ -223,19 +367,18 @@ class ClaudeCodeModel(Model):
         # Build output items
         output: list[TResponseOutputItem] = []
 
-        # Add tool calls if any
-        for _i, tc in enumerate(tool_calls):
+        for tc in tool_calls:
+            call_id = f"call_{uuid.uuid4().hex[:8]}"
             output.append(
                 ResponseFunctionToolCall(
                     type="function_call",
-                    id=f"call_{uuid.uuid4().hex[:8]}",
-                    call_id=f"call_{uuid.uuid4().hex[:8]}",
+                    id=call_id,
+                    call_id=call_id,
                     name=tc.get("name", ""),
                     arguments=json.dumps(tc.get("arguments", {})),
                 )
             )
 
-        # Add text message if there's content
         if cleaned_text:
             output.append(
                 ResponseOutputMessage(
@@ -247,10 +390,17 @@ class ClaudeCodeModel(Model):
                 )
             )
 
+        # Build usage from metadata
+        usage = Usage(
+            requests=1,
+            input_tokens=int(duration_ms / 10) if duration_ms else 0,  # rough estimate
+            output_tokens=len(cleaned_text.split()) if cleaned_text else 0,
+        )
+
         return ModelResponse(
             output=output,
-            usage=Usage(),  # Claude Code CLI doesn't expose token counts easily
-            referenceable_id=None,
+            usage=usage,
+            referenceable_id=session_id,
         )
 
     async def stream_response(
@@ -264,8 +414,6 @@ class ClaudeCodeModel(Model):
         tracing: ModelTracing,
     ) -> AsyncIterator[TResponseStreamEvent]:
         """Stream response from Claude Code CLI."""
-        # For now, we don't support true streaming - we get the full response
-        # and emit it as a completed event
         response = await self.get_response(
             system_instructions,
             input,
@@ -307,7 +455,7 @@ class ClaudeCodeProvider(ModelProvider):
 
     def __init__(
         self,
-        default_model: str = "sonnet",
+        default_model: str = "opus",
         timeout: int = 300,
         max_budget_usd: float | None = None,
     ):

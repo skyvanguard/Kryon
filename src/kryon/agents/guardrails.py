@@ -381,7 +381,11 @@ async def prompt_injection_guardrail(
                 # This is likely internal system communication, not an injection
                 pass
             else:
-                result = await Runner.run(_get_injection_detector_agent(), input_text, context=ctx.context)
+                from kryon.sdk.agents.run_config_factory import get_run_config
+
+                result = await Runner.run(
+                    _get_injection_detector_agent(), input_text, context=ctx.context, run_config=get_run_config()
+                )
 
                 # High threshold to reduce false positives
                 if result.final_output.contains_injection and result.final_output.confidence > 0.9:

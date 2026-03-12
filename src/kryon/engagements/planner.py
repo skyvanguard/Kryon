@@ -46,6 +46,7 @@ async def _generate_llm_plan(engagement: Engagement, rate_limiter) -> dict | Non
 
     from kryon.agents import get_agent_by_name
     from kryon.sdk.agents import Runner
+    from kryon.sdk.agents.run_config_factory import get_run_config
 
     agent = get_agent_by_name("mission_analyst")
 
@@ -81,7 +82,7 @@ Output ONLY a JSON object with this exact structure (no markdown, no explanation
     "rationale": "brief explanation"
 }}"""
 
-    result = await Runner.run(agent, input=prompt, max_turns=2)
+    result = await Runner.run(agent, input=prompt, max_turns=2, run_config=get_run_config())
     return _parse_plan_json(result.final_output)
 
 

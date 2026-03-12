@@ -337,21 +337,15 @@ from kryon.util import (
 
 
 def get_run_config() -> RunConfig | None:
-    """
-    Get the appropriate RunConfig based on environment settings.
+    """Get the appropriate RunConfig based on environment settings.
 
-    Returns RunConfig with ClaudeCodeProvider if KRYON_CLAUDE_CODE is set,
-    otherwise returns None (uses default OpenAI provider).
+    Delegates to the centralised factory so that non-CLI code (server routes,
+    engagements, guardrails) can also obtain the correct config without
+    importing from the CLI package.
     """
-    if os.getenv("KRYON_CLAUDE_CODE", "").lower() == "true":
-        from kryon.sdk.agents.models.claude_code_provider import ClaudeCodeModel, ClaudeCodeProvider
+    from kryon.sdk.agents.run_config_factory import get_run_config as _factory
 
-        model_name = os.getenv("KRYON_CLAUDE_MODEL", "sonnet")
-        provider = ClaudeCodeProvider(default_model=model_name, timeout=300)
-        # Pass the model directly to force using ClaudeCodeModel instead of agent's model
-        model_instance = ClaudeCodeModel(model=model_name, timeout=300)
-        return RunConfig(model=model_instance, model_provider=provider)
-    return None
+    return _factory()
 
 
 ctf_global = None
@@ -1976,9 +1970,9 @@ def main():
     )
     parser.add_argument(
         "--claude-model",
-        default="sonnet",
+        default="opus",
         choices=["sonnet", "opus", "haiku"],
-        help="Claude model to use (default: sonnet)",
+        help="Claude model to use (default: opus)",
     )
     parser.add_argument(
         "--claude-code",
@@ -2182,9 +2176,11 @@ def main():
     if args.use_api:
         os.environ["KRYON_CLAUDE_CODE"] = "true"
         os.environ["KRYON_CLAUDE_MODEL"] = args.claude_model
+        model_display = {"opus": "Opus 4.6", "sonnet": "Sonnet 4.6", "haiku": "Haiku 4.5"}
+        display_name = model_display.get(args.claude_model, args.claude_model)
         print(
             color(
-                f"Using Claude Code CLI as backend (model: {args.claude_model})",
+                f"Using Claude Code CLI as backend (model: {display_name})",
                 fg="cyan",
             )
         )
@@ -2219,8 +2215,10 @@ def main():
             agent.model.suppress_final_output = False  # Changed to False to show all agent messages
 
     # Ensure the agent and all its handoff agents use the current model
-    current_model = os.getenv("KRYON_MODEL", "gpt-4o")
-    update_agent_models_recursively(agent, current_model)
+    # Skip when using Claude Code CLI — RunConfig handles the model via ClaudeCodeProvider
+    if not os.getenv("KRYON_CLAUDE_CODE", "").lower() == "true":
+        current_model = os.getenv("KRYON_MODEL", "gpt-4o")
+        update_agent_models_recursively(agent, current_model)
 
     # Run the CLI with the selected agent and optional initial prompt
     run_kryon_cli(agent, initial_prompt=initial_prompt)

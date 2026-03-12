@@ -249,7 +249,15 @@ def get_agent_by_name(
         try:
             # Create a new model instance
             model_class = agent.model.__class__
-            if model_class.__name__ == "OpenAIChatCompletionsModel":
+            new_model = None
+            if model_class.__name__ == "ClaudeCodeModel":
+                # Clone with a fresh ClaudeCodeModel instance
+                new_model = model_class(
+                    model=model_override if model_override else agent.model.model,
+                    timeout=getattr(agent.model, "timeout", 300),
+                    max_budget_usd=getattr(agent.model, "max_budget_usd", None),
+                )
+            elif model_class.__name__ == "OpenAIChatCompletionsModel":
                 # Use custom name if provided, otherwise use agent's name
                 instance_name = custom_name if custom_name else agent.name
                 # Determine which model to use
@@ -262,6 +270,8 @@ def get_agent_by_name(
                     agent_id=agent_id,
                     agent_type=agent_name_lower,
                 )
+
+            if new_model is not None:
                 # Clone the agent with the new model
                 cloned_agent = agent.clone(model=new_model)
                 # Update the agent's name if custom name provided
