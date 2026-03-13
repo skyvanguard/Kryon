@@ -66,6 +66,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     dnsutils \
     tini \
+    # Node.js for Claude Code CLI
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
 # Install nuclei (latest from ProjectDiscovery)
@@ -135,11 +138,11 @@ RUN groupadd -r kryon && useradd -r -g kryon -m -s /bin/bash kryon
 RUN mkdir -p /workspace /logs /reports /home/kryon/.kryon /home/kryon/.config/chromadb && \
     chown -R kryon:kryon /workspace /logs /reports /home/kryon
 
-# Install Node.js + Claude Code CLI (optional — for hybrid delegation)
-RUN curl -fsSL https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz \
-    | tar -xJ --strip-components=1 -C /usr/local/ && \
-    npm install -g @anthropic-ai/claude-code \
-    || echo "WARNING: Node.js/Claude Code CLI install failed, skipping (not required for core functionality)"
+# Install Claude Code CLI (Node.js already available from base stage apt)
+RUN npm install -g @anthropic-ai/claude-code \
+    && claude --version \
+    && echo "Claude Code CLI installed OK" \
+    || echo "WARNING: Claude Code CLI install failed — claude --claude-code mode will not work"
 
 # Set environment
 ENV PATH="/opt/venv/bin:/home/kryon/.local/bin:$PATH" \

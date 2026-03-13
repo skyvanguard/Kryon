@@ -42,12 +42,18 @@ services:
       - KRYON_GUARDRAILS=${KRYON_GUARDRAILS:-true}
       - KRYON_MAX_TURNS=${KRYON_MAX_TURNS:-50}
       - KRYON_STREAM=${KRYON_STREAM:-false}
+      # Claude Code CLI backend (set KRYON_CLAUDE_CODE=true to use Opus 4.6)
+      - KRYON_CLAUDE_CODE=${KRYON_CLAUDE_CODE:-false}
+      - KRYON_CLAUDE_MODEL=${KRYON_CLAUDE_MODEL:-opus}
     volumes:
       - kryon-workspace:/workspace
       - kryon-logs:/logs
       - kryon-config:/home/kryon/.kryon
       - kryon-knowledge:/home/kryon/.config/chromadb
       - kryon-reports:/reports
+      # Mount host Claude auth for CLI backend
+      - ${HOME}/.claude:/home/kryon/.claude
+      - ${HOME}/.claude.json:/home/kryon/.claude.json
     deploy:
       resources:
         limits:
