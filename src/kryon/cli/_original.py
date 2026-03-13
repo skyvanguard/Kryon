@@ -1462,11 +1462,15 @@ def run_kryon_cli(
                         agent.model.add_to_message_history({"role": "assistant", "content": f"{result.final_output}"})
             else:
                 # Enable streaming by default for live tool output
-                kryon_stream = os.getenv("KRYON_STREAM", "true")
-                # Handle empty string or None values
-                if not kryon_stream or kryon_stream.strip() == "":
-                    kryon_stream = "true"
-                stream = kryon_stream.lower() == "true"
+                # Claude Code CLI doesn't support streaming — force non-streamed
+                if os.getenv("KRYON_CLAUDE_CODE", "").lower() == "true":
+                    stream = False
+                else:
+                    kryon_stream = os.getenv("KRYON_STREAM", "true")
+                    # Handle empty string or None values
+                    if not kryon_stream or kryon_stream.strip() == "":
+                        kryon_stream = "true"
+                    stream = kryon_stream.lower() == "true"
 
                 # Single agent execution (original behavior)
                 if stream:
@@ -1709,6 +1713,14 @@ def run_kryon_cli(
 
                         # Continue the conversation loop instead of crashing
                         continue
+
+                    # In Claude Code mode, print the final output (no streaming to display it)
+                    if os.getenv("KRYON_CLAUDE_CODE", "").lower() == "true" and response.final_output:
+                        from rich.markdown import Markdown
+
+                        console.print()
+                        console.print(Markdown(str(response.final_output)))
+                        console.print()
 
                     # En modo no-streaming, procesamos SOLO los tool outputs de response.new_items
                     # Los tool calls (assistant messages) ya se añaden correctamente en openai_chatcompletions.py
@@ -2176,6 +2188,8 @@ def main():
     if args.use_api:
         os.environ["KRYON_CLAUDE_CODE"] = "true"
         os.environ["KRYON_CLAUDE_MODEL"] = args.claude_model
+        # Claude Code CLI doesn't support true streaming — force non-streamed mode
+        os.environ["KRYON_STREAM"] = "false"
         model_display = {"opus": "Opus 4.6", "sonnet": "Sonnet 4.6", "haiku": "Haiku 4.5"}
         display_name = model_display.get(args.claude_model, args.claude_model)
         print(
