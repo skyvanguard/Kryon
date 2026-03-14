@@ -42,6 +42,8 @@ services:
       - KRYON_GUARDRAILS=${KRYON_GUARDRAILS:-true}
       - KRYON_MAX_TURNS=${KRYON_MAX_TURNS:-50}
       - KRYON_STREAM=${KRYON_STREAM:-false}
+      # Knowledge auto-updater (seeds NVD, ExploitDB, GitHub daily)
+      - KRYON_AUTO_UPDATE=${KRYON_AUTO_UPDATE:-true}
       # Claude Code CLI backend (set KRYON_CLAUDE_CODE=true to use Opus 4.6)
       - KRYON_CLAUDE_CODE=${KRYON_CLAUDE_CODE:-false}
       - KRYON_CLAUDE_MODEL=${KRYON_CLAUDE_MODEL:-opus}

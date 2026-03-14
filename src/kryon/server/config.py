@@ -1,6 +1,7 @@
 """Server configuration."""
 
 import logging
+import os
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
@@ -30,11 +31,18 @@ class ServerConfig:
     https_enabled: bool = False
 
     # Knowledge auto-updater
-    auto_update_enabled: bool = False
+    auto_update_enabled: bool = True
     auto_update_interval_hours: int = 24
     auto_update_sources: list[str] = field(default_factory=list)
 
     def __post_init__(self):
+        # Allow env var override for auto-updater
+        env_auto_update = os.getenv("KRYON_AUTO_UPDATE", "").lower()
+        if env_auto_update in ("false", "0", "no"):
+            self.auto_update_enabled = False
+        elif env_auto_update in ("true", "1", "yes"):
+            self.auto_update_enabled = True
+
         if self.auth_enabled and not self.jwt_secret:
             raise ValueError(
                 "auth_enabled=True but jwt_secret is empty. Set KRYON_JWT_SECRET or run the setup wizard: kryon --setup"

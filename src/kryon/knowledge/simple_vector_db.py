@@ -10,6 +10,7 @@ Classification: RESTRICTED
 """
 
 import json
+import logging
 import pickle
 import sys
 import time
@@ -66,16 +67,35 @@ class SimpleVectorDatabase:
         self._embedding_model = None
 
     def _load(self):
-        """Load database from disk."""
+        """Load database from disk.  Corrupted files are removed and re-created."""
         if self.metadata_file.exists():
-            with open(self.metadata_file, encoding="utf-8") as f:
-                data = json.load(f)
-                self.documents = data.get("documents", {})
-                self.metadatas = data.get("metadatas", {})
+            try:
+                with open(self.metadata_file, encoding="utf-8") as f:
+                    data = json.load(f)
+                    self.documents = data.get("documents", {})
+                    self.metadatas = data.get("metadatas", {})
+            except (json.JSONDecodeError, ValueError):
+                logging.getLogger(__name__).warning(
+                    "Corrupted metadata.json — resetting vector DB: %s",
+                    self.metadata_file,
+                )
+                self.metadata_file.unlink(missing_ok=True)
+                self.vectors_file.unlink(missing_ok=True)
+                self.documents = {}
+                self.metadatas = {}
+                return
 
         if self.vectors_file.exists():
-            with open(self.vectors_file, "rb") as f:
-                self.vectors = pickle.load(f)  # nosec B301 # nosemgrep: avoid-pickle
+            try:
+                with open(self.vectors_file, "rb") as f:
+                    self.vectors = pickle.load(f)  # nosec B301 # nosemgrep: avoid-pickle  # noqa: S301
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "Corrupted vectors.pkl — resetting: %s",
+                    self.vectors_file,
+                )
+                self.vectors_file.unlink(missing_ok=True)
+                self.vectors = {}
 
     def _save(self):
         """Save database to disk."""

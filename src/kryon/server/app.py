@@ -93,6 +93,19 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
                 logger.info("Restored %d scheduled scan jobs", restored)
         except Exception:
             logger.warning("Failed to restore scheduled jobs", exc_info=True)
+        # Seed knowledge base on first run (fast no-op if already populated)
+        try:
+            from kryon.knowledge import get_knowledge_stats, seed_knowledge_base
+
+            stats = get_knowledge_stats()
+            if stats.get("total_documents", 0) == 0:
+                logger.info("Seeding knowledge base with static data...")
+                result = seed_knowledge_base()
+                logger.info("Knowledge base seeded: %d items loaded", result["added"])
+            else:
+                logger.info("Knowledge base: %d documents available", stats["total_documents"])
+        except Exception:
+            logger.warning("Failed to seed knowledge base", exc_info=True)
         # Start knowledge auto-updater if enabled
         if config.auto_update_enabled:
             try:

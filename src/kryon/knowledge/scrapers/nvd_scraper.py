@@ -66,48 +66,56 @@ class NVDScraper(BaseScraper):
 
         try:
             response = requests.get(self.api_url, params=params, timeout=60)
-
-            if response.status_code == 200:
-                data = response.json()
-                vulnerabilities = data.get("vulnerabilities", [])
-
-                cves = []
-                for vuln in vulnerabilities[:max_results]:
-                    cve_item = vuln.get("cve", {})
-
-                    # Filter by keywords if provided
-                    if keywords:
-                        desc = self._get_description(cve_item)
-                        if not any(kw.lower() in desc.lower() for kw in keywords):
-                            continue
-
-                    # Filter by severity
-                    severity = self._get_severity(cve_item)
-                    if not self._meets_severity_threshold(severity, severity_min):
-                        continue
-
-                    # Filter by CVSS score
-                    score = self._get_cvss_score(cve_item)
-                    if cvss_min > 0 and score < cvss_min:
-                        continue
-
-                    content = self._format_cve(cve_item)
-                    metadata = self._extract_metadata(cve_item)
-
-                    cves.append({"content": content, "metadata": metadata})
-
-                self.scraped_count = len(cves)
-                return cves
-
-            else:
-                self.log_error(f"NVD API error: HTTP {response.status_code}")
-                return []
-
+            response.raise_for_status()
+            data = response.json()
+        except requests.ConnectionError:
+            self.log_error("NVD API unreachable (DNS or network error)")
+            return []
         except requests.Timeout:
-            self.log_error("NVD API timeout")
+            self.log_error("NVD API timeout (60s)")
+            return []
+        except requests.HTTPError as e:
+            self.log_error(f"NVD API HTTP error: {e.response.status_code if e.response else e}")
+            return []
+        except ValueError:
+            self.log_error("NVD API returned invalid JSON")
             return []
         except Exception as e:
-            self.log_error(f"NVD scraping error: {str(e)}")
+            self.log_error(f"NVD scraping error: {e}")
+            return []
+
+        try:
+            vulnerabilities = data.get("vulnerabilities", [])
+
+            cves = []
+            for vuln in vulnerabilities[:max_results]:
+                cve_item = vuln.get("cve", {})
+
+                # Filter by keywords if provided
+                if keywords:
+                    desc = self._get_description(cve_item)
+                    if not any(kw.lower() in desc.lower() for kw in keywords):
+                        continue
+
+                # Filter by severity
+                severity = self._get_severity(cve_item)
+                if not self._meets_severity_threshold(severity, severity_min):
+                    continue
+
+                # Filter by CVSS score
+                score = self._get_cvss_score(cve_item)
+                if cvss_min > 0 and score < cvss_min:
+                    continue
+
+                content = self._format_cve(cve_item)
+                metadata = self._extract_metadata(cve_item)
+
+                cves.append({"content": content, "metadata": metadata})
+
+            self.scraped_count = len(cves)
+            return cves
+        except Exception as e:
+            self.log_error(f"NVD parsing error: {e}")
             return []
 
     def _get_description(self, cve_item: dict) -> str:

@@ -2234,6 +2234,20 @@ def main():
         current_model = os.getenv("KRYON_MODEL", "gpt-4o")
         update_agent_models_recursively(agent, current_model)
 
+    # Seed knowledge base on first run (fast no-op if already populated)
+    try:
+        from kryon.knowledge import get_knowledge_stats, seed_knowledge_base
+
+        stats = get_knowledge_stats()
+        if stats.get("total_documents", 0) == 0:
+            print(color("Seeding knowledge base with CVEs, OWASP, MITRE ATT&CK...", fg="yellow"))
+            result = seed_knowledge_base()
+            print(color(f"Knowledge base ready: {result['added']} items loaded", fg="green"))
+        else:
+            print(color(f"Knowledge base: {stats['total_documents']} documents available", fg="green"))
+    except Exception as e:
+        print(color(f"Warning: Could not seed knowledge base: {e}", fg="yellow"))
+
     # Run the CLI with the selected agent and optional initial prompt
     run_kryon_cli(agent, initial_prompt=initial_prompt)
 
