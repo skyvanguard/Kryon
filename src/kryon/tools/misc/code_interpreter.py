@@ -20,7 +20,6 @@ _SAFE_BUILTINS = {
     "tuple": tuple,
     "set": set,
     "bool": bool,
-    "type": type,
     "enumerate": enumerate,
     "zip": zip,
     "map": map,

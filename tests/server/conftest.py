@@ -1,5 +1,7 @@
 """Fixtures for server tests."""
 
+import os
+
 import pytest
 
 from kryon.server import ServerConfig, create_app
@@ -14,6 +16,12 @@ def _reset_deps_store():
     deps_mod._store = None
     yield
     deps_mod._store = old
+
+
+@pytest.fixture(autouse=True)
+def _allow_unauthenticated(monkeypatch):
+    """Allow unauthenticated access in tests (simulates dev mode)."""
+    monkeypatch.setenv("KRYON_ALLOW_UNAUTHENTICATED", "true")
 
 
 @pytest.fixture

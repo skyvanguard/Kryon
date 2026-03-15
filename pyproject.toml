@@ -197,7 +197,6 @@ select = [
 ignore = [
     "UP007",  # Use X | Y for type unions (requires Python 3.10+ runtime)
     "UP035",  # Import from collections.abc (compatibility with older code)
-    "UP045",  # Use X | None instead of Optional[X] (requires Python 3.10+ runtime)
     "B905",   # zip() without strict= (added in Python 3.10)
 ]
 isort = { combine-as-imports = true, known-first-party = ["agents"] }

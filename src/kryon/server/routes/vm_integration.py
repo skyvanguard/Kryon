@@ -68,13 +68,17 @@ class ImportFileRequest(BaseModel):
     @classmethod
     def validate_file_path(cls, v: str) -> str:
         """Reject path traversal and validate file extension."""
-        if ".." in v:
-            raise ValueError("Path traversal not allowed")
         from pathlib import Path
 
         resolved = Path(v).resolve()
+        # Restrict to /workspace or /tmp (container import dirs)
+        allowed_prefixes = (Path("/workspace").resolve(), Path("/tmp").resolve())
+        if not any(str(resolved).startswith(str(p)) for p in allowed_prefixes):
+            raise ValueError("File must be within /workspace or /tmp directory")
         if resolved.suffix not in (".xml", ".jsonl"):
             raise ValueError("Only .xml and .jsonl files are supported")
+        if not resolved.is_file():
+            raise ValueError("File does not exist")
         return str(resolved)
 
 

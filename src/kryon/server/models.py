@@ -2,9 +2,21 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
+
+
+def _sanitize_html(value: str) -> str:
+    """Strip HTML/script tags from user input to prevent stored XSS."""
+    if not value:
+        return value
+    # Remove script tags and their content
+    value = re.sub(r"<script[^>]*>.*?</script>", "", value, flags=re.IGNORECASE | re.DOTALL)
+    # Remove all HTML tags
+    value = re.sub(r"<[^>]+>", "", value)
+    return value.strip()
 
 # --- Requests ---
 
@@ -167,6 +179,11 @@ class CreateEngagementRequest(BaseModel):
     stealth_level: str = Field("normal", max_length=20, description="Stealth level: low, normal, high")
     phase_interval_minutes: int = Field(30, ge=0, le=1440, description="Wait time between phases in minutes")
 
+    @field_validator("client_name", mode="before")
+    @classmethod
+    def sanitize_html(cls, v: str) -> str:
+        return _sanitize_html(v) if isinstance(v, str) else v
+
     @field_validator("targets")
     @classmethod
     def validate_target_items(cls, v: list[str]) -> list[str]:
@@ -196,6 +213,11 @@ class ClientCreate(BaseModel):
     notes: str = Field("", max_length=10000)
     tags: list[str] = Field(default=[], max_length=50)
 
+    @field_validator("name", "contact", "notes", mode="before")
+    @classmethod
+    def sanitize_html(cls, v: str) -> str:
+        return _sanitize_html(v) if isinstance(v, str) else v
+
 
 class ClientUpdate(BaseModel):
     name: str | None = None
@@ -203,6 +225,11 @@ class ClientUpdate(BaseModel):
     contact: str | None = None
     notes: str | None = None
     tags: list[str] | None = None
+
+    @field_validator("name", "contact", "notes", mode="before")
+    @classmethod
+    def sanitize_html(cls, v: str | None) -> str | None:
+        return _sanitize_html(v) if isinstance(v, str) else v
 
 
 # --- Scheduled Scans ---
@@ -238,6 +265,11 @@ class KnowledgeAddRequest(BaseModel):
     content: str = Field(..., max_length=500_000)
     source: str = Field(..., min_length=1, max_length=500)
     metadata: dict | None = None
+
+    @field_validator("source", mode="before")
+    @classmethod
+    def sanitize_html(cls, v: str) -> str:
+        return _sanitize_html(v) if isinstance(v, str) else v
 
 
 class KnowledgeAddResponse(BaseModel):

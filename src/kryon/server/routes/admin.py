@@ -104,9 +104,11 @@ async def rotate_backups(req: RotateRequest, _user=Depends(require_permission("a
 async def export_table(
     table: str,
     client_id: str = Query("", description="Filter by client_id"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
+    limit: int = Query(10000, ge=1, le=10000, description="Max rows to export (max 10000)"),
     _user=Depends(require_permission("admin:read")),
 ):
-    """Export a table as JSON. Only whitelisted tables allowed."""
+    """Export a table as JSON. Only whitelisted tables allowed. Max 10000 rows per request."""
     if table not in _EXPORTABLE_TABLES:
         raise HTTPException(status_code=400, detail=f"Table not exportable. Allowed: {sorted(_EXPORTABLE_TABLES)}")
     store = get_store()
@@ -115,13 +117,13 @@ async def export_table(
     assert table in _EXPORTABLE_TABLES, f"Table {table!r} not in allowlist"  # nosec
     try:
         if client_id:
-            rows = conn.execute(f"SELECT * FROM {table} WHERE client_id = ?", (client_id,)).fetchall()
+            rows = conn.execute(f"SELECT * FROM {table} WHERE client_id = ? LIMIT ? OFFSET ?", (client_id, limit, offset)).fetchall()
         else:
-            rows = conn.execute(f"SELECT * FROM {table}").fetchall()
+            rows = conn.execute(f"SELECT * FROM {table} LIMIT ? OFFSET ?", (limit, offset)).fetchall()
     except Exception:
         logger.debug("Table %s may not have client_id column, retrying without filter", table)
-        rows = conn.execute(f"SELECT * FROM {table}").fetchall()
-    logger.info("Exported table %s (%d rows)", table, len(rows))
+        rows = conn.execute(f"SELECT * FROM {table} LIMIT ? OFFSET ?", (limit, offset)).fetchall()
+    logger.info("Exported table %s (%d rows, offset=%d)", table, len(rows), offset)
     return [dict(r) for r in rows]
 
 

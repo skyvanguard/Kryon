@@ -136,18 +136,26 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
         except Exception:
             logger.warning("Error during shutdown cleanup", exc_info=True)
 
+    # Disable OpenAPI/Swagger/Redoc in production (only available in debug mode)
+    docs_url = "/docs" if config.debug else None
+    redoc_url = "/redoc" if config.debug else None
+    openapi_url = "/openapi.json" if config.debug else None
+
     app = FastAPI(
         title="KRYON API",
         description="Autonomous Cybersecurity Intelligence Platform API",
         version="1.0.0",
         lifespan=lifespan,
+        docs_url=docs_url,
+        redoc_url=redoc_url,
+        openapi_url=openapi_url,
         contact={
             "name": "KRYON Security",
             "url": "https://github.com/skyvanguard/Kryon",
         },
         license_info={
-            "name": "MIT",
-            "url": "https://opensource.org/licenses/MIT",
+            "name": "Proprietary",
+            "url": "https://github.com/skyvanguard/Kryon/blob/main/LICENSE",
         },
         openapi_tags=[
             {"name": "health", "description": "Health checks and system status"},

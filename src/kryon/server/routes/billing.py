@@ -85,8 +85,9 @@ async def get_limits(tenant_id: str = "") -> dict:
     return {"tenant_id": tenant_id, "tier": tier, "limits": result}
 
 
-@router.post("/billing/webhooks/stripe")
+@router.post("/billing/webhooks/stripe", status_code=501)
 async def stripe_webhook() -> dict:
-    """Stripe webhook receiver (future-ready stub)."""
-    logger.info("Stripe webhook received")
-    return {"received": True, "status": "not_implemented"}
+    """Stripe webhook receiver — not implemented."""
+    from fastapi import HTTPException
+
+    raise HTTPException(status_code=501, detail="Stripe webhooks not implemented")

@@ -36,7 +36,7 @@ class QueryCache:
     def _generate_key(self, query: str, top_k: int, source_filter: Optional[str]) -> str:
         """Generate cache key from query parameters."""
         key_str = f"{query}_{top_k}_{source_filter or 'all'}"
-        return hashlib.md5(key_str.encode()).hexdigest()  # nosemgrep: insecure-hash-algorithm-md5
+        return hashlib.sha256(key_str.encode()).hexdigest()
 
     def get(self, query: str, top_k: int = 5, source_filter: Optional[str] = None) -> Optional[dict[str, Any]]:
         """

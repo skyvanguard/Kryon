@@ -80,7 +80,6 @@ async def health_check() -> HealthResponse:
 async def readiness_check() -> ReadinessResponse:
     """Readiness check — validates database, RAG, and AI provider subsystems."""
     checks: dict[str, ReadinessCheck] = {}
-    uptime = time.monotonic() - _startup_time
 
     # Database check
     try:
@@ -131,6 +130,5 @@ async def readiness_check() -> ReadinessResponse:
     return ReadinessResponse(
         status=overall,
         version=__version__,
-        uptime_seconds=round(uptime, 1),
         checks=sanitized_checks,
     )

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from fastapi import Depends, HTTPException
 
 from kryon.server.auth.deps import get_current_user
@@ -49,11 +51,21 @@ def _has_permission(role: str, permission: str) -> bool:
 
 
 def require_permission(permission: str):
-    """FastAPI dependency that checks the user has a specific permission."""
+    """FastAPI dependency that checks the user has a specific permission.
+
+    When JWT auth is not configured (API key only mode), admin-level
+    permissions are blocked to prevent privilege escalation.
+    """
 
     async def _check(user: User | None = Depends(get_current_user)):
         if user is None:
-            # No JWT auth — allow (API key or dev mode)
+            # No JWT auth — block admin operations unless explicitly opted out
+            if permission.startswith("admin:"):
+                if os.getenv("KRYON_ALLOW_UNAUTHENTICATED", "").lower() not in ("true", "1", "yes"):
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Admin operations require JWT authentication with admin role",
+                    )
             return None
         if not _has_permission(user.role, permission):
             raise HTTPException(
