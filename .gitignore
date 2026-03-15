@@ -207,3 +207,4 @@ populate_knowledge_quick.py
 
 # Local docs (not tracked)
 docs/
+.gitnexus

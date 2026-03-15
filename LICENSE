@@ -1,20 +1,33 @@
-# LICENSE
+# KRYON — Proprietary Software License
 
-This project is released under the MIT License.
+Copyright (c) 2025-2026 KRYON Project. All rights reserved.
 
-## MIT License
+## Terms
 
-Copyright (c) 2025-2026 KRYON Project
+This software and its associated documentation ("Software") are the exclusive
+property of the KRYON Project and its author(s). The Software is protected by
+copyright laws and international treaties.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+### You MAY NOT:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+- Copy, modify, merge, publish, distribute, sublicense, or sell copies of
+  this Software without prior written authorization from the copyright holder.
+- Reverse engineer, decompile, or disassemble the Software.
+- Use the Software to create derivative works or competing products.
+- Remove or alter any proprietary notices, labels, or marks on the Software.
+
+### You MAY:
+
+- Use the Software solely under a valid commercial license agreement.
+- Evaluate the Software under a separate evaluation agreement.
+
+### Confidentiality
+
+The Software contains trade secrets and proprietary information. Recipients
+must maintain strict confidentiality and take reasonable measures to prevent
+unauthorized access, use, or disclosure.
+
+### No Warranty
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -24,8 +37,15 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+### Governing Law
+
+This license shall be governed by the laws of the Republic of Paraguay.
+
 ---
 
-## Attribution
+## Third-Party Attribution
 
-Portions of this project are derived from [openai/openai-agents-python](https://github.com/openai/openai-agents-python), available under the MIT License. The derived code can be found in the `src/kryon/sdk/agents` directory.
+Portions of this project in `src/kryon/sdk/agents/` are derived from
+[openai/openai-agents-python](https://github.com/openai/openai-agents-python),
+which is available under the MIT License. Those portions remain subject to
+their original MIT License terms.

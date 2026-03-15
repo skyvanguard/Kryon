@@ -17,7 +17,7 @@
 [![Security Scan](https://github.com/skyvanguard/Kryon/actions/workflows/security-scan.yml/badge.svg)](https://github.com/skyvanguard/Kryon/actions/workflows/security-scan.yml)
 [![Docker Build](https://github.com/skyvanguard/Kryon/actions/workflows/docker-build.yml/badge.svg)](https://github.com/skyvanguard/Kryon/actions/workflows/docker-build.yml)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-1896_passed-brightgreen.svg)](#testing)
 [![Agents](https://img.shields.io/badge/agents-21-orange.svg)](#security-agents)
 [![Tools](https://img.shields.io/badge/tools-204+-red.svg)](#tool-categories)
@@ -421,7 +421,7 @@ pytest
 
 ## License
 
-MIT License - see [LICENSE](LICENSE)
+Proprietary - All Rights Reserved. See [LICENSE](LICENSE) for details.
 
 ---
 
