@@ -20,7 +20,7 @@ def get_run_config():
     from kryon.sdk.agents import RunConfig
     from kryon.sdk.agents.models.claude_code_provider import ClaudeCodeModel, ClaudeCodeProvider
 
-    model_name = os.getenv("KRYON_CLAUDE_MODEL", "opus")
+    model_name = os.getenv("KRYON_CLAUDE_MODEL", "default")
     provider = ClaudeCodeProvider(default_model=model_name, timeout=300)
     model_instance = ClaudeCodeModel(model=model_name, timeout=300)
     return RunConfig(model=model_instance, model_provider=provider)

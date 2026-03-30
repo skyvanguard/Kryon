@@ -22,21 +22,21 @@ from kryon.sdk.agents.models.claude_code_provider import (
 class TestDefaults:
     def test_config_default_model(self):
         cfg = ClaudeCodeConfig()
-        assert cfg.model == "opus"
+        assert cfg.model == "default"
 
     def test_model_default(self):
         m = ClaudeCodeModel()
-        assert m.model == "opus"
+        assert m.model == "default"
 
     def test_provider_default(self):
         p = ClaudeCodeProvider()
-        assert p.default_model == "opus"
+        assert p.default_model == "default"
 
     def test_provider_get_model_default(self):
         p = ClaudeCodeProvider()
         m = p.get_model(None)
         assert isinstance(m, ClaudeCodeModel)
-        assert m.model == "opus"
+        assert m.model == "default"
 
     def test_provider_get_model_override(self):
         p = ClaudeCodeProvider(default_model="haiku")

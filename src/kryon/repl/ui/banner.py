@@ -628,48 +628,24 @@ def _pick_logo() -> str:
 
 
 def display_compact_banner(console: Console) -> None:
-    """
-    Interactive compact startup panel for returning users.
-
-    Styled after modern CLI tools: bordered panel with ASCII art, context and a rotating tip.
-    """
+    """Minimal startup banner for returning users."""
     ctx = _get_context()
-    tip = _random_tip()
     logo = _pick_logo()
 
-    body = Text.from_markup(f"{logo}\n\n")
-    body.append_text(
-        Text.assemble(
-            ("  v", "white"),
-            (ctx["version"], "bold white"),
-            (" · ", "dim"),
-            (ctx["codename"], "bold cyan"),
-            ("  · ", "dim"),
-            ("Agent: ", "dim"),
-            (ctx["agent"], "cyan"),
-            ("  · ", "dim"),
-            ("Model: ", "dim"),
-            (ctx["model"], "white"),
-            "\n\n",
-            ("  /help", "green"),
-            (" commands", "dim"),
-            ("  ·  ", "dim"),
-            ("/agent", "green"),
-            (" switch agents", "dim"),
-            ("  ·  ", "dim"),
-            ("Ctrl+C", "green"),
-            (" exit", "dim"),
-            "\n\n",
-            ("  Tip: ", "yellow"),
-        )
+    # Detect backend
+    if os.getenv("KRYON_CLAUDE_CODE", "").lower() in ("true", "1", "yes"):
+        model_display = {"opus": "Opus 4.6", "sonnet": "Sonnet 4.6", "haiku": "Haiku 4.5"}
+        model_name = model_display.get(os.getenv("KRYON_CLAUDE_MODEL", "opus"), ctx["model"])
+    else:
+        model_name = ctx["model"]
+
+    body = Text.from_markup(
+        f"{logo}\n\n"
+        f"  [bold white]v{ctx['version']}[/bold white]"
+        f" [dim]·[/dim] [cyan]{ctx['agent']}[/cyan]\n"
     )
 
-    panel = Panel(
-        body + Text.from_markup(tip),
-        border_style="blue",
-        box=ROUNDED,
-        padding=(1, 2),
-    )
+    panel = Panel(body, border_style="blue", box=ROUNDED, padding=(0, 2))
     console.print()
     console.print(panel)
 

@@ -36,6 +36,25 @@ class ServerConfig:
     auto_update_sources: list[str] = field(default_factory=list)
 
     def __post_init__(self):
+        # Allow env var override for API key
+        env_key = os.getenv("KRYON_API_KEY", "")
+        if env_key and env_key not in self.api_keys:
+            self.api_keys.append(env_key)
+
+        # Allow env var override for JWT secret
+        if not self.jwt_secret:
+            self.jwt_secret = os.getenv("KRYON_JWT_SECRET", "")
+
+        # Allow env var override for rate limit
+        env_rate = os.getenv("KRYON_RATE_LIMIT", "")
+        if env_rate.isdigit():
+            self.rate_limit_rpm = int(env_rate)
+
+        # Allow env var override for debug
+        env_debug = os.getenv("KRYON_DEBUG", "").lower()
+        if env_debug in ("true", "1", "yes"):
+            self.debug = True
+
         # Allow env var override for auto-updater
         env_auto_update = os.getenv("KRYON_AUTO_UPDATE", "").lower()
         if env_auto_update in ("false", "0", "no"):

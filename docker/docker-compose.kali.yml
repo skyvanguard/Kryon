@@ -44,14 +44,14 @@ services:
       - KRYON_STREAM=${KRYON_STREAM:-false}
       # Knowledge auto-updater (seeds NVD, ExploitDB, GitHub daily)
       - KRYON_AUTO_UPDATE=${KRYON_AUTO_UPDATE:-true}
-      # Claude Code CLI backend (set KRYON_CLAUDE_CODE=true to use Opus 4.6)
-      - KRYON_CLAUDE_CODE=${KRYON_CLAUDE_CODE:-false}
-      - KRYON_CLAUDE_MODEL=${KRYON_CLAUDE_MODEL:-opus}
+      # Claude Code CLI backend — configured in .env.docker
+      # KRYON_CLAUDE_CODE and KRYON_CLAUDE_MODEL come from env_file
     volumes:
       - kryon-workspace:/workspace
       - kryon-logs:/logs
       - kryon-config:/home/kryon/.kryon
       - kryon-knowledge:/home/kryon/.config/chromadb
+      - kryon-cache:/home/kryon/.cache
       - kryon-reports:/reports
       # Mount host Claude auth for CLI backend
       - ${HOME}/.claude:/home/kryon/.claude
@@ -89,9 +89,9 @@ services:
     restart: unless-stopped
     volumes:
       - ollama-models:/root/.ollama
-    # Expose to host for CLI access
+    # Expose to host for CLI access (use 11435 if host Ollama occupies 11434)
     ports:
-      - "127.0.0.1:11434:11434"
+      - "127.0.0.1:${OLLAMA_HOST_PORT:-11435}:11434"
     deploy:
       resources:
         limits:
@@ -138,6 +138,8 @@ volumes:
   kryon-knowledge:
     driver: local
   kryon-reports:
+    driver: local
+  kryon-cache:
     driver: local
   ollama-models:
     driver: local

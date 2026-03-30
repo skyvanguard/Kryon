@@ -142,6 +142,7 @@ if os.getenv("KRYON_DEBUG", "1") != "2":
     os.environ["PYTHONWARNINGS"] = "ignore"
 
 import asyncio
+import asyncio.base_subprocess
 import logging
 import time
 
@@ -257,6 +258,17 @@ warnings.filterwarnings("ignore", message=".*connections:.*")
 # Also configure Python's warning system to be less verbose
 if not sys.warnoptions:
     warnings.simplefilter("ignore", RuntimeWarning)
+
+# Suppress "Event loop is closed" errors from BaseSubprocessTransport.__del__
+# These are cosmetic — subprocess cleanup after asyncio.run() destroys the loop
+_original_del = getattr(asyncio.base_subprocess.BaseSubprocessTransport, "__del__", None)
+if _original_del:
+    def _quiet_del(self):
+        try:
+            _original_del(self)
+        except RuntimeError:
+            pass
+    asyncio.base_subprocess.BaseSubprocessTransport.__del__ = _quiet_del
     warnings.simplefilter("ignore", ResourceWarning)  # Also ignore ResourceWarnings
 
 
@@ -1982,9 +1994,9 @@ def main():
     )
     parser.add_argument(
         "--claude-model",
-        default="opus",
-        choices=["sonnet", "opus", "haiku"],
-        help="Claude model to use (default: opus)",
+        default="default",
+        choices=["default", "sonnet", "opus", "haiku"],
+        help="Claude model to use (default: let CLI choose)",
     )
     parser.add_argument(
         "--claude-code",
@@ -2003,10 +2015,15 @@ def main():
             print(color("Server dependencies not installed. Run: pip install -e .[server]", fg="red"))
             sys.exit(1)
 
+        api_keys = list(args.api_key)
+        env_key = os.environ.get("KRYON_API_KEY", "")
+        if env_key and env_key not in api_keys:
+            api_keys.append(env_key)
+
         config = ServerConfig(
             host=args.host,
             port=args.port,
-            api_keys=args.api_key,
+            api_keys=api_keys,
             reload=args.reload,
         )
         app = create_app(config)
@@ -2183,26 +2200,14 @@ def main():
 
     # --- Default: REPL mode ---
 
-    # By default, use external API (Groq/OpenAI via OPENAI_API_KEY)
-    # Only use Claude Code CLI if --claude-code is specified
-    if args.use_api:
+    # Use Claude Code CLI if --claude-code flag OR KRYON_CLAUDE_CODE env var is set
+    use_claude_code = args.use_api or os.getenv("KRYON_CLAUDE_CODE", "").lower() in ("true", "1", "yes")
+    if use_claude_code:
         os.environ["KRYON_CLAUDE_CODE"] = "true"
-        os.environ["KRYON_CLAUDE_MODEL"] = args.claude_model
+        claude_model = args.claude_model if args.use_api else os.getenv("KRYON_CLAUDE_MODEL", "default")
+        os.environ["KRYON_CLAUDE_MODEL"] = claude_model
         # Claude Code CLI doesn't support true streaming — force non-streamed mode
         os.environ["KRYON_STREAM"] = "false"
-        model_display = {"opus": "Opus 4.6", "sonnet": "Sonnet 4.6", "haiku": "Haiku 4.5"}
-        display_name = model_display.get(args.claude_model, args.claude_model)
-        print(
-            color(
-                f"Using Claude Code CLI as backend (model: {display_name})",
-                fg="cyan",
-            )
-        )
-    else:
-        model = os.getenv("KRYON_MODEL", "gpt-4o")
-        base_url = os.getenv("OPENAI_BASE_URL", "")
-        provider = "Groq" if "groq" in base_url else "OpenAI" if not base_url else base_url.split("/")[2]
-        print(color(f"Using {provider} API as backend (model: {model})", fg="cyan"))
 
     initial_prompt = args.prompt
 
@@ -2240,13 +2245,9 @@ def main():
 
         stats = get_knowledge_stats()
         if stats.get("total_documents", 0) == 0:
-            print(color("Seeding knowledge base with CVEs, OWASP, MITRE ATT&CK...", fg="yellow"))
-            result = seed_knowledge_base()
-            print(color(f"Knowledge base ready: {result['added']} items loaded", fg="green"))
-        else:
-            print(color(f"Knowledge base: {stats['total_documents']} documents available", fg="green"))
-    except Exception as e:
-        print(color(f"Warning: Could not seed knowledge base: {e}", fg="yellow"))
+            seed_knowledge_base()
+    except Exception:
+        pass
 
     # Run the CLI with the selected agent and optional initial prompt
     run_kryon_cli(agent, initial_prompt=initial_prompt)

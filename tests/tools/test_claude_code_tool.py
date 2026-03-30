@@ -241,8 +241,8 @@ async def test_model_parameter_forwarded(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_default_model_is_opus(monkeypatch):
-    """Default model should be opus when not specified."""
+async def test_default_model_uses_cli_default(monkeypatch):
+    """Default model should let CLI choose (no --model flag)."""
     import subprocess as sp
 
     captured_cmd = []
@@ -259,4 +259,4 @@ async def test_default_model_is_opus(monkeypatch):
     monkeypatch.setattr(sp, "run", fake_run)
 
     await _invoke({"task": "test"})
-    assert "opus" in captured_cmd
+    assert "--model" not in captured_cmd

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 @function_tool
 async def claude_code(
     task: str,
-    model: str = "opus",
+    model: str = "default",
     save_to_file: str = "",
 ) -> str:
     """Delegate a complex task to Claude Code CLI (uses Claude Pro Max subscription).
@@ -37,7 +37,7 @@ async def claude_code(
 
     Args:
         task: Detailed description of what Claude should do.
-        model: Claude model to use — "opus" (default, best quality), "sonnet" (fast), "haiku" (fastest).
+        model: Claude model to use — "default" (CLI chooses), "opus", "sonnet", "haiku".
         save_to_file: Optional file path to save the output to.
 
     Returns:
@@ -46,11 +46,13 @@ async def claude_code(
     if not task or not task.strip():
         return "Error: task cannot be empty."
 
-    allowed_models = {"sonnet", "opus", "haiku"}
+    allowed_models = {"default", "sonnet", "opus", "haiku"}
     if model not in allowed_models:
         return f"Error: model must be one of {allowed_models}, got '{model}'."
 
-    cmd = ["claude", "-p", "--output-format", "json", "--model", model]
+    cmd = ["claude", "-p", "--output-format", "json"]
+    if model not in ("", "default"):
+        cmd.extend(["--model", model])
 
     def _run():
         try:

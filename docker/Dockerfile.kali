@@ -162,6 +162,10 @@ ENV PATH="/opt/venv/bin:/home/kryon/.local/bin:$PATH" \
 # Copy application source (only kryon package, preserve installed dependencies)
 COPY --chown=kryon:kryon src/kryon/ /opt/venv/lib/python3.11/site-packages/kryon/
 
+# Copy entrypoint (fixes Windows→Linux paths in bind-mounted Claude config)
+COPY --chown=kryon:kryon docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 WORKDIR /workspace
 
 USER kryon
@@ -170,5 +174,5 @@ USER kryon
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -sf http://localhost:8700/api/v1/health || exit 1
 
-ENTRYPOINT ["tini", "--"]
+ENTRYPOINT ["tini", "--", "entrypoint.sh"]
 CMD ["kryon", "serve", "--host", "0.0.0.0", "--port", "8700"]
