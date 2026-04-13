@@ -42,6 +42,7 @@ dashboard/build/
 # Docker (exclude configs but keep nginx conf needed by dashboard build)
 docker/
 !docker/nginx/
+!docker/entrypoint.sh
 
 # Docs & misc
 *.md

@@ -61,7 +61,21 @@ def _ensure_strict_json_schema(
     # { 'type': 'object', 'properties': { 'a':  {...} } }
     properties = json_schema.get("properties")
     if is_dict(properties):
-        json_schema["required"] = list(properties.keys())
+        # OpenAI strict mode requires all props as required, but for Ollama
+        # and other local models this makes tools unusable (gemma4 gives up
+        # when asked to fill 23 required params). Preserve Pydantic's
+        # original required list when it exists; only force all-required
+        # as a fallback for schemas that lack a required field entirely.
+        import os
+
+        if os.environ.get("OLLAMA", "").lower() in ("true", "1"):
+            # Local model: keep Pydantic's defaults-aware required list
+            if "required" not in json_schema:
+                json_schema["required"] = list(properties.keys())
+        else:
+            # Cloud API (OpenAI): strict mode demands all required
+            json_schema["required"] = list(properties.keys())
+
         json_schema["properties"] = {
             key: _ensure_strict_json_schema(prop_schema, path=(*path, "properties", key), root=root)
             for key, prop_schema in properties.items()

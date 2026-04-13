@@ -942,6 +942,14 @@ def run_kryon_cli(
                         sid=session_logger.session_id,
                     )
 
+                # Auto-extract experiences on exit (ported from Claude Code)
+                try:
+                    from kryon.services.auto_extract import auto_extract_on_exit
+
+                    auto_extract_on_exit()
+                except Exception:
+                    pass  # never block exit
+
                 # Log session end
                 if session_logger:
                     session_logger.log_session_end()
@@ -1377,6 +1385,18 @@ def run_kryon_cli(
             except Exception:
                 pass
 
+            # Inject session memory context if available (ported from Claude Code)
+            try:
+                from kryon.services.session_memory import get_session_memory
+
+                _sm_ctx = get_session_memory().get_context()
+                if _sm_ctx and history_context:
+                    # Prepend as a system-context message so the model has
+                    # session state even after compaction clears older turns
+                    history_context.insert(0, {"role": "user", "content": f"[SESSION CONTEXT]\n{_sm_ctx}"})
+            except Exception:
+                pass
+
             # Append the current user input as the last message in the list.
             conversation_input: list | str
             if history_context:
@@ -1612,6 +1632,24 @@ def run_kryon_cli(
                             spinner.patch_tools(agent.tools)
                         with spinner:
                             asyncio.run(process_streamed_response(agent, conversation_input, spinner))
+
+                        # --- Post-turn services (ported from Claude Code) ---
+                        try:
+                            from kryon.services.micro_compact import micro_compact_history
+
+                            if hasattr(agent, "model") and hasattr(agent.model, "message_history"):
+                                micro_compact_history(agent.model.message_history)
+                        except Exception:
+                            pass
+                        try:
+                            from kryon.services.session_memory import get_session_memory
+
+                            sm = get_session_memory()
+                            if hasattr(agent, "model") and hasattr(agent.model, "message_history"):
+                                sm.update(agent.model.message_history[-8:])
+                        except Exception:
+                            pass
+
                     except OutputGuardrailTripwireTriggered as e:
                         # Display a user-friendly warning instead of crashing (streaming mode)
                         guardrail_name = e.guardrail_result.guardrail.get_name()

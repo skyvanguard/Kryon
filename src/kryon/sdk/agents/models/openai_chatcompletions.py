@@ -1403,7 +1403,34 @@ class OpenAIChatCompletionsModel(Model):
                 is_ollama = False
 
                 model_str = str(self.model).lower()
-                is_ollama = self.is_ollama or "ollama" in model_str or ":" in model_str or "qwen" in model_str
+                base_url_env = os.environ.get("OPENAI_BASE_URL", "").lower()
+                # Prefer explicit signals (env var, base URL pointing at Ollama).
+                # The previous heuristic treated any ":" in the model name as an
+                # Ollama marker, which false-positives on litellm-style IDs like
+                # "groq/llama3:70b". Restrict the heuristic to names that both
+                # (a) match a known local-model prefix and (b) carry the
+                # `family:tag` Ollama convention.
+                _ollama_prefixes = (
+                    "gemma",
+                    "llama",
+                    "qwen",
+                    "mistral",
+                    "dolphin",
+                    "phi",
+                    "deepseek",
+                    "yi",
+                    "solar",
+                    "codellama",
+                    "wizardcoder",
+                    "nous",
+                )
+                is_ollama = bool(
+                    self.is_ollama
+                    or "ollama" in base_url_env
+                    or "11434" in base_url_env
+                    or "ollama" in model_str
+                    or (":" in model_str and model_str.startswith(_ollama_prefixes))
+                )
 
                 # Add visual separation before agent output
                 if streaming_context and should_show_rich_stream:
@@ -3299,9 +3326,17 @@ class OpenAIChatCompletionsModel(Model):
         if has_tools:
             ollama_supported_params["tools"] = kwargs.get("tools")
 
-        # Add tool_choice so the model knows it should use tools
-        if tool_choice is not None and tool_choice is not NOT_GIVEN:
-            ollama_supported_params["tool_choice"] = tool_choice
+        # Add tool_choice so the model knows it should use tools.
+        # For early turns, force "required" so the local model actually
+        # calls a tool instead of generating explanatory text. This is
+        # the single highest-impact change for Ollama tool-calling
+        # reliability with models like gemma4.
+        effective_tool_choice = tool_choice
+        if has_tools and self.interaction_counter <= 2:
+            # First 2 turns: force tool use (model must call a tool)
+            effective_tool_choice = "required"
+        if effective_tool_choice is not None and effective_tool_choice is not NOT_GIVEN:
+            ollama_supported_params["tool_choice"] = effective_tool_choice
 
         # Remove None values and filter out unsupported parameters
         ollama_kwargs = {

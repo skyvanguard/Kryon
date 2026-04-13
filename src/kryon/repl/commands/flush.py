@@ -75,6 +75,14 @@ class FlushCommand(Command):
         # Clear the history
         clear_agent_history(current_agent)
 
+        # Also clear session memory (ported from Claude Code)
+        try:
+            from kryon.services.session_memory import get_session_memory
+
+            get_session_memory().clear()
+        except Exception:
+            pass
+
         # Display information about the cleared messages
         if initial_length > 0:
             content = [

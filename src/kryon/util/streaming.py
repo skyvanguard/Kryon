@@ -19,6 +19,7 @@ from typing import Any
 from rich.box import ROUNDED
 from rich.console import Console, Group
 from rich.live import Live
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.text import Text
@@ -1234,7 +1235,7 @@ def create_agent_streaming_context(agent_name, counter, model):
         header = Text()
         header.append(f"[{counter}] ", style="bold cyan")
         header.append(f"Agent: {agent_name} ", style="bold green")
-        header.append(">> ", style="yellow")
+        header.append(">>\n", style="yellow")
 
         content = Text("")
 
@@ -1494,10 +1495,16 @@ def finish_agent_streaming(context, final_stats=None):
             if final_stats and "compact_tokens" in locals():
                 context["footer"].append(compact_tokens)
 
+        # Render the accumulated streamed text as Markdown so headers, bold,
+        # lists, tables and fenced code blocks look correct. Rich's Markdown
+        # handles line wrapping, so run-together tokens still render readably.
+        raw_text = context["content"].plain if context.get("content") else ""
+        body: Any = Markdown(raw_text) if raw_text.strip() else Text("")
+
         final_panel = Panel(
-            Text.assemble(
+            Group(
                 context["header"],
-                context["content"],
+                body,
                 tokens_text if tokens_text else Text(""),
                 context["footer"],
             ),

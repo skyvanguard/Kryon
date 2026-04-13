@@ -454,6 +454,12 @@ class RunImpl:
 
             tools_used.append(output.name)
 
+            # Normalize for handoff lookup too (same Ollama namespace quirk)
+            if output.name not in handoff_map and ":" in output.name:
+                stripped_hoff = output.name.rsplit(":", 1)[-1]
+                if stripped_hoff in handoff_map:
+                    output.name = stripped_hoff
+
             # Handoffs
             if output.name in handoff_map:
                 items.append(HandoffCallItem(raw_item=output, agent=agent))
@@ -464,14 +470,36 @@ class RunImpl:
                 run_handoffs.append(handoff)
             # Regular function tool call
             else:
-                if output.name not in function_map:
-                    _error_tracing.attach_error_to_current_span(
-                        SpanError(
-                            message="Tool not found",
-                            data={"tool_name": output.name},
-                        )
+                # Normalize tool name: some Ollama models (gemma4, qwen) emit
+                # "nmap:nmap" or "namespace:tool" instead of plain "nmap".
+                # Try the raw name first, then strip known prefixes.
+                tool_name = output.name
+                if tool_name not in function_map and ":" in tool_name:
+                    # "nmap:nmap" → "nmap", "tools:run_command" → "run_command"
+                    stripped = tool_name.rsplit(":", 1)[-1]
+                    if stripped in function_map:
+                        tool_name = stripped
+                        output.name = stripped
+                if tool_name not in function_map:
+                    # Instead of raising ModelBehaviorError (which crashes
+                    # the run), return an error as a tool result so the
+                    # model can self-correct on the next turn. This matches
+                    # Claude Code's behavior for hallucinated tool names.
+                    available = ", ".join(sorted(function_map.keys()))
+                    error_output = ToolCallOutputItem(
+                        raw_item={
+                            "type": "function_call_output",
+                            "call_id": output.call_id,
+                            "output": f"Error: Tool '{output.name}' does not exist. "
+                            f"Available tools: {available}. "
+                            f"Please use one of the listed tools.",
+                        },
+                        output=f"Error: Tool '{output.name}' not found. Available: {available}",
+                        agent=agent,
                     )
-                    raise ModelBehaviorError(f"Tool {output.name} not found in agent {agent.name}")
+                    items.append(ToolCallItem(raw_item=output, agent=agent))
+                    items.append(error_output)
+                    continue
                 items.append(ToolCallItem(raw_item=output, agent=agent))
                 functions.append(
                     ToolRunFunction(

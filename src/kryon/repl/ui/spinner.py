@@ -1,44 +1,159 @@
 """
-Activity spinner for agent processing.
+Claude-Code-style animated spinner for KRYON agent processing.
 
-Shows a rich.status.Status spinner while the agent is thinking,
-providing visual feedback including elapsed time, tool calls,
-and agent handoffs.
+Ported from Claude Code's React/Ink spinner (src/components/Spinner/)
+to Python/Rich. Features:
+
+- Shimmer glyph animation (·✢✳✶✻✽) with RGB color interpolation
+- Random spinner verbs ("Cogitating", "Clauding", "Concocting" …)
+- Tool-call indication with command preview
+- Stall detection — gradual red shift after 30s
+- Elapsed time, LLM turn counter, recent tool history
 """
 
 import functools
+import math
+import os
+import random
 import threading
 import time
+from typing import Any
 
 from rich.console import Console
-from rich.status import Status
+from rich.live import Live
+from rich.text import Text
 
 _SENTINEL = object()
 
+# ---------------------------------------------------------------------------
+# Constants ported from Claude Code
+# ---------------------------------------------------------------------------
+
+# Glyph frames — same as Claude Code's getDefaultCharacters()
+_GLYPHS_MACOS = ["·", "✢", "✳", "✶", "✻", "✽"]
+_GLYPHS_OTHER = ["·", "✢", "*", "✶", "✻", "✽"]
+_GLYPHS = _GLYPHS_MACOS if os.name != "nt" else _GLYPHS_OTHER
+# Ping-pong: forward then reverse (like Claude Code)
+_GLYPH_FRAMES = [*_GLYPHS, *reversed(_GLYPHS)]
+
+# Shimmer timing
+_REFRESH_MS = 80  # animation tick (~12 fps)
+_SHIMMER_CYCLE_MS = 1600  # one full shimmer wave
+_STALL_THRESHOLD_S = 30  # start turning red
+
+# Colors (RGB tuples)
+_COLOR_ACTIVE = (99, 102, 241)  # indigo-500 — the default "thinking" color
+_COLOR_SHIMMER_PEAK = (165, 180, 252)  # indigo-300
+_COLOR_STALLED = (239, 68, 68)  # red-500
+_COLOR_DIM = (120, 120, 120)
+_COLOR_TOOL = (34, 197, 94)  # green-500
+_COLOR_HANDOFF = (250, 204, 21)  # yellow-400
+
+# Spinner verbs (subset of Claude Code's spinnerVerbs.ts)
+_VERBS = [
+    "Thinking",
+    "Analyzing",
+    "Architecting",
+    "Brewing",
+    "Calculating",
+    "Cerebrating",
+    "Clauding",
+    "Cogitating",
+    "Computing",
+    "Concocting",
+    "Contemplating",
+    "Crafting",
+    "Crunching",
+    "Crystallizing",
+    "Deciphering",
+    "Deliberating",
+    "Envisioning",
+    "Evaluating",
+    "Fermenting",
+    "Formulating",
+    "Hacking",
+    "Investigating",
+    "Manifesting",
+    "Materializing",
+    "Meditating",
+    "Musing",
+    "Orchestrating",
+    "Pondering",
+    "Processing",
+    "Reasoning",
+    "Reflecting",
+    "Ruminating",
+    "Scheming",
+    "Scrutinizing",
+    "Simmering",
+    "Synthesizing",
+    "Transmuting",
+    "Unraveling",
+    "Weaving",
+    "Whittling",
+]
+
+
+# ---------------------------------------------------------------------------
+# Color math
+# ---------------------------------------------------------------------------
+
+def _lerp_rgb(
+    c1: tuple[int, int, int],
+    c2: tuple[int, int, int],
+    t: float,
+) -> tuple[int, int, int]:
+    """Linearly interpolate between two RGB colors (t in 0..1)."""
+    return (
+        int(c1[0] + (c2[0] - c1[0]) * t),
+        int(c1[1] + (c2[1] - c1[1]) * t),
+        int(c1[2] + (c2[2] - c1[2]) * t),
+    )
+
+
+def _rgb_style(r: int, g: int, b: int) -> str:
+    """Convert RGB to a Rich inline color string."""
+    return f"rgb({r},{g},{b})"
+
+
+def _shimmer_color(
+    elapsed_ms: float,
+    char_index: int,
+    stall_t: float,
+) -> tuple[int, int, int]:
+    """Compute the shimmer color for one character at the current time.
+
+    Replicates Claude Code's phase-offset sine-wave shimmer, with a
+    gradual blend toward red when stalled.
+    """
+    # Phase offset per character creates the "wave" effect
+    phase = (elapsed_ms / _SHIMMER_CYCLE_MS + char_index * 0.12) % 1.0
+    # Sine curve 0→1→0 within one cycle
+    wave = (math.sin(phase * math.pi * 2) + 1) / 2
+
+    base = _lerp_rgb(_COLOR_ACTIVE, _COLOR_SHIMMER_PEAK, wave)
+    if stall_t > 0:
+        base = _lerp_rgb(base, _COLOR_STALLED, min(stall_t, 1.0))
+    return base
+
+
+# ---------------------------------------------------------------------------
+# AgentSpinner
+# ---------------------------------------------------------------------------
+
 
 class AgentSpinner:
-    """Thread-safe spinner that shows agent activity during processing.
+    """Thread-safe Claude-Code-style spinner for agent processing.
 
-    Features:
-    - Animated elapsed time counter (updates every 0.5s)
-    - Tool call indication (``recon_scout is calling nmap_scan... (8s)``)
-    - Handoff tracking (``recon_scout -> exploit_dev is thinking... (12s)``)
-    - LLM turn counter showing progress across API round-trips
-    - Non-blocking ``request_stop()`` safe for async contexts
-
-    Usage::
-
-        spinner = AgentSpinner("recon_scout", console)
-        hooks = spinner.create_hooks()
-        spinner.patch_model(agent.model)
-        with spinner:
-            asyncio.run(Runner.run(agent, input, hooks=hooks))
+    Drop-in replacement for the previous Rich Status-based spinner.
+    Same public API: start(), stop(), update(), create_hooks(),
+    patch_model(), patch_tools(), context manager.
     """
 
     def __init__(self, agent_name: str, console: Console):
         self._agent_name = agent_name
         self._console = console
-        self._status: Status | None = None
+        self._live: Live | None = None
         self._thread: threading.Thread | None = None
         self._started = threading.Event()
         self._stop_event = threading.Event()
@@ -47,13 +162,16 @@ class AgentSpinner:
         self._handoff_agent: str | None = None
         self._tools_run: list[str] = []
         self._llm_turn: int = 0
-        self._progress_state = None  # ProgressState from progress parser
+        self._progress_state: Any = None
         self._lock = threading.Lock()
-        self._patched_models: list[tuple] = []  # (model, original_get_response)
-        self._patched_tools: list[tuple] = []  # (tool, original_on_invoke_tool)
+        self._patched_models: list[tuple] = []
+        self._patched_tools: list[tuple] = []
+        self._verb = random.choice(_VERBS)
+        self._verb_last_change = 0.0
+        self._frame_idx = 0
 
     # ------------------------------------------------------------------
-    # Message formatting
+    # Time formatting
     # ------------------------------------------------------------------
 
     @staticmethod
@@ -63,62 +181,103 @@ class AgentSpinner:
             return f"{minutes}m {secs}s"
         return f"{secs}s"
 
-    def _build_message(self) -> str:
-        parts: list[str] = [f"[bold cyan]{self._agent_name}[/bold cyan]"]
+    # ------------------------------------------------------------------
+    # Render one frame
+    # ------------------------------------------------------------------
 
-        if self._handoff_agent:
-            parts.append(f"-> [bold yellow]{self._handoff_agent}[/bold yellow]")
+    def _render_frame(self) -> Text:
+        now = time.monotonic()
+        elapsed_s = now - self._start_time
+        elapsed_ms = elapsed_s * 1000
 
+        # Rotate verb every ~8 seconds
+        if now - self._verb_last_change > 8:
+            self._verb = random.choice(_VERBS)
+            self._verb_last_change = now
+
+        # Stall factor (0 = normal, 1 = fully stalled after 60s)
+        stall_t = max(0, (elapsed_s - _STALL_THRESHOLD_S) / 30)
+
+        # Advance glyph frame
+        self._frame_idx = int(elapsed_ms / 120) % len(_GLYPH_FRAMES)
+        glyph = _GLYPH_FRAMES[self._frame_idx]
+
+        result = Text()
+
+        # ── Shimmer glyph ──
+        glyph_color = _shimmer_color(elapsed_ms, 0, stall_t)
+        result.append(f" {glyph} ", style=f"bold {_rgb_style(*glyph_color)}")
+
+        # ── Agent name (shimmer each char independently) ──
+        display_name = self._handoff_agent or self._agent_name
+        for i, ch in enumerate(display_name):
+            c = _shimmer_color(elapsed_ms, i + 1, stall_t)
+            result.append(ch, style=f"bold {_rgb_style(*c)}")
+
+        result.append(" ", style="")
+
+        # ── Status text ──
         if self._tool_name:
-            tool_display = f"is calling [bold green]{self._tool_name}[/bold green]..."
-            # Append progress info if available
+            result.append("→ ", style=f"bold {_rgb_style(*_COLOR_TOOL)}")
+            result.append(self._tool_name, style=f"bold {_rgb_style(*_COLOR_TOOL)}")
             if self._progress_state is not None:
                 ps = self._progress_state
                 if ps.percentage is not None:
-                    tool_display += f" [bold cyan][{ps.percentage:.0f}%][/bold cyan]"
-                if ps.total_lines > 0:
-                    tool_display += f" [dim]{ps.total_lines}L[/dim]"
-            parts.append(tool_display)
-        elif self._llm_turn > 1:
-            parts.append(f"is thinking... [dim](turn {self._llm_turn})[/dim]")
+                    result.append(f" [{ps.percentage:.0f}%]", style="bold cyan")
         else:
-            parts.append("is thinking...")
+            # Verb with shimmer
+            for i, ch in enumerate(self._verb):
+                c = _shimmer_color(elapsed_ms, i + len(display_name) + 2, stall_t)
+                result.append(ch, style=_rgb_style(*c))
+            result.append("…", style=f"dim {_rgb_style(*_COLOR_DIM)}")
 
-        # Show recent tool history when back to thinking
+            if self._llm_turn > 1:
+                result.append(f" turn {self._llm_turn}", style=f"dim {_rgb_style(*_COLOR_DIM)}")
+
+        # ── Recent tools ──
         if not self._tool_name and self._tools_run:
-            recent = self._tools_run[-3:]  # Last 3 tools
-            parts.append(f"[dim]| ran: {', '.join(recent)}[/dim]")
+            recent = self._tools_run[-3:]
+            result.append("  ran: ", style=f"dim {_rgb_style(*_COLOR_DIM)}")
+            result.append(", ".join(recent), style=f"dim {_rgb_style(160, 160, 160)}")
 
-        elapsed = time.time() - self._start_time
-        elapsed_str = self._format_elapsed(elapsed)
-        if elapsed >= 120:
-            parts.append(f"[bold red]({elapsed_str} - Ctrl+C to cancel)[/bold red]")
+        # ── Elapsed ──
+        elapsed_str = self._format_elapsed(elapsed_s)
+        if elapsed_s >= 120:
+            result.append(f"  ({elapsed_str} — Ctrl+C)", style="bold red")
         else:
-            parts.append(f"[dim]({elapsed_str})[/dim]")
+            result.append(f"  ({elapsed_str})", style=f"dim {_rgb_style(*_COLOR_DIM)}")
 
-        return " ".join(parts)
+        return result
 
     # ------------------------------------------------------------------
     # Background thread
     # ------------------------------------------------------------------
 
     def _run(self) -> None:
-        self._start_time = time.time()
-        self._status = Status(
-            self._build_message(),
+        self._start_time = time.monotonic()
+        self._verb_last_change = self._start_time
+        self._live = Live(
+            self._render_frame(),
             console=self._console,
-            spinner="dots",
+            refresh_per_second=int(1000 / _REFRESH_MS),
+            transient=True,
         )
-        self._status.start()
+        self._live.start()
         self._started.set()
 
         while not self._stop_event.is_set():
-            with self._lock:
-                msg = self._build_message()
-            self._status.update(msg)
-            self._stop_event.wait(0.5)
+            try:
+                with self._lock:
+                    frame = self._render_frame()
+                self._live.update(frame)
+            except Exception:
+                pass
+            self._stop_event.wait(_REFRESH_MS / 1000)
 
-        self._status.stop()
+        try:
+            self._live.stop()
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     # Public API
@@ -138,18 +297,16 @@ class AgentSpinner:
         self._stop_event.set()
         self._thread.join(timeout=1)
         self._thread = None
-        self._status = None
-        # Restore patched models
+        self._live = None
         for model, original in self._patched_models:
             model.get_response = original
         self._patched_models.clear()
-        # Restore patched tools
         for tool, original in self._patched_tools:
             tool.on_invoke_tool = original
         self._patched_tools.clear()
 
     def request_stop(self) -> None:
-        """Signal stop without blocking -- safe from async context."""
+        """Signal stop without blocking — safe from async context."""
         self._stop_event.set()
 
     def update(
@@ -158,7 +315,6 @@ class AgentSpinner:
         tool_name: object = _SENTINEL,
         handoff_agent: object = _SENTINEL,
     ) -> None:
-        """Update spinner state.  Pass ``None`` to clear a field."""
         with self._lock:
             if tool_name is not _SENTINEL:
                 self._tool_name = tool_name  # type: ignore[assignment]
@@ -166,11 +322,10 @@ class AgentSpinner:
                 self._handoff_agent = handoff_agent  # type: ignore[assignment]
 
     # ------------------------------------------------------------------
-    # Model patching — intercept get_response to track LLM turns
+    # Model patching
     # ------------------------------------------------------------------
 
     def patch_model(self, model) -> None:
-        """Wrap model.get_response() to track LLM API call turns."""
         if not hasattr(model, "get_response"):
             return
         original = model.get_response
@@ -183,17 +338,16 @@ class AgentSpinner:
             try:
                 return await original(*args, **kwargs)
             finally:
-                pass  # turn stays incremented
+                pass
 
         model.get_response = wrapped
         self._patched_models.append((model, original))
 
     # ------------------------------------------------------------------
-    # Tool patching — intercept on_invoke_tool to show command args
+    # Tool patching
     # ------------------------------------------------------------------
 
     def patch_tools(self, tools) -> None:
-        """Wrap run_command's on_invoke_tool to show the actual command in the spinner."""
         import json as _json
 
         for tool in tools:
@@ -209,7 +363,7 @@ class AgentSpinner:
                     args = _json.loads(input_json_str)
                     cmd = args.get("command", "")
                     if cmd:
-                        display = cmd[:50] + "..." if len(cmd) > 50 else cmd
+                        display = cmd[:50] + "…" if len(cmd) > 50 else cmd
                         _spinner.update(tool_name=f"run_command: {display}")
                 except Exception:
                     pass
@@ -223,7 +377,6 @@ class AgentSpinner:
     # ------------------------------------------------------------------
 
     def create_hooks(self):
-        """Create RunHooks that update this spinner on tool/handoff events."""
         from kryon.sdk.agents.lifecycle import RunHooks
 
         spinner = self

@@ -14,7 +14,11 @@ from kryon.agents.guardrails import get_security_guardrails
 from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import MEMORY_TOOLS
 from kryon.tools.ai.claude_code import claude_code
-from kryon.tools.knowledge import query_knowledge_base, search_vulnerabilities
+from kryon.tools.knowledge import (
+    query_knowledge_base,
+    recall_similar_experiences,
+    search_vulnerabilities,
+)
 from kryon.tools.reconnaissance.nmap import nmap
 from kryon.tools.reconnaissance.run_command import run_command
 from kryon.tools.reconnaissance.whatweb import whatweb_scan
@@ -45,6 +49,8 @@ tools = [
     # RAG Knowledge Base Access
     query_knowledge_base,
     search_vulnerabilities,
+    # Self-improving loop — recall past engagement experiences
+    recall_similar_experiences,
 ]
 
 if _ddg_available:

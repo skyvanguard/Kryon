@@ -318,9 +318,67 @@ class VectorDatabase:
 
             self._client = chromadb.PersistentClient(path=str(persist_path))
 
-            self._collection = self._client.get_or_create_collection(
-                name="kryon_knowledge", metadata={"description": "KRYON knowledge base"}
-            )
+            # Build embedding function. Prefer a local Ollama embedder when
+            # KRYON_EMBEDDING_BASE_URL is set (avoids ChromaDB's default ONNX
+            # download which needs a writable ~/.cache/chroma).
+            import os
+
+            embed_fn = None
+            embed_url = os.environ.get("KRYON_EMBEDDING_BASE_URL")
+            embed_model = os.environ.get("KRYON_EMBEDDING_MODEL", "nomic-embed-text")
+            if embed_url:
+                import requests
+                from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
+
+                class _OllamaHTTPEmbeddingFunction(EmbeddingFunction[Documents]):
+                    """Minimal embedding function that calls Ollama /api/embeddings
+                    directly via HTTP. Avoids the `ollama` python SDK dep required
+                    by chromadb's built-in OllamaEmbeddingFunction."""
+
+                    def __init__(self, base_url: str, model: str, timeout: int = 60):
+                        self._url = base_url.rstrip("/") + "/api/embeddings"
+                        self._model = model
+                        self._timeout = timeout
+
+                    def __call__(self, input: Documents) -> Embeddings:
+                        out: Embeddings = []
+                        for text in input:
+                            resp = requests.post(
+                                self._url,
+                                json={"model": self._model, "prompt": text},
+                                timeout=self._timeout,
+                            )
+                            resp.raise_for_status()
+                            out.append(resp.json()["embedding"])
+                        return out
+
+                    def name(self) -> str:  # pragma: no cover - informational
+                        return f"ollama-http:{self._model}"
+
+                embed_fn = _OllamaHTTPEmbeddingFunction(embed_url, embed_model)
+
+            collection_kwargs: dict[str, Any] = {
+                "name": "kryon_knowledge",
+                "metadata": {"description": "KRYON knowledge base"},
+            }
+            if embed_fn is not None:
+                collection_kwargs["embedding_function"] = embed_fn
+
+            # Chroma 1.x persists the embedding function config per-collection.
+            # If a previous run created the collection with a different
+            # (default) embedder, get_or_create_collection refuses to attach
+            # a new one. Detect that case and recreate the collection.
+            try:
+                self._collection = self._client.get_or_create_collection(**collection_kwargs)
+            except Exception as ce:
+                if "embedding function" in str(ce).lower() and embed_fn is not None:
+                    try:
+                        self._client.delete_collection(name="kryon_knowledge")
+                    except Exception:
+                        pass
+                    self._collection = self._client.create_collection(**collection_kwargs)
+                else:
+                    raise
             self.backend = self._collection
             self.backend_type = "chromadb"
             print("✅ Using ChromaDB backend")

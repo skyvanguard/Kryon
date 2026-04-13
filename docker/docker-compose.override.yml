@@ -1,0 +1,40 @@
+# Override local para el stack completo Kryon + Ollama en contenedor
+# Ajustes sobre docker-compose.kali.yml:
+#   - Más memoria para Kryon (12 GB) y Ollama (20 GB, gemma4:26b pesa 17 GB)
+#   - Quita los mounts de Claude Code CLI (backend que no usamos aquí)
+#
+# Uso:
+#   docker compose -f docker/docker-compose.kali.yml -f docker/docker-compose.override.yml build
+#   docker compose -f docker/docker-compose.kali.yml -f docker/docker-compose.override.yml up -d
+
+services:
+  kryon:
+    deploy:
+      resources:
+        limits:
+          cpus: "6"
+          memory: 12G
+        reservations:
+          cpus: "2"
+          memory: 4G
+
+    # Quitar mounts de Claude Code CLI (no usamos ese backend)
+    volumes: !override
+      - kryon-workspace:/workspace
+      - kryon-logs:/logs
+      - kryon-config:/home/kryon/.kryon
+      - kryon-knowledge:/home/kryon/.config/chromadb
+      - kryon-cache:/home/kryon/.cache
+      - kryon-reports:/reports
+
+  ollama:
+    # Gemma 4 26B Q4_K_M pesa 17 GB — subir el límite para dejar headroom
+    deploy:
+      resources:
+        limits:
+          memory: 20G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

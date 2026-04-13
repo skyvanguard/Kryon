@@ -98,12 +98,15 @@ def create_app(config: ServerConfig | None = None) -> FastAPI:
             from kryon.knowledge import get_knowledge_stats, seed_knowledge_base
 
             stats = get_knowledge_stats()
-            if stats.get("total_documents", 0) == 0:
+            # rag_engine exposes the count as total_knowledge_items; fall back
+            # to total_documents for older/alternate backends.
+            doc_count = stats.get("total_knowledge_items", stats.get("total_documents", 0))
+            if doc_count == 0:
                 logger.info("Seeding knowledge base with static data...")
                 result = seed_knowledge_base()
                 logger.info("Knowledge base seeded: %d items loaded", result["added"])
             else:
-                logger.info("Knowledge base: %d documents available", stats["total_documents"])
+                logger.info("Knowledge base: %d documents available", doc_count)
         except Exception:
             logger.warning("Failed to seed knowledge base", exc_info=True)
         # Start knowledge auto-updater if enabled

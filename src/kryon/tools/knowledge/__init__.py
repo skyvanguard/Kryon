@@ -5,6 +5,10 @@ KRYON Knowledge Tools
 RAG-powered knowledge access tools for agents.
 """
 
+from .experience_tools import (
+    list_recent_experiences,
+    recall_similar_experiences,
+)
 from .rag_tools import (
     get_exploit_techniques,
     get_knowledge_stats,
@@ -19,4 +23,6 @@ __all__ = [
     "get_exploit_techniques",
     "get_security_tools",
     "get_knowledge_stats",
+    "recall_similar_experiences",
+    "list_recent_experiences",
 ]
