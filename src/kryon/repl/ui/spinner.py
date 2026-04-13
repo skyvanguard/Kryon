@@ -138,6 +138,52 @@ def _shimmer_color(
 
 
 # ---------------------------------------------------------------------------
+# Tool summary extraction (one-liner from tool output)
+# ---------------------------------------------------------------------------
+
+
+def _extract_tool_summary(tool_name: str, output: str) -> str:
+    """Extract a brief one-liner summary from a tool's output."""
+    import re
+
+    if not output or len(output) < 5:
+        return "done"
+
+    lower_out = output.lower()
+    clean_name = tool_name.rsplit(":", 1)[-1] if ":" in tool_name else tool_name
+
+    if clean_name == "nmap" or "nmap" in clean_name:
+        ports = len(re.findall(r"\d+/tcp\s+open", output))
+        return f"{ports} ports open" if ports else "no open ports"
+
+    if "whatweb" in clean_name:
+        techs = re.findall(r"(?:HTTPServer|Title|Apache|nginx|PHP|WordPress|Bootstrap|jQuery)\[([^\]]+)\]", output)
+        return ", ".join(techs[:4]) if techs else "scanned"
+
+    if "recall_similar" in clean_name:
+        m = re.search(r"'count':\s*(\d+)", output)
+        count = int(m.group(1)) if m else 0
+        return f"{count} prior experiences" if count else "cold start"
+
+    if "gobuster" in clean_name or "dirb" in clean_name:
+        dirs = len(re.findall(r"Status:\s*2\d\d", output))
+        return f"{dirs} directories" if dirs else "no dirs found"
+
+    if "nuclei" in clean_name:
+        findings = len(re.findall(r"\[(?:critical|high|medium|low|info)\]", lower_out))
+        return f"{findings} findings" if findings else "clean"
+
+    if "duckduckgo" in clean_name:
+        results = len(re.findall(r"'title':", output))
+        return f"{results} results"
+
+    if "error" in lower_out[:200]:
+        return "error"
+
+    return "done"
+
+
+# ---------------------------------------------------------------------------
 # AgentSpinner
 # ---------------------------------------------------------------------------
 
@@ -161,6 +207,8 @@ class AgentSpinner:
         self._tool_name: str | None = None
         self._handoff_agent: str | None = None
         self._tools_run: list[str] = []
+        self._tool_results: list[tuple[str, str, str]] = []  # (name, status, summary)
+        self._active_skill: str | None = None
         self._llm_turn: int = 0
         self._progress_state: Any = None
         self._lock = threading.Lock()
@@ -214,6 +262,10 @@ class AgentSpinner:
             c = _shimmer_color(elapsed_ms, i + 1, stall_t)
             result.append(ch, style=f"bold {_rgb_style(*c)}")
 
+        # ── Active skill indicator ──
+        if self._active_skill:
+            result.append(f" [{self._active_skill}]", style="dim cyan")
+
         result.append(" ", style="")
 
         # ── Status text ──
@@ -246,6 +298,16 @@ class AgentSpinner:
             result.append(f"  ({elapsed_str} — Ctrl+C)", style="bold red")
         else:
             result.append(f"  ({elapsed_str})", style=f"dim {_rgb_style(*_COLOR_DIM)}")
+
+        # ── Completed tool results (Claude Code style) ──
+        if self._tool_results:
+            for name, status, summary in self._tool_results[-5:]:  # last 5
+                indicator = "●" if status == "ok" else "●" if status == "error" else "○"
+                color = _COLOR_TOOL if status == "ok" else _COLOR_STALLED if status == "error" else _COLOR_DIM
+                result.append(f"\n {indicator} ", style=f"{_rgb_style(*color)}")
+                result.append(f"{name}", style=f"dim {_rgb_style(180, 180, 180)}")
+                if summary:
+                    result.append(f" → {summary}", style=f"dim {_rgb_style(*_COLOR_DIM)}")
 
         return result
 
@@ -388,8 +450,12 @@ class AgentSpinner:
 
             async def on_tool_end(self, context, agent, tool, result):
                 name = getattr(tool, "name", None) or str(tool)
+                result_str = str(result) if result else ""
+                summary = _extract_tool_summary(name, result_str)
+                status = "error" if "error" in result_str.lower()[:200] else "ok"
                 with spinner._lock:
                     spinner._tools_run.append(name)
+                    spinner._tool_results.append((name, status, summary))
                     spinner._tool_name = None
 
             async def on_handoff(self, context, from_agent, to_agent):

@@ -1626,6 +1626,9 @@ def run_kryon_cli(
 
                     try:
                         spinner = AgentSpinner(get_agent_short_name(agent), console)
+                        # Show active skill in spinner (unified agent)
+                        if hasattr(agent, "_active_skills") and agent._active_skills:
+                            spinner._active_skill = agent._active_skills[0].name
                         if hasattr(agent, "model"):
                             spinner.patch_model(agent.model)
                         if hasattr(agent, "tools"):
@@ -1715,6 +1718,9 @@ def run_kryon_cli(
                     try:
                         run_config = get_run_config()
                         spinner = AgentSpinner(get_agent_short_name(agent), console)
+                        # Show active skill in spinner (unified agent)
+                        if hasattr(agent, "_active_skills") and agent._active_skills:
+                            spinner._active_skill = agent._active_skills[0].name
                         if hasattr(agent, "model"):
                             spinner.patch_model(agent.model)
                         if hasattr(agent, "tools"):
