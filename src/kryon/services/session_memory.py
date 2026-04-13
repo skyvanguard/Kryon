@@ -35,7 +35,7 @@ _SESSION_FILE = os.environ.get("KRYON_SESSION_FILE", "/workspace/.kryon_session.
 # Regex extractors
 _URL_RE = re.compile(r"(?:https?://)?([a-z0-9._-]+\.[a-z]{2,})(?::\d+)?", re.I)
 _IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
-_NMAP_PORT_RE = re.compile(r"^(\d+)/tcp\s+open\s+(\S+)(?:\s+([A-Za-z0-9_./ -]{1,40}))?", re.M)
+_NMAP_PORT_RE = re.compile(r"^(\d+)/tcp\s+open\s+(\S+)(?:\s+(\S+(?:\s+\S+)?))?", re.M)
 _CVE_RE = re.compile(r"CVE-\d{4}-\d{4,7}")
 _TECH_SIGNALS = {
     "apache": ["apache"],
@@ -143,8 +143,11 @@ class SessionMemory:
     def _extract_ports(self, text: str) -> None:
         for m in _NMAP_PORT_RE.finditer(text):
             port = int(m.group(1))
-            service = m.group(2)
+            service = m.group(2).replace("ssl/", "")  # ssl/http → http
             version = (m.group(3) or "").strip()
+            # Clean version: keep only alphanumeric + dots (drop nmap script artifacts)
+            if version and not version[0].isalpha():
+                version = ""
             self._ports[port] = f"{service} {version}".strip()
 
     def _extract_tech(self, text: str) -> None:
@@ -264,10 +267,12 @@ class SessionMemory:
     def _generate_recommendations(self) -> list[str]:
         """Auto-generate recommendations based on extracted findings."""
         recs: list[str] = []
-        services = {v.lower() for v in self._ports.values()} if self._ports else set()
+        # Flatten ports + services into a single searchable string
+        all_services = " ".join(f"{p} {v}" for p, v in self._ports.items()).lower() if self._ports else ""
+        port_numbers = set(self._ports.keys()) if self._ports else set()
 
         # Email services open → check SPF/DKIM/DMARC
-        if any("pop3" in s or "imap" in s or "smtp" in s for s in services):
+        if any(p in port_numbers for p in [110, 143, 993, 995, 25, 465, 587]) or "pop3" in all_services or "imap" in all_services or "smtp" in all_services:
             recs.append("Configure SPF, DKIM and DMARC records for email security")
 
         # Apache/nginx without version hiding
@@ -284,7 +289,7 @@ class SessionMemory:
             recs.append("Disable XML-RPC if not needed (xmlrpc.php)")
 
         # SSH exposed
-        if any("ssh" in s or "openssh" in s for s in services) or 22 in (self._ports or {}):
+        if 22 in port_numbers or 2222 in port_numbers or "ssh" in all_services or "openssh" in all_services:
             recs.append("Disable root login via SSH and enforce key-based authentication")
 
         # No findings at all

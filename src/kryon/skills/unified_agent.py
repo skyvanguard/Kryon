@@ -92,6 +92,12 @@ def create_unified_agent(
 
     if skills is None:
         skills = loader.match(profile=profile, user_msg=user_msg)
+        # If no skills matched (no user_msg yet), load base skills
+        # (recon-scout is the default entry point for any engagement)
+        if not skills:
+            base = loader.get_by_name("recon-scout")
+            if base:
+                skills = [base]
 
     # Build the composite system prompt
     skill_sections = ""
