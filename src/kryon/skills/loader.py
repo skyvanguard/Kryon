@@ -169,7 +169,8 @@ class SkillLoader:
         for d in self._dirs:
             if not d.exists():
                 continue
-            for md_file in sorted(d.glob("*.md")):
+            # Recursive scan so subdirectories (e.g. imported/) are picked up
+            for md_file in sorted(d.rglob("*.md")):
                 mtime = md_file.stat().st_mtime
                 cached = self._cache.get(md_file)
                 if cached and cached[0] == mtime:
