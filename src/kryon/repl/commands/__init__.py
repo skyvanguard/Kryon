@@ -10,7 +10,6 @@ from kryon.repl.commands import (  # pylint: disable=import-error,unused-import,
     agent,
     compact,  # Add the compact command
     config,
-    dry_run,  # /dry-run for safe remediation (ported from Claude Code)
     env,
     exit,
     experiences,  # Add the experiences command (self-improving loop)
