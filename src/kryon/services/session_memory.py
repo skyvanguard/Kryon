@@ -35,7 +35,7 @@ _SESSION_FILE = os.environ.get("KRYON_SESSION_FILE", "/workspace/.kryon_session.
 # Regex extractors
 _URL_RE = re.compile(r"(?:https?://)?([a-z0-9._-]+\.[a-z]{2,})(?::\d+)?", re.I)
 _IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
-_NMAP_PORT_RE = re.compile(r"^(\d+)/tcp\s+open\s+(\S+)(?:\s+(.*))?", re.M)
+_NMAP_PORT_RE = re.compile(r"^(\d+)/tcp\s+open\s+(\S+)(?:\s+([A-Za-z0-9_./ -]{1,40}))?", re.M)
 _CVE_RE = re.compile(r"CVE-\d{4}-\d{4,7}")
 _TECH_SIGNALS = {
     "apache": ["apache"],

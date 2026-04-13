@@ -61,8 +61,9 @@ def build_tool_registry() -> dict[str, Any]:
         except Exception:
             pass
 
-    # Import individual tools that aren't in toolsets
+    # Import individual tools that aren't in shared toolsets
     _extra_tools = [
+        "kryon.tools.reconnaissance.nmap",
         "kryon.tools.reconnaissance.whatweb",
         "kryon.tools.web.nuclei",
         "kryon.tools.web.duckduckgo_search",
