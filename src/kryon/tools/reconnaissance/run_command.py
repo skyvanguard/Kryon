@@ -216,6 +216,29 @@ async def run_command(command: str = "", interactive: bool = False, session_id: 
     if not command.strip():
         return "Error: No command provided"
 
+    # Safety classification (ported from Claude Code destructiveCommandWarning)
+    try:
+        from kryon.services.command_safety import (
+            classify_command,
+            format_dry_run_output,
+            is_dry_run_enabled,
+        )
+
+        severity, reason = classify_command(command)
+        if severity == "destructive":
+            if is_dry_run_enabled():
+                return format_dry_run_output(command, severity, reason)
+            # In normal mode: prepend a warning that the model will see,
+            # then fall through to execute. The server-hardening skill
+            # instructs the model to propose before applying.
+            _safety_warning = f"⚠️ DESTRUCTIVE OPERATION: {reason}\n\n"
+        elif severity == "caution" and is_dry_run_enabled():
+            return format_dry_run_output(command, severity, reason)
+        else:
+            _safety_warning = ""
+    except Exception:
+        _safety_warning = ""
+
     # CRITICAL: Check for Unicode homograph bypass attempts
     guardrails_enabled = os.getenv("KRYON_GUARDRAILS", "true").lower() != "false"
     if guardrails_enabled:
