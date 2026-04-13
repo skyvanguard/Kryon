@@ -5,6 +5,48 @@ All notable changes to KRYON will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-04-13 — "Hydra"
+
+### Added
+
+- **Self-Improving Loop**: ChromaDB-backed experience store that captures engagement outcomes (target profile, attack chain, signals). Agents recall similar past engagements via `recall_similar_experiences` to optimize future attack chains
+- **Dynamic Skill System**: 9 markdown playbooks (`src/kryon/skills/playbooks/`) replace static agents. Skills auto-match by target tech, ports, and user keywords. Hot-reloadable without rebuild
+  - recon-scout, pentest, vuln-hunter, wordpress-audit, ssl-audit, server-hardening, appsec, forensics, ctf-master
+- **Unified "Kryon" Agent**: Single agent with all 74 tools, dynamically composed prompt from matched skills. Replaces 33 static agent files (kept for backward compatibility)
+- **Tool Output Cap**: Results > 5000 chars saved to `/workspace/tool_outputs/`, model receives 700-char preview. Saves ~80% context per tool result
+- **Magic Docs**: Session memory auto-generates structured security assessment report with target, ports, findings, and auto-recommendations
+- **MicroCompact**: Trims old tool outputs in message history after model processes them (~85% token savings)
+- **Session Memory**: Regex-based extraction of target/ports/tech/CVEs, injected as context on every turn
+- **Auto-Extract Experiences**: Engagement saved automatically on REPL exit if tools were called
+- **Claude Code-style Spinner**: Shimmer glyph animation with RGB interpolation, random verbs, stall detection (turns red after 30s)
+- **REPL commands**: `/experiences` (list/show/search/delete/close), `/exp` alias
+- **Tool Budget Manager**: Selects active tools based on loaded skills, caps at 30 to fit 32K context
+- **Skill Loader**: Parses markdown frontmatter, caches by mtime, matches by tech/port/keyword triggers
+
+### Fixed
+
+- **Tool Calling with Ollama**: 4 SDK fixes enabling autonomous tool execution with local models:
+  - Tool name normalization (`nmap:nmap` → `nmap`) for Ollama namespace quirk
+  - Hallucination tolerance: unknown tools return error to model instead of crashing
+  - Schema fix: `strict_schema.py` preserves Pydantic defaults for Ollama (nuclei_scan went from 23/23 to 1/23 required params)
+  - `tool_choice="required"` forced on first 8 turns for Ollama models
+- **Context Window**: Created `gemma4:26b-32k` variant with `PARAMETER num_ctx 32768` (Ollama defaults to ~4096, silently truncating tool schemas)
+- **Non-streaming Display**: `response.final_output` now displayed and persisted in non-streaming REPL path
+- **RAG Seed Idempotence**: Fixed `total_knowledge_items` vs `total_documents` field mismatch causing re-seed on every restart
+- **ChromaDB Embeddings**: Custom Ollama HTTP embedding function (no `ollama` Python SDK dependency). Cosine distance for normalized 0-1 scores
+- **Docker**: `.dockerignore` allows `entrypoint.sh`, CRLF→LF fix for Linux compatibility
+- **Ollama Detection**: Tightened heuristic (no false positives on litellm model IDs with `:`)
+- **`run_command`**: `session_id: str | None = None` (was `str = None`, made param required in schema)
+
+### Changed
+
+- **Recommended model**: Gemma 4 26B MoE via Ollama (`gemma4:26b-32k`). 3.8B active params, tool calling, thinking, 262K native context
+- **Default agent**: `KRYON_AGENT=kryon` with `KRYON_UNIFIED=true` (unified skill-based agent)
+- **System prompts rewritten**: recon_scout, pentest_agent, vuln_hunter — conversation-aware, no `<target>` placeholders, explicit "chain tools without stopping"
+- **Markdown rendering**: Stream panel uses `rich.markdown.Markdown` instead of raw `Text`
+- **Version**: 1.1.0 → 2.0.0 (breaking: new agent system, new modules)
+- **Tagline**: "Autonomous Cybersecurity Intelligence Platform" → "Self-Improving Autonomous Cybersecurity Platform"
+
 ## [1.1.1] - 2026-03-03
 
 ### Fixed

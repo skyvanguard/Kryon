@@ -1,18 +1,19 @@
 """
-KRYON - Autonomous Cybersecurity Intelligence Platform
+KRYON - Self-Improving Autonomous Cybersecurity Platform
 
-An advanced framework for building autonomous AI-powered cybersecurity operations.
-KRYON provides state-of-the-art offensive and defensive security capabilities
-through intelligent agents powered by 300+ LLM models.
+An autonomous cybersecurity platform that learns from every engagement.
+Features dynamic skill system, self-improving loop with experience recall,
+context management, and 204+ security tools. Optimized for local LLMs
+via Ollama (Gemma 4 26B MoE recommended).
 
-Version: 1.1.0
-Code Name: "Genesis"
+Version: 2.0.0
+Code Name: "Hydra"
 
 Website: https://kryon.com.py
 """
 
-__version__ = "1.1.0"
-__codename__ = "Genesis"
+__version__ = "2.0.0"
+__codename__ = "Hydra"
 
 # Import submodules for proper namespace resolution
 from kryon import repl as repl
