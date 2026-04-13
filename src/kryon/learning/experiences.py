@@ -44,7 +44,10 @@ def _get_collection():
     embed_fn = _build_embedding_function()
     kwargs: dict[str, Any] = {
         "name": _COLLECTION_NAME,
-        "metadata": {"description": "KRYON engagement experiences"},
+        "metadata": {
+            "description": "KRYON engagement experiences",
+            "hnsw:space": "cosine",  # cosine distance [0,2] instead of L2
+        },
     }
     if embed_fn is not None:
         kwargs["embedding_function"] = embed_fn
@@ -293,7 +296,9 @@ def recall_similar(
     for i, doc in enumerate(docs[0]):
         metadata = metas[0][i] if i < len(metas[0]) else {}
         exp = _metadata_to_experience(metadata, doc)
-        exp["score"] = 1.0 - (dists[0][i] if i < len(dists[0]) else 0.0)
+        # Cosine distance range is [0, 2]. Normalize to [0, 1] similarity.
+        dist = dists[0][i] if i < len(dists[0]) else 0.0
+        exp["score"] = max(0.0, 1.0 - dist / 2.0)
         out.append(exp)
     return out
 

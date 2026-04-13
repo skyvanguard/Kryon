@@ -44,7 +44,7 @@ def auto_extract_on_exit() -> None:
         return
 
     try:
-        ok, exp_id = close_and_save_experience("auto-captured on exit")
+        ok, exp_id = close_and_save_experience("")  # use chain_extractor's auto-summary
         if ok and exp_id:
             print(f"\n✅ Experience auto-saved: {exp_id}")
         else:

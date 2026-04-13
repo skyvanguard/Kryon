@@ -1815,6 +1815,21 @@ def run_kryon_cli(
 
                 agent.model.message_history[:] = fix_message_list(agent.model.message_history)
 
+                # --- Post-turn services for non-streaming path ---
+                # (Streaming path has its own block after process_streamed_response)
+                try:
+                    from kryon.services.micro_compact import micro_compact_history
+
+                    micro_compact_history(agent.model.message_history)
+                except Exception:
+                    pass
+                try:
+                    from kryon.services.session_memory import get_session_memory
+
+                    get_session_memory().update(agent.model.message_history[-12:])
+                except Exception:
+                    pass
+
             # Extract and persist findings from recent messages
             try:
                 if hasattr(agent, "model") and hasattr(agent.model, "message_history"):

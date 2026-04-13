@@ -69,9 +69,11 @@ def _ensure_strict_json_schema(
         import os
 
         if os.environ.get("OLLAMA", "").lower() in ("true", "1"):
-            # Local model: keep Pydantic's defaults-aware required list
+            # Local model: keep Pydantic's defaults-aware required list.
+            # When ALL fields have defaults, Pydantic omits "required"
+            # entirely — in that case use an empty list, NOT all keys.
             if "required" not in json_schema:
-                json_schema["required"] = list(properties.keys())
+                json_schema["required"] = []
         else:
             # Cloud API (OpenAI): strict mode demands all required
             json_schema["required"] = list(properties.keys())

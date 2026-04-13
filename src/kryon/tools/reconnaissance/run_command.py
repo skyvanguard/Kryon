@@ -64,7 +64,7 @@ def detect_unicode_homographs(text: str) -> tuple[bool, str]:
 
 
 @function_tool
-async def run_command(command: str = "", interactive: bool = False, session_id: str = None) -> str:
+async def run_command(command: str = "", interactive: bool = False, session_id: str | None = None) -> str:
     """
     Execute commands with session management.
 
