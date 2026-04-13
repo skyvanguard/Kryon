@@ -117,17 +117,11 @@ def create_unified_agent(
         len(tools),
     )
 
-    # Build agent kwargs
-    kwargs: dict[str, Any] = {}
-    if agent_id:
-        kwargs["agent_id"] = agent_id
-
     agent = create_agent(
         name="Kryon",
         instructions=instructions,
         tools=tools,
         description="Unified autonomous cybersecurity agent with dynamic skills",
-        **kwargs,
     )
 
     # Stash loader + skills on the agent for hot-swap later

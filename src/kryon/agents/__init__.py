@@ -225,11 +225,14 @@ def get_agent_by_name(
         try:
             from kryon.skills.unified_agent import create_unified_agent
 
-            return create_unified_agent(agent_id=agent_id)
+            return create_unified_agent()
         except Exception as e:
             import logging
 
             logging.getLogger(__name__).warning("Unified agent failed, falling back: %s", e)
+            # Don't fall through to legacy — "kryon" doesn't exist there.
+            # Fall back to recon_scout which is the closest equivalent.
+            agent_name = "recon_scout"
 
     # Import the generic factory system
     from kryon.agents.factory import get_agent_factory
