@@ -184,55 +184,115 @@ class SessionMemory:
     # ------------------------------------------------------------------
 
     def _write(self) -> None:
-        lines = ["# KRYON Session State", ""]
+        """Write session state as a Magic Doc (auto-updating security report)."""
+        target_display = self._target or "Unknown"
+        ip_display = f" ({self._resolved_ip})" if self._resolved_ip else ""
 
+        lines = [
+            f"# MAGIC DOC: Security Assessment — {target_display}",
+            "",
+            f"*Auto-updated by Kryon — last: {self._last_update or 'N/A'}*",
+            "",
+        ]
+
+        # Target section
+        lines.append("## Target")
         if self._target:
-            lines.append(f"**Target:** {self._target}")
-        if self._resolved_ip:
-            lines.append(f"**IP:** {self._resolved_ip}")
+            lines.append(f"- **Host:** {self._target}{ip_display}")
+        if self._tech:
+            lines.append(f"- **Stack:** {', '.join(sorted(self._tech))}")
+        lines.append("")
 
+        # Ports table
         if self._ports:
-            lines.append("")
             lines.append("## Open Ports")
+            lines.append("")
             lines.append("| Port | Service |")
             lines.append("|------|---------|")
             for port in sorted(self._ports):
                 lines.append(f"| {port} | {self._ports[port]} |")
-
-        if self._tech:
             lines.append("")
-            lines.append(f"**Tech detected:** {', '.join(sorted(self._tech))}")
 
+        # CVEs
         if self._cves:
+            lines.append("## CVEs Detected")
             lines.append("")
-            lines.append(f"**CVEs found:** {', '.join(sorted(self._cves))}")
+            for cve in sorted(self._cves):
+                lines.append(f"- {cve}")
+            lines.append("")
 
+        # Findings
         if self._findings:
-            lines.append("")
             lines.append("## Key Findings")
+            lines.append("")
             for f in self._findings:
                 lines.append(f"- {f}")
-
-        if self._tools_run:
             lines.append("")
-            lines.append(f"**Tools executed:** {' → '.join(self._tools_run)}")
 
+        # Status
         if self._shell_gained:
+            lines.append("## Status: COMPROMISED")
             lines.append("")
-            lines.append("**Status:** 🔴 Shell access obtained")
+            lines.append("Shell access obtained on target.")
+            lines.append("")
         elif self._flag_found:
+            lines.append("## Status: FLAG CAPTURED")
             lines.append("")
-            lines.append("**Status:** 🟢 Flag captured")
 
-        if self._last_update:
+        # Tools chain
+        if self._tools_run:
+            lines.append("## Tools Executed")
             lines.append("")
-            lines.append(f"*Last updated: {self._last_update}*")
+            lines.append(f"{' → '.join(self._tools_run)}")
+            lines.append("")
+
+        # Recommendations (auto-generated from findings)
+        recommendations = self._generate_recommendations()
+        if recommendations:
+            lines.append("## Recommendations")
+            lines.append("")
+            for i, rec in enumerate(recommendations, 1):
+                lines.append(f"{i}. {rec}")
+            lines.append("")
 
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
             self._path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         except Exception as e:
             logger.warning("session_memory write failed: %s", e)
+
+    def _generate_recommendations(self) -> list[str]:
+        """Auto-generate recommendations based on extracted findings."""
+        recs: list[str] = []
+        services = {v.lower() for v in self._ports.values()} if self._ports else set()
+
+        # Email services open → check SPF/DKIM/DMARC
+        if any("pop3" in s or "imap" in s or "smtp" in s for s in services):
+            recs.append("Configure SPF, DKIM and DMARC records for email security")
+
+        # Apache/nginx without version hiding
+        if "apache" in self._tech or "nginx" in self._tech:
+            recs.append("Hide server version in HTTP response headers")
+
+        # CVEs found
+        if self._cves:
+            recs.append(f"Patch {len(self._cves)} identified CVE(s) immediately")
+
+        # WordPress detected
+        if "wordpress" in self._tech:
+            recs.append("Audit WordPress plugins and themes for known vulnerabilities")
+            recs.append("Disable XML-RPC if not needed (xmlrpc.php)")
+
+        # SSH exposed
+        if any("ssh" in s or "openssh" in s for s in services) or 22 in (self._ports or {}):
+            recs.append("Disable root login via SSH and enforce key-based authentication")
+
+        # No findings at all
+        if not recs and self._tools_run:
+            recs.append("Run deeper directory brute force for .bak, .old, .env files")
+            recs.append("Perform authenticated testing if credentials are available")
+
+        return recs
 
 
 # ---------------------------------------------------------------------------

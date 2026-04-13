@@ -1242,6 +1242,25 @@ After the analysis, provide a structured summary with these sections:
 - The summary will be used as the primary context for resuming work, so completeness is crucial
 - When the conversation is resumed, it should feel like a natural continuation
 
+## Output Format
+
+First, wrap your detailed analysis in <analysis> tags — this is your scratchpad
+and will be stripped from the final summary:
+
+<analysis>
+1. What was the target and objective?
+2. What tools ran and what did they find?
+3. What are the key findings (CVEs, exposed files, misconfigs)?
+4. What phase is the work in (recon, exploit, post-exploit, report)?
+5. Chronological flow of actions
+</analysis>
+
+Then wrap your final concise summary in <summary> tags — this is what persists:
+
+<summary>
+... your structured summary here ...
+</summary>
+
 This session is being continued from a previous conversation that ran out of context. The conversation is summarized below:"""
 
         summary_agent = Agent(
@@ -1265,7 +1284,16 @@ This session is being continued from a previous conversation that ran out of con
             )
 
             if result.final_output:
-                return str(result.final_output)
+                summary = str(result.final_output)
+                # Strip <analysis> scratchpad (ported from Claude Code compact/prompt.ts)
+                import re as _re
+
+                summary = _re.sub(r"<analysis>.*?</analysis>", "", summary, flags=_re.DOTALL).strip()
+                # Extract content from <summary> tags if present
+                m = _re.search(r"<summary>(.*?)</summary>", summary, _re.DOTALL)
+                if m:
+                    summary = m.group(1).strip()
+                return summary
             else:
                 return None
 

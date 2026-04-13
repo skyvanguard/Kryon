@@ -483,7 +483,19 @@ class OpenAIChatCompletionsModel(Model):
         """Add a message to this instance's history if it's not a duplicate.
 
         Now only adds to the instance's local history, no global registry.
+        Tool results exceeding the size cap are persisted to disk.
         """
+        # Cap large tool outputs to preserve context window (ported from Claude Code toolLimits)
+        if msg.get("role") == "tool" and isinstance(msg.get("content"), str) and len(msg["content"]) > 5000:
+            try:
+                from kryon.services.tool_output_cap import cap_tool_output
+
+                tool_id = msg.get("tool_call_id", "")
+                msg = dict(msg)  # don't mutate caller's dict
+                msg["content"] = cap_tool_output(msg["content"], tool_name=tool_id[:20])
+            except Exception:
+                pass
+
         is_duplicate = False
 
         if self.message_history:
