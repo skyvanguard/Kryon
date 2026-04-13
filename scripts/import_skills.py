@@ -17,6 +17,279 @@ from pathlib import Path
 # -------- Curated picks with Kryon-adapted frontmatter --------
 # (upstream_name, kryon_name, frontmatter_yaml)
 SKILLS: list[tuple[str, str, str]] = [
+    # ============ BATCH 3 — 18 more high-value skills ============
+
+    # --- Web Offensive (classics) ---
+    (
+        "exploiting-sql-injection-vulnerabilities",
+        "sqli-exploit",
+        """name: sqli-exploit
+description: "SQL Injection exploitation — UNION, blind, time-based, WAF bypass"
+triggers:
+  tech: ["mysql", "postgresql", "mssql", "php", "asp"]
+  ports: [80, 443, 8080, 3306, 5432, 1433]
+  keywords: ["sqli", "sql injection", "sqlmap", "union select", "blind sqli", "time-based"]
+priority: 17
+required_tools:
+  - run_command
+  - search_vulnerabilities""",
+    ),
+    (
+        "exploiting-insecure-deserialization",
+        "deserialization-exploit",
+        """name: deserialization-exploit
+description: "Insecure deserialization — PHP unserialize, Java ObjectInputStream, Python pickle"
+triggers:
+  tech: ["java", "php", "python", "ruby", "dotnet"]
+  keywords: ["deserialization", "unserialize", "pickle", "yaml.load", "objectinputstream", "ysoserial"]
+priority: 18
+required_tools:
+  - run_command
+  - execute_code""",
+    ),
+    (
+        "exploiting-server-side-request-forgery",
+        "ssrf-exploit",
+        """name: ssrf-exploit
+description: "SSRF exploitation — metadata endpoints (169.254.169.254), internal scan"
+triggers:
+  tech: []
+  ports: [80, 443, 8080]
+  keywords: ["ssrf", "server-side request forgery", "metadata endpoint", "169.254"]
+priority: 18
+required_tools:
+  - run_command""",
+    ),
+    (
+        "exploiting-jwt-algorithm-confusion-attack",
+        "jwt-attacks",
+        """name: jwt-attacks
+description: "JWT attacks — alg=none, algorithm confusion, key confusion, kid injection"
+triggers:
+  tech: []
+  keywords: ["jwt", "json web token", "alg none", "algorithm confusion", "kid injection"]
+priority: 18
+required_tools:
+  - run_command
+  - execute_code""",
+    ),
+    (
+        "exploiting-http-request-smuggling",
+        "http-smuggling",
+        """name: http-smuggling
+description: "HTTP Request Smuggling — CL.TE, TE.CL, TE.TE desync attacks"
+triggers:
+  tech: []
+  ports: [80, 443]
+  keywords: ["request smuggling", "http desync", "cl.te", "te.cl", "te.te"]
+priority: 20
+required_tools:
+  - run_command""",
+    ),
+    (
+        "performing-graphql-introspection-attack",
+        "graphql-attacks",
+        """name: graphql-attacks
+description: "GraphQL attacks — introspection, IDOR via nodes, DoS via depth, batch attacks"
+triggers:
+  tech: ["graphql"]
+  ports: [80, 443]
+  keywords: ["graphql", "introspection", "apollo", "hasura", "dgraph"]
+priority: 18
+required_tools:
+  - run_command""",
+    ),
+    (
+        "testing-for-open-redirect-vulnerabilities",
+        "open-redirect",
+        """name: open-redirect
+description: "Open redirect testing — phishing vector, OAuth flow hijack"
+triggers:
+  tech: []
+  keywords: ["open redirect", "url redirect", "redirect bypass"]
+priority: 25
+required_tools:
+  - run_command""",
+    ),
+    (
+        "exploiting-race-condition-vulnerabilities",
+        "race-condition",
+        """name: race-condition
+description: "Race condition exploitation — TOCTOU, double-spend, webhook abuse"
+triggers:
+  tech: []
+  keywords: ["race condition", "toctou", "double spend", "concurrent request"]
+priority: 22
+required_tools:
+  - run_command
+  - execute_code""",
+    ),
+
+    # --- Privilege Escalation ---
+    (
+        "performing-privilege-escalation-on-linux",
+        "linux-privesc",
+        """name: linux-privesc
+description: "Linux privilege escalation — SUID, capabilities, sudo, kernel exploits, cron"
+triggers:
+  tech: ["linux"]
+  keywords: ["privesc", "privilege escalation", "linpeas", "suid", "capabilities", "sudo abuse"]
+priority: 20
+required_tools:
+  - run_command""",
+    ),
+
+    # --- SIEM / Threat Hunting ---
+    (
+        "performing-threat-hunting-with-elastic-siem",
+        "threat-hunting-elastic",
+        """name: threat-hunting-elastic
+description: "Threat hunting con Elastic SIEM — KQL, Lucene queries, anomaly detection"
+triggers:
+  tech: ["elastic"]
+  keywords: ["elastic siem", "kql", "threat hunt", "elastic query", "elk stack"]
+priority: 28
+required_tools:
+  - run_command""",
+    ),
+    (
+        "performing-yara-rule-development-for-detection",
+        "yara-rules",
+        """name: yara-rules
+description: "Desarrollo de reglas YARA para detección de malware"
+triggers:
+  tech: []
+  keywords: ["yara", "yara rule", "malware signature", "pattern detection"]
+priority: 28
+required_tools:
+  - run_command
+  - execute_code""",
+    ),
+
+    # --- Incident Response ---
+    (
+        "containing-active-breach",
+        "active-breach-containment",
+        """name: active-breach-containment
+description: "Contención de breach activo — isolation, evidence preservation, eradication"
+triggers:
+  tech: []
+  keywords: ["active breach", "contención", "containment", "isolate", "incident live", "comprometido"]
+priority: 15
+required_tools:
+  - run_command""",
+    ),
+    (
+        "building-incident-response-playbook",
+        "ir-playbook",
+        """name: ir-playbook
+description: "IR playbook — 6 fases: preparation, detect, contain, eradicate, recover, lessons"
+triggers:
+  tech: []
+  keywords: ["incident response", "ir playbook", "nist ir", "sans ir"]
+priority: 30
+required_tools:
+  - run_command""",
+    ),
+
+    # --- Container / K8s / Cloud ---
+    (
+        "analyzing-kubernetes-audit-logs",
+        "k8s-audit",
+        """name: k8s-audit
+description: "Kubernetes audit logs — detect suspicious kubectl, exec, pod privilege escalation"
+triggers:
+  tech: ["kubernetes", "k8s"]
+  ports: [6443, 8443]
+  keywords: ["kubernetes", "k8s audit", "kubectl", "pod escalation", "container escape"]
+priority: 22
+required_tools:
+  - run_command""",
+    ),
+    (
+        "hardening-docker-containers-for-production",
+        "docker-hardening",
+        """name: docker-hardening
+description: "Docker container hardening — rootless, capabilities drop, read-only, no-new-privileges"
+triggers:
+  tech: ["docker"]
+  keywords: ["docker hardening", "container security", "docker bench", "rootless container"]
+priority: 22
+required_tools:
+  - run_command""",
+    ),
+    (
+        "scanning-docker-images-with-trivy",
+        "trivy-scan",
+        """name: trivy-scan
+description: "Escaneo de imágenes Docker con Trivy — CVEs, secrets, misconfig"
+triggers:
+  tech: ["docker"]
+  keywords: ["trivy", "docker scan", "image vuln", "container cve"]
+priority: 25
+required_tools:
+  - run_command""",
+    ),
+
+    # --- Network Forensics ---
+    (
+        "detecting-dns-exfiltration-with-dns-query-analysis",
+        "dns-exfil-detect",
+        """name: dns-exfil-detect
+description: "Detección de DNS exfiltration y tunneling — entropy analysis, query length"
+triggers:
+  tech: []
+  ports: [53]
+  keywords: ["dns exfil", "dns tunneling", "dnscat", "iodine", "data exfiltration"]
+priority: 28
+required_tools:
+  - run_command""",
+    ),
+
+    # --- Specialized: Mobile ---
+    (
+        "performing-android-app-static-analysis-with-mobsf",
+        "android-mobsf",
+        """name: android-mobsf
+description: "Análisis estático de apps Android con MobSF — APK audit, insecure storage"
+triggers:
+  tech: ["android", "apk"]
+  keywords: ["mobsf", "apk", "android app", "android security", "mobile app audit"]
+priority: 25
+required_tools:
+  - run_command""",
+    ),
+
+    # --- Ransomware Response ---
+    (
+        "analyzing-ransomware-encryption-mechanisms",
+        "ransomware-analysis",
+        """name: ransomware-analysis
+description: "Análisis de ransomware — encryption mechanisms, key recovery, decryption"
+triggers:
+  tech: []
+  keywords: ["ransomware", "encrypted files", "ransom note", "crypter", "decryption"]
+priority: 28
+required_tools:
+  - run_command
+  - execute_code""",
+    ),
+
+    # --- Threat Intel mapping ---
+    (
+        "analyzing-threat-actor-ttps-with-mitre-attack",
+        "mitre-attack-mapping",
+        """name: mitre-attack-mapping
+description: "Mapeo de TTPs a MITRE ATT&CK framework — techniques, tactics, procedures"
+triggers:
+  tech: []
+  keywords: ["mitre attack", "ttp", "tactics techniques", "attack framework", "att&ck"]
+priority: 30
+required_tools:
+  - query_knowledge_base""",
+    ),
+    # ============ END BATCH 3 ============
+
     # --- Web Offensive ---
     (
         "conducting-api-security-testing",
