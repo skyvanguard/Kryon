@@ -210,12 +210,34 @@ def extract_chain_from_history(
 
     outcome, signals = _classify_outcome(full_text, chain)
 
-    # Build a short summary — one line per tool call, truncated
-    summary_bits: list[str] = []
-    for step in chain:
-        args_preview = (step.get("args") or "")[:60]
-        summary_bits.append(f"{step.get('tool')}({args_preview})")
-    summary = " -> ".join(summary_bits) if summary_bits else "no tool calls captured"
+    # Build a rich summary: target + tool chain + outcome + key stats
+    tool_names = [step.get("tool", "?") for step in chain if step.get("tool")]
+    # De-dup consecutive same-tool calls
+    deduped: list[str] = []
+    for t in tool_names:
+        clean = t.rsplit(":", 1)[-1] if ":" in t else t  # strip namespace
+        if not deduped or deduped[-1] != clean:
+            deduped.append(clean)
+
+    # Extract target from text if possible
+    import re as _re
+
+    target_match = _re.search(r"Nmap scan report for\s+(\S+)", full_text)
+    target_host = target_match.group(1) if target_match else ""
+
+    chain_str = " → ".join(deduped) if deduped else "no tools"
+    stats_bits: list[str] = []
+    if signals.get("cve_confirmed"):
+        stats_bits.append(f"{len(signals['cve_confirmed'])} CVEs")
+    if signals.get("directories_found"):
+        stats_bits.append(f"{signals['directories_found']} dirs")
+    if signals.get("shell_gained"):
+        stats_bits.append("shell")
+    if signals.get("flag_found"):
+        stats_bits.append("flag")
+    stats_str = f" [{', '.join(stats_bits)}]" if stats_bits else ""
+
+    summary = f"{target_host}: {chain_str} [{outcome}{stats_str}]" if target_host else f"{chain_str} [{outcome}{stats_str}]"
 
     return {
         "chain": chain,

@@ -1646,7 +1646,7 @@ def run_kryon_cli(
 
                             sm = get_session_memory()
                             if hasattr(agent, "model") and hasattr(agent.model, "message_history"):
-                                sm.update(agent.model.message_history[-8:])
+                                sm.update(agent.model.message_history)
                         except Exception:
                             pass
 
@@ -1826,7 +1826,7 @@ def run_kryon_cli(
                 try:
                     from kryon.services.session_memory import get_session_memory
 
-                    get_session_memory().update(agent.model.message_history[-12:])
+                    get_session_memory().update(agent.model.message_history)
                 except Exception:
                     pass
 

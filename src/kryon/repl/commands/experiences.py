@@ -334,6 +334,25 @@ def close_and_save_experience(user_summary: str = "") -> tuple[bool, str | None]
     tool_outputs = [c.get("output", "") for c in chain_data.get("chain", []) if c.get("output")]
     profile = build_profile(history=merged, tool_outputs=tool_outputs)
 
+    # Enrich profile with session_memory data (already has regex-extracted
+    # target, ports, tech, CVEs from prior turns)
+    try:
+        from kryon.services.session_memory import get_session_memory
+
+        sm = get_session_memory()
+        if sm._target and not profile.get("host"):
+            profile["host"] = sm._target
+        if sm._resolved_ip and not profile.get("resolved_ip"):
+            profile["resolved_ip"] = sm._resolved_ip
+        if sm._ports and not profile.get("ports"):
+            profile["ports"] = sorted(sm._ports.keys())
+            profile["services"] = {str(k): v for k, v in sm._ports.items()}
+        if sm._tech:
+            existing = set(profile.get("tech") or [])
+            profile["tech"] = sorted(existing | sm._tech)
+    except Exception:
+        pass
+
     if not profile.get("host") and not profile.get("resolved_ip"):
         return False, None
 
