@@ -1764,13 +1764,28 @@ def run_kryon_cli(
                         # Continue the conversation loop instead of crashing
                         continue
 
-                    # In Claude Code mode, print the final output (no streaming to display it)
-                    if os.getenv("KRYON_CLAUDE_CODE", "").lower() == "true" and response.final_output:
+                    # Display and persist the model's final text output.
+                    # Previously this only ran in Claude Code CLI mode, but it's
+                    # needed for ALL non-streaming runs — otherwise the user
+                    # never sees the model's analysis and the next turn loses context.
+                    if response and hasattr(response, "final_output") and response.final_output:
                         from rich.markdown import Markdown
+                        from rich.panel import Panel
 
                         console.print()
-                        console.print(Markdown(str(response.final_output)))
+                        console.print(
+                            Panel(
+                                Markdown(str(response.final_output)),
+                                title=f"[bold green]{get_agent_short_name(agent)}[/bold green]",
+                                border_style="blue",
+                                padding=(1, 2),
+                            )
+                        )
                         console.print()
+                        # Persist to history so the next turn has context
+                        agent.model.add_to_message_history(
+                            {"role": "assistant", "content": str(response.final_output)}
+                        )
 
                     # En modo no-streaming, procesamos SOLO los tool outputs de response.new_items
                     # Los tool calls (assistant messages) ya se añaden correctamente en openai_chatcompletions.py
