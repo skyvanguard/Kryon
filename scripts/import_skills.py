@@ -290,6 +290,97 @@ required_tools:
     ),
     # ============ END BATCH 3 ============
 
+    # ============ BATCH 4 — Banking/Financial ============
+    (
+        "implementing-pci-dss-compliance-controls",
+        "pci-dss-controls-impl",
+        """name: pci-dss-controls-impl
+description: "PCI-DSS v4.0.1 — implementación de los 12 requerimientos y controles"
+triggers:
+  tech: []
+  keywords: ["pci dss impl", "pci controls", "cardholder environment", "pan storage", "tokenization"]
+priority: 20
+required_tools:
+  - run_command""",
+    ),
+    (
+        "detecting-business-email-compromise",
+        "bec-detection",
+        """name: bec-detection
+description: "Business Email Compromise (BEC) detection — CEO fraud, invoice fraud"
+triggers:
+  tech: []
+  keywords: ["bec", "business email compromise", "ceo fraud", "invoice fraud", "wire fraud"]
+priority: 22
+required_tools:
+  - run_command
+  - query_knowledge_base""",
+    ),
+    (
+        "investigating-phishing-email-incident",
+        "phishing-investigation",
+        """name: phishing-investigation
+description: "Investigación de phishing incidents — headers, URL analysis, attachment detonation"
+triggers:
+  tech: []
+  keywords: ["phishing email", "phishing ir", "email forensic", "phishing investigate"]
+priority: 22
+required_tools:
+  - run_command
+  - query_knowledge_base""",
+    ),
+    (
+        "detecting-insider-threat-with-ueba",
+        "insider-threat-ueba",
+        """name: insider-threat-ueba
+description: "Insider threat detection con UEBA — baseline, anomalies, risk scoring"
+triggers:
+  tech: []
+  keywords: ["insider threat", "ueba", "user behavior", "anomaly detection", "employee risk"]
+priority: 25
+required_tools:
+  - run_command""",
+    ),
+    (
+        "performing-soap-web-service-security-testing",
+        "soap-testing",
+        """name: soap-testing
+description: "SOAP web services testing — WSDL analysis, XXE, SQLi, WS-Security"
+triggers:
+  tech: []
+  ports: [80, 443, 8080, 8443]
+  keywords: ["soap", "wsdl", "ws-security", "xml-rpc", "soapui"]
+priority: 18
+required_tools:
+  - run_command
+  - nuclei_scan""",
+    ),
+    (
+        "detecting-anomalous-authentication-patterns",
+        "auth-anomaly-detect",
+        """name: auth-anomaly-detect
+description: "Auth anomalies — impossible travel, brute force, credential stuffing"
+triggers:
+  tech: []
+  keywords: ["auth anomaly", "impossible travel", "credential stuffing", "login anomaly"]
+priority: 25
+required_tools:
+  - run_command""",
+    ),
+    (
+        "implementing-honeytokens-for-breach-detection",
+        "honeytokens",
+        """name: honeytokens
+description: "Honeytokens / canary tokens para detección temprana de breach"
+triggers:
+  tech: []
+  keywords: ["honeytoken", "canary token", "decoy", "honeypot", "breach detection"]
+priority: 28
+required_tools:
+  - run_command""",
+    ),
+    # ============ END BATCH 4 ============
+
     # --- Web Offensive ---
     (
         "conducting-api-security-testing",

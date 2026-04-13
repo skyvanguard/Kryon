@@ -29,6 +29,7 @@ from kryon.repl.commands import (  # pylint: disable=import-error,unused-import,
     quickstart,  # Add the quickstart command
     run,  # Add the run command for parallel mode
     shell,
+    skill,  # /skill — on-demand skill management
     virtualization,
     workspace,
 )
