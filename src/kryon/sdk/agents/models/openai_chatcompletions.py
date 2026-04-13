@@ -3332,8 +3332,11 @@ class OpenAIChatCompletionsModel(Model):
         # the single highest-impact change for Ollama tool-calling
         # reliability with models like gemma4.
         effective_tool_choice = tool_choice
-        if has_tools and self.interaction_counter <= 2:
-            # First 2 turns: force tool use (model must call a tool)
+        # Force tool calling for the first N turns so the model chains
+        # tools autonomously (nmap → whatweb → gobuster → nuclei → ...)
+        # instead of stopping to generate text after each tool.
+        _force_tool_turns = int(os.environ.get("KRYON_FORCE_TOOL_TURNS", "8"))
+        if has_tools and self.interaction_counter <= _force_tool_turns:
             effective_tool_choice = "required"
         if effective_tool_choice is not None and effective_tool_choice is not NOT_GIVEN:
             ollama_supported_params["tool_choice"] = effective_tool_choice
