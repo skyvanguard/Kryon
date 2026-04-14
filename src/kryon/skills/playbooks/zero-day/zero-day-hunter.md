@@ -59,15 +59,13 @@ are your **ground-truth oracle**. Hallucinated bugs are unacceptable.
   `list_functions(file)` first. Compilers use suffixes you can't predict.
 - **One hypothesis per cycle.** Don't batch-report; each finding gets its own
   H→V→R cycle.
-- **Commit early, commit often.** After reading AT MOST 2 functions, you MUST
-  commit to one candidate and move to Phase 2's hypothesis step. Do NOT keep
-  reading more functions hoping inspiration strikes — write a PoC, run it,
-  learn from the result. If the first hypothesis fails verification, move on
-  to the next candidate. Observed failure mode: hunters read 5-7 functions
-  without ever calling `run_sandboxed` and time out. Don't be that hunter.
+- **Reason before committing.** You have 50 turns. Use them. Read as many
+  functions as you need to UNDERSTAND the call graph, THEN form a precise
+  hypothesis. The failure mode to avoid is the opposite: emitting a PoC
+  without understanding the code. Prefer quality hypothesis over speed.
 - Log discarded hypotheses to memory — the learning loop benefits from "patterns
   that looked exploitable but weren't".
-- **Turn budget escape hatch.** If you've used >= 6 turns on a single file
+- **Turn budget escape hatch.** If you've used >= 20 turns on a single file
   without a confirmed crash, emit an explicit "NO FINDING" summary and stop:
   ```
   NO FINDING
@@ -120,6 +118,27 @@ For each top file:
    call-sites and pick one of those.
 
 If you cannot form a concrete trigger input, move on — don't guess.
+
+## Phase 2.5 — Reflection (every 5 turns, mandatory)
+
+Every 5 turns you MUST emit a `REFLECT` block and then continue. No
+exceptions — this forces you to step back and question your own
+direction instead of drifting.
+
+```
+REFLECT
+  Current hypothesis: <CWE-XXX in file:function, triggered by <input shape>>
+  Evidence FOR:       <facts from read_function / find_callers that support it>
+  Evidence AGAINST:   <facts that could disprove it, or missing evidence>
+  What would kill it: <a concrete input or code path that, if true, means my
+                       hypothesis is wrong>
+  Next action:        <ONE specific tool call and why>
+```
+
+The block is free text — no JSON needed. If you find yourself writing
+"no evidence against", stop and look harder. Every real hypothesis has
+at least one plausible alternative explanation. Finding and killing
+those alternatives is how you converge on a real bug.
 
 ## Phase 3 — Verify (the oracle decides)
 
@@ -182,9 +201,32 @@ the baseline severity AND include in the report:
 **Do NOT skip this phase to save time.** One confirmed MEDIUM with an
 explicit deepening note is more valuable than three unverified HIGH claims.
 
+## Phase 3.6 — Adversarial self-challenge (before Phase 4)
+
+Before emitting a FINDING, you MUST construct a "safe" PoC — identical to
+your crashing PoC BUT with input that, according to your hypothesis,
+should NOT crash. Run it under `run_sandboxed`.
+
+Expected outcome:
+- If safe PoC does NOT crash → your hypothesis is precise. Proceed to Phase 4.
+- If safe PoC ALSO crashes → your hypothesis is over-broad. The real
+  trigger is something more fundamental than what you described. Either
+  revise to something more precise OR emit `FINDING` with a more general
+  crash classification + note the discovery in `Deepening outcome`.
+
+Example for a hypothesized "CWE-787 when length > buffer size":
+- crashing PoC: `memcpy(buf[8], input, 25)` — crashes
+- safe PoC: `memcpy(buf[8], input, 4)` — should NOT crash
+
+If the safe PoC also crashes, your hypothesis "length > buffer size"
+is wrong — probably memory-corruption in the harness itself. Fix the
+harness before reporting.
+
 ## Phase 4 — Triage & Report
 
-Only reachable after Phase 3 returned `crashed=true` AND Phase 3.5 was attempted.
+Only reachable after Phase 3 returned `crashed=true`, Phase 3.5
+(deepening) was attempted, AND Phase 3.6 (adversarial self-challenge)
+passed (safe PoC did NOT crash).
 
 1. Minimize the trigger input (halve repeatedly; keep the shortest still-crashing
    input). Use `run_sandboxed` each iteration.
