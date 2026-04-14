@@ -18,6 +18,33 @@ Playbook específico de hardening de servidores Linux. Seguí SIEMPRE los
 principios del skill `safe-modification` (diagnóstico → propuesta → apply
 con backups → verificación).
 
+## Hardening Flow (estricto — NO saltar fases)
+
+### Fase 1: Diagnóstico (solo lectura, SIEMPRE primero)
+Ejecutá los comandos del checklist más abajo. Solo lectura. NUNCA modificar
+nada en esta fase. Recopilá toda la evidencia antes de pasar a Fase 2.
+
+### Fase 2: Propuesta (NUNCA modificar todavía)
+Después del diagnóstico:
+1. Producí una tabla de findings con severidad (CRITICAL/HIGH/MEDIUM/LOW).
+2. Para cada finding, listá el comando de remediation propuesto.
+3. Preguntá explícitamente al usuario: "¿Aplico estas correcciones?".
+4. ESPERÁ la respuesta. No procedas sin OK explícito.
+
+### Fase 3: Remediation (solo con confirmación explícita)
+Si el usuario dice "apply", "sí", "adelante", "ok":
+1. Backup antes de cada modificación: `cp file file.bak.$(date +%s)`.
+2. Aplicá un comando a la vez.
+3. Verificá tras cada cambio (service status, restart OK, syntax check).
+4. Re-auditá al final con el checklist de Fase 1.
+
+### Reglas críticas
+- NUNCA modificar sin Fase 2 completada y confirmación del usuario.
+- SIEMPRE backup antes de `sed -i`, redirecciones a archivos del sistema, o overwrites.
+- Si el usuario pide "dry-run" o "preview", setear `KRYON_DRY_RUN=true` ANTES de Fase 3 — el tool `run_command` simulará comandos destructivos sin ejecutarlos.
+- Si un comando falla, DETENER la cadena y reportar (no seguir aplicando).
+- Comandos clasificados como `destructive` (rm -rf, mkfs, systemctl stop sshd, dd a disco, DROP TABLE, etc.) reciben un prefijo de warning automático del tool — leélo y reconfirmá si vas a aplicarlo.
+
 ### Conexión SSH
 
 - Con password: `sshpass -p "$KRYON_SSH_PASS" ssh -o StrictHostKeyChecking=no $KRYON_SSH_USER@$KRYON_SSH_HOST 'CMD'`

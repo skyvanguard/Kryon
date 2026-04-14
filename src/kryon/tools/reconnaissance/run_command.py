@@ -339,6 +339,32 @@ async def run_command(command: str = "", interactive: bool = False, session_id: 
             if re.search(pattern, command):
                 return f"Error: Command blocked due to dangerous pattern: {pattern}"
 
+    # Safety classification (destructive / caution) + dry-run mode
+    # Independent of guardrails: even when guardrails are disabled, we still
+    # honour KRYON_DRY_RUN so remediation playbooks can preview commands.
+    safety_prefix = ""
+    try:
+        from kryon.services.command_safety import classify_command, is_dry_run_enabled
+
+        severity, reason = classify_command(command)
+        if severity == "destructive":
+            if is_dry_run_enabled():
+                return (
+                    f"[DRY-RUN] Would execute: {command}\n"
+                    f"[CLASSIFIED] destructive — {reason}\n"
+                    f"[NOTE] Dry-run mode is on; no changes applied."
+                )
+            safety_prefix = f"⚠️  DESTRUCTIVE: {reason}\n\n"
+        elif severity == "caution" and is_dry_run_enabled():
+            return (
+                f"[DRY-RUN] Would execute: {command}\n"
+                f"[CLASSIFIED] caution — {reason}\n"
+                f"[NOTE] Dry-run mode is on; no changes applied."
+            )
+    except Exception:
+        # Never let safety classifier crash the tool
+        pass
+
         # Check for base64 encoded commands that might be dangerous
         if "base64" in command and ("-d" in command or "--decode" in command):
             # Extract and check what's being decoded
