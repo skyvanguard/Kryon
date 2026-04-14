@@ -1001,39 +1001,51 @@ def _reset_hybrid_budget() -> None:
 
 
 class HybridHunter:
-    """Runs semgrep first; invokes LLM only on survivors and within budget.
+    """Runs heuristic + semgrep in parallel, optionally LLM on survivors.
 
     Per-file flow:
-      1. SemgrepHunter on the file (fast, seconds)
-      2. If semgrep produced ASAN-verified findings, return them (done).
-      3. If semgrep produced pattern-only hits AND the hybrid LLM budget
-         isn't exhausted, spawn an LLMHunter with a focused prompt that
-         enumerates each hit as a pre-seeded hypothesis.
-      4. Return the union of semgrep pattern-only hits + LLM-verified
-         findings.
+      1. HeuristicHunter (instant) — broad regex coverage with ASAN
+         verification on supported CWE classes.
+      2. SemgrepHunter (1-2s) — industry rules with strict pattern matching.
+      3. Union both findings, dedup by (file, function, cwe).
+      4. If LLM budget remains AND there are pattern-only hits to clarify,
+         spawn LLMHunter with focused prompt.
 
-    Rationale: semgrep covers breadth (2100 rules). LLM covers depth
-    (actually verifying + building PoCs). A cap (`KRYON_HYBRID_MAX_LLM_CANDIDATES`)
-    prevents LLM runs from blowing out wall time on files with many low-
-    confidence pattern hits.
+    Rationale: heuristic and semgrep have different strengths — heuristic
+    catches typed-arithmetic / null-deref well, semgrep catches struct
+    member operations / multi-statement patterns. Union gives ~best-of-both.
     """
 
     def __init__(self):
         self._sg = SemgrepHunter()
+        self._heur = HeuristicHunter()
 
     async def __call__(self, job: "HunterJob") -> list[dict]:
-        # Stage 1: semgrep
-        sg_findings = await self._sg(job)
+        # Stage 1: heuristic + semgrep in parallel (both file-scoped, fast)
+        heur_findings, sg_findings = await asyncio.gather(
+            self._heur(job),
+            self._sg(job),
+        )
 
-        # If semgrep already produced ASAN-confirmed findings, we're done
-        verified = [f for f in sg_findings if f.get("_asan_verified")]
-        pattern_only = [f for f in sg_findings if not f.get("_asan_verified")]
+        # Union, deduped by (file, function, cwe)
+        all_findings: list[dict] = []
+        seen: set[tuple] = set()
+        for f in (heur_findings + sg_findings):
+            key = (f.get("file_path", ""), f.get("function_name", ""), f.get("cwe", ""))
+            if key in seen:
+                continue
+            seen.add(key)
+            all_findings.append(f)
 
-        # No hits at all → nothing worth invoking LLM for
-        if not sg_findings:
+        # If we have ASAN-confirmed findings already, that's strongest evidence
+        verified = [f for f in all_findings if f.get("_asan_verified")]
+        pattern_only = [f for f in all_findings if not f.get("_asan_verified")]
+
+        # No hits at all
+        if not all_findings:
             return []
 
-        # If all hits are already verified, skip LLM (nothing to clarify)
+        # If all hits are already verified, skip LLM
         if verified and not pattern_only:
             return verified
 
@@ -1041,11 +1053,11 @@ class HybridHunter:
         budget = _get_hybrid_budget()
         if not await budget.acquire():
             logger.info(
-                "hybrid: LLM budget exhausted (%d/%d used), emitting "
+                "hybrid: LLM budget exhausted (%d/%d used), returning "
                 "pattern-only findings for %s",
                 budget.used, budget.max_calls, job.file_path,
             )
-            return sg_findings
+            return all_findings
 
         # Stage 2: focused LLM investigation on the pattern-only hits
         llm = LLMHunter()
@@ -1064,11 +1076,11 @@ class HybridHunter:
         # Mark provenance so the report can attribute each finding
         for f in llm_findings:
             f["_hunter"] = "hybrid-llm"
-            f["_from_semgrep_hits"] = len(pattern_only)
-        for f in sg_findings:
+            f["_from_pattern_hits"] = len(pattern_only)
+        for f in all_findings:
             f["_hybrid_llm_budget_used"] = budget.used
 
-        return sg_findings + llm_findings
+        return all_findings + llm_findings
 
 
 # ---------------------------------------------------------------------------
