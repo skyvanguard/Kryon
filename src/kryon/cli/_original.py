@@ -1386,6 +1386,7 @@ def run_kryon_cli(
                 pass
 
             # Inject session memory context if available (ported from Claude Code)
+            # Dedup is applied inside get_context() — R2 fix.
             try:
                 from kryon.services.session_memory import get_session_memory
 
@@ -1394,6 +1395,34 @@ def run_kryon_cli(
                     # Prepend as a system-context message so the model has
                     # session state even after compaction clears older turns
                     history_context.insert(0, {"role": "user", "content": f"[SESSION CONTEXT]\n{_sm_ctx}"})
+            except Exception:
+                pass
+
+            # R4: inject pending leads so the model pursues them this turn.
+            try:
+                from kryon.services.lead_tracker import get_lead_tracker
+
+                _leads_block = get_lead_tracker().get_pending_summary()
+                if _leads_block and history_context:
+                    history_context.insert(0, {"role": "user", "content": _leads_block})
+            except Exception:
+                pass
+
+            # R5: on intent shift, nudge the model to recall prior experiences.
+            try:
+                from kryon.services.intent_shift import get_intent_detector
+
+                _should_recall, _reason = get_intent_detector().should_recall(user_input)
+                if _should_recall and history_context:
+                    nudge = (
+                        "[INTENT CHANGE DETECTED — "
+                        + _reason
+                        + "]\n"
+                        + "Before any other tool, call `recall_similar_experiences` "
+                        + "with a profile matching the new objective. The learning "
+                        + "loop may have relevant prior engagements."
+                    )
+                    history_context.insert(0, {"role": "user", "content": nudge})
             except Exception:
                 pass
 
@@ -1652,6 +1681,14 @@ def run_kryon_cli(
                                 sm.update(agent.model.message_history)
                         except Exception:
                             pass
+                        # R4: refresh lead tracker from this turn's messages
+                        try:
+                            from kryon.services.lead_tracker import get_lead_tracker
+
+                            if hasattr(agent, "model") and hasattr(agent.model, "message_history"):
+                                get_lead_tracker().scan_for_leads(agent.model.message_history)
+                        except Exception:
+                            pass
 
                     except OutputGuardrailTripwireTriggered as e:
                         # Display a user-friendly warning instead of crashing (streaming mode)
@@ -1833,6 +1870,13 @@ def run_kryon_cli(
                     from kryon.services.session_memory import get_session_memory
 
                     get_session_memory().update(agent.model.message_history)
+                except Exception:
+                    pass
+                # R4: refresh lead tracker from this turn (non-streaming)
+                try:
+                    from kryon.services.lead_tracker import get_lead_tracker
+
+                    get_lead_tracker().scan_for_leads(agent.model.message_history)
                 except Exception:
                     pass
 

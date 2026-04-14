@@ -83,6 +83,22 @@ class FlushCommand(Command):
         except Exception:
             pass
 
+        # Also reset lead tracker (R4)
+        try:
+            from kryon.services.lead_tracker import reset_lead_tracker
+
+            reset_lead_tracker()
+        except Exception:
+            pass
+
+        # Also reset intent detector (R5)
+        try:
+            from kryon.services.intent_shift import reset_intent_detector
+
+            reset_intent_detector()
+        except Exception:
+            pass
+
         # Display information about the cleared messages
         if initial_length > 0:
             content = [

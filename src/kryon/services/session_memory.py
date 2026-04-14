@@ -21,6 +21,7 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import re
@@ -31,6 +32,12 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 _SESSION_FILE = os.environ.get("KRYON_SESSION_FILE", "/workspace/.kryon_session.md")
+
+# Re-injection cap — Magic Doc was being re-injected 39x per session (24% of
+# context = pure noise, caused drift + verbatim repeats). See ZERO_DAY_ROADMAP
+# fix R2. Return empty context once the limit is hit OR when content hash is
+# unchanged since the last injection.
+_MAX_INJECTIONS = int(os.environ.get("KRYON_SM_MAX_INJECTIONS", "5"))
 
 # Regex extractors
 _URL_RE = re.compile(r"(?:https?://)?([a-z0-9._-]+\.[a-z]{2,})(?::\d+)?", re.I)
@@ -70,6 +77,9 @@ class SessionMemory:
         self._shell_gained = False
         self._flag_found = False
         self._last_update: str | None = None
+        # Injection dedup state (fix R2)
+        self._last_injected_hash: str | None = None
+        self._injection_count: int = 0
 
     def update(self, recent_messages: list[dict[str, Any]]) -> None:
         """Extract facts from the last few messages and rewrite the file."""
@@ -88,13 +98,45 @@ class SessionMemory:
         self._write()
 
     def get_context(self) -> str:
-        """Return the current session notes, or empty string."""
+        """Return the current session notes, or empty string.
+
+        Applies R2 dedup: returns "" if the content hash hasn't changed since
+        the last injection, or if the per-session injection cap was reached.
+        This prevents the Magic Doc from being re-injected verbatim every turn
+        (observed 39x in a single engagement, 24% of context = noise).
+        """
         try:
-            if self._path.exists():
-                return self._path.read_text(encoding="utf-8")
+            if not self._path.exists():
+                return ""
+            content = self._path.read_text(encoding="utf-8")
         except Exception:
-            pass
-        return ""
+            return ""
+
+        if not content.strip():
+            return ""
+
+        # Hard cap — after N injections the model has seen enough.
+        if self._injection_count >= _MAX_INJECTIONS:
+            logger.debug(
+                "session_memory: injection cap reached (%d), skipping",
+                _MAX_INJECTIONS,
+            )
+            return ""
+
+        # Hash dedup — only re-inject if content actually changed.
+        current_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        if current_hash == self._last_injected_hash:
+            logger.debug("session_memory: content unchanged, skipping re-inject")
+            return ""
+
+        self._last_injected_hash = current_hash
+        self._injection_count += 1
+        return content
+
+    def reset_injection_state(self) -> None:
+        """Reset the injection cap + hash (e.g. on /flush or new engagement)."""
+        self._last_injected_hash = None
+        self._injection_count = 0
 
     def clear(self) -> None:
         """Delete the session file and reset state."""
