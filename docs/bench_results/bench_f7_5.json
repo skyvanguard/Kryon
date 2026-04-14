@@ -1,0 +1,478 @@
+{
+  "cwes": [
+    121,
+    122,
+    190,
+    416,
+    476
+  ],
+  "samples_per_cwe": 20,
+  "runners": [
+    "heuristic",
+    "semgrep",
+    "hybrid",
+    "joern-solo",
+    "hybrid-F7"
+  ],
+  "duration_s": 641.0,
+  "recall": [
+    {
+      "cwe": 121,
+      "n_files": 20,
+      "per_runner": {
+        "heuristic": {
+          "n_files": 20,
+          "any_finding": 11,
+          "cwe_matched": 11,
+          "recall_any": 0.55,
+          "recall_cwe_match": 0.55,
+          "avg_findings_per_file": 0.7,
+          "avg_duration_s": 0.04,
+          "overlap": {
+            "heuristic": 11
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "semgrep": {
+          "n_files": 20,
+          "any_finding": 4,
+          "cwe_matched": 3,
+          "recall_any": 0.2,
+          "recall_cwe_match": 0.15,
+          "avg_findings_per_file": 0.3,
+          "avg_duration_s": 1.5,
+          "overlap": {
+            "semgrep": 3
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "hybrid": {
+          "n_files": 20,
+          "any_finding": 12,
+          "cwe_matched": 12,
+          "recall_any": 0.6,
+          "recall_cwe_match": 0.6,
+          "avg_findings_per_file": 1.0,
+          "avg_duration_s": 1.5,
+          "overlap": {
+            "heuristic": 8,
+            "heuristic|semgrep": 3,
+            "semgrep": 1
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "joern-solo": {
+          "n_files": 20,
+          "any_finding": 0,
+          "cwe_matched": 0,
+          "recall_any": 0.0,
+          "recall_cwe_match": 0.0,
+          "avg_findings_per_file": 0.0,
+          "avg_duration_s": 0.17,
+          "overlap": {},
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "hybrid-F7": {
+          "n_files": 20,
+          "any_finding": 12,
+          "cwe_matched": 12,
+          "recall_any": 0.6,
+          "recall_cwe_match": 0.6,
+          "avg_findings_per_file": 1.0,
+          "avg_duration_s": 1.5,
+          "overlap": {
+            "heuristic": 8,
+            "heuristic|semgrep": 3,
+            "semgrep": 1
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        }
+      }
+    },
+    {
+      "cwe": 122,
+      "n_files": 20,
+      "per_runner": {
+        "heuristic": {
+          "n_files": 20,
+          "any_finding": 9,
+          "cwe_matched": 9,
+          "recall_any": 0.45,
+          "recall_cwe_match": 0.45,
+          "avg_findings_per_file": 0.55,
+          "avg_duration_s": 0.03,
+          "overlap": {
+            "heuristic": 9
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "semgrep": {
+          "n_files": 20,
+          "any_finding": 16,
+          "cwe_matched": 4,
+          "recall_any": 0.8,
+          "recall_cwe_match": 0.2,
+          "avg_findings_per_file": 1.4,
+          "avg_duration_s": 1.55,
+          "overlap": {
+            "semgrep": 4
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "hybrid": {
+          "n_files": 20,
+          "any_finding": 18,
+          "cwe_matched": 11,
+          "recall_any": 0.9,
+          "recall_cwe_match": 0.55,
+          "avg_findings_per_file": 1.95,
+          "avg_duration_s": 1.55,
+          "overlap": {
+            "heuristic|semgrep": 7,
+            "heuristic": 2,
+            "semgrep": 2
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "joern-solo": {
+          "n_files": 20,
+          "any_finding": 2,
+          "cwe_matched": 2,
+          "recall_any": 0.1,
+          "recall_cwe_match": 0.1,
+          "avg_findings_per_file": 0.4,
+          "avg_duration_s": 0.98,
+          "overlap": {
+            "joern": 2
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "hybrid-F7": {
+          "n_files": 20,
+          "any_finding": 18,
+          "cwe_matched": 11,
+          "recall_any": 0.9,
+          "recall_cwe_match": 0.55,
+          "avg_findings_per_file": 2.35,
+          "avg_duration_s": 1.76,
+          "overlap": {
+            "heuristic|semgrep": 7,
+            "heuristic": 2,
+            "joern|semgrep": 2
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        }
+      }
+    },
+    {
+      "cwe": 190,
+      "n_files": 20,
+      "per_runner": {
+        "heuristic": {
+          "n_files": 20,
+          "any_finding": 8,
+          "cwe_matched": 8,
+          "recall_any": 0.4,
+          "recall_cwe_match": 0.4,
+          "avg_findings_per_file": 0.4,
+          "avg_duration_s": 0.02,
+          "overlap": {
+            "heuristic": 8
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "semgrep": {
+          "n_files": 20,
+          "any_finding": 7,
+          "cwe_matched": 5,
+          "recall_any": 0.35,
+          "recall_cwe_match": 0.25,
+          "avg_findings_per_file": 0.65,
+          "avg_duration_s": 1.53,
+          "overlap": {
+            "semgrep": 5
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "hybrid": {
+          "n_files": 20,
+          "any_finding": 10,
+          "cwe_matched": 8,
+          "recall_any": 0.5,
+          "recall_cwe_match": 0.4,
+          "avg_findings_per_file": 1.05,
+          "avg_duration_s": 1.52,
+          "overlap": {
+            "heuristic|semgrep": 5,
+            "heuristic": 3
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "joern-solo": {
+          "n_files": 20,
+          "any_finding": 4,
+          "cwe_matched": 2,
+          "recall_any": 0.2,
+          "recall_cwe_match": 0.1,
+          "avg_findings_per_file": 0.55,
+          "avg_duration_s": 0.16,
+          "overlap": {
+            "joern": 2
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "hybrid-F7": {
+          "n_files": 20,
+          "any_finding": 10,
+          "cwe_matched": 8,
+          "recall_any": 0.5,
+          "recall_cwe_match": 0.4,
+          "avg_findings_per_file": 1.5,
+          "avg_duration_s": 1.53,
+          "overlap": {
+            "heuristic|semgrep": 2,
+            "heuristic": 3,
+            "heuristic|joern|semgrep": 3
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        }
+      }
+    },
+    {
+      "cwe": 416,
+      "n_files": 20,
+      "per_runner": {
+        "heuristic": {
+          "n_files": 20,
+          "any_finding": 19,
+          "cwe_matched": 17,
+          "recall_any": 0.95,
+          "recall_cwe_match": 0.85,
+          "avg_findings_per_file": 1.3,
+          "avg_duration_s": 0.07,
+          "overlap": {
+            "heuristic": 17
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "semgrep": {
+          "n_files": 20,
+          "any_finding": 19,
+          "cwe_matched": 2,
+          "recall_any": 0.95,
+          "recall_cwe_match": 0.1,
+          "avg_findings_per_file": 1.9,
+          "avg_duration_s": 1.57,
+          "overlap": {
+            "semgrep": 2
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "hybrid": {
+          "n_files": 20,
+          "any_finding": 20,
+          "cwe_matched": 17,
+          "recall_any": 1.0,
+          "recall_cwe_match": 0.85,
+          "avg_findings_per_file": 3.15,
+          "avg_duration_s": 1.63,
+          "overlap": {
+            "heuristic|semgrep": 16,
+            "heuristic": 1
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "joern-solo": {
+          "n_files": 20,
+          "any_finding": 0,
+          "cwe_matched": 0,
+          "recall_any": 0.0,
+          "recall_cwe_match": 0.0,
+          "avg_findings_per_file": 0.0,
+          "avg_duration_s": 0.98,
+          "overlap": {},
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "hybrid-F7": {
+          "n_files": 20,
+          "any_finding": 20,
+          "cwe_matched": 17,
+          "recall_any": 1.0,
+          "recall_cwe_match": 0.85,
+          "avg_findings_per_file": 3.15,
+          "avg_duration_s": 1.81,
+          "overlap": {
+            "heuristic|semgrep": 16,
+            "heuristic": 1
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        }
+      }
+    },
+    {
+      "cwe": 476,
+      "n_files": 20,
+      "per_runner": {
+        "heuristic": {
+          "n_files": 20,
+          "any_finding": 12,
+          "cwe_matched": 12,
+          "recall_any": 0.6,
+          "recall_cwe_match": 0.6,
+          "avg_findings_per_file": 0.6,
+          "avg_duration_s": 0.03,
+          "overlap": {
+            "heuristic": 12
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "semgrep": {
+          "n_files": 20,
+          "any_finding": 4,
+          "cwe_matched": 4,
+          "recall_any": 0.2,
+          "recall_cwe_match": 0.2,
+          "avg_findings_per_file": 0.2,
+          "avg_duration_s": 1.5,
+          "overlap": {
+            "semgrep": 4
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "hybrid": {
+          "n_files": 20,
+          "any_finding": 12,
+          "cwe_matched": 12,
+          "recall_any": 0.6,
+          "recall_cwe_match": 0.6,
+          "avg_findings_per_file": 0.8,
+          "avg_duration_s": 1.54,
+          "overlap": {
+            "heuristic": 8,
+            "heuristic|semgrep": 4
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "joern-solo": {
+          "n_files": 20,
+          "any_finding": 0,
+          "cwe_matched": 0,
+          "recall_any": 0.0,
+          "recall_cwe_match": 0.0,
+          "avg_findings_per_file": 0.0,
+          "avg_duration_s": 0.98,
+          "overlap": {},
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        },
+        "hybrid-F7": {
+          "n_files": 20,
+          "any_finding": 12,
+          "cwe_matched": 12,
+          "recall_any": 0.6,
+          "recall_cwe_match": 0.6,
+          "avg_findings_per_file": 0.8,
+          "avg_duration_s": 1.68,
+          "overlap": {
+            "heuristic": 8,
+            "heuristic|semgrep": 4
+          },
+          "hunters_failed_files": 0,
+          "hunters_failed_rate": 0.0
+        }
+      }
+    }
+  ],
+  "fpr": {
+    "heuristic": {
+      "n_files": 15,
+      "files_with_finding": 6,
+      "fpr_proxy": 0.4,
+      "total_findings": 9
+    },
+    "semgrep": {
+      "n_files": 15,
+      "files_with_finding": 6,
+      "fpr_proxy": 0.4,
+      "total_findings": 14
+    },
+    "hybrid": {
+      "n_files": 15,
+      "files_with_finding": 6,
+      "fpr_proxy": 0.4,
+      "total_findings": 23
+    },
+    "joern-solo": {
+      "n_files": 15,
+      "files_with_finding": 0,
+      "fpr_proxy": 0.0,
+      "total_findings": 0
+    },
+    "hybrid-F7": {
+      "n_files": 15,
+      "files_with_finding": 6,
+      "fpr_proxy": 0.4,
+      "total_findings": 23
+    }
+  },
+  "baseline_repo": "/workspace/sources",
+  "baseline_files_scanned": 15,
+  "gate": {
+    "gate": "grey-zone",
+    "notes": [
+      "F7-target deltas [0.0, 0.0] < 15pp threshold"
+    ],
+    "recall_delta": {
+      "121": {
+        "baseline": 0.6,
+        "candidate": 0.6,
+        "delta_pp": 0.0
+      },
+      "122": {
+        "baseline": 0.55,
+        "candidate": 0.55,
+        "delta_pp": 0.0
+      },
+      "190": {
+        "baseline": 0.4,
+        "candidate": 0.4,
+        "delta_pp": 0.0
+      },
+      "416": {
+        "baseline": 0.85,
+        "candidate": 0.85,
+        "delta_pp": 0.0
+      },
+      "476": {
+        "baseline": 0.6,
+        "candidate": 0.6,
+        "delta_pp": 0.0
+      }
+    },
+    "fpr_candidate": 0.4,
+    "fpr_baseline": 0.4
+  }
+}

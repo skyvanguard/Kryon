@@ -75,9 +75,25 @@ logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 
 _DEFAULT_SERVER = os.environ.get("KRYON_JOERN_URL", "ws://joern:8080")
+# NOTE: `_ENABLED` was originally a module-level constant evaluated at
+# import time. That broke any caller that flipped `KRYON_JOERN_ENABLED`
+# after importing us (e.g. the Juliet bench switching env per-runner).
+# Keep a read-live helper + a mutable module var so tests can monkeypatch.
 _ENABLED = os.environ.get("KRYON_JOERN_ENABLED", "false").strip().lower() in {
     "1", "true", "yes", "on",
 }
+
+
+def _enabled_now() -> bool:
+    """Read KRYON_JOERN_ENABLED live. Tests may monkeypatch `_ENABLED`
+    directly; if so, that override wins (truthy overrides env)."""
+    if _ENABLED:
+        return True
+    return os.environ.get("KRYON_JOERN_ENABLED", "false").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
+
+
 _DEFAULT_IMPORT_TIMEOUT_S = int(os.environ.get("KRYON_JOERN_IMPORT_TIMEOUT_S", "120"))
 _DEFAULT_QUERY_TIMEOUT_S = int(os.environ.get("KRYON_JOERN_QUERY_TIMEOUT_S", "60"))
 _DEFAULT_MAX_FINDINGS = int(os.environ.get("KRYON_JOERN_MAX_FINDINGS", "200"))
@@ -417,7 +433,7 @@ def _joern_scan_impl(
     query_timeout_s: int,
     max_findings: int,
 ) -> str:
-    if not _ENABLED:
+    if not _enabled_now():
         return json.dumps({
             "status": "unavailable",
             "reason": "KRYON_JOERN_ENABLED is not true — bring up the "

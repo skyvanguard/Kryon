@@ -112,3 +112,100 @@ To reproduce:
 ```bash
 docker exec kryon python /opt/bench_juliet.py [...]
 ```
+
+---
+
+## F7 — Joern data-flow integration: **negative result**
+
+**Date:** 2026-04-14
+**Sprint:** F7.0 → F7.5
+**Sample:** 20 files per CWE × 5 CWEs = 100 files (seed=42, same as F6.3 R2)
+**Decision:** Joern ships as **opt-in**; NOT enabled in the default `hybrid`.
+**Raw bench output:** [`bench_results/bench_f7_5.json`](bench_results/bench_f7_5.json)
+
+### What F7 proposed
+Add Joern CPGQL data-flow analysis as a third hunter, expected to catch
+tainted-source → unchecked-sink flows that regex/AST cannot (socket→atoi→
+array-index, scanf→arithmetic).
+
+### Pre-agreed gate
+- **Ship:** recall@CWE +15pp on CWE-121 AND CWE-190, hybrid FPR ≤ 40%.
+- **Rollback:** hybrid FPR > 45% or non-F7 CWE recall regression.
+- **Grey zone:** otherwise → F7.6 tuning before ship.
+
+### Three-configuration results (recall@CWE, strict alias-aware)
+
+| CWE | heuristic | semgrep | **hybrid (F6.3 R2)** | joern-solo | **hybrid-F7** | Δ vs baseline |
+|---|---|---|---|---|---|---|
+| CWE-121 | 55% | 15% | **60%** | **0%** | **60%** | **0 pp** |
+| CWE-122 | 45% | 20% | **55%** | 10% | **55%** | **0 pp** |
+| CWE-190 | 40% | 25% | **40%** | 10% | **40%** | **0 pp** |
+| CWE-416 | 85% | 10% | **85%** | 0% | **85%** | **0 pp** |
+| CWE-476 | 60% | 20% | **60%** | 0% | **60%** | **0 pp** |
+
+### FPR proxy (clean baseline)
+
+| Runner | fpr_proxy |
+|---|---|
+| hybrid | **40%** |
+| hybrid-F7 | **40%** |
+| joern-solo | 0% |
+
+### Overlap matrix — Joern's marginal contribution
+
+| CWE | files Joern flagged alone | Joern ∩ others | Joern-unique in hybrid-F7 |
+|---|---|---|---|
+| CWE-121 | 0 | 0 | **0** |
+| CWE-122 | 0 | 2 (with semgrep) | **0** |
+| CWE-190 | 0 | 3 (with heuristic+semgrep) | **0** |
+| CWE-416 | 0 | 0 | **0** |
+| CWE-476 | 0 | 0 | **0** |
+
+Joern produced findings (`joern-solo` column is non-zero on CWE-122 and
+CWE-190) but every one overlapped a finding already produced by
+heuristic or semgrep. **Zero findings unique to Joern reached the union.**
+
+### hunters_failed rate
+
+0% across all 100 bench files. The `_ENABLED` import-time capture bug
+(fixed in this sprint) previously caused a 100% silent-failure rate on
+the first attempt — a concrete example of why the stop criterion was
+defined before seeing results.
+
+### Gate verdict: **GREY-ZONE → ship as opt-in, close F7**
+
+The pre-agreed grey-zone branch was "F7.6 tuning before shipping." We
+are NOT taking that path. Three reasons:
+
+1. **Joern-solo 0% on CWE-121** is a stronger signal than the grey-zone
+   delta. The F7.2 smoke test on a single socket-recv case hit 100%,
+   the broader 20-sample bench hit 0%. The three queries shipped
+   (`recv|read|fgets|atoi|scanf|fscanf`) don't generalise across Juliet
+   CWE-121 variants — they target one pattern and the bench exposed that.
+2. **Overlap matrix = 0 unique contributions.** Even where Joern
+   produced findings, every one aligned with heuristic or semgrep. The
+   operational cost (separate 1.6 GB service, JVM cold start, global
+   `workspace.reset` lock) is not justified by 0 pp recall gain.
+3. **Expanding the query set is F7.7 territory with no evidence of
+   upside.** Tuning the bench until Joern pegs is overfitting the
+   harness. The F6 sprint has concrete evidence-backed gaps (CWE-190
+   recall 47%, recall@CWE vs recall@any 20pp spread) which is a better
+   place to invest.
+
+### What ships
+
+- `joern_scan` tool + `JoernHunter` runner + `docker/joern/` service:
+  remain in the codebase as **opt-in infrastructure**.
+- `HybridHunter` reads `KRYON_JOERN_ENABLED` live; default is `false`.
+- To enable for a specific engagement where targets are
+  tainted-source-heavy (network daemons, CLI argv parsers):
+  `KRYON_JOERN_ENABLED=true docker compose --profile dataflow up`.
+
+### What this negative result teaches
+
+The eval harness detected a no-mejora. That matters more than it sounds:
+most security-tool integrations ship on vibes and demos. Ours had a
+concrete adversarial gate, a reproducible bench, and the discipline to
+say "the number is zero, don't ship by default." The infrastructure is
+not wasted — if a future corpus (long-running network daemon,
+CLI-heavy clients) shows Joern-unique findings, F7 is already built.

@@ -102,7 +102,12 @@ def find_cwe_files(cwe: int, n: int, seed: int = 42) -> list[Path]:
 
 async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
     """Run a single hunter against one file. Returns shape:
-       {file, runner, n_findings, cwe_matched, finding_cwes[], duration_s}
+       {file, runner, n_findings, cwe_matched, finding_cwes[],
+        sources_seen[], hunters_failed[], duration_s}
+
+    F7.5 — `hybrid-F7` = hybrid with JoernHunter enabled.
+    `hybrid` (unchanged) = F6.3 R2 baseline (heuristic + semgrep).
+    `joern-solo` = only JoernHunter — measures marginal contribution.
     """
     from kryon.skills.planner_hunter import (
         HeuristicHunter, SemgrepHunter, HybridHunter, _reset_hybrid_budget,
@@ -111,16 +116,28 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
 
     job = HunterJob(hunter_id="bench", file_path=str(file_path))
     if runner_type == "heuristic":
+        os.environ["KRYON_JOERN_ENABLED"] = "false"
         runner = HeuristicHunter()
     elif runner_type == "semgrep":
+        os.environ["KRYON_JOERN_ENABLED"] = "false"
         runner = SemgrepHunter()
     elif runner_type == "hybrid":
-        # Force LLM-off for benchmark (would take days). Hybrid degrades
-        # to semgrep-with-budget-zero, still useful for measuring the
-        # combined-stage decision (verified vs pattern-only).
+        # F6.3 R2 baseline — Joern explicitly OFF.
+        os.environ["KRYON_JOERN_ENABLED"] = "false"
         os.environ["KRYON_HYBRID_MAX_LLM_CANDIDATES"] = "0"
         _reset_hybrid_budget()
         runner = HybridHunter()
+    elif runner_type == "hybrid-F7":
+        # F7 candidate — Joern ON. CPGs expected in KRYON_JOERN_CPG_DIR;
+        # missing CPGs trigger on-the-fly importCode with timeout.
+        os.environ["KRYON_JOERN_ENABLED"] = "true"
+        os.environ["KRYON_HYBRID_MAX_LLM_CANDIDATES"] = "0"
+        _reset_hybrid_budget()
+        runner = HybridHunter()
+    elif runner_type == "joern-solo":
+        os.environ["KRYON_JOERN_ENABLED"] = "true"
+        from kryon.skills.planner_hunter import JoernHunter
+        runner = JoernHunter()
     else:
         raise ValueError(f"unknown runner: {runner_type}")
 
@@ -135,14 +152,40 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
     elapsed = time.time() - t0
 
     finding_cwes = [f.get("cwe", "") for f in findings if f.get("cwe")]
-    cwe_label = f"CWE-{cwe}"
-    # F6.4 — use alias-aware matching so emitting a parent CWE
-    # (e.g. CWE-787) counts as a match for child CWE labels (CWE-121, 122).
+    cwe_label = f"CWE-{cwe}" if cwe else ""
     try:
         from kryon.skills.patterns import cwes_match
-        cwe_matched = any(cwes_match(c, cwe_label) for c in finding_cwes)
+        cwe_matched = bool(cwe_label) and any(
+            cwes_match(c, cwe_label) for c in finding_cwes
+        )
     except ImportError:
-        cwe_matched = any(cwe_label.lower() in c.lower() for c in finding_cwes)
+        cwe_matched = bool(cwe_label) and any(
+            cwe_label.lower() in c.lower() for c in finding_cwes
+        )
+
+    # Per-finding provenance (union of _sources or _hunter) for overlap
+    # matrix. hybrid-F7 emits _sources; solo hunters emit _hunter.
+    sources_seen: set[str] = set()
+    hunters_failed: list[str] = []
+    for f in findings:
+        srcs = f.get("_sources") or []
+        if srcs:
+            sources_seen.update(srcs)
+        elif f.get("_hunter"):
+            sources_seen.add(f["_hunter"])
+        for hf in f.get("_hunters_failed") or []:
+            if isinstance(hf, dict) and hf.get("name"):
+                hunters_failed.append(hf["name"])
+            elif isinstance(hf, str):
+                hunters_failed.append(hf)
+
+    # Also look at the HunterJob status for joern when hybrid didn't produce
+    # findings (silent-failure guard).
+    if runner_type in ("hybrid-F7", "joern-solo"):
+        j_status = getattr(job, "_joern_last_status", "")
+        if j_status and j_status != "ok":
+            hunters_failed.append("joern")
+
     return {
         "file": file_path.name,
         "runner": runner_type,
@@ -150,6 +193,8 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
         "n_findings": len(findings),
         "cwe_matched": cwe_matched,
         "finding_cwes": finding_cwes[:5],
+        "sources_seen": sorted(sources_seen),
+        "hunters_failed": sorted(set(hunters_failed)),
         "duration_s": round(elapsed, 2),
     }
 
@@ -162,7 +207,8 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
 async def run_recall_for_cwe(
     cwe: int, n_samples: int, runners: list[str]
 ) -> dict:
-    """For one CWE, scan N samples with each runner, compute recall."""
+    """For one CWE, scan N samples with each runner, compute recall +
+    overlap-matrix + hunters_failed rate (F7.5)."""
     files = find_cwe_files(cwe, n_samples)
     if not files:
         return {"cwe": cwe, "n_files": 0, "per_runner": {}}
@@ -175,14 +221,25 @@ async def run_recall_for_cwe(
         cwe_matched = 0
         total_findings = 0
         total_dur = 0.0
+        # F7.5 overlap matrix — for each file, what {heuristic|semgrep|joern}
+        # source set produced a CWE-matching finding?
+        overlap_counter: dict[tuple, int] = {}
+        hunters_failed_files = 0
+        per_file: list[dict] = []
         for fp in files:
             r = await scan_one(runner, fp, cwe)
+            per_file.append(r)
             if r["n_findings"] > 0:
                 any_finding += 1
             if r["cwe_matched"]:
                 cwe_matched += 1
+                # Bucket source combination for the overlap matrix.
+                combo = tuple(r["sources_seen"] or ["<none>"])
+                overlap_counter[combo] = overlap_counter.get(combo, 0) + 1
             total_findings += r["n_findings"]
             total_dur += r["duration_s"]
+            if r["hunters_failed"]:
+                hunters_failed_files += 1
         per_runner[runner] = {
             "n_files": len(files),
             "any_finding": any_finding,
@@ -191,11 +248,17 @@ async def run_recall_for_cwe(
             "recall_cwe_match": round(cwe_matched / len(files), 3),
             "avg_findings_per_file": round(total_findings / len(files), 2),
             "avg_duration_s": round(total_dur / len(files), 2),
+            "overlap": {
+                "|".join(sorted(k)): v for k, v in overlap_counter.items()
+            },
+            "hunters_failed_files": hunters_failed_files,
+            "hunters_failed_rate": round(hunters_failed_files / len(files), 3),
         }
         print(
-            f"  {runner:<10} recall@any={per_runner[runner]['recall_any']:.0%}  "
+            f"  {runner:<12} recall@any={per_runner[runner]['recall_any']:.0%}  "
             f"recall@CWE={per_runner[runner]['recall_cwe_match']:.0%}  "
-            f"avg={per_runner[runner]['avg_findings_per_file']:.1f} findings/file  "
+            f"avg={per_runner[runner]['avg_findings_per_file']:.1f} f/file  "
+            f"failed={per_runner[runner]['hunters_failed_rate']:.0%}  "
             f"{per_runner[runner]['avg_duration_s']:.1f}s/file"
         )
 
@@ -266,7 +329,115 @@ def render_markdown_table(results: dict) -> str:
                 f"| {runner} | {v['files_with_finding']}/{v['n_files']} | "
                 f"{v['total_findings']} | {v['fpr_proxy']:.0%} |"
             )
+
+    # F7.5 — overlap matrix + hunters_failed rate for runners that aggregate
+    # multiple underlying hunters.
+    lines.append("")
+    lines.append("## F7.5 — Source overlap (where did the CWE-match come from?)")
+    lines.append("")
+    lines.append("| CWE | runner | source-combo | count |")
+    lines.append("|---|---|---|---|")
+    for r in cwes:
+        for runner in runners:
+            ov = r["per_runner"][runner].get("overlap") or {}
+            if not ov:
+                continue
+            for combo, cnt in sorted(ov.items(), key=lambda x: -x[1]):
+                lines.append(
+                    f"| CWE-{r['cwe']} | {runner} | `{combo}` | {cnt} |"
+                )
+
+    lines.append("")
+    lines.append("## F7.5 — hunters_failed rate")
+    lines.append("")
+    lines.append("| CWE | runner | files with any failed hunter | rate |")
+    lines.append("|---|---|---|---|")
+    for r in cwes:
+        for runner in runners:
+            rate = r["per_runner"][runner].get("hunters_failed_rate", 0)
+            cnt = r["per_runner"][runner].get("hunters_failed_files", 0)
+            if cnt == 0:
+                continue
+            lines.append(
+                f"| CWE-{r['cwe']} | {runner} | {cnt}/{r['n_files']} | {rate:.0%} |"
+            )
+
     return "\n".join(lines)
+
+
+def _evaluate_gate(results: dict) -> dict:
+    """F7.5 ship/rollback decision — hardcoded against the pre-agreed gate.
+
+    Ship: recall@CWE +15pp on CWE-121 AND CWE-190 AND hybrid-F7 FPR <= 40%.
+    Rollback: hybrid-F7 FPR > 45% OR any non-F7 CWE recall regresses.
+    Grey zone: everything else — F7.6 tuning before shipping.
+    """
+    baseline_runner = "hybrid"
+    candidate_runner = "hybrid-F7"
+    verdict = {
+        "gate": "undetermined",
+        "notes": [],
+        "recall_delta": {},
+        "fpr_candidate": None,
+    }
+    recalls_by_cwe = {r["cwe"]: r["per_runner"] for r in results.get("recall", [])}
+    f7_cwes = {121, 190}
+
+    # Compute per-CWE recall@CWE deltas vs baseline.
+    for cwe, per_runner in recalls_by_cwe.items():
+        b = per_runner.get(baseline_runner, {}).get("recall_cwe_match")
+        c = per_runner.get(candidate_runner, {}).get("recall_cwe_match")
+        if b is None or c is None:
+            continue
+        delta_pp = round((c - b) * 100, 1)
+        verdict["recall_delta"][cwe] = {
+            "baseline": b, "candidate": c, "delta_pp": delta_pp,
+        }
+
+    # FPR from hybrid-F7 on clean baseline.
+    fpr = results.get("fpr", {}).get(candidate_runner, {}).get("fpr_proxy")
+    verdict["fpr_candidate"] = fpr
+    fpr_base = results.get("fpr", {}).get(baseline_runner, {}).get("fpr_proxy")
+    verdict["fpr_baseline"] = fpr_base
+
+    # Rollback checks.
+    if fpr is not None and fpr > 0.45:
+        verdict["gate"] = "rollback"
+        verdict["notes"].append(f"hybrid-F7 FPR {fpr:.0%} > 45% — rollback")
+        return verdict
+    for cwe, row in verdict["recall_delta"].items():
+        if cwe not in f7_cwes and row["delta_pp"] < -2.0:
+            verdict["gate"] = "rollback"
+            verdict["notes"].append(
+                f"CWE-{cwe} recall regressed {row['delta_pp']:+.1f}pp on "
+                f"non-F7 target — rollback"
+            )
+
+    # Ship checks on F7 target CWEs.
+    f7_deltas = [
+        verdict["recall_delta"].get(cwe, {}).get("delta_pp", 0)
+        for cwe in f7_cwes
+    ]
+    fpr_ok = fpr is not None and fpr <= 0.40
+    f7_ok = all(d >= 15.0 for d in f7_deltas if d is not None)
+
+    if verdict["gate"] == "undetermined":
+        if f7_ok and fpr_ok:
+            verdict["gate"] = "ship"
+            verdict["notes"].append(
+                "CWE-121 + CWE-190 both +≥15pp, FPR ≤ 40% — ship"
+            )
+        else:
+            verdict["gate"] = "grey-zone"
+            if not f7_ok:
+                verdict["notes"].append(
+                    f"F7-target deltas {f7_deltas} < 15pp threshold"
+                )
+            if not fpr_ok and fpr is not None:
+                verdict["notes"].append(
+                    f"FPR {fpr:.0%} above ship threshold (40%)"
+                )
+    return verdict
 
 
 async def main():
@@ -322,6 +493,10 @@ async def main():
         "baseline_repo": args.baseline_repo,
         "baseline_files_scanned": len(baseline_files),
     }
+    # F7.5 — evaluate gate before writing output so the JSON carries it.
+    if "hybrid-F7" in runners and "hybrid" in runners:
+        out["gate"] = _evaluate_gate(out)
+
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(out, indent=2))
 
@@ -332,6 +507,13 @@ async def main():
     print()
     print(render_markdown_table(out))
     print()
+    if out.get("gate"):
+        g = out["gate"]
+        print("=" * 72)
+        print(f"F7.5 GATE VERDICT: {g['gate'].upper()}")
+        for note in g["notes"]:
+            print(f"  - {note}")
+        print("=" * 72)
     print(f"Full results: {args.out}")
 
 
