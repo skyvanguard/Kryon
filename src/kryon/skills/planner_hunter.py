@@ -324,16 +324,31 @@ def _parse_findings_from_text(text: str, repo_path: str) -> list[dict]:
 
 
 class LLMHunter:
-    """Runs a fresh unified agent with the zero-day-hunter skill per job."""
+    """Runs a fresh unified agent with the zero-day-hunter skill per job.
+
+    Timeout ordering matters: LLMHunter's internal timeout MUST fire BEFORE
+    the HunterPool's safety timeout, otherwise asyncio cancels the runner
+    task and this class never gets to harvest partial progress. We read
+    both env vars and force LLMHunter's timeout to be at least POOL-30s.
+    """
 
     def __init__(
         self,
         *,
         max_turns: int = int(os.environ.get("KRYON_HUNT_MAX_TURNS", "30")),
-        timeout_s: int = int(os.environ.get("KRYON_HUNTER_TIMEOUT_S", "900")),
+        timeout_s: int | None = None,
     ):
         self.max_turns = max_turns
-        self.timeout_s = timeout_s
+        pool_timeout = int(os.environ.get("KRYON_HUNTER_TIMEOUT_S", "900"))
+        if timeout_s is None:
+            # Respect KRYON_LLM_HUNTER_TIMEOUT_S if set; else trail pool by 30s
+            llm_env = os.environ.get("KRYON_LLM_HUNTER_TIMEOUT_S")
+            timeout_s = (
+                int(llm_env) if llm_env is not None
+                else max(60, pool_timeout - 30)
+            )
+        # Enforce: internal timeout strictly less than pool safety net
+        self.timeout_s = min(timeout_s, max(60, pool_timeout - 10))
 
     async def __call__(self, job: HunterJob) -> list[dict]:
         # Import here to avoid pulling heavy deps at module import time.

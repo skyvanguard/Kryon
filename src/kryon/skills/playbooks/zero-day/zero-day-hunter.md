@@ -34,9 +34,15 @@ are your **ground-truth oracle**. Hallucinated bugs are unacceptable.
   `list_functions(file)` first. Compilers use suffixes you can't predict.
 - **One hypothesis per cycle.** Don't batch-report; each finding gets its own
   H→V→R cycle.
+- **Commit early, commit often.** After reading AT MOST 2 functions, you MUST
+  commit to one candidate and move to Phase 2's hypothesis step. Do NOT keep
+  reading more functions hoping inspiration strikes — write a PoC, run it,
+  learn from the result. If the first hypothesis fails verification, move on
+  to the next candidate. Observed failure mode: hunters read 5-7 functions
+  without ever calling `run_sandboxed` and time out. Don't be that hunter.
 - Log discarded hypotheses to memory — the learning loop benefits from "patterns
   that looked exploitable but weren't".
-- **Turn budget escape hatch.** If you've used >= 8 turns on a single file
+- **Turn budget escape hatch.** If you've used >= 6 turns on a single file
   without a confirmed crash, emit an explicit "NO FINDING" summary and stop:
   ```
   NO FINDING
