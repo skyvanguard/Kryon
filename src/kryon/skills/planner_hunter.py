@@ -55,6 +55,7 @@ from kryon.tools.code.git_tools import _git_clone_and_index_impl
 from kryon.tools.code.priority import _code_priority_score_impl
 from kryon.tools.code.reader import _read_function_impl
 from kryon.tools.code.sandbox import _run_sandboxed_impl
+from kryon.tools.code.joern_tool import _joern_scan_impl
 from kryon.tools.code.semgrep_tool import _semgrep_scan_impl
 
 logger = logging.getLogger(__name__)
@@ -566,6 +567,124 @@ class SemgrepHunter:
 
 
 # ---------------------------------------------------------------------------
+# Joern hunter — CPGQL data-flow taint analysis (F7.3)
+# ---------------------------------------------------------------------------
+
+
+def _joern_enabled() -> bool:
+    """True if KRYON_JOERN_ENABLED is truthy at call time.
+
+    Read live instead of cached at import so tests and REPL toggles can
+    flip the flag without reloading planner_hunter.
+    """
+    return os.environ.get("KRYON_JOERN_ENABLED", "false").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
+
+
+class JoernHunter:
+    """Taint-flow hunter backed by the joern CPGQL server (joern_scan).
+
+    Catches Juliet variants that regex/AST miss: socket->array-index
+    (CWE-121/129) and scanf->arithmetic (CWE-190). Complementary to
+    SemgrepHunter/HeuristicHunter — run all three and merge.
+
+    CPG resolution (in order):
+      1. If KRYON_JOERN_CPG_DIR is set AND `<basename>.cpg` exists there,
+         the pre-parsed CPG is used (fast — bench-friendly).
+      2. Else the source file is handed to joern_scan, which calls
+         importCode() on the server (slow — one parse per file).
+
+    On server failure (status != ok) returns empty findings AND marks
+    `_hunter_status` on the HunterJob so HybridHunter can surface the
+    degradation in the final report. Do NOT treat empty results as
+    a clean target.
+    """
+
+    _STATUS_KEY = "_joern_last_status"
+    _REASON_KEY = "_joern_last_reason"
+
+    def __init__(
+        self,
+        *,
+        cwe_focus: str = "auto",
+        max_findings_per_file: int = 10,
+        import_timeout_s: int = 120,
+        query_timeout_s: int = 60,
+    ):
+        self.cwe_focus = cwe_focus
+        self.max_findings_per_file = max_findings_per_file
+        self.import_timeout_s = import_timeout_s
+        self.query_timeout_s = query_timeout_s
+
+    async def __call__(self, job: HunterJob) -> list[dict]:
+        return await asyncio.to_thread(self._run_sync, job)
+
+    def _resolve_target(self, file_path: str) -> str:
+        cpg_dir = os.environ.get("KRYON_JOERN_CPG_DIR", "")
+        if cpg_dir:
+            stem = Path(file_path).stem
+            candidate = Path(cpg_dir) / f"{stem}.cpg"
+            if candidate.is_file():
+                return str(candidate)
+        return file_path
+
+    def _run_sync(self, job: HunterJob) -> list[dict]:
+        target = self._resolve_target(job.file_path)
+        raw = _joern_scan_impl(
+            target_path=target,
+            cwe_focus=self.cwe_focus,
+            import_timeout_s=self.import_timeout_s,
+            query_timeout_s=self.query_timeout_s,
+            max_findings=self.max_findings_per_file,
+        )
+        try:
+            scan = json.loads(raw)
+        except json.JSONDecodeError:
+            setattr(job, self._STATUS_KEY, "error")
+            setattr(job, self._REASON_KEY, "joern_scan returned non-JSON")
+            return []
+
+        status = scan.get("status", "error")
+        setattr(job, self._STATUS_KEY, status)
+        if status != "ok":
+            setattr(job, self._REASON_KEY, scan.get("reason", ""))
+            logger.info(
+                "joern hunter degraded on %s: status=%s reason=%s",
+                job.file_path, status, scan.get("reason", "")[:100],
+            )
+            return []
+        setattr(job, self._REASON_KEY, "")
+
+        findings: list[dict] = []
+        for hit in scan.get("findings") or []:
+            sink_line = int(hit.get("start_line") or 0)
+            method = hit.get("method") or SemgrepHunter._guess_enclosing_function(
+                job.file_path, sink_line
+            )
+            findings.append({
+                "file_path": job.file_path,
+                "repo_path": str(Path(job.file_path).parent),
+                "function_name": method,
+                "line_range": f"{sink_line}-{sink_line}",
+                "cwe": hit.get("cwe", ""),
+                "crash_type": "",
+                "stack_top": [],
+                "severity": hit.get("severity", "ERROR"),
+                "confidence": hit.get("confidence", "high"),
+                "language": "c",
+                "poc_source": "",
+                "trigger_input": "",
+                "_hunter": "joern",
+                "_joern_rule_id": hit.get("rule_id", ""),
+                "_joern_message": hit.get("message", "")[:200],
+                "_joern_flow": hit.get("flow") or [],
+                "_asan_verified": False,
+            })
+        return findings
+
+
+# ---------------------------------------------------------------------------
 # LLM-backed hunter — uses the zero-day-hunter skill on the unified agent
 # ---------------------------------------------------------------------------
 
@@ -1028,42 +1147,154 @@ def _reset_hybrid_budget() -> None:
     _get_hybrid_budget()  # rebuilds from env
 
 
+# Confidence ordering for merge — higher value wins.
+_CONF_RANK = {"low": 1, "medium": 2, "high": 3}
+# Severity ordering for merge — higher value wins (ERROR > WARNING > INFO).
+_SEV_RANK = {"INFO": 1, "WARNING": 2, "ERROR": 3}
+# Line bucket radius used for dedup — ±3 lines collapses sink-vs-source offsets.
+_DEDUP_LINE_RADIUS = 3
+
+
+def _first_line(finding: dict) -> int:
+    """Extract the starting line from a finding (line_range='a-b' or '0')."""
+    raw = finding.get("line_range", "") or ""
+    try:
+        return int(raw.split("-", 1)[0] or 0)
+    except ValueError:
+        return 0
+
+
+def _dedup_bucket(line: int) -> int:
+    return line // (2 * _DEDUP_LINE_RADIUS + 1)
+
+
+def _merge_findings(a: dict, b: dict) -> dict:
+    """Merge two findings that dedup to the same key. Keep the strongest
+    evidence and record provenance of both hunters."""
+    # Which one has stronger confidence?
+    primary, secondary = (
+        (a, b) if _CONF_RANK.get(a.get("confidence", "medium"), 2)
+                 >= _CONF_RANK.get(b.get("confidence", "medium"), 2)
+        else (b, a)
+    )
+    merged = dict(primary)
+    # Stronger severity wins regardless of confidence ordering.
+    if _SEV_RANK.get(b.get("severity", ""), 0) > _SEV_RANK.get(
+        a.get("severity", ""), 0
+    ):
+        merged["severity"] = b.get("severity")
+    if _SEV_RANK.get(a.get("severity", ""), 0) > _SEV_RANK.get(
+        merged.get("severity", ""), 0
+    ):
+        merged["severity"] = a.get("severity")
+    # Preserve ASAN verification from either side.
+    merged["_asan_verified"] = bool(
+        a.get("_asan_verified") or b.get("_asan_verified")
+    )
+    # Collect source provenance.
+    srcs = []
+    for f in (primary, secondary):
+        h = f.get("_hunter")
+        if h and h not in srcs:
+            srcs.append(h)
+    merged["_sources"] = srcs
+    merged["_source_count"] = len(srcs)
+    # Keep the richer flow if any hunter provided one.
+    if secondary.get("_joern_flow") and not merged.get("_joern_flow"):
+        merged["_joern_flow"] = secondary.get("_joern_flow")
+    return merged
+
+
+def _confidence_gated_union(groups: list[list[dict]]) -> list[dict]:
+    """Merge findings from multiple hunters using (file, cwe, line-bucket)
+    as the dedup key. Survivors carry `_sources=[...]` so the consumer can
+    filter by `_source_count >= 2` if they want voting semantics."""
+    bucketed: dict[tuple, dict] = {}
+    for group in groups:
+        for f in group:
+            key = (
+                f.get("file_path", ""),
+                (f.get("cwe") or "").upper(),
+                _dedup_bucket(_first_line(f)),
+            )
+            existing = bucketed.get(key)
+            if existing is None:
+                f = dict(f)
+                f.setdefault("_sources", [f.get("_hunter", "")])
+                f.setdefault("_source_count", 1)
+                bucketed[key] = f
+            else:
+                bucketed[key] = _merge_findings(existing, f)
+    return list(bucketed.values())
+
+
 class HybridHunter:
-    """Runs heuristic + semgrep in parallel, optionally LLM on survivors.
+    """Runs heuristic + semgrep + joern in parallel, optionally LLM on
+    survivors.
 
     Per-file flow:
-      1. HeuristicHunter (instant) — broad regex coverage with ASAN
-         verification on supported CWE classes.
-      2. SemgrepHunter (1-2s) — industry rules with strict pattern matching.
-      3. Union both findings, dedup by (file, function, cwe).
-      4. If LLM budget remains AND there are pattern-only hits to clarify,
-         spawn LLMHunter with focused prompt.
+      1. Three static hunters in parallel:
+         - HeuristicHunter  — broad regex + ASAN verification
+         - SemgrepHunter    — industry-curated rules (community + Kryon)
+         - JoernHunter      — CPGQL taint flow (gated by server availability)
+      2. Confidence-gated union: dedup by (file, cwe, line_bucket=line//7),
+         merge keeps max confidence, collects `_sources` provenance.
+      3. If LLM budget remains AND there are pattern-only hits, spawn
+         LLMHunter with focused prompt.
 
-    Rationale: heuristic and semgrep have different strengths — heuristic
-    catches typed-arithmetic / null-deref well, semgrep catches struct
-    member operations / multi-statement patterns. Union gives ~best-of-both.
+    Graceful degradation: if any hunter returns degraded status (e.g.
+    joern server down), it is recorded in every returned finding under
+    `_hunters_used` / `_hunters_failed`. Downstream consumers MUST NOT
+    treat an empty result from a failed hunter as a clean signal.
+
+    FPR policy deferred: union is NOT voting. A finding with
+    `_source_count == 1` is kept. F7.6 will introduce CWE-weighted
+    thresholds once F7.5 bench data is in.
     """
 
     def __init__(self):
         self._sg = SemgrepHunter()
         self._heur = HeuristicHunter()
+        self._joern = JoernHunter() if _joern_enabled() else None
 
     async def __call__(self, job: "HunterJob") -> list[dict]:
-        # Stage 1: heuristic + semgrep in parallel (both file-scoped, fast)
-        heur_findings, sg_findings = await asyncio.gather(
-            self._heur(job),
-            self._sg(job),
-        )
+        # Stage 1: all static hunters in parallel. Collect per-hunter status.
+        tasks: list[tuple[str, Any]] = [
+            ("heuristic", self._heur(job)),
+            ("semgrep", self._sg(job)),
+        ]
+        if self._joern is not None:
+            tasks.append(("joern", self._joern(job)))
 
-        # Union, deduped by (file, function, cwe)
-        all_findings: list[dict] = []
-        seen: set[tuple] = set()
-        for f in (heur_findings + sg_findings):
-            key = (f.get("file_path", ""), f.get("function_name", ""), f.get("cwe", ""))
-            if key in seen:
+        results = await asyncio.gather(*[t[1] for t in tasks], return_exceptions=True)
+
+        hunters_used: list[str] = []
+        hunters_failed: list[dict] = []
+        grouped: list[list[dict]] = []
+        for (name, _), res in zip(tasks, results):
+            if isinstance(res, BaseException):
+                hunters_failed.append({"name": name, "reason": repr(res)[:200]})
                 continue
-            seen.add(key)
-            all_findings.append(f)
+            # For joern: the hunter marks the job attribute; surface that.
+            if name == "joern":
+                status = getattr(job, JoernHunter._STATUS_KEY, "ok")
+                if status != "ok":
+                    hunters_failed.append({
+                        "name": "joern",
+                        "reason": f"{status}: "
+                                  f"{getattr(job, JoernHunter._REASON_KEY, '')[:150]}",
+                    })
+                    continue
+            hunters_used.append(name)
+            grouped.append(res)
+
+        all_findings = _confidence_gated_union(grouped)
+
+        # Stamp every finding with telemetry so the hunt report can surface
+        # degraded runs without hiding them behind "zero findings".
+        for f in all_findings:
+            f["_hunters_used"] = list(hunters_used)
+            f["_hunters_failed"] = list(hunters_failed)
 
         # If we have ASAN-confirmed findings already, that's strongest evidence
         verified = [f for f in all_findings if f.get("_asan_verified")]
