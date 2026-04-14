@@ -81,6 +81,10 @@ reporting = [
 orchestration = [
     "apscheduler>=3.10.0",
 ]
+dataflow = [
+    # F7: CPGQL client for talking to the joern service (WebSocket).
+    "cpgqls-client>=0.0.5",
+]
 dev = [
     "mypy",
     "ruff==0.15.0",

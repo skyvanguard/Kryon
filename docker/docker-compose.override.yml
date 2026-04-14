@@ -5,6 +5,7 @@
 # Adjustments over docker-compose.kali.yml:
 #   - More memory for gemma4:26b MoE (17GB model, needs headroom)
 #   - Removes Claude Code CLI volume mounts (not used with Ollama backend)
+#   - Adds optional `joern` dataflow service (enable with --profile dataflow)
 
 services:
   kryon:
@@ -16,6 +17,10 @@ services:
         reservations:
           cpus: "2"
           memory: 4G
+    environment:
+      # F7: CPGQL server endpoint. Disabled unless the joern service is up.
+      - KRYON_JOERN_URL=${KRYON_JOERN_URL:-ws://joern:8080}
+      - KRYON_JOERN_ENABLED=${KRYON_JOERN_ENABLED:-false}
     volumes: !override
       - kryon-workspace:/workspace
       - kryon-logs:/logs
@@ -34,3 +39,34 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+
+  # ---------------------------------------------------------------------------
+  # Joern — CPGQL data-flow server (F7). Optional profile.
+  # Enable with: docker compose --profile dataflow up -d
+  # ---------------------------------------------------------------------------
+  joern:
+    build:
+      context: joern
+      dockerfile: Dockerfile
+    container_name: kryon-joern
+    profiles:
+      - dataflow
+    restart: unless-stopped
+    # Shares kryon-workspace read-only so kryon can reference paths like
+    # /workspace/... in CPGQL queries without copying source trees.
+    volumes:
+      - kryon-workspace:/workspace:ro
+      - joern-cpgs:/work/cpgs
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 2G
+    networks:
+      - kryon-mgmt
+    # Server port not exposed to host; kryon reaches it over mgmt network.
+
+volumes:
+  joern-cpgs:
+    driver: local
