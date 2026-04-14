@@ -464,6 +464,20 @@ async def hunt_zero_days(
     pool = HunterPool(max_active=max_par, runner=runner)
     set_pool(pool)
 
+    # Pre-seed each file with similar-code matches from the CVE corpus.
+    # The supervisor does this ONCE per file before spawning hunters — the
+    # matches are baked into the dynamic prompt so the hunter starts with
+    # variant-analysis hints instead of exploring blind.
+    corpus_available = False
+    try:
+        from kryon.knowledge import cve_corpus as _cvc
+        stats = _cvc.corpus_stats()
+        corpus_available = stats.get("count", 0) > 0
+        if corpus_available:
+            logger.info("CVE corpus available: %d entries", stats["count"])
+    except Exception as e:
+        logger.debug("CVE corpus unavailable: %s", e)
+
     spawn_tasks: list[asyncio.Task] = []
     job_map: dict[str, HunterJob] = {}
     for entry in top[:budget]:
@@ -471,6 +485,30 @@ async def hunt_zero_days(
         if not file_rel:
             continue
         full = str(Path(repo_path) / file_rel)
+
+        # Pre-fetch corpus matches using a signal from this file: its name
+        # + the top danger patterns found during scoring. This stays cheap
+        # (one embedding lookup per file, not per function).
+        corpus_matches: list[dict] = []
+        if corpus_available:
+            try:
+                # Signal = filename + evidence summary. Keeps the query
+                # semantically representative of the file's attack surface.
+                signal = (
+                    f"{Path(full).name} "
+                    f"danger_hits={entry.get('evidence', {}).get('danger_hits', 0)} "
+                    f"{entry.get('evidence', {}).get('pattern_hint', '')}"
+                )
+                # Fall back to reading the file head if evidence is sparse
+                try:
+                    with open(full, "r", encoding="utf-8", errors="replace") as fh:
+                        signal += "\n" + fh.read(3000)
+                except OSError:
+                    pass
+                corpus_matches = _cvc._query_similar(signal, top_k=3)
+            except Exception as e:
+                logger.debug("corpus query failed for %s: %s", file_rel, e)
+
         job = HunterJob(
             hunter_id="",
             file_path=full,
@@ -482,6 +520,7 @@ async def hunt_zero_days(
             full,
             priority_evidence=entry,
             repo_path=repo_path,
+            corpus_matches=corpus_matches,
         )
         hid = await pool.spawn(job)
         job_map[hid] = job

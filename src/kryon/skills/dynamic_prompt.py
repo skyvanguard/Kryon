@@ -40,6 +40,7 @@ def generate_hunter_prompt(
     parent_cve: str = "",
     hypothesis_hint: str = "",
     followups: list[str] | None = None,
+    corpus_matches: list[dict] | None = None,
 ) -> str:
     """Build the prompt body for a single hunter sub-agent.
 
@@ -110,6 +111,25 @@ def generate_hunter_prompt(
         parts.append("## Follow-ups from supervisor")
         for f in followups[:5]:
             parts.append(f"- {f}")
+
+    # ARTEMIS-style pre-seeded retrieval: the supervisor ran
+    # recall_similar_code_pattern on this file's signal before spawning
+    # the hunter. Give the hunter the top CVE matches up-front so it can
+    # skip straight to variant-analysis instead of exploring blind.
+    if corpus_matches:
+        parts.append("")
+        parts.append("## Past CVE patches that look similar (pre-fetched from corpus)")
+        parts.append(
+            "These are patches that fixed similar patterns in other projects."
+            " If any match is a twin of code in this file, treat it as a"
+            " pre-seeded hypothesis — go verify with run_sandboxed."
+        )
+        for m in corpus_matches[:3]:
+            cve = m.get("cve_id") or m.get("ghsa_id") or "?"
+            cwes = m.get("cwe_ids", "") or ""
+            repo = m.get("repo", "") or ""
+            excerpt = (m.get("pattern_excerpt", "") or "").replace("\n", " ")[:200]
+            parts.append(f"- {cve}  [{cwes}]  {repo} — {excerpt}...")
 
     # --- First action — remove ambiguity about what to call ---
     parts.append("")
