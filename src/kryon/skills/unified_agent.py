@@ -137,10 +137,11 @@ def create_unified_agent(
 
     instructions = _BASE_PROMPT.format(skill_sections=skill_sections)
 
-    # Select tools based on active skills
+    # Select tools based on active skills (respecting per-skill vetoes)
     registry = _get_tool_registry()
     skill_tool_names = loader.required_tool_names(skills)
-    tools = select_tools(registry, skill_tool_names)
+    forbidden = loader.forbidden_tool_names(skills)
+    tools = select_tools(registry, skill_tool_names, forbidden_tool_names=forbidden)
 
     logger.info(
         "Unified agent: %d skills loaded (%s), %d tools active",

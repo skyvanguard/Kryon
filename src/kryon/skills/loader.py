@@ -27,6 +27,13 @@ class Skill:
     required_tools: list[str]
     body: str  # markdown content below frontmatter
     source_path: Path
+    # Tools this skill explicitly does NOT want available to the agent.
+    # Subtracted from the final tool set AFTER ALWAYS_INCLUDE and
+    # required_tools are unioned. Used to keep certain tools out of
+    # reach even if they're ambient (e.g., hunter skill forbids
+    # run_command/execute_code so the model can't use them as a
+    # side-channel around run_sandboxed).
+    forbidden_tools: tuple = ()  # tuple for frozen dataclass hashability
 
 
 def _parse_yaml_simple(text: str) -> dict[str, Any]:
@@ -150,6 +157,7 @@ def _parse_skill_file(path: Path) -> Skill | None:
         required_tools=fm.get("required_tools") or [],
         body=body,
         source_path=path,
+        forbidden_tools=tuple(fm.get("forbidden_tools") or []),
     )
 
 
@@ -253,6 +261,13 @@ class SkillLoader:
         names: set[str] = set()
         for skill in skills:
             names.update(skill.required_tools)
+        return names
+
+    def forbidden_tool_names(self, skills: list[Skill]) -> set[str]:
+        """Union of forbidden_tools — removed from final set even if ambient."""
+        names: set[str] = set()
+        for skill in skills:
+            names.update(skill.forbidden_tools or ())
         return names
 
     def list_names(self) -> list[str]:

@@ -97,14 +97,20 @@ def select_tools(
     registry: dict[str, Any],
     skill_tool_names: set[str],
     max_tools: int = 30,
+    forbidden_tool_names: set[str] | None = None,
 ) -> list[Any]:
     """Select tool objects from the registry based on skill requirements.
 
-    Always includes ALWAYS_INCLUDE tools. Adds skill-specific tools up to
-    max_tools cap. Returns a list of Tool objects.
+    Always includes ALWAYS_INCLUDE tools, then adds skill-specific tools.
+    If forbidden_tool_names is given, those names are REMOVED from the
+    final set even if they're in ALWAYS_INCLUDE — lets individual skills
+    veto ambient tools (used by the zero-day-hunter to block
+    run_command/execute_code side-channels around run_sandboxed).
     """
     selected_names = set(ALWAYS_INCLUDE)
     selected_names.update(skill_tool_names)
+    if forbidden_tool_names:
+        selected_names -= set(forbidden_tool_names)
 
     # Resolve names to tool objects
     tools: list[Any] = []

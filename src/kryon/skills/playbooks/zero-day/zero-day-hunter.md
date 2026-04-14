@@ -17,6 +17,12 @@ required_tools:
   - recall_similar_experiences
   - recall_similar_code_pattern
   - add_to_memory_semantic
+# Remove ambient tools that would let the model bypass run_sandboxed
+# as the verification oracle. This is load-bearing — without the veto,
+# gemma4 gravitates to run_command/execute_code and never gets ASAN output.
+forbidden_tools:
+  - run_command
+  - execute_code
 ---
 
 # Zero-Day Hunter
