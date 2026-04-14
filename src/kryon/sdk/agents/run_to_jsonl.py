@@ -234,7 +234,13 @@ class DataRecorder:  # pylint: disable=too-few-public-methods
                     "message": {
                         "role": msg.choices[0].message.role if hasattr(msg, "choices") and msg.choices else "assistant",
                         "content": msg.choices[0].message.content if hasattr(msg, "choices") and msg.choices else None,
-                        "tool_calls": [t.model_dump() for t in (msg.choices[0].message.tool_calls or [])]
+                        "tool_calls": [
+                            # Handle both Pydantic (openai SDK) and SimpleNamespace
+                            # (some Ollama-adapted models e.g. Qwen3-Coder) tool_call objects.
+                            t.model_dump() if hasattr(t, "model_dump")
+                            else (t.__dict__ if hasattr(t, "__dict__") else dict(t))
+                            for t in (msg.choices[0].message.tool_calls or [])
+                        ]
                         if hasattr(msg, "choices") and msg.choices
                         else [],  # pylint: disable=line-too-long  # noqa: E501
                     },
