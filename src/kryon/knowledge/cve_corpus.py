@@ -188,10 +188,19 @@ def ingest_entries(entries: Iterable[dict], *, batch_size: int = 64) -> int:
         buf_docs.clear()
         buf_meta.clear()
 
+    # Cap individual documents at ~5000 chars before embedding.
+    # Observed 9/99 failures on the first 100-entry run when patterns were
+    # 8KB+ — Ollama's embedding endpoint returned 500 on oversized input.
+    # The head of the pattern (summary, CWE tag, commit subject, first file
+    # diff) carries the signal; trailing diff hunks add little recall value.
+    _MAX_DOC_CHARS = int(os.environ.get("KRYON_CVE_CORPUS_MAX_DOC_CHARS", "5000"))
+
     for entry in entries:
         doc = entry.get("pattern") or ""
         if not doc.strip():
             continue
+        if len(doc) > _MAX_DOC_CHARS:
+            doc = doc[:_MAX_DOC_CHARS] + "\n[... truncated for embedding ...]"
         buf_ids.append(_entry_id(entry))
         buf_docs.append(doc)
         buf_meta.append(_entry_metadata(entry))
