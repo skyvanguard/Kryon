@@ -575,12 +575,58 @@ class LLMHunter:
                 self._harvest_progress(agent),
             )]
 
-        parsed = _parse_findings_from_text(final_text, repo_path)
+        # F5.1.d — extract structured submissions from submit_finding /
+        # submit_no_finding tool calls BEFORE trying the old text-block parser.
+        # This is the primary structured-output channel now.
+        submissions = self._harvest_submissions(agent)
+        parsed: list[dict] = []
+        for sub in submissions:
+            if sub["kind"] == "finding":
+                parsed.append({
+                    "file_path": sub["args"].get("file_path", ""),
+                    "function_name": sub["args"].get("function_name", ""),
+                    "line_range": sub["args"].get("line_range", ""),
+                    "cwe": sub["args"].get("cwe", ""),
+                    "severity": sub["args"].get("severity", "MEDIUM").upper(),
+                    "crash_type": sub["args"].get("crash_type", ""),
+                    "stack_top": [s.strip() for s in sub["args"].get("stack_top", "").split(",") if s.strip()],
+                    "poc_source": sub["args"].get("poc_source", ""),
+                    "trigger_input": sub["args"].get("trigger_input", ""),
+                    "repo_path": repo_path,
+                    "language": "c",
+                    "_hunter": "llm",
+                    "_submitted": True,
+                    "_deepening": sub["args"].get("deepening_outcome", ""),
+                    "_suggested_fix": sub["args"].get("suggested_fix", ""),
+                })
+            elif sub["kind"] == "no_finding":
+                parsed.append({
+                    "file_path": sub["args"].get("file_path", job.file_path),
+                    "function_name": "",
+                    "line_range": "",
+                    "cwe": "",
+                    "severity": "NONE",
+                    "crash_type": "",
+                    "stack_top": [],
+                    "poc_source": "",
+                    "trigger_input": "",
+                    "repo_path": repo_path,
+                    "language": "c",
+                    "_hunter": "llm",
+                    "_negative": True,
+                    "_submitted": True,
+                    "_reason": sub["args"].get("reason", ""),
+                    "_attempts": str(sub["args"].get("attempted_hypotheses", "")),
+                    "_notes": sub["args"].get("notes", ""),
+                })
 
-        # If we timed out (or the agent produced no structured output),
-        # synthesize a NO FINDING record from whatever progress is visible in
-        # the agent's message history AND run the heuristic hunter on the
-        # same file as a fallback. Zero-waste principle: an expensive LLM
+        # If no structured submission, fall back to the text-block parser
+        # (for older runs / models that still use the text format).
+        if not parsed:
+            parsed = _parse_findings_from_text(final_text, repo_path)
+
+        # If STILL nothing, synthesize a NO FINDING from progress + optionally
+        # run heuristic fallback. Zero-waste principle: an expensive LLM
         # turn that didn't converge still leaves us with pattern-based
         # findings via the deterministic path.
         if not parsed:
@@ -647,6 +693,41 @@ class LLMHunter:
                 if isinstance(args, str) and len(args) > 200:
                     args = args[:200] + "..."
                 out.append({"tool": fn, "args": args})
+        return out
+
+    @staticmethod
+    def _harvest_submissions(agent) -> list[dict]:
+        """Extract submit_finding / submit_no_finding tool-call arguments.
+
+        Returns a list of {kind: "finding"|"no_finding", args: {...}} in
+        call order. The runner uses these as the STRUCTURED output
+        channel — they replace the old text-block parsing which was
+        fragile on small models.
+        """
+        history: list = []
+        try:
+            if hasattr(agent, "model") and hasattr(agent.model, "message_history"):
+                history = agent.model.message_history or []
+        except Exception:
+            pass
+        out: list[dict] = []
+        for msg in history:
+            if msg.get("role") != "assistant":
+                continue
+            for tc in (msg.get("tool_calls") or []):
+                fn = (tc.get("function") or {}).get("name") or ""
+                if fn not in ("submit_finding", "submit_no_finding"):
+                    continue
+                raw_args = (tc.get("function") or {}).get("arguments") or ""
+                try:
+                    if isinstance(raw_args, str):
+                        parsed_args = json.loads(raw_args) if raw_args.strip() else {}
+                    else:
+                        parsed_args = dict(raw_args)
+                except json.JSONDecodeError:
+                    parsed_args = {}
+                kind = "finding" if fn == "submit_finding" else "no_finding"
+                out.append({"kind": kind, "args": parsed_args})
         return out
 
     @staticmethod

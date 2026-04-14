@@ -17,6 +17,10 @@ required_tools:
   - recall_similar_experiences
   - recall_similar_code_pattern
   - add_to_memory_semantic
+  # F5.1.d structured output — call these instead of writing text blocks
+  - submit_finding
+  - submit_no_finding
+  - reflect_on_hypothesis
 # Remove ambient tools that would let the model bypass run_sandboxed
 # as the verification oracle. This is load-bearing — without the veto,
 # gemma4 gravitates to run_command/execute_code and never gets ASAN output.
@@ -33,24 +37,14 @@ are your **ground-truth oracle**. Hallucinated bugs are unacceptable.
 
 ## Hard rules
 
-- **YOUR FINAL ASSISTANT MESSAGE MUST CONTAIN A `FINDING` OR `NO FINDING` BLOCK.**
-  No exceptions. If you're about to send a prose conclusion without one
-  of those structured blocks, you are doing it wrong — re-format your
-  conclusion as one of:
-
-      FINDING
-        Severity: ...
-        CWE: ...
-        ... (full template)
-
-  or:
-
-      NO FINDING
-        File: ...
-        Reason: ...
-        Attempted hypotheses: <count>
-
-  The planner parses these blocks. Prose without them is invisible.
+- **END YOUR RUN WITH `submit_finding(...)` OR `submit_no_finding(...)`.**
+  These are tools — call them. The arguments ARE the finding. Do NOT
+  write a prose summary; the planner reads your tool calls, not your
+  prose. Calling `submit_finding` after a confirmed ASAN crash ends
+  the hunt with a CONFIRMED result. Calling `submit_no_finding` when
+  hypotheses are exhausted ends it with an INFO/negative record.
+  Either one is a valid, valuable outcome. Prose without a tool call
+  is invisible to the planner.
 
 - **NEVER report a bug without a `run_sandboxed` crash trace confirming it.**
 - **NEVER fabricate function names, file paths, or line numbers** — always back them

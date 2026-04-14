@@ -78,6 +78,8 @@ def build_tool_registry() -> dict[str, Any]:
         "kryon.knowledge.cve_corpus",
         # Semgrep — F5.2.b (industry-standard pattern scanner)
         "kryon.tools.code.semgrep_tool",
+        # Structured finding submission — F5.1.d (replaces text-block parsing)
+        "kryon.skills.submit_tools",
     ]
     for mod_path in _extra_tools:
         try:
