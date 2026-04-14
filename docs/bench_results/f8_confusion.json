@@ -1,0 +1,1668 @@
+{
+  "corpus": {
+    "cwes": [
+      121,
+      122,
+      190,
+      416,
+      476
+    ],
+    "samples_per_cwe": 20,
+    "seed": 42
+  },
+  "per_file": [
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__dest_wchar_t_declare_cpy_03.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-787"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_memcpy_15.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-121"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__CWE805_wchar_t_declare_snprintf_10.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__CWE193_wchar_t_alloca_memmove_34.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-121"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__CWE806_wchar_t_alloca_ncpy_17.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-121",
+        "CWE-787"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__CWE805_wchar_t_alloca_memcpy_18.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-121",
+        "CWE-787"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__src_char_declare_cat_10.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-787",
+        "CWE-14",
+        "CWE-676"
+      ],
+      "matched": true,
+      "rules": [
+        "insecure-use-memset",
+        "insecure-use-strcat-fn"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__CWE805_struct_alloca_loop_44.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-121"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__CWE805_struct_alloca_loop_12.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-121"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__CWE805_wchar_t_declare_ncat_11.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__wchar_t_type_overrun_memcpy_04.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__CWE806_wchar_t_declare_loop_09.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_ncpy_31.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-121",
+        "CWE-676"
+      ],
+      "matched": true,
+      "rules": [
+        "insecure-use-string-copy-fn"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__CWE805_char_alloca_memcpy_08.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-121",
+        "CWE-787",
+        "CWE-14"
+      ],
+      "matched": true,
+      "rules": [
+        "insecure-use-memset"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__wchar_t_type_overrun_memcpy_18.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__wchar_t_type_overrun_memmove_09.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__CWE805_wchar_t_declare_memmove_45.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__char_type_overrun_memmove_16.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__CWE806_char_declare_ncpy_45.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-676",
+        "CWE-14"
+      ],
+      "matched": true,
+      "rules": [
+        "insecure-use-memset",
+        "insecure-use-string-copy-fn"
+      ],
+      "hunters": [
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE121_Stack_Based_Buffer_Overflow__CWE806_wchar_t_alloca_memcpy_04.c",
+      "expected_cwe": "CWE-121",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-121"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_int64_t_memcpy_18.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-787",
+        "CWE-476",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_wchar_t_loop_21.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-476"
+      ],
+      "matched": false,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_src_char_cpy_11.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 5,
+      "emitted_cwes": [
+        "CWE-121",
+        "CWE-787",
+        "CWE-190",
+        "CWE-14",
+        "CWE-676"
+      ],
+      "matched": true,
+      "rules": [
+        "insecure-use-memset",
+        "insecure-use-string-copy-fn",
+        "malloc-arithmetic"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_wchar_t_cpy_14.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-787",
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_wchar_t_memcpy_12.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-121",
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_wchar_t_ncpy_31.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-787"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_dest_wchar_t_cat_05.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-476"
+      ],
+      "matched": false,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_src_char_cpy_16.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 5,
+      "emitted_cwes": [
+        "CWE-121",
+        "CWE-787",
+        "CWE-190",
+        "CWE-14",
+        "CWE-676"
+      ],
+      "matched": true,
+      "rules": [
+        "insecure-use-memset",
+        "insecure-use-string-copy-fn",
+        "malloc-arithmetic"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_wchar_t_ncpy_21.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-787",
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_listen_socket_07.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-14",
+        "CWE-787",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "incorrect-use-ato-fn",
+        "insecure-use-memset",
+        "malloc-arithmetic"
+      ],
+      "hunters": [
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_src_wchar_t_cpy_15.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-787"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_large_21.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-190"
+      ],
+      "matched": false,
+      "rules": [
+        "malloc-arithmetic"
+      ],
+      "hunters": [
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_struct_loop_45.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_src_wchar_t_cat_31.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_wchar_t_snprintf_08.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-476"
+      ],
+      "matched": false,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_int64_t_loop_44.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-190"
+      ],
+      "matched": false,
+      "rules": [
+        "malloc-arithmetic"
+      ],
+      "hunters": [
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_int64_t_memcpy_09.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-787",
+        "CWE-476",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_connect_socket_13.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-14",
+        "CWE-787",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "incorrect-use-ato-fn",
+        "insecure-use-memset",
+        "malloc-arithmetic"
+      ],
+      "hunters": [
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_wchar_t_memmove_01.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-476"
+      ],
+      "matched": false,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_memmove_17.c",
+      "expected_cwe": "CWE-122",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-476",
+        "CWE-190",
+        "CWE-14"
+      ],
+      "matched": false,
+      "rules": [
+        "insecure-use-memset",
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE190_Integer_Overflow__short_rand_multiply_11.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-190",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "typed-arithmetic-overflow"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE190_Integer_Overflow__unsigned_int_max_postinc_31.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE190_Integer_Overflow__int64_t_max_square_16.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE190_Integer_Overflow__int_fgets_preinc_10.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-787"
+      ],
+      "matched": false,
+      "rules": [
+        "incorrect-use-ato-fn"
+      ],
+      "hunters": [
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE190_Integer_Overflow__unsigned_int_max_multiply_13.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE190_Integer_Overflow__int_max_add_31.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-190",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "typed-arithmetic-overflow"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE190_Integer_Overflow__unsigned_int_fscanf_postinc_18.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE190_Integer_Overflow__int_listen_socket_multiply_18.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 4,
+      "emitted_cwes": [
+        "CWE-190",
+        "CWE-14",
+        "CWE-787",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "incorrect-use-ato-fn",
+        "insecure-use-memset",
+        "typed-arithmetic-overflow"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE190_Integer_Overflow__int_fgets_add_02.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-190",
+        "CWE-787",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "incorrect-use-ato-fn",
+        "typed-arithmetic-overflow"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE190_Integer_Overflow__int64_t_max_multiply_44.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE190_Integer_Overflow__char_max_postinc_07.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE190_Integer_Overflow__short_rand_preinc_03.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE190_Integer_Overflow__int_connect_socket_multiply_21.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 4,
+      "emitted_cwes": [
+        "CWE-190",
+        "CWE-190",
+        "CWE-14",
+        "CWE-787"
+      ],
+      "matched": true,
+      "rules": [
+        "incorrect-use-ato-fn",
+        "insecure-use-memset",
+        "typed-arithmetic-overflow"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE190_Integer_Overflow__int64_t_max_multiply_21.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE190_Integer_Overflow__int64_t_fscanf_preinc_01.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE190_Integer_Overflow__int_listen_socket_preinc_16.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-14",
+        "CWE-787"
+      ],
+      "matched": false,
+      "rules": [
+        "incorrect-use-ato-fn",
+        "insecure-use-memset"
+      ],
+      "hunters": [
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE190_Integer_Overflow__unsigned_int_rand_preinc_17.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE190_Integer_Overflow__unsigned_int_max_add_31.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE190_Integer_Overflow__unsigned_int_rand_preinc_45.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE190_Integer_Overflow__unsigned_int_max_multiply_03.c",
+      "expected_cwe": "CWE-190",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_wchar_t_02.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_int_02.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_wchar_t_11.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_int_03.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_int_13.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_int64_t_07.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_long_02.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__return_freed_ptr_10.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-190",
+        "CWE-190"
+      ],
+      "matched": false,
+      "rules": [
+        "malloc-arithmetic"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_char_04.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 5,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-476",
+        "CWE-190",
+        "CWE-14"
+      ],
+      "matched": true,
+      "rules": [
+        "insecure-use-memset",
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_wchar_t_17.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_long_15.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-476",
+        "CWE-190"
+      ],
+      "matched": false,
+      "rules": [
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_int_18.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 6,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-476",
+        "CWE-190",
+        "CWE-416",
+        "CWE-416"
+      ],
+      "matched": true,
+      "rules": [
+        "function-use-after-free",
+        "juliet-helper-after-free",
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_wchar_t_10.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_long_11.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_int_10.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_wchar_t_15.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-476",
+        "CWE-476"
+      ],
+      "matched": false,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_int64_t_13.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_struct_04.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-416"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_int64_t_09.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 3,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-190"
+      ],
+      "matched": true,
+      "rules": [
+        "malloc-arithmetic",
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE416_Use_After_Free__malloc_free_long_18.c",
+      "expected_cwe": "CWE-416",
+      "n_findings": 6,
+      "emitted_cwes": [
+        "CWE-416",
+        "CWE-476",
+        "CWE-476",
+        "CWE-190",
+        "CWE-416",
+        "CWE-416"
+      ],
+      "matched": true,
+      "rules": [
+        "function-use-after-free",
+        "malloc-arithmetic",
+        "null-assign-deref",
+        "use-after-free-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__int_07.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__long_11.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__char_13.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__struct_06.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__null_check_after_deref_17.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-476",
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__int_12.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__long_16.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__struct_45.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__deref_after_check_18.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-476",
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__binary_if_14.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__int_15.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__deref_after_check_12.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-476",
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__deref_after_check_10.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 2,
+      "emitted_cwes": [
+        "CWE-476",
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [
+        "null-assign-deref"
+      ],
+      "hunters": [
+        "heuristic",
+        "semgrep"
+      ]
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__char_44.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__binary_if_13.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__wchar_t_34.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__int64_t_15.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__char_15.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 0,
+      "emitted_cwes": [],
+      "matched": false,
+      "rules": [],
+      "hunters": []
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__struct_34.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    },
+    {
+      "file": "CWE476_NULL_Pointer_Dereference__int64_t_03.c",
+      "expected_cwe": "CWE-476",
+      "n_findings": 1,
+      "emitted_cwes": [
+        "CWE-476"
+      ],
+      "matched": true,
+      "rules": [],
+      "hunters": [
+        "heuristic"
+      ]
+    }
+  ],
+  "mismatch_samples": {
+    "122": [
+      {
+        "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_wchar_t_loop_21.c",
+        "expected_cwe": "CWE-122",
+        "n_findings": 1,
+        "emitted_cwes": [
+          "CWE-476"
+        ],
+        "matched": false,
+        "rules": [
+          "null-assign-deref"
+        ],
+        "hunters": [
+          "semgrep"
+        ]
+      },
+      {
+        "file": "CWE122_Heap_Based_Buffer_Overflow__c_dest_wchar_t_cat_05.c",
+        "expected_cwe": "CWE-122",
+        "n_findings": 1,
+        "emitted_cwes": [
+          "CWE-476"
+        ],
+        "matched": false,
+        "rules": [
+          "null-assign-deref"
+        ],
+        "hunters": [
+          "semgrep"
+        ]
+      },
+      {
+        "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE129_large_21.c",
+        "expected_cwe": "CWE-122",
+        "n_findings": 1,
+        "emitted_cwes": [
+          "CWE-190"
+        ],
+        "matched": false,
+        "rules": [
+          "malloc-arithmetic"
+        ],
+        "hunters": [
+          "semgrep"
+        ]
+      },
+      {
+        "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_wchar_t_snprintf_08.c",
+        "expected_cwe": "CWE-122",
+        "n_findings": 1,
+        "emitted_cwes": [
+          "CWE-476"
+        ],
+        "matched": false,
+        "rules": [
+          "null-assign-deref"
+        ],
+        "hunters": [
+          "semgrep"
+        ]
+      },
+      {
+        "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_int64_t_loop_44.c",
+        "expected_cwe": "CWE-122",
+        "n_findings": 1,
+        "emitted_cwes": [
+          "CWE-190"
+        ],
+        "matched": false,
+        "rules": [
+          "malloc-arithmetic"
+        ],
+        "hunters": [
+          "semgrep"
+        ]
+      },
+      {
+        "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE193_wchar_t_memmove_01.c",
+        "expected_cwe": "CWE-122",
+        "n_findings": 1,
+        "emitted_cwes": [
+          "CWE-476"
+        ],
+        "matched": false,
+        "rules": [
+          "null-assign-deref"
+        ],
+        "hunters": [
+          "semgrep"
+        ]
+      },
+      {
+        "file": "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_memmove_17.c",
+        "expected_cwe": "CWE-122",
+        "n_findings": 3,
+        "emitted_cwes": [
+          "CWE-476",
+          "CWE-190",
+          "CWE-14"
+        ],
+        "matched": false,
+        "rules": [
+          "insecure-use-memset",
+          "malloc-arithmetic",
+          "null-assign-deref"
+        ],
+        "hunters": [
+          "semgrep"
+        ]
+      }
+    ],
+    "190": [
+      {
+        "file": "CWE190_Integer_Overflow__int_fgets_preinc_10.c",
+        "expected_cwe": "CWE-190",
+        "n_findings": 1,
+        "emitted_cwes": [
+          "CWE-787"
+        ],
+        "matched": false,
+        "rules": [
+          "incorrect-use-ato-fn"
+        ],
+        "hunters": [
+          "semgrep"
+        ]
+      },
+      {
+        "file": "CWE190_Integer_Overflow__int_listen_socket_preinc_16.c",
+        "expected_cwe": "CWE-190",
+        "n_findings": 2,
+        "emitted_cwes": [
+          "CWE-14",
+          "CWE-787"
+        ],
+        "matched": false,
+        "rules": [
+          "incorrect-use-ato-fn",
+          "insecure-use-memset"
+        ],
+        "hunters": [
+          "semgrep"
+        ]
+      }
+    ],
+    "416": [
+      {
+        "file": "CWE416_Use_After_Free__return_freed_ptr_10.c",
+        "expected_cwe": "CWE-416",
+        "n_findings": 2,
+        "emitted_cwes": [
+          "CWE-190",
+          "CWE-190"
+        ],
+        "matched": false,
+        "rules": [
+          "malloc-arithmetic"
+        ],
+        "hunters": [
+          "heuristic",
+          "semgrep"
+        ]
+      },
+      {
+        "file": "CWE416_Use_After_Free__malloc_free_long_15.c",
+        "expected_cwe": "CWE-416",
+        "n_findings": 2,
+        "emitted_cwes": [
+          "CWE-476",
+          "CWE-190"
+        ],
+        "matched": false,
+        "rules": [
+          "malloc-arithmetic",
+          "null-assign-deref"
+        ],
+        "hunters": [
+          "semgrep"
+        ]
+      },
+      {
+        "file": "CWE416_Use_After_Free__malloc_free_wchar_t_15.c",
+        "expected_cwe": "CWE-416",
+        "n_findings": 2,
+        "emitted_cwes": [
+          "CWE-476",
+          "CWE-476"
+        ],
+        "matched": false,
+        "rules": [
+          "null-assign-deref"
+        ],
+        "hunters": [
+          "heuristic",
+          "semgrep"
+        ]
+      }
+    ]
+  },
+  "category_totals": {
+    "attribution_or_metadata": 12
+  }
+}

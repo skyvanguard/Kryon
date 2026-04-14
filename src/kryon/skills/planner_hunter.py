@@ -487,6 +487,10 @@ class SemgrepHunter:
             rule_id = hit.get("rule_id", "")
             explicit_cwe = hit.get("cwe", "")
             cwe = _cwe_from_rule(rule_id, explicit_cwe)
+            # F8.1.b — propagate rule-declared aliases so the bench's
+            # cwes_match check considers every CWE the rule author said
+            # this finding counts as.
+            cwe_aliases = hit.get("cwe_aliases") or []
             dedup_key = (cwe, rule_id)
             if dedup_key in seen_keys:
                 continue
@@ -529,6 +533,7 @@ class SemgrepHunter:
                 "function_name": function,
                 "line_range": line_range,
                 "cwe": cwe,
+                "cwe_aliases": cwe_aliases,
                 "crash_type": crash_type,
                 "stack_top": stack_top,
                 "severity": severity,

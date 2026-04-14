@@ -151,7 +151,19 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
         pass
     elapsed = time.time() - t0
 
-    finding_cwes = [f.get("cwe", "") for f in findings if f.get("cwe")]
+    # F8.1.b — include rule-declared kryon_alias CWEs. Fixes the
+    # plumbing bug where rule authors tagged a finding with multiple
+    # legitimate CWEs (e.g. malloc-arith is CWE-190 primary but also
+    # counts as CWE-122 / CWE-787) but only the primary reached the
+    # match check.
+    finding_cwes: list[str] = []
+    for f in findings:
+        primary = f.get("cwe", "")
+        if primary:
+            finding_cwes.append(primary)
+        for alias in f.get("cwe_aliases") or []:
+            if alias and alias not in finding_cwes:
+                finding_cwes.append(alias)
     cwe_label = f"CWE-{cwe}" if cwe else ""
     try:
         from kryon.skills.patterns import cwes_match

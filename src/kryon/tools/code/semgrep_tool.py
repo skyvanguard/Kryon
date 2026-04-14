@@ -110,6 +110,27 @@ def _extract_cwe(check_id: str, metadata: dict) -> str:
     return ""
 
 
+def _extract_cwe_aliases(metadata: dict) -> list[str]:
+    """Read `kryon_alias` from rule metadata — Kryon-curated rules declare
+    which additional CWEs a finding should also count as (e.g. a rule
+    flagging malloc(N*M) is primarily CWE-190 but also counts as CWE-122
+    and CWE-787). Returns a normalised list of 'CWE-NNN' strings.
+
+    Fix for the F8.0 plumbing bug: rule authors declared these aliases but
+    the normalisation pipeline dropped them, causing bench recall@CWE to
+    miss legitimate matches.
+    """
+    raw = metadata.get("kryon_alias") or metadata.get("kryon_aliases") or []
+    if isinstance(raw, str):
+        raw = [raw]
+    out: list[str] = []
+    for a in raw:
+        s = str(a).split(":")[0].strip().upper()
+        if s:
+            out.append(s)
+    return out
+
+
 def _severity_to_confidence(severity: str) -> str:
     return {"ERROR": "high", "WARNING": "medium", "INFO": "low"}.get(
         (severity or "").upper(), "medium"
@@ -134,6 +155,7 @@ def _normalize_finding(raw: dict) -> dict:
         "severity": severity,
         "confidence": _severity_to_confidence(severity),
         "cwe": _extract_cwe(raw.get("check_id", ""), meta),
+        "cwe_aliases": _extract_cwe_aliases(meta),
         "message": (extra.get("message") or "").strip()[:500],
         "lines": (extra.get("lines") or "")[:1000],
         "method": "",
