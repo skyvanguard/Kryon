@@ -352,48 +352,125 @@ class LLMHunter:
                 user_msg=job.prompt[:1000],
                 profile={"source_code": True, "language": "c"},
             )
-        except Exception as e:
+        except Exception:
             logger.exception("LLMHunter: failed to build agent for %s", job.file_path)
-            return []
+            return [self._timeout_record(job, "agent_build_failed", [])]
 
-        # Use the dynamic prompt as the initial user turn. The skill
-        # system prompt already contains the playbook body.
+        # Resolve repo root once (used by both success and timeout paths)
+        repo_path = self._resolve_repo_root(job.file_path)
+
+        final_text = ""
+        timed_out = False
         try:
             result = await asyncio.wait_for(
                 Runner.run(agent, job.prompt),
                 timeout=self.timeout_s,
             )
+            try:
+                final_text = getattr(result, "final_output", "") or ""
+                if not final_text and hasattr(result, "messages"):
+                    for msg in reversed(result.messages):
+                        if (
+                            msg.get("role") == "assistant"
+                            and isinstance(msg.get("content"), str)
+                        ):
+                            final_text = msg["content"]
+                            break
+            except Exception:
+                pass
         except asyncio.TimeoutError:
+            timed_out = True
             logger.warning("LLMHunter timeout for %s", job.file_path)
-            return []
         except Exception as e:
             logger.exception("LLMHunter runner error on %s: %s", job.file_path, e)
-            return []
+            return [self._timeout_record(
+                job, f"runner_error: {e}"[:200],
+                self._harvest_progress(agent),
+            )]
 
-        # Extract final text output from the agent
-        final_text = ""
-        try:
-            final_text = getattr(result, "final_output", "") or ""
-            if not final_text and hasattr(result, "messages"):
-                for msg in reversed(result.messages):
-                    if msg.get("role") == "assistant" and isinstance(msg.get("content"), str):
-                        final_text = msg["content"]
-                        break
-        except Exception:
-            pass
+        parsed = _parse_findings_from_text(final_text, repo_path)
 
-        repo_path = str(Path(job.file_path).parent)
-        # Walk up to find the repo root (has .git or .kryon_index.json)
-        p = Path(job.file_path).parent
+        # If we timed out (or the agent produced no structured output),
+        # synthesize a NO FINDING record from whatever progress is visible in
+        # the agent's message history. Better than an empty return — the
+        # planner gets a row, the operator sees what the hunter saw.
+        if not parsed:
+            progress = self._harvest_progress(agent)
+            reason = (
+                "hunter timed out before emitting FINDING/NO FINDING"
+                if timed_out
+                else "hunter finished without emitting structured output"
+            )
+            parsed = [self._timeout_record(job, reason, progress, repo_path=repo_path)]
+        return parsed
+
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _resolve_repo_root(file_path: str) -> str:
+        p = Path(file_path).parent
+        default = str(p)
         for _ in range(10):
             if (p / ".git").exists() or (p / ".kryon_index.json").exists():
-                repo_path = str(p)
-                break
+                return str(p)
             if p.parent == p:
                 break
             p = p.parent
+        return default
 
-        return _parse_findings_from_text(final_text, repo_path)
+    @staticmethod
+    def _harvest_progress(agent) -> list[dict]:
+        """Extract every tool call the hunter made, in order.
+
+        When the hunter times out this gives us a concrete trail —
+        which files it read, which CWE hints it pulled, etc.
+        """
+        history = []
+        try:
+            if hasattr(agent, "model") and hasattr(agent.model, "message_history"):
+                history = agent.model.message_history or []
+        except Exception:
+            pass
+        out: list[dict] = []
+        for msg in history:
+            if msg.get("role") != "assistant":
+                continue
+            for tc in (msg.get("tool_calls") or []):
+                fn = (tc.get("function") or {}).get("name") or ""
+                args = (tc.get("function") or {}).get("arguments") or ""
+                if isinstance(args, str) and len(args) > 200:
+                    args = args[:200] + "..."
+                out.append({"tool": fn, "args": args})
+        return out
+
+    @staticmethod
+    def _timeout_record(
+        job: HunterJob,
+        reason: str,
+        progress: list[dict],
+        *,
+        repo_path: str = "",
+    ) -> dict:
+        last_tools = [p.get("tool", "") for p in progress[-5:]]
+        return {
+            "file_path": job.file_path,
+            "function_name": "",
+            "line_range": "",
+            "cwe": "",
+            "severity": "NONE",
+            "crash_type": "",
+            "stack_top": [],
+            "poc_source": "",
+            "trigger_input": "",
+            "repo_path": repo_path or str(Path(job.file_path).parent),
+            "language": "c",
+            "_hunter": "llm",
+            "_negative": True,
+            "_reason": reason,
+            "_tool_calls": len(progress),
+            "_last_tools": last_tools,
+            "_attempts": "",
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -424,6 +501,7 @@ class HuntReport:
         return json.dumps(d, indent=2, default=str)
 
     def pretty(self) -> str:
+        info = [v for v in self.verdicts if v.get("verdict") == "INFO"]
         lines = [
             f"=== Hunt Report: {self.repo_url} ===",
             f"  repo:            {self.repo_path}",
@@ -435,6 +513,7 @@ class HuntReport:
             f"  raw findings:    {self.raw_findings}",
             f"  confirmed:       {self.confirmed_findings}",
             f"  rejected:        {self.rejected_findings}",
+            f"  info / negative: {len(info)}",
             "",
         ]
         confirmed = [v for v in self.verdicts if v.get("verdict") == "CONFIRMED"]
@@ -448,6 +527,21 @@ class HuntReport:
                     f"{v.get('_file', '?')}::"
                     f"{v.get('_function', '?')}"
                 )
+        if info:
+            if confirmed:
+                lines.append("")
+            lines.append("Hunter telemetry (no findings produced):")
+            for v in info:
+                reason = v.get("reason", "")
+                tcnt = v.get("_tool_calls", 0)
+                tools = ", ".join(v.get("_last_tools") or [])
+                lines.append(
+                    f"  {v.get('_file', '?')}  "
+                    f"tools_used={tcnt}  "
+                    f"reason: {reason[:80]}"
+                )
+                if tools:
+                    lines.append(f"    last tools: {tools}")
         return "\n".join(lines)
 
 
@@ -581,9 +675,33 @@ async def hunt_zero_days(
             raw_findings.append(f)
 
     # ---- Step 6: validator (3 phases, zero shared context) ----
+    # Skip validator for informational _negative records (hunter timeouts,
+    # NO FINDING blocks) — they have no PoC to reproduce, validator would
+    # just reject them with phase=relevance. Pass them through directly so
+    # the planner still surfaces the telemetry.
     validator = ValidatorAgent()
     verdicts_raw: list[dict] = []
     for f in raw_findings:
+        if f.get("_negative"):
+            verdicts_raw.append({
+                "verdict": "INFO",
+                "phase_failed": None,
+                "reason": f.get("_reason", "hunter produced no finding"),
+                "cwe_actual": "",
+                "cwe_claimed": "",
+                "severity_actual": "NONE",
+                "severity_claimed": "",
+                "reproduced_crash_type": "",
+                "reproduced_stack_top": [],
+                "exposure_reachable_from_api": None,
+                "_file": f.get("file_path", ""),
+                "_function": "",
+                "_hunter_id": f.get("_hunter_id", ""),
+                "_pattern": "",
+                "_tool_calls": f.get("_tool_calls", 0),
+                "_last_tools": f.get("_last_tools", []),
+            })
+            continue
         finding_obj = Finding.from_dict({
             "file_path": f.get("file_path", ""),
             "function_name": f.get("function_name", ""),
@@ -618,6 +736,7 @@ async def hunt_zero_days(
 
     confirmed = [v for v in deduped if v.get("verdict") == "CONFIRMED"]
     rejected = [v for v in deduped if v.get("verdict") == "REJECTED"]
+    info = [v for v in deduped if v.get("verdict") == "INFO"]
 
     # ---- Step 8: build report ----
     report = HuntReport(
