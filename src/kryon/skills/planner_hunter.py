@@ -67,25 +67,135 @@ logger = logging.getLogger(__name__)
 
 # F6.6 — Patterns now sourced from the YAML library at skills/patterns/cwe/.
 # This list is built lazily so a hot-reload of the YAML files takes effect
-# without restarting the process. Each entry: (compiled_regex, cwe).
-def _load_heuristic_patterns() -> list[tuple[str, str]]:
+# without restarting the process. Each entry: (compiled_regex, cwe, confidence).
+def _load_heuristic_patterns() -> list[tuple[str, str, str]]:
     from kryon.skills.patterns import iter_detection_regexes
-    out: list[tuple[str, str]] = []
-    for regex, cwe, _conf in iter_detection_regexes():
-        out.append((regex, cwe))
+    out: list[tuple[str, str, str]] = list(iter_detection_regexes())
     # Keep the legacy hard-coded patterns as a tiny safety net in case the
     # YAML library is ever empty (regression guard).
     if not out:
         out = [
-            (r"\b[zZ]?memcpy\s*\([^,]+,\s*[^,]+,\s*(\w+)\s*\)", "CWE-787"),
-            (r"\bstrcpy\s*\(", "CWE-787"),
-            (r"\bstrcat\s*\(", "CWE-787"),
-            (r"\bsprintf\s*\(", "CWE-787"),
+            (r"\b[zZ]?memcpy\s*\([^,]+,\s*[^,]+,\s*(\w+)\s*\)", "CWE-787", "medium"),
+            (r"\bstrcpy\s*\(", "CWE-787", "high"),
+            (r"\bstrcat\s*\(", "CWE-787", "high"),
+            (r"\bsprintf\s*\(", "CWE-787", "high"),
         ]
     return out
 
 
-_HEURISTIC_PATTERNS: list[tuple[str, str]] = _load_heuristic_patterns()
+_HEURISTIC_PATTERNS: list[tuple[str, str, str]] = _load_heuristic_patterns()
+
+
+# F6.3 — Context-aware FPR filters. Each filter takes the matched text and
+# the surrounding source, returns True if the finding should be SKIPPED
+# (counted as a false positive avoided).
+
+def _is_string_literal_arg(line: str) -> bool:
+    """For strcpy/strcat/sprintf-class patterns: was the 2nd arg a literal?
+    e.g. strcpy(buf, "hello") — safe."""
+    # Match: func(<anything>, "....")
+    return bool(re.search(r"\b(?:str(?:cpy|cat|n?cpy)|sprintf|wcscpy)\s*\([^,]+,\s*\"[^\"]*\"", line))
+
+
+def _is_constant_index(match_text: str) -> bool:
+    """For arr[i+j] patterns: are both operands numeric literals?"""
+    m = re.search(r"\[\s*(\w+)\s*[+\-*]\s*(\w+)\s*\]", match_text)
+    if not m:
+        return False
+    a, b = m.group(1), m.group(2)
+    return a.isdigit() and b.isdigit()
+
+
+def _has_null_assign_between_frees(text: str, match_start: int) -> bool:
+    """For free+free patterns: was the pointer reset to NULL between them?"""
+    # Look in the matched chunk for `= NULL`
+    chunk = text[match_start:match_start + 600]
+    return "= NULL" in chunk or "=NULL" in chunk
+
+
+def _line_at(text: str, pos: int) -> str:
+    """Return the line of source containing `pos`."""
+    line_start = text.rfind("\n", 0, pos) + 1
+    line_end = text.find("\n", pos)
+    if line_end == -1:
+        line_end = len(text)
+    return text[line_start:line_end]
+
+
+def _surrounding_lines(text: str, pos: int, n: int = 5) -> str:
+    """Return ±n lines around `pos`."""
+    line_start = text.rfind("\n", 0, pos) + 1
+    line_end = text.find("\n", pos)
+    if line_end == -1:
+        line_end = len(text)
+    # Walk back n newlines
+    s = line_start
+    for _ in range(n):
+        prev = text.rfind("\n", 0, s - 1)
+        if prev < 0:
+            s = 0
+            break
+        s = prev + 1
+    # Walk forward n newlines
+    e = line_end
+    for _ in range(n):
+        nxt = text.find("\n", e + 1)
+        if nxt < 0:
+            e = len(text)
+            break
+        e = nxt
+    return text[s:e]
+
+
+def _has_bounds_check_nearby(text: str, pos: int) -> bool:
+    """Look for `if (...< sizeof | < N | strlen)` within ±5 lines."""
+    ctx = _surrounding_lines(text, pos, n=5)
+    return bool(re.search(
+        r"\bif\s*\([^)]*?(?:<\s*\w*size\b|<\s*\d+|<\s*sizeof|>\s*0|!=\s*NULL|==\s*NULL)",
+        ctx,
+    ))
+
+
+def _is_safe_wrapper_call(text: str, pos: int) -> bool:
+    """Skip well-known safe wrappers (zmemcpy, g_strdup, etc.)."""
+    line = _line_at(text, pos)
+    return bool(re.search(r"\b(?:z_?memcpy|g_strdup|asprintf|strdupa|strncpy_s)\b", line))
+
+
+def _passes_fpr_filters(
+    text: str, match_start: int, match_text: str, cwe: str, confidence: str,
+) -> bool:
+    """Return True if the finding survives FPR filtering (= keep it).
+
+    Conservative — only filters with low false-negative risk:
+      * Skip 'low' confidence patterns (catch-all noise generators)
+      * Skip strcpy-family with string literal source (clearly safe)
+      * Skip array index where both operands are integer literals
+      * Skip safe wrappers (zmemcpy, etc.)
+    Removed (too aggressive, hurt recall):
+      * has_bounds_check_nearby — Juliet bad code often has
+        unrelated if() blocks nearby
+      * has_null_assign_between_frees — Juliet uses goto cleanups
+    """
+    # Confidence threshold: skip 'low' — those are intentionally broad
+    if confidence == "low" and os.environ.get("KRYON_HEURISTIC_KEEP_LOW", "0") != "1":
+        return False
+
+    line = _line_at(text, match_start)
+
+    # String-literal argument is safe for strcpy-class
+    if cwe in ("CWE-787", "CWE-121", "CWE-122") and _is_string_literal_arg(line):
+        return False
+
+    # Constant index in array access — not attacker-controlled
+    if cwe == "CWE-125" and _is_constant_index(match_text):
+        return False
+
+    # Safe wrapper (zmemcpy, g_strdup, etc.) — these are pre-validated
+    if _is_safe_wrapper_call(text, match_start):
+        return False
+
+    return True
 
 
 def _build_isolation_poc(pattern_kind: str, snippet: str) -> str:
@@ -183,11 +293,9 @@ class HeuristicHunter:
         except OSError:
             return findings
 
-        # F6.6 — patterns now sourced from the YAML library (skills/patterns/cwe/),
-        # union'd by CWE class. Per-CWE we try ASAN verification; if PoC won't
-        # crash (non-memory-safety CWEs), we still emit as PATTERN-only.
+        # F6.6 — patterns from YAML library, F6.3 — context-aware FPR filters.
         seen_kinds: set[str] = set()
-        for regex_src, cwe in _HEURISTIC_PATTERNS:
+        for regex_src, cwe, confidence in _HEURISTIC_PATTERNS:
             if cwe in seen_kinds:
                 continue
             try:
@@ -197,9 +305,19 @@ class HeuristicHunter:
             hits = list(regex.finditer(text))
             if not hits:
                 continue
+
+            # F6.3 — apply FPR filters; find FIRST hit that passes
+            surviving_hit = None
+            for h in hits:
+                match_text = text[h.start():h.end()]
+                if _passes_fpr_filters(text, h.start(), match_text, cwe, confidence):
+                    surviving_hit = h
+                    break
+            if surviving_hit is None:
+                continue
             seen_kinds.add(cwe)
 
-            poc = _build_isolation_poc(cwe, text[hits[0].start():hits[0].end()])
+            poc = _build_isolation_poc(cwe, text[surviving_hit.start():surviving_hit.end()])
             verified = False
             crash_type = ""
             stack_top: list[str] = []
@@ -214,8 +332,8 @@ class HeuristicHunter:
                 except (json.JSONDecodeError, Exception):
                     pass
 
-            fname = self._enclosing_function(text, hits[0].start()) or "(unknown)"
-            line_no = text.count("\n", 0, hits[0].start()) + 1
+            fname = self._enclosing_function(text, surviving_hit.start()) or "(unknown)"
+            line_no = text.count("\n", 0, surviving_hit.start()) + 1
 
             findings.append({
                 "file_path": str(p),

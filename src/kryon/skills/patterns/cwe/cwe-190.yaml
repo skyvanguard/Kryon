@@ -2,21 +2,30 @@ cwe: CWE-190
 name: Integer Overflow or Wraparound
 aliases: [CWE-191, CWE-192, CWE-194, CWE-195, CWE-196, CWE-197, CWE-680]
 detection:
-  - regex: "\\bmalloc\\s*\\(\\s*\\w+\\s*\\*\\s*\\w+\\s*\\)"
+  # Bare arithmetic overflow on typed variables (Juliet's BadSink template)
+  - regex: '\b(?:char|short|int|long|signed)\s+\w+\s*=\s*\w+\s*\*\s*\w+'
     confidence: high
-  - regex: "\\bmalloc\\s*\\(\\s*\\w+\\s*\\+\\s*\\w+\\s*\\)"
+  - regex: '\b(?:char|short|int|long|signed)\s+\w+\s*=\s*\w+\s*\+\s*\w+'
     confidence: medium
-  - regex: "\\b(?:calloc|realloc)\\s*\\(\\s*\\w+\\s*\\*\\s*\\w+\\s*\\)"
-    confidence: high
-  - regex: "\\bmemcpy\\s*\\([^,]+,[^,]+,\\s*\\w+\\s*[+*]\\s*\\w+\\s*\\)"
+  - regex: '\b(?:char|short|int|long|signed)\s+\w+\s*=\s*\w+\s*-\s*\w+'
     confidence: medium
-  - regex: "\\b(?:int|short|char)\\s+\\w+\\s*=\\s*\\w+\\s*\\+\\s*\\w+\\s*;[^;]*?\\bmalloc\\s*\\(\\s*\\w+"
+  # Compound assignment: data *= 2; data += big
+  - regex: '\b\w+\s*\*=\s*\w+'
+    confidence: medium
+  # alloc with arithmetic
+  - regex: '\bmalloc\s*\(\s*\w+\s*\*\s*\w+\s*\)'
     confidence: high
-  - regex: "\\bsize_t\\s+\\w+\\s*=\\s*\\w+\\s*[*+]\\s*\\w+\\s*;[^;]*?\\b(?:malloc|alloca|calloc)\\s*\\("
+  - regex: '\bmalloc\s*\(\s*\w+\s*\+\s*\w+\s*\)'
+    confidence: medium
+  - regex: '\b(?:calloc|realloc)\s*\(\s*\w+\s*\*\s*\w+\s*\)'
     confidence: high
-  - regex: "\\bsizeof\\s*\\([^)]+\\)\\s*\\*\\s*\\w+\\b"
+  - regex: '\bmemcpy\s*\([^,]+,[^,]+,\s*\w+\s*[+*]\s*\w+\s*\)'
+    confidence: medium
+  - regex: '\bsize_t\s+\w+\s*=\s*\w+\s*[*+]\s*\w+\s*;[^;]*?\b(?:malloc|alloca|calloc)\s*\('
+    confidence: high
+  - regex: '\bsizeof\s*\([^)]+\)\s*\*\s*\w+\b'
     confidence: low
-  - regex: "INT_MAX|UINT_MAX|SIZE_MAX|SHRT_MAX|LONG_MAX"
+  - regex: 'INT_MAX|UINT_MAX|SIZE_MAX|SHRT_MAX|LONG_MAX'
     confidence: low
 verification:
   poc_skeleton: |
