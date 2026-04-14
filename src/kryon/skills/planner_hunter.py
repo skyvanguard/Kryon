@@ -223,8 +223,14 @@ class HeuristicHunter:
 # ---------------------------------------------------------------------------
 
 
+# Positive FINDING blocks — use a negative lookbehind so "NO FINDING"
+# doesn't match as a positive.
 _FINDING_BLOCK_RE = re.compile(
-    r"FINDING\s*\n(?P<body>(?:\s*[A-Za-z][A-Za-z ]*:\s*.+\n?){2,})",
+    r"(?<!NO )FINDING\s*\n(?P<body>(?:\s*[A-Za-z][A-Za-z ]*:\s*.+\n?){2,})",
+    re.MULTILINE,
+)
+_NO_FINDING_BLOCK_RE = re.compile(
+    r"NO FINDING\s*\n(?P<body>(?:\s*[A-Za-z][A-Za-z ]*:\s*.+\n?){2,})",
     re.MULTILINE,
 )
 _KV_RE = re.compile(r"^\s*([A-Za-z][A-Za-z :]+?):\s*(.+)$", re.MULTILINE)
@@ -235,12 +241,15 @@ _POC_BLOCK_RE = re.compile(
 
 
 def _parse_findings_from_text(text: str, repo_path: str) -> list[dict]:
-    """Extract FINDING blocks from an LLM agent's final output."""
+    """Extract FINDING (confirmed crash) and NO FINDING (negative) blocks
+    from an LLM agent's final output. Negative results become findings
+    with severity=NONE so the planner has a record — better than silent
+    empty returns when a hunter times out."""
     findings: list[dict] = []
     if not text:
         return findings
 
-    # Grab every FINDING block
+    # Grab every FINDING block (positive — crash confirmed)
     for m in _FINDING_BLOCK_RE.finditer(text):
         body = m.group("body")
         fields: dict[str, str] = {}
@@ -282,6 +291,34 @@ def _parse_findings_from_text(text: str, repo_path: str) -> list[dict]:
             "_hunter": "llm",
             "_deepening": fields.get("deepening_outcome", ""),
             "_suggested_fix": fields.get("suggested_fix", ""),
+        })
+
+    # NO FINDING blocks — negative results. We keep them with severity=NONE
+    # so the planner's report shows the hunter actually did something and
+    # concluded nothing was there, rather than an empty silent return.
+    for m in _NO_FINDING_BLOCK_RE.finditer(text):
+        body = m.group("body")
+        fields = {}
+        for kv in _KV_RE.finditer(body):
+            k = kv.group(1).strip().lower().replace(" ", "_")
+            v = kv.group(2).strip()
+            fields[k] = v
+        findings.append({
+            "file_path": fields.get("file", ""),
+            "function_name": "",
+            "line_range": "",
+            "cwe": "",
+            "severity": "NONE",
+            "crash_type": "",
+            "stack_top": [],
+            "poc_source": "",
+            "trigger_input": "",
+            "repo_path": repo_path,
+            "language": "c",
+            "_hunter": "llm",
+            "_negative": True,
+            "_reason": fields.get("reason", ""),
+            "_attempts": fields.get("attempted_hypotheses", ""),
         })
     return findings
 

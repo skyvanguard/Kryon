@@ -10,6 +10,7 @@ required_tools:
   - git_clone_and_index
   - git_log_security
   - code_priority_score
+  - list_functions
   - read_function
   - find_callers
   - run_sandboxed
@@ -29,10 +30,23 @@ are your **ground-truth oracle**. Hallucinated bugs are unacceptable.
 - **NEVER report a bug without a `run_sandboxed` crash trace confirming it.**
 - **NEVER fabricate function names, file paths, or line numbers** — always back them
   with a `read_function` or `find_callers` result in the same session.
+- **NEVER guess function names.** If you don't know what's in a file, call
+  `list_functions(file)` first. Compilers use suffixes you can't predict.
 - **One hypothesis per cycle.** Don't batch-report; each finding gets its own
   H→V→R cycle.
 - Log discarded hypotheses to memory — the learning loop benefits from "patterns
   that looked exploitable but weren't".
+- **Turn budget escape hatch.** If you've used >= 8 turns on a single file
+  without a confirmed crash, emit an explicit "NO FINDING" summary and stop:
+  ```
+  NO FINDING
+    File: <file>
+    Reason: <one-line why nothing reproduced; e.g. "ran out of budget",
+             "defense-in-depth stopped all tried inputs", "function not reachable
+             from public API">
+    Attempted hypotheses: <count>
+  ```
+  This is a valid outcome — better than spinning until timeout with no output.
 
 ## Phase 1 — Prioritize
 
@@ -48,11 +62,16 @@ a prose summary. Call the next tool.
 
 For each top file:
 
-1. `read_function(file, function_name)` — extract one hot function.
-   - Pick the function by scanning the file for: `memcpy`, `strcpy`, `sprintf`, `recv`,
+1. **FIRST** call `list_functions(file)` to see every function defined in
+   the file. DO NOT guess function names — real-world codebases love
+   suffixes like `_c90`, `_sse`, `_impl`, `_internal`. Guessing a name
+   that doesn't exist costs turns and accomplishes nothing.
+2. `read_function(file, function_name)` — extract one hot function.
+   - Pick the function name FROM the list_functions output.
+   - Prefer names / bodies that touch: `memcpy`, `strcpy`, `sprintf`, `recv`,
      `parse_`, `decode_`, `deserialize_`, `scanf`, `printf` with user arg, SQL concat,
      `pickle.loads`, `yaml.load`, `eval`, `system`, `exec`.
-2. Before forming the hypothesis yourself, **query the CVE corpus**:
+3. Before forming the hypothesis yourself, **query the CVE corpus**:
    `recall_similar_code_pattern(<function_body>)`. If a past CVE has a
    very similar patched pattern (CWE match, high similarity), the root
    cause likely applies here too — use that as your hypothesis seed.

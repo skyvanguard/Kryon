@@ -133,6 +133,136 @@ def _extract_by_indent(text: str, sig_start: int, indent: str) -> tuple[int, str
     return n, text[sig_start:n]
 
 
+# C / C++ keywords that our loose signature regex can capture as "function names".
+# Filter them out to keep list_functions output honest.
+_C_KEYWORDS = {
+    "if", "else", "for", "while", "switch", "case", "default", "do",
+    "return", "break", "continue", "goto", "sizeof", "typedef",
+    "struct", "enum", "union", "const", "static", "extern", "inline",
+    "volatile", "register", "auto", "unsigned", "signed",
+    "void", "int", "char", "long", "short", "float", "double", "bool",
+    "size_t", "ssize_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t",
+    "int8_t", "int16_t", "int32_t", "int64_t", "ptrdiff_t", "off_t",
+    # Often-seen defines/macros that bleed through
+    "FILE", "NULL", "TRUE", "FALSE",
+}
+
+
+def _strip_c_comments_preserve_offsets(text: str) -> str:
+    """Replace /* ... */ blocks and // ... lines with spaces (keep length/lines).
+
+    Critical for signature-matching regex: if the regex is allowed to start
+    matching inside a comment, its non-overlapping consumption can hide the
+    REAL function definition that follows. Stripping comments upfront gives
+    a clean substrate whose byte offsets still map 1:1 to the original text.
+    """
+    out = list(text)
+    i = 0
+    n = len(text)
+    in_str: str | None = None
+    while i < n:
+        ch = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+        if in_str:
+            if ch == "\\" and i + 1 < n:
+                i += 2
+                continue
+            if ch == in_str:
+                in_str = None
+            i += 1
+            continue
+        if ch in ('"', "'"):
+            in_str = ch
+            i += 1
+            continue
+        if ch == "/" and nxt == "/":
+            # Line comment — blank to end of line
+            j = text.find("\n", i)
+            if j == -1:
+                j = n
+            for k in range(i, j):
+                out[k] = " "
+            i = j
+            continue
+        if ch == "/" and nxt == "*":
+            # Block comment — blank through closing */
+            j = text.find("*/", i + 2)
+            end = (j + 2) if j != -1 else n
+            for k in range(i, end):
+                # Preserve newlines so line numbers don't shift
+                if text[k] != "\n":
+                    out[k] = " "
+            i = end
+            continue
+        i += 1
+    return "".join(out)
+
+
+def _list_functions_impl(file_path: str) -> str:
+    """Return a JSON list of every function definition found in the file."""
+    p = Path(file_path)
+    if not p.is_file():
+        return json.dumps({"error": f"file not found: {file_path}"})
+
+    lang = _detect_lang(file_path)
+    if lang is None:
+        return json.dumps({
+            "error": f"unsupported extension: {p.suffix}",
+            "supported": sorted(set(_LANG_BY_EXT.values())),
+        })
+
+    try:
+        raw_text = p.read_text(encoding="utf-8", errors="replace")
+    except OSError as e:
+        return json.dumps({"error": f"read failed: {e}"})
+
+    # Strip comments (preserving offsets) before signature matching so that
+    # a commented-out pattern can't steal bytes from the real function below.
+    if lang == "c":
+        text = _strip_c_comments_preserve_offsets(raw_text)
+    else:
+        text = raw_text
+
+    pattern = _SIG_PATTERNS[lang]
+    out: list[dict] = []
+    source_for_preview = raw_text  # use uncommented text for signature display
+    for m in pattern.finditer(text):
+        name = m.group("name")
+        if lang == "c" and name in _C_KEYWORDS:
+            continue
+        if not name or not (name[0].isalpha() or name[0] == "_"):
+            continue
+        # Use the captured name's offset for line numbers (not m.start(), which
+        # may point backward into blanked-out whitespace after comment stripping)
+        name_start = m.start("name")
+        line_start = source_for_preview.rfind("\n", 0, name_start) + 1
+        line = source_for_preview.count("\n", 0, name_start) + 1
+        start = line_start  # signature preview begins at the line, not earlier
+        sig_end = source_for_preview.find("{", start)
+        if sig_end == -1:
+            sig_end = source_for_preview.find(":", start)  # python
+        if sig_end == -1:
+            sig_end = start + 200
+        signature = source_for_preview[line_start:sig_end].strip().replace("\n", " ")[:200]
+        out.append({"name": name, "line": line, "signature": signature})
+
+    # Dedup by name (keep first occurrence line)
+    seen: set[str] = set()
+    unique: list[dict] = []
+    for f in out:
+        if f["name"] in seen:
+            continue
+        seen.add(f["name"])
+        unique.append(f)
+
+    return json.dumps({
+        "file": str(p),
+        "lang": lang,
+        "count": len(unique),
+        "functions": unique,
+    }, indent=2)
+
+
 def _read_function_impl(
     file_path: str,
     function_name: str,
@@ -155,12 +285,20 @@ def _read_function_impl(
     except OSError as e:
         return json.dumps({"error": f"read failed: {e}"})
 
+    # Same comment-stripping trick as list_functions — keeps the signature
+    # regex from getting "stolen" by comment pseudo-matches before the
+    # real definition.
+    if lang == "c":
+        scan_text = _strip_c_comments_preserve_offsets(text)
+    else:
+        scan_text = text
+
     pattern = _SIG_PATTERNS[lang]
-    for m in pattern.finditer(text):
+    for m in pattern.finditer(scan_text):
         if m.group("name") != function_name:
             continue
 
-        sig_start = m.start()
+        sig_start = m.start("name")
         # Start of the header line for accurate line number
         line_start = text.rfind("\n", 0, sig_start) + 1
         start_line = text.count("\n", 0, line_start) + 1
@@ -307,3 +445,16 @@ def find_callers(
     Returns JSON: {hits: [{file, line, snippet}]}.
     """
     return _find_callers_impl(repo_path, function_name, max_hits, exclude_definitions)
+
+
+@function_tool(strict_mode=False)
+def list_functions(file_path: str) -> str:
+    """List every function defined in a source file.
+
+    Call this BEFORE read_function when you don't know the exact function name
+    — it prevents wasting turns guessing names that turn out to be wrong
+    (e.g. fill_window when the real names are fill_window_c90/fill_window_sse).
+
+    Returns JSON: {file, lang, count, functions: [{name, line, signature}]}.
+    """
+    return _list_functions_impl(file_path)
