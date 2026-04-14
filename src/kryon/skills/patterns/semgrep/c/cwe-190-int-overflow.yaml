@@ -21,19 +21,11 @@ rules:
           - pattern: long $X = $A * $B;
           - pattern: signed $X = $A * $B;
 
-  - id: kryon.cwe-190.compound-overflow
-    languages: [c, cpp]
-    severity: WARNING
-    message: |
-      Compound arithmetic assignment on typed variable. Overflow risk. CWE-190.
-    metadata:
-      cwe: "CWE-190"
-      cwe-id: 190
-      confidence: MEDIUM
-    patterns:
-      - pattern-either:
-          - pattern: $X *= $Y;
-          - pattern: $X += $Y;
+  # F6.3 round 2: removed kryon.cwe-190.compound-overflow rule —
+  # it matched every `x += 1` / `x *= 2` in clean code (7/11 zlib FPs).
+  # Compound assignments are too generic; keeping them gives FPR but
+  # almost no marginal recall. Use the typed-arithmetic-overflow rule
+  # above for actual signal.
 
   - id: kryon.cwe-190.malloc-arithmetic
     languages: [c, cpp]
@@ -52,6 +44,11 @@ rules:
           - pattern: malloc($A + $B)
           - pattern: calloc($A * $B, ...)
           - pattern: realloc(..., $A * $B)
+      # F6.3 round 2: exclude sizeof()-based mults (canonical safe pattern)
+      - pattern-not: malloc(sizeof($T))
+      - pattern-not: malloc(sizeof($T) * $N)
+      - pattern-not: malloc($N * sizeof($T))
+      - pattern-not: calloc($N, sizeof($T))
 
   - id: kryon.cwe-190.size-from-attacker
     languages: [c, cpp]

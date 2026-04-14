@@ -2,9 +2,10 @@ cwe: CWE-415
 name: Double Free
 aliases: [CWE-416, CWE-672]
 detection:
-  - regex: "\\bfree\\s*\\(\\s*(\\w+)\\s*\\)\\s*;[\\s\\S]{0,400}?\\bfree\\s*\\(\\s*\\1\\s*\\)"
+  # F6.3 round 2: same-block distance + negative lookahead for NULL reset
+  - regex: "\\bfree\\s*\\(\\s*(\\w+)\\s*\\)\\s*;(?:(?!\\1\\s*=\\s*NULL)[\\s\\S]){0,200}?\\bfree\\s*\\(\\s*\\1\\s*\\)"
     confidence: high
-  - regex: "\\bfree\\s*\\(\\s*(\\w+)->\\w+\\s*\\)[\\s\\S]{0,300}?\\bfree\\s*\\(\\s*\\1->\\w+\\s*\\)"
+  - regex: "\\bfree\\s*\\(\\s*(\\w+)->\\w+\\s*\\)[\\s\\S]{0,200}?\\bfree\\s*\\(\\s*\\1->\\w+\\s*\\)"
     confidence: medium
 verification:
   poc_skeleton: |

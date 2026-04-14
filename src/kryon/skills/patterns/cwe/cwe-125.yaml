@@ -8,8 +8,10 @@ detection:
     confidence: medium
   - regex: "\\bstrncpy\\s*\\(\\s*[^,]+,\\s*\\w+\\s*\\+\\s*\\w+\\s*,"
     confidence: medium
+  # F6.3 round 2: was high confidence, demoted to low — generic iterator
+  # access in stream-parsing libs (zlib, libxml) is the dominant FP source
   - regex: "\\b(\\w+)\\s*->\\s*next_in\\s*\\+\\s*"
-    confidence: high
+    confidence: low
   - regex: "\\b(\\w+)\\s*->\\s*\\w+\\s*-\\s*\\w+\\s*-\\s*\\w+"
     confidence: high
   - regex: "\\bbuf\\[\\s*\\w+\\s*-\\s*1\\s*\\]"

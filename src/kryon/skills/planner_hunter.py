@@ -97,6 +97,26 @@ def _is_string_literal_arg(line: str) -> bool:
     return bool(re.search(r"\b(?:str(?:cpy|cat|n?cpy)|sprintf|wcscpy)\s*\([^,]+,\s*\"[^\"]*\"", line))
 
 
+def _is_macro_constant_arg(line: str) -> bool:
+    """F6.3 round 2: heuristic — strcpy/sprintf with ALL_CAPS_MACRO as source.
+    Common safe pattern: strcpy(buf, ZLIB_VERSION), sprintf(out, FMT_HEADER, ...).
+    """
+    # Match: func(<dst>, MACRO_NAME)  where MACRO_NAME is ALL_CAPS with optional digits/_
+    return bool(re.search(
+        r"\b(?:str(?:cpy|cat|n?cpy)|sprintf|wcscpy)\s*\([^,]+,\s*[A-Z][A-Z0-9_]{2,}\s*[,)]",
+        line,
+    ))
+
+
+def _malloc_size_is_sizeof(line: str) -> bool:
+    """F6.3 round 2: malloc(sizeof(struct)) is the canonical safe pattern.
+    Also matches `sizeof(T) * N` and `N * sizeof(T)` — bounded allocations."""
+    return bool(re.search(
+        r"\b(?:malloc|calloc|realloc|alloca)\s*\([^)]*\bsizeof\s*\(",
+        line,
+    ))
+
+
 def _is_constant_index(match_text: str) -> bool:
     """For arr[i+j] patterns: are both operands numeric literals?"""
     m = re.search(r"\[\s*(\w+)\s*[+\-*]\s*(\w+)\s*\]", match_text)
@@ -185,6 +205,14 @@ def _passes_fpr_filters(
 
     # String-literal argument is safe for strcpy-class
     if cwe in ("CWE-787", "CWE-121", "CWE-122") and _is_string_literal_arg(line):
+        return False
+
+    # F6.3 round 2: ALL_CAPS_MACRO source is typically a defined constant
+    if cwe in ("CWE-787", "CWE-121", "CWE-122") and _is_macro_constant_arg(line):
+        return False
+
+    # F6.3 round 2: malloc(sizeof(...)) — canonical bounded allocation
+    if cwe in ("CWE-122", "CWE-190") and _malloc_size_is_sizeof(line):
         return False
 
     # Constant index in array access — not attacker-controlled
