@@ -43,6 +43,11 @@ _PATH_HINTS_1 = (
     "test", "tests", "__tests__", "spec", "mock", "fixture",
     "docs", "doc", "examples", "example", "demo",
     "logging", "logger", "log_", "build", "cmake", "makefile",
+    # Non-core trees — they may use dangerous funcs, but the core is the
+    # interesting attack surface. Explicit downgrade.
+    "contrib/", "contrib\\",
+    "vendor/", "third_party/", "external/",
+    "benchmark", "fuzz/",
 )
 
 # Dangerous function tokens (C/C++ flavored; other langs fall through)
@@ -52,7 +57,15 @@ _DANGEROUS_FUNCS = [
     r"\bscanf\s*\([^,]*?,\s*&?\w+\s*\)", r"\bvsprintf\s*\(",
     # memory moves with attacker-controlled size
     r"\bmemcpy\s*\(", r"\bmemmove\s*\(", r"\balloca\s*\(",
+    r"\b[zZ]memcpy\s*\(", r"\b[zZ]memcmp\s*\(",  # project-specific wrappers (zlib, openssl, etc.)
     r"\bmalloc\s*\(\s*\w+\s*\*\s*\w+\s*\)",  # alloc with product (int overflow)
+    # Pointer arithmetic patterns (classic source of OOB bugs — CVE-2024 inflateCopy)
+    r"\b\w+\s*\-\s*\w+\s*\-\s*\w+\b",  # a - b - c (compound subtraction)
+    r"\bnext_in\s*[+\-]", r"\bnext_out\s*[+\-]",  # stream pointer math
+    r"->next_in\s*[+\-]", r"->next_out\s*[+\-]",
+    r"\bwrite\s*-\s*\w+", r"\bread\s*-\s*\w+",  # offset into buffer
+    # Array access with computed index (partial — false positives expected)
+    r"\[\s*\w+\s*[+\-*]\s*\w+\s*\]",  # arr[i + j], arr[i - 1], arr[i * 2]
     # cmd/exec
     r"\bsystem\s*\(", r"\bpopen\s*\(", r"\bexecve?p?\s*\(",
     # file ops with path
