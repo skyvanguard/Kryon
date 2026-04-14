@@ -5,6 +5,51 @@ All notable changes to KRYON will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-04-14 — "Hydra — Skillforge"
+
+### Added
+
+- **Expanded skill library — 67 total** (up from 11 in v2.0.0)
+  - **8 banking/financial skills** for financial clients (LATAM/Paraguay focus):
+    - `pci-dss-audit`: PCI-DSS v4.0.1 compliance, 12 requirements mapped to 6 objectives
+    - `core-banking-assessment`: T24/Flexcube/Finacle/Bantotal, SIPAP/SINACOFI (Paraguay), BCP regulatory
+    - `mobile-banking-audit`: APK/IPA static + dynamic, cert pinning, biometric bypass, transaction signing
+    - `atm-security`: Jackpotting (Tyupkin/Ploutus/Alice), skimming detection, ISO 8583 analysis
+    - `payment-gateway-testing`: Stripe/Bancard/MercadoPago/PSE, webhook security, 3DS bypass, refund abuse
+    - `fraud-detection`: velocity rules, UEBA, ML models, AML screening, money mule detection, FATF
+    - `swift-network-security`: CSP 32 controls, Alliance Access hardening, Bangladesh-type attack prevention
+    - `open-banking-api`: FAPI 1.0 Advanced, OAuth 2.0, mTLS, PKCE, PAR, JARM, consent management
+  - **35 skills imported** from `mukul975/Anthropic-Cybersecurity-Skills` (Apache 2.0, MITRE-mapped)
+  - **4 safety/recovery skills**: `safe-modification`, `rollback-recovery`, `server-hardening`, `ssl-audit`
+- **`/skill` REPL command** — on-demand skill management:
+  - `/skill list`: show all local skills with triggers and tools
+  - `/skill show <name>`: display skill body with markdown rendering
+  - `/skill search <query>`: search the 754-skill upstream catalog
+  - `/skill import <upstream-name>`: fetch + adapt any upstream skill at runtime
+  - `/skill reload`: rescan playbooks after manual edits
+- **Recursive skill loading**: `SkillLoader` now scans subdirectories (`imported/`, `banking/`, custom)
+- **Import scripts** (`scripts/import_skills.py`, `scripts/analyze_skills.py`) for bulk adoption of upstream skills
+
+### Changed
+
+- Skill system is now the primary interface — 67 playbooks cover:
+  web offensive (13), network/AD (4), cloud (4), container (3), credentials (1),
+  exploitation (2), forensics/DFIR (5), malware (2), detection (8), IR (2),
+  banking (8), and more
+- `server-hardening` rewritten to reference universal `safe-modification` principles
+- Safety architecture is now **100% prompt-driven** (no regex classifier layer) — the model
+  follows skill instructions for backup/propose/apply/verify/rollback workflow
+
+### Migration from v2.0.0
+
+No breaking changes. Existing skills continue to work. New skills activate automatically
+based on target profile and user intent.
+
+Set `KRYON_AGENT_TYPE=kryon` and `KRYON_UNIFIED=true` in `.env.docker` to use the
+unified agent (already default since v2.0.0).
+
+---
+
 ## [2.0.0] - 2026-04-13 — "Hydra"
 
 ### Added

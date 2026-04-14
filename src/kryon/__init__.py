@@ -6,14 +6,14 @@ Features dynamic skill system, self-improving loop with experience recall,
 context management, and 204+ security tools. Optimized for local LLMs
 via Ollama (Gemma 4 26B MoE recommended).
 
-Version: 2.0.0
-Code Name: "Hydra"
+Version: 2.1.0
+Code Name: "Hydra — Skillforge"
 
 Website: https://kryon.com.py
 """
 
-__version__ = "2.0.0"
-__codename__ = "Hydra"
+__version__ = "2.1.0"
+__codename__ = "Hydra — Skillforge"
 
 # Import submodules for proper namespace resolution
 from kryon import repl as repl
