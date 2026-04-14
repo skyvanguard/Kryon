@@ -1,0 +1,29 @@
+cwe: CWE-121
+name: Stack-Based Buffer Overflow
+aliases: [CWE-787, CWE-119]
+detection:
+  - regex: "\\bchar\\s+\\w+\\[\\d+\\]\\s*;[^;]*?\\bstrcpy\\s*\\("
+    confidence: high
+  - regex: "\\bchar\\s+\\w+\\[\\d+\\][^;]*?\\bgets\\s*\\("
+    confidence: high
+  - regex: "\\bwchar_t\\s+\\w+\\[\\d+\\][^;]*?\\bwcscpy\\s*\\("
+    confidence: high
+  - regex: "\\b(?:ALLOCA|alloca)\\s*\\("
+    confidence: medium
+  - regex: "\\bstrcpy\\s*\\(\\s*\\w+\\s*,"
+    confidence: medium
+verification:
+  poc_skeleton: |
+    #include <string.h>
+    int main(void) {
+        char buf[16];
+        strcpy(buf, "AAAAAAAAAAAAAAAAAAAAAAAAAA");
+        return buf[0];
+    }
+  asan_class: stack-buffer-overflow
+escalation_hints:
+  - "Stack overflow can overwrite saved return address -> arbitrary code execution"
+  - "Even with stack canaries, large overflows defeat them"
+fpr_filters:
+  - skip_if_source_is_string_literal
+  - skip_if_dest_is_dynamic_alloc

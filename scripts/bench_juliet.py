@@ -136,7 +136,13 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
 
     finding_cwes = [f.get("cwe", "") for f in findings if f.get("cwe")]
     cwe_label = f"CWE-{cwe}"
-    cwe_matched = any(cwe_label.lower() in c.lower() for c in finding_cwes)
+    # F6.4 — use alias-aware matching so emitting a parent CWE
+    # (e.g. CWE-787) counts as a match for child CWE labels (CWE-121, 122).
+    try:
+        from kryon.skills.patterns import cwes_match
+        cwe_matched = any(cwes_match(c, cwe_label) for c in finding_cwes)
+    except ImportError:
+        cwe_matched = any(cwe_label.lower() in c.lower() for c in finding_cwes)
     return {
         "file": file_path.name,
         "runner": runner_type,

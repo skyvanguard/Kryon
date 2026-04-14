@@ -1,0 +1,23 @@
+cwe: CWE-415
+name: Double Free
+aliases: [CWE-416, CWE-672]
+detection:
+  - regex: "\\bfree\\s*\\(\\s*(\\w+)\\s*\\)\\s*;[\\s\\S]{0,400}?\\bfree\\s*\\(\\s*\\1\\s*\\)"
+    confidence: high
+  - regex: "\\bfree\\s*\\(\\s*(\\w+)->\\w+\\s*\\)[\\s\\S]{0,300}?\\bfree\\s*\\(\\s*\\1->\\w+\\s*\\)"
+    confidence: medium
+verification:
+  poc_skeleton: |
+    #include <stdlib.h>
+    int main(void) {
+        char *p = malloc(16);
+        free(p);
+        free(p);
+        return 0;
+    }
+  asan_class: double-free
+escalation_hints:
+  - "Double-free corrupts allocator metadata -> arbitrary write primitive on classic allocators"
+  - "Modern allocators (jemalloc, hardened glibc) are more resistant but bugs persist"
+fpr_filters:
+  - skip_if_set_to_null_between_frees

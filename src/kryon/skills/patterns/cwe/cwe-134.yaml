@@ -1,0 +1,33 @@
+cwe: CWE-134
+name: Use of Externally-Controlled Format String
+aliases: []
+detection:
+  - regex: "\\bprintf\\s*\\(\\s*[a-zA-Z_]\\w*\\s*\\)"
+    confidence: high
+  - regex: "\\bfprintf\\s*\\([^,]+,\\s*[a-zA-Z_]\\w*\\s*\\)"
+    confidence: high
+  - regex: "\\bsnprintf\\s*\\([^,]+,[^,]+,\\s*[a-zA-Z_]\\w*\\s*\\)"
+    confidence: medium
+  - regex: "\\bsyslog\\s*\\([^,]+,\\s*[a-zA-Z_]\\w*\\s*\\)"
+    confidence: high
+  - regex: "\\bvprintf\\s*\\(\\s*[a-zA-Z_]\\w*"
+    confidence: medium
+  - regex: "\\bprintf\\s*\\([^)]*?(?:argv|getenv|gets|fgets|recv|read)"
+    confidence: high
+verification:
+  poc_skeleton: |
+    /* Format string with %s + nul pointer triggers SEGV deterministically. */
+    #include <stdio.h>
+    int main(void) {
+        char *p = NULL;
+        printf("%s", p);
+        return 0;
+    }
+  asan_class: SEGV
+escalation_hints:
+  - "%n directive enables arbitrary memory write"
+  - "%s with attacker-controlled pointer reads memory -> info leak"
+  - "Format string bugs are old but still found in legacy code (CVE-2023 found several)"
+fpr_filters:
+  - skip_if_argument_is_string_literal
+  - skip_if_argument_in_static_format_table

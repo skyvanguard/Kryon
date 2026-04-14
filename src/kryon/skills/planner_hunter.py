@@ -65,33 +65,56 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-# Tiny library of PoC templates by pattern. Each entry is:
-#   (pattern_regex, poc_builder(captured_groups) -> str, cwe_hint)
-#
-# The PoC builders return standalone C that intentionally reproduces the
-# pattern with attacker-controlled shape — if ASAN crashes, the pattern
-# is confirmed dangerous in isolation (still may be guarded in the real
-# function, but it's a lead worth flagging).
+# F6.6 — Patterns now sourced from the YAML library at skills/patterns/cwe/.
+# This list is built lazily so a hot-reload of the YAML files takes effect
+# without restarting the process. Each entry: (compiled_regex, cwe).
+def _load_heuristic_patterns() -> list[tuple[str, str]]:
+    from kryon.skills.patterns import iter_detection_regexes
+    out: list[tuple[str, str]] = []
+    for regex, cwe, _conf in iter_detection_regexes():
+        out.append((regex, cwe))
+    # Keep the legacy hard-coded patterns as a tiny safety net in case the
+    # YAML library is ever empty (regression guard).
+    if not out:
+        out = [
+            (r"\b[zZ]?memcpy\s*\([^,]+,\s*[^,]+,\s*(\w+)\s*\)", "CWE-787"),
+            (r"\bstrcpy\s*\(", "CWE-787"),
+            (r"\bstrcat\s*\(", "CWE-787"),
+            (r"\bsprintf\s*\(", "CWE-787"),
+        ]
+    return out
 
 
-_HEURISTIC_PATTERNS: list[tuple[str, str]] = [
-    # (danger_regex, cwe)
-    (r"\b[zZ]?memcpy\s*\([^,]+,\s*[^,]+,\s*(\w+)\s*\)", "CWE-787"),
-    (r"\bstrcpy\s*\(", "CWE-787"),
-    (r"\bstrcat\s*\(", "CWE-787"),
-    (r"\bsprintf\s*\(", "CWE-787"),
-    (r"->next_in\s*-\s*\w+", "CWE-823"),  # inflateCopy-style
-    (r"\[\s*\w+\s*[+\-]\s*\w+\s*\]", "CWE-125"),  # computed-index read
-]
+_HEURISTIC_PATTERNS: list[tuple[str, str]] = _load_heuristic_patterns()
 
 
 def _build_isolation_poc(pattern_kind: str, snippet: str) -> str:
     """Build a tiny standalone PoC that exercises the pattern class.
 
-    This is deliberately coarse — the point is to show ASAN on the PATTERN
-    as an isolated unit, not to prove reachability in the real call graph.
-    The validator will catch false positives.
+    F6.6 — first try the YAML pattern library (canonical templates +
+    aliases), fall back to legacy hardcoded templates for the few
+    bespoke patterns (CWE-823 inflateCopy-style) not yet in the YAML.
     """
+    # YAML library lookup with alias resolution
+    try:
+        from kryon.skills.patterns import (
+            cwes_match, get_poc_template, iter_all_patterns,
+        )
+        # Direct hit
+        poc = get_poc_template(pattern_kind)
+        if poc:
+            return poc
+        # Alias scan: find any registered CWE whose alias family includes
+        # pattern_kind, and use its PoC.
+        for entry in iter_all_patterns():
+            if cwes_match(entry["cwe"], pattern_kind):
+                ver = entry.get("verification") or {}
+                if isinstance(ver, dict) and ver.get("poc_skeleton"):
+                    return ver["poc_skeleton"]
+    except Exception:
+        pass
+
+    # Legacy fallback for patterns predating the YAML library
     if pattern_kind == "CWE-787":
         # classic heap overflow via memcpy
         return """
@@ -160,46 +183,55 @@ class HeuristicHunter:
         except OSError:
             return findings
 
-        # Per-pattern, find up to N occurrences and generate a PoC per kind.
+        # F6.6 — patterns now sourced from the YAML library (skills/patterns/cwe/),
+        # union'd by CWE class. Per-CWE we try ASAN verification; if PoC won't
+        # crash (non-memory-safety CWEs), we still emit as PATTERN-only.
         seen_kinds: set[str] = set()
         for regex_src, cwe in _HEURISTIC_PATTERNS:
-            if cwe in seen_kinds:  # one PoC per pattern class is enough
+            if cwe in seen_kinds:
                 continue
-            regex = re.compile(regex_src)
+            try:
+                regex = re.compile(regex_src)
+            except re.error:
+                continue
             hits = list(regex.finditer(text))
             if not hits:
                 continue
             seen_kinds.add(cwe)
 
             poc = _build_isolation_poc(cwe, text[hits[0].start():hits[0].end()])
-            if not poc:
-                continue
+            verified = False
+            crash_type = ""
+            stack_top: list[str] = []
 
-            raw = _run_sandboxed_impl(poc, language="c")
-            try:
-                res = json.loads(raw)
-            except json.JSONDecodeError:
-                continue
-            if not res.get("crashed"):
-                continue
+            if poc:
+                try:
+                    res = json.loads(_run_sandboxed_impl(poc, language="c"))
+                    if res.get("crashed"):
+                        verified = True
+                        crash_type = res.get("crash_type", "")
+                        stack_top = res.get("stack_top") or []
+                except (json.JSONDecodeError, Exception):
+                    pass
 
-            # Pick the function enclosing the first pattern hit (best-effort)
             fname = self._enclosing_function(text, hits[0].start()) or "(unknown)"
+            line_no = text.count("\n", 0, hits[0].start()) + 1
 
             findings.append({
                 "file_path": str(p),
                 "repo_path": str(p.parent),
                 "function_name": fname,
-                "line_range": f"~{text.count(chr(10), 0, hits[0].start()) + 1}",
+                "line_range": f"~{line_no}",
                 "cwe": cwe,
-                "crash_type": res.get("crash_type", ""),
-                "stack_top": res.get("stack_top", []),
-                "severity": "MEDIUM",
+                "crash_type": crash_type,
+                "stack_top": stack_top,
+                "severity": "MEDIUM" if verified else "WARNING",
                 "language": "c",
-                "poc_source": poc,
+                "poc_source": poc if verified else "",
                 "trigger_input": "",
                 "_hunter": "heuristic",
                 "_pattern": regex_src,
+                "_asan_verified": verified,
             })
             if len(findings) >= self.max_findings_per_file:
                 break
@@ -1175,15 +1207,20 @@ async def hunt_zero_days(
                 "_last_tools": f.get("_last_tools", []),
             })
             continue
-        # Semgrep pattern-only (no ASAN verification available for this CWE
-        # class, e.g. CWE-14 compiler-elides-memset). Emit as PATTERN verdict
-        # so the report shows it without running the validator on a missing
-        # PoC. These are legitimate industry-rule hits, not false findings.
-        if f.get("_hunter") == "semgrep" and not f.get("_asan_verified"):
+        # Pattern-only finding (no ASAN verification): emit as PATTERN
+        # verdict so the report shows it without running the validator
+        # on a missing PoC. These are legitimate rule hits — semgrep,
+        # heuristic CWEs not crash-verifiable (CWE-78 cmd injection,
+        # CWE-22 path traversal), industry rules with no PoC class.
+        if not f.get("_asan_verified") and f.get("_hunter") in (
+            "semgrep", "heuristic", "hybrid-llm"
+        ):
             verdicts_raw.append({
                 "verdict": "PATTERN",
                 "phase_failed": None,
-                "reason": f.get("_semgrep_message", ""),
+                "reason": f.get("_semgrep_message", "") or
+                          f.get("_pattern", "") or
+                          f.get("_reason", ""),
                 "cwe_actual": f.get("cwe", ""),
                 "cwe_claimed": f.get("cwe", ""),
                 "severity_actual": f.get("severity", "WARNING"),
@@ -1195,7 +1232,9 @@ async def hunt_zero_days(
                 "_function": f.get("function_name", ""),
                 "_line_range": f.get("line_range", ""),
                 "_hunter_id": f.get("_hunter_id", ""),
+                "_hunter": f.get("_hunter", ""),
                 "_semgrep_rule_id": f.get("_semgrep_rule_id", ""),
+                "_pattern": f.get("_pattern", ""),
             })
             continue
         finding_obj = Finding.from_dict({

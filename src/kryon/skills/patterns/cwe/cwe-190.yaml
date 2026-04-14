@@ -1,0 +1,39 @@
+cwe: CWE-190
+name: Integer Overflow or Wraparound
+aliases: [CWE-191, CWE-192, CWE-194, CWE-195, CWE-196, CWE-197, CWE-680]
+detection:
+  - regex: "\\bmalloc\\s*\\(\\s*\\w+\\s*\\*\\s*\\w+\\s*\\)"
+    confidence: high
+  - regex: "\\bmalloc\\s*\\(\\s*\\w+\\s*\\+\\s*\\w+\\s*\\)"
+    confidence: medium
+  - regex: "\\b(?:calloc|realloc)\\s*\\(\\s*\\w+\\s*\\*\\s*\\w+\\s*\\)"
+    confidence: high
+  - regex: "\\bmemcpy\\s*\\([^,]+,[^,]+,\\s*\\w+\\s*[+*]\\s*\\w+\\s*\\)"
+    confidence: medium
+  - regex: "\\b(?:int|short|char)\\s+\\w+\\s*=\\s*\\w+\\s*\\+\\s*\\w+\\s*;[^;]*?\\bmalloc\\s*\\(\\s*\\w+"
+    confidence: high
+  - regex: "\\bsize_t\\s+\\w+\\s*=\\s*\\w+\\s*[*+]\\s*\\w+\\s*;[^;]*?\\b(?:malloc|alloca|calloc)\\s*\\("
+    confidence: high
+  - regex: "\\bsizeof\\s*\\([^)]+\\)\\s*\\*\\s*\\w+\\b"
+    confidence: low
+  - regex: "INT_MAX|UINT_MAX|SIZE_MAX|SHRT_MAX|LONG_MAX"
+    confidence: low
+verification:
+  poc_skeleton: |
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <stdint.h>
+    int main(void) {
+        size_t n = (size_t)-1;
+        size_t total = n * 2;
+        char *p = malloc(total);
+        if (p) p[0] = 0;
+        return 0;
+    }
+  asan_class: undefined-behavior
+escalation_hints:
+  - "Int overflow into malloc size -> small allocation -> heap overflow on subsequent writes"
+  - "Signed overflow is UB; LLVM may optimize it into surprising code paths"
+fpr_filters:
+  - skip_if_operands_are_constants
+  - skip_if_size_t_with_explicit_overflow_check
