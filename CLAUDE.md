@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-KRYON is a Python 3.10+ autonomous cybersecurity intelligence platform: 21 security agents, 204+ tool implementations across 35 categories, FastAPI REST server (136 endpoints), a REPL/TUI, RAG knowledge base (ChromaDB), and multi-tenant/billing/compliance stack. Managed with `uv` (workspace member: `agents/`). License is **Proprietary** — do not reintroduce MIT references.
+**KRYON v2.1.0 "Hydra — Skillforge"** is an autonomous cybersecurity agent for the **financial services sector**. Python 3.10+, managed with `uv` (workspace member: `agents/`). License is **Proprietary** — do not reintroduce MIT references.
+
+The architecture has evolved from 33 static Python agents (v1.x) to a **unified skill-based system** (v2.x): one agent called "Kryon" with **67 dynamic markdown playbooks** that load based on target profile and user intent. Focus is on **banking clients in LATAM/Paraguay** (BCP, SIB, Superintendencia de Bancos).
 
 Entry point: `kryon = "kryon.cli:main"` (see `pyproject.toml`).
 
@@ -29,7 +31,7 @@ Run a single test / subset:
 ```bash
 uv run pytest tests/test_kryon_imports.py
 uv run pytest tests/agents/ -k "pentest"
-uv run pytest -m "unit and not slow"          # markers: unit, integration, slow, ctf, agent, tool, security, optional, e2e
+uv run pytest -m "unit and not slow"
 uv run pytest --inline-snapshot=fix tests/path/to/test.py
 ```
 
@@ -37,44 +39,80 @@ uv run pytest --inline-snapshot=fix tests/path/to/test.py
 
 Coverage target in `make coverage` is **95%** (stricter than the 80% global rule). `[tool.coverage.run] source = ["tests", "src/kryon/sdk/agents"]` — coverage is scoped to the SDK subtree, not the whole package.
 
-## Architecture
+## Architecture (v2.x — skill-based)
 
 Top-level layout: `src/kryon/` (package), `tests/` (mirrors package layout), `docker/`, `helm/`, `k8s/`, `docs/`, `scripts/`, `agents/` (uv workspace member).
 
-### Core subsystems (`src/kryon/`)
+### Skill system (`src/kryon/skills/`) — primary interface in v2.x
 
-- **`sdk/`** — agent runtime SDK (under `sdk/agents/`). This is the execution engine for all agents: run loop, tool executor, MCP integration, model adapters (`openai_chatcompletions`, `openai_responses`), parallel tool executor, JSONL tracing. Most of `mypy` and coverage is focused here. Changes here affect every agent.
-- **`agents/`** — 21+ concrete agent definitions (`pentest_agent`, `recon_scout`, `vuln_hunter`, `central_core`, `strategic_core`, etc.) built on top of the SDK. Each file defines prompts, toolsets, and model config. `patterns/` holds multi-agent patterns (swarm, sequential, hierarchical, conditional, parallel).
-- **`tools/`** — 204+ tool implementations grouped by kill-chain category (`reconnaissance`, `web`, `exploitation`, `credentials`, `cloud`, `container`, `appsec`, `llm_security`, `dfir`, `evasion`, `api_attacks`, `post_exploitation`, `ai`, `anonymity`, `browser`, `ctf`, `command_and_control`, `data_exfiltration`, ...). Agents bind to categories/tools rather than individual files.
-- **`server/`** — FastAPI application (`app.py`) with `routes/`, `auth/`, `middleware/`, JWT/RBAC, audit logging, scheduler, sessions, jobs. 136 endpoints across 28 routers under `/api/v1`. Launched via `kryon-server` script or the Docker stack.
-- **`repl/` + `tui/` + `cli/`** — user interfaces. `cli/` is the `kryon` entry point; `repl/` is the interactive shell (`/agent`, `/parallel`, etc.); `tui/` is Textual-based.
-- **`knowledge/`** — RAG: ExploitDB/NVD/GitHub/CTF seed loaders + ChromaDB vector store + schedule-based auto-updater. Optional extra `[rag]`.
-- **`memory/`** — conversation/session memory layer used by the SDK.
-- **`intelligence/`** — CVE/threat-intel correlation.
-- **`compliance/`** — PCI-DSS, HIPAA, SOC2, NIST 800-53, ISO 27001, GDPR, OWASP, CIS, MITRE ATT&CK mappings.
-- **`engagements/`, `remediation/`, `reporting/`, `evaluation/`, `notifications/`, `tenancy/`, `billing/`, `onboarding/`, `providers/`, `integrations/`** — enterprise workflow modules. Most are server-adjacent and shipped as routers under `server/routes/`.
+- **`loader.py`** — `SkillLoader` scans `playbooks/` recursively, parses YAML frontmatter, matches by `triggers` (tech, ports, keywords) and user intent. Priority-based selection with token budget cap.
+- **`unified_agent.py`** — `create_unified_agent()` builds a single "Kryon" agent with composed prompt (base identity + matched skill bodies) and budget-selected tools (max 30 to fit 32K context).
+- **`tool_budget.py`** — Selects tools from the full registry based on active skills' `required_tools`.
+- **`playbooks/`** — 67 markdown files with YAML frontmatter, three subdirectories:
+  - **`(core)` 11 skills**: recon-scout, pentest, vuln-hunter, wordpress-audit, appsec, forensics, ctf-master, ssl-audit, server-hardening, safe-modification, rollback-recovery
+  - **`imported/` 28 skills**: From `mukul975/Anthropic-Cybersecurity-Skills` (Apache 2.0, MITRE ATT&CK mapped). SQL injection, SSRF, JWT attacks, HTTP smuggling, AD attacks, cloud attacks, forensics, etc.
+  - **`banking/` 8 skills**: Custom for financial clients. pci-dss-audit, core-banking-assessment, mobile-banking-audit, atm-security, payment-gateway-testing, fraud-detection, swift-network-security, open-banking-api.
+
+**Critical**: Skills are **the primary way to add functionality** in v2.x. Do not create new Python agent files unless absolutely necessary. Prefer writing a `.md` playbook.
+
+### Other core subsystems
+
+- **`learning/`** — Self-improving loop. `experiences.py` (ChromaDB), `profiler.py` (target extraction), `chain_extractor.py` (attack chain mining). Agents query `recall_similar_experiences` at engagement start.
+- **`services/`** — Context management. `micro_compact.py` (trim tool outputs ~85%), `session_memory.py` (Magic Doc auto-report), `auto_extract.py` (save experience on exit), `tool_output_cap.py` (save >5K outputs to disk).
+- **`sdk/`** — Agent runtime SDK (under `sdk/agents/`). Run loop, tool executor, MCP integration, model adapters. Most of `mypy` and coverage is focused here.
+- **`agents/`** — Legacy 33+ agents (still work for backward compat via `/agent select <name>`). In v2.x the default is `kryon` (unified).
+- **`tools/`** — 204+ tool implementations by kill-chain category. Agents bind to categories/tools rather than individual files.
+- **`server/`** — FastAPI application (`app.py`) with `routes/`, `auth/`, `middleware/`, JWT/RBAC. 136 endpoints.
+- **`repl/` + `tui/` + `cli/`** — User interfaces. CLI is `kryon` entry point. Commands in `repl/commands/`:
+  - `/skill` (list/show/search/import/reload) — manage playbooks
+  - `/experiences` (list/show/search/close) — manage learning
+  - `/flush`, `/compact`, `/memory`, `/agent`, etc.
+- **`knowledge/`** — RAG. ExploitDB, NVD, GitHub writeups + ChromaDB with Ollama embeddings.
+- **`compliance/`** — 9 frameworks (PCI-DSS, HIPAA, SOC2, NIST 800-53, ISO 27001, GDPR, OWASP, CIS, MITRE ATT&CK).
 
 ### Important cross-cutting rules
 
-- **LiteLLM without `[proxy]`** — `uvloop` is not supported on Windows; do not re-add the proxy extra to `pyproject.toml`.
-- **`openinference-instrumentation-openai`** is Python-version-gated (`< 3.14`) under the `tracing` extra. Don't move it back to core dependencies.
-- **Optional extras**: `voice`, `viz`, `tracing`, `rag`, `server`, `tui`, `reporting`, `orchestration`, `dev`. The base install intentionally stays lean; RAG/server/reporting/TUI features live in extras.
-- **Ruff per-file ignores** are deliberately loose for `agents/`, `tools/`, `repl/`, `sdk/`, `knowledge/`, `intelligence/`, `reporting/`, `server/`, etc. (long strings, late imports). Check `[tool.ruff.lint.per-file-ignores]` before "fixing" E501/E402/B904/B008 in those trees — they're allow-listed on purpose.
+- **Ollama-first**: The recommended model is `gemma4:26b-32k` (created via custom Modelfile with `num_ctx 32768`). Many fixes live in `sdk/agents/models/openai_chatcompletions.py` to make tool calling reliable with local models (tool name normalization, hallucination tolerance, schema fix, tool_choice forcing).
+- **LiteLLM without `[proxy]`** — uvloop is not supported on Windows; do not re-add the proxy extra to `pyproject.toml`.
+- **`openinference-instrumentation-openai`** is Python-version-gated (`< 3.14`) under the `tracing` extra.
+- **Optional extras**: `voice`, `viz`, `tracing`, `rag`, `server`, `tui`, `reporting`, `orchestration`, `dev`.
+- **Ruff per-file ignores** are deliberately loose for `agents/`, `tools/`, `repl/`, `sdk/`, `knowledge/`, `intelligence/`, `reporting/`, `server/`. Check `[tool.ruff.lint.per-file-ignores]` before "fixing" E501/E402/B904/B008 in those trees.
 - **`mypy` `ignore_errors`** covers `kryon.tools.*`, `kryon.agents.*`, `kryon.knowledge.*`, `kryon.repl.*`, `kryon.cache.*`, `kryon.cli*`, and much of `kryon.sdk.agents.*`. Type-level work should target modules *outside* that override list.
-- **Tests mirror the package**: `tests/<subsystem>/...`. There are also top-level integration/smoke tests (`test_kryon_imports.py`, `test_integration_workflows.py`, `test_tool_availability.py`, `test_llm_cache.py`, `test_rag_system.py`, etc.).
+- **Tests mirror the package**: `tests/<subsystem>/...`. Top-level integration/smoke tests exist too.
 
 ### Configuration
 
-Runtime configuration is via env vars (see `README.md`): `KRYON_MODEL`, `KRYON_AGENT`, `KRYON_WORKSPACE_DIR`, `KRYON_MAX_TURNS`, `KRYON_MEMORY`, plus provider keys. `agents.yml.example` is a template. Ollama is supported by pointing `OPENAI_BASE_URL` at `http://localhost:11434/v1`.
+Runtime config via env vars (see `docker/.env.docker`):
+
+```bash
+KRYON_MODEL=gemma4:26b-32k        # Recommended
+KRYON_AGENT_TYPE=kryon             # Use unified agent (v2.x)
+KRYON_UNIFIED=true
+KRYON_FORCE_TOOL_TURNS=8           # Force tool use first N turns (Ollama reliability)
+KRYON_MEMORY=true
+KRYON_STREAM=false                 # Non-streaming REPL (stable)
+KRYON_EMBEDDING_MODEL=nomic-embed-text
+```
 
 ## Docker / K8s
 
-- `docker/docker-compose.kali.yml` is the recommended dev stack (Kali + Ollama + Kryon).
-- `docker-compose.yml` (root) is the lighter dev compose.
-- `helm/` and `k8s/` hold production manifests; deployment docs: `DEPLOYMENT.md`, `K8S_DEPLOYMENT_SUMMARY.md`, `QUICKSTART_K8S.md`, `K8S_VERIFICATION.md`.
+- `docker/docker-compose.kali.yml` + `docker/docker-compose.override.yml` is the dev stack (Kali + Ollama + Kryon).
+- `helm/` and `k8s/` hold production manifests.
+- The override adds memory limits (12G kryon, 20G ollama) and removes Claude Code CLI bind mounts.
 
 ## Conventions specific to this repo
 
 - Conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`, `perf:`, `ci:`).
-- Do **not** commit `.kryon/`, `workspaces/`, `logs/`, `nohup.out`, `ci/`, or `tools/cut_the_rope/` — all excluded from the hatch build and should not appear in diffs either.
-- When adding a new agent: place it under `src/kryon/agents/`, register it in the agent discovery, and add a matching test under `tests/agents/`. When adding a new tool: drop it in the correct `src/kryon/tools/<category>/` bucket — agents bind by category.
+- Do **not** commit `.kryon/`, `workspaces/`, `logs/`, `nohup.out`, `ci/`, or `tools/cut_the_rope/` — all excluded from the hatch build.
+- When adding capabilities in v2.x: **prefer a skill** (`.md` in `skills/playbooks/`) over a new Python agent.
+- Banking skills go in `skills/playbooks/banking/`. Imported upstream skills go in `skills/playbooks/imported/`. Core skills at the top level.
+- When editing markdown (prompts or skills) on Windows: ensure LF line endings (Git will warn about CRLF).
+
+## Working with banking clients
+
+- Every financial engagement requires **written authorization** from the institution.
+- Paraguay regulatory: **BCP Resoluciones** (SIB), **SEPRELAD** for AML, **Superintendencia de Bancos** for audits.
+- Never commit or log **real PAN numbers** (tarjetas). Use test cards only (Stripe: 4242..., Bancard: 4005 5500 0000 0001).
+- Client data handling: **NDA first**, data retention policy, secure destruction after engagement.
+- For PCI-DSS audits, confirm the SAQ level (A, A-EP, B, B-IP, C, C-VT, D) before scoping.
+- For SWIFT CSP audits, the attestation is annual — coordinate with the SWIFT CISO of the bank.

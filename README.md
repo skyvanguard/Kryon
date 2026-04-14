@@ -11,19 +11,18 @@
 
 <div align="center">
 
-**Self-Improving Autonomous Cybersecurity Platform**
+**Autonomous Cybersecurity Agent for Financial Services**
+
+*Specialized pentesting + compliance auditing + remediation for banks, fintech and payment processors*
 
 [![CI](https://github.com/skyvanguard/Kryon/actions/workflows/ci.yml/badge.svg)](https://github.com/skyvanguard/Kryon/actions/workflows/ci.yml)
 [![Security Scan](https://github.com/skyvanguard/Kryon/actions/workflows/security-scan.yml/badge.svg)](https://github.com/skyvanguard/Kryon/actions/workflows/security-scan.yml)
-[![Docker Build](https://github.com/skyvanguard/Kryon/actions/workflows/docker-build.yml/badge.svg)](https://github.com/skyvanguard/Kryon/actions/workflows/docker-build.yml)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Version](https://img.shields.io/badge/version-2.1.0_Skillforge-purple.svg)](CHANGELOG.md)
+[![Skills](https://img.shields.io/badge/skills-67_playbooks-gold.svg)](#skill-library)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-1896_passed-brightgreen.svg)](#testing)
-[![Skills](https://img.shields.io/badge/skills-9_playbooks-purple.svg)](#skill-system)
-[![Tools](https://img.shields.io/badge/tools-204+-red.svg)](#tool-categories)
-[![Stars](https://img.shields.io/github/stars/skyvanguard/Kryon?style=social)](https://github.com/skyvanguard/Kryon)
 
-[Installation](#installation) | [Quick Start](#quick-start) | [Skills](#skill-system) | [Learning Loop](#self-improving-loop) | [Docker](#docker-deployment) | [API](#api)
+[Installation](#installation) | [Banking Playbooks](#banking-playbooks) | [Quick Start](#quick-start) | [Skill System](#skill-system) | [Docker](#docker-deployment)
 
 </div>
 
@@ -31,28 +30,32 @@
 
 ## What is KRYON?
 
-KRYON is an autonomous cybersecurity platform that **learns from every engagement**. Give it a target, and it chains tools autonomously (nmap, whatweb, gobuster, nuclei...), produces a professional security report, and saves the experience. Next time it encounters a similar target, it recalls what worked and optimizes its approach.
+KRYON is an **autonomous cybersecurity agent designed for the financial sector**. One prompt triggers a full security assessment with banking-specific playbooks (PCI-DSS, SWIFT CSP, FAPI, PSD2, core banking, mobile banking, ATMs, payment gateways, fraud detection). It **learns from every engagement** — the more pentests it runs, the better it gets.
 
-Unlike static prompt-based agents, KRYON has a **self-improving loop**: the more pentests it runs, the better it gets.
+Built for compliance officers, security teams, and pentesters who work with banks, fintech, payment processors, and any organization handling financial data.
 
-### One Prompt, Full Assessment
+### Optimized for Financial Clients
 
 ```
-KRYON> haceme un analisis de seguridad de www.target.com
+KRYON> quiero hacer PCI-DSS audit de banco.com.py
 
- ✶ Kryon → recall_similar_experiences (3s)
- ✻ Kryon → nmap -sV -sC -T4 (40s)
- ✽ Kryon → whatweb_scan (10s)
- ✢ Kryon → gobuster (30s)
- ✳ Kryon → nuclei_scan (60s)
+ ✶ Kryon [pci-dss-audit] Orchestrating…  (3s)
+ ● recall_similar_experiences → 2 prior engagements
+ ● nmap -sV -sC -T4 → 4 ports open
+ ● whatweb_scan → Apache, Bootstrap, TLS 1.2+
+ ● nuclei_scan → 1 finding (uploads.zip exposed)
+ ● PCI compliance check → 12 requirements evaluated
 
-╭─ Kryon ────────────────────────────────────────────╮
-│ ## Security Assessment: www.target.com              │
-│ **IP:** 54.69.84.63 | **Stack:** Apache, Bootstrap │
-│ **Ports:** 80, 110, 443, 993                       │
-│ **Findings:** 2 CVEs, 12 directories, email leak   │
-│ **Risk:** MEDIUM                                    │
-│ **Recommendations:** ...                            │
+╭─ Kryon ───────────────────────────────────────────╮
+│ ## PCI-DSS Compliance Audit: banco.com.py          │
+│ **Target**: 54.69.84.63 (Apache httpd)             │
+│ **CDE Scope**: 3 systems                           │
+│ **Finding (CRÍTICO)**: uploads.zip expuesto       │
+│   - Req 3.4 (storage), Req 6.5.10 (insecure data) │
+│ **Security headers**: ✅ CSP, HSTS, X-Frame        │
+│ **TLS**: ✅ TLS 1.2+, strong ciphers               │
+│ **Remediation timeline**: 30 días (CRÍTICO)       │
+│ **Mappings**: PCI-DSS v4.0.1 Req 3.4.1, CVE list  │
 ╰────────────────────────────────────────────────────╯
 
 ✅ Experience auto-saved: eng_3e03db5ef859
@@ -62,375 +65,75 @@ KRYON> haceme un analisis de seguridad de www.target.com
 
 | Component | Count |
 |-----------|:-----:|
-| Dynamic Skills (playbooks) | 9 |
-| Tool Implementations | 204+ |
-| Tool Categories | 35 |
+| Total Skills (playbooks) | **67** |
+| Banking-specific Skills | 8 |
+| Security Tools | 204+ |
 | API Endpoints | 136 |
 | Compliance Frameworks | 9 |
-| RAG Knowledge Documents | 486+ |
-| Legacy Agents | 33 |
 | Test Suite | 1896 passed |
 
-### Core Capabilities
+---
 
-- **Self-Improving Loop** - Learns from every engagement via ChromaDB experience store. Recalls similar past targets to optimize attack chains
-- **Dynamic Skill System** - 9 markdown playbooks loaded based on target profile (tech, ports, keywords). Create custom skills without writing Python
-- **Autonomous Tool Chaining** - One prompt triggers full recon: nmap, whatweb, gobuster, nuclei, then a consolidated report. No manual intervention
-- **204+ Security Tools** - Across 35 categories covering the full kill chain
-- **Magic Docs** - Auto-generated security assessment report updated in real-time during engagement
-- **Context Management** - Tool output capping (large results saved to disk), micro-compaction, session memory with auto-recommendations
-- **Multi-Model Support** - Works with 300+ LLMs. Optimized for Gemma 4 26B (MoE) via Ollama for fully local, zero-cost operation
-- **RAG Knowledge Base** - ExploitDB, NVD, GitHub, CTF writeups with ChromaDB vector search + Ollama embeddings
-- **REST API** - 136 endpoints across 28 routers for full programmatic control
-- **Compliance** - PCI-DSS, HIPAA, SOC2, NIST 800-53, ISO 27001, GDPR, OWASP, CIS, MITRE ATT&CK
-- **Enterprise Features** - Multi-tenancy, JWT auth, RBAC, audit logging, SIEM integration
-- **Server Hardening** - Audit and fix Linux servers via SSH with one command
-- **Professional Reports** - Branded PDF/DOCX reports with SVG charts
+## Banking Playbooks
 
-### Use Cases
+Custom skills for **financial sector clients in LATAM/Paraguay**:
 
-- Automated penetration testing
-- Bug bounty hunting
-- CTF competitions
-- Server hardening and remediation
-- Security research and education
-- Incident response and forensics
-- Vulnerability assessment
-- Application security (SAST/DAST/SCA)
-- Compliance auditing
+| Skill | What it covers |
+|---|---|
+| **`pci-dss-audit`** | PCI-DSS v4.0.1 full audit — 12 requirements, 6 objectives, PAN detection, CDE scoping, compensating controls |
+| **`core-banking-assessment`** | T24 (Temenos), Flexcube (Oracle), Finacle (Infosys), Bantotal, IBS. SIPAP/SINACOFI integrations (Paraguay). BCP regulatory framework |
+| **`mobile-banking-audit`** | iOS/Android apps — static + dynamic analysis, cert pinning bypass, biometric validation, transaction signing, deep link abuse, secure storage audit |
+| **`atm-security`** | Jackpotting (Tyupkin, Ploutus, Alice), skimming detection, ISO 8583 message analysis, black box attacks, NCR/Diebold/Wincor/Hyosung hardening |
+| **`payment-gateway-testing`** | Stripe, Bancard, MercadoPago, PSE, Wompi integrations. Webhook security, amount tampering, 3DS bypass, idempotency, refund abuse |
+| **`fraud-detection`** | Velocity rules, UEBA, ML models, AML screening (OFAC/UN), money mule patterns, KYC bypass testing. FATF compliance |
+| **`swift-network-security`** | SWIFT CSP 32 controls, Alliance Access/Gateway hardening, operator workstation audit, MT/MX message security. Bangladesh-type attack prevention |
+| **`open-banking-api`** | FAPI 1.0 Advanced, OAuth 2.0, OpenID Connect, mTLS, PKCE, PAR, JARM, consent management. PSD2 RTS compliance |
+
+Each playbook includes:
+- Pre-engagement checklist (authorization, scope, NDA)
+- Step-by-step workflow with real commands
+- Findings taxonomy with severity
+- Compliance mapping (PCI-DSS, PSD2, BCP, FATF)
+- LATAM-specific regulatory context
 
 ---
 
 ## Skill System
 
-KRYON uses **dynamic skills** instead of static agents. Skills are markdown files with YAML frontmatter that define specialized playbooks, automatically loaded based on the target:
+KRYON uses **67 dynamic markdown playbooks** organized into three tiers:
 
 ```
 src/kryon/skills/playbooks/
-├── recon-scout.md        # Reconnaissance chain (nmap→whatweb→gobuster→nuclei)
-├── pentest.md            # Exploitation + privilege escalation
-├── vuln-hunter.md        # Bug bounty, WAF bypass, zero-day hunting
-├── wordpress-audit.md    # WordPress-specific (wpscan, xmlrpc, REST API)
-├── ssl-audit.md          # TLS/SSL configuration audit
-├── server-hardening.md   # SSH audit + remediation via credentials
-├── appsec.md             # OWASP Top 10, SAST/DAST/SCA
-├── forensics.md          # Incident response + log analysis
-└── ctf-master.md         # CTF solver (HackTheBox, TryHackMe)
+├── core/ (11 skills)         # Recon, pentest, safety, rollback, CTF, forensics
+├── imported/ (28 skills)     # From mukul975/Anthropic-Cybersecurity-Skills (Apache 2.0)
+│                             # MITRE ATT&CK mapped, NIST CSF aligned
+└── banking/ (8 skills)       # Financial clients (PCI, SWIFT, FAPI, ATMs, etc.)
 ```
 
-### Skill Format
+Skills are **auto-matched** to targets by tech/port/keyword triggers. When you say *"audit the WordPress site"*, Kryon loads `wordpress-audit` + `recon-scout`. When you say *"PCI audit of the bank"*, it loads `pci-dss-audit` + `safe-modification` + `core-banking-assessment`.
 
-```yaml
----
-name: wordpress-audit
-description: "WordPress security audit"
-triggers:
-  tech: ["wordpress"]
-  keywords: ["wordpress", "wp-content", "wpscan"]
-priority: 15
-required_tools:
-  - run_command
-  - nuclei_scan
-  - search_vulnerabilities
----
+### `/skill` command — dynamic library
 
-## When WordPress is detected:
-1. Confirm with whatweb
-2. wpscan --enumerate u,p,t
-3. Check xmlrpc.php, debug.log, wp-config backups
-4. nuclei with WordPress templates
-5. Report with CVSS scores
-```
-
-Skills are matched automatically by target profile (detected tech, open ports) and user intent (keywords). Create your own by dropping a `.md` file in `skills/playbooks/`.
-
----
-
-## Self-Improving Loop
-
-KRYON remembers what works. Every engagement is stored in ChromaDB with:
-
-- **Target profile**: host, IP, ports, services, tech stack
-- **Attack chain**: ordered sequence of tools + arguments + outcomes
-- **Outcome classification**: success / partial / recon-only / fail
-- **Signals**: CVEs found, shell gained, flags captured, directories discovered
-
-On the next engagement, the agent queries `recall_similar_experiences` and shapes its plan based on what worked against similar targets.
-
-```
-Session 1: scan britimp.com.py → nmap→whatweb→gobuster→nuclei → saved
-
-Session 2: scan similar-apache-site.com
-  → recall: "Against Apache+Bootstrap, nmap→whatweb→nuclei found CVE in 5 min"
-  → skips gobuster (was slow), goes straight to nuclei → faster engagement
-```
-
-### REPL Commands
-
-| Command | Action |
-|---------|--------|
-| `/experiences` | List stored engagement experiences |
-| `/experiences close [summary]` | Mine current session and save |
-| `/experiences search <query>` | Similarity search over experiences |
-| `/experiences show <id>` | Full experience dump |
-| `/flush` | Clear agent history + session memory |
-
-Experiences are also **auto-saved on exit** if the session had tool calls.
-
----
-
-## Installation
-
-### Requirements
-
-- Python 3.10 or higher
-- GPU recommended for local models (12+ GB VRAM for Gemma 4 26B)
-- Docker for Kali Linux tools (nmap, metasploit, gobuster, etc.)
-
-### Docker Deployment (Recommended)
+Any of the **754 upstream skills** can be installed during a session:
 
 ```bash
-git clone https://github.com/skyvanguard/Kryon.git
-cd Kryon
-
-# Configure environment
-cp docker/.env.docker.example docker/.env.docker
-# Edit docker/.env.docker with your model and settings
-
-# Launch Kali + Ollama stack
-docker compose -f docker/docker-compose.kali.yml up -d
-
-# Pull recommended model (Gemma 4 26B MoE — runs like 4B, quality of 26B)
-docker exec kryon-ollama ollama pull gemma4:26b
-
-# Create optimized variant with 32K context
-docker exec kryon-ollama sh -c 'printf "FROM gemma4:26b\nPARAMETER num_ctx 32768\n" > /tmp/Modelfile && ollama create gemma4:26b-32k -f /tmp/Modelfile'
-
-# Pull embedding model for RAG
-docker exec kryon-ollama ollama pull nomic-embed-text
-
-# Launch REPL
-docker exec -it kryon kryon
+KRYON> /skill list                          # Show all 67 loaded
+KRYON> /skill show pci-dss-audit            # View full playbook
+KRYON> /skill search swift                  # Search upstream catalog
+KRYON> /skill import analyzing-swift-mt-messages  # Install from upstream
+KRYON> /skill reload                        # After editing a .md
 ```
 
-### Configuration
+No rebuilds. No restarts. Just drop a `.md` file in `playbooks/` or use the command.
 
-Key environment variables in `docker/.env.docker`:
+### Creating custom skills
 
-```bash
-# Model (recommended: Gemma 4 26B MoE via Ollama)
-KRYON_MODEL=gemma4:26b-32k
-OPENAI_API_KEY=ollama
-OPENAI_BASE_URL=http://ollama:11434/v1
-OLLAMA=true
-
-# Unified agent with dynamic skills (recommended)
-KRYON_AGENT=kryon
-KRYON_UNIFIED=true
-
-# Runtime
-KRYON_MAX_TURNS=50
-KRYON_MEMORY=true
-KRYON_STREAM=false
-
-# RAG embeddings (uses Ollama's nomic-embed-text)
-KRYON_EMBEDDING_MODEL=nomic-embed-text
-KRYON_EMBEDDING_BASE_URL=http://ollama:11434
-```
-
-### Supported AI Models
-
-| Provider | Recommended Model | Config |
-|----------|-------------------|--------|
-| **Ollama (local)** | **gemma4:26b-32k** | `OLLAMA=true` |
-| Ollama | dolphin-mistral:7b, qwen3:8b | `OLLAMA=true` |
-| OpenAI | GPT-4o, O1, O3-mini | `OPENAI_API_KEY` |
-| Anthropic | Claude Sonnet 4, Opus 4 | `ANTHROPIC_API_KEY` |
-| DeepSeek | DeepSeek V3, R1 | `DEEPSEEK_API_KEY` |
-| OpenRouter | 200+ models | `OPENROUTER_API_KEY` |
-
-**Recommended**: Gemma 4 26B via Ollama. MoE architecture means only 3.8B parameters active per token, so it runs fast on 12+ GB VRAM while delivering 26B quality. Supports native tool calling, thinking, and 262K context.
-
----
-
-## Quick Start
-
-```bash
-# Launch REPL (inside Docker)
-docker exec -it kryon kryon
-
-# Full security assessment (autonomous — no interaction needed)
-KRYON> haceme un analisis de seguridad de www.target.com
-
-# Server hardening via SSH
-KRYON> audita y corrige la seguridad del servidor admin@192.168.1.10
-
-# CTF mode
-KRYON> resuelve esta maquina de HackTheBox: 10.10.10.5
-
-# View auto-generated report
-KRYON> /report   # or: cat /workspace/.kryon_session.md
-
-# Check what Kryon learned
-KRYON> /experiences
-
-# Exit (auto-saves experience)
-KRYON> /exit
-```
-
-### Legacy Agents
-
-The original 33 agents are still available for backward compatibility:
-
-```bash
-KRYON> /agent select recon_scout
-KRYON> /agent select pentest_agent
-```
-
----
-
-## Tool Categories
-
-204+ tools organized in 35 categories:
-
-| Category | Tools | Description |
-|----------|:-----:|-------------|
-| `reconnaissance` | Nmap, Masscan, DNS enum | Network and service discovery |
-| `web` | Nikto, SQLmap, XSS detection | Web application testing |
-| `exploitation` | Metasploit, exploit builder | Vulnerability exploitation |
-| `privilege_escalation` | LinPEAS, WinPEAS, kernel exploits | Local privilege escalation |
-| `lateral_movement` | Pass-the-hash, pivoting | Network lateral movement |
-| `credentials` | Hashcat, John, Hydra | Password cracking and spraying |
-| `osint` | Shodan, theHarvester, Maltego | Open source intelligence |
-| `cloud` | AWS/Azure/GCP scanners | Cloud security assessment |
-| `container` | Docker, Kubernetes security | Container and orchestration |
-| `appsec` | Semgrep, Bandit, npm audit | SAST, DAST, SCA scanning |
-| `llm_security` | Prompt injection, jailbreak tests | AI/LLM security testing |
-| `dfir` | Volatility, log analysis | Digital forensics |
-| + 23 more | ... | See `src/kryon/tools/` |
-
----
-
-## API
-
-136 REST endpoints across 28 routers. Base URL: `/api/v1`
-
-| Router | Endpoints | Description |
-|--------|:---------:|-------------|
-| `/health` | 2 | Health and readiness checks |
-| `/auth` | 4 | JWT authentication and RBAC |
-| `/agents` | 6 | Agent listing and execution |
-| `/scans` | 8 | Scan CRUD and scheduling |
-| `/findings` | 10 | Finding management and export |
-| `/engagements` | 8 | Engagement lifecycle |
-| `/compliance` | 6 | Compliance framework checks |
-| `/reports` | 6 | Report generation (PDF/DOCX) |
-| `/knowledge` | 6 | RAG knowledge base |
-| + 19 more | ... | See API docs |
-
----
-
-## Docker Deployment
-
-### Kali Linux Stack (Recommended)
-
-```bash
-# Launch with GPU support for Ollama
-docker compose -f docker/docker-compose.kali.yml up -d
-
-# With memory overrides for Gemma 4 26B
-docker compose -f docker/docker-compose.kali.yml -f docker/docker-compose.override.yml up -d
-
-# Interactive REPL
-docker exec -it kryon kryon
-
-# Kali shell (nmap, metasploit, sqlmap, hydra, etc.)
-docker exec -it kryon bash
-
-# VPN for CTFs
-docker exec -u root -d kryon openvpn --config /workspace/htb.ovpn
-```
-
-### Stack Components
-
-| Container | Image | Purpose |
-|-----------|-------|---------|
-| `kryon` | Kali Linux + Python | Main platform with all security tools |
-| `kryon-ollama` | Ollama (GPU) | Local LLM inference |
-| `nginx` (optional) | Nginx | Reverse proxy with TLS |
-
----
-
-## Architecture
-
-```
-src/kryon/
-├── skills/             # Dynamic skill system (playbooks + loader + unified agent)
-├── learning/           # Self-improving loop (experiences + profiler + chain extractor)
-├── services/           # Context management (micro-compact, session memory, auto-extract, tool cap)
-├── sdk/                # Agent SDK (Agent, Runner, Handoff, Guardrail, MCP)
-├── agents/             # 33 legacy agents + patterns (swarm, sequential, hierarchical)
-├── tools/              # 204+ tools in 35 categories
-├── knowledge/          # RAG engine + ChromaDB + scrapers + auto-updater
-├── server/             # FastAPI + 28 routers + middleware + JWT/RBAC
-├── repl/               # Interactive CLI + commands + Claude Code-style spinner
-├── prompts/            # System prompts (markdown)
-├── memory/             # SQLite store + 16 migrations
-├── intelligence/       # CVE correlation + threat intel
-├── compliance/         # 9 compliance frameworks
-├── reporting/          # PDF/DOCX/HTML report generation
-├── remediation/        # SLA + assignment + retest workflow
-└── ...                 # billing, onboarding, notifications, etc.
-```
-
----
-
-## Compliance Frameworks
-
-| Framework | Coverage |
-|-----------|----------|
-| PCI-DSS v4.0 | Network segmentation, encryption, access control |
-| HIPAA | PHI protection, audit controls, transmission security |
-| SOC 2 Type II | Security, availability, confidentiality |
-| NIST 800-53 | Full control family mapping |
-| ISO 27001 | Information security management |
-| GDPR | Data protection and privacy |
-| OWASP Top 10 | Web application security |
-| CIS Benchmarks | System hardening baselines |
-| MITRE ATT&CK | Technique coverage mapping |
-
----
-
-## Testing
-
-```bash
-# Run full test suite
-uv run pytest
-
-# Run specific module
-uv run pytest tests/agents/ -k "pentest"
-uv run pytest -m "unit and not slow"
-
-# Coverage (target: 95%)
-make coverage
-```
-
-Current status: **1896 passed, 24 skipped, 0 failed**
-
----
-
-## Contributing
-
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Creating a Custom Skill
-
-Drop a `.md` file in `src/kryon/skills/playbooks/`:
+Write a markdown file with YAML frontmatter:
 
 ```yaml
 ---
 name: my-custom-audit
-description: "My specialized audit playbook"
+description: "Client-specific audit playbook"
 triggers:
   tech: ["nginx"]
   keywords: ["nginx", "reverse proxy"]
@@ -440,12 +143,298 @@ required_tools:
   - nuclei_scan
 ---
 
-## My Custom Audit Steps
-1. Check nginx version and config
+## My Custom Audit
+1. Verify nginx version and config
 2. ...
 ```
 
-No Python code needed. Kryon loads it automatically on next session.
+Kryon loads it automatically on next session.
+
+---
+
+## Self-Improving Loop
+
+Every engagement is stored in ChromaDB with:
+- **Target profile**: host, IP, ports, services, tech stack
+- **Attack chain**: ordered sequence of tools + arguments + outcomes
+- **Outcome classification**: success / partial / recon-only / fail
+- **Signals**: CVEs found, directories discovered, findings per severity
+
+On the next engagement, the agent queries `recall_similar_experiences` and **optimizes its approach based on what worked against similar targets**.
+
+```
+Session 1: audit banco.com.py → nmap→whatweb→gobuster→nuclei → saved
+
+Session 2: audit similar-bank.com.py
+  → recall: "Against Apache+Bootstrap+Paraguay banks, nmap→whatweb→nuclei 
+             found uploads.zip backup exposure in 5 min"
+  → Kryon skips redundant steps, goes straight to PCI checks → faster engagement
+```
+
+### REPL Commands
+
+| Command | Action |
+|---------|--------|
+| `/skill list/show/search/import` | Manage playbook library |
+| `/experiences list/show/close` | Manage engagement learning |
+| `/flush` | Clear agent history + session memory |
+| `/compact` | Manual conversation compaction |
+| `/report` | Display auto-generated Magic Doc report |
+
+---
+
+## Installation
+
+### Requirements
+
+- **Python 3.10+**
+- **Docker** (recommended for Kali Linux security tools)
+- **GPU recommended** for local models (12+ GB VRAM for Gemma 4 26B)
+- **GitHub CLI** (`gh`) for `/skill import` from upstream
+
+### Docker Deployment
+
+```bash
+git clone https://github.com/skyvanguard/Kryon.git
+cd Kryon
+
+# Copy environment template
+cp docker/.env.docker.example docker/.env.docker
+# Edit docker/.env.docker as needed
+
+# Launch stack (Kali + Ollama + Kryon)
+docker compose -f docker/docker-compose.kali.yml \
+               -f docker/docker-compose.override.yml \
+               --env-file docker/.env.docker up -d
+
+# Pull Gemma 4 26B (recommended model for local deployment)
+docker exec kryon-ollama ollama pull gemma4:26b
+
+# Create 32K context variant
+docker exec kryon-ollama sh -c 'printf "FROM gemma4:26b\nPARAMETER num_ctx 32768\n" > /tmp/Modelfile && ollama create gemma4:26b-32k -f /tmp/Modelfile'
+
+# Pull RAG embedding model
+docker exec kryon-ollama ollama pull nomic-embed-text
+
+# Launch REPL
+docker exec -it kryon kryon
+```
+
+### Configuration
+
+Key settings in `docker/.env.docker`:
+
+```bash
+# Model — Gemma 4 26B-A4B (MoE, 3.8B active params, tool calling, thinking, 262K ctx)
+KRYON_MODEL=gemma4:26b-32k
+OPENAI_API_KEY=ollama
+OPENAI_BASE_URL=http://ollama:11434/v1
+OLLAMA=true
+
+# Unified agent with dynamic skills
+KRYON_AGENT_TYPE=kryon
+KRYON_UNIFIED=true
+
+# Runtime tuning
+KRYON_MAX_TURNS=50
+KRYON_FORCE_TOOL_TURNS=8          # Force tool use for first N turns
+KRYON_MEMORY=true
+KRYON_STREAM=false                # Use non-streaming REPL (stable)
+
+# RAG embeddings
+KRYON_EMBEDDING_MODEL=nomic-embed-text
+KRYON_EMBEDDING_BASE_URL=http://ollama:11434
+
+# SSH credentials (for server-hardening remediation)
+# KRYON_SSH_USER=admin
+# KRYON_SSH_HOST=192.168.1.10
+# KRYON_SSH_PASS=your-password-here
+```
+
+---
+
+## Quick Start
+
+### Financial Audit (primary use case)
+
+```bash
+docker exec -it kryon kryon
+
+# PCI-DSS compliance audit
+KRYON> haceme un PCI-DSS audit de banco.com.py
+
+# Core banking security assessment
+KRYON> evaluá el core banking de t24.banco.com.py
+
+# Mobile banking app audit
+KRYON> auditá la app móvil del banco (apk en /workspace/banco.apk)
+
+# Payment gateway testing
+KRYON> testeá la pasarela de pago con tarjeta 4005550000000001
+
+# Fraud detection system evaluation
+KRYON> auditá el sistema antifraude del banco
+
+# SWIFT CSP compliance
+KRYON> hacé SWIFT CSP audit de la infraestructura
+
+# Open Banking / PSD2 API testing
+KRYON> testeá las APIs Open Banking del banco según FAPI
+```
+
+### Generic Pentesting
+
+```bash
+# Full security assessment
+KRYON> haceme un analisis de seguridad de www.target.com
+
+# CTF mode
+KRYON> resolvé esta máquina de HackTheBox: 10.10.10.5
+
+# Server hardening via SSH
+KRYON> audita y corrige mi servidor admin@192.168.1.10
+
+# OSINT collection
+KRYON> quiero hacer OSINT de acme-corp.com
+```
+
+### View Learning
+
+```bash
+KRYON> /experiences list           # Past engagements
+KRYON> /skill show pci-dss-audit   # View playbook content
+KRYON> /report                      # Current engagement auto-report
+```
+
+---
+
+## Supported AI Models
+
+| Provider | Recommended | Config |
+|----------|-------------|--------|
+| **Ollama (local)** | **gemma4:26b-32k** (MoE, zero cost) | `OLLAMA=true` |
+| Ollama | qwen3:8b, dolphin-mistral:7b | `OLLAMA=true` |
+| OpenAI | GPT-4o, O3 | `OPENAI_API_KEY` |
+| Anthropic | Claude Sonnet 4.6 | `ANTHROPIC_API_KEY` |
+| DeepSeek | DeepSeek V3, R1 | `DEEPSEEK_API_KEY` |
+
+**Recommended for production**: Gemma 4 26B via Ollama. MoE architecture (3.8B active/26B total) runs fast on 12+ GB VRAM with 26B quality. Native tool calling, thinking, 262K context. Zero API cost per engagement — critical for client work where you run many assessments.
+
+---
+
+## Compliance Coverage
+
+| Framework | Coverage |
+|-----------|----------|
+| **PCI-DSS v4.0.1** | All 12 requirements, CDE scoping, SAQ A through D |
+| **PSD2 / Open Banking UK** | RTS Article 4, SCA, CSC |
+| **FAPI 1.0 Advanced** | OAuth/OIDC, mTLS, PKCE, PAR, JARM |
+| **SWIFT CSP (CSCF)** | 32 mandatory + advisory controls |
+| **FATF Recommendations** | AML/CFT 40 recommendations |
+| **BCP Paraguay** | Resoluciones SIB + SEPRELAD |
+| **MITRE ATT&CK** | Technique coverage in imported skills |
+| **NIST CSF 2.0** | Mapping in imported skills |
+| **OWASP Top 10** | Web + API + Mobile |
+| **CIS Benchmarks** | Linux, Windows, Docker, Kubernetes |
+
+---
+
+## Architecture
+
+```
+src/kryon/
+├── skills/             # 67 dynamic playbooks (core + imported + banking)
+│   ├── loader.py       #   SkillLoader — matches by tech/port/keyword
+│   ├── unified_agent.py#   Single agent with composed prompt
+│   └── playbooks/      #   *.md files with YAML frontmatter
+├── learning/           # Self-improving loop
+│   ├── experiences.py  #   ChromaDB engagement store
+│   ├── profiler.py     #   Target profile extraction
+│   └── chain_extractor.py # Tool chain + outcome mining
+├── services/           # Context management
+│   ├── micro_compact.py   # Trim tool outputs (~85% reduction)
+│   ├── session_memory.py  # Magic Doc auto-report
+│   ├── auto_extract.py    # Save experience on exit
+│   └── tool_output_cap.py # Cap tool results (save to disk)
+├── tools/              # 204+ security tools in 35 categories
+├── knowledge/          # RAG: ChromaDB + Ollama embeddings + auto-updater
+├── server/             # FastAPI — 136 endpoints, multi-tenant, JWT/RBAC
+├── repl/               # Interactive CLI + Claude Code-style spinner
+├── sdk/                # Agent SDK (Agent, Runner, Handoff, Guardrail, MCP)
+├── compliance/         # 9 frameworks (PCI-DSS, PSD2, SWIFT, etc.)
+├── reporting/          # PDF/DOCX/HTML report generation
+└── memory/             # SQLite store (16 migrations)
+```
+
+---
+
+## Docker Stack
+
+```bash
+# Full Kali + Ollama + Kryon stack
+docker compose -f docker/docker-compose.kali.yml \
+               -f docker/docker-compose.override.yml up -d
+
+# REPL
+docker exec -it kryon kryon
+
+# Kali shell (nmap, metasploit, sqlmap, hydra, burp, etc.)
+docker exec -it kryon bash
+
+# VPN for restricted client engagements
+docker exec -u root -d kryon openvpn --config /workspace/client.ovpn
+```
+
+| Container | Purpose |
+|-----------|---------|
+| `kryon` | Kali Linux + Python + all security tools |
+| `kryon-ollama` | Local LLM inference (GPU passthrough) |
+| `nginx` (optional) | Reverse proxy with TLS |
+
+---
+
+## Testing
+
+```bash
+# Full test suite
+uv run pytest
+
+# Specific modules
+uv run pytest tests/agents/ -k "pentest"
+uv run pytest -m "unit and not slow"
+
+# Coverage (target: 95%)
+make coverage
+```
+
+Current: **1896 passed, 24 skipped, 0 failed**
+
+---
+
+## Contributing
+
+### Custom skills for your client
+
+Drop a `.md` in `src/kryon/skills/playbooks/` (or subdirectory):
+
+```yaml
+---
+name: custom-pentest
+description: "Client X specific playbook"
+triggers:
+  tech: ["specific-stack"]
+  keywords: ["client-x", "custom audit"]
+priority: 15
+required_tools: [run_command, nuclei_scan]
+---
+
+## Workflow
+1. ...
+```
+
+### Contribute back upstream
+
+If you write generic-value skills (not client-specific), consider contributing to [mukul975/Anthropic-Cybersecurity-Skills](https://github.com/mukul975/Anthropic-Cybersecurity-Skills) under Apache 2.0.
 
 ---
 
@@ -453,20 +442,22 @@ No Python code needed. Kryon loads it automatically on next session.
 
 > **KRYON is designed exclusively for authorized security testing, research, and education.**
 >
-> You must have explicit written authorization before testing any system you do not own. Unauthorized access to computer systems is illegal. The authors assume no liability for misuse. See [DISCLAIMER](DISCLAIMER) for the full legal notice.
+> For banking/financial clients, you must have **explicit written authorization** from the institution AND comply with local regulations (BCP Paraguay, SIB, Superintendencia de Bancos). Unauthorized access to financial systems is a serious crime. See [DISCLAIMER](DISCLAIMER).
 
 ---
 
 ## License
 
-Proprietary - All Rights Reserved. See [LICENSE](LICENSE) for details.
+Proprietary — All Rights Reserved. See [LICENSE](LICENSE).
+
+Upstream imported skills retain their original Apache 2.0 license (see each file).
 
 ---
 
 <div align="center">
 
-**KRYON** - Self-Improving Autonomous Cybersecurity Platform
+**KRYON** — Autonomous Cybersecurity Agent for Financial Services
 
-[GitHub](https://github.com/skyvanguard/Kryon) | [Issues](https://github.com/skyvanguard/Kryon/issues) | [Deployment Guide](DEPLOYMENT.md)
+[GitHub](https://github.com/skyvanguard/Kryon) · [Issues](https://github.com/skyvanguard/Kryon/issues) · [Releases](https://github.com/skyvanguard/Kryon/releases) · [Deployment Guide](DEPLOYMENT.md)
 
 </div>
