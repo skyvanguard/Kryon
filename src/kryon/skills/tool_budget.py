@@ -74,6 +74,8 @@ def build_tool_registry() -> dict[str, Any]:
         "kryon.tools.code.sandbox",
         # Supervisor tools — F3.1 (planner-hunter coordination)
         "kryon.skills.supervisor_tools",
+        # CVE corpus RAG — F4.2 (recall_similar_code_pattern)
+        "kryon.knowledge.cve_corpus",
     ]
     for mod_path in _extra_tools:
         try:

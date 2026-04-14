@@ -14,6 +14,7 @@ required_tools:
   - find_callers
   - run_sandboxed
   - recall_similar_experiences
+  - recall_similar_code_pattern
   - add_to_memory_semantic
 ---
 
@@ -51,14 +52,21 @@ For each top file:
    - Pick the function by scanning the file for: `memcpy`, `strcpy`, `sprintf`, `recv`,
      `parse_`, `decode_`, `deserialize_`, `scanf`, `printf` with user arg, SQL concat,
      `pickle.loads`, `yaml.load`, `eval`, `system`, `exec`.
-2. Form an **explicit hypothesis** (do not skip):
+2. Before forming the hypothesis yourself, **query the CVE corpus**:
+   `recall_similar_code_pattern(<function_body>)`. If a past CVE has a
+   very similar patched pattern (CWE match, high similarity), the root
+   cause likely applies here too — use that as your hypothesis seed.
+   This is the Mythos variant-analysis trick built in: past fixes
+   contain the pattern library for free.
+3. Form an **explicit hypothesis** (do not skip):
    ```
    H: In <file>:<function>, <CWE-XXX> is reachable because
       - input path: <how attacker data reaches this function>
       - trigger: <what shape of input causes the bad state>
       - impact: <RCE / info leak / DoS / auth bypass>
+      - similar past CVE: <id if any>  (from recall_similar_code_pattern)
    ```
-3. If the function is a wrapper / too generic, use `find_callers` to find real
+4. If the function is a wrapper / too generic, use `find_callers` to find real
    call-sites and pick one of those.
 
 If you cannot form a concrete trigger input, move on — don't guess.
