@@ -259,11 +259,24 @@ class DataRecorder:  # pylint: disable=too-few-public-methods
             "timestamp_iso": datetime.now().astimezone(pytz.timezone("Europe/Madrid")).isoformat(),
         }
 
-        # Append both request and completion to the instance's jsonl file
+        # Append both request and completion to the instance's jsonl file.
+        # Use a default encoder that handles SimpleNamespace / dataclass /
+        # arbitrary objects from Ollama-adapted model responses (Qwen3-Coder
+        # returns nested SimpleNamespace that the default encoder rejects).
+        def _json_default(o):
+            if hasattr(o, "model_dump"):
+                return o.model_dump()
+            if hasattr(o, "__dict__"):
+                return o.__dict__
+            try:
+                return dict(o)
+            except Exception:
+                return str(o)
+
         with open(self.filename, "a", encoding="utf-8") as f:
-            json.dump(request_data, f)
+            json.dump(request_data, f, default=_json_default)
             f.write("\n")
-            json.dump(completion_data, f)
+            json.dump(completion_data, f, default=_json_default)
             f.write("\n")
 
     def log_user_message(self, user_message):
