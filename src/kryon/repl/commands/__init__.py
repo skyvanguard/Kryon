@@ -10,6 +10,7 @@ from kryon.repl.commands import (  # pylint: disable=import-error,unused-import,
     agent,
     compact,  # Add the compact command
     config,
+    corpus,   # /corpus — inspect the CVE-with-diff corpus (F4.5)
     env,
     exit,
     experiences,  # Add the experiences command (self-improving loop)
