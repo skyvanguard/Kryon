@@ -22,7 +22,9 @@ from .git_tools import (
     git_diff_fix,
     git_log_security,
 )
+from .priority import code_priority_score
 from .reader import find_callers, read_function
+from .sandbox import run_sandboxed
 
 __all__ = [
     "git_clone_and_index",
@@ -30,4 +32,6 @@ __all__ = [
     "git_log_security",
     "find_callers",
     "read_function",
+    "code_priority_score",
+    "run_sandboxed",
 ]

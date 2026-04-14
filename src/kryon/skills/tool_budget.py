@@ -70,6 +70,8 @@ def build_tool_registry() -> dict[str, Any]:
         # Source-code tools — F1 of ZERO_DAY_ROADMAP
         "kryon.tools.code.git_tools",
         "kryon.tools.code.reader",
+        "kryon.tools.code.priority",
+        "kryon.tools.code.sandbox",
     ]
     for mod_path in _extra_tools:
         try:
