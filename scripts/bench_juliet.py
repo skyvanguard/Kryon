@@ -155,15 +155,20 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
     # plumbing bug where rule authors tagged a finding with multiple
     # legitimate CWEs (e.g. malloc-arith is CWE-190 primary but also
     # counts as CWE-122 / CWE-787) but only the primary reached the
-    # match check.
+    # match check. Env toggle lets F8.2 bootstrap compare pre vs post
+    # without reverting code.
+    ignore_aliases = os.environ.get("KRYON_BENCH_IGNORE_ALIASES", "").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
     finding_cwes: list[str] = []
     for f in findings:
         primary = f.get("cwe", "")
         if primary:
             finding_cwes.append(primary)
-        for alias in f.get("cwe_aliases") or []:
-            if alias and alias not in finding_cwes:
-                finding_cwes.append(alias)
+        if not ignore_aliases:
+            for alias in f.get("cwe_aliases") or []:
+                if alias and alias not in finding_cwes:
+                    finding_cwes.append(alias)
     cwe_label = f"CWE-{cwe}" if cwe else ""
     try:
         from kryon.skills.patterns import cwes_match
@@ -265,6 +270,13 @@ async def run_recall_for_cwe(
             },
             "hunters_failed_files": hunters_failed_files,
             "hunters_failed_rate": round(hunters_failed_files / len(files), 3),
+            # F8.2 — per-file {1,0} labels for bootstrap CI post-processing.
+            # One int per file: cwe_matched (0/1). Needed so the CI estimator
+            # doesn't need to re-run the bench.
+            "per_file_cwe_matched": [1 if x["cwe_matched"] else 0
+                                     for x in per_file],
+            "per_file_any_finding": [1 if x["n_findings"] > 0 else 0
+                                     for x in per_file],
         }
         print(
             f"  {runner:<12} recall@any={per_runner[runner]['recall_any']:.0%}  "

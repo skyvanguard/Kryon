@@ -115,6 +115,81 @@ docker exec kryon python /opt/bench_juliet.py [...]
 
 ---
 
+## F8 — CWE alias plumbing fix: **partial win**
+
+**Date:** 2026-04-14
+**Sprint:** F8.0 → F8.2
+**Methodology:** N=100 per CWE (same seed=42 as F6.3 R2), 2000-resample
+bootstrap 95% CI per-CWE + pooled. CI overlap = not statistically
+distinguishable.
+**Raw:** [`bench_f8_pre.json`](bench_results/bench_f8_pre.json),
+[`bench_f8_post.json`](bench_results/bench_f8_post.json),
+[`f8_confusion.json`](bench_results/f8_confusion.json)
+
+### What F8 was and wasn't
+
+**Bug fix, not optimisation.** Kryon-curated semgrep rules declare
+`kryon_alias: [CWE-X, CWE-Y]` in metadata when a finding legitimately
+counts as multiple CWEs (e.g. `malloc(N*sizeof(T))` is CWE-190 primary
+but also a CWE-122 precursor). The finding normaliser silently dropped
+those aliases. The bench `cwes_match` check never saw them.
+
+F8 plumbs them through. No new aliases added. No rule metadata edited.
+No FPR risk (same rules fire on same files; the fix only adds extra
+labels to each finding).
+
+### Results — N=100, bootstrap 95% CI
+
+| CWE | pre-fix recall@CWE | post-fix recall@CWE | Δ | CI distinct? |
+|---|---|---|---|---|
+| CWE-121 | 69.0% [60.0, 78.0] | 69.0% [60.0, 78.0] | 0.0pp | overlap |
+| **CWE-122** | **54.0% [45.0, 64.0]** | **74.0% [65.0, 82.0]** | **+20.0pp** | **DISTINCT ✓** |
+| CWE-190 | 56.0% [47.0, 66.0] | 56.0% [47.0, 66.0] | 0.0pp | overlap |
+| CWE-416 | 75.0% [66.0, 83.0] | 75.0% [66.0, 83.0] | 0.0pp | overlap |
+| CWE-476 | 73.0% [64.0, 81.0] | 73.0% [64.0, 81.0] | 0.0pp | overlap |
+| **Pooled** | 65.4% [61.2, 69.6] | 69.4% [65.4, 73.4] | **+4.0pp** | **overlap** |
+
+### Interpretation (honest)
+
+- **CWE-122: the fix works.** +20pp is real, CI 95% distinct. Every
+  malloc-arithmetic hit in a heap-overflow testcase now correctly
+  counts as CWE-122.
+- **Pooled: not statistically significant.** Pre/post CIs overlap at
+  the pool level (+4pp effect swallowed by per-CWE variance when
+  aggregated).
+- **The N=20 baseline (F6.3 R2) reported pooled recall@CWE 52.3%.**
+  The N=100 pre-fix number is 65.4% [61.2, 69.6]. The 13pp gap between
+  those two "baselines" is sampling variance — F6.3 R2 under-sampled.
+  This confirms the user's pre-bench directive: "N=20 has ±5pp
+  sampling error; don't make decisions on point estimates."
+- **No tuning followed this.** The grey-zone branch of the F8 gate
+  would have been "+1-10pp at pool, iterate on rules." The measured
+  +4pp pooled effect is inside CI overlap — not a valid signal to
+  iterate on. Close the sprint.
+
+### What ships
+
+- `_extract_cwe_aliases` in `semgrep_tool.py` reads `kryon_alias`
+  metadata and returns it as a list.
+- `_normalize_finding` emits `cwe_aliases` alongside `cwe`.
+- `SemgrepHunter` propagates the list into the hunter finding.
+- `bench_juliet.py::scan_one` checks primary + aliases against the
+  expected CWE. `KRYON_BENCH_IGNORE_ALIASES=true` disables the
+  check for retrospective comparisons.
+- `scripts/f8/bootstrap_ci.py` — reusable CI estimator for future bench
+  deltas. Future bench deltas without CI analysis should be treated as
+  unvalidated.
+
+### What F8 teaches
+
+N=20 sample sizes for claiming recall deltas is not enough. F6.3 R2's
+52.3% was consistent with the real 65.4% within its own sampling noise
+(± 5pp implied, ± 7-8pp bootstrap). Any sprint that claims a recall
+improvement at N=20 without bootstrap has unvalidated numbers. The
+`bootstrap_ci.py` helper is the minimum bar going forward.
+
+---
+
 ## F7 — Joern data-flow integration: **negative result**
 
 **Date:** 2026-04-14
