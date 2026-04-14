@@ -407,8 +407,10 @@ class LLMHunter:
 
         # If we timed out (or the agent produced no structured output),
         # synthesize a NO FINDING record from whatever progress is visible in
-        # the agent's message history. Better than an empty return — the
-        # planner gets a row, the operator sees what the hunter saw.
+        # the agent's message history AND run the heuristic hunter on the
+        # same file as a fallback. Zero-waste principle: an expensive LLM
+        # turn that didn't converge still leaves us with pattern-based
+        # findings via the deterministic path.
         if not parsed:
             progress = self._harvest_progress(agent)
             reason = (
@@ -417,6 +419,23 @@ class LLMHunter:
                 else "hunter finished without emitting structured output"
             )
             parsed = [self._timeout_record(job, reason, progress, repo_path=repo_path)]
+
+            # Heuristic fallback — disabled via KRYON_LLM_FALLBACK_HEURISTIC=false
+            if os.environ.get("KRYON_LLM_FALLBACK_HEURISTIC", "true").lower() == "true":
+                try:
+                    heuristic = HeuristicHunter()
+                    fb = await heuristic(job)
+                    for f in fb:
+                        f["_fallback_from_llm"] = True
+                        f["_llm_reason"] = reason
+                    if fb:
+                        logger.info(
+                            "LLMHunter fallback produced %d heuristic findings for %s",
+                            len(fb), job.file_path,
+                        )
+                    parsed.extend(fb)
+                except Exception as e:
+                    logger.warning("heuristic fallback failed: %s", e)
         return parsed
 
     # ------------------------------------------------------------------
