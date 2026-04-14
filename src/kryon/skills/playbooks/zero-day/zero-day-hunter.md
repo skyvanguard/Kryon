@@ -27,6 +27,25 @@ are your **ground-truth oracle**. Hallucinated bugs are unacceptable.
 
 ## Hard rules
 
+- **YOUR FINAL ASSISTANT MESSAGE MUST CONTAIN A `FINDING` OR `NO FINDING` BLOCK.**
+  No exceptions. If you're about to send a prose conclusion without one
+  of those structured blocks, you are doing it wrong — re-format your
+  conclusion as one of:
+
+      FINDING
+        Severity: ...
+        CWE: ...
+        ... (full template)
+
+  or:
+
+      NO FINDING
+        File: ...
+        Reason: ...
+        Attempted hypotheses: <count>
+
+  The planner parses these blocks. Prose without them is invisible.
+
 - **NEVER report a bug without a `run_sandboxed` crash trace confirming it.**
 - **NEVER fabricate function names, file paths, or line numbers** — always back them
   with a `read_function` or `find_callers` result in the same session.
@@ -98,13 +117,18 @@ If you cannot form a concrete trigger input, move on — don't guess.
 
 ## Phase 3 — Verify (the oracle decides)
 
-**USE `run_sandboxed`, NOT `run_command`.** `run_sandboxed` compiles with
-`-fsanitize=address,undefined` and returns a parsed structured result:
-`{compiled, crashed, crash_type, address, summary, stack_top}`.
-`run_command` will NOT give you ASAN output and will NOT answer "is this
-a real bug?" — it is useless as a verification oracle. If you catch
-yourself writing `gcc ... && ./prog` via run_command, STOP and use
-`run_sandboxed` instead.
+**USE `run_sandboxed` ONLY.** Do NOT use `run_command`, `execute_code`,
+`bash`, or any other tool to compile/run code. They do NOT have ASAN
+instrumentation and they do NOT give you the structured oracle output
+you need.
+
+`run_sandboxed` compiles with `-fsanitize=address,undefined` and returns:
+`{compiled, crashed, crash_type, address, summary, stack_top}`. That
+dict is the answer to "is this a real bug?". Nothing else is.
+
+If you catch yourself writing `gcc ... && ./prog` via run_command, OR
+running shell scripts via execute_code, STOP. Reformat the same logic
+as a `run_sandboxed(source_code=..., language="c")` call.
 
 1. Write a minimal C/C++ harness that reaches the hypothesized bug. Reuse the
    function body verbatim when possible; stub dependencies with obvious
