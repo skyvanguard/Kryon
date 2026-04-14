@@ -98,10 +98,19 @@ If you cannot form a concrete trigger input, move on — don't guess.
 
 ## Phase 3 — Verify (the oracle decides)
 
+**USE `run_sandboxed`, NOT `run_command`.** `run_sandboxed` compiles with
+`-fsanitize=address,undefined` and returns a parsed structured result:
+`{compiled, crashed, crash_type, address, summary, stack_top}`.
+`run_command` will NOT give you ASAN output and will NOT answer "is this
+a real bug?" — it is useless as a verification oracle. If you catch
+yourself writing `gcc ... && ./prog` via run_command, STOP and use
+`run_sandboxed` instead.
+
 1. Write a minimal C/C++ harness that reaches the hypothesized bug. Reuse the
    function body verbatim when possible; stub dependencies with obvious
    placeholders; pipe the trigger input via stdin or hardcode it.
-2. `run_sandboxed(source_code, language="c", stdin_bytes=<trigger>)`.
+2. Call **`run_sandboxed(source_code, language="c", stdin_bytes=<trigger>)`**.
+   Not gcc via run_command. Not bash. This tool is the oracle.
 3. Inspect the result:
    - `crashed=true` AND `crash_type` relevant (heap-buffer-overflow, stack-buffer-overflow,
      use-after-free, heap-use-after-free, double-free, undefined-behavior) →
