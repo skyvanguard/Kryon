@@ -25,6 +25,7 @@ from .git_tools import (
 from .priority import code_priority_score
 from .reader import find_callers, list_functions, read_function
 from .sandbox import run_sandboxed
+from .semgrep_tool import semgrep_scan
 
 __all__ = [
     "git_clone_and_index",
@@ -35,4 +36,5 @@ __all__ = [
     "read_function",
     "code_priority_score",
     "run_sandboxed",
+    "semgrep_scan",
 ]

@@ -33,7 +33,9 @@ from kryon.sdk.agents import function_tool
 logger = logging.getLogger(__name__)
 
 _MAX_PARALLEL = int(os.environ.get("KRYON_HUNTER_PARALLELISM", "2"))
-_HUNTER_TIMEOUT_S = int(os.environ.get("KRYON_HUNTER_TIMEOUT_S", "900"))  # 15 min
+# F5.1.a — lift artificial constraints. Mythos/ARTEMIS agents run for
+# hours with hundreds of turns; 15 min was my own overcorrection.
+_HUNTER_TIMEOUT_S = int(os.environ.get("KRYON_HUNTER_TIMEOUT_S", "1800"))  # 30 min
 
 # Supervisor-visible caps so prompts stay small
 _MAX_NOTES = 20

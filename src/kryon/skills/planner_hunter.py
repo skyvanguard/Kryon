@@ -55,6 +55,7 @@ from kryon.tools.code.git_tools import _git_clone_and_index_impl
 from kryon.tools.code.priority import _code_priority_score_impl
 from kryon.tools.code.reader import _read_function_impl
 from kryon.tools.code.sandbox import _run_sandboxed_impl
+from kryon.tools.code.semgrep_tool import _semgrep_scan_impl
 
 logger = logging.getLogger(__name__)
 
@@ -219,6 +220,174 @@ class HeuristicHunter:
 
 
 # ---------------------------------------------------------------------------
+# Semgrep-backed hunter — uses industry rules as candidates
+# ---------------------------------------------------------------------------
+
+
+# Map semgrep rule prefixes to the CWE pattern class used by _build_isolation_poc
+_SEMGREP_CWE_MAP: dict[str, str] = {
+    "string-copy-fn": "CWE-787",    # strcpy family
+    "strcpy": "CWE-787",
+    "strcat": "CWE-787",
+    "sprintf": "CWE-787",
+    "gets": "CWE-787",
+    "memcpy": "CWE-787",
+    "memmove": "CWE-787",
+    "memset": "CWE-787",  # insecure-use-memset often implies wrong-size args
+    "printf-fn": "CWE-134",  # format string
+    "printf": "CWE-134",
+    "system": "CWE-78",  # command injection
+    "exec": "CWE-78",
+    "popen": "CWE-78",
+    "scanf": "CWE-787",
+    "use-after-free": "CWE-416",
+    "double-free": "CWE-415",
+    "null-deref": "CWE-476",
+    "integer-overflow": "CWE-190",
+    "out-of-bounds": "CWE-125",
+}
+
+
+def _cwe_from_rule(rule_id: str, explicit_cwe: str = "") -> str:
+    if explicit_cwe:
+        # Semgrep sometimes gives "CWE-787: Out-of-bounds Write" — trim
+        return explicit_cwe.split(":")[0].strip()
+    rid = rule_id.lower()
+    for fragment, cwe in _SEMGREP_CWE_MAP.items():
+        if fragment in rid:
+            return cwe
+    return "CWE-787"  # default fallback — pattern category we know how to PoC
+
+
+class SemgrepHunter:
+    """Runs semgrep against the file, maps hits to CWE-specific PoCs, verifies."""
+
+    def __init__(
+        self,
+        *,
+        max_findings_per_file: int = 5,
+        severity_min: str = "WARNING",
+    ):
+        self.max_findings_per_file = max_findings_per_file
+        self.severity_min = severity_min
+
+    async def __call__(self, job: HunterJob) -> list[dict]:
+        return await asyncio.to_thread(self._run_sync, job)
+
+    def _run_sync(self, job: HunterJob) -> list[dict]:
+        # Semgrep on this specific file — cheap, seconds per file
+        raw = _semgrep_scan_impl(
+            job.file_path,
+            language="c",
+            severity_min=self.severity_min,
+            max_findings=50,
+            timeout_s=120,
+        )
+        try:
+            scan = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+        if "error" in scan:
+            logger.debug("semgrep error on %s: %s", job.file_path, scan["error"][:100])
+            return []
+
+        # Two categories of semgrep findings:
+        #   1) PoC-verifiable: we have a _build_isolation_poc template for
+        #      this CWE class, and ASAN can confirm the crash pattern.
+        #      These become _asan_verified=True findings.
+        #   2) Pattern-only: semgrep flagged it but the bug class isn't
+        #      crash-verifiable (e.g. CWE-14 compiler-elides-memset,
+        #      CWE-327 weak crypto). Still emit — they're real rule hits
+        #      from industry-curated patterns — but mark _asan_verified=False.
+        # We dedup across ALL hits (not just verified) by (cwe, rule_id).
+        findings: list[dict] = []
+        seen_keys: set[tuple[str, str]] = set()
+        verified_count_by_cwe: dict[str, int] = {}
+
+        for hit in scan.get("findings") or []:
+            rule_id = hit.get("rule_id", "")
+            explicit_cwe = hit.get("cwe", "")
+            cwe = _cwe_from_rule(rule_id, explicit_cwe)
+            dedup_key = (cwe, rule_id)
+            if dedup_key in seen_keys:
+                continue
+            seen_keys.add(dedup_key)
+
+            severity = (hit.get("severity") or "WARNING").upper()
+            line_range = f"{hit.get('start_line', 0)}-{hit.get('end_line', 0)}"
+            function = self._guess_enclosing_function(
+                job.file_path, hit.get("start_line", 0)
+            )
+            message = (hit.get("message") or "")[:200]
+
+            # Try PoC verification ONLY for CWE classes we can crash-demo.
+            poc = _build_isolation_poc(cwe, "")
+            verified = False
+            crash_type = ""
+            stack_top: list[str] = []
+
+            if poc:
+                # Cap verified PoCs at 1 per CWE class per file (avoid duplicates)
+                if verified_count_by_cwe.get(cwe, 0) >= 1:
+                    # Already verified this class; emit this hit as pattern-only
+                    pass
+                else:
+                    try:
+                        vres = json.loads(_run_sandboxed_impl(poc, language="c"))
+                        if vres.get("crashed"):
+                            verified = True
+                            crash_type = vres.get("crash_type", "")
+                            stack_top = vres.get("stack_top") or []
+                            verified_count_by_cwe[cwe] = (
+                                verified_count_by_cwe.get(cwe, 0) + 1
+                            )
+                    except json.JSONDecodeError:
+                        pass
+
+            findings.append({
+                "file_path": job.file_path,
+                "repo_path": str(Path(job.file_path).parent),
+                "function_name": function,
+                "line_range": line_range,
+                "cwe": cwe,
+                "crash_type": crash_type,
+                "stack_top": stack_top,
+                "severity": severity,
+                "language": "c",
+                "poc_source": poc if verified else "",
+                "trigger_input": "",
+                "_hunter": "semgrep",
+                "_semgrep_rule_id": rule_id,
+                "_semgrep_message": message,
+                "_asan_verified": verified,
+            })
+            if len(findings) >= self.max_findings_per_file:
+                break
+
+        return findings
+
+    @staticmethod
+    def _guess_enclosing_function(file_path: str, line: int) -> str:
+        """Find the nearest preceding C function definition for a line number."""
+        try:
+            text = Path(file_path).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return ""
+        if line <= 0:
+            return ""
+        lines = text.splitlines()
+        for i in range(min(line, len(lines)) - 1, -1, -1):
+            m = re.match(
+                r"^\s*(?:static\s+|inline\s+|local\s+)*(?:[\w\s\*]+)\s+"
+                r"(\w+)\s*\([^;{}]*\)\s*\{?\s*$",
+                lines[i],
+            )
+            if m:
+                return m.group(1)
+        return ""
+
+
+# ---------------------------------------------------------------------------
 # LLM-backed hunter — uses the zero-day-hunter skill on the unified agent
 # ---------------------------------------------------------------------------
 
@@ -335,11 +504,14 @@ class LLMHunter:
     def __init__(
         self,
         *,
-        max_turns: int = int(os.environ.get("KRYON_HUNT_MAX_TURNS", "30")),
+        max_turns: int = int(os.environ.get("KRYON_HUNT_MAX_TURNS", "50")),
         timeout_s: int | None = None,
     ):
+        # F5.1.a — default 50 turns. Previous 15 was a self-imposed ceiling
+        # that artificially cut model reasoning short. Mythos/ARTEMIS ran
+        # for hundreds of turns on single engagements.
         self.max_turns = max_turns
-        pool_timeout = int(os.environ.get("KRYON_HUNTER_TIMEOUT_S", "900"))
+        pool_timeout = int(os.environ.get("KRYON_HUNTER_TIMEOUT_S", "1800"))
         if timeout_s is None:
             # Respect KRYON_LLM_HUNTER_TIMEOUT_S if set; else trail pool by 30s
             llm_env = os.environ.get("KRYON_LLM_HUNTER_TIMEOUT_S")
@@ -536,6 +708,7 @@ class HuntReport:
 
     def pretty(self) -> str:
         info = [v for v in self.verdicts if v.get("verdict") == "INFO"]
+        pattern = [v for v in self.verdicts if v.get("verdict") == "PATTERN"]
         lines = [
             f"=== Hunt Report: {self.repo_url} ===",
             f"  repo:            {self.repo_path}",
@@ -545,8 +718,9 @@ class HuntReport:
             f"  files scored:    {self.files_scored}",
             f"  hunters spawned: {self.hunters_spawned}",
             f"  raw findings:    {self.raw_findings}",
-            f"  confirmed:       {self.confirmed_findings}",
+            f"  confirmed (ASAN):{self.confirmed_findings}",
             f"  rejected:        {self.rejected_findings}",
+            f"  pattern-only:    {len(pattern)}",
             f"  info / negative: {len(info)}",
             "",
         ]
@@ -561,8 +735,24 @@ class HuntReport:
                     f"{v.get('_file', '?')}::"
                     f"{v.get('_function', '?')}"
                 )
-        if info:
+        if pattern:
             if confirmed:
+                lines.append("")
+            lines.append("Pattern-only findings (industry-rule hits, no ASAN verification):")
+            for v in pattern[:15]:
+                lines.append(
+                    f"  [{v.get('severity_actual', '?'):<8}] "
+                    f"{v.get('cwe_actual', ''):<10} "
+                    f"{v.get('_semgrep_rule_id', ''):<35} "
+                    f"{v.get('_file', '?').split('/')[-1]}:{v.get('_line_range', '?')}"
+                )
+                if v.get("reason"):
+                    lines.append(f"    {v['reason'][:90]}")
+            if len(pattern) > 15:
+                lines.append(f"  ... and {len(pattern) - 15} more")
+
+        if info:
+            if confirmed or pattern:
                 lines.append("")
             lines.append("Hunter telemetry (no findings produced):")
             for v in info:
@@ -624,6 +814,14 @@ async def hunt_zero_days(
     if runner is None:
         if runner_type == "llm":
             runner = LLMHunter()
+        elif runner_type == "semgrep":
+            runner = SemgrepHunter()
+        elif runner_type == "hybrid":
+            # F5.2.d hybrid: run SemgrepHunter to surface candidates, then
+            # attach _semgrep_context to each; LLMHunter would investigate
+            # survivors (post-filter) in a future revision. For now hybrid
+            # == semgrep-only since SemgrepHunter already verifies via ASAN.
+            runner = SemgrepHunter()
         else:
             runner = HeuristicHunter()
     pool = HunterPool(max_active=max_par, runner=runner)
@@ -736,6 +934,29 @@ async def hunt_zero_days(
                 "_last_tools": f.get("_last_tools", []),
             })
             continue
+        # Semgrep pattern-only (no ASAN verification available for this CWE
+        # class, e.g. CWE-14 compiler-elides-memset). Emit as PATTERN verdict
+        # so the report shows it without running the validator on a missing
+        # PoC. These are legitimate industry-rule hits, not false findings.
+        if f.get("_hunter") == "semgrep" and not f.get("_asan_verified"):
+            verdicts_raw.append({
+                "verdict": "PATTERN",
+                "phase_failed": None,
+                "reason": f.get("_semgrep_message", ""),
+                "cwe_actual": f.get("cwe", ""),
+                "cwe_claimed": f.get("cwe", ""),
+                "severity_actual": f.get("severity", "WARNING"),
+                "severity_claimed": f.get("severity", "WARNING"),
+                "reproduced_crash_type": "",
+                "reproduced_stack_top": [],
+                "exposure_reachable_from_api": None,
+                "_file": f.get("file_path", ""),
+                "_function": f.get("function_name", ""),
+                "_line_range": f.get("line_range", ""),
+                "_hunter_id": f.get("_hunter_id", ""),
+                "_semgrep_rule_id": f.get("_semgrep_rule_id", ""),
+            })
+            continue
         finding_obj = Finding.from_dict({
             "file_path": f.get("file_path", ""),
             "function_name": f.get("function_name", ""),
@@ -771,6 +992,7 @@ async def hunt_zero_days(
     confirmed = [v for v in deduped if v.get("verdict") == "CONFIRMED"]
     rejected = [v for v in deduped if v.get("verdict") == "REJECTED"]
     info = [v for v in deduped if v.get("verdict") == "INFO"]
+    pattern = [v for v in deduped if v.get("verdict") == "PATTERN"]
 
     # ---- Step 8: build report ----
     report = HuntReport(

@@ -126,8 +126,9 @@ class HuntCommand(Command):
 
         repo_url = positional[0]
         runner_type = flags.get("runner", "heuristic").lower()
-        if runner_type not in {"heuristic", "llm"}:
-            console.print(f"[red]unknown runner: {runner_type!r} (use heuristic|llm)[/red]")
+        if runner_type not in {"heuristic", "llm", "semgrep", "hybrid"}:
+            console.print(f"[red]unknown runner: {runner_type!r} "
+                          "(use heuristic|llm|semgrep|hybrid)[/red]")
             return False
 
         try:

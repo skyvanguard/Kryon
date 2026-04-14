@@ -76,6 +76,8 @@ def build_tool_registry() -> dict[str, Any]:
         "kryon.skills.supervisor_tools",
         # CVE corpus RAG — F4.2 (recall_similar_code_pattern)
         "kryon.knowledge.cve_corpus",
+        # Semgrep — F5.2.b (industry-standard pattern scanner)
+        "kryon.tools.code.semgrep_tool",
     ]
     for mod_path in _extra_tools:
         try:
