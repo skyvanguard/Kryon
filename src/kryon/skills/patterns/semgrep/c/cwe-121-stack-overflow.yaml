@@ -1,0 +1,59 @@
+rules:
+  - id: kryon.cwe-121.stack-buffer-overflow-strcpy
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      Stack-based buffer overflow risk: strcpy into fixed-size stack buffer
+      with non-literal source. CWE-121.
+    metadata:
+      cwe: "CWE-121: Stack-based Buffer Overflow"
+      cwe-id: 121
+      category: security
+      confidence: HIGH
+      kryon_alias: [CWE-787]
+    patterns:
+      - pattern-either:
+          - pattern: |
+              char $BUF[$N];
+              ...
+              strcpy($BUF, $SRC);
+          - pattern: |
+              char $BUF[$N];
+              ...
+              wcscpy($BUF, $SRC);
+          - pattern: |
+              char $BUF[$N];
+              ...
+              gets($BUF);
+          - pattern: |
+              wchar_t $BUF[$N];
+              ...
+              wcscpy($BUF, $SRC);
+
+  - id: kryon.cwe-121.unsafe-strcat
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      strcat into fixed-size stack buffer without bounds check. CWE-121.
+    metadata:
+      cwe: "CWE-121"
+      cwe-id: 121
+      kryon_alias: [CWE-787]
+      confidence: HIGH
+    patterns:
+      - pattern: |
+          char $BUF[$N];
+          ...
+          strcat($BUF, $SRC);
+
+  - id: kryon.cwe-121.alloca-with-attacker-size
+    languages: [c, cpp]
+    severity: WARNING
+    message: |
+      alloca() with non-constant size — stack exhaustion / overflow risk. CWE-121.
+    metadata:
+      cwe: "CWE-121"
+      cwe-id: 121
+      kryon_alias: [CWE-787]
+      confidence: MEDIUM
+    pattern: alloca($N)

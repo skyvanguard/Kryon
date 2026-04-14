@@ -1,0 +1,56 @@
+rules:
+  - id: kryon.cwe-122.heap-overflow-malloc-memcpy
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      Heap allocation followed by memcpy with separate size variable.
+      Risk if memcpy size > malloc size. CWE-122.
+    metadata:
+      cwe: "CWE-122: Heap-based Buffer Overflow"
+      cwe-id: 122
+      kryon_alias: [CWE-787]
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $P = malloc($SIZE);
+              ...
+              memcpy($P, $SRC, $LEN);
+          - pattern: |
+              $P = (char *)malloc($SIZE);
+              ...
+              memcpy($P, $SRC, $LEN);
+          - pattern: |
+              $P = malloc($SIZE);
+              ...
+              strcpy($P, $SRC);
+
+  - id: kryon.cwe-122.calloc-overflow
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      calloc() with multiplied size argument — risk of integer overflow
+      followed by heap overflow. CWE-122 / CWE-190.
+    metadata:
+      cwe: "CWE-122"
+      cwe-id: 122
+      kryon_alias: [CWE-787, CWE-190]
+      confidence: HIGH
+    pattern: calloc($A * $B, ...)
+
+  - id: kryon.cwe-122.realloc-no-check
+    languages: [c, cpp]
+    severity: WARNING
+    message: |
+      realloc() result used without NULL check — heap corruption risk on
+      OOM, plus overflow if old buffer leaks. CWE-122.
+    metadata:
+      cwe: "CWE-122"
+      cwe-id: 122
+      kryon_alias: [CWE-787, CWE-476]
+      confidence: MEDIUM
+    patterns:
+      - pattern: |
+          $P = realloc($P, $SIZE);
+          ...
+          memcpy($P, ..., ...);

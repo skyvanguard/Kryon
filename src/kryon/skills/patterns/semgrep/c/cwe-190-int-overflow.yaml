@@ -1,0 +1,78 @@
+rules:
+  - id: kryon.cwe-190.typed-arithmetic-overflow
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      Typed integer assignment with arithmetic operation. Risk of overflow
+      if operands are unbounded. CWE-190.
+    metadata:
+      cwe: "CWE-190: Integer Overflow or Wraparound"
+      cwe-id: 190
+      kryon_alias: [CWE-191, CWE-194, CWE-195, CWE-196, CWE-197]
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: char $X = $A * $B;
+          - pattern: short $X = $A * $B;
+          - pattern: int $X = $A * $B;
+          - pattern: char $X = $A + $B;
+          - pattern: short $X = $A + $B;
+          - pattern: int $X = $A + $B;
+          - pattern: long $X = $A * $B;
+          - pattern: signed $X = $A * $B;
+
+  - id: kryon.cwe-190.compound-overflow
+    languages: [c, cpp]
+    severity: WARNING
+    message: |
+      Compound arithmetic assignment on typed variable. Overflow risk. CWE-190.
+    metadata:
+      cwe: "CWE-190"
+      cwe-id: 190
+      confidence: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: $X *= $Y;
+          - pattern: $X += $Y;
+
+  - id: kryon.cwe-190.malloc-arithmetic
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      malloc()/calloc() with arithmetic argument — overflow leads to
+      undersized allocation -> heap overflow. CWE-190 -> CWE-122.
+    metadata:
+      cwe: "CWE-190"
+      cwe-id: 190
+      kryon_alias: [CWE-122, CWE-787]
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: malloc($A * $B)
+          - pattern: malloc($A + $B)
+          - pattern: calloc($A * $B, ...)
+          - pattern: realloc(..., $A * $B)
+
+  - id: kryon.cwe-190.size-from-attacker
+    languages: [c, cpp]
+    severity: WARNING
+    message: |
+      Size variable derived from attacker source (rand/argv/recv) used in alloc. CWE-190.
+    metadata:
+      cwe: "CWE-190"
+      cwe-id: 190
+      confidence: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $X = rand();
+              ...
+              malloc($X);
+          - pattern: |
+              $X = atoi(...);
+              ...
+              malloc($X);
+          - pattern: |
+              $X = RAND32();
+              ...
+              malloc($X);

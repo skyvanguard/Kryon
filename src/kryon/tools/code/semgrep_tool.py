@@ -30,6 +30,9 @@ _DEFAULT_RULES_ROOT = Path(os.environ.get(
     "KRYON_SEMGREP_RULES_DIR",
     "/workspace/.semgrep_rules/semgrep-rules",
 ))
+# Kryon-curated rules (F6.1) tuned to Juliet BadSink templates.
+# Loaded ALONGSIDE the upstream community ruleset, not instead of.
+_KRYON_RULES_ROOT = Path(__file__).parent.parent.parent / "skills" / "patterns" / "semgrep"
 _DEFAULT_SEMGREP_BIN = os.environ.get(
     "KRYON_SEMGREP_BIN",
     "/opt/venv/bin/semgrep",
@@ -84,6 +87,11 @@ def _rule_configs_for_lang(lang: str) -> list[str]:
         p = _DEFAULT_RULES_ROOT / d
         if p.is_dir():
             configs.append(str(p))
+    # Kryon custom rules (F6.1) — load FIRST so high-confidence rules
+    # take precedence in any de-dup logic semgrep applies.
+    kryon_dir = _KRYON_RULES_ROOT / lang
+    if kryon_dir.is_dir():
+        configs.insert(0, str(kryon_dir))
     return configs
 
 

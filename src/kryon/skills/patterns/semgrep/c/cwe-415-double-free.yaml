@@ -1,0 +1,38 @@
+rules:
+  - id: kryon.cwe-415.double-free-direct
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      Same pointer freed twice without intervening NULL assignment.
+      Heap corruption -> arbitrary write primitive on classic allocators. CWE-415.
+    metadata:
+      cwe: "CWE-415: Double Free"
+      cwe-id: 415
+      kryon_alias: [CWE-416]
+      confidence: HIGH
+    patterns:
+      - pattern: |
+          free($P);
+          ...
+          free($P);
+      - pattern-not: |
+          free($P);
+          ...
+          $P = NULL;
+          ...
+          free($P);
+
+  - id: kryon.cwe-415.double-free-struct-member
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      free() on same struct member twice — double free. CWE-415.
+    metadata:
+      cwe: "CWE-415"
+      cwe-id: 415
+      kryon_alias: [CWE-416]
+      confidence: MEDIUM
+    pattern: |
+      free($P->$M);
+      ...
+      free($P->$M);
