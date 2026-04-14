@@ -79,9 +79,40 @@ If you cannot form a concrete trigger input, move on — don't guess.
    - `compiled=false` → fix the harness (missing includes, wrong stubs) and retry.
      Max 3 retries per hypothesis; then move on.
 
+## Phase 3.5 — Deepen (ARTEMIS finding, F3.6)
+
+Top human pentesters outperform AI agents mainly because they **pivot and
+deepen before submitting**. Before emitting a finding, you MUST attempt at
+least one escalation step. The outcome modifies severity.
+
+By crash type:
+
+- **heap-buffer-overflow (read)** → try to leak adjacent memory. Is the OOB
+  reading into another allocation's metadata, secrets, or function pointers?
+  If yes → severity bumps from MEDIUM to HIGH (info-leak-grade).
+- **heap-buffer-overflow (write) / stack-buffer-overflow** → check if the
+  overwrite reaches a return address, function pointer, vtable, or size
+  field used later. If yes → severity HIGH → CRITICAL (control-flow hijack).
+- **use-after-free / double-free** → check if the freed object's type has
+  function pointers or is re-allocated with attacker-shaped data. If yes →
+  severity HIGH → CRITICAL.
+- **undefined-behavior (integer overflow)** → trace the overflowed value.
+  Does it feed into a `malloc()` size, array index, or copy length later?
+  If yes → bump to HIGH (the UB *itself* isn't the bug; the OOB it enables is).
+- **null-deref / unreachable** → attempt repro without controlling input
+  (is this a DoS or something controllable?). If uncontrollable → severity
+  stays LOW (DoS-only).
+
+If the deepening attempt fails (escalation doesn't pan out), report with
+the baseline severity AND include in the report:
+`Deepening attempted: <what you tried>; <why it doesn't escalate>`.
+
+**Do NOT skip this phase to save time.** One confirmed MEDIUM with an
+explicit deepening note is more valuable than three unverified HIGH claims.
+
 ## Phase 4 — Triage & Report
 
-Only reachable after Phase 3 returned `crashed=true`.
+Only reachable after Phase 3 returned `crashed=true` AND Phase 3.5 was attempted.
 
 1. Minimize the trigger input (halve repeatedly; keep the shortest still-crashing
    input). Use `run_sandboxed` each iteration.
@@ -91,14 +122,16 @@ Only reachable after Phase 3 returned `crashed=true`.
 
 ```
 FINDING
-  Severity:      <critical|high|medium> (CVSS-ish; RCE/UAF = critical, info leak = medium)
-  CWE:           CWE-<id>  (e.g. CWE-787 heap out-of-bounds write)
-  File:function: <file>:<line range>  <function_name>
-  Crash type:    <from run_sandboxed>
-  Trigger:       <minimized input>
-  Stack top:     <top 3 frames>
-  PoC:           <inline C harness, <= 40 lines>
-  Suggested fix: <1-2 lines describing the missing check>
+  Severity:            <critical|high|medium|low> (adjusted per Phase 3.5)
+  CWE:                 CWE-<id>  (e.g. CWE-787 heap out-of-bounds write)
+  File:function:       <file>:<line range>  <function_name>
+  Crash type:          <from run_sandboxed>
+  Trigger:             <minimized input>
+  Stack top:           <top 3 frames>
+  PoC:                 <inline C harness, <= 40 lines>
+  Deepening outcome:   <one of: "escalates to RCE", "info leak confirmed",
+                        "flows to malloc size", "stays DoS-only", etc.>
+  Suggested fix:       <1-2 lines describing the missing check>
 ```
 
 4. `add_to_memory_semantic(content=<the finding>, tag="zero-day-confirmed")`.

@@ -142,3 +142,163 @@ def micro_compact_history(
         )
 
     return trimmed
+
+
+# ---------------------------------------------------------------------------
+# Hunter-session compaction (F3.5)
+# ---------------------------------------------------------------------------
+#
+# When a hunter sub-agent finishes and hands its results back to the
+# supervisor, the supervisor doesn't need the hunter's full turn-by-turn
+# history — just the initial prompt, any confirmed findings, and the last
+# few turns (for context). This aggressive compaction is what extends the
+# horizon from ~2h to ~16h (ARTEMIS claim).
+
+
+# Markers that identify a "kept" message even if it's deep in history.
+_FINDING_MARKERS = (
+    "FINDING",
+    "VARIANT FINDING",
+    "FUZZ HARNESS",
+    "crashed=True",
+    "heap-buffer-overflow",
+    "stack-buffer-overflow",
+    "use-after-free",
+    "undefined-behavior",
+)
+# Markers we shrink to one line (noise during compaction).
+_DISCARDED_MARKERS = (
+    "discarded-hypothesis",
+    "no crash",
+    "hypothesis discarded",
+)
+
+
+def _is_finding_message(msg: dict) -> bool:
+    if msg.get("role") != "assistant":
+        return False
+    content = msg.get("content")
+    if not isinstance(content, str):
+        return False
+    return any(m in content for m in _FINDING_MARKERS)
+
+
+def _is_discarded_summary(msg: dict) -> bool:
+    content = msg.get("content")
+    if not isinstance(content, str):
+        return False
+    return any(m in content for m in _DISCARDED_MARKERS)
+
+
+def compact_hunter_session(
+    messages: list[dict],
+    *,
+    keep_last_n: int = 5,
+    keep_system: bool = True,
+) -> list[dict]:
+    """Compact a single hunter's session into a supervisor-consumable summary.
+
+    Keeps:
+      - system prompt (first message if role=system)
+      - the initial user prompt (the dynamic-prompt body)
+      - every assistant message that looks like a confirmed finding
+      - the last `keep_last_n` turns (assistant + tool pairs)
+    Compresses:
+      - discarded-hypothesis messages → one line each
+      - intermediate tool outputs → "[tool <name>: N chars, not retained]"
+
+    Returns a NEW list (does not mutate the input).
+    """
+    if not messages:
+        return []
+
+    kept: list[dict] = []
+
+    # 1. System prompt
+    if keep_system and messages[0].get("role") == "system":
+        kept.append(messages[0])
+        start = 1
+    else:
+        start = 0
+
+    # 2. Initial user prompt — the first user message is the mission brief
+    initial_user_idx: int | None = None
+    for i in range(start, len(messages)):
+        if messages[i].get("role") == "user":
+            kept.append(messages[i])
+            initial_user_idx = i
+            break
+
+    if initial_user_idx is None:
+        return kept  # nothing else to process
+
+    # 3. Mark boundary for "last N turns" preservation
+    last_n_start = max(initial_user_idx + 1, len(messages) - keep_last_n)
+
+    discarded_count = 0
+    dropped_tool_outputs = 0
+    dropped_chars = 0
+
+    for i in range(initial_user_idx + 1, len(messages)):
+        msg = messages[i]
+        role = msg.get("role")
+
+        # Always keep recent messages
+        if i >= last_n_start:
+            kept.append(msg)
+            continue
+
+        # Keep any assistant message that looks like a finding
+        if _is_finding_message(msg):
+            kept.append(msg)
+            continue
+
+        # Compress discarded-hypothesis mentions to a single terse line
+        if _is_discarded_summary(msg):
+            discarded_count += 1
+            continue
+
+        # Drop intermediate tool outputs, replace with a stub
+        if role == "tool":
+            content = msg.get("content")
+            if isinstance(content, str) and len(content) > 200:
+                tool_name = _tool_name_from_history(messages, i) or "?"
+                stub = {
+                    "role": "tool",
+                    "tool_call_id": msg.get("tool_call_id", ""),
+                    "content": f"[tool {tool_name}: {len(content)} chars, compacted]",
+                }
+                kept.append(stub)
+                dropped_tool_outputs += 1
+                dropped_chars += len(content) - len(stub["content"])
+                continue
+            # Short tool output — keep verbatim
+            kept.append(msg)
+            continue
+
+        # Default: keep assistant messages that aren't findings either (they
+        # contain hypothesis/reasoning the supervisor may skim). Compress if
+        # very long.
+        if role == "assistant":
+            content = msg.get("content") or ""
+            if isinstance(content, str) and len(content) > 1500:
+                msg = dict(msg)
+                msg["content"] = content[:1200] + "\n[... truncated ...]"
+                dropped_chars += len(content) - len(msg["content"])
+            kept.append(msg)
+
+    # Inject the discarded-hypothesis roll-up so the supervisor knows
+    # that hunter explored and rejected N paths (useful for learning loop).
+    if discarded_count:
+        kept.append({
+            "role": "assistant",
+            "content": f"[compacted: {discarded_count} discarded hypotheses during hunt]",
+        })
+
+    logger.info(
+        "hunter-compact: %d -> %d messages, %d tool outputs stubbed, "
+        "%d chars dropped, %d discarded hypotheses rolled up",
+        len(messages), len(kept), dropped_tool_outputs,
+        dropped_chars, discarded_count,
+    )
+    return kept
