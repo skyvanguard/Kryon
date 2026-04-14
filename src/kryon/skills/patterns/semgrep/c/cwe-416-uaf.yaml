@@ -79,3 +79,36 @@ rules:
               fclose($F);
               ...
               fprintf($F, ...);
+
+  # F6.5 round 2 — Juliet helpers commonly used as the use-after-free sink
+  - id: kryon.cwe-416.juliet-helper-after-free
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      Pointer used in helper print function after free. CWE-416.
+    metadata:
+      cwe: "CWE-416"
+      cwe-id: 416
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: |
+              free($P);
+              ...
+              printLine($P);
+          - pattern: |
+              free($P);
+              ...
+              printIntLine($P[$I]);
+          - pattern: |
+              free($P);
+              ...
+              printHexCharLine($P[$I]);
+          - pattern: |
+              free($P);
+              ...
+              printWLine($P);
+          - pattern: |
+              free($P);
+              ...
+              printIntLine($P->$M);

@@ -15,6 +15,12 @@ detection:
     confidence: high
   - regex: "\\bfclose\\s*\\(\\s*(\\w+)\\s*\\)\\s*;[\\s\\S]{0,150}?\\bf(?:read|write|gets|printf|seek|tell)\\s*\\([^)]*\\1"
     confidence: medium
+  # F6.5 round 2: Juliet uses helper print functions for the use-after-free sink
+  - regex: "\\bfree\\s*\\(\\s*(\\w+)\\s*\\)\\s*;(?:(?!\\1\\s*=\\s*NULL)[\\s\\S]){0,200}?\\bprint\\w*\\s*\\([^)]*\\1"
+    confidence: high
+  # printLine(data) / printIntLine(data[0]) etc after free
+  - regex: "\\bfree\\s*\\(\\s*(\\w+)\\s*\\)\\s*;(?:(?!\\1\\s*=\\s*NULL)[\\s\\S]){0,200}?\\b\\1\\s*\\["
+    confidence: high
 verification:
   poc_skeleton: |
     #include <stdlib.h>

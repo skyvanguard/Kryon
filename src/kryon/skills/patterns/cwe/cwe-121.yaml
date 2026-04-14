@@ -12,6 +12,15 @@ detection:
     confidence: medium
   - regex: "\\bstrcpy\\s*\\(\\s*\\w+\\s*,"
     confidence: medium
+  # F6.5 round 2: Juliet's wchar_t/memcpy variant —
+  #   memcpy(data, source, (wcslen(source) + 1) * sizeof(wchar_t))
+  - regex: "\\bmemcpy\\s*\\([^,]+,[^,]+,[^)]*\\bsizeof\\s*\\([^)]*wchar_t"
+    confidence: high
+  - regex: "\\bmemcpy\\s*\\([^,]+,[^,]+,[^)]*\\bwcslen\\s*\\("
+    confidence: high
+  # data points to small buffer + memcpy with calculated size
+  - regex: "\\b(\\w+)\\s*=\\s*\\w+(?:Bad|Small|Tiny)Buffer\\s*;[\\s\\S]{0,300}?memcpy\\s*\\(\\s*\\1"
+    confidence: high
 verification:
   poc_skeleton: |
     #include <string.h>

@@ -19,6 +19,11 @@ rules:
               $P = NULL;
               ...
               *$P;
+          # F6.5 round 2: Juliet's array-indexing variant
+          - pattern: |
+              $P = NULL;
+              ...
+              $P[$I];
           - pattern: |
               $P = NULL;
               ...
@@ -31,6 +36,19 @@ rules:
               $P = NULL;
               ...
               printLine($P);
+          # Juliet helpers
+          - pattern: |
+              $P = NULL;
+              ...
+              printIntLine($P[$I]);
+          - pattern: |
+              $P = NULL;
+              ...
+              printHexCharLine($P[$I]);
+          - pattern: |
+              $P = NULL;
+              ...
+              printWLine($P);
 
   - id: kryon.cwe-476.malloc-no-check
     languages: [c, cpp]

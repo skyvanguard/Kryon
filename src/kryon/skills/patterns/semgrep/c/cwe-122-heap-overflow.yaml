@@ -54,3 +54,50 @@ rules:
           $P = realloc($P, $SIZE);
           ...
           memcpy($P, ..., ...);
+
+  # F6.5 round 2 — Juliet CWE-131 (sizeof-mismatch) variants
+  - id: kryon.cwe-122.malloc-bare-then-memmove-sizeof
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      malloc(N) with bare integer, then memmove/memcpy with N*sizeof(T) —
+      classic Juliet CWE-131 sizeof-of-wrong-thing pattern. CWE-122.
+    metadata:
+      cwe: "CWE-122"
+      cwe-id: 122
+      kryon_alias: [CWE-787, CWE-131]
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $P = (int *)malloc($N);
+              ...
+              memmove($P, $S, $N * sizeof(int));
+          - pattern: |
+              $P = (int *)malloc($N);
+              ...
+              memcpy($P, $S, $N * sizeof(int));
+          - pattern: |
+              $P = (wchar_t *)malloc($N);
+              ...
+              memmove($P, $S, $N * sizeof(wchar_t));
+          - pattern: |
+              $P = (wchar_t *)malloc($N);
+              ...
+              wcscpy($P, $S);
+
+  - id: kryon.cwe-122.memcpy-sizeof-arithmetic
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      memcpy/memmove with wcslen+1 * sizeof(wchar_t) — classic
+      Juliet wide-char allocation/copy mismatch. CWE-122 / CWE-121.
+    metadata:
+      cwe: "CWE-122"
+      cwe-id: 122
+      kryon_alias: [CWE-121, CWE-787]
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: memcpy($D, $S, (wcslen($S2) + $N) * sizeof(wchar_t))
+          - pattern: memcpy($D, $S, (strlen($S2) + $N) * sizeof($T))
