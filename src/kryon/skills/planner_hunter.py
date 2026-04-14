@@ -219,6 +219,147 @@ class HeuristicHunter:
 
 
 # ---------------------------------------------------------------------------
+# LLM-backed hunter — uses the zero-day-hunter skill on the unified agent
+# ---------------------------------------------------------------------------
+
+
+_FINDING_BLOCK_RE = re.compile(
+    r"FINDING\s*\n(?P<body>(?:\s*[A-Za-z][A-Za-z ]*:\s*.+\n?){2,})",
+    re.MULTILINE,
+)
+_KV_RE = re.compile(r"^\s*([A-Za-z][A-Za-z :]+?):\s*(.+)$", re.MULTILINE)
+_POC_BLOCK_RE = re.compile(
+    r"```(?:c|cpp|c\+\+)?\s*\n(.+?)```",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def _parse_findings_from_text(text: str, repo_path: str) -> list[dict]:
+    """Extract FINDING blocks from an LLM agent's final output."""
+    findings: list[dict] = []
+    if not text:
+        return findings
+
+    # Grab every FINDING block
+    for m in _FINDING_BLOCK_RE.finditer(text):
+        body = m.group("body")
+        fields: dict[str, str] = {}
+        for kv in _KV_RE.finditer(body):
+            k = kv.group(1).strip().lower().replace(" ", "_")
+            v = kv.group(2).strip()
+            fields[k] = v
+
+        # File:function line looks like "<file>:<lines>  <function>"
+        file_function = fields.get("file:function", fields.get("file:function", ""))
+        fpath, fname, line_range = "", "", ""
+        if file_function:
+            parts = file_function.split(None, 1)
+            loc = parts[0]
+            fname = parts[1] if len(parts) > 1 else ""
+            if ":" in loc:
+                fpath, line_range = loc.rsplit(":", 1)
+            else:
+                fpath = loc
+
+        # Extract the PoC code block following this finding
+        window_start = m.end()
+        window = text[window_start:window_start + 4000]
+        poc_m = _POC_BLOCK_RE.search(window)
+        poc = poc_m.group(1).strip() if poc_m else ""
+
+        findings.append({
+            "file_path": fpath or fields.get("file", ""),
+            "function_name": fname or fields.get("function", ""),
+            "line_range": line_range,
+            "cwe": fields.get("cwe", ""),
+            "severity": fields.get("severity", "").upper(),
+            "crash_type": fields.get("crash_type", ""),
+            "stack_top": [s.strip() for s in fields.get("stack_top", "").split(",") if s.strip()],
+            "poc_source": poc,
+            "trigger_input": fields.get("trigger", ""),
+            "repo_path": repo_path,
+            "language": "c",
+            "_hunter": "llm",
+            "_deepening": fields.get("deepening_outcome", ""),
+            "_suggested_fix": fields.get("suggested_fix", ""),
+        })
+    return findings
+
+
+class LLMHunter:
+    """Runs a fresh unified agent with the zero-day-hunter skill per job."""
+
+    def __init__(
+        self,
+        *,
+        max_turns: int = int(os.environ.get("KRYON_HUNT_MAX_TURNS", "30")),
+        timeout_s: int = int(os.environ.get("KRYON_HUNTER_TIMEOUT_S", "900")),
+    ):
+        self.max_turns = max_turns
+        self.timeout_s = timeout_s
+
+    async def __call__(self, job: HunterJob) -> list[dict]:
+        # Import here to avoid pulling heavy deps at module import time.
+        from kryon.sdk.agents import Runner
+        from kryon.skills.loader import SkillLoader
+        from kryon.skills.unified_agent import create_unified_agent
+
+        loader = SkillLoader()
+        loader.scan()
+        zdh = loader.get_by_name("zero-day-hunter")
+        skills = [zdh] if zdh else None
+
+        try:
+            agent = create_unified_agent(
+                skills=skills,
+                user_msg=job.prompt[:1000],
+                profile={"source_code": True, "language": "c"},
+            )
+        except Exception as e:
+            logger.exception("LLMHunter: failed to build agent for %s", job.file_path)
+            return []
+
+        # Use the dynamic prompt as the initial user turn. The skill
+        # system prompt already contains the playbook body.
+        try:
+            result = await asyncio.wait_for(
+                Runner.run(agent, job.prompt),
+                timeout=self.timeout_s,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("LLMHunter timeout for %s", job.file_path)
+            return []
+        except Exception as e:
+            logger.exception("LLMHunter runner error on %s: %s", job.file_path, e)
+            return []
+
+        # Extract final text output from the agent
+        final_text = ""
+        try:
+            final_text = getattr(result, "final_output", "") or ""
+            if not final_text and hasattr(result, "messages"):
+                for msg in reversed(result.messages):
+                    if msg.get("role") == "assistant" and isinstance(msg.get("content"), str):
+                        final_text = msg["content"]
+                        break
+        except Exception:
+            pass
+
+        repo_path = str(Path(job.file_path).parent)
+        # Walk up to find the repo root (has .git or .kryon_index.json)
+        p = Path(job.file_path).parent
+        for _ in range(10):
+            if (p / ".git").exists() or (p / ".kryon_index.json").exists():
+                repo_path = str(p)
+                break
+            if p.parent == p:
+                break
+            p = p.parent
+
+        return _parse_findings_from_text(final_text, repo_path)
+
+
+# ---------------------------------------------------------------------------
 # Coordinator
 # ---------------------------------------------------------------------------
 
@@ -315,7 +456,11 @@ async def hunt_zero_days(
 
     # ---- Step 3: spawn hunters with bounded parallelism ----
     max_par = parallelism or int(os.environ.get("KRYON_HUNTER_PARALLELISM", "2"))
-    runner = runner or HeuristicHunter()
+    if runner is None:
+        if runner_type == "llm":
+            runner = LLMHunter()
+        else:
+            runner = HeuristicHunter()
     pool = HunterPool(max_active=max_par, runner=runner)
     set_pool(pool)
 

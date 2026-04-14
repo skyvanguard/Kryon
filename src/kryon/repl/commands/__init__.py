@@ -18,6 +18,7 @@ from kryon.repl.commands import (  # pylint: disable=import-error,unused-import,
     graph,
     help,
     history,
+    hunt,  # /hunt — 0-day hunter swarm (F3.8)
     kill,
     load,
     mcp,  # Add the MCP command
