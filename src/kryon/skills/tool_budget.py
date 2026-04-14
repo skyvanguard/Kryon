@@ -67,6 +67,9 @@ def build_tool_registry() -> dict[str, Any]:
         "kryon.tools.reconnaissance.whatweb",
         "kryon.tools.web.nuclei",
         "kryon.tools.web.duckduckgo_search",
+        # Source-code tools — F1 of ZERO_DAY_ROADMAP
+        "kryon.tools.code.git_tools",
+        "kryon.tools.code.reader",
     ]
     for mod_path in _extra_tools:
         try:
