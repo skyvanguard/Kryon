@@ -110,19 +110,34 @@ def _extract_cwe(check_id: str, metadata: dict) -> str:
     return ""
 
 
+def _severity_to_confidence(severity: str) -> str:
+    return {"ERROR": "high", "WARNING": "medium", "INFO": "low"}.get(
+        (severity or "").upper(), "medium"
+    )
+
+
 def _normalize_finding(raw: dict) -> dict:
+    """Emit a finding in the converged shape shared with joern_scan.
+
+    `method` and `flow` are empty for pattern-based findings; they are
+    populated by joern_scan for taint flows.
+    """
     extra = raw.get("extra") or {}
     meta = extra.get("metadata") or {}
+    severity = extra.get("severity", "")
     return {
         "path": raw.get("path", ""),
         "start_line": (raw.get("start") or {}).get("line", 0),
         "end_line": (raw.get("end") or {}).get("line", 0),
         "check_id": raw.get("check_id", ""),
         "rule_id": raw.get("check_id", "").split(".")[-1],
-        "severity": extra.get("severity", ""),
+        "severity": severity,
+        "confidence": _severity_to_confidence(severity),
         "cwe": _extract_cwe(raw.get("check_id", ""), meta),
         "message": (extra.get("message") or "").strip()[:500],
         "lines": (extra.get("lines") or "")[:1000],
+        "method": "",
+        "flow": [],
     }
 
 
@@ -136,21 +151,35 @@ def _semgrep_scan_impl(
     """Impl separated from the function_tool wrapper for tests."""
     target = Path(target_path)
     if not target.exists():
-        return json.dumps({"error": f"target not found: {target_path}"})
+        return json.dumps({
+            "status": "error",
+            "reason": f"target not found: {target_path}",
+            "count": 0, "findings": [],
+        })
     if not Path(_DEFAULT_SEMGREP_BIN).is_file() and not shutil.which("semgrep"):
         return json.dumps({
-            "error": f"semgrep binary not found at {_DEFAULT_SEMGREP_BIN}",
+            "status": "unavailable",
+            "reason": f"semgrep binary not found at {_DEFAULT_SEMGREP_BIN}",
+            "count": 0, "findings": [],
         })
     if not _DEFAULT_RULES_ROOT.is_dir():
         return json.dumps({
-            "error": f"semgrep rules dir missing: {_DEFAULT_RULES_ROOT}. "
-                     "Clone github.com/semgrep/semgrep-rules to that path."
+            "status": "unavailable",
+            "reason": (
+                f"semgrep rules dir missing: {_DEFAULT_RULES_ROOT}. "
+                "Clone github.com/semgrep/semgrep-rules to that path."
+            ),
+            "count": 0, "findings": [],
         })
 
     lang = (language or _detect_language(target_path) or "auto").lower()
     configs = _rule_configs_for_lang(lang)
     if not configs:
-        return json.dumps({"error": f"no rule dirs resolved for language={lang!r}"})
+        return json.dumps({
+            "status": "error",
+            "reason": f"no rule dirs resolved for language={lang!r}",
+            "count": 0, "findings": [],
+        })
 
     cmd: list[str] = [_DEFAULT_SEMGREP_BIN]
     for c in configs:
@@ -172,21 +201,29 @@ def _semgrep_scan_impl(
             timeout=timeout_s + 30, check=False, env=env,
         )
     except subprocess.TimeoutExpired:
-        return json.dumps({"error": f"semgrep timed out after {timeout_s}s"})
+        return json.dumps({
+            "status": "timeout",
+            "reason": f"semgrep timed out after {timeout_s}s",
+            "count": 0, "findings": [],
+        })
 
     if not r.stdout.strip():
         return json.dumps({
-            "error": "semgrep produced no output",
+            "status": "error",
+            "reason": "semgrep produced no output",
             "stderr": r.stderr[:500],
+            "count": 0, "findings": [],
         })
 
     try:
         doc = json.loads(r.stdout)
     except json.JSONDecodeError:
         return json.dumps({
-            "error": "semgrep output was not JSON",
+            "status": "error",
+            "reason": "semgrep output was not JSON",
             "stderr": r.stderr[:500],
             "stdout_head": r.stdout[:300],
+            "count": 0, "findings": [],
         })
 
     findings = [_normalize_finding(f) for f in (doc.get("results") or [])]
@@ -203,6 +240,7 @@ def _semgrep_scan_impl(
     findings = findings[:max_findings]
 
     return json.dumps({
+        "status": "ok",
         "count": len(findings),
         "language": lang,
         "configs_used": configs,
