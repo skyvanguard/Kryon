@@ -118,13 +118,23 @@ def _build_pattern_text(
 ) -> str:
     """Produce a compact, embedding-friendly pattern string.
 
-    Layout:
+    Layout (structural-first so code-aware embedders can exploit it):
       [summary]
       [CWE tag(s)]
       [commit subject]
       ---
       FILE: path
+      CHANGED FUNCTIONS: f1, f2, ...
+      ADDED CALLS: ...
+      REMOVED CALLS: ...
       <diff body, truncated>
+
+    F4.3 learning: embedder quality tied with our previous minimal
+    text — both nomic and mxbai gave identical rankings. The bottleneck
+    is the pattern representation, not the embedder. So we enrich here:
+    structural signal (function names, call diffs) that survives
+    embedding and helps the hunter's recall_similar_code_pattern queries
+    (which also contain function signatures) match more precisely.
     """
     parts: list[str] = []
     if advisory.get("summary"):
@@ -137,6 +147,12 @@ def _build_pattern_text(
     parts.append("---")
     for f in (diff_data.get("files") or [])[:3]:
         parts.append(f"FILE: {f.get('path', '?')}")
+        added = f.get("added_calls") or []
+        removed = f.get("removed_calls") or []
+        if added:
+            parts.append("ADDED CALLS: " + ", ".join(added[:8]))
+        if removed:
+            parts.append("REMOVED CALLS: " + ", ".join(removed[:8]))
         d = f.get("diff", "")
         if d:
             parts.append(d)
