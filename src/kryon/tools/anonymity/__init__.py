@@ -59,6 +59,12 @@ Example Usage:
     >>> nmap("10.10.10.5")  # Uses: Tor + domain fronting + evasion
 """
 
+# --- Red-team gate (F12.8) --- disabled by default; see docs/RED_TEAM_MODULES.md
+from kryon.tools._offensive_gate import require_red_team
+require_red_team(__name__)
+# --- end gate ---
+
+
 # Network Anonymity
 # Advanced Fingerprinting Evasion (Phase 21)
 from .advanced_fingerprinting import (
