@@ -2,12 +2,16 @@
 Tool function for executing commands with session management.
 """
 
+import asyncio
+import logging
 import os
 import re
 import unicodedata
 import uuid
 
 from kryon.sdk.agents import function_tool
+
+logger = logging.getLogger(__name__)
 from kryon.tools.common import (
     get_session_output,
     list_shell_sessions,
@@ -429,6 +433,42 @@ async def run_command(command: str = "", interactive: bool = False, session_id: 
                 except Exception:
                     # If we can't decode, be cautious
                     pass
+
+    # F12.5 — live progress panel for long recon commands.
+    # Opt-in via KRYON_LIVE_PROGRESS=true so tests / parallel runs don't
+    # hit rich.Live. Only kicks in for recognised recon tools, outside
+    # session_id context (session_id routes through persistent shells
+    # where a transient progress panel would conflict with the shell UI).
+    if (
+        not session_id
+        and os.environ.get("KRYON_LIVE_PROGRESS", "").strip().lower() in {
+            "1", "true", "yes", "on",
+        }
+    ):
+        recon_head = command.strip().split(" ", 1)[0].split("/")[-1].lower()
+        recon_tools = {
+            "nmap", "masscan", "rustscan", "amass", "subfinder",
+            "dnsenum", "gobuster", "ffuf", "feroxbuster", "nikto",
+        }
+        if recon_head in recon_tools:
+            try:
+                from kryon.repl.ui.live_progress import run_with_progress
+                cmd_result = await asyncio.to_thread(
+                    run_with_progress, command, timeout_s=timeout,
+                )
+                out = cmd_result.stdout or ""
+                if cmd_result.returncode != 0:
+                    out += (
+                        f"\n[exit {cmd_result.returncode} after "
+                        f"{cmd_result.duration_s:.1f}s]"
+                    )
+                    if cmd_result.stderr:
+                        out += f"\n[stderr]\n{cmd_result.stderr}"
+                return out or f"[{recon_head} produced no output]"
+            except Exception as exc:
+                # Fall through to the standard path — live progress is a
+                # visual nicety, never a hard dependency.
+                logger.warning("live_progress failed, falling back: %s", exc)
 
     # Execute respecting session/interactive semantics and capture result
     if session_id:
