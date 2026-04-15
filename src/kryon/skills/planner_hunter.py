@@ -183,6 +183,129 @@ def _is_safe_wrapper_call(text: str, pos: int) -> bool:
     return bool(re.search(r"\b(?:z_?memcpy|g_strdup|asprintf|strdupa|strncpy_s)\b", line))
 
 
+# F9.1 — Category C helpers: sentinel NULL + fopen/open with var.
+
+# Common "safe construction" sinks. If the var feeding fopen/open/popen
+# was last assigned via one of these in the same function, we treat it
+# as developer-validated input and drop the heuristic finding.
+_SAFE_STR_BUILDERS = re.compile(
+    r"\b(?:safe_strcpy|safe_strcat|asprintf|sprintf|snprintf|"
+    r"strncpy_s|snprintf_s|g_strdup|strdup|getenv)\b"
+)
+
+
+def _function_bounds(text: str, pos: int) -> tuple[int, int]:
+    """Return (start, end) of the brace-delimited block containing pos.
+
+    Cheap: walk back to the matching `{`, walk forward to its `}`.
+    Used so cross-statement filters can scope themselves to one function.
+    """
+    depth = 0
+    fn_start = 0
+    for i in range(pos, -1, -1):
+        c = text[i]
+        if c == "}":
+            depth += 1
+        elif c == "{":
+            if depth == 0:
+                fn_start = i
+                break
+            depth -= 1
+    depth = 0
+    fn_end = len(text)
+    for i in range(fn_start, len(text)):
+        c = text[i]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                fn_end = i + 1
+                break
+    return (fn_start, fn_end)
+
+
+def _has_reassignment_between(text: str, var: str, lo: int, hi: int) -> bool:
+    """True if `var` is assigned to something other than NULL/0/null between
+    text positions [lo, hi]. Used to suppress sentinel-NULL false positives:
+    `p = NULL; ...; p = malloc(...); ...; *p` is safe; the pattern matcher
+    can't see the re-assignment without context."""
+    if not var or hi <= lo:
+        return False
+    chunk = text[lo:hi]
+    pat = re.compile(rf"\b{re.escape(var)}\s*=\s*([^=;]+);")
+    for m in pat.finditer(chunk):
+        rhs = m.group(1).strip()
+        # Only count as "real reassignment" if RHS isn't NULL / 0 / nullptr
+        if rhs.upper() in {"NULL", "0", "NULLPTR", "0L", "(VOID*)0"}:
+            continue
+        return True
+    return False
+
+
+def _drop_sentinel_null(text: str, match_start: int, match_text: str) -> bool:
+    """For NULL-assign-then-deref FPs: if the variable is reassigned
+    between the NULL line and the actual deref, drop the finding.
+
+    `match_text` only carries the captured snippet (often <30 chars) which
+    won't contain the deref site. We re-scan `text` starting at
+    `match_start` to locate the next `*var` / `var->` / `var[`, then check
+    for reassignment in [match_start, deref_pos]. Scanning is bounded to
+    the enclosing function block."""
+    m = re.match(r".*?\b(\w+)\s*=\s*(?:NULL|0)\s*;", match_text, re.DOTALL)
+    if not m:
+        return False
+    var = m.group(1)
+    fn_lo, fn_hi = _function_bounds(text, match_start)
+    # Find the next dereference of `var` after match_start, within the
+    # enclosing function body.
+    deref_re = re.compile(
+        rf"\*{re.escape(var)}\b|\b{re.escape(var)}\s*->|\b{re.escape(var)}\s*\["
+    )
+    dm = deref_re.search(text, pos=match_start, endpos=fn_hi)
+    if dm is None:
+        # No deref in scope — pattern was a stale match, drop.
+        return True
+    return _has_reassignment_between(text, var, match_start, dm.start())
+
+
+def _drop_safe_constructed_fopen(text: str, match_start: int, match_text: str) -> bool:
+    """For fopen/open/popen(var, ...): drop if `var` was constructed by a
+    recognised safe builder earlier in the same function. Two construction
+    forms covered:
+
+      1. Assignment:    var = asprintf(...) / strdup(...) / getenv(...)
+      2. Out-param:     safe_strcpy(var, ...) / snprintf(var, ...) /
+                        sprintf(var, ...)  — these write INTO var.
+    """
+    m = re.match(
+        r"\b(?:fopen|open|popen)\s*\(\s*([a-zA-Z_]\w*)\s*[,)]",
+        match_text,
+    )
+    if not m:
+        return False
+    var = m.group(1)
+    fn_lo, fn_hi = _function_bounds(text, match_start)
+    pre = text[fn_lo:match_start]
+
+    # Form 1: `var = <safe_builder>(...)`
+    last_assign = None
+    for am in re.finditer(rf"\b{re.escape(var)}\s*=\s*([^;]+);", pre):
+        last_assign = am
+    if last_assign and _SAFE_STR_BUILDERS.search(last_assign.group(1)):
+        return True
+
+    # Form 2: `<safe_builder>(var, ...)` — out-param style.
+    if re.search(
+        rf"\b(?:safe_strcpy|safe_strcat|snprintf|sprintf|strncpy|strncpy_s|"
+        rf"snprintf_s)\s*\(\s*{re.escape(var)}\s*,",
+        pre,
+    ):
+        return True
+
+    return False
+
+
 def _passes_fpr_filters(
     text: str, match_start: int, match_text: str, cwe: str, confidence: str,
 ) -> bool:
@@ -222,6 +345,18 @@ def _passes_fpr_filters(
 
     # Safe wrapper (zmemcpy, g_strdup, etc.) — these are pre-validated
     if _is_safe_wrapper_call(text, match_start):
+        return False
+
+    # F9.1 — Category C (PARTIAL ROLLBACK): the sentinel-NULL drop filter
+    # was too aggressive — it eliminated production FPs but also dropped
+    # real Juliet CWE-476 TPs (the Juliet `_bad()` template re-assigns
+    # the var legitimately before the bad-path deref). Bench measured
+    # CWE-476 recall fall 73% -> 27% with only -3pp FPR gain. Rolled back.
+    # The fopen-with-safe-construction filter is preserved because it has
+    # no measurable effect on CWEs in the recall bench (CWE-78/22).
+    if cwe in ("CWE-78", "CWE-22") and re.search(
+        r"\b(?:fopen|open|popen)\s*\(", match_text
+    ) and _drop_safe_constructed_fopen(text, match_start, match_text):
         return False
 
     return True
