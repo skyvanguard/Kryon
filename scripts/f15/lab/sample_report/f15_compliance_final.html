@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<title>PCI-DSS v4 Audit — f15-bench-target — 2026-04-15</title>
+<style>
+    @page { size: A4; margin: 18mm 14mm 22mm 14mm;
+            @bottom-center {
+                content: "PCI-DSS v4 Compliance Audit — page " counter(page) " / " counter(pages);
+                font-size: 8pt; color: #666;
+            }
+            @bottom-left { content: "606b172210936e93..."; font-size: 7pt; color: #999; font-family: monospace; }
+    }
+    body { font-family: "Helvetica Neue", Arial, sans-serif; color: #222; font-size: 10.5pt; line-height: 1.4; }
+    h1 { font-size: 22pt; margin: 0 0 4pt 0; }
+    h2 { font-size: 14pt; margin: 18pt 0 6pt 0; border-bottom: 1px solid #ccc; padding-bottom: 2pt; }
+    h3 { font-size: 11pt; margin: 12pt 0 4pt 0; }
+    .cover-meta { color: #666; font-size: 9.5pt; margin-bottom: 14pt; }
+    .repro-hash { font-family: monospace; font-size: 8.5pt; color: #555; word-break: break-all; }
+    .summary-table { border-collapse: collapse; width: 100%; margin: 8pt 0 12pt 0; font-size: 10pt; }
+    .summary-table th, .summary-table td { border: 1px solid #ddd; padding: 5pt 7pt; text-align: left; }
+    .summary-table th { background: #f2f2f2; font-weight: 600; }
+    .verdict-badge { display: inline-block; padding: 1pt 7pt; border-radius: 3pt; color: #fff; font-weight: 700; font-size: 9.5pt; letter-spacing: 0.4pt; }
+    .finding-card { page-break-inside: avoid; border: 1px solid #ccc; border-left: 4pt solid #c1272d; border-radius: 3pt; margin: 10pt 0; padding: 8pt 10pt; }
+    .finding-card.verdict-PASS { border-left-color: #2a9d3a; }
+    .finding-card.verdict-NA   { border-left-color: #8a8a8a; }
+    .finding-card.verdict-ERROR { border-left-color: #d19500; }
+    .finding-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4pt; }
+    .finding-title { font-weight: 700; }
+    .finding-meta { font-size: 9pt; color: #666; margin-bottom: 6pt; }
+    .section-block { margin: 6pt 0; }
+    .section-label { font-weight: 600; font-size: 9.5pt; color: #333; display: block; margin-bottom: 2pt; }
+    /* Deterministic audit block — default styling, plain */
+    .det-block { background: #fafafa; border: 1px solid #e0e0e0; padding: 6pt 8pt; font-size: 9.5pt; border-radius: 2pt; }
+    .det-block code { font-family: "Consolas", "Courier New", monospace; font-size: 9pt; }
+    /* LLM narrative block — visually distinct + watermark */
+    .llm-block { background: #fff8e5; border: 1px dashed #e0a500; padding: 6pt 8pt; border-radius: 2pt; position: relative; font-size: 9.8pt; font-style: italic; margin: 4pt 0; }
+    .llm-watermark { display: inline-block; background: #e0a500; color: #fff; font-size: 8pt; padding: 1pt 5pt; border-radius: 2pt; font-weight: 700; letter-spacing: 0.6pt; font-style: normal; margin-right: 6pt; text-transform: uppercase; }
+    .separator-notice { background: #fff4d5; border-left: 3pt solid #e0a500; padding: 6pt 10pt; font-size: 9.5pt; margin: 10pt 0; }
+    pre.evidence { background: #1e1e1e; color: #e8e8e8; font-family: "Consolas", monospace; font-size: 8.5pt; padding: 6pt 8pt; border-radius: 2pt; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 160pt; }
+    .appendix h2 { margin-top: 24pt; }
+    .footer-note { font-size: 8.5pt; color: #777; margin-top: 20pt; border-top: 1px solid #eee; padding-top: 6pt; }
+    </style>
+</head><body>
+
+<h1>Auditoría de cumplimiento PCI-DSS v4.0.1</h1>
+<div class="cover-meta">
+  Host: <strong>f15-bench-target</strong> ·
+  Fecha: 2026-04-15 21:18 ·
+  Alcance: Secciones 2, 6, 8, 10 (6 controles críticos)
+</div>
+<div class="repro-hash">Hash reproducibilidad: 606b172210936e9332b3261a2d7e7318a13c729c56f436c5b24504556c31a763</div>
+
+<div class="separator-notice">
+  <strong>Separación de responsabilidades:</strong> los <em>veredictos</em>
+  (PASS/FAIL/N/A/ERROR) y la <em>evidencia</em> (comando ejecutado + output raw)
+  provienen de motores determinísticos reproducibles. Las secciones marcadas
+  <span style="background:#e0a500;color:#fff;padding:1pt 4pt;border-radius:2pt;font-size:8pt;font-weight:700;">LLM NARRATIVA</span>
+  son prosa explicativa generada por modelo de lenguaje y no modifican los
+  veredictos ni la evidencia. Para defensibilidad regulatoria, el auditor debe
+  basarse en la evidencia determinística.
+</div>
+
+<h2>Resumen ejecutivo</h2>
+<p>Se ejecutaron <strong>6</strong> controles PCI-DSS v4 sobre el host.
+Resultados: <strong style="color:#c1272d">6 FAIL</strong>,
+<strong style="color:#2a9d3a">0 PASS</strong>,
+0 N/A, 0 ERROR.</p>
+
+<table class="summary-table"><thead><tr><th>Control</th><th>Título</th><th>Sección</th><th>Veredicto</th><th>Severidad</th></tr></thead><tbody><tr><td><code>2.2.2</code></td><td>Vendor default accounts</td><td>2</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>CRITICAL</td></tr><tr><td><code>10.2.1</code></td><td>Audit trails</td><td>10</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>HIGH</td></tr><tr><td><code>2.2.7</code></td><td>Non-console administrative access encryption</td><td>2</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>HIGH</td></tr><tr><td><code>6.3.3</code></td><td>Critical security patches within 30 days</td><td>6</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>HIGH</td></tr><tr><td><code>6.4.1</code></td><td>Public-facing web application protection</td><td>6</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>HIGH</td></tr><tr><td><code>8.3.6</code></td><td>Minimum password complexity</td><td>8</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>HIGH</td></tr></tbody></table>
+
+<h2>Hallazgos</h2>
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI 2.2.2 — Vendor default accounts</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 2 · Severidad CRITICAL · Host f15-bench-target</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>awk /etc/shadow ; mysql -u root -e &#x27;SELECT 1&#x27; ; snmpwalk -c public</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;shadow_empty_password_accounts&quot;: [
+    &quot;badacct&quot;
+  ],
+  &quot;mysql_root_empty&quot;: &quot;N/A&quot;,
+  &quot;snmp_public_responds&quot;: &quot;N/A&quot;,
+  &quot;sub_verdicts&quot;: {
+    &quot;shadow&quot;: &quot;FAIL&quot;,
+    &quot;mysql&quot;: &quot;N/A&quot;,
+    &quot;snmp&quot;: &quot;N/A&quot;
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Remove or lock any empty-password account. Set MySQL root password. Change SNMP community from &#x27;public&#x27;.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El control 2.2.2 de PCI DSS v4 es crítico para entornos bancarios que manejan datos de titulares de tarjetas, ya que las cuentas con contraseñas vacías representan una vulnerabilidad de acceso no autorizado que puede ser explotada por atacantes para obtener privilegios de sistema. En un entorno bancario, donde la seguridad de los datos es fundamental, estas cuentas pueden permitir el acceso a sistemas críticos sin autenticación. La falla en este control indica un riesgo significativo de compromiso de la infraestructura de procesamiento de pagos.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>Para eliminar cuentas con contraseñas vacías, se debe utilizar el comando &#x27;passwd -l&#x27; para bloquear temporalmente la cuenta &#x27;badacct&#x27; o &#x27;userdel&#x27; para eliminarla completamente del sistema. La contraseña del usuario root de MySQL debe ser establecida mediante &#x27;mysqladmin -u root password&#x27; seguido de una contraseña segura generada según las políticas de contraseñas de la organización. Para el servicio SNMP, se debe modificar el archivo de configuración para cambiar la comunidad &#x27;public&#x27; a una cadena de texto compleja y única, generalmente ubicada en /etc/snmp/snmpd.conf.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI 10.2.1 — Audit trails</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 10 · Severidad HIGH · Host f15-bench-target</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>systemctl is-active auditd ; cat /etc/audit/rules.d/*.rules</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;auditd_active&quot;: false,
+  &quot;rules_found&quot;: false,
+  &quot;issues&quot;: [
+    &quot;auditd not installed&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Install and enable auditd. Add PCI rules: -w /etc/passwd, /etc/shadow, /etc/sudoers; execve tracking.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El control 10.2.1 de trazas de auditoría es fundamental en entornos bancarios y de datos de titulares de tarjetas, ya que permite el monitoreo y registro de actividades críticas que pueden afectar la seguridad de la información. La falta de un sistema de auditoría activo como auditd impide la detección oportuna de accesos no autorizados o modificaciones de archivos sensibles. Este fallo representa un riesgo alto para la integridad y confidencialidad de los datos de pago.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>La implementación de auditd requiere instalar el paquete correspondiente y habilitarlo para su ejecución automática al inicio del sistema. Los archivos críticos como /etc/passwd, /etc/shadow y /etc/sudoers deben ser monitoreados mediante reglas de vigilancia (-w) para registrar cualquier acceso o modificación. Además, se debe configurar el seguimiento de ejecución de procesos (execve tracking) para registrar todos los comandos ejecutados en el sistema.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI 2.2.7 — Non-console administrative access encryption</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 2 · Severidad HIGH · Host f15-bench-target</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>sshd -T</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;permit_root_login&quot;: &quot;yes&quot;,
+  &quot;max_auth_tries&quot;: &quot;10&quot;,
+  &quot;protocol&quot;: &quot;&quot;,
+  &quot;ciphers_present_weak&quot;: [
+    &quot;aes128-cbc&quot;,
+    &quot;aes256-cbc&quot;
+  ],
+  &quot;issues&quot;: [
+    &quot;MaxAuthTries=10&quot;,
+    &quot;PermitRootLogin=yes&quot;,
+    &quot;weak_ciphers=[&#x27;aes128-cbc&#x27;, &#x27;aes256-cbc&#x27;]&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Edit /etc/ssh/sshd_config: PermitRootLogin no, MaxAuthTries 4, modern Ciphers (no CBC). Reload sshd.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El control 2.2.7 establece que todo el acceso administrativo que no sea por consola debe estar cifrado para proteger los datos de los titulares de tarjetas en entornos bancarios. La configuración actual permite el inicio de sesión como root y utiliza cifrados débiles como aes128-cbc y aes256-cbc, lo cual representa un riesgo significativo para la confidencialidad de la información sensible. Este fallo permite que los atacantes exploren métodos de fuerza bruta más fácilmente y accedan a sistemas críticos sin protección adecuada.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>La configuración recomendada implica modificar el archivo /etc/ssh/sshd_config para deshabilitar el inicio de sesión como root, limitar los intentos de autenticación y utilizar solo cifrados modernos. Es necesario establecer PermitRootLogin no para evitar el acceso directo con credenciales privilegiadas, y MaxAuthTries 4 para reducir la exposición a ataques de fuerza bruta. Además, se deben eliminar los cifrados CBC de la lista de cifrados permitidos y recargar el servicio sshd para aplicar los cambios de forma efectiva.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI 6.3.3 — Critical security patches within 30 days</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 6 · Severidad HIGH · Host f15-bench-target</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>apt list --upgradable ; grep &#x27;upgrade&#x27; /var/log/dpkg.log*</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;security_updates_pending&quot;: 1,
+  &quot;last_upgrade_age_days&quot;: 45,
+  &quot;reason&quot;: &quot;1 security update(s) pending&quot;
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Enable unattended-upgrades and apply pending security patches.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El control 6.3.3 es fundamental en entornos financieros que manejan datos de titulares de tarjetas, ya que las vulnerabilidades no corregidas pueden ser explotadas por atacantes para acceder a información sensible. La demora en aplicar parches de seguridad representa un riesgo directo para la integridad y confidencialidad de los datos de pago. Cumplir con este control dentro del plazo de 30 días es esencial para mantener la protección de los sistemas críticos.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>Habilitar unattended-upgrades permite la instalación automática de parches de seguridad sin intervención manual. Esta configuración debe ser implementada en todos los servidores y sistemas operativos críticos del entorno. La aplicación de los parches pendientes debe realizarse inmediatamente siguiendo los procedimientos establecidos para garantizar el cumplimiento del control.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI 6.4.1 — Public-facing web application protection</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 6 · Severidad HIGH · Host f15-bench-target</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>curl -sI (each of ports [80])</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;exposed_web_ports&quot;: [
+    80
+  ],
+  &quot;per_port&quot;: {
+    &quot;80&quot;: {
+      &quot;scheme&quot;: &quot;http&quot;,
+      &quot;missing_headers&quot;: [
+        &quot;content-security-policy&quot;,
+        &quot;x-content-type-options&quot;,
+        &quot;x-frame-options&quot;
+      ],
+      &quot;present_headers&quot;: []
+    }
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Add HSTS, CSP, X-Frame-Options: DENY, X-Content-Type-Options: nosniff at web server layer.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El control 6.4.1 es fundamental para entornos bancarios que manejan datos de titulares de tarjetas, ya que las aplicaciones web expuestas a internet representan una de las principales vías de ataque para los atacantes. La falta de protección adecuada en puertos públicos como el puerto 80 HTTP expone directamente la infraestructura a vulnerabilidades conocidas que pueden ser explotadas para comprometer la integridad y confidencialidad de los datos sensibles. Este fallo representa un riesgo alto de violación de la seguridad de los datos de los titulares de tarjetas.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>La implementación de encabezados de seguridad como HSTS, CSP y X-Frame-Options: DENY debe realizarse a nivel del servidor web para proteger contra ataques de tipo clickjacking y cross-site scripting. El encabezado X-Content-Type-Options: nosniff debe ser configurado para prevenir la ejecución de contenido malicioso que se intente disfrazar como tipos de archivo seguros. Estos encabezados deben ser aplicados de forma consistente en todas las respuestas HTTP generadas por el servidor web para garantizar una protección completa.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI 8.3.6 — Minimum password complexity</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 8 · Severidad HIGH · Host f15-bench-target</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>cat /etc/login.defs ; cat /etc/security/pwquality.conf ; cat /etc/pam.d/common-password</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;login_defs_pass_min_len&quot;: null,
+  &quot;pwquality_minlen&quot;: null,
+  &quot;pwquality_minclass&quot;: null,
+  &quot;pam_pwquality_present&quot;: false,
+  &quot;issues&quot;: [
+    &quot;PASS_MIN_LEN not set in /etc/login.defs&quot;,
+    &quot;no pam_pwquality/pam_cracklib in /etc/pam.d/common-password&quot;,
+    &quot;pwquality.conf missing or unconfigured&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Set PASS_MIN_LEN 12 in /etc/login.defs. Configure pwquality.conf minlen=12, minclass=3. Enable pam_pwquality.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El control 8.3.6 de complejidad mínima de contraseñas es crucial en entornos financieros que manejan datos de titulares de tarjetas, ya que las contraseñas débiles representan una vulnerabilidad significativa para el acceso no autorizado a sistemas críticos. La falta de configuración adecuada de longitud mínima y clases de caracteres en los sistemas operativos permite que los atacantes exploiten credenciales débiles para comprometer el entorno de procesamiento de pagos. Este fallo de configuración incrementa el riesgo de brechas de seguridad que podrían afectar directamente la integridad y confidencialidad de los datos de los clientes.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>Para cumplir con el control, se debe establecer PASS_MIN_LEN=12 en el archivo /etc/login.defs para definir la longitud mínima de las contraseñas. Además, es necesario configurar el archivo /etc/security/pwquality.conf con los parámetros minlen=12 y minclass=3 para exigir al menos 3 tipos diferentes de caracteres. La implementación requiere habilitar el módulo pam_pwquality en /etc/pam.d/common-password para que las políticas de complejidad se apliquen efectivamente durante el proceso de autenticación.</div></div>
+    </div>
+    
+
+<div class="appendix">
+<h2>Apéndice A — Evidencia cruda</h2>
+<p>Comandos ejecutados y output stdout/stderr sin procesar. Permite
+reproducir manualmente cada hallazgo.</p>
+
+    <h3>PCI 2.2.2 — Vendor default accounts</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">awk /etc/shadow ; mysql -u root -e &#x27;SELECT 1&#x27; ; snmpwalk -c public</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">=== shadow ===
+badacct
+
+=== mysql ===
+mysql client not installed
+=== snmp ===
+snmpwalk not installed</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI 10.2.1 — Audit trails</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">systemctl is-active auditd ; cat /etc/audit/rules.d/*.rules</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">auditd not installed or non-systemd init</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI 2.2.7 — Non-console administrative access encryption</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">sshd -T</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">port 22
+addressfamily any
+listenaddress [::]:22
+listenaddress 0.0.0.0:22
+usepam yes
+logingracetime 120
+x11displayoffset 10
+maxauthtries 10
+maxsessions 10
+clientaliveinterval 0
+clientalivecountmax 3
+streamlocalbindmask 0177
+permitrootlogin yes
+ignorerhosts yes
+ignoreuserknownhosts no
+hostbasedauthentication no
+hostbasedusesnamefrompacketonly no
+pubkeyauthentication yes
+kerberosauthentication no
+kerberosorlocalpasswd yes
+kerberosticketcleanup yes
+gssapiauthentication no
+gssapicleanupcredentials yes
+gssapikeyexchange no
+gssapistrictacceptorcheck yes
+gssapistorecredentialsonrekey no
+gssapikexalgorithms gss-group14-sha256-,gss-group16-sha512-,gss-nistp256-sha256-,gss-curve25519-sha256-,gss-group14-sha1-,gss-gex-sha1-
+passwordauthentication yes
+kbdinteractiveauthentication no
+printmotd no
+printlastlog yes
+x11forwarding yes
+x11uselocalhost yes
+permittty yes
+permituserrc yes
+strictmodes yes
+tcpkeepalive yes
+permitemptypasswords no
+compression yes
+gatewayports no
+usedns no
+allowtcpforwarding yes
+allowagentforwarding yes
+disableforwarding no
+allowstreamlocalforwarding yes
+streamlocalbindunlink no
+fingerprinthash SHA256
+exposeauthinfo no
+pidfile /run/sshd.pid
+modulifile /etc/ssh/moduli
+xauthlocation /usr/bin/xauth
+ciphers aes128-cbc,aes256-cbc,aes256-gcm@openssh.com
+macs umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1
+banner none
+forcecommand none
+chrootdirectory none
+trustedusercakeys none
+revokedkeys none
+securitykeyprovider internal
+authorizedprincipalsfile none
+versionaddendum none
+authorizedkeyscommand none
+authorizedkeyscommanduser none
+authorizedprincipalscommand none
+authorizedprincipalscommanduser none
+hostkeyagent none
+kexalgorithms curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,sntrup761x25519-sha512@openssh.com,diffie-hellman-group-exchange-sha25</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI 6.3.3 — Critical security patches within 30 days</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">apt list --upgradable ; grep &#x27;upgrade&#x27; /var/log/dpkg.log*</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">Listing...
+libssl3/jammy-updates,jammy-security 3.0.2-0ubuntu1.23 amd64 [upgradable from: 3.0.2-0ubuntu1.21]
+libsystemd0/jammy-updates 249.11-0ubuntu3.20 amd64 [upgradable from: 249.11-0ubuntu3.17]
+libudev1/jammy-updates 249.11-0ubuntu3.20 amd64 [upgradable from: 249.11-0ubuntu3.17]
+
+
+--- dpkg.log tail ---
+2026-03-01 12:00:00 upgrade libc6:amd64 2.31-0ubuntu9.1 2.31-0ubuntu9.2
+</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI 6.4.1 — Public-facing web application protection</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">curl -sI (each of ports [80])</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">=== :80 http ===
+HTTP/1.1 200 OK
+Server: nginx/1.18.0 (Ubuntu)
+Date: Wed, 15 Apr 2026 21:06:13 GMT
+Content-Type: text/html
+Content-Length: 39
+Last-Modified: Wed, 15 Apr 2026 21:04:39 GMT
+Connection: keep-alive
+ETag: &quot;69dffd67-27&quot;
+Accept-Ranges: bytes
+
+</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI 8.3.6 — Minimum password complexity</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">cat /etc/login.defs ; cat /etc/security/pwquality.conf ; cat /etc/pam.d/common-password</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">=== login.defs (PASS_MIN_LEN) ===
+PASS_MIN_LEN=None
+
+=== pwquality.conf ===
+minlen=None
+minclass=None
+
+=== pam.d/common-password has pam_pwquality: no ===</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+</div>
+
+<div class="footer-note">
+Este reporte se considera válido únicamente acompañado del artifact JSON cuyo
+SHA-256 coincide con <code>606b172210936e9332b3261a2d7e7318...</code>. Cualquier
+modificación del JSON invalida este reporte. Generado por Kryon compliance
+engine F15.1.
+</div>
+
+</body></html>

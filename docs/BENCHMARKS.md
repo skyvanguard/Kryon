@@ -169,6 +169,70 @@ Gate passed:
   recall@CWE pooled 65.0% [61.4, 68.3] — identical to frozen baseline.
   FPR proxy 47.0% [37, 57] — identical.
 
+## F15.1 — PCI-DSS v4 deterministic compliance auditor: **ALL-GREEN SHIP**
+
+First all-green sprint after the F7-F13 arc. Route B (6 checks, 100% commit)
+instead of 11-check ambitious scope. Pivot to deterministic compliance after
+F11.1 confirmed LLM-over-C/C++ has no headroom.
+
+### 6 checks shipped (PCI v4 sections 2/6/8/10)
+
+| Control | Title | Check |
+|---------|-------|-------|
+| 2.2.2 | Vendor default accounts | shadow empty-pw + MySQL root + SNMP public |
+| 2.2.7 | SSH hardening | PermitRootLogin + MaxAuthTries + weak ciphers |
+| 6.3.3 | Security patches ≤30d | apt upgradable + dpkg.log age |
+| 6.4.1 | Web app protection | live curl -I + HSTS/CSP/XFO/XCTO check |
+| 8.3.6 | Password complexity | login.defs + pwquality + pam_pwquality |
+| 10.2.1 | Audit trails | auditd active + PCI rules.d content |
+
+### Gate results (all pinned pre-build)
+
+| Gate | Threshold | Result | Status |
+|------|-----------|--------|--------|
+| G1 coverage | 6/6 checks | 6/6 registered + FAIL on CIS-nonconforming bench target | **PASS** |
+| G2 external | ≥80% agreement vs Lynis-mapped | **83.3%** (5/6) | **PASS** |
+| G3 reproducibility | 3 runs byte-exact SHA-256 | hash `46b1ea6a…` identical × 3 | **PASS** |
+| G4 PDF legibility | 4/4 pinned tests | Comprensión + Actionability + Separation + Defensibility | **PASS** |
+
+### Key differentiator: the single G2 disagreement (c_6_4_1_web_headers)
+
+Kryon FAIL (live HTTP request detects missing HSTS/CSP/XFO) vs Lynis PASS
+(parses config files only, doesn't validate response headers). This is the
+**product pitch**: Kryon does what Lynis doesn't attempt, surfaced by
+disciplined benchmarking.
+
+### Architecture invariants
+
+- LLM boundary: narrator outputs ONLY two prose strings per finding, never
+  touches verdicts/evidence/remediation_static.
+- Reproducibility: `CheckResult.to_json_reproducible()` strips wall-clock
+  fields. Checks run in sorted order by control_id. 3-run hash locked.
+- PDF separation: LLM-narrated blocks have visible "LLM NARRATIVA" watermark,
+  dashed cream border. Auditors see immediately what is deterministic
+  authority vs LLM prose.
+- Defensibility: every FAIL in the PDF includes exact command, raw stdout,
+  raw stderr, host ID, and SHA-256 hash footer — fully reproducible manually.
+
+### Artifacts
+
+- `src/kryon/compliance/checks/` (6 check modules + base + runner)
+- `src/kryon/reporting/compliance_pdf.py` + `compliance_narrator.py`
+- `scripts/f15/lab/` (Dockerfile + docker-compose.yml for Ubuntu 22.04
+  CIS-nonconforming bench)
+- `docs/compliance/lynis_mapping.md` (taxonomy bridge + expected agreement)
+- `docs/bench_results/F15_1_FINAL.md` (sprint writeup)
+- Sample PDF: 82KB A4 with 6 findings + Appendix A raw evidence
+
+### Why this sprint broke the pattern
+
+The F7-F13 arc repeatedly tested "engine or LLM differentiator over real C/C++".
+F15.1 tests "deterministic compliance auditor with LLM narrator". The hypothesis
+is smaller and more testable; the dependencies on LLM capability are confined
+to cosmetic prose; the gates are pinned before any code. Result: all-green.
+
+---
+
 ## F10.2 — Joern N=100 bootstrap CI re-validation
 
 F7.5 showed zero Joern-unique findings at N=20. F8 recalibration proved

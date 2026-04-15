@@ -1,0 +1,115 @@
+[
+  {
+    "control_id": "10.2.1",
+    "control_title": "Audit trails",
+    "section": "10",
+    "verdict": "FAIL",
+    "evidence_command": "systemctl is-active auditd ; cat /etc/audit/rules.d/*.rules",
+    "evidence_parsed": {
+      "auditd_active": false,
+      "rules_found": false,
+      "issues": [
+        "auditd not installed"
+      ]
+    },
+    "evidence_stdout": "auditd not installed or non-systemd init"
+  },
+  {
+    "control_id": "2.2.2",
+    "control_title": "Vendor default accounts",
+    "section": "2",
+    "verdict": "FAIL",
+    "evidence_command": "awk /etc/shadow ; mysql -u root -e 'SELECT 1' ; snmpwalk -c public",
+    "evidence_parsed": {
+      "shadow_empty_password_accounts": [
+        "badacct"
+      ],
+      "mysql_root_empty": "N/A",
+      "snmp_public_responds": "N/A",
+      "sub_verdicts": {
+        "shadow": "FAIL",
+        "mysql": "N/A",
+        "snmp": "N/A"
+      }
+    },
+    "evidence_stdout": "=== shadow ===\nbadacct\n\n=== mysql ===\nmysql client not installed\n=== snmp ===\nsnmpwalk not installed"
+  },
+  {
+    "control_id": "2.2.7",
+    "control_title": "Non-console administrative access encryption",
+    "section": "2",
+    "verdict": "FAIL",
+    "evidence_command": "sshd -T",
+    "evidence_parsed": {
+      "permit_root_login": "yes",
+      "max_auth_tries": "10",
+      "protocol": "",
+      "ciphers_present_weak": [
+        "aes128-cbc",
+        "aes256-cbc"
+      ],
+      "issues": [
+        "MaxAuthTries=10",
+        "PermitRootLogin=yes",
+        "weak_ciphers=['aes128-cbc', 'aes256-cbc']"
+      ]
+    },
+    "evidence_stdout": "port 22\naddressfamily any\nlistenaddress [::]:22\nlistenaddress 0.0.0.0:22\nusepam yes\nlogingracetime 120\nx11displayoffset 10\nmaxauthtries 10\nmaxsessions 10\nclientaliveinterval 0\nclientalivecountmax 3\nstreamlocalbindmask 0177\npermitrootlogin yes\nignorerhosts yes\nignoreuserknownhosts no\nhostbasedauthentication no\nhostbasedusesnamefrompacketonly no\npubkeyauthentication yes\nkerberosauthentication no\nkerberosorlocalpasswd yes\nkerberosticketcleanup yes\ngssapiauthentication no\ngssapicleanupcredentials yes\ngssapikeyexchange no\ngssapistrictacceptorcheck yes\ngssapistorecredentialsonrekey no\ngssapikexalgorithms gss-group14-sha256-,gss-group16-sha512-,gss-nistp256-sha256-,gss-curve25519-sha256-,gss-group14-sha1-,gss-gex-sha1-\npasswordauthentication yes\nkbdinteractiveauthentication no\nprintmotd no\nprintlastlog yes\nx11forwarding yes\nx11uselocalhost yes\npermittty yes\npermituserrc yes\nstrictmodes yes\ntcpkeepalive yes\npermitemptypasswords no\ncompression yes\ngatewayports no\nusedns no\nallowtcpforwarding yes\nallowagentforwarding yes\ndisableforwarding no\nallowstreamlocalforwarding yes\nstreamlocalbindunlink no\nfingerprinthash SHA256\nexposeauthinfo no\npidfile /run/sshd.pid\nmodulifile /etc/ssh/moduli\nxauthlocation /usr/bin/xauth\nciphers aes128-cbc,aes256-cbc,aes256-gcm@openssh.com\nmacs umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1\nbanner none\nforcecommand none\nchrootdirectory none\ntrustedusercakeys none\nrevokedkeys none\nsecuritykeyprovider internal\nauthorizedprincipalsfile none\nversionaddendum none\nauthorizedkeyscommand none\nauthorizedkeyscommanduser none\nauthorizedprincipalscommand none\nauthorizedprincipalscommanduser none\nhostkeyagent none\nkexalgorithms curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,sntrup761x25519-sha512@openssh.com,diffie-hellman-group-exchange-sha25"
+  },
+  {
+    "control_id": "6.3.3",
+    "control_title": "Critical security patches within 30 days",
+    "section": "6",
+    "verdict": "FAIL",
+    "evidence_command": "apt list --upgradable ; grep 'upgrade' /var/log/dpkg.log*",
+    "evidence_parsed": {
+      "security_updates_pending": 1,
+      "last_upgrade_age_days": 45,
+      "reason": "1 security update(s) pending"
+    },
+    "evidence_stdout": "Listing...\nlibssl3/jammy-updates,jammy-security 3.0.2-0ubuntu1.23 amd64 [upgradable from: 3.0.2-0ubuntu1.21]\nlibsystemd0/jammy-updates 249.11-0ubuntu3.20 amd64 [upgradable from: 249.11-0ubuntu3.17]\nlibudev1/jammy-updates 249.11-0ubuntu3.20 amd64 [upgradable from: 249.11-0ubuntu3.17]\n\n\n--- dpkg.log tail ---\n2026-03-01 12:00:00 upgrade libc6:amd64 2.31-0ubuntu9.1 2.31-0ubuntu9.2\n"
+  },
+  {
+    "control_id": "6.4.1",
+    "control_title": "Public-facing web application protection",
+    "section": "6",
+    "verdict": "FAIL",
+    "evidence_command": "curl -sI (each of ports [80])",
+    "evidence_parsed": {
+      "exposed_web_ports": [
+        80
+      ],
+      "per_port": {
+        "80": {
+          "scheme": "http",
+          "missing_headers": [
+            "content-security-policy",
+            "x-content-type-options",
+            "x-frame-options"
+          ],
+          "present_headers": []
+        }
+      }
+    },
+    "evidence_stdout": "=== :80 http ===\nHTTP/1.1 200 OK\nServer: nginx/1.18.0 (Ubuntu)\nDate: Wed, 15 Apr 2026 21:06:13 GMT\nContent-Type: text/html\nContent-Length: 39\nLast-Modified: Wed, 15 Apr 2026 21:04:39 GMT\nConnection: keep-alive\nETag: \"69dffd67-27\"\nAccept-Ranges: bytes\n\n"
+  },
+  {
+    "control_id": "8.3.6",
+    "control_title": "Minimum password complexity",
+    "section": "8",
+    "verdict": "FAIL",
+    "evidence_command": "cat /etc/login.defs ; cat /etc/security/pwquality.conf ; cat /etc/pam.d/common-password",
+    "evidence_parsed": {
+      "login_defs_pass_min_len": null,
+      "pwquality_minlen": null,
+      "pwquality_minclass": null,
+      "pam_pwquality_present": false,
+      "issues": [
+        "PASS_MIN_LEN not set in /etc/login.defs",
+        "no pam_pwquality/pam_cracklib in /etc/pam.d/common-password",
+        "pwquality.conf missing or unconfigured"
+      ]
+    },
+    "evidence_stdout": "=== login.defs (PASS_MIN_LEN) ===\nPASS_MIN_LEN=None\n\n=== pwquality.conf ===\nminlen=None\nminclass=None\n\n=== pam.d/common-password has pam_pwquality: no ==="
+  }
+]

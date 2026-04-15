@@ -1,0 +1,17 @@
+# F15.1 bench lab. Isolated network; target deliberately misconfigured.
+# Do NOT connect to production networks.
+
+services:
+  bench-target:
+    build: .
+    container_name: f15-bench-target
+    hostname: f15-bench-target
+    networks:
+      - bench-net
+    # No port publish — access only via bench-net from other containers
+    # (e.g. a Kryon scanner sidecar) or docker exec from the host.
+
+networks:
+  bench-net:
+    name: f15-bench-net
+    driver: bridge
