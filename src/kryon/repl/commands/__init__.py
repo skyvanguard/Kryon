@@ -8,6 +8,7 @@ in the KRYON REPL.
 # These imports will register the commands with the registry
 from kryon.repl.commands import (  # pylint: disable=import-error,unused-import,line-too-long,redefined-builtin # noqa: E501,F401
     agent,
+    allow,  # /allow — F10.1 per-engagement allow-list
     compact,  # Add the compact command
     config,
     corpus,   # /corpus — inspect the CVE-with-diff corpus (F4.5)

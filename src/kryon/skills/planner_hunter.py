@@ -711,6 +711,22 @@ class SemgrepHunter:
 # ---------------------------------------------------------------------------
 
 
+def _find_repo_root(file_path: str) -> Path | None:
+    """Walk up from `file_path` until we find a `.kryon-allow.yaml` or
+    `.git` marker. Returns None if neither is found within 20 levels."""
+    try:
+        p = Path(file_path).resolve().parent
+    except OSError:
+        return None
+    for _ in range(20):
+        if (p / ".kryon-allow.yaml").is_file() or (p / ".git").exists():
+            return p
+        if p.parent == p:
+            return None
+        p = p.parent
+    return None
+
+
 def _joern_enabled() -> bool:
     """True if KRYON_JOERN_ENABLED is truthy at call time.
 
@@ -1435,6 +1451,18 @@ class HybridHunter:
         for f in all_findings:
             f["_hunters_used"] = list(hunters_used)
             f["_hunters_failed"] = list(hunters_failed)
+
+        # F10.1 — apply per-engagement allow-list. Never removes findings;
+        # only stamps _suppressed_by_allowlist so the report consumer
+        # can hide them under --show-suppressed, and every match is
+        # written to an append-only audit log.
+        try:
+            from kryon.services.allow_list import load as _load_allow
+            repo_root = _find_repo_root(job.file_path)
+            if repo_root is not None:
+                _load_allow(repo_root).annotate(all_findings)
+        except Exception as exc:
+            logger.warning("allow-list annotate failed: %s", exc)
 
         # F10.3-B — optional LLM triage annotation. Never filters; only
         # stamps triage_verdict / triage_reason / triage_confidence so the
