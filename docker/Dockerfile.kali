@@ -52,6 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     socat \
     tcpdump \
     sshpass \
+    openssh-client \
     # Utilities
     python3 \
     python3-pip \
