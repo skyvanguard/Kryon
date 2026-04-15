@@ -227,11 +227,17 @@ def _check_ssh(svc: DiscoveredService, ssh_target: str | None,
         base = ["ssh", "-o", "StrictHostKeyChecking=no",
                 "-o", "UserKnownHostsFile=/dev/null",
                 "-p", port, f"{user}@{host}"]
+        # Pass password via env (`sshpass -e`) so it never appears in argv
+        # / /proc/<pid>/cmdline. Banks regularly audit running processes;
+        # `sshpass -p <password>` is a reliable demo killer.
+        env = None
         if ssh_password:
-            base = ["sshpass", "-p", ssh_password] + base
+            env = {**os.environ, "SSHPASS": ssh_password}
+            base = ["sshpass", "-e"] + base
         try:
             r = subprocess.run(base + [cmd], capture_output=True,
-                               text=True, timeout=15, check=False)
+                               text=True, timeout=15, check=False,
+                               env=env)
             return r.stdout
         except Exception:
             return ""
@@ -338,6 +344,21 @@ def run_engage(args: argparse.Namespace) -> int:
         f"engagement-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M')}"
     )
 
+    # Security hygiene: prefer `SSHPASS` env over --ssh-password argv.
+    # Passing the password as a CLI argument to `kryon engage` leaves
+    # the plaintext in /proc/<pid>/cmdline of the Kryon process itself
+    # (visible to every local process). Warn if that's how we got it;
+    # fall back to SSHPASS env when the flag is absent.
+    pwd_from_argv = bool(args.ssh_password)
+    if not args.ssh_password and os.environ.get("SSHPASS"):
+        args.ssh_password = os.environ["SSHPASS"]
+    if pwd_from_argv:
+        console.print(
+            "[yellow]⚠  --ssh-password in argv is visible in /proc. "
+            "Prefer: `export SSHPASS=... && kryon engage ...` (drop the flag) "
+            "or use an SSH key.[/yellow]"
+        )
+
     # --- Phase 1: discovery -----------------------------------------------
     _banner(console, f"Fase 1 — descubrimiento ({target})")
     xml = _run_nmap(target, timeout_s=args.nmap_timeout)
@@ -434,13 +455,18 @@ def run_engage(args: argparse.Namespace) -> int:
                     base = ["ssh", "-o", "StrictHostKeyChecking=no",
                             "-o", "UserKnownHostsFile=/dev/null",
                             "-p", port, f"{user}@{host}"]
+                    # SSHPASS env instead of `-p <password>` — argv stays
+                    # clean for anyone watching `ps auxf`.
+                    env = None
                     if args.ssh_password:
-                        base = ["sshpass", "-p", args.ssh_password] + base
+                        env = {**os.environ, "SSHPASS": args.ssh_password}
+                        base = ["sshpass", "-e"] + base
                     console.print(f"  [dim]$[/dim] {a['command'][:90]}")
                     try:
                         r = subprocess.run(
                             base + [a["command"]], capture_output=True,
                             text=True, timeout=30, check=False,
+                            env=env,
                         )
                         if r.returncode == 0:
                             console.print(f"  [green]✓[/green] applied")
@@ -497,7 +523,10 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
     p.add_argument("--scope", help="human-readable scope string for the report")
     p.add_argument("--ssh", help="SSH target as user@host[:port]")
     p.add_argument("--ssh-password",
-                   help="SSH password (requires sshpass); demo only")
+                   help=(
+                       "SSH password (passed to sshpass via SSHPASS env, "
+                       "NOT as argv). Prefer --ssh-key for production."
+                   ))
     p.add_argument("--out", default="./kryon-reports",
                    help="output directory for the report")
     p.add_argument("--client", default="",
