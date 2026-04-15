@@ -1,0 +1,1646 @@
+{
+  "n_files": 100,
+  "n_fps": 137,
+  "findings": [
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-tool-gcc.c",
+      "line": 0,
+      "cwe": "CWE-415",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-tool-gcc.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-tool-gcc.c",
+      "line": 0,
+      "cwe": "CWE-78",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-tool-gcc.c",
+      "line": 93,
+      "cwe": "CWE-78",
+      "cwe_aliases": [],
+      "rule_id": "popen-with-variable",
+      "hunter": "semgrep",
+      "message": "popen() with non-literal command \u2014 command injection risk. CWE-78.",
+      "snippet": "    91:   safe_strcat(command, \" -xc++ -E -v - < /dev/null 2>&1\", PATH_MAX);\n    92: \n>   93:   cmdOut = popen(command, \"r\");\n    94:   if (!cmdOut)\n    95:   {",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-tool-gcc.c",
+      "line": 193,
+      "cwe": "CWE-676",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-string-copy-fn",
+      "hunter": "semgrep",
+      "message": "Finding triggers whenever there is a strcpy or strncpy used. This is an issue because strcpy does not affirm the size of the destination array and strncpy will not automatically NULL-terminate strings",
+      "snippet": "   191:       continue;\n   192:     }\n>  193:     strncpy(token, from, length);\n   194:     token[length] = 0;\n   195:     from = to + 1;",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-tool-gcc.c",
+      "line": 218,
+      "cwe": "CWE-676",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-strtok-fn",
+      "hunter": "semgrep",
+      "message": "Avoid using 'strtok()'. This function directly modifies the first argument buffer, permanently erasing the delimiter character. Use 'strtok_r()' instead.",
+      "snippet": "   216:   char* dir;\n   217:   path = strdup(getenv(\"PATH\"));\n>  218:   for (dir = strtok(path, \":\"); dir; dir = strtok(NULL, \":\")) {\n   219:     safe_strcpy(fullpath, dir, PATH_MAX);\n   220:     safe_strcat(fullpath, \"/\", PATH_MAX);",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-logger.c",
+      "line": 0,
+      "cwe": "CWE-22",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-logger.c",
+      "line": 43,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-122",
+        "CWE-787"
+      ],
+      "rule_id": "malloc-arithmetic",
+      "hunter": "semgrep",
+      "message": "malloc()/calloc() with arithmetic argument \u2014 overflow leads to\nundersized allocation -> heap overflow. CWE-190 -> CWE-122.",
+      "snippet": "    41:   }\n    42: \n>   43:   cmd = (char*) malloc(sizeof(char) * cmdSize);\n    44:   if (!cmd)\n    45:   {",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-logger.c",
+      "line": 154,
+      "cwe": "CWE-122",
+      "cwe_aliases": [
+        "CWE-787"
+      ],
+      "rule_id": "heap-overflow-malloc-memcpy",
+      "hunter": "semgrep",
+      "message": "Heap allocation followed by memcpy with separate size variable.\nRisk if memcpy size > malloc size. CWE-122.",
+      "snippet": "   152: \n   153:   /* Convert argument vector to a NULL terminated list */\n>  154:   argList = (char const **) malloc(sizeof(char*) * (argc_ + 1));\n   155:   if (argList)\n   156:   {",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-tool.c",
+      "line": 0,
+      "cwe": "CWE-415",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-tool.c",
+      "line": 53,
+      "cwe": "CWE-676",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-strtok-fn",
+      "hunter": "semgrep",
+      "message": "Avoid using 'strtok()'. This function directly modifies the first argument buffer, permanently erasing the delimiter character. Use 'strtok_r()' instead.",
+      "snippet": "    51:   }\n    52: \n>   53:   token = strtok(progList, PROG_LIST_SEPARATOR);\n    54:   while (token)\n    55:   {",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-util.c",
+      "line": 0,
+      "cwe": "CWE-22",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-util.c",
+      "line": 0,
+      "cwe": "CWE-416",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-util.c",
+      "line": 278,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-122",
+        "CWE-787"
+      ],
+      "rule_id": "malloc-arithmetic",
+      "hunter": "semgrep",
+      "message": "malloc()/calloc() with arithmetic argument \u2014 overflow leads to\nundersized allocation -> heap overflow. CWE-190 -> CWE-122.",
+      "snippet": "   276:   if (cap_ > 0)\n   277:   {\n>  278:     vec_->data = (void**) malloc(sizeof(void*) * cap_);\n   279:     if (!vec_->data)\n   280:     {",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-util.c",
+      "line": 488,
+      "cwe": "CWE-122",
+      "cwe_aliases": [
+        "CWE-787"
+      ],
+      "rule_id": "heap-overflow-malloc-memcpy",
+      "hunter": "semgrep",
+      "message": "Heap allocation followed by memcpy with separate size variable.\nRisk if memcpy size > malloc size. CWE-122.",
+      "snippet": "   486:   }\n   487: \n>  488:   dup = malloc(sizeof(char) * (len + 1));\n   489:   if (!dup)\n   490:   {",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-util.c",
+      "line": 719,
+      "cwe": "CWE-676",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-string-copy-fn",
+      "hunter": "semgrep",
+      "message": "Finding triggers whenever there is a strcpy or strncpy used. This is an issue because strcpy does not affirm the size of the destination array and strncpy will not automatically NULL-terminate strings",
+      "snippet": "   717:   }\n   718: \n>  719:   strncpy(dest, src, buf_size);\n   720: \n   721:   if (dest[buf_size - 1] != '\\0')",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-util.c",
+      "line": 746,
+      "cwe": "CWE-676",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-strcat-fn",
+      "hunter": "semgrep",
+      "message": "Finding triggers whenever there is a strcat or strncat used. This is an issue because strcat or strncat can lead to buffer overflow vulns. Fix this by using strcat_s instead.",
+      "snippet": "   744:   }\n   745: \n>  746:   strncat(dest, src, n);\n   747: \n   748:   return dest;",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-tool-javac.c",
+      "line": 0,
+      "cwe": "CWE-22",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-tool-javac.c",
+      "line": 123,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-122",
+        "CWE-787"
+      ],
+      "rule_id": "malloc-arithmetic",
+      "hunter": "semgrep",
+      "message": "malloc()/calloc() with arithmetic argument \u2014 overflow leads to\nundersized allocation -> heap overflow. CWE-190 -> CWE-122.",
+      "snippet": "   121: \n   122:   **resCp_ = 0;\n>  123:   classPath = (char*) malloc((strlen(cp_) + 1) * sizeof(char));\n   124:   safe_strcpy(classPath, cp_, strlen(cp_) + 1);\n   125: ",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-tool-javac.c",
+      "line": 126,
+      "cwe": "CWE-676",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-strtok-fn",
+      "hunter": "semgrep",
+      "message": "Avoid using 'strtok()'. This function directly modifies the first argument buffer, permanently erasing the delimiter character. Use 'strtok_r()' instead.",
+      "snippet": "   124:   safe_strcpy(classPath, cp_, strlen(cp_) + 1);\n   125: \n>  126:   for (cpPart = strtok(classPath, \":\"); cpPart; cpPart = strtok(NULL, \":\"))\n   127:   {\n   128:     size_t i;",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-tool-javac.c",
+      "line": 132,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "   130:     wordexp_t we;\n   131: \n>  132:     memset(&we, 0, sizeof(wordexp_t));\n   133:     if (wordexp(cpPart, &we, WRDE_NOCMD | WRDE_UNDEF) != 0)\n   134:     {",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-hooks.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/analyzer/tools/build-logger/src/ldlogger-hooks.c",
+      "line": 96,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-122",
+        "CWE-787"
+      ],
+      "rule_id": "malloc-arithmetic",
+      "hunter": "semgrep",
+      "message": "malloc()/calloc() with arithmetic argument \u2014 overflow leads to\nundersized allocation -> heap overflow. CWE-190 -> CWE-122.",
+      "snippet": "    94:   }\n    95: \n>   96:   loggerArgs = (const char **) malloc(sizeof(char*) * (argCount + 2));\n    97: \n    98:   loggerArgs[0] = filename_;",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/tools/report-converter/tests/unit/analyzers/jscpd_output_test_files/files/duplicate1.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/tools/report-converter/tests/unit/analyzers/jscpd_output_test_files/files/duplicate1.c",
+      "line": 7,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-191",
+        "CWE-194",
+        "CWE-195",
+        "CWE-196",
+        "CWE-197"
+      ],
+      "rule_id": "typed-arithmetic-overflow",
+      "hunter": "semgrep",
+      "message": "Typed integer assignment with arithmetic operation. Risk of overflow\nif operands are unbounded. CWE-190.",
+      "snippet": "     5:     int a = 5;\n     6:     int b = 7;\n>    7:     int result = a + b;\n     8:     printf(\"The sum of %d and %d is: %d\\n\", a, b, result);\n     9: }",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/tools/report-converter/tests/unit/analyzers/jscpd_output_test_files/files/duplicate2.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_Ericsson_codechecker_472e758e/tools/report-converter/tests/unit/analyzers/jscpd_output_test_files/files/duplicate2.c",
+      "line": 7,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-191",
+        "CWE-194",
+        "CWE-195",
+        "CWE-196",
+        "CWE-197"
+      ],
+      "rule_id": "typed-arithmetic-overflow",
+      "hunter": "semgrep",
+      "message": "Typed integer assignment with arithmetic operation. Risk of overflow\nif operands are unbounded. CWE-190.",
+      "snippet": "     5:     int a = 5;\n     6:     int c = 6;\n>    7:     int result = a * c;\n     8:     printf(\"The result of %d * %d is: %d\\n\", a, c, result);\n     9: }",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/external/OpenJPH/src/core/others/ojph_mem.c",
+      "line": 106,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-122",
+        "CWE-787"
+      ],
+      "rule_id": "malloc-arithmetic",
+      "hunter": "semgrep",
+      "message": "malloc()/calloc() with arithmetic argument \u2014 overflow leads to\nundersized allocation -> heap overflow. CWE-190 -> CWE-122.",
+      "snippet": "   104: \n   105:     // emulate aligned_alloc\n>  106:     void* orig_ptr = malloc(size + alignment + sizeof(void*));\n   107:     if (orig_ptr == NULL)\n   108:       return NULL; // Allocation failed",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/external/deflate/lib/deflate_compress.c",
+      "line": 0,
+      "cwe": "CWE-122",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/external/deflate/lib/deflate_decompress.c",
+      "line": 0,
+      "cwe": "CWE-787",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/external/deflate/lib/deflate_decompress.c",
+      "line": 1188,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "  1186: \t * But for simplicity, we currently just zero the whole decompressor.\n  1187: \t */\n> 1188: \tmemset(d, 0, sizeof(*d));\n  1189: \td->free_func = options->free_func ?\n  1190: \t\t       options->free_func : libdeflate_default_free_func;",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/attributes.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/attributes.c",
+      "line": 434,
+      "cwe": "CWE-476",
+      "cwe_aliases": [
+        "CWE-690"
+      ],
+      "rule_id": "null-assign-deref",
+      "hunter": "semgrep",
+      "message": "Pointer explicitly assigned NULL then dereferenced. CWE-476.",
+      "snippet": "   432:     exr_attribute_t**     out)\n   433: {\n>  434:     exr_attribute_t** it    = NULL;\n   435:     exr_attribute_t** first = NULL;\n   436:     exr_attribute_t** end   = NULL;",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/attributes.c",
+      "line": 507,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-191",
+        "CWE-194",
+        "CWE-195",
+        "CWE-196",
+        "CWE-197"
+      ],
+      "rule_id": "typed-arithmetic-overflow",
+      "hunter": "semgrep",
+      "message": "Typed integer assignment with arithmetic operation. Risk of overflow\nif operands are unbounded. CWE-190.",
+      "snippet": "   505: {\n   506:     int               cattrsz = list->num_attributes;\n>  507:     int               nattrsz = cattrsz + 1;\n   508:     int               insertpos;\n   509:     exr_attribute_t** attrs        = list->entries;",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/pack.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/pack.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/pack.c",
+      "line": 31,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-191",
+        "CWE-194",
+        "CWE-195",
+        "CWE-196",
+        "CWE-197"
+      ],
+      "rule_id": "typed-arithmetic-overflow",
+      "hunter": "semgrep",
+      "message": "Typed integer assignment with arithmetic operation. Risk of overflow\nif operands are unbounded. CWE-190.",
+      "snippet": "    29:     for (int y = 0; y < encode->chunk.height; ++y)\n    30:     {\n>   31:         int cury = y + encode->chunk.start_y;\n    32: \n    33:         for (int c = 0; c < encode->channel_count; ++c)",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_structs.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_structs.c",
+      "line": 181,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "   179:         /* the first one is always the one that is part of the file */\n   180:         if (cur != &(ctxt->first_part)) { dofree (cur); }\n>  181:         else { memset (cur, 0, sizeof (struct _priv_exr_part_t)); }\n   182:     }\n   183: ",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_structs.c",
+      "line": 195,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-191",
+        "CWE-194",
+        "CWE-195",
+        "CWE-196",
+        "CWE-197"
+      ],
+      "rule_id": "typed-arithmetic-overflow",
+      "hunter": "semgrep",
+      "message": "Typed integer assignment with arithmetic operation. Risk of overflow\nif operands are unbounded. CWE-190.",
+      "snippet": "   193:     exr_context_t f, exr_priv_part_t* outpart, int* new_index)\n   194: {\n>  195:     int              ncount = f->num_parts + 1;\n   196:     exr_priv_part_t  part;\n   197:     exr_priv_part_t* nptrs = NULL;",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/part_attr.c",
+      "line": 240,
+      "cwe": "CWE-476",
+      "cwe_aliases": [
+        "CWE-690"
+      ],
+      "rule_id": "null-assign-deref",
+      "hunter": "semgrep",
+      "message": "Pointer explicitly assigned NULL then dereferenced. CWE-476.",
+      "snippet": "   238:     exr_result_t         rv    = EXR_ERR_UNKNOWN;\n   239:     const char*          aname = srca->name;\n>  240:     exr_attribute_t*     attr  = NULL;\n   241:     exr_attribute_type_t type  = srca->type;\n   242:     switch (aname[0])",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_zip.c",
+      "line": 266,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-191",
+        "CWE-194",
+        "CWE-195",
+        "CWE-196",
+        "CWE-197"
+      ],
+      "rule_id": "typed-arithmetic-overflow",
+      "hunter": "semgrep",
+      "message": "Typed integer assignment with arithmetic operation. Risk of overflow\nif operands are unbounded. CWE-190.",
+      "snippet": "   264:     while (t1 < t2)\n   265:     {\n>  266:         int d = (int) (t1[0]) - p + (128 + 256);\n   267:         p     = (int) t1[0];\n   268:         t1[0] = (uint8_t) d;",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/context.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/string.c",
+      "line": 135,
+      "cwe": "CWE-676",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-string-copy-fn",
+      "hunter": "semgrep",
+      "message": "Finding triggers whenever there is a strcpy or strncpy used. This is an issue because strcpy does not affirm the size of the destination array and strncpy will not automatically NULL-terminate strings",
+      "snippet": "   133: #endif\n   134:             if (d)\n>  135:                 strncpy (outs, d, (size_t) len);\n   136:             else\n   137:                 memset (outs, 0, (size_t) len);",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/string.c",
+      "line": 137,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "   135:                 strncpy (outs, d, (size_t) len);\n   136:             else\n>  137:                 memset (outs, 0, (size_t) len);\n   138: #ifdef _MSC_VER\n   139: #    pragma warning(pop)",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/coding.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/coding.c",
+      "line": 33,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "    31:         if (chanfill == NULL)\n    32:             return ctxt->standard_error (ctxt, EXR_ERR_OUT_OF_MEMORY);\n>   33:         memset (\n    34:             chanfill, 0, (size_t) (chans) * sizeof (exr_coding_channel_info_t));\n    35:     }",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_pxr24.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_pxr24.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_pxr24.c",
+      "line": 100,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-191",
+        "CWE-194",
+        "CWE-195",
+        "CWE-196",
+        "CWE-197"
+      ],
+      "rule_id": "typed-arithmetic-overflow",
+      "hunter": "semgrep",
+      "message": "Typed integer assignment with arithmetic operation. Risk of overflow\nif operands are unbounded. CWE-190.",
+      "snippet": "    98:     for (int y = 0; y < encode->chunk.height; ++y)\n    99:     {\n>  100:         int cury = y + encode->chunk.start_y;\n   101: \n   102:         for (int c = 0; c < encode->channel_count; ++c)",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/write_header.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/memory.c",
+      "line": 17,
+      "cwe": "CWE-476",
+      "cwe_aliases": [
+        "CWE-690"
+      ],
+      "rule_id": "null-assign-deref",
+      "hunter": "semgrep",
+      "message": "Pointer explicitly assigned NULL then dereferenced. CWE-476.",
+      "snippet": "    15: /**************************************/\n    16: \n>   17: static exr_memory_allocation_func_t _glob_alloc_func = NULL;\n    18: static exr_memory_free_func_t       _glob_free_func  = NULL;\n    19: ",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/decoding.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/decoding.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/decoding.c",
+      "line": 622,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "   620:                         decode->packed_sample_count_table,\n   621:                         decode->chunk.sample_count_table_size);\n>  622:                     memset (\n   623:                         decode->sample_count_table + (decode->chunk.sample_count_table_size / sizeof\n   624:                         0,",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/parse_header.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/parse_header.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/parse_header.c",
+      "line": 611,
+      "cwe": "CWE-476",
+      "cwe_aliases": [
+        "CWE-690"
+      ],
+      "rule_id": "null-assign-deref",
+      "hunter": "semgrep",
+      "message": "Pointer explicitly assigned NULL then dereferenced. CWE-476.",
+      "snippet": "   609:     nstr     = 0;\n   610:     nalloced = 0;\n>  611:     clist    = NULL;\n   612:     while (pulled < attrsz)\n   613:     {",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_piz.c",
+      "line": 0,
+      "cwe": "CWE-125",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_piz.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_piz.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_piz.c",
+      "line": 159,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-191",
+        "CWE-194",
+        "CWE-195",
+        "CWE-196",
+        "CWE-197"
+      ],
+      "rule_id": "typed-arithmetic-overflow",
+      "hunter": "semgrep",
+      "message": "Typed integer assignment with arithmetic operation. Risk of overflow\nif operands are unbounded. CWE-190.",
+      "snippet": "   157:     int di = (int) d;\n   158: \n>  159:     int i00 = ai + (bi & 1) + (bi >> 1);\n   160:     int i10 = i00 - bi;\n   161:     int i01 = ci + (di & 1) + (di >> 1);",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_piz.c",
+      "line": 673,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "   671:     //\n   672: \n>  673:     memset (bitmap, 0, sizeof (uint8_t) * BITMAP_SIZE);\n   674: \n   675:     nBytes = 0;",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_b44.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_b44.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_b44.c",
+      "line": 0,
+      "cwe": "CWE-787",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_b44.c",
+      "line": 363,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-191",
+        "CWE-194",
+        "CWE-195",
+        "CWE-196",
+        "CWE-197"
+      ],
+      "rule_id": "typed-arithmetic-overflow",
+      "hunter": "semgrep",
+      "message": "Typed integer assignment with arithmetic operation. Risk of overflow\nif operands are unbounded. CWE-190.",
+      "snippet": "   361:     for (int y = 0; y < encode->chunk.height; ++y)\n   362:     {\n>  363:         int cury = y + encode->chunk.start_y;\n   364: \n   365:         scratch = encode->scratch_buffer_1;",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/compression.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/unpack.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/unpack.c",
+      "line": 1248,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-191",
+        "CWE-194",
+        "CWE-195",
+        "CWE-196",
+        "CWE-197"
+      ],
+      "rule_id": "typed-arithmetic-overflow",
+      "hunter": "semgrep",
+      "message": "Typed integer assignment with arithmetic operation. Risk of overflow\nif operands are unbounded. CWE-190.",
+      "snippet": "  1246:     for (int y = 0; y < h; ++y)\n  1247:     {\n> 1248:         int cury = (int)( (int64_t) y +\n  1249:                           (int64_t) decode->chunk.start_y );\n  1250: ",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/encoding.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_huf.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/internal_rle.c",
+      "line": 161,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "   159:             if (outbytes + count > outsz) return 0;\n   160: \n>  161:             memset (dst, *(const uint8_t*) in, count);\n   162:             dst += count;\n   163:             outbytes += count;",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/channel_list.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/channel_list.c",
+      "line": 176,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-191",
+        "CWE-194",
+        "CWE-195",
+        "CWE-196",
+        "CWE-197"
+      ],
+      "rule_id": "typed-arithmetic-overflow",
+      "hunter": "semgrep",
+      "message": "Typed integer assignment with arithmetic operation. Risk of overflow\nif operands are unbounded. CWE-190.",
+      "snippet": "   174:     if (newcount > clist->num_alloced)\n   175:     {\n>  176:         int nsz = clist->num_alloced * 2;\n   177:         if (newcount > nsz) nsz = newcount + 1;\n   178:         nlist = (exr_attr_chlist_entry_t*) ctxt->alloc_fn (",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/chunk.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/chunk.c",
+      "line": 426,
+      "cwe": "CWE-476",
+      "cwe_aliases": [
+        "CWE-690"
+      ],
+      "rule_id": "null-assign-deref",
+      "hunter": "semgrep",
+      "message": "Pointer explicitly assigned NULL then dereferenced. CWE-476.",
+      "snippet": "   424:     uint64_t              offset_start, chunk_start, max_offset;\n   425:     uint64_t*             curctable;\n>  426:     exr_const_priv_part_t curpart = NULL;\n   427:     int                   found_ci, computed_ci, partnum = 0;\n   428:     size_t                chunkbytes;",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_AcademySoftwareFoundation_openexr_18221e2d/src/lib/OpenEXRCore/chunk.c",
+      "line": 468,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "   466:     if (!curctable) return EXR_ERR_OUT_OF_MEMORY;\n   467: \n>  468:     memset (curctable, 0, chunkbytes);\n   469: \n   470:     for (int ci = 0; ci < part->chunk_count; ++ci)",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-nativetask/src/main/native/lz4/lz4.c",
+      "line": 0,
+      "cwe": "CWE-125",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-nativetask/src/main/native/lz4/lz4.c",
+      "line": 0,
+      "cwe": "CWE-134",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-nativetask/src/main/native/lz4/lz4.c",
+      "line": 0,
+      "cwe": "CWE-787",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/container-executor.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/container-executor.c",
+      "line": 0,
+      "cwe": "CWE-22",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/container-executor.c",
+      "line": 0,
+      "cwe": "CWE-415",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/container-executor.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/container-executor.c",
+      "line": 0,
+      "cwe": "CWE-78",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/container-executor.c",
+      "line": 102,
+      "cwe": "CWE-476",
+      "cwe_aliases": [
+        "CWE-690"
+      ],
+      "rule_id": "null-assign-deref",
+      "hunter": "semgrep",
+      "message": "Pointer explicitly assigned NULL then dereferenced. CWE-476.",
+      "snippet": "   100: \n   101: //struct to store the user details\n>  102: struct serialized_passwd *user_detail = NULL;\n   103: \n   104: FILE* LOGFILE = NULL;",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/container-executor.c",
+      "line": 574,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-191",
+        "CWE-194",
+        "CWE-195",
+        "CWE-196",
+        "CWE-197"
+      ],
+      "rule_id": "typed-arithmetic-overflow",
+      "hunter": "semgrep",
+      "message": "Typed integer assignment with arithmetic operation. Risk of overflow\nif operands are unbounded. CWE-190.",
+      "snippet": "   572:   va_list ap;\n   573:   va_start(ap, numArgs);\n>  574:   int str_len = vsnprintf(NULL, 0, concat_pattern, ap) + 1;\n   575:   va_end(ap);\n   576: ",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/container-executor.c",
+      "line": 835,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-122",
+        "CWE-787"
+      ],
+      "rule_id": "malloc-arithmetic",
+      "hunter": "semgrep",
+      "message": "malloc()/calloc() with arithmetic argument \u2014 overflow leads to\nundersized allocation -> heap overflow. CWE-190 -> CWE-122.",
+      "snippet": "   833:   result = COULD_NOT_CREATE_APP_LOG_DIRECTORIES;\n   834:   // also make the directory for the container logs\n>  835:   char *combined_name = malloc(strlen(app_id) + strlen(container_id) + 2);\n   836:   if (combined_name == NULL) {\n   837:     fprintf(LOGFILE, \"Malloc of combined name failed\\n\");",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/container-executor.c",
+      "line": 1525,
+      "cwe": "CWE-78",
+      "cwe_aliases": [],
+      "rule_id": "exec-family",
+      "hunter": "semgrep",
+      "message": "exec*() family with non-literal program path \u2014 privileged escalation\n/ injection risk. CWE-78.",
+      "snippet": "  1523:     return -1;\n  1524:   }\n> 1525:   execvp(args[0], args);\n  1526:   fprintf(ERRORFILE, \"Failure to exec app initialization process - %s\\n\",\n  1527: \t  strerror(errno));",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/container-executor.c",
+      "line": 2256,
+      "cwe": "CWE-78",
+      "cwe_aliases": [],
+      "rule_id": "popen-with-variable",
+      "hunter": "semgrep",
+      "message": "popen() with non-literal command \u2014 command injection risk. CWE-78.",
+      "snippet": "  2254:         fprintf(LOGFILE, \"Inspecting docker container...\\n\");\n  2255:         fprintf(LOGFILE, \"Docker inspect command: %s\\n\", docker_inspect_command);\n> 2256:         FILE* inspect_docker = popen(docker_inspect_command, \"r\");\n  2257:         res = fscanf (inspect_docker, \"%d\", &pid);\n  2258:         fprintf(LOGFILE, \"pid from docker inspect: %d\\n\", pid);",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/main.c",
+      "line": 0,
+      "cwe": "CWE-415",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/main.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/main.c",
+      "line": 490,
+      "cwe": "CWE-787",
+      "cwe_aliases": [],
+      "rule_id": "incorrect-use-ato-fn",
+      "hunter": "semgrep",
+      "message": "Avoid the 'ato*()' family of functions. Their use can lead to undefined behavior, integer overflows, and lack of appropriate error handling. Instead prefer the 'strtol*()' family of functions.",
+      "snippet": "   488:   cmd_input.run_as_user_name = argv[optind++];\n   489:   cmd_input.yarn_user_name = argv[optind++];\n>  490:   int command = atoi(argv[optind++]);\n   491: \n   492:   fprintf(LOGFILE, \"main : command provided %d\\n\", command);",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/util.c",
+      "line": 0,
+      "cwe": "CWE-787",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/util.c",
+      "line": 38,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-122",
+        "CWE-787"
+      ],
+      "rule_id": "malloc-arithmetic",
+      "hunter": "semgrep",
+      "message": "malloc()/calloc() with arithmetic argument \u2014 overflow leads to\nundersized allocation -> heap overflow. CWE-190 -> CWE-122.",
+      "snippet": "    36:   //first allocate any array of 10\n    37:   if(value != NULL) {\n>   38:     return_values = (char **) malloc(sizeof(char *) * return_values_size);\n    39:     if (!return_values) {\n    40:       fprintf(ERRORFILE, \"Allocation error for return_values in %s.\\n\",",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/util.c",
+      "line": 45,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "    43:       goto cleanup;\n    44:     }\n>   45:     memset(return_values, 0, sizeof(char *) * return_values_size);\n    46: \n    47:     temp_tok = strtok_r(value, delim, &tempstr);",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/util.c",
+      "line": 143,
+      "cwe": "CWE-676",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-string-copy-fn",
+      "hunter": "semgrep",
+      "message": "Finding triggers whenever there is a strcpy or strncpy used. This is an issue because strcpy does not affirm the size of the destination array and strncpy will not automatically NULL-terminate strings",
+      "snippet": "   141:     }\n   142: \n>  143:     strncpy(ret, val_begin, val_end - val_begin);\n   144:     ret[val_end - val_begin] = '\\0';\n   145:     return ret;",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/util.c",
+      "line": 175,
+      "cwe": "CWE-676",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-strcat-fn",
+      "hunter": "semgrep",
+      "message": "Finding triggers whenever there is a strcat or strncat used. This is an issue because strcat or strncat can lead to buffer overflow vulns. Fix this by using strcat_s instead.",
+      "snippet": "   173:   while(str[p] != '\\0') {\n   174:     if(str[p] == '\\'') {\n>  175:       strncat(ret, replacement, ret_size - strlen(ret));\n   176:       i += replacement_length;\n   177:     }",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/configuration.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/configuration.c",
+      "line": 0,
+      "cwe": "CWE-22",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/configuration.c",
+      "line": 0,
+      "cwe": "CWE-415",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/configuration.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/configuration.c",
+      "line": 114,
+      "cwe": "CWE-676",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-string-copy-fn",
+      "hunter": "semgrep",
+      "message": "Finding triggers whenever there is a strcpy or strncpy used. This is an issue because strcpy does not affirm the size of the destination array and strncpy will not automatically NULL-terminate strings",
+      "snippet": "   112:     real_fname = file_name;\n   113:   } else if (realpath(root, buffer) != NULL) {\n>  114:     strncpy(strrchr(buffer, '/') + 1, file_name, EXECUTOR_PATH_MAX);\n   115:     real_fname = buffer;\n   116:   }",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/configuration.c",
+      "line": 244,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-122",
+        "CWE-787"
+      ],
+      "rule_id": "malloc-arithmetic",
+      "hunter": "semgrep",
+      "message": "malloc()/calloc() with arithmetic argument \u2014 overflow leads to\nundersized allocation -> heap overflow. CWE-190 -> CWE-122.",
+      "snippet": "   242:     // length of the name is the line - 2(to account for '[' and ']')\n   243:     len = strlen(line) - 2;\n>  244:     name = (char *) malloc(len + 1);\n   245:     if (name == NULL) {\n   246:       fprintf(ERRORFILE, \"malloc failed while reading section name.\\n\");",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/configuration.c",
+      "line": 312,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "   310:     exit(OUT_OF_MEMORY);\n   311:   }\n>  312:   memset(section->kv_pairs[section->size], 0,\n   313:          sizeof(struct kv_pair));\n   314:   section->kv_pairs[section->size]->key = trim(equaltok);",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc_write_config.c",
+      "line": 0,
+      "cwe": "CWE-415",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc_write_config.c",
+      "line": 459,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-122",
+        "CWE-787"
+      ],
+      "rule_id": "malloc-arithmetic",
+      "hunter": "semgrep",
+      "message": "malloc()/calloc() with arithmetic argument \u2014 overflow leads to\nundersized allocation -> heap overflow. CWE-190 -> CWE-122.",
+      "snippet": "   457: \n   458:   int dir_len = (dir_end + 1) - pid_file;  // include trailing slash\n>  459:   char* config_path = malloc(dir_len + strlen(RUNC_CONFIG_FILENAME) + 1);\n   460:   if (config_path == NULL) {\n   461:     return NULL;",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc_launch_cmd.c",
+      "line": 0,
+      "cwe": "CWE-415",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc_launch_cmd.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc_launch_cmd.c",
+      "line": 470,
+      "cwe": "CWE-476",
+      "cwe_aliases": [
+        "CWE-690"
+      ],
+      "rule_id": "null-assign-deref",
+      "hunter": "semgrep",
+      "message": "Pointer explicitly assigned NULL then dereferenced. CWE-476.",
+      "snippet": "   468: \n   469: static bool is_valid_runc_config_mounts(const cJSON* rcm) {\n>  470:   mount *mounts = NULL;\n   471:   unsigned int num_mounts = 0;\n   472:   int ret = 0;",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc.c",
+      "line": 0,
+      "cwe": "CWE-22",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc.c",
+      "line": 0,
+      "cwe": "CWE-415",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc.c",
+      "line": 92,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "    90: \n    91: static void init_runc_overlay_desc(runc_overlay_desc* desc) {\n>   92:   memset(desc, 0, sizeof(*desc));\n    93: }\n    94: ",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc.c",
+      "line": 530,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-191",
+        "CWE-194",
+        "CWE-195",
+        "CWE-196",
+        "CWE-197"
+      ],
+      "rule_id": "typed-arithmetic-overflow",
+      "hunter": "semgrep",
+      "message": "Typed integer assignment with arithmetic operation. Risk of overflow\nif operands are unbounded. CWE-190.",
+      "snippet": "   528:     unsigned int num_layers, const runc_overlay_desc* upper) {\n   529:   char* result = NULL;\n>  530:   const int sb_incr = 16*1024;\n   531:   strbuf sb;\n   532:   if (!strbuf_init(&sb, sb_incr)) {",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc.c",
+      "line": 825,
+      "cwe": "CWE-476",
+      "cwe_aliases": [
+        "CWE-690"
+      ],
+      "rule_id": "null-assign-deref",
+      "hunter": "semgrep",
+      "message": "Pointer explicitly assigned NULL then dereferenced. CWE-476.",
+      "snippet": "   823:   char* exit_code_file = NULL;\n   824:   char* runc_config_path = NULL;\n>  825:   runc_launch_cmd* rlc = NULL;\n   826:   runc_launch_cmd_ctx* ctx = setup_runc_launch_cmd_ctx();\n   827:   if (ctx == NULL) {",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc_reap.c",
+      "line": 0,
+      "cwe": "CWE-22",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc_reap.c",
+      "line": 0,
+      "cwe": "CWE-415",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc_reap.c",
+      "line": 82,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "    80:  */\n    81: static bool init_dent_stats(dent_stats_array* dsa, size_t initial_size) {\n>   82:   memset(dsa, 0, sizeof(*dsa));\n    83:   dsa->stats = malloc(sizeof(*dsa->stats) * initial_size);\n    84:   if (dsa->stats == NULL) {",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc_reap.c",
+      "line": 121,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-122",
+        "CWE-787"
+      ],
+      "rule_id": "malloc-arithmetic",
+      "hunter": "semgrep",
+      "message": "malloc()/calloc() with arithmetic argument \u2014 overflow leads to\nundersized allocation -> heap overflow. CWE-190 -> CWE-122.",
+      "snippet": "   119:   }\n   120: \n>  121:   dent_stat* new_stats = realloc(dsa->stats, new_size * sizeof(*dsa->stats));\n   122:   if (new_stats == NULL) {\n   123:     return false;",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc_base_ctx.c",
+      "line": 0,
+      "cwe": "CWE-22",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc_base_ctx.c",
+      "line": 0,
+      "cwe": "CWE-415",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc_base_ctx.c",
+      "line": 129,
+      "cwe": "CWE-415",
+      "cwe_aliases": [
+        "CWE-416"
+      ],
+      "rule_id": "double-free-direct",
+      "hunter": "semgrep",
+      "message": "Same pointer freed twice without intervening NULL assignment.\nHeap corruption -> arbitrary write primitive on classic allocators. CWE-415.",
+      "snippet": "   127:   }\n   128: \n>  129:   free(layers_path);\n   130:   return run_root;\n   131: ",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc_base_ctx.c",
+      "line": 133,
+      "cwe": "CWE-415",
+      "cwe_aliases": [],
+      "rule_id": "double-free",
+      "hunter": "semgrep",
+      "message": "Variable 'layers_path' was freed twice. This can lead to undefined behavior.",
+      "snippet": "   131: \n   132: fail:\n>  133:   free(layers_path);\n   134:   free(run_root);\n   135:   return NULL;",
+      "severity": "ERROR"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/runc/runc_base_ctx.c",
+      "line": 147,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "   145:  */\n   146: void init_runc_base_ctx(runc_base_ctx* ctx) {\n>  147:   memset(ctx, 0, sizeof(*ctx));\n   148:   ctx->layers_lock_fd = -1;\n   149:   ctx->layers_lock_state = F_UNLCK;",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/modules/devices/devices-module.c",
+      "line": 0,
+      "cwe": "CWE-476",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/modules/devices/devices-module.c",
+      "line": 131,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "   129:       char param_value[128];\n   130:       char type = 'c';\n>  131:       memset(param_value, 0, sizeof(param_value));\n   132:       if (is_block_device(ce_iterator[ce_count])) {\n   133:         type = 'b';",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/modules/devices/devices-module.c",
+      "line": 243,
+      "cwe": "CWE-676",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-string-copy-fn",
+      "hunter": "semgrep",
+      "message": "Finding triggers whenever there is a strcpy or strncpy used. This is an issue because strcpy does not affirm the size of the destination array and strncpy will not automatically NULL-terminate strings",
+      "snippet": "   241:           goto cleanup;\n   242:         }\n>  243:         strncpy(container_id, optarg, MAX_CONTAINER_ID_LEN);\n   244:         break;\n   245:       default:",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/modules/fpga/fpga-module.c",
+      "line": 109,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "   107:   for (int i = 0; i < n_minor_devices_to_block; i++) {\n   108:     char param_value[128];\n>  109:     memset(param_value, 0, sizeof(param_value));\n   110:     snprintf(param_value, sizeof(param_value), \"c %d:%d rwm\",\n   111:              major_device_number, minor_devices[i]);",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/modules/fpga/fpga-module.c",
+      "line": 196,
+      "cwe": "CWE-676",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-string-copy-fn",
+      "hunter": "semgrep",
+      "message": "Finding triggers whenever there is a strcpy or strncpy used. This is an issue because strcpy does not affirm the size of the destination array and strncpy will not automatically NULL-terminate strings",
+      "snippet": "   194:           goto cleanup;\n   195:         }\n>  196:         strncpy(container_id, optarg, MAX_CONTAINER_ID_LEN);\n   197:         break;\n   198:       default:",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/modules/gpu/gpu-module.c",
+      "line": 109,
+      "cwe": "CWE-14",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-memset",
+      "hunter": "semgrep",
+      "message": "When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose,",
+      "snippet": "   107:   for (int i = 0; i < n_minor_devices_to_block; i++) {\n   108:     char param_value[128];\n>  109:     memset(param_value, 0, sizeof(param_value));\n   110:     snprintf(param_value, sizeof(param_value), \"c %d:%d rwm\",\n   111:              major_device_number, minor_devices[i]);",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/modules/gpu/gpu-module.c",
+      "line": 196,
+      "cwe": "CWE-676",
+      "cwe_aliases": [],
+      "rule_id": "insecure-use-string-copy-fn",
+      "hunter": "semgrep",
+      "message": "Finding triggers whenever there is a strcpy or strncpy used. This is an issue because strcpy does not affirm the size of the destination array and strncpy will not automatically NULL-terminate strings",
+      "snippet": "   194:           goto cleanup;\n   195:         }\n>  196:         strncpy(container_id, optarg, MAX_CONTAINER_ID_LEN);\n   197:         break;\n   198:       default:",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/modules/cgroups/cgroups-operations.c",
+      "line": 0,
+      "cwe": "CWE-190",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/modules/cgroups/cgroups-operations.c",
+      "line": 0,
+      "cwe": "CWE-22",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "WARNING"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/modules/cgroups/cgroups-operations.c",
+      "line": 0,
+      "cwe": "CWE-416",
+      "cwe_aliases": [],
+      "rule_id": "",
+      "hunter": "heuristic",
+      "message": "",
+      "snippet": "",
+      "severity": "MEDIUM"
+    },
+    {
+      "file": "github.com_apache_hadoop_9d15a11b/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-server/hadoop-yarn-server-nodemanager/src/main/native/container-executor/impl/modules/cgroups/cgroups-operations.c",
+      "line": 68,
+      "cwe": "CWE-190",
+      "cwe_aliases": [
+        "CWE-122",
+        "CWE-787"
+      ],
+      "rule_id": "malloc-arithmetic",
+      "hunter": "semgrep",
+      "message": "malloc()/calloc() with arithmetic argument \u2014 overflow leads to\nundersized allocation -> heap overflow. CWE-190 -> CWE-122.",
+      "snippet": "    66:   }\n    67: \n>   68:   buffer = malloc(MAX_PATH_LEN + 1);\n    69:   if (!buffer) {\n    70:     fprintf(ERRORFILE, \"Failed to allocate memory for output path.\\n\");",
+      "severity": "ERROR"
+    }
+  ]
+}
