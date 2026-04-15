@@ -13,7 +13,6 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Iterable
 
 from kryon.sdk.agents import function_tool
 

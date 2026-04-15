@@ -33,7 +33,6 @@ from __future__ import annotations
 import fnmatch
 import json
 import logging
-import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path

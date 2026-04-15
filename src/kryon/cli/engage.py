@@ -39,7 +39,6 @@ import subprocess
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable
 
 logger = logging.getLogger(__name__)
 

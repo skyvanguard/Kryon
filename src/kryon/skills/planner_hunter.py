@@ -127,13 +127,6 @@ def _is_constant_index(match_text: str) -> bool:
     return a.isdigit() and b.isdigit()
 
 
-def _has_null_assign_between_frees(text: str, match_start: int) -> bool:
-    """For free+free patterns: was the pointer reset to NULL between them?"""
-    # Look in the matched chunk for `= NULL`
-    chunk = text[match_start:match_start + 600]
-    return "= NULL" in chunk or "=NULL" in chunk
-
-
 def _line_at(text: str, pos: int) -> str:
     """Return the line of source containing `pos`."""
     line_start = text.rfind("\n", 0, pos) + 1
@@ -166,15 +159,6 @@ def _surrounding_lines(text: str, pos: int, n: int = 5) -> str:
             break
         e = nxt
     return text[s:e]
-
-
-def _has_bounds_check_nearby(text: str, pos: int) -> bool:
-    """Look for `if (...< sizeof | < N | strlen)` within ±5 lines."""
-    ctx = _surrounding_lines(text, pos, n=5)
-    return bool(re.search(
-        r"\bif\s*\([^)]*?(?:<\s*\w*size\b|<\s*\d+|<\s*sizeof|>\s*0|!=\s*NULL|==\s*NULL)",
-        ctx,
-    ))
 
 
 def _is_safe_wrapper_call(text: str, pos: int) -> bool:
@@ -223,50 +207,6 @@ def _function_bounds(text: str, pos: int) -> tuple[int, int]:
                 fn_end = i + 1
                 break
     return (fn_start, fn_end)
-
-
-def _has_reassignment_between(text: str, var: str, lo: int, hi: int) -> bool:
-    """True if `var` is assigned to something other than NULL/0/null between
-    text positions [lo, hi]. Used to suppress sentinel-NULL false positives:
-    `p = NULL; ...; p = malloc(...); ...; *p` is safe; the pattern matcher
-    can't see the re-assignment without context."""
-    if not var or hi <= lo:
-        return False
-    chunk = text[lo:hi]
-    pat = re.compile(rf"\b{re.escape(var)}\s*=\s*([^=;]+);")
-    for m in pat.finditer(chunk):
-        rhs = m.group(1).strip()
-        # Only count as "real reassignment" if RHS isn't NULL / 0 / nullptr
-        if rhs.upper() in {"NULL", "0", "NULLPTR", "0L", "(VOID*)0"}:
-            continue
-        return True
-    return False
-
-
-def _drop_sentinel_null(text: str, match_start: int, match_text: str) -> bool:
-    """For NULL-assign-then-deref FPs: if the variable is reassigned
-    between the NULL line and the actual deref, drop the finding.
-
-    `match_text` only carries the captured snippet (often <30 chars) which
-    won't contain the deref site. We re-scan `text` starting at
-    `match_start` to locate the next `*var` / `var->` / `var[`, then check
-    for reassignment in [match_start, deref_pos]. Scanning is bounded to
-    the enclosing function block."""
-    m = re.match(r".*?\b(\w+)\s*=\s*(?:NULL|0)\s*;", match_text, re.DOTALL)
-    if not m:
-        return False
-    var = m.group(1)
-    fn_lo, fn_hi = _function_bounds(text, match_start)
-    # Find the next dereference of `var` after match_start, within the
-    # enclosing function body.
-    deref_re = re.compile(
-        rf"\*{re.escape(var)}\b|\b{re.escape(var)}\s*->|\b{re.escape(var)}\s*\["
-    )
-    dm = deref_re.search(text, pos=match_start, endpos=fn_hi)
-    if dm is None:
-        # No deref in scope — pattern was a stale match, drop.
-        return True
-    return _has_reassignment_between(text, var, match_start, dm.start())
 
 
 def _drop_safe_constructed_fopen(text: str, match_start: int, match_text: str) -> bool:
