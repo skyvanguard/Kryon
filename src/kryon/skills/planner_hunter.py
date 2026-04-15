@@ -1436,6 +1436,22 @@ class HybridHunter:
             f["_hunters_used"] = list(hunters_used)
             f["_hunters_failed"] = list(hunters_failed)
 
+        # F10.3-B — optional LLM triage annotation. Never filters; only
+        # stamps triage_verdict / triage_reason / triage_confidence so the
+        # analyst (or an opt-in --triage-filter step) can triage faster.
+        if os.environ.get("KRYON_LLM_TRIAGE", "").strip().lower() in {
+            "1", "true", "yes", "on",
+        } and all_findings:
+            try:
+                from kryon.skills.triage_annotator import TriageAnnotator
+                TriageAnnotator().annotate(all_findings)
+            except Exception as exc:
+                logger.warning("triage annotation failed: %s", exc)
+                for f in all_findings:
+                    f.setdefault("triage_verdict", "ERROR")
+                    f.setdefault("triage_reason", f"annotator: {exc}"[:200])
+                    f.setdefault("triage_confidence", "")
+
         # If we have ASAN-confirmed findings already, that's strongest evidence
         verified = [f for f in all_findings if f.get("_asan_verified")]
         pattern_only = [f for f in all_findings if not f.get("_asan_verified")]

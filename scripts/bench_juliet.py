@@ -138,6 +138,13 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
         os.environ["KRYON_JOERN_ENABLED"] = "true"
         from kryon.skills.planner_hunter import JoernHunter
         runner = JoernHunter()
+    elif runner_type == "hybrid-triage":
+        # F10.3-B — hybrid + LLM triage annotation (does NOT filter).
+        os.environ["KRYON_JOERN_ENABLED"] = "false"
+        os.environ["KRYON_LLM_TRIAGE"] = "true"
+        os.environ["KRYON_HYBRID_MAX_LLM_CANDIDATES"] = "0"
+        _reset_hybrid_budget()
+        runner = HybridHunter()
     else:
         raise ValueError(f"unknown runner: {runner_type}")
 
@@ -203,6 +210,21 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
         if j_status and j_status != "ok":
             hunters_failed.append("joern")
 
+    # F10.3-B — per-finding triage verdicts for precision analysis.
+    triage_verdicts = [
+        {
+            "verdict": f.get("triage_verdict", ""),
+            "confidence": f.get("triage_confidence", ""),
+            "cwe": f.get("cwe", ""),
+            "is_cwe_match": bool(cwe_label) and any(
+                _cwe_matches_safe(f.get("cwe", ""), cwe_label)
+                for _ in [0]
+            ),
+        }
+        for f in findings
+        if f.get("triage_verdict")
+    ]
+
     return {
         "file": file_path.name,
         "runner": runner_type,
@@ -212,13 +234,25 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
         "finding_cwes": finding_cwes[:5],
         "sources_seen": sorted(sources_seen),
         "hunters_failed": sorted(set(hunters_failed)),
+        "triage_verdicts": triage_verdicts,
         "duration_s": round(elapsed, 2),
     }
+
+
+def _cwe_matches_safe(emitted: str, expected: str) -> bool:
+    try:
+        from kryon.skills.patterns import cwes_match
+        return cwes_match(emitted, expected)
+    except ImportError:
+        return expected.lower() in emitted.lower()
 
 
 # ---------------------------------------------------------------------------
 # Benchmark driver
 # ---------------------------------------------------------------------------
+
+
+_ALL_PER_FILE: list[dict] = []
 
 
 async def run_recall_for_cwe(
@@ -246,6 +280,7 @@ async def run_recall_for_cwe(
         for fp in files:
             r = await scan_one(runner, fp, cwe)
             per_file.append(r)
+            _ALL_PER_FILE.append(r)
             if r["n_findings"] > 0:
                 any_finding += 1
             if r["cwe_matched"]:
@@ -300,6 +335,7 @@ async def run_fpr_proxy(
         total_findings = 0
         for fp in repo_files:
             r = await scan_one(runner, fp, cwe=0)
+            _ALL_PER_FILE.append(r)
             if r["n_findings"] > 0:
                 files_with_finding += 1
             total_findings += r["n_findings"]
@@ -523,6 +559,11 @@ async def main():
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(out, indent=2))
+    # F10.3-B sidecar: per-file records (with triage_verdicts) for offline
+    # scoring by scripts/f10/score_triage.py.
+    Path(args.out).with_suffix(".per_file.json").write_text(
+        json.dumps(_ALL_PER_FILE, indent=2)
+    )
 
     print()
     print("=" * 72)
