@@ -8,97 +8,121 @@
 >   --runners heuristic,semgrep,hybrid
 > ```
 
-## Latest results — F6 + F6.3 ROUND 2 COMPLETE
+## Latest results — F6 baselines RECALIBRATED with N=100 + bootstrap CI
 
-**Date:** 2026-04-14
-**Commits applied:** F5.x + F6 + F6.3 round 2 (targeted FPR fixes)
-**Sample size:** 15 files per CWE, 15 zlib baseline files
+**Date:** 2026-04-14 (recalibrated post-F8.2)
+**Commits applied:** F5.x + F6 + F6.3 R2 + F6.5 R2 + F8.1.b plumbing fix
+**Methodology:** 100 files per CWE × 7 CWEs = 700 recall samples + 100
+clean baseline files for FPR. Bootstrap 95% CI (2000 resamples) per
+runner per CWE.
+**Raw:** [`bench_f6_recalibration.json`](bench_results/bench_f6_recalibration.json)
 
-### Recall@CWE (strict, alias-aware match)
+> **Why recalibrate.** F6.3 R2 originally reported with N=15-20. F8 bench
+> at N=100 revealed that the pooled hybrid recall claimed at 52.3% was
+> actually 65.4% [61.2, 69.6] — a 13pp gap from sampling noise alone.
+> Comparison tables vs Coverity/Klocwork were drawn against numbers
+> that had ±5pp uncertainty per cell. Re-running with CIs is the bare
+> minimum for the comparisons to be honest.
 
-| CWE | files | heuristic | semgrep | **hybrid** |
-|---|---|---|---|---|
-| CWE-121 stack overflow | 15 | 67% | 13% | **67%** |
-| CWE-122 heap overflow | 15 | 47% | 20% | **53%** |
-| CWE-190 int overflow | 15 | 40% | 33% | **40%** |
-| CWE-415 double free | 15 | 60% | 27% | **73%** |
-| CWE-416 use-after-free | 15 | 53% | 7% | **53%** |
-| CWE-476 null deref | 15 | 60% | 27% | **60%** |
-| CWE-134 format string | 15 | 20% | 13% | **20%** |
-| **Average** | — | 49.6% | 20.0% | **52.3%** |
-
-### Recall@any-finding (triage signal — what matters in production)
+### Recall@CWE — heuristic | semgrep | hybrid (N=100, 95% CI)
 
 | CWE | heuristic | semgrep | **hybrid** |
 |---|---|---|---|
-| CWE-121 | 67% | 20% | **67%** |
-| CWE-122 | 47% | 40% | **67%** |
-| CWE-190 | 40% | 40% | **47%** |
-| CWE-415 | 60% | 73% | **87%** |
-| CWE-416 | 60% | 73% | **73%** |
-| CWE-476 | 60% | 27% | **60%** |
-| CWE-134 | 87% | 67% | **100%** |
-| **Average** | 60.1% | 48.6% | **71.6%** |
+| CWE-121 | 61.0% [52, 71] | 19.0% [12, 27] | **69.0% [60, 78]** |
+| CWE-122 | 43.0% [34, 53] | 53.0% [43, 62] | **74.0% [65, 82]** |
+| CWE-134 | 21.0% [14, 29] | 14.0% [8, 21] | **21.0% [14, 29]** |
+| CWE-190 | 56.0% [47, 66] | 42.0% [32, 52] | **56.0% [47, 66]** |
+| CWE-415 | 76.0% [67, 84] | 20.0% [13, 28] | **87.0% [80, 93]** |
+| CWE-416 | 75.0% [66, 83] | 9.0% [4, 15] | **75.0% [66, 83]** |
+| CWE-476 | 72.0% [63, 80] | 21.0% [13, 29] | **73.0% [64, 81]** |
+| **Pooled** | **57.7% [54.1, 61.3]** | **25.4% [22.1, 28.9]** | **65.0% [61.4, 68.3]** |
 
-### False positive rate (zlib clean baseline) — F6.3 round 2 RESULTS
+### Recall@any-finding (triage signal)
 
-| Runner | files with finding | total findings | **FPR proxy** |
+| CWE | heuristic | semgrep | hybrid |
 |---|---|---|---|
-| heuristic | 5/15 | 10 | **33%** |
-| **semgrep** | **2/15** | **2** | **13%** ← commercial-tier |
-| **hybrid** | **5/15** | **11** | **33%** |
+| CWE-121 | 61% | 28% | 70% |
+| CWE-122 | 50% | 81% | 89% |
+| CWE-134 | 75% | 67% | 100% |
+| CWE-190 | 56% | 48% | 62% |
+| CWE-415 | 76% | 80% | 96% |
+| CWE-416 | 93% | 89% | 98% |
+| CWE-476 | 72% | 21% | 73% |
 
-**Semgrep at 13% FPR is competitive with Coverity (8-15%)**.
-Hybrid balances breadth and noise.
+### False positive rate proxy (N=100 clean baseline files, 95% CI)
 
-## Trajectory across F5/F6 commits
-
-| Commit | Heuristic recall@CWE avg | Heuristic FPR | Notes |
+| Runner | hits | fpr_proxy | 95% CI |
 |---|---|---|---|
-| Pre-F5 (baseline) | ~0% strict / 35% any | 67% | 20 hardcoded regexes, no aliases |
-| Post-F5.3 (semgrep added) | 0% / 35% | 67% | semgrep at 13-27%, heuristic unchanged |
-| Post-F6.6 (YAML library) | 0% / 0% | 0% | over-narrow PoCs (not crashing) — bug |
-| Post-F6.2 (heuristic patterns) | 0% / ~50% | 60% | 11 CWEs covered, recall@any climbing |
-| Post-F6.4 (alias mapping) | **64%** / **88.6%** | 60% | strict recall jumps |
-| Post-F6.3 (FPR filters) | 56% / 67% | **40%** | FPR cut 67→40, slight recall trade |
-| **Current** | **56% / 67%** | **40%** | — |
+| heuristic | 39/100 | 39.0% | [30.0, 49.0] |
+| semgrep | 40/100 | 40.0% | [31.0, 50.0] |
+| hybrid | 47/100 | 47.0% | [37.0, 57.0] |
 
-## Vs. commercial SAST baselines
+> **Methodology change vs the old "13% FPR" claim.** F6.3 R2 used
+> 15 zlib files. zlib is small, mature, low-defect — semgrep's 13%
+> hit-rate there was specific to that codebase, not a general FPR
+> figure. The N=100 baseline above pulls from a mixed real-world set
+> (`/workspace/sources/`: advisory_database, OpenEXR, MaterialX,
+> OpenCC, c-blosc2 …). The 40-47% number is the realistic operating
+> rate. The previous "competitive with Coverity" claim does NOT hold.
+
+## Vs. commercial SAST baselines (revised, with honesty)
 
 | Tool | Top-CWE recall | FPR | Notes |
 |---|---|---|---|
-| **Coverity** | 70-80% | 8-15% | $100K+/year |
-| **Klocwork** | 60-75% | 10-18% | $80K+/year |
-| **Veracode** | 50-65% | 12-20% | cloud |
-| **Semgrep Pro** | 60-70% | 5-12% | subscription |
-| Semgrep OSS | 13-27% | 7% | free |
-| **Kryon (heuristic, current)** | **56%** | 40% | free, local, OSS |
-| **Kryon (hybrid, current)** | 9.6% | 7% | semgrep-bound, F6.1 pending |
+| Coverity | 70–80% | 8–15% | $100K+/yr; vendor-published numbers |
+| Klocwork | 60–75% | 10–18% | $80K+/yr |
+| Veracode | 50–65% | 12–20% | cloud |
+| Semgrep Pro | 60–70% | 5–12% | subscription |
+| Semgrep OSS (community ruleset only) | 13–27% | unknown at this corpus | |
+| **Kryon hybrid (current, N=100)** | **65.0% [61.4, 68.3]** | **47.0% [37, 57]** | free, local, OSS |
+| **Kryon heuristic (current, N=100)** | **57.7% [54.1, 61.3]** | **39.0% [30, 49]** | |
 
-## Honest gap analysis
+**Honest read:** Kryon hybrid recall is in Klocwork/Veracode territory.
+FPR is roughly 2-3× the commercial bar. The recall position is real;
+the FPR position needs work before any "competitive with commercial"
+language is defensible. Treat the FPR number as *the* gap to close.
 
-**Heuristic** — competitive with mid-tier commercial SAST on recall (56%
-vs Veracode 50-65%) but FPR (40%) is double the commercial bar. Needs
-F6.3 round 2 with smarter filters.
+## Trajectory across F5/F6/F8 commits
 
-**Semgrep / Hybrid** — recall stuck at 25% because we're using only the
-free OSS rules. F6.1 (custom Kryon rules per CWE template) would push
-this to 50-70%. Same time-effort as the heuristic patterns we just
-shipped.
+| Commit | Hybrid recall@CWE pooled | Hybrid FPR proxy | Notes |
+|---|---|---|---|
+| Post-F6.3 R2 (reported, N=15-20) | 52.3% point | 33% point | original, no CI |
+| Post-F6.3 R2 (RECALIBRATED, N=100) | 65.0% [61.4, 68.3] | 47.0% [37, 57] | F6.3 R2 underestimated recall AND under-estimated FPR; sampling noise in both directions |
+| Post-F8.1.b plumbing fix | 69.4% [65.4, 73.4] (5 CWEs) | unchanged (no rule change) | CWE-122 +20pp DISTINCT, pooled +4pp inside CI overlap |
+| Current (N=100, 7 CWEs, post-F8.1.b) | **65.0% [61.4, 68.3]** | **47.0% [37, 57]** | seven-CWE pooled differs from five-CWE pooled because of the CWE mix; both are "true" within their scope |
 
-**LLM runner** — not benchmarked at scale (cost: 20-30 min per file ×
-75 files = days). Tested separately on small samples in earlier hunts;
-emits structured `submit_finding` / `submit_no_finding`, fallback to
-heuristic when stalled.
+## Honest gap analysis (post-recalibration)
 
-## What's pending for full F6 completion
+**Recall:** 65% pooled is solid. Per-CWE peaks: CWE-415 87%, CWE-416 75%,
+CWE-476 73%, CWE-122 74%, CWE-121 69%. The two laggards: CWE-134 21% (format
+string — limited rule coverage) and CWE-190 56% (some variants are taint-only
+flows the pattern-based rules can't reach; F7 Joern data-flow exists as opt-in
+infrastructure for these but has zero unique contribution on this corpus).
 
-| Task | Status | Expected delta |
-|---|---|---|
-| F6.1 custom semgrep rules | pending | +30-50% semgrep recall, hybrid follows |
-| F6.3 round 2 filters | pending | -15-20% FPR without recall regression |
-| F6.5 expand to 13 CWEs × 100 samples | pending | confidence intervals, FPR variance |
-| F6.7 CI gate | pending | catches recall regressions on every push |
+**FPR:** 47% on a real-world baseline is the gap that matters. Three
+likely contributors:
+1. Heuristic regex patterns fire on legitimate `if (data >= 0)` style
+   guards in production code.
+2. Custom Kryon rules don't have the `pattern-not` exclusions that
+   upstream Semgrep rules do.
+3. Some rules (e.g. `null-assign-deref`) fire on patterns that ARE
+   defects in the testcases but ALSO fire on perfectly safe sentinel
+   patterns in production (`p = NULL; ...; if (cond) p = malloc(...);
+   if (p) *p;`).
+
+A future FPR-focused sprint should target (1) and (3) with a
+representative noise corpus + bootstrap CI per change. Without CI on
+the FPR delta, the same N=20 trap from F6.3 R2 is waiting.
+
+## Methodology — N + CI is the floor going forward
+
+Numbers in this doc are reported with bootstrap 95% CI when N≥30 and
+flagged as "point" when smaller. Future PRs that touch detection logic
+must include `bootstrap_ci.py` output for the affected CWE if they
+claim a recall delta. Point-estimate sprints from before this date
+(F5, F6 round 1, F6.3 R2 first iteration) are tagged "pre-recalibration"
+in commit history; their numbers stand only within their stated sample
+size.
 
 ## Reproducibility
 

@@ -115,12 +115,38 @@ def compare(label_a: str, sum_a: dict, label_b: str, sum_b: dict) -> str:
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--pre", required=True, help="bench JSON pre-fix")
-    p.add_argument("--post", required=True, help="bench JSON post-fix")
-    p.add_argument("--runner", default="hybrid")
+    p.add_argument("--pre", help="bench JSON pre-fix (compare mode)")
+    p.add_argument("--post", help="bench JSON post-fix (compare mode)")
+    p.add_argument("--summary", help="bench JSON to summarise (single mode)")
+    p.add_argument("--runner", default="hybrid",
+                   help="comma-separated runners (single mode) or one (compare mode)")
     p.add_argument("--label-pre", default="pre-F8.1.b")
     p.add_argument("--label-post", default="post-F8.1.b")
+    p.add_argument("--also-fpr", action="store_true",
+                   help="single-mode: also bootstrap FPR proxy from doc['fpr']")
     a = p.parse_args()
+
+    if a.summary:
+        for runner in [r.strip() for r in a.runner.split(",") if r.strip()]:
+            sum_ = summarise(Path(a.summary), runner)
+            print(render(runner, sum_))
+            print()
+        if a.also_fpr:
+            doc = json.loads(Path(a.summary).read_text())
+            print("=== FPR proxy (bootstrap) ===")
+            # FPR proxy isn't per-file in the JSON — synthesise from
+            # files_with_finding / n_files into a binomial sample.
+            for runner, v in (doc.get("fpr") or {}).items():
+                hits = v.get("files_with_finding", 0)
+                n = v.get("n_files", 0)
+                labels = [1] * hits + [0] * (n - hits)
+                p_, lo, hi = bootstrap_ci(labels)
+                print(
+                    f"  {runner:<10} fpr = {p_*100:5.1f}%  "
+                    f"95% CI [{lo*100:5.1f}, {hi*100:5.1f}]  "
+                    f"({hits}/{n})"
+                )
+        return
 
     sum_pre = summarise(Path(a.pre), a.runner)
     sum_post = summarise(Path(a.post), a.runner)
