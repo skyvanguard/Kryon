@@ -169,6 +169,41 @@ Gate passed:
   recall@CWE pooled 65.0% [61.4, 68.3] — identical to frozen baseline.
   FPR proxy 47.0% [37, 57] — identical.
 
+## F11.1 — Tool-augmented triage: **arc F10→F11 closed NEGATIVE**
+
+Hipótesis: `read_function` + `read_lines` tools sobre qwen3-coder rescatan workflow
+precision que cayó de 80% (Juliet spike) a 57% (GnuCash real, F13.2).
+
+**Setup blindado**: prompt reescrito investigate-first, seed=43 (≠ F13.2 seed=42)
+para shuffle, cap 90s/finding, tool-usage gate (0/5 zero-call en smoke ✅).
+
+**Resultado sobre mismos 50 findings F13.2**:
+
+| Métrica | Baseline F13.2 (snippet) | F11.1 (tools) | Delta |
+|---------|--------------------------|---------------|-------|
+| KEEP precision | 57.1% [14%, 86%] (N=7) | **18.2%** [0%, 46%] (N=11) | **-39pp** |
+| KEEP recall (TPs preserved) | 50% (4/8) | 25% (2/8) | -25pp |
+| SUPPRESS recall | 73% | 70% | flat |
+| UNCERTAIN rate | 22% | **2%** | -20pp |
+| Avg latency | 4.6s | 18.7s | +4× |
+
+**Gate pre-acordado (CI non-overlap)**: baseline [14%, 86%] vs F11.1 [0%, 46%] →
+**OVERLAP**, no claim de mejora. Point estimate trend DOWN.
+
+**Hallazgo inesperado**: tools hicieron al modelo **overconfident, not better**.
+UNCERTAIN rate colapsó de 22% a 2% — el modelo dejó de hedgear cuando no sabía
+y empezó a commit equivocado. 6 TPs reales fueron SUPPRESSed (vs 1 en baseline).
+Anti-patrón de un auditor de seguridad: más contexto → más confianza → más errores.
+
+**Patrón consolidado** (4 sprints negativos consecutivos sobre "análisis estático
++ LLM mejora precision sobre C/C++ real"): F7 (Joern 0 únicos), F9 (47% FPR techo),
+F13 (engine 33%, workflow 57%), F11.1 (workflow 18% con tools). **La tecnología
+que tenemos hoy tiene techo en este dominio.**
+
+Artefacto: `docs/bench_results/F11_1_ARC_CLOSED.md`.
+
+---
+
 ## F15.1 — PCI-DSS v4 deterministic compliance auditor: **ALL-GREEN SHIP**
 
 First all-green sprint after the F7-F13 arc. Route B (6 checks, 100% commit)
