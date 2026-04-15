@@ -169,6 +169,71 @@ Gate passed:
   recall@CWE pooled 65.0% [61.4, 68.3] — identical to frozen baseline.
   FPR proxy 47.0% [37, 57] — identical.
 
+## F13 — Banking bench (Fineract + GnuCash): **negative sprint, engine hypothesis rejected**
+
+**Corpus pinned**: Apache Fineract `60acf858` (262K Java LoC) + GnuCash `9f8f4d9e`
+(435K C/C++ LoC). CVE ground truth: 19 Fineract (SQLi/RCE/SSRF dominante) + 3
+GnuCash (2000-2010, irrelevante moderno).
+
+**Baseline semgrep** (F13.0):
+- Fineract: 28 findings (18 spring-sqli + 5 weak-ssl + 3 privesc + ...).
+- GnuCash: 2 findings + 57 parse errors (74/200 = 37% parse failure on priority
+  top-200; semgrep default falla en 14% del C/C++ real).
+
+**Kryon scan** (F13.1, top-200 priority files): 163 findings GnuCash (143 CWE-476
+null-assign-deref + 17 CWE-121 + 3 CWE-190). Fineract: Kryon engine == vanilla
+semgrep (no hay custom rules Java; `SemgrepHunter` hardcodea `language="c"`).
+
+**Ground truth** (F13.2, N=50 stratified, seed=42):
+
+| Category | Pool | Sampled | TP | FP | UNK | Precision | 95% CI |
+|----------|------|---------|----|----|-----|-----------|--------|
+| CWE-476 null-deref | 143 | 30 | 3 | 27 | 0 | 10% | [0%, 20%] |
+| CWE-121 buf overflow | 17 | 17 | 5 | 10 | 2 | 33% | [13%, 60%] |
+| CWE-190 int overflow | 3 | 3 | 0 | 0 | 3 | — | all UNK |
+
+Engine pooled (CWE-121+190 excl. known-noisy CWE-476): **33% [13%, 60%]**.
+Pre-agreed gate ≥40%: **FAIL** (punto estimate debajo, CI lower bound muy abajo).
+
+**Workflow gate** (TriageAnnotator qwen3-coder temp=0 sobre los 50):
+
+|            | TP | FP | UNK |
+|------------|----|----|----|
+| KEEP       | 4  | 3  | 0 |
+| SUPPRESS   | 1  | 27 | 4 |
+| UNCERTAIN  | 3  | 7  | 1 |
+
+- KEEP precision = **57.1%** — gate ≥65% **FAIL** (zona gris, no se mueve el poste)
+- SUPPRESS recall = 73% (triage atrapa 27/37 FPs correctamente)
+- UNCERTAIN rate = 22% (en F10.3-B spike era <5% — **domain shift del modelo sobre código real**)
+
+**Decision tree pre-acordado**:
+- Engine FAIL + workflow MARGINAL → sprint insuficiente, rescope.
+- **F13 cierra como no-ship como "better engine".**
+
+### El patrón F7→F9→F13
+
+Tres sprints consecutivos negativos sobre "engine propietario supera semgrep":
+- F7: Joern 0 findings únicos.
+- F9: pattern-only techó 47% FPR.
+- F13: precision 33% engine, 57% workflow.
+
+F14 "Kryon Java engine" queda en **backlog sin fecha** — sin evidencia técnica nueva no merece sprint.
+
+### Next candidate (no committed): F11 tool-augmented triage
+
+Hipótesis: `read_function` + `read_lines` en el LLM rescatan workflow precision
+sobre código real. Gate: re-triage los mismos 50 con context tools → KEEP ≥65%.
+Cierra el arco F10-F11 ya abierto. **Pausa 1 día** antes para replantear pitch BCP.
+
+### Producto real
+
+Pitch BCP no es "mejor engine". Es deployment local on-prem + compliance
+PY banking + workflow diseñado para auditoría + experiencia dominio. Artefactos
+F13 en `docs/bench_results/` (F13_SPRINT_CONCLUSION.md + f13_*.jsonl).
+
+---
+
 ## F11.1 — Tool-augmented triage: **arc F10→F11 closed NEGATIVE**
 
 Hipótesis: `read_function` + `read_lines` tools sobre qwen3-coder rescatan workflow

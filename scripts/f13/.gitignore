@@ -1,0 +1,5 @@
+workspace/
+cve/*.json
+semgrep/*.json
+kryon_scan/
+kryon_rules_c/

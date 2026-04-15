@@ -1,0 +1,1804 @@
+{
+  "top": [
+    {
+      "file": "gnucash/import-export/qif-imp/assistant-qif-import.c",
+      "score": 5,
+      "loc": 4034,
+      "evidence": {
+        "danger_hits": 61,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome-utils/gnc-main-window.cpp",
+      "score": 5,
+      "loc": 5955,
+      "evidence": {
+        "danger_hits": 48,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "libgnucash/engine/Account.cpp",
+      "score": 5,
+      "loc": 5938,
+      "evidence": {
+        "danger_hits": 36,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/gnome/gnc-plugin-page-account-tree.cpp",
+      "score": 5,
+      "loc": 2031,
+      "evidence": {
+        "danger_hits": 30,
+        "input_hits": 3
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/assistant-csv-trans-import.cpp",
+      "score": 5,
+      "loc": 2301,
+      "evidence": {
+        "danger_hits": 29,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/assistant-csv-price-import.cpp",
+      "score": 5,
+      "loc": 2020,
+      "evidence": {
+        "danger_hits": 27,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-main-matcher.cpp",
+      "score": 5,
+      "loc": 2535,
+      "evidence": {
+        "danger_hits": 25,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/window-reconcile.cpp",
+      "score": 5,
+      "loc": 2554,
+      "evidence": {
+        "danger_hits": 24,
+        "input_hits": 2
+      }
+    },
+    {
+      "file": "gnucash/gnome/assistant-hierarchy.cpp",
+      "score": 5,
+      "loc": 1683,
+      "evidence": {
+        "danger_hits": 22,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-plugin-aqbanking.c",
+      "score": 5,
+      "loc": 645,
+      "evidence": {
+        "danger_hits": 21,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome-utils/gnc-tree-view-account.c",
+      "score": 5,
+      "loc": 2927,
+      "evidence": {
+        "danger_hits": 20,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "libgnucash/gnc-module/gnc-module.c",
+      "score": 5,
+      "loc": 651,
+      "evidence": {
+        "danger_hits": 19,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/qif-imp/dialog-account-picker.c",
+      "score": 5,
+      "loc": 502,
+      "evidence": {
+        "danger_hits": 18,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnucash.cpp",
+      "score": 5,
+      "loc": 307,
+      "evidence": {
+        "danger_hits": 18,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/gnome/dialog-order.c",
+      "score": 5,
+      "loc": 982,
+      "evidence": {
+        "danger_hits": 17,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/gnome-utils/gnc-option-gtk-ui.cpp",
+      "score": 5,
+      "loc": 1981,
+      "evidence": {
+        "danger_hits": 15,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/gnome-utils/gnc-file.c",
+      "score": 5,
+      "loc": 1832,
+      "evidence": {
+        "danger_hits": 15,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-exp/assistant-csv-export.c",
+      "score": 5,
+      "loc": 1051,
+      "evidence": {
+        "danger_hits": 15,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/assistant-csv-account-import.c",
+      "score": 5,
+      "loc": 692,
+      "evidence": {
+        "danger_hits": 15,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/engine/Transaction.cpp",
+      "score": 5,
+      "loc": 3016,
+      "evidence": {
+        "danger_hits": 14,
+        "input_hits": 2
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/assistant-ab-initial.c",
+      "score": 5,
+      "loc": 818,
+      "evidence": {
+        "danger_hits": 14,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/gnome-utils/gnc-plugin-file-history.c",
+      "score": 5,
+      "loc": 704,
+      "evidence": {
+        "danger_hits": 14,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/bi-import/dialog-bi-import-gui.c",
+      "score": 5,
+      "loc": 391,
+      "evidence": {
+        "danger_hits": 14,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-ab-kvp.c",
+      "score": 5,
+      "loc": 118,
+      "evidence": {
+        "danger_hits": 14,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/ofx/gnc-ofx-import.cpp",
+      "score": 5,
+      "loc": 1520,
+      "evidence": {
+        "danger_hits": 13,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-ab-utils.c",
+      "score": 5,
+      "loc": 1273,
+      "evidence": {
+        "danger_hits": 13,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/bi-import/dialog-bi-import.c",
+      "score": 5,
+      "loc": 974,
+      "evidence": {
+        "danger_hits": 13,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/customer-import/dialog-customer-import-gui.c",
+      "score": 5,
+      "loc": 351,
+      "evidence": {
+        "danger_hits": 13,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/engine/SchedXaction.cpp",
+      "score": 5,
+      "loc": 1222,
+      "evidence": {
+        "danger_hits": 12,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-file-aqb-import.c",
+      "score": 5,
+      "loc": 181,
+      "evidence": {
+        "danger_hits": 12,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/backend/xml/io-gncxml-v2.cpp",
+      "score": 5,
+      "loc": 2149,
+      "evidence": {
+        "danger_hits": 11,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-gwen-gui.c",
+      "score": 5,
+      "loc": 1697,
+      "evidence": {
+        "danger_hits": 11,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/dialog-ab-trans.c",
+      "score": 5,
+      "loc": 1317,
+      "evidence": {
+        "danger_hits": 11,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/engine/gnc-option-impl.hpp",
+      "score": 5,
+      "loc": 1185,
+      "evidence": {
+        "danger_hits": 11,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "libgnucash/engine/gnc-datetime.hpp",
+      "score": 5,
+      "loc": 327,
+      "evidence": {
+        "danger_hits": 11,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "libgnucash/engine/Scrub.cpp",
+      "score": 5,
+      "loc": 1559,
+      "evidence": {
+        "danger_hits": 10,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-backend.cpp",
+      "score": 5,
+      "loc": 1207,
+      "evidence": {
+        "danger_hits": 10,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-account-matcher.cpp",
+      "score": 5,
+      "loc": 505,
+      "evidence": {
+        "danger_hits": 10,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-plugin-csv-import.c",
+      "score": 5,
+      "loc": 147,
+      "evidence": {
+        "danger_hits": 10,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/qif-imp/gnc-plugin-qif-import.c",
+      "score": 5,
+      "loc": 139,
+      "evidence": {
+        "danger_hits": 10,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/engine/gnc-optiondb.cpp",
+      "score": 5,
+      "loc": 1379,
+      "evidence": {
+        "danger_hits": 9,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-import-tx.cpp",
+      "score": 5,
+      "loc": 940,
+      "evidence": {
+        "danger_hits": 9,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/backend/sql/gnc-slots-sql.cpp",
+      "score": 5,
+      "loc": 891,
+      "evidence": {
+        "danger_hits": 9,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-import-price.cpp",
+      "score": 5,
+      "loc": 786,
+      "evidence": {
+        "danger_hits": 9,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome-utils/dialog-file-access.c",
+      "score": 5,
+      "loc": 489,
+      "evidence": {
+        "danger_hits": 9,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-ab-transfer.c",
+      "score": 5,
+      "loc": 349,
+      "evidence": {
+        "danger_hits": 9,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-ab-gettrans.c",
+      "score": 5,
+      "loc": 238,
+      "evidence": {
+        "danger_hits": 9,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-exp/gnc-plugin-csv-export.c",
+      "score": 5,
+      "loc": 159,
+      "evidence": {
+        "danger_hits": 9,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/bi-import/gnc-plugin-bi-import.c",
+      "score": 5,
+      "loc": 145,
+      "evidence": {
+        "danger_hits": 9,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/customer-import/gnc-plugin-customer-import.c",
+      "score": 5,
+      "loc": 143,
+      "evidence": {
+        "danger_hits": 9,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/log-replay/gnc-plugin-log-replay.c",
+      "score": 5,
+      "loc": 132,
+      "evidence": {
+        "danger_hits": 9,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/engine/gnc-pricedb.cpp",
+      "score": 5,
+      "loc": 3018,
+      "evidence": {
+        "danger_hits": 8,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "libgnucash/core-utils/gnc-filepath-utils.cpp",
+      "score": 5,
+      "loc": 1349,
+      "evidence": {
+        "danger_hits": 8,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "libgnucash/engine/gnc-timezone.cpp",
+      "score": 5,
+      "loc": 784,
+      "evidence": {
+        "danger_hits": 8,
+        "input_hits": 4
+      }
+    },
+    {
+      "file": "libgnucash/app-utils/gnc-exp-parser.c",
+      "score": 5,
+      "loc": 643,
+      "evidence": {
+        "danger_hits": 8,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-exp/csv-transactions-export.cpp",
+      "score": 5,
+      "loc": 423,
+      "evidence": {
+        "danger_hits": 8,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-ab-getbalance.c",
+      "score": 5,
+      "loc": 137,
+      "evidence": {
+        "danger_hits": 8,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/ofx/gnc-plugin-ofx.c",
+      "score": 5,
+      "loc": 129,
+      "evidence": {
+        "danger_hits": 8,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-exp/csv-tree-export.cpp",
+      "score": 5,
+      "loc": 105,
+      "evidence": {
+        "danger_hits": 8,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-imp-props-tx.cpp",
+      "score": 5,
+      "loc": 881,
+      "evidence": {
+        "danger_hits": 7,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/backend/sql/gnc-sql-column-table-entry.cpp",
+      "score": 5,
+      "loc": 729,
+      "evidence": {
+        "danger_hits": 7,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-match-picker.cpp",
+      "score": 5,
+      "loc": 486,
+      "evidence": {
+        "danger_hits": 7,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-flicker-gui.c",
+      "score": 5,
+      "loc": 443,
+      "evidence": {
+        "danger_hits": 7,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/engine/gnc-numeric.hpp",
+      "score": 5,
+      "loc": 436,
+      "evidence": {
+        "danger_hits": 7,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/csv-account-import.c",
+      "score": 5,
+      "loc": 375,
+      "evidence": {
+        "danger_hits": 7,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-imp-settings-csv-tx.cpp",
+      "score": 5,
+      "loc": 357,
+      "evidence": {
+        "danger_hits": 7,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-ab-utils.h",
+      "score": 5,
+      "loc": 316,
+      "evidence": {
+        "danger_hits": 7,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/dialog-ab-select-imexporter.c",
+      "score": 5,
+      "loc": 290,
+      "evidence": {
+        "danger_hits": 7,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-imp-settings-csv.cpp",
+      "score": 5,
+      "loc": 251,
+      "evidence": {
+        "danger_hits": 7,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-imp-settings-csv-price.cpp",
+      "score": 5,
+      "loc": 244,
+      "evidence": {
+        "danger_hits": 7,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-exp/csv-export-helpers.cpp",
+      "score": 5,
+      "loc": 94,
+      "evidence": {
+        "danger_hits": 7,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-utilities.h",
+      "score": 5,
+      "loc": 90,
+      "evidence": {
+        "danger_hits": 7,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/backend/xml/sixtp-dom-parsers.cpp",
+      "score": 5,
+      "loc": 751,
+      "evidence": {
+        "danger_hits": 6,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/log-replay/gnc-log-replay.cpp",
+      "score": 5,
+      "loc": 652,
+      "evidence": {
+        "danger_hits": 6,
+        "input_hits": 3
+      }
+    },
+    {
+      "file": "gnucash/import-export/customer-import/dialog-customer-import.c",
+      "score": 5,
+      "loc": 423,
+      "evidence": {
+        "danger_hits": 6,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-imp-props-price.cpp",
+      "score": 5,
+      "loc": 380,
+      "evidence": {
+        "danger_hits": 6,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/engine/gnc-rational.cpp",
+      "score": 5,
+      "loc": 323,
+      "evidence": {
+        "danger_hits": 6,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-import-tx.hpp",
+      "score": 5,
+      "loc": 208,
+      "evidence": {
+        "danger_hits": 6,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-import-price.hpp",
+      "score": 5,
+      "loc": 173,
+      "evidence": {
+        "danger_hits": 6,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-tokenizer.cpp",
+      "score": 5,
+      "loc": 128,
+      "evidence": {
+        "danger_hits": 6,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gncmod-aqbanking.c",
+      "score": 5,
+      "loc": 89,
+      "evidence": {
+        "danger_hits": 6,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-imp-settings-csv-price.hpp",
+      "score": 5,
+      "loc": 81,
+      "evidence": {
+        "danger_hits": 6,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-imp-settings-csv-tx.hpp",
+      "score": 5,
+      "loc": 81,
+      "evidence": {
+        "danger_hits": 6,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/ofx/gncmod-ofx-import.c",
+      "score": 5,
+      "loc": 76,
+      "evidence": {
+        "danger_hits": 6,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome-utils/gnc-main-window.h",
+      "score": 5,
+      "loc": 580,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 2
+      }
+    },
+    {
+      "file": "libgnucash/backend/xml/sixtp-dom-generators.cpp",
+      "score": 5,
+      "loc": 339,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-imp-props-tx.hpp",
+      "score": 5,
+      "loc": 269,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-main-matcher.h",
+      "score": 5,
+      "loc": 256,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/core-utils/gnc-gkeyfile-utils.c",
+      "score": 5,
+      "loc": 188,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/dialog-ab-trans.h",
+      "score": 5,
+      "loc": 160,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/dialog-ab-daterange.c",
+      "score": 5,
+      "loc": 157,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-account-matcher.h",
+      "score": 5,
+      "loc": 131,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-commodity-matcher.cpp",
+      "score": 5,
+      "loc": 124,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/python/gncmod-python.c",
+      "score": 5,
+      "loc": 115,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-imp-settings-csv.hpp",
+      "score": 5,
+      "loc": 113,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/dialog-ab-select-imexporter.h",
+      "score": 5,
+      "loc": 104,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome-utils/gnc-plugin-file-history.h",
+      "score": 5,
+      "loc": 95,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/backend/dbi/gnc-dbisqlresult.hpp",
+      "score": 5,
+      "loc": 82,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-match-picker.h",
+      "score": 5,
+      "loc": 71,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-plugin-aqbanking.h",
+      "score": 5,
+      "loc": 71,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/bi-import/gnc-plugin-bi-import.h",
+      "score": 5,
+      "loc": 62,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/customer-import/gnc-plugin-customer-import.h",
+      "score": 5,
+      "loc": 62,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-ab-transfer.h",
+      "score": 5,
+      "loc": 59,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-exp/csv-transactions-export.h",
+      "score": 5,
+      "loc": 48,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-exp/csv-tree-export.h",
+      "score": 5,
+      "loc": 47,
+      "evidence": {
+        "danger_hits": 5,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/app-utils/calculation/expression_parser.c",
+      "score": 5,
+      "loc": 1271,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 2
+      }
+    },
+    {
+      "file": "libgnucash/engine/qofsession.cpp",
+      "score": 5,
+      "loc": 734,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-tokenizer-fw.cpp",
+      "score": 5,
+      "loc": 222,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-pending-matches.cpp",
+      "score": 5,
+      "loc": 199,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-format-dialog.cpp",
+      "score": 5,
+      "loc": 162,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/app-utils/file-utils.c",
+      "score": 5,
+      "loc": 160,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-tokenizer-csv.cpp",
+      "score": 5,
+      "loc": 136,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-imp-props-price.hpp",
+      "score": 5,
+      "loc": 118,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-ab-kvp.h",
+      "score": 5,
+      "loc": 116,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-exp/assistant-csv-export.h",
+      "score": 5,
+      "loc": 114,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/backend/xml/sixtp-dom-parsers.h",
+      "score": 5,
+      "loc": 111,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-gwen-gui.h",
+      "score": 5,
+      "loc": 108,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/bi-import/dialog-bi-import-helper.c",
+      "score": 5,
+      "loc": 103,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-tokenizer-fw.hpp",
+      "score": 5,
+      "loc": 83,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/import-export/bi-import/dialog-bi-import.h",
+      "score": 5,
+      "loc": 82,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/assistant-csv-account-import.h",
+      "score": 5,
+      "loc": 72,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/dialog-ab-daterange.h",
+      "score": 5,
+      "loc": 70,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-flicker-gui.h",
+      "score": 5,
+      "loc": 64,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-tokenizer-csv.hpp",
+      "score": 5,
+      "loc": 63,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-tokenizer-dummy.hpp",
+      "score": 5,
+      "loc": 60,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-tokenizer-dummy.cpp",
+      "score": 5,
+      "loc": 57,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-ab-getbalance.h",
+      "score": 5,
+      "loc": 56,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-ab-gettrans.h",
+      "score": 5,
+      "loc": 53,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/gnc-file-aqb-import.h",
+      "score": 5,
+      "loc": 53,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/csv-account-import.h",
+      "score": 5,
+      "loc": 53,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/aqb/assistant-ab-initial.h",
+      "score": 5,
+      "loc": 52,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/bi-import/dialog-bi-import-gui.h",
+      "score": 5,
+      "loc": 49,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/qif-imp/gnc-plugin-qif-import.h",
+      "score": 5,
+      "loc": 47,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-exp/gnc-plugin-csv-export.h",
+      "score": 5,
+      "loc": 46,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/assistant-csv-trans-import.h",
+      "score": 5,
+      "loc": 46,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-plugin-csv-import.h",
+      "score": 5,
+      "loc": 46,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/log-replay/gnc-plugin-log-replay.h",
+      "score": 5,
+      "loc": 46,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/ofx/gnc-plugin-ofx.h",
+      "score": 5,
+      "loc": 46,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/assistant-csv-price-import.h",
+      "score": 5,
+      "loc": 45,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/qif-imp/dialog-account-picker.h",
+      "score": 5,
+      "loc": 36,
+      "evidence": {
+        "danger_hits": 4,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-parse.cpp",
+      "score": 5,
+      "loc": 419,
+      "evidence": {
+        "danger_hits": 3,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-csv-gnumeric-popup.c",
+      "score": 5,
+      "loc": 216,
+      "evidence": {
+        "danger_hits": 3,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/backend/xml/sixtp-to-dom-parser.cpp",
+      "score": 5,
+      "loc": 140,
+      "evidence": {
+        "danger_hits": 3,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome-utils/print-session.h",
+      "score": 5,
+      "loc": 85,
+      "evidence": {
+        "danger_hits": 3,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/customer-import/dialog-customer-import.h",
+      "score": 5,
+      "loc": 79,
+      "evidence": {
+        "danger_hits": 3,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-commodity-matcher.h",
+      "score": 5,
+      "loc": 77,
+      "evidence": {
+        "danger_hits": 3,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-pending-matches.h",
+      "score": 5,
+      "loc": 71,
+      "evidence": {
+        "danger_hits": 3,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/customer-import/dialog-customer-import-gui.h",
+      "score": 5,
+      "loc": 49,
+      "evidence": {
+        "danger_hits": 3,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/ofx/gnc-ofx-import.h",
+      "score": 5,
+      "loc": 46,
+      "evidence": {
+        "danger_hits": 3,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/qif-imp/assistant-qif-import.h",
+      "score": 5,
+      "loc": 46,
+      "evidence": {
+        "danger_hits": 3,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/log-replay/gnc-log-replay.h",
+      "score": 5,
+      "loc": 45,
+      "evidence": {
+        "danger_hits": 3,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/bi-import/dialog-bi-import-helper.h",
+      "score": 5,
+      "loc": 35,
+      "evidence": {
+        "danger_hits": 3,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/engine/kvp-frame.cpp",
+      "score": 5,
+      "loc": 351,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "libgnucash/engine/qofsession.h",
+      "score": 5,
+      "loc": 324,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-backend.h",
+      "score": 5,
+      "loc": 301,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/engine/kvp-frame.hpp",
+      "score": 5,
+      "loc": 282,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-settings.cpp",
+      "score": 5,
+      "loc": 195,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/engine/qofsession.hpp",
+      "score": 5,
+      "loc": 143,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-settings.h",
+      "score": 5,
+      "loc": 119,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-utilities.cpp",
+      "score": 5,
+      "loc": 117,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome-utils/print-session.c",
+      "score": 5,
+      "loc": 112,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-csv-gnumeric-popup.h",
+      "score": 5,
+      "loc": 108,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/app-utils/gnc-exp-parser.h",
+      "score": 5,
+      "loc": 101,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-imp/gnc-tokenizer.hpp",
+      "score": 5,
+      "loc": 90,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/engine/gnc-session.c",
+      "score": 5,
+      "loc": 71,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/import-parse.h",
+      "score": 5,
+      "loc": 70,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/import-export/csv-exp/csv-export-helpers.hpp",
+      "score": 5,
+      "loc": 45,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/backend/xml/sixtp-parsers.h",
+      "score": 5,
+      "loc": 39,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/engine/gnc-session.h",
+      "score": 5,
+      "loc": 36,
+      "evidence": {
+        "danger_hits": 2,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/dialog-invoice.c",
+      "score": 4,
+      "loc": 3980,
+      "evidence": {
+        "danger_hits": 49,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/dialog-print-check.c",
+      "score": 4,
+      "loc": 2740,
+      "evidence": {
+        "danger_hits": 46,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome-utils/assistant-xml-encoding.c",
+      "score": 4,
+      "loc": 1430,
+      "evidence": {
+        "danger_hits": 42,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/gnc-plugin-page-report.cpp",
+      "score": 4,
+      "loc": 2134,
+      "evidence": {
+        "danger_hits": 40,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/engine/test/gtest-gnc-option.cpp",
+      "score": 4,
+      "loc": 1562,
+      "evidence": {
+        "danger_hits": 40,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "libgnucash/engine/gnc-date.h",
+      "score": 4,
+      "loc": 823,
+      "evidence": {
+        "danger_hits": 40,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/gnc-plugin-page-register.cpp",
+      "score": 4,
+      "loc": 5685,
+      "evidence": {
+        "danger_hits": 36,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/engine/gnc-option-date.cpp",
+      "score": 4,
+      "loc": 605,
+      "evidence": {
+        "danger_hits": 36,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/register/ledger-core/test/utest-split-register-copy-ops.c",
+      "score": 4,
+      "loc": 1061,
+      "evidence": {
+        "danger_hits": 32,
+        "input_hits": 1
+      }
+    },
+    {
+      "file": "gnucash/gnome/dialog-payment.c",
+      "score": 4,
+      "loc": 1855,
+      "evidence": {
+        "danger_hits": 30,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/dialog-tax-info.c",
+      "score": 4,
+      "loc": 1567,
+      "evidence": {
+        "danger_hits": 30,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/gnc-plugin-page-budget.cpp",
+      "score": 4,
+      "loc": 1386,
+      "evidence": {
+        "danger_hits": 30,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/dialog-sx-editor.c",
+      "score": 4,
+      "loc": 1907,
+      "evidence": {
+        "danger_hits": 27,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "bindings/guile/gnc-engine-guile.cpp",
+      "score": 4,
+      "loc": 1896,
+      "evidence": {
+        "danger_hits": 27,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/gnc-plugin-page-owner-tree.cpp",
+      "score": 4,
+      "loc": 1281,
+      "evidence": {
+        "danger_hits": 27,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/backend/sql/gnc-sql-backend.cpp",
+      "score": 4,
+      "loc": 1038,
+      "evidence": {
+        "danger_hits": 27,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/top-level.c",
+      "score": 4,
+      "loc": 469,
+      "evidence": {
+        "danger_hits": 27,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/gnc-plugin-page-sx-list.cpp",
+      "score": 4,
+      "loc": 956,
+      "evidence": {
+        "danger_hits": 26,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome-utils/gnc-tree-view.c",
+      "score": 4,
+      "loc": 2261,
+      "evidence": {
+        "danger_hits": 25,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/app-utils/gnc-sx-instance-model.c",
+      "score": 4,
+      "loc": 1933,
+      "evidence": {
+        "danger_hits": 25,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/gnc-split-reg.c",
+      "score": 4,
+      "loc": 2600,
+      "evidence": {
+        "danger_hits": 24,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/core-utils/gnc-prefs.h",
+      "score": 4,
+      "loc": 585,
+      "evidence": {
+        "danger_hits": 24,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/assistant-stock-transaction.cpp",
+      "score": 4,
+      "loc": 2746,
+      "evidence": {
+        "danger_hits": 23,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/app-utils/gnc-ui-util.cpp",
+      "score": 4,
+      "loc": 2315,
+      "evidence": {
+        "danger_hits": 23,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/dialog-sx-since-last-run.c",
+      "score": 4,
+      "loc": 1632,
+      "evidence": {
+        "danger_hits": 23,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/gnc-budget-view.c",
+      "score": 4,
+      "loc": 1638,
+      "evidence": {
+        "danger_hits": 22,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/dialog-report-style-sheet.cpp",
+      "score": 4,
+      "loc": 561,
+      "evidence": {
+        "danger_hits": 22,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/backend/xml/gnc-backend-xml.cpp",
+      "score": 4,
+      "loc": 208,
+      "evidence": {
+        "danger_hits": 21,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome/gnc-plugin-basic-commands.c",
+      "score": 4,
+      "loc": 635,
+      "evidence": {
+        "danger_hits": 20,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "gnucash/gnome-utils/gnc-icons.h",
+      "score": 4,
+      "loc": 65,
+      "evidence": {
+        "danger_hits": 20,
+        "input_hits": 0
+      }
+    },
+    {
+      "file": "libgnucash/backend/xml/io-gncxml-v1.cpp",
+      "score": 4,
+      "loc": 3183,
+      "evidence": {
+        "danger_hits": 19,
+        "input_hits": 0
+      }
+    }
+  ]
+}
