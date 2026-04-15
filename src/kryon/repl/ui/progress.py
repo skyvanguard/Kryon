@@ -102,6 +102,72 @@ class GobusterProgressParser(ProgressParser):
         return state
 
 
+class MasscanProgressParser(ProgressParser):
+    """Parse masscan progress output.
+
+    masscan prints status lines like:
+      rate:  0.61-kpps, 12.34% done, 0:01:23 remaining, found=42
+    """
+
+    name = "masscan"
+    patterns = ["masscan"]
+
+    _pct_re = re.compile(r"([\d.]+)%\s+done")
+    # masscan writes `rate:  0.61-kpps` with a hyphen; keep the whole unit token.
+    _rate_re = re.compile(r"rate:\s*([\d.\-kKmM]+pps)")
+    _found_re = re.compile(r"found=(\d+)")
+
+    def parse_line(self, line: str, state: ProgressState) -> ProgressState:
+        state.total_lines += 1
+        m = self._pct_re.search(line)
+        if m:
+            state.percentage = float(m.group(1))
+        rate = self._rate_re.search(line)
+        found = self._found_re.search(line)
+        step_parts = []
+        if rate:
+            step_parts.append(f"{rate.group(1)}pps")
+        if found:
+            step_parts.append(f"{found.group(1)} found")
+        if step_parts:
+            state.current_step = " · ".join(step_parts)
+        return state
+
+
+class RustscanProgressParser(ProgressParser):
+    """Parse rustscan progress. rustscan has lightweight progress;
+    we mostly surface port discovery events."""
+
+    name = "rustscan"
+    patterns = ["rustscan"]
+
+    _open_re = re.compile(r"Open\s+([\d.]+:\d+)")
+    _phase_re = re.compile(r"Starting Script|Nmap|Discovered")
+
+    def parse_line(self, line: str, state: ProgressState) -> ProgressState:
+        state.total_lines += 1
+        m = self._open_re.search(line)
+        if m:
+            state.current_step = f"open: {m.group(1)}"
+        return state
+
+
+class AmassProgressParser(ProgressParser):
+    """Parse amass / subfinder / dnsenum subdomain enumeration."""
+
+    name = "amass"
+    patterns = ["amass", "subfinder", "dnsenum"]
+
+    _found_re = re.compile(r"(?:found|discovered)[:\s]+(\d+)", re.IGNORECASE)
+
+    def parse_line(self, line: str, state: ProgressState) -> ProgressState:
+        state.total_lines += 1
+        m = self._found_re.search(line)
+        if m:
+            state.current_step = f"{m.group(1)} subdomains"
+        return state
+
+
 class GenericProgressParser(ProgressParser):
     """Fallback parser — counts lines, no percentage."""
 
@@ -120,6 +186,9 @@ class GenericProgressParser(ProgressParser):
 # Registry of parsers in priority order (specific first, generic last)
 PROGRESS_PARSERS: list[type[ProgressParser]] = [
     NmapProgressParser,
+    MasscanProgressParser,
+    RustscanProgressParser,
+    AmassProgressParser,
     HashcatProgressParser,
     GobusterProgressParser,
     GenericProgressParser,
