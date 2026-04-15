@@ -17,8 +17,10 @@ from kryon.tools.validation.exploit_validator import (
     validate_sqli,
     validate_xss,
 )
+from kryon.tools.validation.request_approval import request_approval
 
 __all__ = [
+    "request_approval",
     "simulate_attack",
     "list_attack_techniques",
     "bas_endpoint_security",
