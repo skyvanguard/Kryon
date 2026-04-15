@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<title>Kryon — Reporte de evaluación britimp-engage-demo</title>
+<style>
+@page { size: A4; margin: 2cm 2.2cm; }
+body { background: #fff; color: #1a202c;
+  font-family: 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  max-width: 1000px; margin: 0 auto; padding: 0; line-height: 1.55; }
+h1 { color: #1a365d; font-size: 28px; margin-bottom: 4px; }
+h2 { color: #2d3748; border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 6px; margin-top: 28px; }
+h3 { color: #2d3748; margin-top: 18px; }
+.header { border-bottom: 3px solid #1a365d; padding-bottom: 18px; margin-bottom: 22px; }
+.header .sub { color: #4a5568; font-size: 15px; margin-top: 6px; }
+.header .meta { color: #718096; font-size: 12px; margin-top: 10px; }
+.summary { background: #f7fafc; border-left: 4px solid #1a365d;
+  padding: 16px 20px; margin: 20px 0; border-radius: 4px; }
+.kpi-row { display: flex; gap: 14px; margin: 18px 0; }
+.kpi { flex: 1; background: #f7fafc; padding: 14px 18px;
+  border-radius: 6px; border-top: 3px solid #1a365d; }
+.kpi .label { font-size: 11px; color: #718096;
+  text-transform: uppercase; letter-spacing: 0.06em; }
+.kpi .value { font-size: 28px; font-weight: 600; color: #1a365d; }
+.findings-table { width: 100%; border-collapse: collapse;
+  margin: 15px 0; font-size: 13px; }
+.findings-table th { background: #edf2f7; color: #2d3748;
+  padding: 10px; text-align: left; font-weight: 600; }
+.findings-table td { padding: 10px; border-bottom: 1px solid #e2e8f0;
+  vertical-align: top; }
+.sev { display: inline-block; padding: 2px 10px; border-radius: 11px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.04em; }
+.sev.critical { background: #fed7d7; color: #822727; }
+.sev.high     { background: #feebc8; color: #7b341e; }
+.sev.medium   { background: #fefcbf; color: #744210; }
+.sev.low      { background: #c6f6d5; color: #22543d; }
+.sev.info     { background: #bee3f8; color: #2a4365; }
+.finding-card { margin: 16px 0; padding: 16px 20px;
+  border-left: 4px solid #a0aec0; background: #fafbfc;
+  border-radius: 4px; page-break-inside: avoid; }
+.finding-card.critical { border-left-color: #822727; }
+.finding-card.high     { border-left-color: #7b341e; }
+.finding-card.medium   { border-left-color: #744210; }
+.finding-card.low      { border-left-color: #22543d; }
+.finding-card .title { font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+.finding-card .meta { color: #718096; font-size: 12px; margin-bottom: 10px; }
+.finding-card pre.evidence {
+  background: #1a202c; color: #e2e8f0; padding: 10px;
+  border-radius: 4px; font-size: 12px; overflow-x: auto;
+  font-family: 'Consolas', 'Monaco', monospace;
+  page-break-inside: avoid; white-space: pre-wrap; }
+.finding-card .remediation {
+  background: #ebf4ff; border-left: 3px solid #3182ce;
+  padding: 10px 14px; margin-top: 10px; border-radius: 3px;
+  font-size: 13px; }
+.footer { margin-top: 40px; padding-top: 16px;
+  border-top: 1px solid #e2e8f0; color: #718096;
+  font-size: 11px; text-align: center; }
+</style></head><body>
+<div class="header">
+  <h1>Reporte de evaluación de seguridad</h1>
+  <div class="sub">Cliente: <strong>britimp</strong>
+    · Alcance: <code>target-ssh</code></div>
+  <div class="meta">Engagement: britimp-engage-demo
+    · Generado: 2026-04-15 16:53 UTC
+    · Auditor: SkyVanguard / Kryon</div>
+</div>
+
+<h2>Resumen ejecutivo</h2>
+<div class="summary"><p>Se identificaron <strong>3 hallazgos</strong> en el alcance <code>target-ssh</code>.</p><p><strong class="sev critical" style="padding:2px 8px;">1 CRITICAL</strong> requieren remediación inmediata (impacto potencial: exposición de servicios, credenciales débiles, o configuración que habilita escalación).</p><p><strong class="sev high" style="padding:2px 8px;">1 HIGH</strong> deben resolverse en la ventana de remediación estándar del cliente.</p><p>Hosts afectados: 1 (admin@target-ssh).</p><p>El detalle técnico con evidencia y pasos de remediación se presenta en las secciones siguientes. Las acciones marcadas [DRY-RUN] en el log fueron simuladas, no aplicadas.</p></div>
+<div class="kpi-row"><div class="kpi"><div class="label">Total</div><div class="value">3</div></div><div class="kpi"><div class="label">CRITICAL</div><div class="value">1</div></div><div class="kpi"><div class="label">HIGH</div><div class="value">1</div></div><div class="kpi"><div class="label">MEDIUM</div><div class="value">1</div></div><div class="kpi"><div class="label">LOW</div><div class="value">0</div></div><div class="kpi"><div class="label">INFO</div><div class="value">0</div></div></div>
+
+<h2>Índice de hallazgos</h2>
+<table class="findings-table">
+<thead><tr>
+<th>#</th><th>Severidad</th><th>CWE</th><th>Host</th>
+<th>Regla</th><th>Descripción</th>
+</tr></thead>
+<tbody><tr><td>1</td><td><span class="sev critical">CRITICAL</span></td><td>CWE-521</td><td>admin@target-ssh</td><td>sshd-permit-root-login</td><td>sshd permite login de root por SSH.</td></tr><tr><td>2</td><td><span class="sev high">HIGH</span></td><td>CWE-521</td><td>admin@target-ssh</td><td>sshd-password-auth</td><td>sshd permite autenticación por contraseña.</td></tr><tr><td>3</td><td><span class="sev medium">MEDIUM</span></td><td>CWE-307</td><td>admin@target-ssh</td><td>sshd-max-auth-tries</td><td>MaxAuthTries 10 permite fuerza bruta prolongada.</td></tr></tbody>
+</table>
+
+<h2>Detalle técnico</h2>
+
+    <div class="finding-card critical">
+      <div class="title"><span class="sev critical">CRITICAL</span> sshd permite login de root por SSH.</div>
+      <div class="meta">CWE-521 · admin@target-ssh · rule: sshd-permit-root-login</div>
+      <pre class="evidence">PermitRootLogin yes</pre>
+      <div class="remediation"><strong>Remediación:</strong> Desactivar PermitRootLogin en /etc/ssh/sshd_config.</div>
+    </div>
+    
+    <div class="finding-card high">
+      <div class="title"><span class="sev high">HIGH</span> sshd permite autenticación por contraseña.</div>
+      <div class="meta">CWE-521 · admin@target-ssh · rule: sshd-password-auth</div>
+      <pre class="evidence">PasswordAuthentication yes</pre>
+      <div class="remediation"><strong>Remediación:</strong> Requerir autenticación por clave pública.</div>
+    </div>
+    
+    <div class="finding-card medium">
+      <div class="title"><span class="sev medium">MEDIUM</span> MaxAuthTries 10 permite fuerza bruta prolongada.</div>
+      <div class="meta">CWE-307 · admin@target-ssh · rule: sshd-max-auth-tries</div>
+      <pre class="evidence">MaxAuthTries 10</pre>
+      <div class="remediation"><strong>Remediación:</strong> Bajar a 3 y habilitar fail2ban.</div>
+    </div>
+    
+
+<div class="footer">
+  Reporte generado por Kryon — SkyVanguard, Asunción, Paraguay. · Confidencial.
+</div>
+</body></html>

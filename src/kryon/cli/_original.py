@@ -2103,6 +2103,10 @@ def main():
     )
     autoscan_parser.add_argument("--compliance", action="append", default=[], help="Compliance framework (repeatable)")
 
+    # --- engage subcommand (F12.7) — end-to-end demo orchestrator ---
+    from kryon.cli.engage import add_engage_subparser
+    add_engage_subparser(subparsers)
+
     # --- default (REPL) arguments ---
     parser.add_argument(
         "prompt",
@@ -2174,6 +2178,10 @@ def main():
         return
 
     # --- Handle report subcommand ---
+    if args.command == "engage":
+        from kryon.cli.engage import run_engage
+        sys.exit(run_engage(args))
+
     if args.command == "report":
         import asyncio
         import json as json_mod
