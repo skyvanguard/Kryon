@@ -1,16 +1,59 @@
 ---
 name: pci-dss-audit
-description: "PCI-DSS v4.0 compliance audit — 12 requirements, Card Data Environment (CDE)"
+description: "PCI-DSS v4 compliance audit — F15.1 deterministic engine + LLM narration"
 triggers:
   tech: []
   ports: [443, 8443]
-  keywords: ["pci", "pci-dss", "tarjetas", "cardholder", "cde", "pan", "cardholder data"]
-priority: 18
+  keywords:
+    - "pci"
+    - "pci-dss"
+    - "tarjetas"
+    - "cardholder"
+    - "cde"
+    - "pan"
+    - "cardholder data"
+    - "compliance"
+    - "cumplimiento"
+    - "audit"
+    - "auditoría"
+    - "auditoria"
+    - "auditá"
+    - "audita"
+    - "hardening"
+    - "endurecimiento"
+    - "regulación"
+    - "regulacion"
+priority: 25
 required_tools:
+  - run_compliance_audit
+  - generate_compliance_pdf
   - run_command
   - nuclei_scan
   - search_vulnerabilities
 ---
+
+## Default behavior — F15.1 deterministic auditor first
+
+Cuando el usuario pide compliance / audit / hardening:
+
+1. **Llamá `run_compliance_audit(host=...)` PRIMERO**. Es determinístico, reproducible,
+   sin LLM en el detection path. Output JSON con verdicts + evidence.
+2. **Narrá los hallazgos al usuario** ordenados por severidad (FAIL críticos primero,
+   después FAIL high, después PASS, finalmente N/A).
+3. Para cada FAIL, citá el `evidence_command` exacto y el `remediation_static`
+   tal cual — NO inventes comandos alternativos. El operador necesita poder
+   reproducir el finding manualmente.
+4. Si el usuario pide PDF / reporte / informe, llamá `generate_compliance_pdf(host=...)`.
+5. Si el usuario quiere remediar, **NUNCA modificás directamente** — proponés con
+   `request_approval` y esperás OK explícito antes de aplicar.
+
+Default `host="localhost"` para self-audit del propio servidor donde corre Kryon.
+Para targets remotos: pedile al usuario `host`, `ssh_user`, `ssh_key_path`.
+
+**Boundary regulatorio (no negociable)**: el verdict que reporta `run_compliance_audit`
+es la verdad auditable. Vos NUNCA cambiás un FAIL a "parcialmente cumple" o suavizás
+lenguaje regulatorio. Si querés agregar contexto, marcalo como tal — los verdicts del
+tool son la autoridad.
 
 ## PCI-DSS v4.0.1 Audit
 

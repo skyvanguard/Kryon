@@ -1,6 +1,7 @@
 """Application Security (AppSec) pipeline tools — SAST, DAST, SCA, API Security, Supply Chain."""
 
 from kryon.tools.appsec.api_security import api_security_scan, owasp_api_top10_check
+from kryon.tools.appsec.compliance_audit import generate_compliance_pdf, run_compliance_audit
 from kryon.tools.appsec.sbom import dependency_tree, generate_sbom, scan_sbom_vulns
 from kryon.tools.appsec.semgrep import semgrep_scan, semgrep_scan_with_rules
 from kryon.tools.appsec.supply_chain import check_typosquatting, detect_dependency_confusion
@@ -19,4 +20,7 @@ __all__ = [
     "owasp_api_top10_check",
     "detect_dependency_confusion",
     "check_typosquatting",
+    # F15.2 deterministic compliance
+    "run_compliance_audit",
+    "generate_compliance_pdf",
 ]

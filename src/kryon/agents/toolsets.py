@@ -52,6 +52,10 @@ from kryon.tools.appsec import (  # noqa: E402
     zap_baseline_scan,
     zap_full_scan,
 )
+from kryon.tools.appsec.compliance_audit import (  # noqa: E402  (F15.2)
+    generate_compliance_pdf,
+    run_compliance_audit,
+)
 
 APPSEC_TOOLS = [
     semgrep_scan,
@@ -66,6 +70,9 @@ APPSEC_TOOLS = [
     owasp_api_top10_check,
     detect_dependency_confusion,
     check_typosquatting,
+    # F15.2 — deterministic compliance auditor + PDF report
+    run_compliance_audit,
+    generate_compliance_pdf,
 ]
 
 # Offensive validation tools (BAS/Purple Team/Detection as Code)
