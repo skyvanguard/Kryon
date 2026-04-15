@@ -139,6 +139,107 @@ docker exec kryon python /opt/bench_juliet.py [...]
 
 ---
 
+## F10.3-B — LLM triage as priority signal: **asymmetric ship**
+
+**Date:** 2026-04-15
+**Model:** `qwen3-coder:30b-32k` (Q4_K_M, ~12 GB VRAM)
+**Raw bench:** [`bench_f10_3b.json`](bench_results/bench_f10_3b.json)
+**Per-file detail:** [`bench_f10_3b.per_file.json`](bench_results/bench_f10_3b.per_file.json)
+
+### What was tried
+
+`TriageAnnotator` — per-finding LLM verdict (KEEP / SUPPRESS / UNCERTAIN
++ reason + confidence). Designed to NEVER filter; just stamp metadata so
+an analyst can sort findings by the model's opinion without losing any
+signal. Opt-in via `KRYON_LLM_TRIAGE=true`.
+
+Pre-agreed gate (before measuring):
+- SUPPRESS precision ≥ 65% (CI lower bound): required to ship any
+  SUPPRESS-based filtering as default.
+- KEEP precision ≥ 50% (CI lower bound): required to ship KEEP-based
+  prioritisation.
+
+### Latency (qwen3-coder vs gemma4 on N=20 spike)
+
+| Model | p50 | p95 | max | timeout rate @ 120s |
+|---|---|---|---|---|
+| gemma4:26b-32k | ~40s | 120s (timeout) | 120s | **25%** (5/20) |
+| **qwen3-coder:30b-32k** | **3.4s** | **4.3s** | 14.1s | **0%** |
+
+qwen3-coder is ~28× faster at p95 and never timed out. Full N=100 bench
+(1386 triage calls) completed without errors. **Latency is not the
+blocker for local-model triage.**
+
+### Precision (bench N=100, 7 CWEs × 100 samples + 100 FPR baseline)
+
+| Verdict | n | Precision | 95% bootstrap CI | Gate |
+|---|---|---|---|---|
+| **SUPPRESS** | 209 | **39.7%** | [33.5, 46.4] | **FAIL** (target ≥ 65%) |
+| **KEEP** | 376 | **95.2%** | [92.8, 97.3] | **PASS** (target ≥ 50%) |
+| UNCERTAIN | 149 | — | — | — (balanced split) |
+| ERROR | 0 | — | — | — |
+
+AMBIG exclusion: 540 SUPPRESS and 60 KEEP verdicts landed on Juliet
+findings where the scanner flagged a CWE different from the file's
+target. Those are neither cleanly TP nor FP and were excluded from the
+precision denominator.
+
+### Why `--triage-filter` does NOT ship
+
+Data from the N=100 bench shows filtering on SUPPRESS-high would kill
+real bugs at a 60% rate (SUPPRESS precision 39.7% → 60.3% of
+SUPPRESSes are actually TPs). Concretely:
+
+| Filter scenario | Recall pooled | Δ from hybrid 65.0% | CWE-415 | CWE-416 |
+|---|---|---|---|---|
+| hybrid (baseline) | 62.1%* | — | 87% | 75% |
+| `--triage-focus` (KEEP-only) | 34.9% | **-27.3pp** | **21%** | **13%** |
+
+\* 62.1% differs slightly from the 65.0% F6 recalibration because the
+F10.3-B bench used `hybrid-triage` runner (extended with annotator
+stage), same underlying scanner.
+
+`--triage-focus` (a KEEP-only view) destroys CWE-415 double-free and
+CWE-416 use-after-free detection because qwen systematically labels
+those patterns as safe. A flag that loses 62-66pp of recall on two
+CWEs cannot ship behind an innocent-sounding name.
+
+**Historical lockout note**: if someone in six months reads this doc
+and considers wiring `filter_suppress_high()` behind a `--triage-filter`
+flag, they should first re-run the N=100 bench with their candidate
+model. The gate (SUPPRESS precision CI lower ≥ 65%) applies; until the
+gate passes, the flag stays disconnected.
+
+### Confidence field is decorative
+
+All 1386 triage responses emitted `confidence: high`. qwen3-coder does
+not distinguish confidence levels in this prompt format. Any future
+logic gated on `triage_confidence` needs a prompt or model that actually
+varies it — the current output makes confidence-based filtering a no-op.
+
+### What ships
+
+| Artifact | Ships | Notes |
+|---|---|---|
+| `TriageAnnotator` module | ✅ opt-in | Reusable infra in `src/kryon/skills/triage_annotator.py` |
+| `KRYON_LLM_TRIAGE=true` env hook | ✅ opt-in | Integration in `HybridHunter` |
+| `triage_sort_key` helper | ✅ | Reports ordered KEEP-first, SUPPRESS-last — 95% precision makes this UX-valuable |
+| `filter_suppress_high()` function | ✅ (unwired) | Present for future higher-precision models; not connected to any flag |
+| `--triage-filter` flag | ❌ | Requires SUPPRESS precision ≥ 65% CI lower; current data says 33.5% |
+| `--triage-focus` flag | ❌ | -27pp pooled recall; CWE-415/416 catastrophic loss |
+
+### Honest lesson
+
+A local LLM with 95% KEEP precision is a real product win: an analyst
+who reviews findings in triage-sort order sees likely TPs first. The
+*same* LLM cannot be trusted to suppress findings — the asymmetry is
+the framework's lesson, not a bug to fix with more tuning. Next
+higher-precision model (or structured tool-use like the agent reading
+function context with `read_function`) may close the SUPPRESS gap; the
+gate and wiring wait for evidence, not vibes.
+
+---
+
 ## F9 — FPR reduction sprint: **stopped at F9.1, gate not met**
 
 **Date:** 2026-04-14
