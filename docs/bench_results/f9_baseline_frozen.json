@@ -1,0 +1,75 @@
+{
+  "frozen_at": "2026-04-14",
+  "frozen_at_commit": "f918e1e",
+  "post_fix_state": "F8.1.b plumbing fix shipped; no F9 changes yet",
+  "purpose": "Frozen pre-F9 baseline for sub-phase comparison. Every F9 sub-phase compares against this snapshot, NOT a fresh re-run, to avoid between-run sampling noise contaminating deltas.",
+
+  "corpus": {
+    "recall": {
+      "root": "/workspace/.juliet/juliet-test-suite-c/testcases",
+      "cwes": [121, 122, 134, 190, 415, 416, 476],
+      "samples_per_cwe": 100,
+      "seed": 42,
+      "total_files": 700
+    },
+    "fpr": {
+      "root": "/workspace/sources",
+      "n_files": 100,
+      "selection": "first 100 files matching *.c rglob"
+    }
+  },
+
+  "metrics": {
+    "hybrid": {
+      "recall_at_cwe": {
+        "pooled": {"point": 0.650, "ci_95": [0.614, 0.683]},
+        "per_cwe": {
+          "121": {"point": 0.690, "ci_95": [0.600, 0.780]},
+          "122": {"point": 0.740, "ci_95": [0.650, 0.820]},
+          "134": {"point": 0.210, "ci_95": [0.140, 0.290]},
+          "190": {"point": 0.560, "ci_95": [0.470, 0.660]},
+          "415": {"point": 0.870, "ci_95": [0.800, 0.930]},
+          "416": {"point": 0.750, "ci_95": [0.660, 0.830]},
+          "476": {"point": 0.730, "ci_95": [0.640, 0.810]}
+        }
+      },
+      "fpr_proxy": {
+        "point": 0.470,
+        "ci_95": [0.370, 0.570],
+        "files_with_finding": 47,
+        "n_files": 100,
+        "total_findings": 137
+      }
+    },
+    "heuristic": {
+      "recall_at_cwe_pooled": {"point": 0.577, "ci_95": [0.541, 0.613]},
+      "fpr_proxy": {"point": 0.390, "ci_95": [0.300, 0.490], "files_with_finding": 39}
+    },
+    "semgrep": {
+      "recall_at_cwe_pooled": {"point": 0.254, "ci_95": [0.221, 0.289]},
+      "fpr_proxy": {"point": 0.400, "ci_95": [0.310, 0.500], "files_with_finding": 40}
+    }
+  },
+
+  "fp_distribution": {
+    "total_fps": 137,
+    "categories": {
+      "A_upstream_too_broad": {"count": 47, "pct": 34, "phase": "F9.3"},
+      "B_sizeof_safe_arith": {"count": 32, "pct": 23, "phase": "F9.2"},
+      "C_sentinel_null": {"count": 34, "pct": 25, "phase": "F9.1"},
+      "D_multi_free_eager": {"count": 10, "pct": 7, "phase": "rolled into B/C"},
+      "E_misc": {"count": 14, "pct": 10, "phase": "case-by-case"}
+    }
+  },
+
+  "raw_data_refs": [
+    "docs/bench_results/bench_f6_recalibration.json",
+    "docs/bench_results/f9_fps.json"
+  ],
+
+  "phase_targets": {
+    "F9.1_category_C": {"fpr_max": 0.38, "recall_min_drop_pp": 2},
+    "F9.2_category_B": {"fpr_max": 0.28, "recall_min_drop_pp": 2},
+    "F9.3_category_A": {"fpr_max": 0.20, "recall_min_drop_pp": 3}
+  }
+}
