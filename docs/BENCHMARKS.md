@@ -139,6 +139,58 @@ docker exec kryon python /opt/bench_juliet.py [...]
 
 ---
 
+## F10 sprint — full scoreboard
+
+Three sub-phases, all closed with bootstrap-CI-gated decisions:
+
+| Sub-phase | Goal | Outcome | What shipped |
+|---|---|---|---|
+| **F10.1** Allow-list per-engagement | Product feature — mark known-FP patterns per target | **SHIP** | `services/allow_list.py`, `/allow` REPL command, `.kryon-allow.yaml` schema + `.kryon-allow-audit.jsonl` audit log. 6/6 unit tests; no-regression on bench (hybrid identical to frozen baseline when no YAML present). |
+| **F10.2** Joern N=100 re-validation | Does Joern help at higher N? | **Null result** — F7 confirmed at N=100 | No code changes. Bootstrap CI showed hybrid-F7 vs hybrid CIs fully overlap on both CWE-121 (69% vs 70%) and CWE-190 (56% vs 56%). Pooled Δ = +0.5pp [inside overlap]. FPR Δ = +1pp [inside overlap]. Joern stays opt-in. |
+| **F10.3-B** LLM triage annotation | Use LLM as priority signal, not filter | **Asymmetric ship** — KEEP reliable (95.2%), SUPPRESS not (39.7%). See section below. | `skills/triage_annotator.py`, `KRYON_LLM_TRIAGE` env hook, `triage_sort_key` helper. No `--triage-filter`, no `--triage-focus` (would kill recall). |
+
+## F10.1 — Allow-list per-engagement
+
+Workflow: analyst runs scan → marks known-FPs via `/allow add` → subsequent
+scans stamp `_suppressed_by_allowlist` on matching findings. Findings are
+NEVER removed — the report consumer decides whether to hide them.
+
+Safety invariants:
+- `reason` field required. Reasonless entries rejected at load time.
+- Append-only audit log (`.kryon-allow-audit.jsonl`) records every applied
+  suppression. Cannot be hidden by editing the YAML.
+- `--show-suppressed` (future flag) will list every suppressed finding
+  under a separate header in reports.
+
+Gate passed:
+- 6/6 unit tests: schema validation, matcher (glob + rule_id + line range),
+  audit log append, reason enforcement, YAML roundtrip.
+- No-regression bench (hybrid runner, no YAML in repo):
+  recall@CWE pooled 65.0% [61.4, 68.3] — identical to frozen baseline.
+  FPR proxy 47.0% [37, 57] — identical.
+
+## F10.2 — Joern N=100 bootstrap CI re-validation
+
+F7.5 showed zero Joern-unique findings at N=20. F8 recalibration proved
+N=20 has 5-7pp sampling noise. F10.2 re-ran at N=100 to kill the
+ambiguity.
+
+Results (same seed=42, same corpus, pre-built CPGs for determinism):
+
+| Metric | hybrid | hybrid-F7 | Δ | CIs overlap? |
+|---|---|---|---|---|
+| CWE-121 recall@CWE | 69.0% [60, 78] | 70.0% [61, 79] | +1.0pp | yes |
+| CWE-190 recall@CWE | 56.0% [47, 66] | 56.0% [47, 66] | 0.0pp | identical |
+| Pooled recall | 62.5% [56.0, 69.0] | 63.0% [56.5, 69.5] | +0.5pp | yes |
+| FPR proxy | 47.0% [37, 57] | 48.0% [38, 58] | +1.0pp | yes |
+
+Gate per F10.2 plan (per-CWE: recall CI lower > baseline upper AND
+FPR upper < 50%): **no CWE qualifies**. Joern stays opt-in. The result
+confirms F7 at higher N with proper CI — no fantasia de "maybe at N=100
+it'll show signal".
+
+---
+
 ## F10.3-B — LLM triage as priority signal: **asymmetric ship**
 
 **Date:** 2026-04-15
