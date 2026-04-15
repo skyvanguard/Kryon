@@ -190,17 +190,18 @@ def _check_ssh(svc: DiscoveredService, ssh_target: str | None,
     """SSH banner grab + (optional) config check via SSH."""
     findings: list[Finding] = []
 
-    # Banner is always visible
+    # Banner is always visible. Use a context manager so the socket closes
+    # even when recv times out or the peer resets — leaked FDs were real
+    # across long engagements.
+    import socket
     banner = ""
     try:
-        import socket
-        s = socket.socket()
-        s.settimeout(3)
-        s.connect((svc.host, svc.port))
-        banner = s.recv(128).decode(errors="replace").splitlines()[0]
-        s.close()
-    except Exception:
-        pass
+        with socket.create_connection((svc.host, svc.port), timeout=3) as s:
+            raw = s.recv(128).decode(errors="replace").splitlines()
+            banner = raw[0] if raw else ""
+    except (OSError, socket.timeout) as exc:
+        logger.debug("ssh banner grab failed on %s:%s: %s",
+                     svc.host, svc.port, exc)
 
     if banner and not ssh_target:
         findings.append(Finding(

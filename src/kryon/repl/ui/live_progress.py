@@ -17,11 +17,15 @@ streams stdout line-by-line.
 
 from __future__ import annotations
 
+import logging
 import subprocess
+import threading
 import time
 from collections import deque
 from dataclasses import dataclass
 from typing import Callable
+
+logger = logging.getLogger(__name__)
 
 from rich import box
 from rich.console import Console, Group
@@ -139,6 +143,27 @@ def run_with_progress(
         bufsize=1,
     )
 
+    # Drain stderr in a background thread so the child never blocks
+    # writing to a full stderr pipe while we're busy consuming stdout.
+    # Prior implementation read stderr only AFTER the stdout loop, which
+    # deadlocks on tools that emit lots of stderr warnings (nikto,
+    # wpscan --verbose) when that output exceeds the kernel pipe buffer.
+    def _drain_stderr() -> None:
+        if proc.stderr is None:
+            return
+        try:
+            for chunk in iter(proc.stderr.readline, ""):
+                if not chunk:
+                    break
+                stderr_buf.append(chunk)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("stderr drainer: %s", exc)
+
+    stderr_thread = threading.Thread(
+        target=_drain_stderr, name="live-progress-stderr", daemon=True,
+    )
+    stderr_thread.start()
+
     try:
         with Live(
             _render_panel(command, parser.name, state, started, tail, spinner),
@@ -146,7 +171,8 @@ def run_with_progress(
             console=con,
             transient=False,
         ) as live:
-            assert proc.stdout is not None
+            if proc.stdout is None:
+                raise RuntimeError("Popen returned without a stdout pipe")
             for raw_line in proc.stdout:
                 line = raw_line.rstrip("\r\n")
                 stdout_buf.append(raw_line)
@@ -155,8 +181,8 @@ def run_with_progress(
                 if on_line is not None:
                     try:
                         on_line(raw_line)
-                    except Exception:  # noqa: BLE001 — on_line is user code
-                        pass
+                    except Exception as exc:  # noqa: BLE001 — user code
+                        logger.debug("on_line callback raised: %s", exc)
 
                 # Soft timeout: bail before reading more lines if exceeded.
                 if timeout_s is not None and (time.time() - started) > timeout_s:
@@ -167,11 +193,10 @@ def run_with_progress(
                     command, parser.name, state, started, tail, spinner,
                 ))
 
-            # Drain stderr (tool warnings etc.)
-            if proc.stderr is not None:
-                stderr_buf.append(proc.stderr.read())
-
-            rc = proc.wait()
+            proc.wait()
+            # Give the stderr drainer a short grace period to finish
+            # reading any tail output the child wrote just before exit.
+            stderr_thread.join(timeout=2)
     except KeyboardInterrupt:
         proc.terminate()
         try:
