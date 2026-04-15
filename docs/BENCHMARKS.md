@@ -139,6 +139,75 @@ docker exec kryon python /opt/bench_juliet.py [...]
 
 ---
 
+## F9 — FPR reduction sprint: **stopped at F9.1, gate not met**
+
+**Date:** 2026-04-14
+**Sprint plan:** [`F9_PLAN.md`](F9_PLAN.md)
+**Frozen pre-fix baseline:** [`bench_results/f9_baseline_frozen.json`](bench_results/f9_baseline_frozen.json)
+**Raw post-fix bench:** [`bench_results/bench_f9_1.json`](bench_results/bench_f9_1.json),
+[`bench_results/bench_f9_1_partial.json`](bench_results/bench_f9_1_partial.json)
+
+### Plan vs result
+
+F9.0 classified 137 baseline FPs into 5 root-cause categories. Top three
+covered 82% — passed the "executable sprint" gate. Sub-phase order
+revised to C → B → A by execution risk. Per-phase targets fixed BEFORE
+running anything: F9.1 ≤ 38%, F9.2 ≤ 28%, F9.3 ≤ 20%.
+
+F9.1 (Category C — sentinel NULL + fopen-with-var) tried two filters:
+
+| Filter | Result |
+|---|---|
+| Sentinel-NULL drop (heuristic + semgrep) | **Hard rollback.** CWE-476 recall 73% → 27% (-46pp) — eliminated Juliet TPs that use `printLine(data)` instead of `*data`. Pooled recall -6.6pp with only -3pp FPR gain. |
+| fopen-with-safe-construction filter | **Shipped, but inert at the bench metric.** Eliminates 3 of 137 findings on already-noisy files; FPR-proxy unchanged at 47%. Logically correct, defensive infra; no measured recall regression. |
+
+### Gate verdict: STOP
+
+Per `F9_PLAN.md`: "Sub-phase target met: phase FPR ≤ phase target.
+Missing the target = sprint stops; remaining phases are signs of cola
+larga." F9.1 missed the 38% target (achieved 47%). F9.2 and F9.3
+NOT pursued.
+
+### Lesson — a real ceiling, not a soft target
+
+The Juliet TP corpus and the real-world FP corpus share the same
+syntactic patterns (`p = NULL; ... use(p)`, `malloc(N*sizeof(T))`, ...).
+Pattern-level filtering can't cleanly separate "Juliet `_bad()` template"
+from "production safe init then assign" without seeing **all the
+control-flow paths between init and use**. That's data-flow analysis,
+which F7 already tried via Joern and shipped as opt-in only after
+producing zero unique findings on this corpus.
+
+Honest position on FPR: **47% is the ceiling for default pattern-only
+detection on mixed real-world C.** Closing the gap requires either:
+
+1. **Per-engagement allow-list.** Use `scripts/f9/dump_fps.py` to triage
+   the target's specific FPs and add a `pattern-not` for that codebase's
+   patterns. Manual; effective; not a default. Doc reference for
+   pentest engagements.
+2. **Data-flow / symbolic execution.** Joern is shipped opt-in (F7).
+   When real evidence emerges that a corpus benefits, flip it on. F7's
+   bench showed it doesn't help on this Juliet-derived noise.
+
+Neither is a "fix the rules in a sprint" project.
+
+### What ships from F9
+
+- `_drop_safe_constructed_fopen` and `_function_bounds` helpers in
+  `kryon/skills/planner_hunter.py`. Defensive, no measured downside.
+- `scripts/f9/dump_fps.py` — per-FP extractor with rule_id + snippet.
+  Reusable for engagement triage.
+- `docs/bench_results/f9_fps.json` — frozen 137-FP catalogue.
+- `docs/F9_PLAN.md` — the gate document; the bootstrap CI reference
+  and per-category sanity-check pattern is the bar for any future FPR
+  sprint.
+
+### What does NOT ship from F9
+
+The sentinel-NULL drop filter (heuristic + semgrep) is fully reverted.
+
+---
+
 ## F8 — CWE alias plumbing fix: **partial win**
 
 **Date:** 2026-04-14
