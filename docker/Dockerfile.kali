@@ -107,7 +107,19 @@ COPY src/ ./src/
 RUN uv venv /opt/venv && \
     . /opt/venv/bin/activate && \
     uv pip install --no-cache ".[rag,server,tracing,viz,tui,reporting,orchestration]" && \
-    uv pip install --no-cache impacket bloodhound
+    uv pip install --no-cache impacket bloodhound && \
+    # F15.2 fix: align all opentelemetry packages to >=1.41 line so chromadb
+    # (which pulls exporter 1.41+) and semgrep (which pins ~=1.37) don't
+    # collide at runtime via missing ReadableLogRecord/LogData symbols.
+    uv pip install --no-cache \
+        "opentelemetry-sdk>=1.41" \
+        "opentelemetry-api>=1.41" \
+        "opentelemetry-exporter-otlp-proto-grpc>=1.41" \
+        "opentelemetry-exporter-otlp-proto-http>=1.41" \
+        "opentelemetry-exporter-otlp-proto-common>=1.41" \
+        "opentelemetry-instrumentation>=0.62b0" \
+        "opentelemetry-instrumentation-requests>=0.62b0" \
+        "opentelemetry-semantic-conventions>=0.62b0"
 
 # ---------------------------------------------------------------------------
 # Stage 3: runtime — Kali tools + Python venv + Claude Code CLI
