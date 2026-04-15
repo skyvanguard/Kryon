@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<title>Kryon — Reporte de evaluación britimp-demo-2026-04-15</title>
+<style>
+@page { size: A4; margin: 2cm 2.2cm; }
+body { background: #fff; color: #1a202c;
+  font-family: 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  max-width: 1000px; margin: 0 auto; padding: 0; line-height: 1.55; }
+h1 { color: #1a365d; font-size: 28px; margin-bottom: 4px; }
+h2 { color: #2d3748; border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 6px; margin-top: 28px; }
+h3 { color: #2d3748; margin-top: 18px; }
+.header { border-bottom: 3px solid #1a365d; padding-bottom: 18px; margin-bottom: 22px; }
+.header .sub { color: #4a5568; font-size: 15px; margin-top: 6px; }
+.header .meta { color: #718096; font-size: 12px; margin-top: 10px; }
+.summary { background: #f7fafc; border-left: 4px solid #1a365d;
+  padding: 16px 20px; margin: 20px 0; border-radius: 4px; }
+.kpi-row { display: flex; gap: 14px; margin: 18px 0; }
+.kpi { flex: 1; background: #f7fafc; padding: 14px 18px;
+  border-radius: 6px; border-top: 3px solid #1a365d; }
+.kpi .label { font-size: 11px; color: #718096;
+  text-transform: uppercase; letter-spacing: 0.06em; }
+.kpi .value { font-size: 28px; font-weight: 600; color: #1a365d; }
+.findings-table { width: 100%; border-collapse: collapse;
+  margin: 15px 0; font-size: 13px; }
+.findings-table th { background: #edf2f7; color: #2d3748;
+  padding: 10px; text-align: left; font-weight: 600; }
+.findings-table td { padding: 10px; border-bottom: 1px solid #e2e8f0;
+  vertical-align: top; }
+.sev { display: inline-block; padding: 2px 10px; border-radius: 11px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.04em; }
+.sev.critical { background: #fed7d7; color: #822727; }
+.sev.high     { background: #feebc8; color: #7b341e; }
+.sev.medium   { background: #fefcbf; color: #744210; }
+.sev.low      { background: #c6f6d5; color: #22543d; }
+.sev.info     { background: #bee3f8; color: #2a4365; }
+.finding-card { margin: 16px 0; padding: 16px 20px;
+  border-left: 4px solid #a0aec0; background: #fafbfc;
+  border-radius: 4px; page-break-inside: avoid; }
+.finding-card.critical { border-left-color: #822727; }
+.finding-card.high     { border-left-color: #7b341e; }
+.finding-card.medium   { border-left-color: #744210; }
+.finding-card.low      { border-left-color: #22543d; }
+.finding-card .title { font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+.finding-card .meta { color: #718096; font-size: 12px; margin-bottom: 10px; }
+.finding-card pre.evidence {
+  background: #1a202c; color: #e2e8f0; padding: 10px;
+  border-radius: 4px; font-size: 12px; overflow-x: auto;
+  font-family: 'Consolas', 'Monaco', monospace;
+  page-break-inside: avoid; white-space: pre-wrap; }
+.finding-card .remediation {
+  background: #ebf4ff; border-left: 3px solid #3182ce;
+  padding: 10px 14px; margin-top: 10px; border-radius: 3px;
+  font-size: 13px; }
+.footer { margin-top: 40px; padding-top: 16px;
+  border-top: 1px solid #e2e8f0; color: #718096;
+  font-size: 11px; text-align: center; }
+</style></head><body>
+<div class="header">
+  <h1>Reporte de evaluación de seguridad</h1>
+  <div class="sub">Cliente: <strong>britimp</strong>
+    · Alcance: <code>172.30.0.0/24 (vulnerable-lab)</code></div>
+  <div class="meta">Engagement: britimp-demo-2026-04-15
+    · Generado: 2026-04-15 15:56 UTC
+    · Auditor: SkyVanguard / Kryon</div>
+</div>
+
+<h2>Resumen ejecutivo</h2>
+<div class="summary"><p>Se identificaron <strong>6 hallazgos</strong> en el alcance <code>172.30.0.0/24 (vulnerable-lab)</code>.</p><p><strong class="sev critical" style="padding:2px 8px;">1 CRITICAL</strong> requieren remediación inmediata (impacto potencial: exposición de servicios, credenciales débiles, o configuración que habilita escalación).</p><p><strong class="sev high" style="padding:2px 8px;">3 HIGH</strong> deben resolverse en la ventana de remediación estándar del cliente.</p><p>Hosts afectados: 3 (target-db, target-ssh, target-web).</p><p>El detalle técnico con evidencia y pasos de remediación se presenta en las secciones siguientes. Las acciones marcadas [DRY-RUN] en el log fueron simuladas, no aplicadas.</p></div>
+<div class="kpi-row"><div class="kpi"><div class="label">Total</div><div class="value">6</div></div><div class="kpi"><div class="label">CRITICAL</div><div class="value">1</div></div><div class="kpi"><div class="label">HIGH</div><div class="value">3</div></div><div class="kpi"><div class="label">MEDIUM</div><div class="value">1</div></div><div class="kpi"><div class="label">LOW</div><div class="value">1</div></div><div class="kpi"><div class="label">INFO</div><div class="value">0</div></div></div>
+
+<h2>Índice de hallazgos</h2>
+<table class="findings-table">
+<thead><tr>
+<th>#</th><th>Severidad</th><th>CWE</th><th>Host</th>
+<th>Regla</th><th>Descripción</th>
+</tr></thead>
+<tbody><tr><td>1</td><td><span class="sev critical">CRITICAL</span></td><td>CWE-521</td><td>target-ssh</td><td>sshd-permit-root-login</td><td>SSH permite login de root con contraseña.</td></tr><tr><td>2</td><td><span class="sev high">HIGH</span></td><td>CWE-319</td><td>target-db</td><td>mysql-no-tls</td><td>MySQL sin TLS.</td></tr><tr><td>3</td><td><span class="sev high">HIGH</span></td><td>CWE-307</td><td>target-ssh</td><td>sshd-max-auth-tries</td><td>MaxAuthTries 10 permite fuerza bruta.</td></tr><tr><td>4</td><td><span class="sev high">HIGH</span></td><td>CWE-306</td><td>target-web</td><td>nginx-admin-open</td><td>/admin accesible sin auth.</td></tr><tr><td>5</td><td><span class="sev medium">MEDIUM</span></td><td>CWE-200</td><td>target-web</td><td>nginx-server-tokens</td><td>Header Server expone versión.</td></tr><tr><td>6</td><td><span class="sev low">LOW</span></td><td>CWE-1004</td><td>target-web</td><td>cookie-no-httponly</td><td>Cookie sin HttpOnly/Secure.</td></tr></tbody>
+</table>
+
+<h2>Detalle técnico</h2>
+
+    <div class="finding-card critical">
+      <div class="title"><span class="sev critical">CRITICAL</span> SSH permite login de root con contraseña.</div>
+      <div class="meta">CWE-521 · target-ssh · rule: sshd-permit-root-login</div>
+      <pre class="evidence">PermitRootLogin yes
+PasswordAuthentication yes</pre>
+      <div class="remediation"><strong>Remediación:</strong> Desactivar PermitRootLogin y requerir clave pública.</div>
+    </div>
+    
+    <div class="finding-card high">
+      <div class="title"><span class="sev high">HIGH</span> MySQL sin TLS.</div>
+      <div class="meta">CWE-319 · target-db · rule: mysql-no-tls</div>
+      <pre class="evidence">require_secure_transport no configurado</pre>
+      <div class="remediation"><strong>Remediación:</strong> Habilitar TLS.</div>
+    </div>
+    
+    <div class="finding-card high">
+      <div class="title"><span class="sev high">HIGH</span> MaxAuthTries 10 permite fuerza bruta.</div>
+      <div class="meta">CWE-307 · target-ssh · rule: sshd-max-auth-tries</div>
+      <pre class="evidence">MaxAuthTries 10</pre>
+      <div class="remediation"><strong>Remediación:</strong> Bajar a 3 + fail2ban.</div>
+    </div>
+    
+    <div class="finding-card high">
+      <div class="title"><span class="sev high">HIGH</span> /admin accesible sin auth.</div>
+      <div class="meta">CWE-306 · target-web · rule: nginx-admin-open</div>
+      <pre class="evidence">GET /admin → 200</pre>
+      <div class="remediation"><strong>Remediación:</strong> Agregar auth_basic.</div>
+    </div>
+    
+    <div class="finding-card medium">
+      <div class="title"><span class="sev medium">MEDIUM</span> Header Server expone versión.</div>
+      <div class="meta">CWE-200 · target-web · rule: nginx-server-tokens</div>
+      <pre class="evidence">Server: nginx/1.27.5</pre>
+      <div class="remediation"><strong>Remediación:</strong> server_tokens off.</div>
+    </div>
+    
+    <div class="finding-card low">
+      <div class="title"><span class="sev low">LOW</span> Cookie sin HttpOnly/Secure.</div>
+      <div class="meta">CWE-1004 · target-web · rule: cookie-no-httponly</div>
+      <pre class="evidence">Set-Cookie sin flags</pre>
+      <div class="remediation"><strong>Remediación:</strong> Añadir HttpOnly y Secure.</div>
+    </div>
+    
+
+<div class="footer">
+  Reporte generado por Kryon — SkyVanguard, Asunción, Paraguay. · Confidencial.
+</div>
+</body></html>
