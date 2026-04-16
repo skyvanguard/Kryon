@@ -235,6 +235,36 @@ pdfimages document.pdf /tmp/pdfimg           # extract images
 pdf-parser.py -t javascript document.pdf
 ```
 
+## Git Forensics
+
+When a challenge involves a `.git` directory or mentions git:
+
+```bash
+# Repair + inspect
+git fsck -v                          # find corrupt/dangling objects
+git log --all --oneline              # full history
+git log --all --diff-filter=D -- .   # deleted files
+git reflog                           # all HEAD movements including rebases
+
+# Inspect specific objects
+git show <commit_hash>               # show commit contents
+git diff <hash1> <hash2>             # compare two commits
+git cat-file -p <object_hash>        # raw object content (for corrupt repos)
+
+# Recover deleted/hidden content
+git stash list && git stash show -p  # stashed changes
+git branch -a                        # all branches including remote
+for branch in $(git branch -a); do git log --oneline $branch | head -5; done
+
+# Reconstruct corrupt objects (sharpturn-style challenges)
+# If git fsck shows bad SHA1: the object bytes were modified
+# Find the corrupt blob, hexdump it, fix the corrupted bytes
+git fsck --no-dangling 2>&1 | grep "bad sha1"
+```
+
+Pattern: **if the challenge hint mentions `git fsck`, the flag is likely hidden in
+a corrupted git object that needs byte-level repair.**
+
 ## Memory Dumps
 
 ```bash

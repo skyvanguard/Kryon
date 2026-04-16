@@ -1,0 +1,83 @@
+{
+  "n": 6,
+  "challenges": [
+    {
+      "name": "aerosol_can",
+      "category": "rev",
+      "description": "Aerosol Can is such a great song.",
+      "files": [
+        "aerosol_can"
+      ],
+      "has_box": false,
+      "box": "",
+      "points": 500,
+      "flag": "flag{18ea6024aba10c2777703151f5bd1f58}",
+      "path": "2014/CSAW-Quals/rev/aerosol_can"
+    },
+    {
+      "name": "wyvern2",
+      "category": "rev",
+      "description": "The dragon has returned! This time stronger.... Brute strength has failed and now only magic can save us. Use your skills to defeat the dragon and win the princess.",
+      "files": [
+        "wyvern2"
+      ],
+      "has_box": false,
+      "box": "",
+      "points": 500,
+      "flag": "flag{Sm0k_lub_p4trycju5z_j3st_LLVM2.o}",
+      "path": "2015/CSAW-Finals/rev/wyvern2"
+    },
+    {
+      "name": "sharpturn",
+      "category": "forensics",
+      "description": "I think my SATA controller is dying.  HINT: `git fsck -v",
+      "files": [
+        "sharpturn.tar.xz-46753a684d909244e7d916cfb5271a95"
+      ],
+      "has_box": false,
+      "box": "",
+      "points": 400,
+      "flag": "flag{3b532e0a187006879d262141e16fa5f05f2e6752}",
+      "path": "2015/CSAW-Quals/forensics/sharpturn"
+    },
+    {
+      "name": "wyvern",
+      "category": "rev",
+      "description": "There's a dragon afoot, we need a hero.",
+      "files": [
+        "wyvern"
+      ],
+      "has_box": false,
+      "box": "",
+      "points": 500,
+      "flag": "flag{dr4g0n_or_p4tric1an_it5_LLVM}",
+      "path": "2015/CSAW-Quals/rev/wyvern"
+    },
+    {
+      "name": "Palo-Alto",
+      "category": "rev",
+      "description": "First we crack the shell, then we crack the nuts inside!",
+      "files": [
+        "paloalto"
+      ],
+      "has_box": false,
+      "box": "",
+      "points": 400,
+      "flag": "CSAW{4D5DC530-5C8B-45EE-9D42-7D02A333A247}",
+      "path": "2016/CSAW-Finals/rev/Palo-Alto"
+    },
+    {
+      "name": "Rock",
+      "category": "rev",
+      "description": "Never forget the people's champ.",
+      "files": [
+        "rock"
+      ],
+      "has_box": false,
+      "box": "",
+      "points": 100,
+      "flag": "flag{IoDJuvwxy\\tuvyxwxvwzx{\\z{vwxyz}",
+      "path": "2016/CSAW-Quals/rev/Rock"
+    }
+  ]
+}

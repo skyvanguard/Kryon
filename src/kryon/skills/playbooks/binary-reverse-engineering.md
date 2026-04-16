@@ -63,10 +63,14 @@ r2 -A binary                    # open with auto-analysis
 # VV @main                      — visual graph mode
 ```
 
-One-liner for non-interactive use:
+One-liners for non-interactive use (**VERIFIED working — use these**):
 
 ```bash
-r2 -q -c 'aaa; pdf @main' binary
+r2 -A -q -c 'afl' binary                    # list ALL functions
+r2 -A -q -c 's main; pdc' binary            # C-like PSEUDOCODE of main (BEST for understanding logic)
+r2 -A -q -c 's main; pdf' binary            # disassembly of main
+r2 -A -q -c 'iz' binary                     # strings with addresses
+r2 -A -q -c 'axt @sym.check_password' binary  # cross-references
 r2 -q -c 'aaa; afl' binary
 r2 -q -c 'aaa; iz' binary
 ```
