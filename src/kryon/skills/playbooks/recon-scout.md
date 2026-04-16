@@ -1,11 +1,35 @@
 ---
 name: recon-scout
-description: "Reconocimiento inicial, enumeración de superficie y fingerprinting"
+description: "Reconocimiento + razonamiento + exploración dirigida. NO sólo scan + reporte."
 triggers:
   tech: []
   ports: []
-  keywords: ["recon", "scan", "analizar", "analisis", "enumerar", "escanear", "auditar", "seguridad"]
-priority: 5
+  keywords:
+    - "recon"
+    - "scan"
+    - "analizar"
+    - "análisis"
+    - "analisis"
+    - "analicemos"
+    - "enumerar"
+    - "escanear"
+    - "explorar"
+    - "explotar"
+    - "explotación"
+    - "explotacion"
+    - "exploit"
+    - "vulnerar"
+    - "comprometer"
+    - "atacar"
+    - "ataque"
+    - "auditar"
+    - "auditoría web"
+    - "seguridad"
+    - "pentest"
+    - "ctf"
+    - "lab"
+    - "laboratorio"
+priority: 12
 required_tools:
   - nmap
   - whatweb_scan
@@ -13,23 +37,92 @@ required_tools:
   - run_command
   - duckduckgo_search
   - recall_similar_experiences
+  - reflect_on_hypothesis
 ---
 
-## Flujo de reconocimiento
+## Flujo en TRES fases (no termines en fase 1)
 
-Ejecutá estos pasos en orden, sin detenerte entre ellos:
+### Fase 1 — Recon inicial (5-8 min wall)
 
-1. `recall_similar_experiences(host)` — consultá experiencias previas
+Ejecutá en orden, sin pedir confirmación si el operador ya dio target:
+
+1. `recall_similar_experiences(host)` — contexto previo
 2. `nmap(target=HOST, args="-sV -sC -T4")` — puertos y servicios
-3. `whatweb_scan(target="http://HOST")` y `whatweb_scan(target="https://HOST")` — tech fingerprint
-4. `run_command(command="gobuster dir -u http://HOST -w /usr/share/wordlists/dirb/common.txt -t 30")` — directorios
-5. `nuclei_scan(target="http://HOST")` — vulnerabilidades
-6. Solo DESPUÉS de todos los tools → informe final consolidado
+3. `whatweb_scan(target="https://HOST")` — tech fingerprint
+4. `run_command(command="curl -s https://HOST/ | grep -oE 'href=\"[^\"]+\"' | head -50")` — extraer enlaces para mapear superficie real
+5. `run_command(command="curl -s https://HOST/robots.txt")` y `sitemap.xml` — paths declarados
+6. `run_command(command="curl -sI https://HOST/")` — security headers, server header
 
-## Reglas
+**NO produzcas reporte ejecutivo todavía.** Pasá directo a Fase 2.
 
-- NO pidas confirmación — el operador ya autorizó el target
-- NO repitas un tool que ya corrió
-- NO generes texto intermedio — encadená tools directamente
-- Si un tool falla, saltá al siguiente
-- Tu ÚNICO output de texto es el informe final
+### Fase 2 — Razonamiento + PRIMER EXECUTE en el MISMO turno (crítico)
+
+Regla dura: el plan **NO es el output final al usuario**. Es razonamiento intermedio
+que vas a seguir con tool calls. En el MISMO turno:
+
+1. Escribí el bloque ANÁLISIS+PLAN PRÓXIMO (formato abajo) como contenido del mensaje
+2. Inmediatamente después, en el MISMO turno, emití el `tool_call` correspondiente
+   al item #1 de tu plan. NO termines el turno sin un tool_call.
+3. Si no podés emitir tool + texto en el mismo turno por limitación del runtime,
+   **saltáte el texto del plan**: pensá el plan en tu contexto interno y arrancá
+   directo con el tool call del item #1. Prioridad: ejecución, no narración.
+
+Consideraciones de contenido del plan:
+
+1. **Tipo de target**: ¿es CTF educativo? ¿prod corporativo? ¿lab interno? ¿app pública vs marketing?
+   - Marketing/portal page → exploit goes elsewhere (subdominios, /forums, /api, /admin)
+   - CTF educativo → la exploitation real está en /missions, no homepage
+   - Prod corp → focus en CMS conocidos (WordPress, Drupal), backups expuestos, .env, .git
+2. **Mapear superficie REAL** desde los hrefs que extrajiste:
+   - Categorizá: marketing (skip), explotables (forum/CMS/api/admin), infra (CDN/subdomains)
+   - Descartá explícitamente lo que NO vale atacar
+3. **Priorizá por payoff**: top 3-5 sub-targets ordenados por probabilidad de bug × severidad esperada × bajo costo de testear
+4. **Plan multi-step**: lista de 5-10 comandos concretos con justificación de UNA línea cada uno
+
+Formato del bloque (máximo 15 líneas, no te extiendas):
+
+```
+ANÁLISIS: [tipo] — [superficie top-3] — [descarto: X, Y]
+PLAN (ejecutando #1 ya):
+1. <comando item 1>
+2. <comando item 2>
+...
+```
+
+**Después de imprimir ese bloque, el MISMO turno debe llamar el tool del item #1.**
+Si terminás el turno sin tool_call, el operador vuelve a darte control y perdés
+tiempo. El workflow correcto es: texto breve + tool_call en cada turn de Fase 3.
+
+### Fase 3 — Exploración dirigida (15-30 min wall)
+
+Ejecutá los items del plan en orden. Por cada uno:
+
+- Si el tool **fallа** (URL malformada, timeout, 403, etc.): NO saltes. Llamá `reflect_on_hypothesis` o reformulá inline:
+  - URL malformada → URL-encode el payload (`%27 OR 1=1--`)
+  - Timeout → reducí scope (wordlist más chica, threads menos, target path específico)
+  - 403/WAF → bajá agresividad, agregá `User-Agent: Mozilla`, espaciá requests
+  - Solo después de **2 intentos fallidos** marcá el step como skip y seguí
+- Si encontrás algo interesante (200 OK donde esperabas 404, error SQL en respuesta, version exposed, source disclosure): **expandí ahí** — agregá 2-3 follow-up comandos al plan antes de seguir
+- Cada 5 tools, replanificá brevemente: ¿el plan original sigue siendo el mejor? Si encontraste algo, redirigí.
+
+## Restricciones autoimpuestas
+
+- **Rate limit**: targets externos máximo 5 req/s. Si nmap reporta `filtered`, reducí a 1 req/s con `nmap -T2`.
+- **Scope**: solo el dominio dado y sus subdominios mismo TLD. NO atacar terceros enlazados (CDN externos, redes sociales, etc.).
+- **No DoS**: nikto/sqlmap/nuclei en modo `-tuning x` o `--risk 3` requieren approval explícito del operador.
+- **Stop conditions**: `KRYON_HUNT_MAX_TURNS` turns alcanzados, O hit a vuln crítica reproducible (RCE/SQLi confirmada/credential exposure), O operador dice stop.
+
+## Reporte final SOLO al final
+
+Reporte ejecutivo va SOLO cuando:
+- (a) llegás a stop condition arriba, O
+- (b) operador pide explícitamente "informe" / "reporte" / "resumen"
+
+Antes de eso, output del agent es el ANÁLISIS + PLAN de Fase 2 y los handovers entre comandos en Fase 3, no informes ejecutivos prematuros.
+
+## Reglas críticas
+
+- NUNCA termines después de Fase 1 con un "executive summary" si el operador no lo pidió
+- NUNCA reportes "Risk Level: N/A (Educational)" como si fuera trabajo terminado — siempre hay próximos steps a probar
+- NUNCA frenes después de un único fail de comando — reformulá al menos una vez
+- NUNCA hagas SQLi/XSS contra paths que no toman parámetros — analizá la URL primero

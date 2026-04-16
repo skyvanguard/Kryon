@@ -261,7 +261,20 @@ async def run_command(command: str = "", interactive: bool = False, session_id: 
     if session_id:
         timeout = 10
     else:
-        timeout = 300
+        # Per-tool heuristic: brute-forcers and full-network scanners need
+        # much longer than 5 min on real Internet targets behind WAFs/CDNs.
+        # F15.3: bumped from 300 → 900 for these tools after the
+        # hackthissite.org session showed gobuster timing out repeatedly.
+        cmd_lower = command.lower()
+        long_tools = (
+            "gobuster", "dirb", "feroxbuster", "ffuf", "wfuzz",
+            "nuclei", "nikto", "wpscan", "sqlmap", "amass",
+            "masscan", "subfinder",
+        )
+        if any(t in cmd_lower for t in long_tools):
+            timeout = 900
+        else:
+            timeout = 300
 
     # Tools always stream EXCEPT in parallel mode or when KRYON_STREAM=False
     # In parallel mode, multiple agents run concurrently with Runner.run()
