@@ -20,20 +20,21 @@ from pathlib import Path
 MODEL = os.environ.get("KRYON_MODEL", "kryon-30b-moe")
 ENDPOINT = os.environ.get("OPENAI_BASE_URL", "http://ollama:11434/v1")
 API_KEY = os.environ.get("OPENAI_API_KEY", "ollama")
-MAX_TURNS = 30
-WALL_S = 900
+MAX_TURNS = 40
+WALL_S = 1200
 
 CATEGORY_HINTS = {
     "web": (
         "Web CTF playbook:\n"
-        "- Enumerate: robots.txt, sitemap.xml, /.git/HEAD, /.env, /admin, /api, source code.\n"
-        "- Injection: SQLi (UNION SELECT, blind), LFI (?file=../../../etc/passwd, php://filter), "
-        "SSTI ({{7*7}}), command injection (; id, | id, $(id)).\n"
-        "- Auth: JWT alg=none, IDOR on IDs, default creds (admin/admin), session fixation.\n"
-        "- File upload: .php, .phtml, polyglot, null byte bypass.\n"
-        "- Check JS source for hidden endpoints, API keys, flag{} in comments.\n"
-        "- Perl CGI: check for param injection if the server uses Perl CGI scripts.\n"
-        "- Always check: view-source, cookies, hidden form fields, HTTP headers."
+        "- First: curl -s TARGET/ and curl -sI TARGET/ to see what you're dealing with.\n"
+        "- Extract links: curl -s TARGET/ | grep -oE 'href=\"[^\"]+\"'\n"
+        "- Check: robots.txt, .git/HEAD, .env, source code, cookies, JS files.\n"
+        "- Injection: SQLi (' OR 1=1--), LFI (?file=../../../etc/passwd), "
+        "SSTI ({{7*7}}), command injection (; id).\n"
+        "- Forms/login: try admin/admin, SQLi in login fields.\n"
+        "- Perl CGI: param injection ?file=|id if Perl backend.\n"
+        "- ALWAYS grep curl output for 'flag' after every request.\n"
+        "- Check HTML comments, HTTP headers, cookies, JS source for flags."
     ),
     "pwn": (
         "Pwn CTF playbook:\n"
