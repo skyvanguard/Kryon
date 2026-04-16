@@ -1,0 +1,359 @@
+{
+  "n": 28,
+  "challenges": [
+    {
+      "name": "historypeats",
+      "category": "web",
+      "description": "FridgeCorp uses Jenga Blocks as a Timesheet management solution. It would be nice to get Admin and so we are able to modify our timesheets. http://web.chal.csaw.io:80",
+      "files": [
+        "csaw.tar.gz"
+      ],
+      "has_box": true,
+      "box": "web.chal.csaw.io",
+      "points": 0,
+      "flag": "key{Bundle_Up_And_Take_Your_Vitamins!}",
+      "path": "2013/CSAW-Finals/web/historypeats"
+    },
+    {
+      "name": "slurp",
+      "category": "crypto",
+      "description": "We've found the source to the Arstotzka spies rendevous server, we must find out their new vault key.",
+      "files": [
+        "slurp.py"
+      ],
+      "has_box": true,
+      "box": "crypto.chal.csaw.io",
+      "points": 300,
+      "flag": "We'd all be so much safer if all primes were so free and germane",
+      "path": "2013/CSAW-Quals/crypto/slurp"
+    },
+    {
+      "name": "Life",
+      "category": "misc",
+      "description": "No description provided",
+      "files": [],
+      "has_box": true,
+      "box": "misc.chal.csaw.io",
+      "points": 0,
+      "flag": "flag{that_comp_sci_assignment_was_useful_after_all}",
+      "path": "2013/CSAW-Quals/misc/Life"
+    },
+    {
+      "name": "CSAW Diary",
+      "category": "pwn",
+      "description": "After ten years, it is time to record some memories...",
+      "files": [
+        "csaw_diary"
+      ],
+      "has_box": true,
+      "box": "pwn.chal.csaw.io",
+      "points": 300,
+      "flag": "flag{signness_oh_what_a_world_we_live_in}",
+      "path": "2013/CSAW-Quals/pwn/csaw_diary"
+    },
+    {
+      "name": "Guess Harder",
+      "category": "web",
+      "description": "http://web.chal.csaw.io/guessharder.php",
+      "files": [],
+      "has_box": true,
+      "box": "web.chal.csaw.io",
+      "points": 0,
+      "flag": "flag{told_ya_you_wouldnt_guess_it}",
+      "path": "2013/CSAW-Quals/web/Guess Harder"
+    },
+    {
+      "name": "pps",
+      "category": "misc",
+      "description": "No description provided",
+      "files": [],
+      "has_box": true,
+      "box": "misc.chal.csaw.io",
+      "points": 0,
+      "flag": "flag{ConsiderThisPUNishmentEnough}",
+      "path": "2014/CSAW-Finals/misc/pps"
+    },
+    {
+      "name": "webroot",
+      "category": "web",
+      "description": "hackerhaikus.com http://web.chal.csaw.io:80",
+      "files": [
+        "webroot.tar.gz"
+      ],
+      "has_box": true,
+      "box": "web.chal.csaw.io",
+      "points": 0,
+      "flag": "flag{rise_and_shine,_mr._freeman._rise_and_shine}",
+      "path": "2014/CSAW-Finals/web/webroot"
+    },
+    {
+      "name": "ish",
+      "category": "pwn",
+      "description": "This shell sucks",
+      "files": [
+        "ish"
+      ],
+      "has_box": true,
+      "box": "pwn.chal.csaw.io",
+      "points": 300,
+      "flag": "flag{AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIIIJJJJKKKKLLLLMMMMOOOOXX}",
+      "path": "2014/CSAW-Quals/pwn/ish"
+    },
+    {
+      "name": "the road less traveled",
+      "category": "pwn",
+      "description": "exploit this",
+      "files": [
+        "bo"
+      ],
+      "has_box": true,
+      "box": "pwn.chal.csaw.io",
+      "points": 100,
+      "flag": "flag{exploitation_is_easy!}",
+      "path": "2014/CSAW-Quals/pwn/the road less traveled"
+    },
+    {
+      "name": "silkgoat",
+      "category": "web",
+      "description": "hacker manifesto",
+      "files": [
+        "silkgoat_templates.tar.gz"
+      ],
+      "has_box": true,
+      "box": "web.chal.csaw.io",
+      "points": 0,
+      "flag": "flag{silkroad4ever}",
+      "path": "2014/CSAW-Quals/web/silkgoat"
+    },
+    {
+      "name": "hipster",
+      "category": "pwn",
+      "description": "Hipster Hitler's got our flag! Help us retrieve it!",
+      "files": [
+        "hipster"
+      ],
+      "has_box": true,
+      "box": "pwn.chal.csaw.io",
+      "points": 250,
+      "flag": "flag{temp}",
+      "path": "2015/CSAW-Finals/pwn/hipster"
+    },
+    {
+      "name": "meme-shop",
+      "category": "pwn",
+      "description": "only dwn knows what the meme is! pwn this service to find out what only he knows! dwn: please tell us the meme....",
+      "files": [
+        "memeshop.rb",
+        "plugin/mememachine.so"
+      ],
+      "has_box": true,
+      "box": "pwn.chal.csaw.io",
+      "points": 400,
+      "flag": "flag{dwn: please tell us your meme. I'm not going to stop asking}",
+      "path": "2015/CSAW-Quals/pwn/meme-shop"
+    },
+    {
+      "name": "ftp",
+      "category": "rev",
+      "description": "We found an ftp service, I'm sure there's some way to log on to it.",
+      "files": [
+        "ftp"
+      ],
+      "has_box": true,
+      "box": "rev.chal.csaw.io",
+      "points": 300,
+      "flag": "flag{n0_c0ok1e_ju$t_a_f1ag_f0r_you}",
+      "path": "2015/CSAW-Quals/rev/ftp"
+    },
+    {
+      "name": "k_stairs",
+      "category": "web",
+      "description": "This is actually for both K_achieve and K_stairs web.chal.csaw.io:4567",
+      "files": [
+        "arpahack.tar.gz"
+      ],
+      "has_box": true,
+      "box": "web.chal.csaw.io",
+      "points": 0,
+      "flag": "KEY{H0000LY_ST41rRs_S0000_MUCH_SPACE}",
+      "path": "2015/CSAW-Quals/web/k_stairs"
+    },
+    {
+      "name": "throwback",
+      "category": "web",
+      "description": "Programming is hard. CTF software is hard too. We broke our CTF software a few years ago and looks like we did it again this year:( :( :(HINT: If you are smart about it, you do not need to attack the CTF infrastructure.HINT: The source code of our CTF software is on our Github. Also if you tried the challenge with flag before, try again.",
+      "files": [
+        "throwback_templates.tar.gz"
+      ],
+      "has_box": true,
+      "box": "web.chal.csaw.io",
+      "points": 0,
+      "flag": "flag{at_least_it_isnt_php}",
+      "path": "2015/CSAW-Quals/web/throwback"
+    },
+    {
+      "name": "Katy",
+      "category": "crypto",
+      "description": "i every1 im new!!!!!!! holds up spork my name is katy but u can call me t3h PeNgU1N oF d00m!!!!!!!! lol\u2026as u can see im very random!!!! thats why i came here, 2 meet random ppl like me _\u2026 im 13 years old (im mature 4 my age tho!!) i like 2 watch invader zim w/ my girlfreind (im bi if u dont like it deal w/it) its our favorite tv show!!! bcuz its SOOOO random!!!! shes random 2 of course but i want 2 meet more random ppl =) like they say the more the merrier!!!! lol\u2026neways i hope 2 make alot of freinds here so give me lots of commentses!!!! DOOOOOMMMM!!!!!!!!!!!!!!!! <--- me bein random again _^ hehe\u2026toodles!!!!! love and waffles, t3h PeNgU1N oF d00m nc crypto.chal.csaw.io 4242",
+      "files": [
+        "release"
+      ],
+      "has_box": true,
+      "box": "crypto.chal.csaw.io",
+      "points": 0,
+      "flag": "flag{xxxxxxxxxxxxxx}",
+      "path": "2016/CSAW-Finals/crypto/Katy"
+    },
+    {
+      "name": "detective",
+      "category": "pwn",
+      "description": "Dear detective, my 'program' got pwned again. Can you find the culprit for me?",
+      "files": [
+        "detective"
+      ],
+      "has_box": true,
+      "box": "pwn.chal.csaw.io",
+      "points": 150,
+      "flag": "FLAG{SHERLOCK_HOMLES_NEVER_DIES_HOPE_YOU_ENJOY_REST_OF_CHALLENGES_CSAW2016}",
+      "path": "2016/CSAW-Finals/pwn/detective"
+    },
+    {
+      "name": "cloudb",
+      "category": "web",
+      "description": "I'm working on this new service which allows you to store notes, TODOs, and more! And all of our data is accessible over JSONP so you can integrate it into other sites!",
+      "files": [
+        "src.tar.gz"
+      ],
+      "has_box": true,
+      "box": "web.chal.csaw.io",
+      "points": 0,
+      "flag": "flag{d0nt_Forg3t_2_San1t1ze_Y0uR_C@11back$}",
+      "path": "2016/CSAW-Finals/web/cloudb"
+    },
+    {
+      "name": "Seizure-Cipher",
+      "category": "web",
+      "description": "Throwback to last year",
+      "files": [
+        "Seizure-Cipher.tar.gz"
+      ],
+      "has_box": true,
+      "box": "web.chal.csaw.io",
+      "points": 0,
+      "flag": "FLAG{DENNO_SENSHI_PORYGON}",
+      "path": "2016/CSAW-Finals/web/Seizure-Cipher"
+    },
+    {
+      "name": "Broken_box",
+      "category": "crypto",
+      "description": "I made a RSA signature box, but the hardware is too old, sometimes it return me a wrong answer... something about bits being flipped?... can you fix it for me? e = 0x10001 nc crypto.chal.csaw.io 8000",
+      "files": [
+        "flag.enc"
+      ],
+      "has_box": true,
+      "box": "crypto.chal.csaw.io",
+      "points": 0,
+      "flag": "flag{br0k3n_h4rdw4r3_l34d5_70_b17_fl1pp1n6}",
+      "path": "2016/CSAW-Quals/crypto/Broken_Box"
+    },
+    {
+      "name": "Sleeping Guard",
+      "category": "crypto",
+      "description": "Only true hackers can see the image in this magic PNG....",
+      "files": [
+        "sleeping_dist.py"
+      ],
+      "has_box": true,
+      "box": "crypto.chal.csaw.io",
+      "points": 0,
+      "flag": "flag{l4zy_H4CK3rs_d0nt_g3T_MAg1C_FlaG5}",
+      "path": "2016/CSAW-Quals/crypto/Sleeping_Guard"
+    },
+    {
+      "name": "Coinslot",
+      "category": "misc",
+      "description": "#Hope #Change #Obama2008",
+      "files": [],
+      "has_box": true,
+      "box": "misc.chal.csaw.io",
+      "points": 0,
+      "flag": "flag{started-from-the-bottom-now-my-whole-team-fucking-here}",
+      "path": "2016/CSAW-Quals/misc/coinslot"
+    },
+    {
+      "name": "regexpire",
+      "category": "misc",
+      "description": "I thought I found a perfect match but she ended up being my regEx girlfriend.",
+      "files": [],
+      "has_box": true,
+      "box": "misc.chal.csaw.io",
+      "points": 0,
+      "flag": "flag{^regularly_express_yourself$}",
+      "path": "2016/CSAW-Quals/misc/regexpire"
+    },
+    {
+      "name": "Hungman",
+      "category": "pwn",
+      "description": "So I think you need to pwn this",
+      "files": [
+        "hungman"
+      ],
+      "has_box": true,
+      "box": "pwn.chal.csaw.io",
+      "points": 300,
+      "flag": "flag{this_looks_like_its_a_well_hungman}",
+      "path": "2016/CSAW-Quals/pwn/Hungman"
+    },
+    {
+      "name": "Tutorial",
+      "category": "pwn",
+      "description": "Ok sport, now that you have had your Warmup, maybe you want to checkout the Tutorial.",
+      "files": [
+        "tutorial"
+      ],
+      "has_box": true,
+      "box": "pwn.chal.csaw.io",
+      "points": 200,
+      "flag": "FLAG{3ASY_R0P_R0P_P0P_P0P_YUM_YUM_CHUM_CHUM}",
+      "path": "2016/CSAW-Quals/pwn/Tutorial"
+    },
+    {
+      "name": "WarmUp",
+      "category": "pwn",
+      "description": "So you want to be a pwn-er huh? Well let's throw you an easy one ;)",
+      "files": [
+        "warmup",
+        "warmup.c"
+      ],
+      "has_box": true,
+      "box": "pwn.chal.csaw.io",
+      "points": 50,
+      "flag": "FLAG{LET_US_BEGIN_CSAW_2016}",
+      "path": "2016/CSAW-Quals/pwn/WarmUp"
+    },
+    {
+      "name": "I Got Id",
+      "category": "web",
+      "description": "Wtf... I literally just setup this website and it's already popped...",
+      "files": [],
+      "has_box": true,
+      "box": "web.chal.csaw.io",
+      "points": 0,
+      "flag": "FLAG{p3rl_6_iz_EVEN_BETTER!!1}",
+      "path": "2016/CSAW-Quals/web/I Got Id"
+    },
+    {
+      "name": "MFW",
+      "category": "web",
+      "description": "<div>Hey, I made my first website today. It's pretty cool and web7.9.</div><div>http://web.chal.csaw.io:8000/</div>",
+      "files": [
+        "src.tar.gz"
+      ],
+      "has_box": true,
+      "box": "web.chal.csaw.io",
+      "points": 0,
+      "flag": "flag{3vald_@ss3rt_1s_best_a$$ert}",
+      "path": "2016/CSAW-Quals/web/MFW"
+    }
+  ]
+}
