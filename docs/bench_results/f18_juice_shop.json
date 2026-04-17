@@ -1,0 +1,100 @@
+{
+  "total_challenges": 111,
+  "solved_before": 1,
+  "solved_after": 11,
+  "newly_solved": 10,
+  "by_category": {
+    "Improper Input Validation": 2,
+    "Sensitive Data Exposure": 2,
+    "Security Misconfiguration": 2,
+    "Broken Access Control": 1,
+    "Observability Failures": 2,
+    "Broken Authentication": 1,
+    "Injection": 1
+  },
+  "by_difficulty": {
+    "3": 2,
+    "1": 3,
+    "2": 1,
+    "4": 5
+  },
+  "solved_list": [
+    {
+      "id": 4,
+      "key": "registerAdminChallenge",
+      "name": "Admin Registration",
+      "category": "Improper Input Validation",
+      "difficulty": 3
+    },
+    {
+      "id": 19,
+      "key": "directoryListingChallenge",
+      "name": "Confidential Document",
+      "category": "Sensitive Data Exposure",
+      "difficulty": 1
+    },
+    {
+      "id": 22,
+      "key": "deprecatedInterfaceChallenge",
+      "name": "Deprecated Interface",
+      "category": "Security Misconfiguration",
+      "difficulty": 2
+    },
+    {
+      "id": 23,
+      "key": "easterEggLevelOneChallenge",
+      "name": "Easter Egg",
+      "category": "Broken Access Control",
+      "difficulty": 4
+    },
+    {
+      "id": 27,
+      "key": "errorHandlingChallenge",
+      "name": "Error Handling",
+      "category": "Security Misconfiguration",
+      "difficulty": 1
+    },
+    {
+      "id": 35,
+      "key": "forgottenDevBackupChallenge",
+      "name": "Forgotten Developer Backup",
+      "category": "Sensitive Data Exposure",
+      "difficulty": 4
+    },
+    {
+      "id": 53,
+      "key": "misplacedSignatureFileChallenge",
+      "name": "Misplaced Signature File",
+      "category": "Observability Failures",
+      "difficulty": 4
+    },
+    {
+      "id": 70,
+      "key": "resetPasswordJimChallenge",
+      "name": "Reset Jim's Password",
+      "category": "Broken Authentication",
+      "difficulty": 3
+    },
+    {
+      "id": 85,
+      "key": "unionSqlInjectionChallenge",
+      "name": "User Credentials",
+      "category": "Injection",
+      "difficulty": 4
+    },
+    {
+      "id": 97,
+      "key": "exposedMetricsChallenge",
+      "name": "Exposed Metrics",
+      "category": "Observability Failures",
+      "difficulty": 1
+    },
+    {
+      "id": 105,
+      "key": "nullByteChallenge",
+      "name": "Poison Null Byte",
+      "category": "Improper Input Validation",
+      "difficulty": 4
+    }
+  ]
+}
