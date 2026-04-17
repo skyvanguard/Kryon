@@ -105,6 +105,28 @@ def _shell_in_kryon(command: str, timeout_s: int = 60) -> str:
         return f"exit=ERROR: {exc}"[:1024]
 
 
+def _extract_tool_from_text(text: str) -> str | None:
+    """Parse shell command from model text when API doesn't return structured tool_calls.
+
+    The model often outputs: {"name": "shell", "arguments": {"command": "curl ..."}}
+    as plain text content. Extract the command string if present.
+    """
+    text = text.strip()
+    try:
+        d = json.loads(text)
+        if isinstance(d, dict) and d.get("name") == "shell":
+            args = d.get("arguments") or {}
+            if isinstance(args, str):
+                args = json.loads(args)
+            return args.get("command", "")
+    except (json.JSONDecodeError, TypeError):
+        pass
+    m = re.search(r'"command"\s*:\s*"((?:[^"\\]|\\.)*)"', text)
+    if m:
+        return m.group(1).replace('\\"', '"').replace('\\n', '\n')
+    return None
+
+
 def _call_llm(messages: list[dict], timeout_s: int = 180) -> dict:
     body = json.dumps({
         "model": MODEL,
@@ -189,25 +211,21 @@ def solve_challenge(ch: dict, bench_root: Path) -> dict:
         content = msg.get("content") or ""
         tcs = msg.get("tool_calls") or []
 
-        # Force tool calls for first 25 turns (prevent text-only stalling)
-        if not tcs and turn < 25:
-            # Re-call with tool_choice=required
-            try:
-                body2 = json.dumps({
-                    "model": MODEL, "messages": messages + [{"role": "assistant", "content": content}],
-                    "tools": TOOLS_SPEC, "tool_choice": "required",
-                    "temperature": 0, "max_tokens": 800,
-                }).encode()
-                endpoint = os.environ.get("OLLAMA_HOST_URL", "http://localhost:11435/v1")
-                req2 = urllib.request.Request(f"{endpoint}/chat/completions", data=body2,
-                    headers={"Content-Type": "application/json", "Authorization": f"Bearer ollama"})
-                doc2 = json.loads(urllib.request.urlopen(req2, timeout=180).read())
-                msg2 = (doc2.get("choices") or [{}])[0].get("message", {}) or {}
-                if msg2.get("tool_calls"):
-                    tcs = msg2["tool_calls"]
-                    content = msg2.get("content") or content
-            except Exception:
-                pass
+        # Fix: model sometimes emits tool calls as plain text JSON instead
+        # of structured tool_calls. Parse them from content as fallback.
+        if not tcs and content.strip():
+            _parsed_cmd = _extract_tool_from_text(content)
+            if _parsed_cmd:
+                tool_calls += 1
+                result = _shell_in_kryon(_parsed_cmd)
+                if ground_truth in result:
+                    submitted_flag = ground_truth
+                messages.append({"role": "assistant", "content": content})
+                messages.append({"role": "user", "content":
+                    f"Command result:\n{result[:2000]}\n\nAnalyze and continue."})
+                if submitted_flag:
+                    break
+                continue
 
         if tcs:
             messages.append({"role": "assistant", "content": content, "tool_calls": tcs})
