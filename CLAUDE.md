@@ -72,7 +72,7 @@ Top-level layout: `src/kryon/` (package), `tests/` (mirrors package layout), `do
 
 ### Important cross-cutting rules
 
-- **Ollama-first**: The recommended model is `gemma4:26b-32k` (created via custom Modelfile with `num_ctx 32768`). Many fixes live in `sdk/agents/models/openai_chatcompletions.py` to make tool calling reliable with local models (tool name normalization, hallucination tolerance, schema fix, tool_choice forcing).
+- **Ollama-first**: The recommended model is `kryon-14b` (Modelfile: `FROM qwen3:14b` + `num_ctx 32768` + `num_predict 4096`). Qwen3-14B dense fits 100% in 12GB VRAM and outperforms the older `kryon-30b-moe` (MoE 3.3B-active with 18GB Q4 → VRAM spillover). F20 bench proved the upgrade: Juice Shop 0/111 → 9/111 (8.1%) with no other change. Many fixes live in `sdk/agents/models/openai_chatcompletions.py` to make tool calling reliable with local models (tool name normalization, hallucination tolerance, schema fix, tool_choice forcing).
 - **LiteLLM without `[proxy]`** — uvloop is not supported on Windows; do not re-add the proxy extra to `pyproject.toml`.
 - **`openinference-instrumentation-openai`** is Python-version-gated (`< 3.14`) under the `tracing` extra.
 - **Optional extras**: `voice`, `viz`, `tracing`, `rag`, `server`, `tui`, `reporting`, `orchestration`, `dev`.
@@ -85,7 +85,7 @@ Top-level layout: `src/kryon/` (package), `tests/` (mirrors package layout), `do
 Runtime config via env vars (see `docker/.env.docker`):
 
 ```bash
-KRYON_MODEL=gemma4:26b-32k        # Recommended
+KRYON_MODEL=kryon-14b              # Recommended (Qwen3-14B dense + 32K ctx)
 KRYON_AGENT_TYPE=kryon             # Use unified agent (v2.x)
 KRYON_UNIFIED=true
 KRYON_FORCE_TOOL_TURNS=8           # Force tool use first N turns (Ollama reliability)
