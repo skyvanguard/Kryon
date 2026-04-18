@@ -69,26 +69,35 @@ TOOLS_SPEC = [{
 }]
 
 
-def shell(cmd: str, timeout_s: int = 30) -> str:
+def shell(cmd: str, timeout_s: int = 30, cap_stdout: int = 4096) -> str:
     try:
         p = subprocess.run(
             ["docker", "exec", CONTAINER, "bash", "-c", cmd],
             capture_output=True, text=True, timeout=timeout_s, check=False,
         )
-        return f"exit={p.returncode}\n--- stdout ---\n{p.stdout[:4096]}\n--- stderr ---\n{p.stderr[:512]}"
+        return f"exit={p.returncode}\n--- stdout ---\n{p.stdout[:cap_stdout]}\n--- stderr ---\n{p.stderr[:512]}"
     except subprocess.TimeoutExpired:
         return f"exit=TIMEOUT after {timeout_s}s"
     except Exception as exc:
         return f"exit=ERROR {exc}"[:1024]
 
 
-def poll_score() -> tuple[int, list[dict]]:
-    out = shell(f"curl -s {BASE}/api/Challenges", timeout_s=10)
-    m = re.search(r"\{.*\}", out, re.S)
-    if not m:
-        return 0, []
+def _raw_shell(cmd: str, timeout_s: int = 30) -> str:
+    """Unformatted stdout, no truncation (for JSON polling)."""
     try:
-        data = json.loads(m.group(0)).get("data", [])
+        p = subprocess.run(
+            ["docker", "exec", CONTAINER, "bash", "-c", cmd],
+            capture_output=True, text=True, timeout=timeout_s, check=False,
+        )
+        return p.stdout
+    except Exception:
+        return ""
+
+
+def poll_score() -> tuple[int, list[dict]]:
+    out = _raw_shell(f"curl -s {BASE}/api/Challenges", timeout_s=15)
+    try:
+        data = json.loads(out).get("data", [])
         solved = [c for c in data if c.get("solved")]
         return len(solved), solved
     except json.JSONDecodeError:
@@ -113,22 +122,47 @@ def extract_tool_from_text(text: str) -> str | None:
     return None
 
 
-def call_llm(messages: list[dict], timeout_s: int = 180) -> dict:
-    body = json.dumps({
+def call_llm(messages: list[dict], timeout_s: int = 240, retries: int = 1) -> dict:
+    """Chat completions call. Ollama accepts non-standard options via `options`
+    (num_ctx, num_predict, etc.). Qwen3-14B supports up to 128K context; we
+    pick 32K which is the sweet spot on 12GB VRAM before spillover."""
+    payload = {
         "model": MODEL,
         "messages": messages,
         "tools": TOOLS_SPEC,
         "tool_choice": "auto",
         "temperature": 0,
-        "max_tokens": 800,
-    }).encode()
-    req = urllib.request.Request(
-        f"{OLLAMA_URL}/chat/completions",
-        data=body,
-        headers={"Content-Type": "application/json", "Authorization": "Bearer ollama"},
-    )
-    with urllib.request.urlopen(req, timeout=timeout_s) as r:
-        return json.loads(r.read())
+        "max_tokens": 4096,
+        "options": {
+            "num_ctx": 32768,
+            "num_predict": 4096,
+        },
+    }
+    body = json.dumps(payload).encode()
+    last_exc: Exception | None = None
+    for attempt in range(retries + 1):
+        req = urllib.request.Request(
+            f"{OLLAMA_URL}/chat/completions",
+            data=body,
+            headers={"Content-Type": "application/json",
+                     "Authorization": "Bearer ollama"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout_s) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as exc:
+            last_exc = exc
+            if exc.code == 500 and attempt < retries:
+                time.sleep(2)
+                continue
+            raise
+        except Exception as exc:
+            last_exc = exc
+            if attempt < retries:
+                time.sleep(1)
+                continue
+            raise
+    raise last_exc  # type: ignore[misc]
 
 
 def run_session() -> dict:
@@ -146,6 +180,7 @@ def run_session() -> dict:
     tool_calls = 0
     progress: list[tuple[int, int]] = []  # (turn, solved_count)
     commands_log: list[str] = []
+    consecutive_errors = 0
 
     for turn in range(MAX_TURNS):
         if time.time() - t0 > WALL_S:
@@ -154,9 +189,18 @@ def run_session() -> dict:
 
         try:
             doc = call_llm(messages)
+            consecutive_errors = 0
         except Exception as exc:
-            print(f"  llm_error: {exc}")
-            break
+            consecutive_errors += 1
+            print(f"  llm_error (turn {turn+1}, consec={consecutive_errors}): {exc}")
+            if consecutive_errors >= 3:
+                print("  aborting after 3 consecutive errors")
+                break
+            # Trim oldest message pair to shrink context before next try
+            if len(messages) > 6:
+                messages = [messages[0]] + messages[-4:]
+            time.sleep(1)
+            continue
 
         msg = (doc.get("choices") or [{}])[0].get("message", {}) or {}
         content = msg.get("content") or ""

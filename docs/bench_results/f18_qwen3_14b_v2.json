@@ -1,0 +1,12 @@
+{
+  "model": "qwen3:14b",
+  "wall_s": 92.0,
+  "turns": 30,
+  "tool_calls": 0,
+  "start_solved": 0,
+  "final_solved": 0,
+  "newly_solved": 0,
+  "progress": [],
+  "solved_list": [],
+  "commands": []
+}
