@@ -33,9 +33,9 @@ echo "  framework: $FRAMEWORK"
 echo "  reports:   $REPORTS_DIR/"
 echo "=============================================="
 
-# Pass-through AD creds if present (only set envs that are non-empty)
+# Pass-through AD creds + client name (branding on cover) if present
 AD_ENV=()
-for v in KRYON_AD_DOMAIN KRYON_AD_USER KRYON_AD_PASS KRYON_AD_DC; do
+for v in KRYON_AD_DOMAIN KRYON_AD_USER KRYON_AD_PASS KRYON_AD_DC KRYON_CLIENT_NAME; do
     if [[ -n "${!v:-}" ]]; then
         AD_ENV+=("-e" "$v=${!v}")
     fi

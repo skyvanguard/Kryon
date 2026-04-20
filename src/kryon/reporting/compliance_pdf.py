@@ -192,6 +192,66 @@ def _appendix_evidence(r: dict) -> str:
     """
 
 
+# Framework metadata for cover page (ES title + EN title + scope description)
+_FRAMEWORK_INFO = {
+    "pci-dss": {
+        "title_es": "Auditoría de cumplimiento PCI-DSS v4.0.1",
+        "title_en": "PCI-DSS v4.0.1 Compliance Audit",
+        "scope_es": "Secciones 2, 6, 8, 10 (6 controles críticos)",
+        "scope_en": "Sections 2, 6, 8, 10 (6 critical controls)",
+    },
+    "proxmox": {
+        "title_es": "Auditoría de hardening Proxmox VE (perfil bancario)",
+        "title_en": "Proxmox VE Hardening Audit (banking profile)",
+        "scope_es": "7 controles sobre Web UI, SSH, cluster auth, firewall, patches",
+        "scope_en": "7 controls covering Web UI, SSH, cluster auth, firewall, patching",
+    },
+    "ad": {
+        "title_es": "Auditoría de hardening Active Directory (perfil bancario)",
+        "title_en": "Active Directory Hardening Audit (banking profile)",
+        "scope_es": "9 controles LDAP/LDAPS, Kerberos, privilegios, SMB, logging",
+        "scope_en": "9 controls covering LDAP/LDAPS, Kerberos, privileges, SMB, logging",
+    },
+    "active-directory": {
+        "title_es": "Auditoría de hardening Active Directory (perfil bancario)",
+        "title_en": "Active Directory Hardening Audit (banking profile)",
+        "scope_es": "9 controles LDAP/LDAPS, Kerberos, privilegios, SMB, logging",
+        "scope_en": "9 controls covering LDAP/LDAPS, Kerberos, privileges, SMB, logging",
+    },
+    "all": {
+        "title_es": "Auditoría de cumplimiento integral — Kryon",
+        "title_en": "Kryon Full Compliance Audit",
+        "scope_es": "PCI-DSS + Proxmox VE + Active Directory",
+        "scope_en": "PCI-DSS + Proxmox VE + Active Directory",
+    },
+}
+
+
+def _risk_level(counts: dict[str, int]) -> tuple[str, str]:
+    """Aggregate risk label (ES/EN color coded)."""
+    fails = counts.get("FAIL", 0)
+    errors = counts.get("ERROR", 0)
+    if fails >= 4:
+        return ("CRÍTICO", "#c1272d")
+    if fails >= 2 or (fails + errors) >= 5:
+        return ("ALTO", "#d19500")
+    if fails >= 1:
+        return ("MEDIO", "#b58b00")
+    return ("BAJO", "#2a9d3a")
+
+
+def _detect_framework(results: list[dict]) -> str:
+    """Infer framework from control_id prefixes."""
+    prefixes = {r["control_id"].split("-")[0].split(".")[0] for r in results}
+    if prefixes == {"PVE"}:
+        return "proxmox"
+    if prefixes == {"AD"}:
+        return "ad"
+    if prefixes <= {"2", "6", "8", "10"}:
+        return "pci-dss"
+    return "all"
+
+
 def render_html(
     results: list[dict],
     *,
@@ -199,13 +259,16 @@ def render_html(
     host: str,
     narratives: dict[str, dict] | None = None,
     audit_date: datetime | None = None,
+    framework: str | None = None,
+    client_name: str = "",
 ) -> str:
     """Render the full audit PDF as HTML.
 
-    results: list of CheckResult-like dicts (use CheckResult.to_json_reproducible()
-             plus whatever extra evidence_stdout/etc you want in the PDF).
+    results: list of CheckResult-like dicts.
     repro_hash: SHA-256 from reproducibility_hash(results).
     narratives: {control_id: {"context_prose": "...", "remediation_prose": "..."}}
+    framework: optional override; auto-detected from results otherwise.
+    client_name: banking client name (shown on cover).
     """
     audit_date = audit_date or datetime.now()
     narratives = narratives or {}
@@ -215,50 +278,88 @@ def render_html(
     }
     total = len(results)
     cards = "\n".join(_finding_card(r, narratives.get(r["control_id"])) for r in _sort_results(results))
-
     appendix = "\n".join(_appendix_evidence(r) for r in _sort_results(results))
-
     css = _css().replace("var(--hash)", f'"{repro_hash[:16]}..."')
+
+    fw_key = (framework or _detect_framework(results)).lower()
+    fw = _FRAMEWORK_INFO.get(fw_key, _FRAMEWORK_INFO["all"])
+    risk_label, risk_color = _risk_level(counts)
+
+    client_line_es = (
+        f"Cliente: <strong>{_esc(client_name)}</strong> · "
+        if client_name else ""
+    )
 
     return f"""<!doctype html>
 <html lang="es"><head><meta charset="utf-8">
-<title>PCI-DSS v4 Audit — {_esc(host)} — {audit_date.strftime('%Y-%m-%d')}</title>
-<style>{css}</style>
+<title>{_esc(fw['title_es'])} — {_esc(host)} — {audit_date.strftime('%Y-%m-%d')}</title>
+<style>{css}
+.risk-banner {{
+  display:inline-block; padding:4pt 10pt; border-radius:4pt;
+  color:#fff; font-weight:700; font-size:10pt; background:{risk_color};
+}}
+.bilingual-block {{
+  background:#f7f7f0; border-left:3pt solid #666; padding:8pt 12pt;
+  margin:10pt 0; font-size:9pt; color:#444;
+}}
+.bilingual-block .en-label {{
+  display:inline-block; background:#222; color:#fff; padding:1pt 6pt;
+  border-radius:2pt; font-size:7pt; font-weight:700; margin-right:6pt;
+}}
+</style>
 </head><body>
 
-<h1>Auditoría de cumplimiento PCI-DSS v4.0.1</h1>
+<h1>{fw['title_es']}</h1>
 <div class="cover-meta">
-  Host: <strong>{_esc(host)}</strong> ·
-  Fecha: {audit_date.strftime('%Y-%m-%d %H:%M')} ·
-  Alcance: Secciones 2, 6, 8, 10 (6 controles críticos)
+  {client_line_es}Host: <strong>{_esc(host)}</strong> ·
+  Fecha / Date: {audit_date.strftime('%Y-%m-%d %H:%M')} ·
+  Alcance: {fw['scope_es']}
 </div>
-<div class="repro-hash">Hash reproducibilidad: {_esc(repro_hash)}</div>
+<div class="cover-meta">
+  Riesgo agregado / Overall risk:
+  <span class="risk-banner">{risk_label}</span>
+</div>
+<div class="repro-hash">Hash reproducibilidad / Reproducibility hash: {_esc(repro_hash)}</div>
 
 <div class="separator-notice">
-  <strong>Separación de responsabilidades:</strong> los <em>veredictos</em>
-  (PASS/FAIL/N/A/ERROR) y la <em>evidencia</em> (comando ejecutado + output raw)
-  provienen de motores determinísticos reproducibles. Las secciones marcadas
+  <strong>Separación de responsabilidades / Separation of duties:</strong>
+  los <em>veredictos</em> (PASS/FAIL/N/A/ERROR) y la <em>evidencia</em>
+  (comando ejecutado + output raw) provienen de motores determinísticos
+  reproducibles. Las secciones marcadas
   <span style="background:#e0a500;color:#fff;padding:1pt 4pt;border-radius:2pt;font-size:8pt;font-weight:700;">LLM NARRATIVA</span>
   son prosa explicativa generada por modelo de lenguaje y no modifican los
-  veredictos ni la evidencia. Para defensibilidad regulatoria, el auditor debe
-  basarse en la evidencia determinística.
+  veredictos ni la evidencia. Para defensibilidad regulatoria, el auditor
+  debe basarse en la evidencia determinística.
 </div>
 
 <h2>Resumen ejecutivo</h2>
-<p>Se ejecutaron <strong>{total}</strong> controles PCI-DSS v4 sobre el host.
+<p>Se ejecutaron <strong>{total}</strong> controles sobre el host.
 Resultados: <strong style="color:{_VERDICT_COLOR['FAIL']}">{counts['FAIL']} FAIL</strong>,
 <strong style="color:{_VERDICT_COLOR['PASS']}">{counts['PASS']} PASS</strong>,
-{counts['N/A']} N/A, {counts['ERROR']} ERROR.</p>
+{counts['N/A']} N/A, {counts['ERROR']} ERROR.
+Nivel de riesgo agregado: <strong style="color:{risk_color}">{risk_label}</strong>.</p>
+
+<div class="bilingual-block">
+  <span class="en-label">EN</span>
+  <strong>Executive summary.</strong>
+  {total} controls executed on the host. Results:
+  <strong style="color:{_VERDICT_COLOR['FAIL']}">{counts['FAIL']} FAIL</strong>,
+  <strong style="color:{_VERDICT_COLOR['PASS']}">{counts['PASS']} PASS</strong>,
+  {counts['N/A']} N/A, {counts['ERROR']} ERROR. Overall risk:
+  <strong style="color:{risk_color}">{risk_label}</strong>.
+  Framework: {fw['title_en']}. Scope: {fw['scope_en']}.
+</div>
 
 {_summary_table(results)}
 
-<h2>Hallazgos</h2>
+<h2>Hallazgos / Findings</h2>
 {cards}
 
 <div class="appendix">
-<h2>Apéndice A — Evidencia cruda</h2>
+<h2>Apéndice A — Evidencia cruda / Appendix A — Raw evidence</h2>
 <p>Comandos ejecutados y output stdout/stderr sin procesar. Permite
-reproducir manualmente cada hallazgo.</p>
+reproducir manualmente cada hallazgo / Commands executed and raw
+stdout/stderr, enabling manual reproduction of every finding.</p>
 {appendix}
 </div>
 
@@ -266,7 +367,10 @@ reproducir manualmente cada hallazgo.</p>
 Este reporte se considera válido únicamente acompañado del artifact JSON cuyo
 SHA-256 coincide con <code>{_esc(repro_hash[:32])}...</code>. Cualquier
 modificación del JSON invalida este reporte. Generado por Kryon compliance
-engine F15.1.
+engine.
+<br/>
+This report is valid only alongside the JSON artifact whose SHA-256 matches
+the hash above. Any modification to the JSON invalidates this report.
 </div>
 
 </body></html>
@@ -280,13 +384,22 @@ def render_pdf(
     host: str,
     output_path: Path,
     narratives: dict[str, dict] | None = None,
+    framework: str | None = None,
+    client_name: str = "",
 ) -> Path:
     """Render HTML and attempt PDF via weasyprint.
 
     If weasyprint is unavailable, writes the HTML next to output_path and
     raises ImportError so the caller can fall back explicitly.
     """
-    html_body = render_html(results, repro_hash=repro_hash, host=host, narratives=narratives)
+    html_body = render_html(
+        results,
+        repro_hash=repro_hash,
+        host=host,
+        narratives=narratives,
+        framework=framework,
+        client_name=client_name,
+    )
     html_path = output_path.with_suffix(".html")
     html_path.write_text(html_body, encoding="utf-8")
     try:

@@ -146,12 +146,16 @@ def _run_compliance_pdf(
     out_path: str = "",
     framework: str = "all",
     skip_llm_narrative: bool = False,
+    client_name: str = "",
 ) -> str:
     """Core implementation — plain Python, no tool decorator.
 
     Usable from both the `@function_tool` wrapper (agent runtime) and
     the CLI wrapper script (scripts/kryon-audit.sh) without needing to
     un-wrap decorator internals.
+
+    client_name: optional banking client label shown on the report cover
+        (also accepted via env var KRYON_CLIENT_NAME).
     """
     from pathlib import Path
 
@@ -220,6 +224,9 @@ def _run_compliance_pdf(
         except Exception:
             narratives = {}
 
+    import os
+    effective_client = client_name or os.environ.get("KRYON_CLIENT_NAME", "").strip()
+
     out = Path(out_path)
     try:
         render_pdf(
@@ -228,6 +235,8 @@ def _run_compliance_pdf(
             host=host or "localhost",
             output_path=out,
             narratives=narratives,
+            framework=fw_key,
+            client_name=effective_client,
         )
         pdf_path = str(out)
     except ImportError:
@@ -256,6 +265,7 @@ def generate_compliance_pdf(
     out_path: str = "",
     framework: str = "all",
     skip_llm_narrative: bool = False,
+    client_name: str = "",
 ) -> str:
     """Render a compliance audit PDF report.
 
@@ -280,4 +290,5 @@ def generate_compliance_pdf(
         out_path=out_path,
         framework=framework,
         skip_llm_narrative=skip_llm_narrative,
+        client_name=client_name,
     )
