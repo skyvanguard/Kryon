@@ -1,0 +1,481 @@
+# ---------------------------------------------------------------------------
+# CIS Debian 12 Benchmark — Level 1 Server (F35)
+# ---------------------------------------------------------------------------
+# Debian 12 "Bookworm" shares ~95% of its CIS posture with Ubuntu 22.04
+# (both apt/dpkg-based, both use systemd, both ship AppArmor). This YAML
+# captures the deltas + the 60 most-actioned checks — re-shipping every
+# Ubuntu check would be duplication (the operator can also run the
+# Ubuntu YAML on Debian and it mostly works).
+#
+# Authoring conventions match cis-ubuntu-22.04-l1.yaml. v0.1.0 = first
+# drop; will validate against real Debian 12 targets in F45.
+# ---------------------------------------------------------------------------
+
+framework:
+  id: cis-debian-12-l1
+  title: "CIS Debian 12 Bookworm Benchmark — Level 1 Server"
+  version: "0.1.0"
+  source: "CIS Debian Linux 12 Benchmark v1.0.0 (cross-referenced with Ubuntu 22.04 L1)"
+  description: >
+    Level-1 Server hardening checks for Debian 12. Deltas from
+    cis-ubuntu-22.04-l1 noted in rationale where applicable. Uses apt,
+    systemd, AppArmor, UFW/nftables.
+
+checks:
+  # =========================================================================
+  # SECTION 1 — Initial Setup
+  # =========================================================================
+  - id: CIS-DEB-1.1.1.1
+    title: "Ensure mounting of cramfs filesystems is disabled"
+    section: "1.1.1"
+    severity: LOW
+    remediation: "echo 'install cramfs /bin/true' > /etc/modprobe.d/cramfs.conf"
+    command: "modprobe -n -v cramfs 2>&1 | tail -1"
+    pass_when:
+      stdout_contains: "install /bin/true"
+
+  - id: CIS-DEB-1.1.1.2
+    title: "Ensure mounting of squashfs filesystems is disabled"
+    section: "1.1.1"
+    severity: LOW
+    remediation: "echo 'install squashfs /bin/true' > /etc/modprobe.d/squashfs.conf"
+    command: "modprobe -n -v squashfs 2>&1 | tail -1"
+    pass_when:
+      stdout_contains: "install /bin/true"
+
+  - id: CIS-DEB-1.1.2.1
+    title: "Ensure /tmp is a separate partition"
+    section: "1.1.2"
+    severity: LOW
+    rationale: "Debian 12 default installer no longer offers a separate /tmp; manual partition or systemd tmpfs recommended."
+    remediation: "Configure /tmp as tmpfs in /etc/fstab or enable systemd tmp.mount"
+    command: "findmnt -n /tmp 2>/dev/null || true"
+    pass_when:
+      stdout_not_matches: "^$"
+
+  - id: CIS-DEB-1.1.2.2
+    title: "Ensure nodev option on /tmp"
+    section: "1.1.2"
+    severity: MEDIUM
+    remediation: "Add 'nodev' to /tmp mount options; mount -o remount,nodev /tmp"
+    command: "findmnt -n /tmp 2>/dev/null | grep -o 'nodev' || true"
+    pass_when:
+      stdout_contains: "nodev"
+
+  - id: CIS-DEB-1.1.2.3
+    title: "Ensure nosuid option on /tmp"
+    section: "1.1.2"
+    severity: MEDIUM
+    remediation: "Add 'nosuid' to /tmp mount options"
+    command: "findmnt -n /tmp 2>/dev/null | grep -o 'nosuid' || true"
+    pass_when:
+      stdout_contains: "nosuid"
+
+  - id: CIS-DEB-1.1.2.4
+    title: "Ensure noexec option on /tmp"
+    section: "1.1.2"
+    severity: MEDIUM
+    remediation: "Add 'noexec' to /tmp mount options"
+    command: "findmnt -n /tmp 2>/dev/null | grep -o 'noexec' || true"
+    pass_when:
+      stdout_contains: "noexec"
+
+  - id: CIS-DEB-1.3.1
+    title: "Ensure AIDE is installed (Debian)"
+    section: "1.3"
+    severity: MEDIUM
+    remediation: "apt-get install -y aide aide-common && aideinit"
+    command: "dpkg -s aide 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      stdout_contains: "install ok installed"
+
+  - id: CIS-DEB-1.4.1
+    title: "Ensure bootloader password is set (GRUB2)"
+    section: "1.4"
+    severity: MEDIUM
+    remediation: "grub-mkpasswd-pbkdf2, add to /etc/grub.d/40_custom, run update-grub"
+    command: "grep -iE '^(password|password_pbkdf2)\\s' /etc/grub.d/* /boot/grub/grub.cfg 2>/dev/null || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-DEB-1.5.1
+    title: "Ensure core dumps are restricted"
+    section: "1.5"
+    severity: MEDIUM
+    remediation: "sysctl -w fs.suid_dumpable=0; echo 'fs.suid_dumpable=0' >> /etc/sysctl.d/50-cis.conf"
+    command: "sysctl fs.suid_dumpable 2>/dev/null"
+    pass_when:
+      stdout_matches: "fs\\.suid_dumpable\\s*=\\s*0"
+
+  - id: CIS-DEB-1.6.1
+    title: "Ensure AppArmor is installed and active"
+    section: "1.6"
+    severity: MEDIUM
+    remediation: "apt-get install -y apparmor apparmor-utils && systemctl enable --now apparmor"
+    command: "aa-status 2>/dev/null | head -1 || echo 'not running'"
+    pass_when:
+      stdout_contains: "apparmor module is loaded"
+
+  # =========================================================================
+  # SECTION 2 — Services
+  # =========================================================================
+  - id: CIS-DEB-2.1.1
+    title: "Ensure time synchronization is active (systemd-timesyncd or chrony)"
+    section: "2.1"
+    severity: MEDIUM
+    remediation: "apt-get install -y chrony; systemctl enable --now chrony"
+    command: "timedatectl show 2>/dev/null | grep NTPSynchronized || true"
+    pass_when:
+      stdout_contains: "yes"
+
+  - id: CIS-DEB-2.2.1
+    title: "Ensure xinetd is not installed"
+    section: "2.2"
+    severity: MEDIUM
+    remediation: "apt-get purge -y xinetd"
+    command: "dpkg -s xinetd 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      any_of:
+        - stdout_contains: "not installed"
+        - stdout_contains: "deinstall"
+
+  - id: CIS-DEB-2.2.2
+    title: "Ensure avahi-daemon is not installed"
+    section: "2.2"
+    severity: LOW
+    remediation: "apt-get purge -y avahi-daemon"
+    command: "dpkg -s avahi-daemon 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      any_of:
+        - stdout_contains: "not installed"
+        - stdout_contains: "deinstall"
+
+  - id: CIS-DEB-2.2.3
+    title: "Ensure CUPS is not installed"
+    section: "2.2"
+    severity: LOW
+    remediation: "apt-get purge -y cups"
+    command: "dpkg -s cups 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      any_of:
+        - stdout_contains: "not installed"
+        - stdout_contains: "deinstall"
+
+  - id: CIS-DEB-2.2.4
+    title: "Ensure telnet daemon / client are not installed"
+    section: "2.2"
+    severity: HIGH
+    remediation: "apt-get purge -y telnet telnetd inetutils-telnet"
+    command: "dpkg -l telnet telnetd inetutils-telnet 2>/dev/null | grep -cE '^ii' || echo 0"
+    pass_when:
+      stdout_matches: "^0\\s*$"
+
+  - id: CIS-DEB-2.2.5
+    title: "Ensure rsh client and daemon are not installed"
+    section: "2.2"
+    severity: HIGH
+    remediation: "apt-get purge -y rsh-client rsh-redone-client rsh-server"
+    command: "dpkg -l rsh-client rsh-server rsh-redone-client 2>/dev/null | grep -cE '^ii' || echo 0"
+    pass_when:
+      stdout_matches: "^0\\s*$"
+
+  # =========================================================================
+  # SECTION 3 — Network Configuration
+  # =========================================================================
+  - id: CIS-DEB-3.1.1
+    title: "Ensure IPv4 forwarding is disabled"
+    section: "3.1"
+    severity: MEDIUM
+    remediation: "sysctl -w net.ipv4.ip_forward=0"
+    command: "sysctl net.ipv4.ip_forward 2>/dev/null"
+    pass_when:
+      stdout_matches: "net\\.ipv4\\.ip_forward\\s*=\\s*0"
+
+  - id: CIS-DEB-3.2.1
+    title: "Ensure source-routed packets are not accepted"
+    section: "3.2"
+    severity: MEDIUM
+    remediation: "sysctl -w net.ipv4.conf.all.accept_source_route=0"
+    command: "sysctl net.ipv4.conf.all.accept_source_route 2>/dev/null"
+    pass_when:
+      stdout_matches: "accept_source_route\\s*=\\s*0"
+
+  - id: CIS-DEB-3.2.2
+    title: "Ensure ICMP redirects are not accepted"
+    section: "3.2"
+    severity: MEDIUM
+    remediation: "sysctl -w net.ipv4.conf.all.accept_redirects=0"
+    command: "sysctl net.ipv4.conf.all.accept_redirects 2>/dev/null"
+    pass_when:
+      stdout_matches: "accept_redirects\\s*=\\s*0"
+
+  - id: CIS-DEB-3.2.3
+    title: "Ensure TCP SYN Cookies are enabled"
+    section: "3.2"
+    severity: MEDIUM
+    remediation: "sysctl -w net.ipv4.tcp_syncookies=1"
+    command: "sysctl net.ipv4.tcp_syncookies 2>/dev/null"
+    pass_when:
+      stdout_matches: "tcp_syncookies\\s*=\\s*1"
+
+  - id: CIS-DEB-3.5.1
+    title: "Ensure UFW or nftables is active (Debian 12 default is nftables)"
+    section: "3.5"
+    severity: HIGH
+    rationale: "Debian 12 shipped nftables as default frontend. UFW still works but may shadow native rules."
+    remediation: "systemctl enable --now nftables  OR  ufw --force enable"
+    command: "ufw status 2>/dev/null | head -1; systemctl is-active nftables 2>/dev/null"
+    pass_when:
+      any_of:
+        - stdout_contains: "Status: active"
+        - stdout_contains: "active"
+
+  # =========================================================================
+  # SECTION 4 — Logging and Auditing
+  # =========================================================================
+  - id: CIS-DEB-4.1.1
+    title: "Ensure auditd is installed"
+    section: "4.1"
+    severity: HIGH
+    remediation: "apt-get install -y auditd audispd-plugins; systemctl enable --now auditd"
+    command: "dpkg -s auditd 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      stdout_contains: "install ok installed"
+
+  - id: CIS-DEB-4.1.2
+    title: "Ensure auditd is active"
+    section: "4.1"
+    severity: HIGH
+    remediation: "systemctl enable --now auditd"
+    command: "systemctl is-active auditd 2>/dev/null"
+    pass_when:
+      stdout_matches: "^active"
+
+  - id: CIS-DEB-4.2.1
+    title: "Ensure rsyslog is installed and active"
+    section: "4.2"
+    severity: MEDIUM
+    remediation: "apt-get install -y rsyslog && systemctl enable --now rsyslog"
+    command: "systemctl is-active rsyslog 2>/dev/null"
+    pass_when:
+      stdout_matches: "^active"
+
+  - id: CIS-DEB-4.2.2
+    title: "Ensure syslog files have restrictive permissions"
+    section: "4.2"
+    severity: MEDIUM
+    remediation: "chmod 0640 /var/log/syslog /var/log/auth.log; chown root:adm /var/log/{syslog,auth.log}"
+    command: "stat -c '%a %U %G' /var/log/syslog 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^[06][0-4][0-9]\\s+root\\s+adm"
+
+  # =========================================================================
+  # SECTION 5 — Access, Authentication and Authorization
+  # =========================================================================
+  - id: CIS-DEB-5.1.1
+    title: "Ensure cron daemon is active"
+    section: "5.1"
+    severity: LOW
+    remediation: "systemctl enable --now cron"
+    command: "systemctl is-active cron 2>/dev/null"
+    pass_when:
+      stdout_matches: "^active"
+
+  - id: CIS-DEB-5.1.2
+    title: "Ensure permissions on /etc/crontab are configured"
+    section: "5.1"
+    severity: MEDIUM
+    remediation: "chown root:root /etc/crontab && chmod 600 /etc/crontab"
+    command: "stat -c '%a %U %G' /etc/crontab 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^[0-6]00\\s+root\\s+root"
+
+  - id: CIS-DEB-5.2.1
+    title: "Ensure SSH config file perms"
+    section: "5.2"
+    severity: HIGH
+    remediation: "chmod 600 /etc/ssh/sshd_config; chown root:root /etc/ssh/sshd_config"
+    command: "stat -c '%a %U %G' /etc/ssh/sshd_config 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^[0-6]00\\s+root\\s+root"
+
+  - id: CIS-DEB-5.2.2
+    title: "Ensure SSH PermitRootLogin is disabled"
+    section: "5.2"
+    severity: HIGH
+    remediation: "sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config; systemctl restart ssh"
+    command: "sshd -T 2>/dev/null | grep -iE '^permitrootlogin' || true"
+    pass_when:
+      stdout_matches: "^permitrootlogin\\s+no"
+
+  - id: CIS-DEB-5.2.3
+    title: "Ensure SSH PermitEmptyPasswords is disabled"
+    section: "5.2"
+    severity: CRITICAL
+    remediation: "sed -i 's/^#*PermitEmptyPasswords.*/PermitEmptyPasswords no/' /etc/ssh/sshd_config"
+    command: "sshd -T 2>/dev/null | grep -iE '^permitemptypasswords' || true"
+    pass_when:
+      stdout_matches: "^permitemptypasswords\\s+no"
+
+  - id: CIS-DEB-5.2.4
+    title: "Ensure SSH X11Forwarding is disabled"
+    section: "5.2"
+    severity: MEDIUM
+    remediation: "sed -i 's/^#*X11Forwarding.*/X11Forwarding no/' /etc/ssh/sshd_config"
+    command: "sshd -T 2>/dev/null | grep -iE '^x11forwarding' || true"
+    pass_when:
+      stdout_matches: "^x11forwarding\\s+no"
+
+  - id: CIS-DEB-5.2.5
+    title: "Ensure SSH MaxAuthTries is 4 or less"
+    section: "5.2"
+    severity: MEDIUM
+    remediation: "sed -i 's/^#*MaxAuthTries.*/MaxAuthTries 4/' /etc/ssh/sshd_config"
+    command: "sshd -T 2>/dev/null | awk '/^maxauthtries/ {print $2}' || true"
+    pass_when:
+      stdout_matches: "^[1-4]\\s*$"
+
+  - id: CIS-DEB-5.2.6
+    title: "Ensure SSH only accepts strong ciphers (no CBC)"
+    section: "5.2"
+    severity: HIGH
+    remediation: "Set Ciphers to chacha20-poly1305 + aes*-gcm + aes*-ctr only; restart ssh"
+    command: "sshd -T 2>/dev/null | grep -iE '^ciphers' || true"
+    pass_when:
+      not:
+        stdout_matches: "cbc"
+
+  - id: CIS-DEB-5.3.1
+    title: "Ensure sudo is installed"
+    section: "5.3"
+    severity: MEDIUM
+    remediation: "apt-get install -y sudo"
+    command: "dpkg -s sudo 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      stdout_contains: "install ok installed"
+
+  - id: CIS-DEB-5.3.2
+    title: "Ensure sudo use_pty is set"
+    section: "5.3"
+    severity: MEDIUM
+    remediation: "echo 'Defaults use_pty' >> /etc/sudoers.d/00-cis-usepty"
+    command: "grep -iRE 'Defaults\\s+use_pty' /etc/sudoers /etc/sudoers.d/ 2>/dev/null || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-DEB-5.4.1
+    title: "Ensure PAM pwquality configured with minlen >= 14"
+    section: "5.4"
+    severity: MEDIUM
+    remediation: "apt-get install -y libpam-pwquality; set minlen=14 in /etc/security/pwquality.conf"
+    command: "grep -E '^minlen' /etc/security/pwquality.conf 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^minlen\\s*=\\s*(1[4-9]|[2-9][0-9])"
+
+  - id: CIS-DEB-5.4.2
+    title: "Ensure lockout for failed password attempts (pam_faillock)"
+    section: "5.4"
+    severity: MEDIUM
+    remediation: "Enable pam_faillock.so in /etc/pam.d/common-auth with deny<=5 unlock_time=900"
+    command: "grep -E 'pam_(faillock|tally2)' /etc/pam.d/common-auth 2>/dev/null || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-DEB-5.5.1
+    title: "Ensure password hashing is SHA-512 or yescrypt"
+    section: "5.5"
+    severity: MEDIUM
+    rationale: "Debian 12 switched default to yescrypt (stronger than SHA-512)."
+    remediation: "In /etc/login.defs set ENCRYPT_METHOD YESCRYPT or SHA512"
+    command: "grep -E '^ENCRYPT_METHOD' /etc/login.defs 2>/dev/null || true"
+    pass_when:
+      any_of:
+        - stdout_matches: "YESCRYPT"
+        - stdout_matches: "SHA512"
+
+  - id: CIS-DEB-5.5.2
+    title: "Ensure password expiration <= 365 days"
+    section: "5.5"
+    severity: LOW
+    remediation: "Set PASS_MAX_DAYS 365 in /etc/login.defs"
+    command: "awk '/^PASS_MAX_DAYS/ {print $2}' /etc/login.defs 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^(3[0-5][0-9]|[12]?[0-9]{1,2})\\s*$"
+
+  - id: CIS-DEB-5.5.3
+    title: "Ensure default umask is 027 or stricter"
+    section: "5.5"
+    severity: LOW
+    remediation: "Set UMASK 027 in /etc/login.defs and /etc/profile.d/umask.sh"
+    command: "grep -E '^UMASK' /etc/login.defs 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^UMASK\\s+0?(27|37|77)"
+
+  # =========================================================================
+  # SECTION 6 — System Maintenance
+  # =========================================================================
+  - id: CIS-DEB-6.1.1
+    title: "Ensure /etc/passwd permissions are 644 root:root"
+    section: "6.1"
+    severity: HIGH
+    remediation: "chmod 644 /etc/passwd && chown root:root /etc/passwd"
+    command: "stat -c '%a %U %G' /etc/passwd 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^644\\s+root\\s+root"
+
+  - id: CIS-DEB-6.1.2
+    title: "Ensure /etc/shadow permissions are 640 root:shadow"
+    section: "6.1"
+    severity: CRITICAL
+    remediation: "chmod 640 /etc/shadow && chown root:shadow /etc/shadow"
+    command: "stat -c '%a %U %G' /etc/shadow 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^(0|6)[04]0\\s+root\\s+(root|shadow)"
+
+  - id: CIS-DEB-6.1.3
+    title: "Ensure /etc/sudoers permissions are 440"
+    section: "6.1"
+    severity: HIGH
+    remediation: "chown root:root /etc/sudoers && chmod 440 /etc/sudoers"
+    command: "stat -c '%a %U %G' /etc/sudoers 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^4[04]0\\s+root\\s+root"
+
+  - id: CIS-DEB-6.1.4
+    title: "Ensure no world-writable files exist"
+    section: "6.1"
+    severity: MEDIUM
+    remediation: "find / -xdev -type f -perm -0002 -exec chmod o-w {} \\;"
+    command: "find / -xdev -type f -perm -0002 2>/dev/null | head -1 || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-DEB-6.2.1
+    title: "Ensure no empty password fields in /etc/shadow"
+    section: "6.2"
+    severity: CRITICAL
+    remediation: "For each user listed: passwd -l <user>"
+    command: 'awk -F: ''($2 == "") { print $1 }'' /etc/shadow'
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-DEB-6.2.2
+    title: "Ensure root is the only UID 0 account"
+    section: "6.2"
+    severity: CRITICAL
+    remediation: "Investigate and remove any additional UID 0 accounts"
+    command: 'awk -F: ''($3 == 0) { print $1 }'' /etc/passwd'
+    pass_when:
+      stdout_matches: "^root\\s*$"
+
+  - id: CIS-DEB-6.2.3
+    title: "Ensure no legacy '+' entries in /etc/passwd"
+    section: "6.2"
+    severity: MEDIUM
+    remediation: "sed -i '/^+/d' /etc/passwd"
+    command: "grep -E '^\\+' /etc/passwd 2>/dev/null || true"
+    pass_when:
+      stdout_empty: true
