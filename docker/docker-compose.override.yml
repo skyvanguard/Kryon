@@ -36,6 +36,12 @@ services:
       # using the operator's own keys (same as the human auditor would).
       # `:ro` is critical — compliance engine must never write or tamper.
       - ${HOME}/.ssh:/home/kryon/.ssh:ro
+    # F26.1: attach to the ctfnet network so kryon can resolve fake-target
+    # hostnames (pve_fake, dc_fake, juice.local) published by demo/docker-
+    # compose.demo.yml without the operator running `docker network connect`.
+    networks:
+      - default
+      - ctfnet
 
   ollama:
     deploy:
@@ -78,3 +84,11 @@ services:
 volumes:
   joern-cpgs:
     driver: local
+
+# F26.1: declare the external ctfnet network so `networks: [ctfnet]` above
+# resolves. We don't create it here (external: true) — it's managed by
+# the demo stack or by docker network create; setup.sh ensures it exists.
+networks:
+  ctfnet:
+    external: true
+  default:
