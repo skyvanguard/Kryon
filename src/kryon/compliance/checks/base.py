@@ -34,6 +34,18 @@ class CheckContext:
     # Opt-in slow path: extra evidence collection for forensic-grade reports.
     deep_evidence: bool = False
 
+    # Transport selector. "ssh" (default) keeps SSH behaviour; "winrm"
+    # routes through the WinRM runner for Windows hosts; "local" skips
+    # any remote transport (host must resolve to the local box).
+    transport: str = "ssh"
+
+    # WinRM fields — only read when transport == "winrm".
+    winrm_user: str = ""
+    winrm_password: str = ""
+    winrm_port: int = 5985
+    winrm_scheme: str = "http"
+    winrm_auth: str = "ntlm"
+
 
 @dataclass(frozen=True)
 class CheckResult:

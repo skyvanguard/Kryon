@@ -13,6 +13,7 @@
     "cis-docker-1.6",
     "cis-rhel-9-l1",
     "cis-ubuntu-22.04-l1",
+    "cis-windows-server-2022-l1",
     "core-banking-hardening",
     "pci-dss-4.0",
     "swift-csp-2024"
@@ -140,6 +141,28 @@
       "version": "0.1.0",
       "yaml_sha256": "dd7cffbafc25898c373ae72b9bfa8cc0ee76f37ef3563f6289f245ae27041420"
     },
+    "cis-windows-server-2022-l1": {
+      "id": "cis-windows-server-2022-l1",
+      "non_stub_commands": 67,
+      "sections": {
+        "1": 9,
+        "17": 5,
+        "18": 20,
+        "19": 2,
+        "2": 20,
+        "5": 5,
+        "9": 6
+      },
+      "severities": {
+        "CRITICAL": 9,
+        "HIGH": 40,
+        "LOW": 1,
+        "MEDIUM": 17
+      },
+      "total_checks": 67,
+      "version": "0.1.0",
+      "yaml_sha256": "ca16fcc32a279b3e66621317ba3403f532dfa4d7d56b7a3dfb1c828000570a8e"
+    },
     "core-banking-hardening": {
       "id": "core-banking-hardening",
       "non_stub_commands": 36,
@@ -207,8 +230,8 @@
     "framework_meta": []
   },
   "totals": {
-    "checks": 355,
-    "critical_checks": 43,
-    "frameworks": 9
+    "checks": 422,
+    "critical_checks": 52,
+    "frameworks": 10
   }
 }

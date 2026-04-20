@@ -63,12 +63,22 @@ def run_cmd(
     timeout_s: int = 15,
     shell: bool = False,
 ) -> tuple[str, str, int]:
-    """Execute `cmd` locally or over SSH depending on ctx.
+    """Execute `cmd` locally, over SSH, or over WinRM depending on ctx.
 
     Returns (stdout, stderr, returncode). Captures up to 4KB stdout and
     1KB stderr. Never raises — failures become ERROR-verdict checks
     upstream.
+
+    Transport selection follows ``ctx.transport`` when present:
+      - "winrm": route through the WinRM runner (Windows hosts)
+      - "ssh"   (default): SSH with the key / port in ctx
+      - "local": never invokes a remote transport (host must be local)
     """
+    transport = getattr(ctx, "transport", "ssh") or "ssh"
+    if transport == "winrm":
+        from kryon.compliance.runners.winrm_runner import run_winrm_cmd
+        return run_winrm_cmd(ctx, cmd, timeout_s=timeout_s)
+
     if ctx.host not in ("", "localhost", "127.0.0.1"):
         if isinstance(cmd, list):
             cmd_str = " ".join(_shell_quote(c) for c in cmd)

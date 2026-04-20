@@ -78,6 +78,12 @@ FRAMEWORK_META: dict[str, dict[str, str]] = {
         "scope_es": "Hardening host Docker + daemon + runtime",
         "maps_to": "CIS",
     },
+    "cis-windows-server-2022-l1": {
+        "title_es": "CIS Windows Server 2022 L1",
+        "title_en": "CIS Windows Server 2022 L1",
+        "scope_es": "Hardening Windows Server (2019 / 2022)",
+        "maps_to": "CIS",
+    },
     "core-banking-hardening": {
         "title_es": "Core Banking Hardening (T24/Finacle/Flexcube)",
         "title_en": "Core Banking Hardening (T24/Finacle/Flexcube)",
