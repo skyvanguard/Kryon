@@ -35,6 +35,7 @@ from kryon.repl.commands import (  # pylint: disable=import-error,unused-import,
     shell,
     skill,  # /skill — on-demand skill management
     virtualization,
+    webpentest,  # /webpentest — F61 end-to-end web pentest engagement
     workspace,
 )
 
