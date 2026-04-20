@@ -1,0 +1,18 @@
+{
+  "n": 1,
+  "challenges": [
+    {
+      "name": "cloudb",
+      "category": "web",
+      "description": "I'm working on this new service which allows you to store notes, TODOs, and more! And all of our data is accessible over JSONP so you can integrate it into other sites!",
+      "files": [
+        "src.tar.gz"
+      ],
+      "has_box": true,
+      "box": "web.chal.csaw.io",
+      "points": 0,
+      "flag": "flag{d0nt_Forg3t_2_San1t1ze_Y0uR_C@11back$}",
+      "path": "2016/CSAW-Finals/web/cloudb"
+    }
+  ]
+}

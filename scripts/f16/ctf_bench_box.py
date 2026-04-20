@@ -126,6 +126,20 @@ def _shell_in_kryon(command: str, timeout_s: int = 60) -> str:
         return f"exit=ERROR: {exc}"[:1024]
 
 
+def _truncate_result(result: str, cap: int = 2000) -> str:
+    """Cap tool result size before feeding back to the LLM.
+
+    Multi-step chains (cloudb) ballooned ctx with 10-50KB /api/Users JSON
+    responses; 4 tool calls were enough to crash with llm_error: timed out.
+    We keep the head of the response (most signal), trim the tail, and
+    annotate so the model knows it was cut."""
+    if len(result) <= cap:
+        return result
+    trimmed = result[:cap]
+    dropped = len(result) - cap
+    return f"{trimmed}\n...[TRUNCATED {dropped} bytes — fetch again if needed]"
+
+
 def _extract_tool_from_text(text: str) -> str | None:
     """Parse shell command from model text when API doesn't return structured tool_calls.
 
@@ -264,7 +278,7 @@ def solve_challenge(ch: dict, bench_root: Path) -> dict:
                     submitted_flag = ground_truth
                 messages.append({"role": "assistant", "content": content})
                 messages.append({"role": "user", "content":
-                    f"Command result:\n{result[:2000]}\n\nAnalyze and continue."})
+                    f"Command result:\n{_truncate_result(result, 2000)}\n\nAnalyze and continue."})
                 if submitted_flag:
                     break
                 continue
@@ -284,7 +298,7 @@ def solve_challenge(ch: dict, bench_root: Path) -> dict:
                     "role": "tool",
                     "tool_call_id": tc.get("id", ""),
                     "name": fn.get("name", "shell"),
-                    "content": result[:8000],
+                    "content": _truncate_result(result, 3000),
                 })
             if submitted_flag:
                 break
