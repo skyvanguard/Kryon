@@ -17,6 +17,13 @@ services:
         reservations:
           cpus: "2"
           memory: 4G
+    # F65: load per-operator secrets (HackerOne token, etc) from a file
+    # OUTSIDE the repository so they never reach git. Base compose file
+    # already declares env_file: .env.docker; compose merges both lists,
+    # so ~/.kryon/secrets.env takes precedence on overlapping vars.
+    # The file lives at ${HOME}/.kryon/secrets.env and must be mode 0600.
+    env_file:
+      - ${HOME}/.kryon/secrets.env
     environment:
       # F7: CPGQL server endpoint. Disabled unless the joern service is up.
       - KRYON_JOERN_URL=${KRYON_JOERN_URL:-ws://joern:8080}
