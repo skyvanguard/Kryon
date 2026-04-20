@@ -114,30 +114,44 @@ def run_compliance_audit(
     }, ensure_ascii=False)
 
 
-@function_tool(strict_mode=False)
-def generate_compliance_pdf(
+# Framework → control_id prefix mapping. "all" skips the filter.
+_FRAMEWORK_PREFIX = {
+    "pci-dss": ("2.", "6.", "8.", "10."),    # F15.1 numeric PCI sections
+    "pci":     ("2.", "6.", "8.", "10."),
+    "proxmox": ("PVE-",),                     # F23
+    "pve":     ("PVE-",),
+    "ad":      ("AD-",),                      # F24
+    "active-directory": ("AD-",),
+    "all":     (),
+}
+
+
+def _default_out_path(framework: str, host: str) -> str:
+    """Default PDF path — lands in the bind-mounted /reports on docker,
+    so the host sees it under ./reports/ immediately."""
+    from datetime import datetime
+    from pathlib import Path
+
+    # Prefer /reports (bind mount). Fallback /tmp if not mounted.
+    reports_dir = Path("/reports")
+    if not reports_dir.is_dir():
+        reports_dir = Path("/tmp")
+    safe_host = host.replace("/", "_").replace(":", "_") or "localhost"
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return str(reports_dir / f"kryon_{framework}_{safe_host}_{ts}.pdf")
+
+
+def _run_compliance_pdf(
     host: str = "localhost",
-    out_path: str = "/tmp/kryon_compliance.pdf",
+    out_path: str = "",
+    framework: str = "all",
     skip_llm_narrative: bool = False,
 ) -> str:
-    """Render a PDF compliance audit report (F15.1 template).
+    """Core implementation — plain Python, no tool decorator.
 
-    Re-runs the audit and produces an A4 PDF with:
-      - Executive summary table
-      - Per-control finding cards (verdict, evidence, remediation)
-      - LLM-narrated context + remediation prose (clearly watermarked,
-        regulatory boundary enforced — never modifies verdicts)
-      - Appendix A with raw stdout/stderr per control for reproducibility
-      - SHA-256 hash footer tying the PDF to the JSON artifact
-
-    Args:
-        host: Target hostname.
-        out_path: Where to write the PDF.
-        skip_llm_narrative: If True, deterministic-only PDF (faster, no
-            Ollama dependency). Default False = with LLM narrative.
-
-    Returns:
-        JSON with paths of generated artifacts and the repro hash.
+    Usable from both the `@function_tool` wrapper (agent runtime) and
+    the CLI wrapper script (scripts/kryon-audit.sh) without needing to
+    un-wrap decorator internals.
     """
     from pathlib import Path
 
@@ -152,9 +166,33 @@ def generate_compliance_pdf(
     except ImportError as exc:
         return json.dumps({"error": f"reporting module not loadable: {exc}"})
 
+    fw_key = (framework or "all").lower()
+    prefixes = _FRAMEWORK_PREFIX.get(fw_key)
+    if prefixes is None:
+        return json.dumps({
+            "error": f"unknown framework {framework!r}. "
+                     f"Use one of: {sorted(_FRAMEWORK_PREFIX.keys())}",
+        })
+
+    if not out_path:
+        out_path = _default_out_path(fw_key, host or "localhost")
+
     _import_all_checks()
     ctx = CheckContext(host=host or "localhost")
-    results = run_all(ctx)
+    all_results = run_all(ctx)
+
+    # Filter by framework prefix (empty tuple = keep all).
+    if prefixes:
+        results = [r for r in all_results if r.control_id.startswith(prefixes)]
+    else:
+        results = all_results
+
+    if not results:
+        return json.dumps({
+            "error": f"no checks matched framework={framework!r}",
+            "registered": len(all_results),
+        })
+
     repro_h = reproducibility_hash(results)
 
     results_dicts = [
@@ -195,10 +233,51 @@ def generate_compliance_pdf(
     except ImportError:
         pdf_path = ""
 
+    # Summary counts for quick stdout feedback
+    verdict_counts: dict[str, int] = {}
+    for r in results:
+        verdict_counts[r.verdict] = verdict_counts.get(r.verdict, 0) + 1
+
     return json.dumps({
         "host": host or "localhost",
+        "framework": fw_key,
+        "checks_run": len(results),
+        "verdict_counts": verdict_counts,
         "repro_hash": repro_h,
         "pdf_path": pdf_path,
         "html_path": str(out.with_suffix(".html")),
         "narrated": bool(narratives),
     }, ensure_ascii=False)
+
+
+@function_tool(strict_mode=False)
+def generate_compliance_pdf(
+    host: str = "localhost",
+    out_path: str = "",
+    framework: str = "all",
+    skip_llm_narrative: bool = False,
+) -> str:
+    """Render a compliance audit PDF report.
+
+    Produces an A4 PDF with executive summary, per-control finding cards
+    (verdict / evidence / remediation), optional LLM-narrated prose
+    (clearly watermarked), and Appendix A with raw stdout/stderr per
+    control for reproducibility. SHA-256 hash footer ties the PDF to
+    the JSON evidence artifact.
+
+    Args:
+        host: Target hostname.
+        out_path: Where to write the PDF. Default: /reports/kryon_<fw>_<host>_<ts>.pdf
+            (`/reports` is bind-mounted on docker so the host sees the file).
+        framework: One of "pci-dss" | "proxmox" | "ad" | "all" (default).
+        skip_llm_narrative: If True, deterministic-only PDF (faster, no Ollama).
+
+    Returns:
+        JSON with paths of generated artifacts and the repro hash.
+    """
+    return _run_compliance_pdf(
+        host=host,
+        out_path=out_path,
+        framework=framework,
+        skip_llm_narrative=skip_llm_narrative,
+    )

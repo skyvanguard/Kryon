@@ -27,7 +27,11 @@ services:
       - kryon-config:/home/kryon/.kryon
       - kryon-knowledge:/home/kryon/.config/chromadb
       - kryon-cache:/home/kryon/.cache
-      - kryon-reports:/reports
+      # F27: bind-mount reports to host so PDFs land in ./reports/ directly
+      # (named volume would hide them inside docker). Relative paths in
+      # compose files resolve against the compose file's own directory,
+      # so "../reports" targets the repo root's reports/ dir.
+      - ../reports:/reports
 
   ollama:
     deploy:
