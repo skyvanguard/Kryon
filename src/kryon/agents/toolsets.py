@@ -76,6 +76,22 @@ from kryon.tools.appsec.web_pentest_tool import (  # noqa: E402  (F63)
     crawl_web_target,
     run_web_pentest,
 )
+from kryon.tools.platforms.hackerone import (  # noqa: E402  (F65)
+    h1_assert_in_scope,
+    h1_get_program_scope,
+    h1_list_my_reports,
+    h1_list_programs,
+    h1_submit_report,
+)
+
+# F65 HackerOne platform toolset — add to agents that handle H1 engagements.
+HACKERONE_TOOLS = [
+    h1_list_programs,
+    h1_get_program_scope,
+    h1_assert_in_scope,
+    h1_list_my_reports,
+    h1_submit_report,
+]
 
 APPSEC_TOOLS = [
     semgrep_scan,
@@ -96,6 +112,12 @@ APPSEC_TOOLS = [
     # F63 — LLM-activated web pentest (F50-F62 pipeline behind @function_tool)
     run_web_pentest,
     crawl_web_target,
+    # F65 — HackerOne platform integration (scope-enforced engagements)
+    h1_list_programs,
+    h1_get_program_scope,
+    h1_assert_in_scope,
+    h1_list_my_reports,
+    h1_submit_report,
 ]
 
 # Offensive validation tools (BAS/Purple Team/Detection as Code)
