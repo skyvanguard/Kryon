@@ -1,0 +1,242 @@
+# ---------------------------------------------------------------------------
+# CWE → Regulatory Framework mapping (F59)
+# ---------------------------------------------------------------------------
+# Each top-25 web/app CWE mapped to the specific controls it violates in
+# PCI-DSS 4.0, SWIFT CSCF 2024, and BCP Paraguay Res. 12/2021. Used by
+# the web-pentest probes to auto-tag every finding — an XSS finding
+# becomes "violates PCI-DSS 6.2.4, SWIFT CSCF 2.7, BCP VII" without the
+# operator needing to know the mappings.
+#
+# Schema:
+#   <cwe-id>:
+#     title:    short CWE title
+#     severity: default severity (overridable per-finding)
+#     pci_dss:  list of PCI-DSS 4.0 control numbers
+#     swift:    list of CSCF control numbers
+#     bcp_py:   list of BCP Res. 12/2021 section references
+#     owasp:    OWASP Top 10 2021 mapping
+# ---------------------------------------------------------------------------
+
+CWE-22:
+  title: "Path Traversal"
+  severity: HIGH
+  pci_dss: ["6.2.4", "6.4.2"]
+  swift: ["2.2", "2.7"]
+  bcp_py: ["VII"]
+  owasp: "A01:2021"
+
+CWE-78:
+  title: "OS Command Injection"
+  severity: CRITICAL
+  pci_dss: ["6.2.4", "6.5.1"]
+  swift: ["2.2", "2.7", "6.2"]
+  bcp_py: ["VII", "XVIII"]
+  owasp: "A03:2021"
+
+CWE-79:
+  title: "Cross-Site Scripting (XSS)"
+  severity: HIGH
+  pci_dss: ["6.2.4", "6.4.1"]
+  swift: ["2.7"]
+  bcp_py: ["VII"]
+  owasp: "A03:2021"
+
+CWE-89:
+  title: "SQL Injection"
+  severity: CRITICAL
+  pci_dss: ["6.2.4", "6.5.1"]
+  swift: ["2.7", "6.2"]
+  bcp_py: ["VII"]
+  owasp: "A03:2021"
+
+CWE-90:
+  title: "LDAP Injection"
+  severity: HIGH
+  pci_dss: ["6.2.4"]
+  swift: ["2.7"]
+  bcp_py: ["VII"]
+  owasp: "A03:2021"
+
+CWE-200:
+  title: "Exposure of Sensitive Information"
+  severity: MEDIUM
+  pci_dss: ["3.3.1", "3.4.1", "6.2.4"]
+  swift: ["6.4"]
+  bcp_py: ["VII"]
+  owasp: "A01:2021"
+
+CWE-209:
+  title: "Error Message Reveals Sensitive Info"
+  severity: LOW
+  pci_dss: ["6.2.4"]
+  swift: ["6.4"]
+  bcp_py: ["VII"]
+  owasp: "A04:2021"
+
+CWE-287:
+  title: "Improper Authentication"
+  severity: CRITICAL
+  pci_dss: ["8.3.1", "8.4.1", "8.4.2"]
+  swift: ["4.1", "4.2", "5.1"]
+  bcp_py: ["VII", "XXVI"]
+  owasp: "A07:2021"
+
+CWE-306:
+  title: "Missing Authentication for Critical Function"
+  severity: CRITICAL
+  pci_dss: ["8.3.1", "7.1"]
+  swift: ["4.2", "5.1"]
+  bcp_py: ["VII", "XXVI"]
+  owasp: "A07:2021"
+
+CWE-327:
+  title: "Use of Broken or Risky Cryptographic Algorithm"
+  severity: HIGH
+  pci_dss: ["3.5.1", "4.1", "4.2"]
+  swift: ["2.2", "2.7"]
+  bcp_py: ["VII"]
+  owasp: "A02:2021"
+
+CWE-347:
+  title: "Improper Verification of Cryptographic Signature"
+  severity: HIGH
+  pci_dss: ["3.5.1", "8.3.1"]
+  swift: ["4.2", "5.2"]
+  bcp_py: ["VII", "XXVI"]
+  owasp: "A02:2021"
+
+CWE-352:
+  title: "Cross-Site Request Forgery (CSRF)"
+  severity: MEDIUM
+  pci_dss: ["6.4.1"]
+  swift: ["2.7"]
+  bcp_py: ["VII"]
+  owasp: "A01:2021"
+
+CWE-384:
+  title: "Session Fixation"
+  severity: HIGH
+  pci_dss: ["8.2.1", "8.3.1"]
+  swift: ["4.2"]
+  bcp_py: ["VII", "XXVI"]
+  owasp: "A07:2021"
+
+CWE-434:
+  title: "Unrestricted File Upload"
+  severity: HIGH
+  pci_dss: ["6.2.4"]
+  swift: ["2.7", "6.2"]
+  bcp_py: ["VII"]
+  owasp: "A04:2021"
+
+CWE-476:
+  title: "NULL Pointer Dereference"
+  severity: MEDIUM
+  pci_dss: ["6.2.4"]
+  swift: ["2.7"]
+  bcp_py: []
+  owasp: "A04:2021"
+
+CWE-502:
+  title: "Deserialization of Untrusted Data"
+  severity: CRITICAL
+  pci_dss: ["6.2.4", "6.5.1"]
+  swift: ["2.7"]
+  bcp_py: ["VII"]
+  owasp: "A08:2021"
+
+CWE-522:
+  title: "Insufficiently Protected Credentials"
+  severity: HIGH
+  pci_dss: ["3.3.2", "8.3.1"]
+  swift: ["4.1", "4.2"]
+  bcp_py: ["VII", "XXVI"]
+  owasp: "A04:2021"
+
+CWE-523:
+  title: "Unprotected Transport of Credentials"
+  severity: HIGH
+  pci_dss: ["4.1", "4.2", "8.3.1"]
+  swift: ["2.7", "4.2"]
+  bcp_py: ["VII"]
+  owasp: "A02:2021"
+
+CWE-601:
+  title: "Open Redirect"
+  severity: MEDIUM
+  pci_dss: ["6.2.4"]
+  swift: ["2.7"]
+  bcp_py: []
+  owasp: "A01:2021"
+
+CWE-611:
+  title: "XML External Entity (XXE)"
+  severity: HIGH
+  pci_dss: ["6.2.4", "6.5.1"]
+  swift: ["2.7"]
+  bcp_py: ["VII"]
+  owasp: "A05:2021"
+
+CWE-639:
+  title: "Authorization Bypass Through User-Controlled Key (IDOR)"
+  severity: HIGH
+  pci_dss: ["7.1", "8.2.1"]
+  swift: ["5.1"]
+  bcp_py: ["VII", "XXVI"]
+  owasp: "A01:2021"
+
+CWE-732:
+  title: "Incorrect Permission Assignment for Critical Resource"
+  severity: MEDIUM
+  pci_dss: ["7.1", "10.3.1"]
+  swift: ["5.1", "6.3"]
+  bcp_py: ["VII", "XXVI"]
+  owasp: "A05:2021"
+
+CWE-770:
+  title: "Allocation of Resources Without Limits (DoS)"
+  severity: MEDIUM
+  pci_dss: ["1.3.1"]
+  swift: ["1.1"]
+  bcp_py: ["VII"]
+  owasp: "A04:2021"
+
+CWE-798:
+  title: "Use of Hardcoded Credentials"
+  severity: CRITICAL
+  pci_dss: ["8.3.1", "3.5.1"]
+  swift: ["4.1", "5.2"]
+  bcp_py: ["VII", "XXVI"]
+  owasp: "A07:2021"
+
+CWE-862:
+  title: "Missing Authorization"
+  severity: HIGH
+  pci_dss: ["7.1", "8.2.1"]
+  swift: ["5.1"]
+  bcp_py: ["VII", "XXVI"]
+  owasp: "A01:2021"
+
+CWE-863:
+  title: "Incorrect Authorization"
+  severity: HIGH
+  pci_dss: ["7.1"]
+  swift: ["5.1"]
+  bcp_py: ["VII", "XXVI"]
+  owasp: "A01:2021"
+
+CWE-918:
+  title: "Server-Side Request Forgery (SSRF)"
+  severity: HIGH
+  pci_dss: ["1.4.4", "6.2.4"]
+  swift: ["1.2", "2.7"]
+  bcp_py: ["VII", "XVIII"]
+  owasp: "A10:2021"
+
+CWE-1021:
+  title: "Clickjacking (UI Redress)"
+  severity: LOW
+  pci_dss: ["6.4.1"]
+  swift: ["2.7"]
+  bcp_py: []
+  owasp: "A05:2021"
