@@ -56,6 +56,10 @@ from kryon.tools.appsec.compliance_audit import (  # noqa: E402  (F15.2)
     generate_compliance_pdf,
     run_compliance_audit,
 )
+from kryon.tools.appsec.web_pentest_tool import (  # noqa: E402  (F63)
+    crawl_web_target,
+    run_web_pentest,
+)
 
 APPSEC_TOOLS = [
     semgrep_scan,
@@ -73,6 +77,9 @@ APPSEC_TOOLS = [
     # F15.2 — deterministic compliance auditor + PDF report
     run_compliance_audit,
     generate_compliance_pdf,
+    # F63 — LLM-activated web pentest (F50-F62 pipeline behind @function_tool)
+    run_web_pentest,
+    crawl_web_target,
 ]
 
 # Offensive validation tools (BAS/Purple Team/Detection as Code)
