@@ -1,0 +1,1214 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<title>Auditoría de cumplimiento integral — Kryon — pve01.bancodemo.com.py — 2026-04-20</title>
+<style>
+    @page { size: A4; margin: 18mm 14mm 22mm 14mm;
+            @bottom-center {
+                content: "PCI-DSS v4 Compliance Audit — page " counter(page) " / " counter(pages);
+                font-size: 8pt; color: #666;
+            }
+            @bottom-left { content: "e6af4964f51dab1f..."; font-size: 7pt; color: #999; font-family: monospace; }
+    }
+    body { font-family: "Helvetica Neue", Arial, sans-serif; color: #222; font-size: 10.5pt; line-height: 1.4; }
+    h1 { font-size: 22pt; margin: 0 0 4pt 0; }
+    h2 { font-size: 14pt; margin: 18pt 0 6pt 0; border-bottom: 1px solid #ccc; padding-bottom: 2pt; }
+    h3 { font-size: 11pt; margin: 12pt 0 4pt 0; }
+    .cover-meta { color: #666; font-size: 9.5pt; margin-bottom: 14pt; }
+    .repro-hash { font-family: monospace; font-size: 8.5pt; color: #555; word-break: break-all; }
+    .summary-table { border-collapse: collapse; width: 100%; margin: 8pt 0 12pt 0; font-size: 10pt; }
+    .summary-table th, .summary-table td { border: 1px solid #ddd; padding: 5pt 7pt; text-align: left; }
+    .summary-table th { background: #f2f2f2; font-weight: 600; }
+    .verdict-badge { display: inline-block; padding: 1pt 7pt; border-radius: 3pt; color: #fff; font-weight: 700; font-size: 9.5pt; letter-spacing: 0.4pt; }
+    .finding-card { page-break-inside: avoid; border: 1px solid #ccc; border-left: 4pt solid #c1272d; border-radius: 3pt; margin: 10pt 0; padding: 8pt 10pt; }
+    .finding-card.verdict-PASS { border-left-color: #2a9d3a; }
+    .finding-card.verdict-NA   { border-left-color: #8a8a8a; }
+    .finding-card.verdict-ERROR { border-left-color: #d19500; }
+    .finding-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4pt; }
+    .finding-title { font-weight: 700; }
+    .finding-meta { font-size: 9pt; color: #666; margin-bottom: 6pt; }
+    .section-block { margin: 6pt 0; }
+    .section-label { font-weight: 600; font-size: 9.5pt; color: #333; display: block; margin-bottom: 2pt; }
+    /* Deterministic audit block — default styling, plain */
+    .det-block { background: #fafafa; border: 1px solid #e0e0e0; padding: 6pt 8pt; font-size: 9.5pt; border-radius: 2pt; }
+    .det-block code { font-family: "Consolas", "Courier New", monospace; font-size: 9pt; }
+    /* LLM narrative block — visually distinct + watermark */
+    .llm-block { background: #fff8e5; border: 1px dashed #e0a500; padding: 6pt 8pt; border-radius: 2pt; position: relative; font-size: 9.8pt; font-style: italic; margin: 4pt 0; }
+    .llm-watermark { display: inline-block; background: #e0a500; color: #fff; font-size: 8pt; padding: 1pt 5pt; border-radius: 2pt; font-weight: 700; letter-spacing: 0.6pt; font-style: normal; margin-right: 6pt; text-transform: uppercase; }
+    .separator-notice { background: #fff4d5; border-left: 3pt solid #e0a500; padding: 6pt 10pt; font-size: 9.5pt; margin: 10pt 0; }
+    pre.evidence { background: #1e1e1e; color: #e8e8e8; font-family: "Consolas", monospace; font-size: 8.5pt; padding: 6pt 8pt; border-radius: 2pt; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 160pt; }
+    .appendix h2 { margin-top: 24pt; }
+    .footer-note { font-size: 8.5pt; color: #777; margin-top: 20pt; border-top: 1px solid #eee; padding-top: 6pt; }
+    
+.risk-banner {
+  display:inline-block; padding:4pt 10pt; border-radius:4pt;
+  color:#fff; font-weight:700; font-size:10pt; background:#c1272d;
+}
+.bilingual-block {
+  background:#f7f7f0; border-left:3pt solid #666; padding:8pt 12pt;
+  margin:10pt 0; font-size:9pt; color:#444;
+}
+.bilingual-block .en-label {
+  display:inline-block; background:#222; color:#fff; padding:1pt 6pt;
+  border-radius:2pt; font-size:7pt; font-weight:700; margin-right:6pt;
+}
+</style>
+</head><body>
+
+<h1>Auditoría de cumplimiento integral — Kryon</h1>
+<div class="cover-meta">
+  Cliente: <strong>Banco Demo Paraguay S.A.</strong> · Host: <strong>pve01.bancodemo.com.py</strong> ·
+  Fecha / Date: 2026-04-20 14:58 ·
+  Alcance: PCI-DSS + Proxmox VE + Active Directory
+</div>
+<div class="cover-meta">
+  Riesgo agregado / Overall risk:
+  <span class="risk-banner">CRÍTICO</span>
+</div>
+<div class="repro-hash">Hash reproducibilidad / Reproducibility hash: e6af4964f51dab1f770203f4b3716974506fc82b5430d424f7552279399a3ed8</div>
+
+<div class="separator-notice">
+  <strong>Separación de responsabilidades / Separation of duties:</strong>
+  los <em>veredictos</em> (PASS/FAIL/N/A/ERROR) y la <em>evidencia</em>
+  (comando ejecutado + output raw) provienen de motores determinísticos
+  reproducibles. Las secciones marcadas
+  <span style="background:#e0a500;color:#fff;padding:1pt 4pt;border-radius:2pt;font-size:8pt;font-weight:700;">LLM NARRATIVA</span>
+  son prosa explicativa generada por modelo de lenguaje y no modifican los
+  veredictos ni la evidencia. Para defensibilidad regulatoria, el auditor
+  debe basarse en la evidencia determinística.
+</div>
+
+<h2>Resumen ejecutivo</h2>
+<p>Se ejecutaron <strong>22</strong> controles sobre el host.
+Resultados: <strong style="color:#c1272d">12 FAIL</strong>,
+<strong style="color:#2a9d3a">9 PASS</strong>,
+0 N/A, 1 ERROR.
+Nivel de riesgo agregado: <strong style="color:#c1272d">CRÍTICO</strong>.</p>
+
+<div class="bilingual-block">
+  <span class="en-label">EN</span>
+  <strong>Executive summary.</strong>
+  22 controls executed on the host. Results:
+  <strong style="color:#c1272d">12 FAIL</strong>,
+  <strong style="color:#2a9d3a">9 PASS</strong>,
+  0 N/A, 1 ERROR. Overall risk:
+  <strong style="color:#c1272d">CRÍTICO</strong>.
+  Framework: Kryon Full Compliance Audit. Scope: PCI-DSS + Proxmox VE + Active Directory.
+</div>
+
+<table class="summary-table"><thead><tr><th>Control</th><th>Título</th><th>Sección</th><th>Veredicto</th><th>Severidad</th></tr></thead><tbody><tr><td><code>2.2.7</code></td><td>SSH non-console admin encryption (key-only, no root)</td><td>2</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>CRITICAL</td></tr><tr><td><code>AD-2.1</code></td><td>No kerberoastable accounts with weak/stale passwords</td><td>2</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>CRITICAL</td></tr><tr><td><code>AD-2.2</code></td><td>krbtgt password rotated within last 180 days</td><td>2</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>CRITICAL</td></tr><tr><td><code>PVE-2.1</code></td><td>SSH allows only key-based, non-root authentication</td><td>2</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>CRITICAL</td></tr><tr><td><code>PVE-3.1</code></td><td>Multi-factor auth enforced for privileged Proxmox users</td><td>3</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>CRITICAL</td></tr><tr><td><code>AD-1.1</code></td><td>LDAP signing enforced (rejects unsigned binds on 389/tcp)</td><td>1</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>HIGH</td></tr><tr><td><code>PVE-1.1</code></td><td>Web UI SSL certificate is CA-signed and not expired</td><td>1</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>HIGH</td></tr><tr><td><code>AD-3.1</code></td><td>Domain Admins group has &lt;= 5 active members</td><td>3</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>HIGH</td></tr><tr><td><code>PVE-3.2</code></td><td>Proxmox API tokens follow least-privilege + expiry</td><td>3</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>HIGH</td></tr><tr><td><code>6.3.3</code></td><td>Security patches applied within 30 days</td><td>6</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>HIGH</td></tr><tr><td><code>PVE-5.1</code></td><td>Proxmox version is supported and security patches applied</td><td>5</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>MEDIUM</td></tr><tr><td><code>6.4.1</code></td><td>Public web app protection headers (HSTS/CSP/XFO/XCTO)</td><td>6</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>MEDIUM</td></tr><tr><td><code>AD-5.1</code></td><td>Critical AD audit events logged and forwarded to SIEM</td><td>5</td><td><span class="verdict-badge" style="background:#d19500">ERROR</span></td><td>HIGH</td></tr><tr><td><code>PVE-1.2</code></td><td>Privileged API endpoints require authentication</td><td>1</td><td><span class="verdict-badge" style="background:#2a9d3a">PASS</span></td><td>CRITICAL</td></tr><tr><td><code>AD-4.1</code></td><td>SMB signing required on 445/tcp (mitigates NTLM relay)</td><td>4</td><td><span class="verdict-badge" style="background:#2a9d3a">PASS</span></td><td>CRITICAL</td></tr><tr><td><code>AD-1.2</code></td><td>LDAPS (636/tcp) available with valid CA-signed cert</td><td>1</td><td><span class="verdict-badge" style="background:#2a9d3a">PASS</span></td><td>HIGH</td></tr><tr><td><code>AD-1.3</code></td><td>Anonymous LDAP bind is rejected (no enumeration)</td><td>1</td><td><span class="verdict-badge" style="background:#2a9d3a">PASS</span></td><td>HIGH</td></tr><tr><td><code>10.2.1</code></td><td>Audit trails active for privileged actions</td><td>10</td><td><span class="verdict-badge" style="background:#2a9d3a">PASS</span></td><td>HIGH</td></tr><tr><td><code>2.2.2</code></td><td>Vendor default accounts disabled or secured</td><td>2</td><td><span class="verdict-badge" style="background:#2a9d3a">PASS</span></td><td>HIGH</td></tr><tr><td><code>AD-3.2</code></td><td>Domain password policy meets banking minimums (&gt;=12 / complex / lockout)</td><td>3</td><td><span class="verdict-badge" style="background:#2a9d3a">PASS</span></td><td>HIGH</td></tr><tr><td><code>PVE-4.1</code></td><td>Datacenter firewall enabled with default-deny ingress</td><td>4</td><td><span class="verdict-badge" style="background:#2a9d3a">PASS</span></td><td>HIGH</td></tr><tr><td><code>8.3.6</code></td><td>Minimum password complexity (&gt;=12, mixed classes)</td><td>8</td><td><span class="verdict-badge" style="background:#2a9d3a">PASS</span></td><td>HIGH</td></tr></tbody></table>
+
+<h2>Hallazgos / Findings</h2>
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI 2.2.7 — SSH non-console admin encryption (key-only, no root)</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 2 · Severidad CRITICAL · Host pve01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>sshd -T | grep -E &#x27;permitrootlogin|passwordauthentication&#x27;</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;PermitRootLogin&quot;: &quot;yes&quot;,
+  &quot;PasswordAuthentication&quot;: &quot;yes&quot;,
+  &quot;issues&quot;: [
+    &quot;PermitRootLogin=yes (should be no)&quot;,
+    &quot;PasswordAuthentication=yes (should be no)&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Edit /etc/ssh/sshd_config: PermitRootLogin no, PasswordAuthentication no. Validate sudo+key auth works for a non-root admin account BEFORE restarting sshd.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI AD-2.1 — No kerberoastable accounts with weak/stale passwords</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 2 · Severidad CRITICAL · Host dc01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>ldapsearch -x &#x27;...(servicePrincipalName=*)...&#x27; sAMAccountName</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;kerberoastable_count&quot;: 3,
+  &quot;accounts&quot;: [
+    &quot;svc_backup&quot;,
+    &quot;svc_oracle&quot;,
+    &quot;svc_temenos&quot;
+  ],
+  &quot;issues&quot;: [
+    &quot;3 active user account(s) with SPN (kerberoastable)&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Rotate each SPN-holder account password to &gt;=25 random chars. Best path: migrate to Group Managed Service Accounts (gMSA):
+  New-ADServiceAccount -Name svc_oracle -DNSHostName oracle.bank.local
+gMSAs auto-rotate every 30 days — kerberoasting yields nothing useful.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI AD-2.2 — krbtgt password rotated within last 180 days</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 2 · Severidad CRITICAL · Host dc01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>ldapsearch &#x27;(sAMAccountName=krbtgt)&#x27; pwdLastSet msDS-KeyVersionNumber</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;last_changed_utc&quot;: &quot;2024-02-10T09:15:32+00:00&quot;,
+  &quot;age_days&quot;: 423,
+  &quot;kvn&quot;: &quot;2&quot;,
+  &quot;issues&quot;: [
+    &quot;krbtgt password is 423 days old (&gt;180)&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Download Microsoft New-KrbtgtKeys.ps1. Run it TWICE with 10h between runs to invalidate cached tickets. Schedule semiannual. This is critical: a leaked krbtgt hash = Golden Ticket forever.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>La cuenta krbtgt — que firma todos los tickets Kerberos del dominio — tiene su contraseña sin rotar hace 423 días. Si un atacante obtiene el hash de krbtgt (por compromiso previo, copias de NTDS, o dump de memoria en un DC), puede forjar &#x27;Golden Tickets&#x27; con validez de 10 años que le dan acceso persistente indetectable por los logs normales.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>Microsoft publica el script New-KrbtgtKeys.ps1 para rotación segura. Debe ejecutarse DOS veces con 10 horas entre corridas, para invalidar los tickets emitidos previamente. Esta rotación es una operación rutinaria en entornos bancarios y debe agendarse semestralmente como política.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI PVE-2.1 — SSH allows only key-based, non-root authentication</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 2 · Severidad CRITICAL · Host pve01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>sshd -T | grep -E &#x27;permitrootlogin|passwordauth&#x27;</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;PermitRootLogin&quot;: &quot;yes&quot;,
+  &quot;PasswordAuthentication&quot;: &quot;yes&quot;,
+  &quot;issues&quot;: [
+    &quot;PermitRootLogin=yes (should be no)&quot;,
+    &quot;PasswordAuthentication=yes (should be no)&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">See PCI-DSS 2.2.7 — identical SSH hardening steps.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El servidor Proxmox permite iniciar sesión SSH directamente como root con contraseña. En términos bancarios, esto significa que un atacante con acceso a la red de administración solo necesita adivinar una contraseña para tomar control total del hipervisor. Toda la infraestructura virtualizada (core-banking, AD, bases de datos) corre sobre este hipervisor.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>Se recomienda deshabilitar el login directo de root y forzar autenticación por llave SSH. Previamente, validar que existe una cuenta de administrador con sudo y llave funcional. El cambio requiere una ventana de mantenimiento de 15 minutos y es reversible desde la consola física.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI PVE-3.1 — Multi-factor auth enforced for privileged Proxmox users</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 3 · Severidad CRITICAL · Host pve01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>cat /etc/pve/domains.cfg ; cat /etc/pve/user.cfg</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;realm_tfa&quot;: {
+    &quot;pam&quot;: false,
+    &quot;pve&quot;: false
+  },
+  &quot;admin_users_no_tfa&quot;: [
+    &quot;root@pam&quot;,
+    &quot;admin@pam&quot;,
+    &quot;ops@pve&quot;
+  ],
+  &quot;issues&quot;: [
+    &quot;realm &#x27;pam&#x27; has no default-tfa&quot;,
+    &quot;realm &#x27;pve&#x27; has no default-tfa&quot;,
+    &quot;3 privileged users without TFA: root@pam, admin@pam, ops@pve&quot;,
+    &quot;root@pam has no TFA binding&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Web UI → Datacenter → Realm → edit &#x27;pam&#x27; → Default TFA: TOTP. Then per-user: enroll each admin via Web UI → Username → TFA. Enforce root@pam first. Banking regulatory: SIB Resolución 06/2020 art.15.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>Tres cuentas administrativas del hipervisor (incluida root) no tienen configurado segundo factor de autenticación. En el marco regulatorio de la SIB (Resolución 06/2020 art.15) y PCI-DSS 8.4, el MFA para accesos privilegiados no es opcional: es requisito auditable.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>Activar TFA por realm (PAM y PVE) como default. Enrolar cada administrador individualmente via el panel web. Priorizar root@pam antes que los demás. Mantener un token de respaldo guardado en bóveda física para contingencia.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI AD-1.1 — LDAP signing enforced (rejects unsigned binds on 389/tcp)</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 1 · Severidad HIGH · Host dc01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>ldapsearch -x -H ldap://dc01:389 -D &#x27;auditor@BANK.LOCAL&#x27; -w *** -b &#x27;&#x27; -s base namingContexts</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;simple_bind&quot;: &quot;succeeded&quot;,
+  &quot;issues&quot;: [
+    &quot;Simple bind on 389 succeeded — LDAP signing NOT enforced&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">GPO → Domain Controller Policy → &#x27;Domain controller: LDAP server signing requirements&#x27; = Require signing. Registry: NTDS\Parameters\LDAPServerIntegrity=2. Audit legacy apps first — unsigned clients break.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI PVE-1.1 — Web UI SSL certificate is CA-signed and not expired</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 1 · Severidad HIGH · Host pve01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>openssl x509 -in /etc/pve/local/pve-ssl.pem -subject -issuer</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;subject&quot;: &quot;CN=pve01.bancodemo.com.py&quot;,
+  &quot;issuer&quot;: &quot;CN=pve01.bancodemo.com.py&quot;,
+  &quot;self_signed&quot;: true,
+  &quot;days_to_expiry&quot;: 211,
+  &quot;issues&quot;: [
+    &quot;Certificate is self-signed (subject == issuer)&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Replace with CA-signed cert. Via Web UI → Datacenter → Certificates → Upload Custom. CLI: `pvenode cert set --force &lt;cert.pem&gt; &lt;key.pem&gt;`. Use RSA &gt;= 2048 or ECDSA P-256.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI AD-3.1 — Domain Admins group has &lt;= 5 active members</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 3 · Severidad HIGH · Host dc01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>ldapsearch -b &#x27;CN=Domain Admins,CN=Users,DC=BANK,DC=LOCAL&#x27; member</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;member_count&quot;: 18,
+  &quot;threshold&quot;: 5,
+  &quot;members_sample&quot;: [
+    &quot;CN=Administrator&quot;,
+    &quot;CN=John Doe (IT Infra)&quot;,
+    &quot;CN=Jane Roe (retired 2023)&quot;,
+    &quot;CN=svc_deployment&quot;,
+    &quot;CN=Support Console 1&quot;,
+    &quot;CN=Support Console 2&quot;,
+    &quot;CN=Maria Lopez (contractor)&quot;,
+    &quot;CN=ADMIN_TEMP_Q1&quot;
+  ],
+  &quot;issues&quot;: [
+    &quot;Domain Admins has 18 members (threshold 5)&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Remove stale members (retired employees, legacy temp accounts, ended contractors). Implement JIT admin: PAM solution or Microsoft AAM. Target: &lt;=5 permanent DAs. Audit DA monthly.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El grupo &#x27;Domain Admins&#x27; contiene 18 miembros, incluyendo cuentas de ex-empleados y contratistas cuyo engagement ya terminó. Cada miembro es equivalente a root en todo el dominio: comprometer una sola de esas cuentas equivale a comprometer toda la infraestructura Windows del banco.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>Revisar la lista completa con el equipo de RR.HH. y remover inmediatamente cualquier cuenta de persona que ya no trabaja en el banco. Para los administradores vigentes, migrar a un modelo Just-In-Time (PAM): los privilegios se conceden por tiempo limitado, solo cuando el admin los solicita y quedan auditados. Meta operativa: máximo 5 DAs permanentes.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI PVE-3.2 — Proxmox API tokens follow least-privilege + expiry</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 3 · Severidad HIGH · Host pve01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>stat -c &#x27;%a %U %G&#x27; /etc/pve/priv/token.cfg ; cat /etc/pve/priv/token.cfg</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;mode&quot;: &quot;644&quot;,
+  &quot;tokens_total&quot;: 2,
+  &quot;tokens_no_expiry&quot;: 2,
+  &quot;tokens_root_pam&quot;: 2,
+  &quot;tokens_privsep_off&quot;: 2,
+  &quot;issues&quot;: [
+    &quot;token.cfg world-permissions != 0 (mode 644)&quot;,
+    &quot;2 token(s) with no expiry&quot;,
+    &quot;2 token(s) bound to root@pam&quot;,
+    &quot;2 token(s) with privsep=0 (inherits full perms)&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">chmod 640 root:www-data /etc/pve/priv/token.cfg. Migrate automation to a dedicated non-root user:
+  pveum user add ci@pve --password $(pwgen -s 32 1)
+  pveum user token add ci@pve ops --privsep 1 --expire $(date -d &#x27;+1 year&#x27; +%s)
+Rotate tokens yearly.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI 6.3.3 — Security patches applied within 30 days</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 6 · Severidad HIGH · Host pve01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>apt-get -s upgrade | grep -c &#x27;^Inst &#x27;</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;pending_security_updates&quot;: 15,
+  &quot;oldest_pending_days&quot;: 47
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Run `apt update &amp;&amp; apt dist-upgrade` on a maintenance window. Subscribe to Debian security announcements and apply within 30 days per PCI-DSS 6.3.3.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI PVE-5.1 — Proxmox version is supported and security patches applied</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 5 · Severidad MEDIUM · Host pve01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>pveversion --verbose ; apt-get -s upgrade | grep -c &#x27;^Inst &#x27;</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;version&quot;: &quot;8.1.4&quot;,
+  &quot;pending_upgrades&quot;: 42,
+  &quot;issues&quot;: [
+    &quot;42 package upgrades pending&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Run `apt update &amp;&amp; apt dist-upgrade -y` on maintenance window. Use pve-enterprise repo in prod (requires subscription).</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI 6.4.1 — Public web app protection headers (HSTS/CSP/XFO/XCTO)</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 6 · Severidad MEDIUM · Host pve01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>curl -skI https://banca.bancodemo.com.py/ | head -15</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;HSTS&quot;: null,
+  &quot;CSP&quot;: null,
+  &quot;X-Frame-Options&quot;: null,
+  &quot;X-Content-Type-Options&quot;: null,
+  &quot;missing&quot;: [
+    &quot;Strict-Transport-Security&quot;,
+    &quot;Content-Security-Policy&quot;,
+    &quot;X-Frame-Options&quot;,
+    &quot;X-Content-Type-Options&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Add in nginx server block:
+  add_header Strict-Transport-Security &quot;max-age=31536000; includeSubDomains&quot; always;
+  add_header Content-Security-Policy &quot;default-src &#x27;self&#x27;&quot; always;
+  add_header X-Frame-Options DENY always;
+  add_header X-Content-Type-Options nosniff always;</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-ERROR">
+      <div class="finding-head">
+        <span class="finding-title">PCI AD-5.1 — Critical AD audit events logged and forwarded to SIEM</span>
+        <span class="verdict-badge" style="background:#d19500">ERROR</span>
+      </div>
+      <div class="finding-meta">Sección 5 · Severidad HIGH · Host dc01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>nmap -Pn -p 5985,5986 dc01 ; rpcclient -U ... -c srvinfo dc01</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;winrm_listening&quot;: false,
+  &quot;rpc_reachable&quot;: false,
+  &quot;note&quot;: &quot;Event forwarding presence could not be verified remotely — requires on-DC script.&quot;,
+  &quot;issues&quot;: [
+    &quot;WinRM (5985/5986) not reachable — Event Forwarding to SIEM unlikely&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Enable Windows Event Collector + WEF subscription. Advanced Audit Policy Configuration → enable Logon, Kerberos, DS Access, Account Management (all Success+Failure). Forward to Splunk/Wazuh via WEF.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-PASS">
+      <div class="finding-head">
+        <span class="finding-title">PCI PVE-1.2 — Privileged API endpoints require authentication</span>
+        <span class="verdict-badge" style="background:#2a9d3a">PASS</span>
+      </div>
+      <div class="finding-meta">Sección 1 · Severidad CRITICAL · Host pve01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>curl -sk -o /dev/null -w &#x27;%{http_code}&#x27; https://127.0.0.1:8006/api2/json/nodes</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;endpoints&quot;: {
+    &quot;/api2/json/version&quot;: &quot;200&quot;,
+    &quot;/api2/json/nodes&quot;: &quot;401&quot;,
+    &quot;/api2/json/cluster/status&quot;: &quot;401&quot;,
+    &quot;/api2/json/access/users&quot;: &quot;401&quot;
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Already compliant — privileged endpoints require auth. Keep monitoring.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-PASS">
+      <div class="finding-head">
+        <span class="finding-title">PCI AD-4.1 — SMB signing required on 445/tcp (mitigates NTLM relay)</span>
+        <span class="verdict-badge" style="background:#2a9d3a">PASS</span>
+      </div>
+      <div class="finding-meta">Sección 4 · Severidad CRITICAL · Host dc01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>nmap -Pn -p 445 --script smb2-security-mode dc01</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;message_signing&quot;: &quot;required&quot;
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Already compliant. Also enable on member servers.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-PASS">
+      <div class="finding-head">
+        <span class="finding-title">PCI AD-1.2 — LDAPS (636/tcp) available with valid CA-signed cert</span>
+        <span class="verdict-badge" style="background:#2a9d3a">PASS</span>
+      </div>
+      <div class="finding-meta">Sección 1 · Severidad HIGH · Host dc01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>echo | openssl s_client -connect dc01:636 -servername dc01 -showcerts</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;subject&quot;: &quot;CN=dc01.bancodemo.com.py&quot;,
+  &quot;issuer&quot;: &quot;CN=BANK-CORP-CA&quot;,
+  &quot;days_to_expiry&quot;: 312
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Already compliant. Keep auto-enrollment via GPO in place.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-PASS">
+      <div class="finding-head">
+        <span class="finding-title">PCI AD-1.3 — Anonymous LDAP bind is rejected (no enumeration)</span>
+        <span class="verdict-badge" style="background:#2a9d3a">PASS</span>
+      </div>
+      <div class="finding-meta">Sección 1 · Severidad HIGH · Host dc01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>ldapsearch -x -H ldap://dc01:389 -b &#x27;&#x27; -s base</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;anonymous_bind_accepted&quot;: false
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Already compliant. Maintain dsHeuristics setting in config.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-PASS">
+      <div class="finding-head">
+        <span class="finding-title">PCI 10.2.1 — Audit trails active for privileged actions</span>
+        <span class="verdict-badge" style="background:#2a9d3a">PASS</span>
+      </div>
+      <div class="finding-meta">Sección 10 · Severidad HIGH · Host pve01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>systemctl is-active auditd ; ls /etc/audit/rules.d/</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;auditd_active&quot;: true,
+  &quot;pci_rules_loaded&quot;: true
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Already compliant — verify forwarding to SIEM is also configured (not in scope of this check).</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-PASS">
+      <div class="finding-head">
+        <span class="finding-title">PCI 2.2.2 — Vendor default accounts disabled or secured</span>
+        <span class="verdict-badge" style="background:#2a9d3a">PASS</span>
+      </div>
+      <div class="finding-meta">Sección 2 · Severidad HIGH · Host pve01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>getent shadow | awk -F: &#x27;$2 == &quot;&quot; || $2 == &quot;*&quot;&#x27; ; mysql -e &#x27;SELECT User FROM mysql.user WHERE authentication_string=&quot;&quot;&#x27;</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;empty_shadow_entries&quot;: 0,
+  &quot;default_mysql_accounts&quot;: 0
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Maintain policy: disable every vendor-default account at provisioning time; rotate root DB passwords on install.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-PASS">
+      <div class="finding-head">
+        <span class="finding-title">PCI AD-3.2 — Domain password policy meets banking minimums (&gt;=12 / complex / lockout)</span>
+        <span class="verdict-badge" style="background:#2a9d3a">PASS</span>
+      </div>
+      <div class="finding-meta">Sección 3 · Severidad HIGH · Host dc01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>ldapsearch -b &#x27;DC=BANK,DC=LOCAL&#x27; -s base minPwdLength pwdProperties pwdHistoryLength lockoutThreshold</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;minPwdLength&quot;: 12,
+  &quot;pwdProperties&quot;: 1,
+  &quot;pwdHistoryLength&quot;: 24,
+  &quot;lockoutThreshold&quot;: 10,
+  &quot;maxPwdAge_days&quot;: 90
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Already compliant with banking baseline. Review at annual policy cycle.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-PASS">
+      <div class="finding-head">
+        <span class="finding-title">PCI PVE-4.1 — Datacenter firewall enabled with default-deny ingress</span>
+        <span class="verdict-badge" style="background:#2a9d3a">PASS</span>
+      </div>
+      <div class="finding-meta">Sección 4 · Severidad HIGH · Host pve01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>pve-firewall status ; cat /etc/pve/firewall/cluster.fw</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;status&quot;: &quot;enabled/running&quot;,
+  &quot;enable&quot;: &quot;1&quot;,
+  &quot;policy_in&quot;: &quot;DROP&quot;
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Already compliant. Review per-VM rulesets quarterly.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+    <div class="finding-card verdict-PASS">
+      <div class="finding-head">
+        <span class="finding-title">PCI 8.3.6 — Minimum password complexity (&gt;=12, mixed classes)</span>
+        <span class="verdict-badge" style="background:#2a9d3a">PASS</span>
+      </div>
+      <div class="finding-meta">Sección 8 · Severidad HIGH · Host pve01.bancodemo.com.py</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>grep -E &#x27;minlen|minclass&#x27; /etc/security/pwquality.conf</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;minlen&quot;: 12,
+  &quot;minclass&quot;: 3
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Already compliant — keep pwquality.conf under config management.</div>
+      </div>
+
+      
+      
+    </div>
+    
+
+<div class="appendix">
+<h2>Apéndice A — Evidencia cruda / Appendix A — Raw evidence</h2>
+<p>Comandos ejecutados y output stdout/stderr sin procesar. Permite
+reproducir manualmente cada hallazgo / Commands executed and raw
+stdout/stderr, enabling manual reproduction of every finding.</p>
+
+    <h3>PCI 2.2.7 — SSH non-console admin encryption (key-only, no root)</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">sshd -T | grep -E &#x27;permitrootlogin|passwordauthentication&#x27;</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">permitrootlogin yes
+passwordauthentication yes</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI AD-2.1 — No kerberoastable accounts with weak/stale passwords</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">ldapsearch -x &#x27;...(servicePrincipalName=*)...&#x27; sAMAccountName</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">dn: CN=svc_oracle,...
+sAMAccountName: svc_oracle
+
+dn: CN=svc_backup,...
+sAMAccountName: svc_backup
+
+dn: CN=svc_temenos,...
+sAMAccountName: svc_temenos</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI AD-2.2 — krbtgt password rotated within last 180 days</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">ldapsearch &#x27;(sAMAccountName=krbtgt)&#x27; pwdLastSet msDS-KeyVersionNumber</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">pwdLastSet: 132876543210000000
+msDS-KeyVersionNumber: 2</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI PVE-2.1 — SSH allows only key-based, non-root authentication</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">sshd -T | grep -E &#x27;permitrootlogin|passwordauth&#x27;</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">permitrootlogin yes
+passwordauthentication yes</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI PVE-3.1 — Multi-factor auth enforced for privileged Proxmox users</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">cat /etc/pve/domains.cfg ; cat /etc/pve/user.cfg</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">pam: pam
+
+pve: pve
+
+user:root@pam:1:...:
+user:admin@pam:1:...:
+user:ops@pve:1:...:</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI AD-1.1 — LDAP signing enforced (rejects unsigned binds on 389/tcp)</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">ldapsearch -x -H ldap://dc01:389 -D &#x27;auditor@BANK.LOCAL&#x27; -w *** -b &#x27;&#x27; -s base namingContexts</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">result: 0 Success
+namingContexts: DC=BANK,DC=LOCAL</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI PVE-1.1 — Web UI SSL certificate is CA-signed and not expired</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">openssl x509 -in /etc/pve/local/pve-ssl.pem -subject -issuer</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">subject=CN=pve01.bancodemo.com.py
+issuer=CN=pve01.bancodemo.com.py</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI AD-3.1 — Domain Admins group has &lt;= 5 active members</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">ldapsearch -b &#x27;CN=Domain Admins,CN=Users,DC=BANK,DC=LOCAL&#x27; member</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">(18 members — truncated)</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI PVE-3.2 — Proxmox API tokens follow least-privilege + expiry</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">stat -c &#x27;%a %U %G&#x27; /etc/pve/priv/token.cfg ; cat /etc/pve/priv/token.cfg</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">644 root www-data
+root@pam!backup:0:0:automated nightly backups:
+root@pam!monitoring:0:0:zabbix integration:</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI 6.3.3 — Security patches applied within 30 days</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">apt-get -s upgrade | grep -c &#x27;^Inst &#x27;</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">15</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI PVE-5.1 — Proxmox version is supported and security patches applied</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">pveversion --verbose ; apt-get -s upgrade | grep -c &#x27;^Inst &#x27;</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">pve-manager/8.1.4/ec5affc9e41f1d79
+42</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI 6.4.1 — Public web app protection headers (HSTS/CSP/XFO/XCTO)</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">curl -skI https://banca.bancodemo.com.py/ | head -15</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">HTTP/2 200
+server: nginx/1.18.0
+content-type: text/html</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI AD-5.1 — Critical AD audit events logged and forwarded to SIEM</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">nmap -Pn -p 5985,5986 dc01 ; rpcclient -U ... -c srvinfo dc01</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">5985/tcp filtered http
+5986/tcp filtered https
+rpcclient: NT_STATUS_IO_TIMEOUT</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI PVE-1.2 — Privileged API endpoints require authentication</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">curl -sk -o /dev/null -w &#x27;%{http_code}&#x27; https://127.0.0.1:8006/api2/json/nodes</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">401</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI AD-4.1 — SMB signing required on 445/tcp (mitigates NTLM relay)</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">nmap -Pn -p 445 --script smb2-security-mode dc01</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">Message signing: required</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI AD-1.2 — LDAPS (636/tcp) available with valid CA-signed cert</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">echo | openssl s_client -connect dc01:636 -servername dc01 -showcerts</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">subject=CN=dc01.bancodemo.com.py
+issuer=CN=BANK-CORP-CA</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI AD-1.3 — Anonymous LDAP bind is rejected (no enumeration)</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">ldapsearch -x -H ldap://dc01:389 -b &#x27;&#x27; -s base</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">result: 1 Operations error
+000004DC: LdapErr: anonymous bind disallowed</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI 10.2.1 — Audit trails active for privileged actions</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">systemctl is-active auditd ; ls /etc/audit/rules.d/</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">active
+00-base.rules  30-pci-dss-v31.rules  99-finalize.rules</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI 2.2.2 — Vendor default accounts disabled or secured</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">getent shadow | awk -F: &#x27;$2 == &quot;&quot; || $2 == &quot;*&quot;&#x27; ; mysql -e &#x27;SELECT User FROM mysql.user WHERE authentication_string=&quot;&quot;&#x27;</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">(no empty-password accounts found)
+(mysql: no default creds)</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI AD-3.2 — Domain password policy meets banking minimums (&gt;=12 / complex / lockout)</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">ldapsearch -b &#x27;DC=BANK,DC=LOCAL&#x27; -s base minPwdLength pwdProperties pwdHistoryLength lockoutThreshold</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">minPwdLength: 12
+pwdProperties: 1
+pwdHistoryLength: 24
+lockoutThreshold: 10</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI PVE-4.1 — Datacenter firewall enabled with default-deny ingress</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">pve-firewall status ; cat /etc/pve/firewall/cluster.fw</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">Status: enabled/running
+enable: 1
+policy_in: DROP</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI 8.3.6 — Minimum password complexity (&gt;=12, mixed classes)</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">grep -E &#x27;minlen|minclass&#x27; /etc/security/pwquality.conf</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">minlen = 12
+minclass = 3</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+</div>
+
+<div class="footer-note">
+Este reporte se considera válido únicamente acompañado del artifact JSON cuyo
+SHA-256 coincide con <code>e6af4964f51dab1f770203f4b3716974...</code>. Cualquier
+modificación del JSON invalida este reporte. Generado por Kryon compliance
+engine.
+<br/>
+This report is valid only alongside the JSON artifact whose SHA-256 matches
+the hash above. Any modification to the JSON invalidates this report.
+</div>
+
+</body></html>
