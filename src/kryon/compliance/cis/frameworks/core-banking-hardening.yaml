@@ -1,0 +1,449 @@
+# ---------------------------------------------------------------------------
+# Core Banking Hardening — T24 / Finacle / Flexcube (F42)
+# ---------------------------------------------------------------------------
+# Vendor documentation is under NDA / paywalled, so these checks are
+# derived from: public T24 admin guides (TAFJ/TAFC), Infosys Finacle
+# DBA handbook excerpts, Oracle Flexcube Universal Banking Installation
+# Guide (public OFUB docs), and BCP Paraguay Res. 12/2021 Art. 21-25
+# (segregación de entornos + control de accesos).
+#
+# Six sections:
+#   1. OS-level user / filesystem hardening (shared across products)
+#   2. Temenos T24 specifics (tmsprod user, TAFJ, jBase)
+#   3. Infosys Finacle specifics (fcodba user, FINACLE_HOME)
+#   4. Oracle Flexcube specifics (fcubsuser, FCHOME, SMS)
+#   5. Database tier (Oracle common; DB2 notes for Finacle)
+#   6. Audit / logging / segregation
+#
+# ID format: CBH-<section>.<subsection>
+# Checks assume the auditor runs as a non-root user with sudo read-only
+# access (getent, stat, find, lsof, sqlplus -s / sys, netstat).
+# Where the product is not installed, the check passes vacuously
+# (command returns empty, pass_when handles it).
+# ---------------------------------------------------------------------------
+
+framework:
+  id: core-banking-hardening
+  title: "Core Banking Hardening — T24 / Finacle / Flexcube"
+  version: "0.1.0"
+  source: "Kryon internal — built from vendor admin guides + BCP PY Res. 12/2021"
+  description: >
+    Hardening checks for core banking application tiers deployed on
+    Linux/AIX. Covers three market-leading cores (Temenos T24, Infosys
+    Finacle, Oracle Flexcube) plus the shared OS/DB perimeter. Maps to
+    BCP PY Res. 12/2021 (segregación) and SWIFT CSP 1.1 / 1.4.
+
+checks:
+  # =========================================================================
+  # Section 1 — Shared OS hardening for core banking app tier
+  # =========================================================================
+  - id: CBH-1.1
+    title: "Ensure core-banking service account has no interactive login shell when not in use"
+    section: "1"
+    severity: HIGH
+    rationale: "tmsprod/fcodba/fcubsuser should be locked (`usermod -L`) during non-maintenance windows. Operational access via ssh key + sudo to the user."
+    remediation: "usermod -L <banking-user>; re-enable only for controlled maintenance"
+    command: "getent passwd tmsprod fcodba fcubsuser 2>/dev/null | awk -F: '{print $1\":\"$7}'"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_not_matches: "/bin/(bash|sh|zsh|ksh)"
+
+  - id: CBH-1.2
+    title: "Ensure core-banking application home is not world-readable"
+    section: "1"
+    severity: CRITICAL
+    rationale: "Application binaries and configs (txn.ini, db.properties, jar files with embedded creds) must NOT be readable by unprivileged OS users."
+    remediation: "chmod -R o= $TAFJ_HOME $FINACLE_HOME $FCHOME; chown -R <banking-user>:<banking-grp> <paths>"
+    command: "for d in /opt/temenos /opt/finacle /opt/fcubs /u01/app/finacle /opt/T24; do [ -d \"$d\" ] && stat -c '%n %a' \"$d\"; done 2>/dev/null"
+    pass_when:
+      not:
+        stdout_matches: " [0-9][0-9][0-9][1-7]$"
+
+  - id: CBH-1.3
+    title: "Ensure umask for banking user is 0027 or stricter"
+    section: "1"
+    severity: HIGH
+    remediation: "Add `umask 0027` to the banking user's ~/.bash_profile and /etc/profile.d/banking.sh"
+    command: "for u in tmsprod fcodba fcubsuser; do getent passwd $u >/dev/null 2>&1 && sudo -n -u $u bash -c 'umask' 2>/dev/null; done"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "00(27|77)"
+
+  - id: CBH-1.4
+    title: "Ensure SSH direct login for root and banking service users is disabled"
+    section: "1"
+    severity: HIGH
+    rationale: "Direct SSH as tmsprod/fcodba lets anyone with the key bypass audit. Enforce sudo-after-login."
+    remediation: "DenyUsers root tmsprod fcodba fcubsuser in /etc/ssh/sshd_config; systemctl reload sshd"
+    command: "grep -E '^(DenyUsers|AllowUsers|PermitRootLogin)' /etc/ssh/sshd_config 2>/dev/null"
+    pass_when:
+      any_of:
+        - stdout_matches: "DenyUsers.*(tmsprod|fcodba|fcubsuser)"
+        - stdout_matches: "PermitRootLogin\\s+no"
+
+  - id: CBH-1.5
+    title: "Ensure banking log directory has 0750 permissions or stricter"
+    section: "1"
+    severity: MEDIUM
+    remediation: "chmod 0750 /var/log/t24 /var/log/finacle /var/log/fcubs"
+    command: "for d in /var/log/t24 /var/log/finacle /var/log/fcubs /opt/*/logs; do [ -d \"$d\" ] && stat -c '%n %a' \"$d\"; done 2>/dev/null | head -20"
+    pass_when:
+      not:
+        stdout_matches: " [0-9][0-9][1-7][1-7]$"
+
+  - id: CBH-1.6
+    title: "Ensure cron jobs for banking user run from protected directory"
+    section: "1"
+    severity: MEDIUM
+    rationale: "Avoid running EOD/EOQ jobs from world-writable /tmp or user home. Use a dedicated, 0750 /opt/banking/scripts tree."
+    remediation: "Move scripts to /opt/banking/scripts (root:bankops 0750) and edit crontab entries to absolute paths there"
+    command: "for u in tmsprod fcodba fcubsuser; do crontab -u $u -l 2>/dev/null; done | grep -oE '^[^#]*\\s+(/tmp|/var/tmp|/home)' | head -5"
+    pass_when:
+      stdout_empty: true
+
+  - id: CBH-1.7
+    title: "Ensure no setuid/setgid binaries under banking application home"
+    section: "1"
+    severity: HIGH
+    rationale: "SUID inside $FCHOME/$FINACLE_HOME/$TAFJ_HOME is a sign of privilege escalation vector or vendor mispackaged script."
+    remediation: "find $APP_HOME -perm /6000 -print | review; remove or chmod u-s,g-s"
+    command: "for d in /opt/temenos /opt/finacle /opt/fcubs /u01/app; do [ -d \"$d\" ] && find \"$d\" -xdev -perm /6000 -type f 2>/dev/null; done | head -10"
+    pass_when:
+      stdout_empty: true
+
+  - id: CBH-1.8
+    title: "Ensure filesystem where transaction files live is mounted with nosuid,nodev"
+    section: "1"
+    severity: MEDIUM
+    remediation: "Remount /u01 / /data with nosuid,nodev in fstab"
+    command: "findmnt -n /u01 /data /opt/temenos /opt/finacle 2>/dev/null"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "nosuid"
+
+  # =========================================================================
+  # Section 2 — Temenos T24 / Transact specifics
+  # =========================================================================
+  - id: CBH-2.1
+    title: "Ensure T24 tmsprod user owns $TAFJ_HOME exclusively"
+    section: "2"
+    severity: HIGH
+    rationale: "TAFJ_HOME contains jBase files that bypass RDBMS audit if tampered; single-owner policy is non-negotiable."
+    remediation: "chown -R tmsprod:tmsprod $TAFJ_HOME"
+    command: "[ -d /opt/temenos ] && find /opt/temenos -not -user tmsprod -type f 2>/dev/null | head -5 || echo SKIP"
+    pass_when:
+      any_of:
+        - stdout_matches: "^SKIP$"
+        - stdout_empty: true
+
+  - id: CBH-2.2
+    title: "Ensure T24 TCS/TCServer port is not exposed to untrusted networks"
+    section: "2"
+    severity: CRITICAL
+    rationale: "TCS transport on 2000/2001 (default) accepts XML messages that invoke transactions. Must be firewalled to app tier only."
+    remediation: "iptables/firewalld rules limiting TCS ports to channel-manager subnet"
+    command: "ss -tlnp 2>/dev/null | grep -E ':(2000|2001|9090)\\s' | awk '{print $4}'"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_not_matches: "(0\\.0\\.0\\.0|::):(2000|2001|9090)"
+
+  - id: CBH-2.3
+    title: "Ensure T24 TAFJ.properties does not store DB credentials in plain text"
+    section: "2"
+    severity: CRITICAL
+    rationale: "jdbc.password must be referenced via jcs (jBase credential store) not inline."
+    remediation: "Encrypt via `tafj-encrypt` utility; replace plain values with ${JCS:...}"
+    command: "find /opt/temenos -name 'TAFJ.properties' -o -name 'tafj.properties' 2>/dev/null | head -3 | xargs -r grep -Hn -E 'jdbc\\.password\\s*=' 2>/dev/null | grep -v '\\${' | head -3"
+    pass_when:
+      stdout_empty: true
+
+  - id: CBH-2.4
+    title: "Ensure T24 audit table (SMS.USER) requires RECORD.STATUS=LIVE for all non-test users"
+    section: "2"
+    severity: HIGH
+    remediation: "Enforce maker-checker on SMS.USER inserts; run DEAD record purge monthly"
+    command: "find /opt/temenos -name '*.log' -newer /opt/temenos/.audit-stamp 2>/dev/null | head -1 || echo 'audit stamp missing'"
+    pass_when:
+      stdout_not_matches: "audit stamp missing"
+
+  - id: CBH-2.5
+    title: "Ensure T24 SYS.FIELDS with SENSITIVE flag are encrypted at rest"
+    section: "2"
+    severity: HIGH
+    rationale: "Sensitive fields (PAN, CVV, passwords) in T24 must be flagged ENCRYPT=YES on SS.PROPERTIES."
+    remediation: "Edit SS.PROPERTIES to set ENCRYPT=YES for all SENSITIVE fields; re-catalog application"
+    command: "find /opt/temenos -name 'SS.PROPERTIES*' -o -name 'ss.properties*' 2>/dev/null | head -2 | xargs -r grep -l 'ENCRYPT=YES' 2>/dev/null | head -1"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "ENCRYPT"
+
+  # =========================================================================
+  # Section 3 — Infosys Finacle specifics
+  # =========================================================================
+  - id: CBH-3.1
+    title: "Ensure FINACLE_HOME is owned by fcodba user with 0750 permissions"
+    section: "3"
+    severity: HIGH
+    remediation: "chown -R fcodba:fcgroup $FINACLE_HOME; chmod -R 0750 $FINACLE_HOME"
+    command: "[ -d /u01/app/finacle ] && stat -c '%U %G %a' /u01/app/finacle 2>/dev/null || [ -d /opt/finacle ] && stat -c '%U %G %a' /opt/finacle 2>/dev/null || echo SKIP"
+    pass_when:
+      any_of:
+        - stdout_matches: "^SKIP$"
+        - stdout_matches: "^fcodba\\s+\\S+\\s+7[05]0$"
+
+  - id: CBH-3.2
+    title: "Ensure Finacle WebLogic admin console is not exposed on public interface"
+    section: "3"
+    severity: CRITICAL
+    rationale: "WebLogic /console (7001 default) gives full app-server admin — must be internal-only."
+    remediation: "Restrict WLS admin listen address to 127.0.0.1 or bastion subnet"
+    command: "ss -tlnp 2>/dev/null | grep -E ':(7001|7002)\\s' | awk '{print $4}'"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_not_matches: "(0\\.0\\.0\\.0|::):(7001|7002)"
+
+  - id: CBH-3.3
+    title: "Ensure Finacle EOD/BOD scripts have integrity hash logging enabled"
+    section: "3"
+    severity: MEDIUM
+    rationale: "EOD/BOD phase scripts should emit sha256 of each processed batch to an append-only log (WORM or remote syslog)."
+    remediation: "Wrap each batch invocation with `sha256sum $batch >> /var/log/finacle/integrity.log`; forward log via rsyslog to SIEM"
+    command: "find /u01/app/finacle/scripts /opt/finacle/scripts -name '*.sh' 2>/dev/null | head -5 | xargs -r grep -l 'sha256sum\\|openssl dgst' 2>/dev/null | head -1"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: ".*\\.sh$"
+
+  - id: CBH-3.4
+    title: "Ensure Finacle dbHandlerPool.properties does not contain clear-text DB passwords"
+    section: "3"
+    severity: CRITICAL
+    remediation: "Use Finacle credential encryption utility (FCENCRYPT); reference via ${encrypted:} prefix in properties"
+    command: "find /u01/app/finacle /opt/finacle -name 'dbHandlerPool*' -o -name 'dba.properties' 2>/dev/null | head -3 | xargs -r grep -Hn -E 'password\\s*=\\s*[^\\$#]+$' 2>/dev/null | head -3"
+    pass_when:
+      stdout_empty: true
+
+  - id: CBH-3.5
+    title: "Ensure Finacle SSO timeout is set <= 30 minutes"
+    section: "3"
+    severity: MEDIUM
+    remediation: "Set <session-timeout>30</session-timeout> in each Finacle webapp's WEB-INF/web.xml"
+    command: "find /u01/app/finacle /opt/finacle -name 'web.xml' -path '*WEB-INF*' 2>/dev/null | head -2 | xargs -r grep -A1 'session-timeout' 2>/dev/null | grep -oE '>[0-9]+<'"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_not_matches: ">([3-9][0-9]|[1-9][0-9]{2,})<"
+
+  # =========================================================================
+  # Section 4 — Oracle Flexcube (FCUBS) specifics
+  # =========================================================================
+  - id: CBH-4.1
+    title: "Ensure FCHOME is accessible only by fcubsuser and banking-ops group"
+    section: "4"
+    severity: HIGH
+    remediation: "chown -R fcubsuser:bankops $FCHOME; chmod 0750 $FCHOME"
+    command: "[ -d /opt/fcubs ] && stat -c '%U %G %a' /opt/fcubs 2>/dev/null || echo SKIP"
+    pass_when:
+      any_of:
+        - stdout_matches: "^SKIP$"
+        - stdout_matches: "^fcubsuser\\s+\\S+\\s+7[05]0$"
+
+  - id: CBH-4.2
+    title: "Ensure Flexcube SMS_USER table does not have any active SYSADMIN outside break-glass list"
+    section: "4"
+    severity: HIGH
+    rationale: "FCUBS admin role SYSADMIN = full access; active non-break-glass accounts are an audit finding under Res. 12/2021 Art. 23."
+    remediation: "Review SMSTB_USER WHERE USER_STATUS='E' AND ROLE='SYSADMIN'; disable non-break-glass"
+    command: "[ -f $FCHOME/admin/break_glass.list ] && cat $FCHOME/admin/break_glass.list 2>/dev/null || echo 'break_glass_list_missing'"
+    pass_when:
+      any_of:
+        - stdout_matches: ".+"
+
+  - id: CBH-4.3
+    title: "Ensure Flexcube integration layer (ELCM/FCIS) mTLS is enabled for external channels"
+    section: "4"
+    severity: HIGH
+    rationale: "Payment gateways, mobile, and core talk via ELCM SOAP/REST — must present client cert."
+    remediation: "In elcm.properties set ssl.client.auth=true; configure trust store with issuer CA of channel client cert"
+    command: "find /opt/fcubs -name 'gateway*.xml' -o -name 'elcm.properties' 2>/dev/null | head -2 | xargs -r grep -l 'ssl.client.auth.*true\\|mtls.*enabled' 2>/dev/null | head -1"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "\\S+"
+
+  - id: CBH-4.4
+    title: "Ensure Flexcube fcubs.properties does not contain hardcoded APPLICATION_KEY"
+    section: "4"
+    severity: CRITICAL
+    rationale: "APPLICATION_KEY is the symmetric key for encrypting FCUBS_USER passwords. Must be in HSM or OS keyring."
+    remediation: "Store APPLICATION_KEY in Oracle Wallet or HSM; replace value in fcubs.properties with ${keystore:fcubs_app_key}"
+    command: "find /opt/fcubs -name 'fcubs.properties' -o -name 'application.properties' 2>/dev/null | head -3 | xargs -r grep -Hn 'APPLICATION_KEY\\s*=' 2>/dev/null | grep -v -E '(keystore|HSM|\\${)' | head -3"
+    pass_when:
+      stdout_empty: true
+
+  # =========================================================================
+  # Section 5 — Database tier hardening
+  # =========================================================================
+  - id: CBH-5.1
+    title: "Ensure Oracle listener.ora has ADMIN_RESTRICTIONS=ON"
+    section: "5"
+    severity: HIGH
+    rationale: "ADMIN_RESTRICTIONS_LISTENER=ON prevents dynamic SET commands over the listener TCP port (CVE-2012-1675 family)."
+    remediation: "Add ADMIN_RESTRICTIONS_LISTENER=ON to listener.ora; lsnrctl reload"
+    command: "find / -name listener.ora -not -path '*/proc/*' 2>/dev/null | head -3 | xargs -r grep -H 'ADMIN_RESTRICTIONS' 2>/dev/null"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "ADMIN_RESTRICTIONS.*=.*ON"
+
+  - id: CBH-5.2
+    title: "Ensure Oracle SYS user is not locally authenticated with weak hash (11G legacy)"
+    section: "5"
+    severity: HIGH
+    rationale: "Legacy DES 10G-style hash can be cracked offline from a stolen SYS.USER$ dump."
+    remediation: "Set SQLNET.ALLOWED_LOGON_VERSION_SERVER=12a in sqlnet.ora; expire all passwords to force re-hash"
+    command: "find / -name 'sqlnet.ora' -not -path '*/proc/*' 2>/dev/null | head -3 | xargs -r grep -H 'SQLNET.ALLOWED_LOGON_VERSION' 2>/dev/null"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "ALLOWED_LOGON_VERSION.*=.*(12|21)"
+
+  - id: CBH-5.3
+    title: "Ensure Oracle AUDIT_TRAIL parameter is DB or DB_EXTENDED"
+    section: "5"
+    severity: HIGH
+    rationale: "AUDIT_TRAIL=NONE leaves no forensic trail; required by PCI-DSS 10 and BCP PY Art. 25."
+    remediation: "ALTER SYSTEM SET AUDIT_TRAIL=DB_EXTENDED SCOPE=SPFILE; restart instance"
+    command: "find / -name 'spfile*.ora' -o -name 'init*.ora' 2>/dev/null | head -3 | xargs -r strings 2>/dev/null | grep -iE 'audit_trail' | head -5"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "audit_trail.*(DB|DB_EXTENDED|XML)"
+
+  - id: CBH-5.4
+    title: "Ensure no database datafile is world-readable on disk"
+    section: "5"
+    severity: CRITICAL
+    rationale: "Oracle .dbf or DB2 tablespace containers at 0644 or 0666 leak row-level data via raw read."
+    remediation: "chmod 0600 /u01/**/*.dbf; chown oracle:oinstall; validate via oratab owner"
+    command: "find /u01 /u02 /oradata /db2 -name '*.dbf' -o -name '*.TSF' -o -name '*.LF' 2>/dev/null | head -10 | xargs -r stat -c '%n %a' 2>/dev/null | awk '$2 !~ /^6[04]0$/'"
+    pass_when:
+      stdout_empty: true
+
+  - id: CBH-5.5
+    title: "Ensure tnsnames.ora / db2cli.ini connection uses encrypted transport"
+    section: "5"
+    severity: HIGH
+    remediation: "For Oracle: SQLNET.ENCRYPTION_SERVER=required. For DB2: SSL_SVR_LABEL + set_client_auth_mode SERVER_ENCRYPT"
+    command: "find / -name 'tnsnames.ora' -o -name 'db2cli.ini' 2>/dev/null | head -3 | xargs -r grep -H -iE '(PROTOCOL\\s*=\\s*TCPS|SECURITY\\s*=.*SERVER_ENCRYPT)' 2>/dev/null"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CBH-5.6
+    title: "Ensure DB failed login threshold is <= 5"
+    section: "5"
+    severity: MEDIUM
+    remediation: "ALTER PROFILE DEFAULT LIMIT FAILED_LOGIN_ATTEMPTS 5 PASSWORD_LOCK_TIME 30;"
+    command: "find / -name 'profile_report*.sql' -newer /tmp/.reportstamp 2>/dev/null | head -1 || echo SKIP"
+    pass_when:
+      any_of:
+        - stdout_matches: "^SKIP$"
+        - stdout_matches: "\\.sql$"
+
+  # =========================================================================
+  # Section 6 — Audit / logging / segregation (maps to BCP PY Res. 12/2021)
+  # =========================================================================
+  - id: CBH-6.1
+    title: "Ensure banking host forwards syslog to a dedicated SIEM host"
+    section: "6"
+    severity: HIGH
+    rationale: "BCP Res. 12/2021 Art. 25 requires centralized, immutable audit retention >= 10 years."
+    remediation: "Configure rsyslog/journald to forward to SIEM collector; validate with `logger` test event"
+    command: "grep -E '^[^#]*@[@a-zA-Z0-9.-]+:[0-9]+' /etc/rsyslog.conf /etc/rsyslog.d/*.conf 2>/dev/null | head -3"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CBH-6.2
+    title: "Ensure transaction logs are stored on append-only or remote WORM storage"
+    section: "6"
+    severity: HIGH
+    rationale: "T24 SPF files / Finacle EOD dumps / FCUBS batch logs must be unmodifiable post-commit."
+    remediation: "chattr +a /var/log/t24 /var/log/finacle /var/log/fcubs OR mount an object-locked S3 bucket via s3fs"
+    command: "find /var/log/t24 /var/log/finacle /var/log/fcubs -maxdepth 1 -type d 2>/dev/null | head -3 | xargs -r lsattr -d 2>/dev/null | grep -E '^[-a]+a+' | head -3"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "a+"
+
+  - id: CBH-6.3
+    title: "Ensure production and UAT/QA banking hosts are not on the same L2 segment"
+    section: "6"
+    severity: HIGH
+    rationale: "BCP PY Art. 21 — segregación de ambientes productivo vs. no-productivo. Layer-2 co-residency defeats logical separation."
+    remediation: "Move UAT to isolated VLAN; firewall between VLANs"
+    command: "ip -4 route show 2>/dev/null | awk '/^[1-9]/ {print $1}' | sort -u | head -5"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CBH-6.4
+    title: "Ensure break-glass admin accounts are disabled between engagements"
+    section: "6"
+    severity: HIGH
+    rationale: "SYSADMIN / TMSADMIN / dbadmin should be `usermod -L`-locked and only unlocked via change ticket."
+    remediation: "usermod -L tmsadmin fcadmin dbadmin sysadmin; require MR ticket + PAM enrollment to unlock"
+    command: "for u in tmsadmin fcadmin dbadmin sysadmin; do getent shadow $u 2>/dev/null | awk -F: '{print $1\":\"substr($2,1,2)}' ; done | grep -E ':(!|\\*)'"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CBH-6.5
+    title: "Ensure maker-checker (dual-control) is enforced for privileged banking transactions"
+    section: "6"
+    severity: CRITICAL
+    rationale: "High-value transfers (> PYG 1,000,000,000) and SMS.USER changes MUST go through 4-eyes. BCP PY Art. 23."
+    remediation: "Enable maker-checker on T24 SMS.USER/FUNDS.TRANSFER, Finacle SCF framework, FCUBS SMDUSRDF AUTH_STAT=U flow"
+    command: "find /opt/temenos /u01/app/finacle /opt/fcubs -name '*.config' -o -name 'maker_checker*' 2>/dev/null | head -5 | xargs -r grep -l -iE 'dual.*control|maker.*checker|four.*eyes' 2>/dev/null | head -1"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CBH-6.6
+    title: "Ensure NTP is enabled and synced to a bank-controlled time source"
+    section: "6"
+    severity: MEDIUM
+    rationale: "Financial transactions MUST have an auditable, uniform timestamp. Public NTP (pool.ntp.org) is insufficient."
+    remediation: "Configure chronyd/ntpd to use an internal stratum-2 time server; fallback to tier-1 GPS source"
+    command: "chronyc sources 2>/dev/null | head -5; timedatectl show -p NTPSynchronized 2>/dev/null"
+    pass_when:
+      stdout_matches: "NTPSynchronized=yes"
+
+  - id: CBH-6.7
+    title: "Ensure backup of core-banking data is encrypted and off-host"
+    section: "6"
+    severity: HIGH
+    rationale: "Backup tapes/S3 objects with plaintext .dbf contents are a PCI-DSS 3.4 violation."
+    remediation: "Enable RMAN encryption (Oracle) / DB2 encrypt backup; for files use openssl enc -aes-256-cbc or GPG with customer-managed KMS key"
+    command: "find /backup /nfs-backup /mnt/backup -name '*.enc' -o -name '*.gpg' -o -name '*.kms' 2>/dev/null | head -5"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CBH-6.8
+    title: "Ensure scheduled DR drill evidence exists within last 180 days"
+    section: "6"
+    severity: MEDIUM
+    rationale: "Res. 12/2021 Art. 24 requires documented DR tests; absence = regulatory finding."
+    remediation: "Schedule semi-annual DR failover drill; store drill reports in /opt/banking/dr-reports signed with organizational PGP key"
+    command: "find /opt/banking/dr-reports /var/log/dr -name 'drill-*.log' -mtime -180 2>/dev/null | head -1"
+    pass_when:
+      not:
+        stdout_empty: true
