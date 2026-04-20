@@ -199,12 +199,21 @@ def _import_all_checks() -> None:
     """Side-effect import: every check module registers itself on import."""
     # Explicit list — stays in sync with the F15.1 scope.
     modules = [
+        # F15.1 PCI-DSS v4 baseline
         "kryon.compliance.checks.section_2.c_2_2_2_default_accounts",
         "kryon.compliance.checks.section_2.c_2_2_7_ssh_hardening",
         "kryon.compliance.checks.section_6.c_6_3_3_patch_currency",
         "kryon.compliance.checks.section_6.c_6_4_1_web_headers",
         "kryon.compliance.checks.section_8.c_8_3_6_password_policy",
         "kryon.compliance.checks.section_10.c_10_2_1_audit_trails",
+        # F23 Proxmox VE hardening (banking profile)
+        "kryon.compliance.checks.proxmox.c_pve_1_1_web_ssl_cert",
+        "kryon.compliance.checks.proxmox.c_pve_1_2_unauth_api",
+        "kryon.compliance.checks.proxmox.c_pve_2_1_ssh_hardening",
+        "kryon.compliance.checks.proxmox.c_pve_3_1_2fa_enforced",
+        "kryon.compliance.checks.proxmox.c_pve_3_2_api_token_hygiene",
+        "kryon.compliance.checks.proxmox.c_pve_4_1_firewall_enabled",
+        "kryon.compliance.checks.proxmox.c_pve_5_1_version_currency",
     ]
     import importlib
     for m in modules:
