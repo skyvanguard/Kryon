@@ -32,6 +32,10 @@ services:
       # compose files resolve against the compose file's own directory,
       # so "../reports" targets the repo root's reports/ dir.
       - ../reports:/reports
+      # F28: read-only bind-mount ~/.ssh so kryon can ssh to audit targets
+      # using the operator's own keys (same as the human auditor would).
+      # `:ro` is critical — compliance engine must never write or tamper.
+      - ${HOME}/.ssh:/home/kryon/.ssh:ro
 
   ollama:
     deploy:

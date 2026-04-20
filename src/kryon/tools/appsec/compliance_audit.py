@@ -23,6 +23,20 @@ from typing import Any
 from kryon.sdk.agents import function_tool
 
 
+# Framework → control_id prefix mapping (used by both tools for filtering).
+# "all" keeps every check. Reserved keys here stay aligned with the CLI
+# wrapper scripts/kryon-audit.sh.
+_FRAMEWORK_PREFIX = {
+    "pci-dss": ("2.", "6.", "8.", "10."),    # F15.1 numeric PCI sections
+    "pci":     ("2.", "6.", "8.", "10."),
+    "proxmox": ("PVE-",),                     # F23
+    "pve":     ("PVE-",),
+    "ad":      ("AD-",),                      # F24
+    "active-directory": ("AD-",),
+    "all":     (),
+}
+
+
 @function_tool(strict_mode=False)
 def run_compliance_audit(
     host: str = "localhost",
@@ -60,11 +74,24 @@ def run_compliance_audit(
         then PASSes / N/As, citing the exact evidence_command for each FAIL
         so the user can reproduce manually.
     """
-    if framework != "pci-dss-v4":
+    # Accept legacy alias + new multi-framework keys (F23/F24)
+    fw_alias = {
+        "pci-dss-v4": "pci-dss",
+        "pci-dss": "pci-dss",
+        "pci": "pci-dss",
+        "proxmox": "proxmox",
+        "pve": "proxmox",
+        "ad": "ad",
+        "active-directory": "ad",
+        "all": "all",
+    }
+    fw_key = fw_alias.get((framework or "pci-dss").lower())
+    if fw_key is None:
         return json.dumps({
-            "error": f"framework {framework!r} not implemented (only pci-dss-v4 in F15.1)",
-            "available": ["pci-dss-v4"],
+            "error": f"unknown framework {framework!r}",
+            "available": sorted(fw_alias.keys()),
         })
+    prefixes = _FRAMEWORK_PREFIX.get(fw_key, ())
 
     try:
         from kryon.compliance.runner import (
@@ -83,7 +110,11 @@ def run_compliance_audit(
         ssh_key_path=ssh_key_path,
         ssh_port=ssh_port,
     )
-    results = run_all(ctx)
+    all_results = run_all(ctx)
+    if prefixes:
+        results = [r for r in all_results if r.control_id.startswith(prefixes)]
+    else:
+        results = all_results
     hash_ = reproducibility_hash(results)
 
     summary = {v: 0 for v in ("PASS", "FAIL", "N/A", "ERROR")}
@@ -114,18 +145,6 @@ def run_compliance_audit(
     }, ensure_ascii=False)
 
 
-# Framework → control_id prefix mapping. "all" skips the filter.
-_FRAMEWORK_PREFIX = {
-    "pci-dss": ("2.", "6.", "8.", "10."),    # F15.1 numeric PCI sections
-    "pci":     ("2.", "6.", "8.", "10."),
-    "proxmox": ("PVE-",),                     # F23
-    "pve":     ("PVE-",),
-    "ad":      ("AD-",),                      # F24
-    "active-directory": ("AD-",),
-    "all":     (),
-}
-
-
 def _default_out_path(framework: str, host: str) -> str:
     """Default PDF path — lands in the bind-mounted /reports on docker,
     so the host sees it under ./reports/ immediately."""
@@ -147,6 +166,9 @@ def _run_compliance_pdf(
     framework: str = "all",
     skip_llm_narrative: bool = False,
     client_name: str = "",
+    ssh_user: str = "",
+    ssh_key_path: str = "",
+    ssh_port: int = 22,
 ) -> str:
     """Core implementation — plain Python, no tool decorator.
 
@@ -154,8 +176,14 @@ def _run_compliance_pdf(
     the CLI wrapper script (scripts/kryon-audit.sh) without needing to
     un-wrap decorator internals.
 
-    client_name: optional banking client label shown on the report cover
-        (also accepted via env var KRYON_CLIENT_NAME).
+    Remote audit: pass host != "localhost" together with ssh_user and
+    ssh_key_path. Runner will shell out to `ssh -i <key> user@host <cmd>`
+    for every check invocation, using BatchMode to avoid password prompts.
+
+    Env-var fallbacks (CLI-friendly):
+      KRYON_CLIENT_NAME, KRYON_SSH_USER, KRYON_SSH_KEY, KRYON_SSH_PORT.
+
+    client_name: banking client label shown on the report cover.
     """
     from pathlib import Path
 
@@ -181,8 +209,22 @@ def _run_compliance_pdf(
     if not out_path:
         out_path = _default_out_path(fw_key, host or "localhost")
 
+    # Env-var fallbacks so the CLI wrapper can pass creds via `docker exec -e`
+    import os
+    effective_ssh_user = ssh_user or os.environ.get("KRYON_SSH_USER", "").strip()
+    effective_ssh_key = ssh_key_path or os.environ.get("KRYON_SSH_KEY", "").strip()
+    try:
+        effective_ssh_port = int(ssh_port) or int(os.environ.get("KRYON_SSH_PORT", "22"))
+    except (TypeError, ValueError):
+        effective_ssh_port = 22
+
     _import_all_checks()
-    ctx = CheckContext(host=host or "localhost")
+    ctx = CheckContext(
+        host=host or "localhost",
+        ssh_user=effective_ssh_user,
+        ssh_key_path=effective_ssh_key,
+        ssh_port=effective_ssh_port,
+    )
     all_results = run_all(ctx)
 
     # Filter by framework prefix (empty tuple = keep all).
@@ -266,6 +308,9 @@ def generate_compliance_pdf(
     framework: str = "all",
     skip_llm_narrative: bool = False,
     client_name: str = "",
+    ssh_user: str = "",
+    ssh_key_path: str = "",
+    ssh_port: int = 22,
 ) -> str:
     """Render a compliance audit PDF report.
 
@@ -291,4 +336,7 @@ def generate_compliance_pdf(
         framework=framework,
         skip_llm_narrative=skip_llm_narrative,
         client_name=client_name,
+        ssh_user=ssh_user,
+        ssh_key_path=ssh_key_path,
+        ssh_port=ssh_port,
     )
