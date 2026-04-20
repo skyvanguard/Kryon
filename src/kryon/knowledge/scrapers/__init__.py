@@ -23,6 +23,7 @@ from .github_scraper import GitHubScraper
 from .intelligence_scraper import IntelligenceScraper
 from .nvd_scraper import NVDScraper
 from .owasp_scraper import OWASPScraper
+from .research_writeup_scraper import ResearchWriteupScraper
 from .static_seed_scraper import StaticSeedScraper
 from .vendor_advisory_scraper import VendorAdvisoryScraper
 from .writeup_scraper import WriteupScraper
@@ -35,6 +36,7 @@ __all__ = [
     "IntelligenceScraper",
     "NVDScraper",
     "OWASPScraper",
+    "ResearchWriteupScraper",
     "StaticSeedScraper",
     "VendorAdvisoryScraper",
     "WriteupScraper",
@@ -49,6 +51,7 @@ SCRAPER_REGISTRY: dict[str, type[BaseScraper]] = {
     "github": GitHubScraper,
     "exploit-db": ExploitDBScraper,
     "writeups": WriteupScraper,
+    "research-writeups": ResearchWriteupScraper,
     "owasp": OWASPScraper,
     "cwe": CWEScraper,
     "vendor-advisories": VendorAdvisoryScraper,

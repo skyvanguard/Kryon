@@ -19,6 +19,7 @@ def test_registry_has_expected_keys():
         "github",
         "exploit-db",
         "writeups",
+        "research-writeups",
         "owasp",
         "cwe",
         "vendor-advisories",
