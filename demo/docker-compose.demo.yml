@@ -1,0 +1,53 @@
+# F26 — reproducible vulnerable lab to smoke-test the full Kryon audit
+# pipeline. Two targets that answer our deterministic checks with
+# realistic bad state:
+#
+#   pve_fake    Fake Proxmox VE 7.2 node. 7 Kryon PVE-x.x checks should
+#               return: 1 PASS (unauth API), 6 FAIL (self-signed cert,
+#               SSH weak, no TFA, bad tokens, firewall off, EOL version).
+#
+#   juice_shop  OWASP Juice Shop for the F17/F18 webexploit probes.
+#               Included so the demo shows *both* compliance and
+#               offensive surface from one docker compose up.
+#
+# Usage:
+#   cd demo && ./setup.sh   # generates SSH key, copies pubkey in,
+#                           # brings the stack up, smoke-tests SSH.
+#   cd ..    && ./scripts/kryon-audit.sh \
+#                    -u auditor -k demo/.ssh/demo_key \
+#                    -c "Banco Demo S.A." \
+#                    pve_fake proxmox
+
+services:
+  pve_fake:
+    build: ./pve_fake
+    container_name: pve_fake
+    hostname: pve01.demo.bank.local
+    networks:
+      ctfnet:
+        aliases:
+          - pve_fake
+          - pve01.demo.bank.local
+    ports:
+      - "2222:22"     # host port 2222 → avoid clashing with host sshd
+      - "8006:8006"   # Proxmox Web UI port
+    volumes:
+      - ./.ssh/demo_key.pub:/run/auditor_pubkey:ro
+    restart: unless-stopped
+
+  juice_shop:
+    image: bkimminich/juice-shop
+    container_name: juice_shop
+    hostname: juice.demo.bank.local
+    networks:
+      ctfnet:
+        aliases:
+          - juice.demo.bank.local
+          - juice.local
+    ports:
+      - "3003:3000"
+    restart: unless-stopped
+
+networks:
+  ctfnet:
+    external: true

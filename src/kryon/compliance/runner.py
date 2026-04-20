@@ -61,11 +61,18 @@ def run_cmd(
             cmd_str = " ".join(_shell_quote(c) for c in cmd)
         else:
             cmd_str = cmd
+        # NB: `-F /dev/null` ignores the operator's ~/.ssh/config to avoid
+        # failing on "Bad owner or permissions" when the host-side ~/.ssh
+        # is bind-mounted with Docker Desktop perms (mode 777). The key
+        # itself we still pass explicitly via -i.
         ssh_cmd = [
             "ssh",
+            "-F", "/dev/null",
             "-o", "BatchMode=yes",
             "-o", "ConnectTimeout=5",
             "-o", "StrictHostKeyChecking=accept-new",
+            "-o", "UserKnownHostsFile=/tmp/kryon_known_hosts",
+            "-o", "IdentitiesOnly=yes",
             "-p", str(ctx.ssh_port),
         ]
         if ctx.ssh_key_path:

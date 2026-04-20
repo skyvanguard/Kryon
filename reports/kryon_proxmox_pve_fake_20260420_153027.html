@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<title>Auditoría de hardening Proxmox VE (perfil bancario) — pve_fake — 2026-04-20</title>
+<style>
+    @page { size: A4; margin: 18mm 14mm 22mm 14mm;
+            @bottom-center {
+                content: "PCI-DSS v4 Compliance Audit — page " counter(page) " / " counter(pages);
+                font-size: 8pt; color: #666;
+            }
+            @bottom-left { content: "1e1bbab159a01079..."; font-size: 7pt; color: #999; font-family: monospace; }
+    }
+    body { font-family: "Helvetica Neue", Arial, sans-serif; color: #222; font-size: 10.5pt; line-height: 1.4; }
+    h1 { font-size: 22pt; margin: 0 0 4pt 0; }
+    h2 { font-size: 14pt; margin: 18pt 0 6pt 0; border-bottom: 1px solid #ccc; padding-bottom: 2pt; }
+    h3 { font-size: 11pt; margin: 12pt 0 4pt 0; }
+    .cover-meta { color: #666; font-size: 9.5pt; margin-bottom: 14pt; }
+    .repro-hash { font-family: monospace; font-size: 8.5pt; color: #555; word-break: break-all; }
+    .summary-table { border-collapse: collapse; width: 100%; margin: 8pt 0 12pt 0; font-size: 10pt; }
+    .summary-table th, .summary-table td { border: 1px solid #ddd; padding: 5pt 7pt; text-align: left; }
+    .summary-table th { background: #f2f2f2; font-weight: 600; }
+    .verdict-badge { display: inline-block; padding: 1pt 7pt; border-radius: 3pt; color: #fff; font-weight: 700; font-size: 9.5pt; letter-spacing: 0.4pt; }
+    .finding-card { page-break-inside: avoid; border: 1px solid #ccc; border-left: 4pt solid #c1272d; border-radius: 3pt; margin: 10pt 0; padding: 8pt 10pt; }
+    .finding-card.verdict-PASS { border-left-color: #2a9d3a; }
+    .finding-card.verdict-NA   { border-left-color: #8a8a8a; }
+    .finding-card.verdict-ERROR { border-left-color: #d19500; }
+    .finding-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4pt; }
+    .finding-title { font-weight: 700; }
+    .finding-meta { font-size: 9pt; color: #666; margin-bottom: 6pt; }
+    .section-block { margin: 6pt 0; }
+    .section-label { font-weight: 600; font-size: 9.5pt; color: #333; display: block; margin-bottom: 2pt; }
+    /* Deterministic audit block — default styling, plain */
+    .det-block { background: #fafafa; border: 1px solid #e0e0e0; padding: 6pt 8pt; font-size: 9.5pt; border-radius: 2pt; }
+    .det-block code { font-family: "Consolas", "Courier New", monospace; font-size: 9pt; }
+    /* LLM narrative block — visually distinct + watermark */
+    .llm-block { background: #fff8e5; border: 1px dashed #e0a500; padding: 6pt 8pt; border-radius: 2pt; position: relative; font-size: 9.8pt; font-style: italic; margin: 4pt 0; }
+    .llm-watermark { display: inline-block; background: #e0a500; color: #fff; font-size: 8pt; padding: 1pt 5pt; border-radius: 2pt; font-weight: 700; letter-spacing: 0.6pt; font-style: normal; margin-right: 6pt; text-transform: uppercase; }
+    .separator-notice { background: #fff4d5; border-left: 3pt solid #e0a500; padding: 6pt 10pt; font-size: 9.5pt; margin: 10pt 0; }
+    pre.evidence { background: #1e1e1e; color: #e8e8e8; font-family: "Consolas", monospace; font-size: 8.5pt; padding: 6pt 8pt; border-radius: 2pt; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 160pt; }
+    .appendix h2 { margin-top: 24pt; }
+    .footer-note { font-size: 8.5pt; color: #777; margin-top: 20pt; border-top: 1px solid #eee; padding-top: 6pt; }
+    
+.risk-banner {
+  display:inline-block; padding:4pt 10pt; border-radius:4pt;
+  color:#fff; font-weight:700; font-size:10pt; background:#c1272d;
+}
+.bilingual-block {
+  background:#f7f7f0; border-left:3pt solid #666; padding:8pt 12pt;
+  margin:10pt 0; font-size:9pt; color:#444;
+}
+.bilingual-block .en-label {
+  display:inline-block; background:#222; color:#fff; padding:1pt 6pt;
+  border-radius:2pt; font-size:7pt; font-weight:700; margin-right:6pt;
+}
+</style>
+</head><body>
+
+<h1>Auditoría de hardening Proxmox VE (perfil bancario)</h1>
+<div class="cover-meta">
+  Cliente: <strong>Banco Demo Paraguay S.A.</strong> · Host: <strong>pve_fake</strong> ·
+  Fecha / Date: 2026-04-20 15:32 ·
+  Alcance: 7 controles sobre Web UI, SSH, cluster auth, firewall, patches
+</div>
+<div class="cover-meta">
+  Riesgo agregado / Overall risk:
+  <span class="risk-banner">CRÍTICO</span>
+</div>
+<div class="repro-hash">Hash reproducibilidad / Reproducibility hash: 1e1bbab159a0107931d3436bc79b23e8338fe9e8ed61eca6428c8410a7b24d99</div>
+
+<div class="separator-notice">
+  <strong>Separación de responsabilidades / Separation of duties:</strong>
+  los <em>veredictos</em> (PASS/FAIL/N/A/ERROR) y la <em>evidencia</em>
+  (comando ejecutado + output raw) provienen de motores determinísticos
+  reproducibles. Las secciones marcadas
+  <span style="background:#e0a500;color:#fff;padding:1pt 4pt;border-radius:2pt;font-size:8pt;font-weight:700;">LLM NARRATIVA</span>
+  son prosa explicativa generada por modelo de lenguaje y no modifican los
+  veredictos ni la evidencia. Para defensibilidad regulatoria, el auditor
+  debe basarse en la evidencia determinística.
+</div>
+
+<h2>Resumen ejecutivo</h2>
+<p>Se ejecutaron <strong>7</strong> controles sobre el host.
+Resultados: <strong style="color:#c1272d">6 FAIL</strong>,
+<strong style="color:#2a9d3a">1 PASS</strong>,
+0 N/A, 0 ERROR.
+Nivel de riesgo agregado: <strong style="color:#c1272d">CRÍTICO</strong>.</p>
+
+<div class="bilingual-block">
+  <span class="en-label">EN</span>
+  <strong>Executive summary.</strong>
+  7 controls executed on the host. Results:
+  <strong style="color:#c1272d">6 FAIL</strong>,
+  <strong style="color:#2a9d3a">1 PASS</strong>,
+  0 N/A, 0 ERROR. Overall risk:
+  <strong style="color:#c1272d">CRÍTICO</strong>.
+  Framework: Proxmox VE Hardening Audit (banking profile). Scope: 7 controls covering Web UI, SSH, cluster auth, firewall, patching.
+</div>
+
+<table class="summary-table"><thead><tr><th>Control</th><th>Título</th><th>Sección</th><th>Veredicto</th><th>Severidad</th></tr></thead><tbody><tr><td><code>PVE-2.1</code></td><td>SSH allows only key-based, non-root authentication</td><td>2</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>CRITICAL</td></tr><tr><td><code>PVE-3.1</code></td><td>Multi-factor auth enforced for privileged Proxmox users</td><td>3</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>CRITICAL</td></tr><tr><td><code>PVE-1.1</code></td><td>Web UI SSL certificate is CA-signed and not expired</td><td>1</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>HIGH</td></tr><tr><td><code>PVE-3.2</code></td><td>Proxmox API tokens follow least-privilege + expiry</td><td>3</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>HIGH</td></tr><tr><td><code>PVE-4.1</code></td><td>Datacenter firewall enabled with default-deny ingress</td><td>4</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>HIGH</td></tr><tr><td><code>PVE-5.1</code></td><td>Proxmox version is supported and security patches applied</td><td>5</td><td><span class="verdict-badge" style="background:#c1272d">FAIL</span></td><td>MEDIUM</td></tr><tr><td><code>PVE-1.2</code></td><td>Privileged API endpoints require authentication</td><td>1</td><td><span class="verdict-badge" style="background:#2a9d3a">PASS</span></td><td>CRITICAL</td></tr></tbody></table>
+
+<h2>Hallazgos / Findings</h2>
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI PVE-2.1 — SSH allows only key-based, non-root authentication</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 2 · Severidad CRITICAL · Host pve_fake</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>sshd -T 2&gt;/dev/null || cat /etc/ssh/sshd_config</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;PermitRootLogin&quot;: &quot;yes&quot;,
+  &quot;PasswordAuthentication&quot;: &quot;yes&quot;,
+  &quot;PubkeyAuthentication&quot;: &quot;yes&quot;,
+  &quot;ClientAliveInterval&quot;: &quot;&quot;,
+  &quot;issues&quot;: [
+    &quot;PasswordAuthentication=yes (should be no)&quot;,
+    &quot;PermitRootLogin=yes (should be no)&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Edit /etc/ssh/sshd_config and set:
+  PermitRootLogin no
+  PasswordAuthentication no
+  PubkeyAuthentication yes
+  ClientAliveInterval 300
+  ClientAliveCountMax 2
+Then: systemctl restart ssh. Validate a separate sudo-enabled account works BEFORE restarting.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El control PVE-2.1 es fundamental en entornos financieros que manejan datos de titulares de tarjetas, ya que el acceso SSH con autenticación basada en contraseñas o inicio de sesión como root crea vulnerabilidades de seguridad críticas. La configuración actual permite autenticación por contraseña y acceso root, lo cual viola directamente los requisitos de autenticación basada en claves. Esta configuración expone el sistema a riesgos de compromiso por fuerza bruta y ataques de tipo &quot;privilege escalation&quot;.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>La edición del archivo /etc/ssh/sshd_config debe realizarse con privilegios de root, asegurándose de que las líneas PermitRootLogin, PasswordAuthentication y PubkeyAuthentication se establezcan correctamente. El parámetro ClientAliveInterval debe configurarse en 300 segundos para mantener conexiones activas y ClientAliveCountMax en 2 para cerrar conexiones inactivas. Antes de reiniciar el servicio SSH, es esencial verificar que exista una cuenta con permisos sudo funcional para evitar bloqueos de acceso al sistema.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI PVE-3.1 — Multi-factor auth enforced for privileged Proxmox users</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 3 · Severidad CRITICAL · Host pve_fake</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>cat /etc/pve/domains.cfg 2&gt;/dev/null ; cat /etc/pve/user.cfg 2&gt;/dev/null</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;realm_tfa&quot;: {
+    &quot;pam&quot;: false,
+    &quot;pve&quot;: false
+  },
+  &quot;admin_users_no_tfa&quot;: [],
+  &quot;issues&quot;: [
+    &quot;realm &#x27;pam&#x27; has no default-tfa&quot;,
+    &quot;realm &#x27;pve&#x27; has no default-tfa&quot;,
+    &quot;root@pam has no TFA binding&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Web UI → Datacenter → Realm → edit realm → Default TFA: TOTP. Per-user: Datacenter → Permissions → Users → TFA column must show a method. Enforce on root@pam first. CLI reference: `pveum user modify root@pam --keys ...`.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El control PVE-3.1 es fundamental en entornos bancarios y de datos de titulares de tarjetas, ya que requiere autenticación multifactor para usuarios privilegiados de Proxmox. La falta de autenticación multifactor en los usuarios administrativos representa un riesgo crítico de acceso no autorizado a sistemas críticos. Este fallo permite que un atacante que obtenga credenciales válidas pueda acceder sin restricciones a infraestructura virtual sensible.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>Para corregir, se debe configurar TOTP como método predeterminado de autenticación multifactor en los realms &#x27;pam&#x27; y &#x27;pve&#x27; a través de la interfaz web. El usuario root@pam debe ser el primero en tener habilitado TFA, lo cual se realiza en la sección de permisos de usuarios. La configuración se puede validar mediante el comando CLI `pveum user modify root@pam --keys` para asegurar que el método de autenticación multifactor esté correctamente asignado.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI PVE-1.1 — Web UI SSL certificate is CA-signed and not expired</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 1 · Severidad HIGH · Host pve_fake</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>openssl x509 -in /etc/pve/local/pve-ssl.pem -noout -subject -issuer -dates -pubkey 2&gt;&amp;1</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;subject&quot;: &quot;CN = pve01.demo.bank.local&quot;,
+  &quot;issuer&quot;: &quot;CN = pve01.demo.bank.local&quot;,
+  &quot;not_before&quot;: &quot;Apr 20 15:27:17 2026 GMT&quot;,
+  &quot;not_after&quot;: &quot;Jul 19 15:27:17 2026 GMT&quot;,
+  &quot;self_signed&quot;: true,
+  &quot;days_to_expiry&quot;: 89,
+  &quot;issues&quot;: [
+    &quot;Certificate is self-signed (subject == issuer)&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Replace the default self-signed cert. From the Web UI → Datacenter → Certificates → Upload Custom (or ACME for public). CLI: `pvenode cert set --force &lt;cert.pem&gt; &lt;key.pem&gt;`. Ensure RSA &gt;= 2048 bits or ECDSA P-256. Set up auto-renewal.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El control PVE-1.1 es fundamental en entornos bancarios y de datos de titulares de tarjetas, ya que garantiza la autenticidad y confidencialidad de las comunicaciones HTTPS en la interfaz web del servidor. Un certificado autofirmado no cumple con los requisitos de seguridad, ya que no puede ser verificado por autoridades de certificación reconocidas, lo que expone el sistema a riesgos de suplantación y escucha no autorizada. Este fallo representa una vulnerabilidad de alta gravedad que compromete la integridad de la infraestructura de seguridad.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>La solución consiste en reemplazar el certificado autofirmado por uno emitido por una autoridad de certificación reconocida, utilizando la interfaz web o el comando CLI proporcionado. Es necesario asegurar que el certificado cumpla con requisitos criptográficos mínimos de 2048 bits RSA o ECDSA P-256 para mantener la protección adecuada. Además, se debe implementar un proceso automatizado de renovación para evitar la expiración inesperada del certificado y mantener la continuidad del servicio.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI PVE-3.2 — Proxmox API tokens follow least-privilege + expiry</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 3 · Severidad HIGH · Host pve_fake</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>stat -c &#x27;%a %U %G&#x27; /etc/pve/priv/token.cfg 2&gt;/dev/null ; cat /etc/pve/priv/token.cfg 2&gt;/dev/null</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;mode&quot;: &quot;644&quot;,
+  &quot;owner&quot;: &quot;root&quot;,
+  &quot;group&quot;: &quot;root&quot;,
+  &quot;tokens_total&quot;: 2,
+  &quot;tokens_no_expiry&quot;: 2,
+  &quot;tokens_root_pam&quot;: 2,
+  &quot;tokens_privsep_off&quot;: 2,
+  &quot;issues&quot;: [
+    &quot;2 token(s) bound to root@pam&quot;,
+    &quot;2 token(s) with no expiry&quot;,
+    &quot;2 token(s) with privsep=0 (inherits full perms)&quot;,
+    &quot;token.cfg world-permissions != 0 (mode 644)&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Store tokens under a dedicated non-root realm user: `pveum user add ci@pve --password ...`. Issue token with privsep: `pveum user token add ci@pve ciops --privsep 1 --expire &lt;unix-ts&gt;`. Enforce chmod 640 root:www-data on /etc/pve/priv/token.cfg. Rotate tokens yearly.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El control PVE-3.2 es crucial en entornos bancarios que manejan datos de titulares de tarjetas, ya que los tokens de API mal configurados pueden proporcionar acceso no autorizado a sistemas críticos. La ausencia de expiración y el uso de privilegios completos para tokens vinculados a root@pam representan riesgos elevados de compromiso. Este fallo permite que credenciales persistentes sean explotadas por atacantes con acceso a los sistemas Proxmox.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>Se debe crear un usuario dedicado llamado ci@pve para gestionar tokens de forma segura, evitando el uso directo de credenciales root. Los tokens deben ser emitidos con privsep=1 para limitar permisos y establecer fechas de expiración válidas. El archivo token.cfg debe tener permisos 640 con propietario root y grupo www-data para restringir el acceso a procesos web solo. Se recomienda rotar los tokens al menos una vez al año para mantener la seguridad.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI PVE-4.1 — Datacenter firewall enabled with default-deny ingress</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 4 · Severidad HIGH · Host pve_fake</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>pve-firewall status 2&gt;&amp;1 || true ; cat /etc/pve/firewall/cluster.fw 2&gt;/dev/null</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;status&quot;: &quot;disabled/not running&quot;,
+  &quot;enable&quot;: &quot;0&quot;,
+  &quot;policy_in&quot;: &quot;ACCEPT&quot;,
+  &quot;issues&quot;: [
+    &quot;cluster.fw enable=0 (need 1)&quot;,
+    &quot;policy_in=ACCEPT (need DROP/REJECT)&quot;,
+    &quot;pve-firewall status=disabled/not running&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Web UI → Datacenter → Firewall → Options: Firewall=Yes, Input Policy=DROP, Output Policy=ACCEPT. Then enable per-node: Node → Firewall → Options: Firewall=Yes. Audit rules on each VM. CLI: edit /etc/pve/firewall/cluster.fw.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El control PVE-4.1 es fundamental en entornos bancarios y de datos de tarjetas, ya que un firewall de datacenter con política de denegación por defecto en ingreso (default-deny ingress) limita el acceso no autorizado a los sistemas críticos. La configuración actual con firewall deshabilitado y política de entrada ACCEPT crea una brecha de seguridad significativa que podría permitir accesos no autorizados a la infraestructura de procesamiento de pagos. Esta falla representa un riesgo alto de violación de la confidencialidad y disponibilidad de los datos sensibles de los titulares de tarjetas.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>Para corregir esta configuración, se debe habilitar el firewall a nivel de datacenter mediante la interfaz web en Datacenter → Firewall → Options, estableciendo Firewall=Yes y Input Policy=DROP. Posteriormente, es necesario activar el firewall en cada nodo individualmente a través de Node → Firewall → Options con Firewall=Yes. Finalmente, se deben revisar y auditar las reglas de firewall en cada máquina virtual para garantizar que solo se permitan los accesos necesarios según las políticas de seguridad establecidas.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-FAIL">
+      <div class="finding-head">
+        <span class="finding-title">PCI PVE-5.1 — Proxmox version is supported and security patches applied</span>
+        <span class="verdict-badge" style="background:#c1272d">FAIL</span>
+      </div>
+      <div class="finding-meta">Sección 5 · Severidad MEDIUM · Host pve_fake</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>pveversion --verbose 2&gt;&amp;1 | head -5 ; apt-get -s -o Debug::NoLocking=true upgrade 2&gt;/dev/null | grep -c &#x27;^Inst &#x27; || echo 0</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;version&quot;: &quot;7.2.0&quot;,
+  &quot;pending_upgrades&quot;: 42,
+  &quot;issues&quot;: [
+    &quot;42 package upgrades pending&quot;,
+    &quot;Proxmox 7.2 is EOL (support ended 2024-07)&quot;
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">Run `apt update &amp;&amp; apt dist-upgrade -y` on a maintenance window. Major upgrades: follow official PVE 7→8 guide. Enable the no-subscription repo only for dev; prod banking must use pve-enterprise repo with support contract.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El control PVE-5.1 es crucial en entornos bancarios que manejan datos de titulares de tarjetas, ya que un sistema virtualizado desactualizado representa un riesgo significativo de vulnerabilidades no parcheadas. La versión 7.2.0 de Proxmox ha alcanzado su fin de vida útil (EOL) en julio de 2024, lo que significa que ya no recibe soporte ni parches de seguridad oficiales. La presencia de 42 paquetes pendientes de actualización aumenta la superficie de ataque y puede comprometer la integridad del entorno de procesamiento de pagos.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>La ejecución de `apt update &amp;&amp; apt dist-upgrade -y` debe realizarse durante una ventana de mantenimiento programada para evitar interrupciones en servicios críticos. Para actualizaciones mayores como la de PVE 7 a 8, es obligatorio seguir la guía oficial de actualización proporcionada por Proxmox. En entornos de producción bancaria, solo se debe habilitar el repositorio no suscrito para desarrollo; el entorno de producción debe utilizar exclusivamente el repositorio pve-enterprise con contrato de soporte vigente.</div></div>
+    </div>
+    
+
+    <div class="finding-card verdict-PASS">
+      <div class="finding-head">
+        <span class="finding-title">PCI PVE-1.2 — Privileged API endpoints require authentication</span>
+        <span class="verdict-badge" style="background:#2a9d3a">PASS</span>
+      </div>
+      <div class="finding-meta">Sección 1 · Severidad CRITICAL · Host pve_fake</div>
+
+      <div class="section-block">
+        <span class="section-label">Evidencia determinística</span>
+        <div class="det-block">
+          <div><strong>Comando ejecutado:</strong> <code>curl -sk -m 5 -o /dev/null -w &#x27;%{http_code}&#x27; &lt;endpoints&gt;</code></div>
+          <div><strong>Hallazgos estructurados:</strong></div>
+          <pre class="evidence">{
+  &quot;endpoints&quot;: {
+    &quot;/api2/json/version&quot;: &quot;200&quot;,
+    &quot;/api2/json/nodes&quot;: &quot;401&quot;,
+    &quot;/api2/json/cluster/status&quot;: &quot;401&quot;,
+    &quot;/api2/json/access/domains&quot;: &quot;401&quot;,
+    &quot;/api2/json/access/users&quot;: &quot;401&quot;
+  },
+  &quot;issues&quot;: []
+}</pre>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <span class="section-label">Remediación determinística (texto de la regla)</span>
+        <div class="det-block">If endpoints respond 200 without auth, something has tampered with PVEAPIServer ACLs. Inspect /etc/pve/datacenter.cfg for &#x27;notify&#x27; or custom auth, revert, then: systemctl restart pveproxy pvedaemon. Verify TLS is active on port 8006 — if not, API traffic is in cleartext.</div>
+      </div>
+
+      <div class="section-block"><span class="section-label">Contexto (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>El control PVE-1.2 es crucial en entornos bancarios que manejan datos de titulares de tarjetas, ya que los puntos de acceso privilegiados de la API de Proxmox Virtual Environment (PVE) pueden ser explotados por atacantes para obtener acceso no autorizado a recursos críticos. La autenticación obligatoria para estos endpoints previene la exposición de información sensible y mantiene la integridad del entorno virtualizado. Este control forma parte fundamental de las medidas de seguridad necesarias para cumplir con los estándares PCI-DSS v4 en ambientes de procesamiento de pagos.</div></div>
+      <div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span><div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>Si los endpoints responden con código 200 sin autenticación, indica una modificación no autorizada de los controles de acceso ACL del servidor PVE. Es necesario revisar el archivo /etc/pve/datacenter.cfg en busca de configuraciones personalizadas o notificaciones que puedan estar comprometiendo la seguridad. Después de revertir cualquier cambio indebido, se debe reiniciar los servicios pveproxy y pvedaemon para aplicar las nuevas políticas de autenticación. Además, es esencial verificar que el tráfico API esté cifrado en el puerto 8006, ya que el tráfico en texto plano representa un riesgo significativo para la confidencialidad de los datos de los titulares de tarjetas.</div></div>
+    </div>
+    
+
+<div class="appendix">
+<h2>Apéndice A — Evidencia cruda / Appendix A — Raw evidence</h2>
+<p>Comandos ejecutados y output stdout/stderr sin procesar. Permite
+reproducir manualmente cada hallazgo / Commands executed and raw
+stdout/stderr, enabling manual reproduction of every finding.</p>
+
+    <h3>PCI PVE-2.1 — SSH allows only key-based, non-root authentication</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">sshd -T 2&gt;/dev/null || cat /etc/ssh/sshd_config</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">
+# This is the sshd server system-wide configuration file.  See
+# sshd_config(5) for more information.
+
+# This sshd was compiled with PATH=/usr/local/bin:/usr/bin:/bin:/usr/games
+
+# The strategy used for options in the default sshd_config shipped with
+# OpenSSH is to specify options with their default value where
+# possible, but leave them commented.  Uncommented options override the
+# default value.
+
+Include /etc/ssh/sshd_config.d/*.conf
+
+#Port 22
+#AddressFamily any
+#ListenAddress 0.0.0.0
+#ListenAddress ::
+
+#HostKey /etc/ssh/ssh_host_rsa_key
+#HostKey /etc/ssh/ssh_host_ecdsa_key
+#HostKey /etc/ssh/ssh_host_ed25519_key
+
+# Ciphers and keying
+#RekeyLimit default none
+
+# Logging
+#SyslogFacility AUTH
+#LogLevel INFO
+
+# Authentication:
+
+#LoginGraceTime 2m
+PermitRootLogin yes
+#StrictModes yes
+#MaxAuthTries 6
+#MaxSessions 10
+
+PubkeyAuthentication yes
+
+# Expect .ssh/authorized_keys2 to be disregarded by default in future.
+#AuthorizedKeysFile	.ssh/authorized_keys .ssh/authorized_keys2
+
+#AuthorizedPrincipalsFile none
+
+#Au</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI PVE-3.1 — Multi-factor auth enforced for privileged Proxmox users</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">cat /etc/pve/domains.cfg 2&gt;/dev/null ; cat /etc/pve/user.cfg 2&gt;/dev/null</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">=== domains.cfg realm-tfa ===
+{&#x27;pam&#x27;: False, &#x27;pve&#x27;: False}
+
+=== users without tfa (first 5) ===
+[]</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI PVE-1.1 — Web UI SSL certificate is CA-signed and not expired</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">openssl x509 -in /etc/pve/local/pve-ssl.pem -noout -subject -issuer -dates -pubkey 2&gt;&amp;1</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">subject=CN = pve01.demo.bank.local
+issuer=CN = pve01.demo.bank.local
+notBefore=Apr 20 15:27:17 2026 GMT
+notAfter=Jul 19 15:27:17 2026 GMT
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwWjNnOaXxujLiD0bLI7g
+c/7wUIqGEsFMxmp73xp8LnZwc4PGWjZ2KHJTJjidO4KA9oKgDG1ik8fVVh94+LCN
+6XipPaGa+fQJl03UuGTuld23g4vaCDlbmxT8ZTS7ct5bJGfodqm20DB2RMyvqayR
+89KVT3cvRwfVP2WDH+ekp8GAbQuPdGdADovIwUizMOURiKoQJqVf2Oq98H5otxsC
+K+pJE+seEagEeFgbqC//iKrjk6zqW6/nis4gI3kQDqtuUM0d0SEJZraIad3M4KU8
+EZqFsHOxnY6YpsUYCq+/J2+jBL1vT9t+b3rZNAZOk218slrmaA2EY6UgOtx00Ewo
+iQIDAQAB
+-----END PUBLIC KEY-----
+</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+
+    <h3>PCI PVE-3.2 — Proxmox API tokens follow least-privilege + expiry</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">stat -c &#x27;%a %U %G&#x27; /etc/pve/priv/token.cfg 2&gt;/dev/null ; cat /etc/pve/priv/token.cfg 2&gt;/dev/null</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">stat: 644 root root
+
+
+file excerpt:
+root@pam!backup:0:0:automated nightly backups:
+root@pam!monitoring:0:0:zabbix integration:
+</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">
+</pre>
+    </div>
+    
+
+    <h3>PCI PVE-4.1 — Datacenter firewall enabled with default-deny ingress</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">pve-firewall status 2&gt;&amp;1 || true ; cat /etc/pve/firewall/cluster.fw 2&gt;/dev/null</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">=== pve-firewall status ===
+Status: disabled/not running
+Firewall enabled:      0
+
+
+=== cluster.fw [OPTIONS] ===
+
+enable: 0
+policy_in: ACCEPT
+policy_out: ACCEPT
+</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">
+</pre>
+    </div>
+    
+
+    <h3>PCI PVE-5.1 — Proxmox version is supported and security patches applied</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">pveversion --verbose 2&gt;&amp;1 | head -5 ; apt-get -s -o Debug::NoLocking=true upgrade 2&gt;/dev/null | grep -c &#x27;^Inst &#x27; || echo 0</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">=== pveversion ===
+proxmox-ve: 7.2-1 (running kernel: 5.15.39-1-pve)
+pve-manager/7.2-3/c743d6c1 (running version: 7.2-3/c743d6c1)
+pve-kernel-5.15: 7.2-3
+
+=== pending upgrades ===
+42</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">
+</pre>
+    </div>
+    
+
+    <h3>PCI PVE-1.2 — Privileged API endpoints require authentication</h3>
+    <div class="section-block">
+      <span class="section-label">Comando</span>
+      <pre class="evidence">curl -sk -m 5 -o /dev/null -w &#x27;%{http_code}&#x27; &lt;endpoints&gt;</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stdout (raw)</span>
+      <pre class="evidence">{
+  &quot;/api2/json/version&quot;: &quot;200&quot;,
+  &quot;/api2/json/nodes&quot;: &quot;401&quot;,
+  &quot;/api2/json/cluster/status&quot;: &quot;401&quot;,
+  &quot;/api2/json/access/domains&quot;: &quot;401&quot;,
+  &quot;/api2/json/access/users&quot;: &quot;401&quot;
+}</pre>
+    </div>
+    <div class="section-block">
+      <span class="section-label">stderr (raw)</span>
+      <pre class="evidence">(vacío)</pre>
+    </div>
+    
+</div>
+
+<div class="footer-note">
+Este reporte se considera válido únicamente acompañado del artifact JSON cuyo
+SHA-256 coincide con <code>1e1bbab159a0107931d3436bc79b23e8...</code>. Cualquier
+modificación del JSON invalida este reporte. Generado por Kryon compliance
+engine.
+<br/>
+This report is valid only alongside the JSON artifact whose SHA-256 matches
+the hash above. Any modification to the JSON invalidates this report.
+</div>
+
+</body></html>

@@ -1,0 +1,16 @@
+#!/bin/sh
+# Fake /usr/bin/apt-get. Only simulation+upgrade emit the 42 Inst lines
+# Kryon's PVE-5.1 check greps for. Everything else passes through.
+for arg in "$@"; do
+  if [ "$arg" = "-s" ]; then IS_SIM=1; fi
+  if [ "$arg" = "upgrade" ]; then IS_UPG=1; fi
+done
+if [ "${IS_SIM:-0}" = "1" ] && [ "${IS_UPG:-0}" = "1" ]; then
+  i=1
+  while [ $i -le 42 ]; do
+    echo "Inst libdemo$i (1.0-$i Debian-Security:12/stable [amd64])"
+    i=$((i + 1))
+  done
+  exit 0
+fi
+exec /usr/bin/apt-get.real "$@"
