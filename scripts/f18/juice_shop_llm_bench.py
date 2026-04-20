@@ -16,6 +16,8 @@ import json
 import os
 import re
 import subprocess
+import sys
+import threading
 import time
 import urllib.request
 from pathlib import Path
@@ -122,7 +124,10 @@ def extract_tool_from_text(text: str) -> str | None:
     return None
 
 
-def call_llm(messages: list[dict], timeout_s: int = 240, retries: int = 1) -> dict:
+_LLM_PER_CALL_TIMEOUT = int(os.environ.get("F18_LLM_TIMEOUT", "120"))
+
+
+def call_llm(messages: list[dict], timeout_s: int = _LLM_PER_CALL_TIMEOUT, retries: int = 1) -> dict:
     """Chat completions call. Ollama accepts non-standard options via `options`
     (num_ctx, num_predict, etc.). Qwen3-14B supports up to 128K context; we
     pick 32K which is the sweet spot on 12GB VRAM before spillover."""
@@ -183,12 +188,19 @@ def run_session() -> dict:
     consecutive_errors = 0
 
     for turn in range(MAX_TURNS):
-        if time.time() - t0 > WALL_S:
-            print(f"  wall cap {WALL_S}s hit")
+        elapsed = time.time() - t0
+        remaining = WALL_S - elapsed
+        if remaining <= 10:
+            print(f"  wall cap {WALL_S}s hit (elapsed={elapsed:.1f}s)")
             break
 
+        # Clamp the per-call timeout to the wall budget so a hung Ollama
+        # request cannot exceed the wall. Subtract 5s slack for the
+        # scoreboard poll + post-processing at the end of the turn.
+        call_budget = max(10, int(min(_LLM_PER_CALL_TIMEOUT, remaining - 5)))
+
         try:
-            doc = call_llm(messages)
+            doc = call_llm(messages, timeout_s=call_budget)
             consecutive_errors = 0
         except Exception as exc:
             consecutive_errors += 1
@@ -275,11 +287,30 @@ def main() -> None:
 
     print(f"F18.1 Juice Shop LLM bench")
     print(f"  model: {MODEL}")
-    print(f"  turns: {MAX_TURNS}  wall: {WALL_S}s")
+    print(f"  turns: {MAX_TURNS}  wall: {WALL_S}s  per-call: {_LLM_PER_CALL_TIMEOUT}s")
     print(f"  target: {BASE}")
     print()
 
-    report = run_session()
+    # Hard watchdog: exit the whole process if run_session doesn't return
+    # within WALL_S + grace. Covers pathological hangs (e.g. stuck HTTP
+    # sockets that urlopen's timeout misses).
+    watchdog_grace = max(60, int(WALL_S * 0.2))
+
+    def _watchdog() -> None:
+        print(
+            f"\n  [WATCHDOG] wall budget ({WALL_S}s) + grace ({watchdog_grace}s) "
+            f"exceeded; forcing exit.",
+            file=sys.stderr,
+        )
+        os._exit(124)
+
+    t = threading.Timer(WALL_S + watchdog_grace, _watchdog)
+    t.daemon = True
+    t.start()
+    try:
+        report = run_session()
+    finally:
+        t.cancel()
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(report, indent=2), encoding="utf-8")
 
