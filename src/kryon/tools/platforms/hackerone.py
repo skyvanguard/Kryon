@@ -10,9 +10,24 @@ Provides four agent-facing tools + a scope-enforcement helper used by
     is_in_scope(url, handle)       — Python helper, NOT a tool — for the
                                      run_web_pentest guardrail
 
-Auth:
-    HACKERONE_API_USERNAME  — your HackerOne API identifier
-    HACKERONE_API_TOKEN     — your API token
+Two API flavors on HackerOne — auth is the same HTTP Basic, but the
+endpoint tree differs:
+
+  - **Hacker accounts** (individual researchers, default for most
+    users) use ``/v1/hackers/*``. The Basic Auth username is the
+    HackerOne profile username (what appears after hackerone.com/),
+    and the API token is generated via /settings/api. There is NO
+    custom per-token identifier — the UI shows only the secret.
+  - **Organization tokens** use ``/v1/me/*`` and ``/v1/organizations/*``.
+    Org tokens DO have a custom identifier field filled at creation.
+
+This module detects automatically: try hacker endpoints first, fall
+back to ``/v1/me/*`` on 404/403. Env vars:
+
+    HACKERONE_API_USERNAME  — profile username (hacker) OR custom
+                              identifier (org token)
+    HACKERONE_API_TOKEN     — API token
+
 Both read from environment at each tool invocation. **Never hardcode
 the token** — the codebase is open-source and is commonly forked.
 
@@ -237,7 +252,9 @@ def is_in_scope(
     asset matches, ``False`` is returned. Callers treat False as BLOCK.
     """
     if scope_cache is None:
-        scope_cache = _get(f"/programs/{program_handle}/structured_scopes")
+        scope_cache = _get(f"/hackers/programs/{program_handle}/structured_scopes")
+        if "error" in scope_cache and "401" in str(scope_cache.get("error", "")):
+            scope_cache = _get(f"/programs/{program_handle}/structured_scopes")
     if "error" in scope_cache:
         return False, f"scope lookup failed: {scope_cache['error']}"
 
@@ -286,7 +303,11 @@ def h1_list_programs(limit: int = 25) -> str:
         JSON string with ``programs`` array, each with handle, name,
         submission_state, offers_bounties, offers_swag, policy_url.
     """
-    data = _get("/me/programs", params={"page[size]": min(max(limit, 1), 100)})
+    # Try hacker endpoint first (default for individual accounts); fall
+    # back to /me/programs for organization tokens.
+    data = _get("/hackers/programs", params={"page[size]": min(max(limit, 1), 100)})
+    if "error" in data and "401" not in str(data.get("error", "")):
+        data = _get("/me/programs", params={"page[size]": min(max(limit, 1), 100)})
     if "error" in data:
         return json.dumps(data)
 
@@ -319,7 +340,11 @@ def h1_get_program_scope(program_handle: str) -> str:
         JSON string with eligible assets (asset_identifier, asset_type,
         eligible_for_bounty, eligible_for_submission, instruction).
     """
-    data = _get(f"/programs/{program_handle}/structured_scopes")
+    # Hacker-first, fall back to org-scoped endpoint on 401 (org tokens
+    # use /programs/<h>/... instead of /hackers/programs/<h>/...).
+    data = _get(f"/hackers/programs/{program_handle}/structured_scopes")
+    if "error" in data and "401" in str(data.get("error", "")):
+        data = _get(f"/programs/{program_handle}/structured_scopes")
     if "error" in data:
         return json.dumps(data)
 
@@ -356,13 +381,11 @@ def h1_list_my_reports(state: str = "new", limit: int = 20) -> str:
         JSON with report id, title, state, severity, created_at,
         program_handle per report.
     """
-    data = _get(
-        "/me/reports",
-        params={
-            "filter[state][]": state,
-            "page[size]": min(max(limit, 1), 100),
-        },
-    )
+    # Hacker endpoint first, then fall back to org endpoint.
+    params = {"filter[state][]": state, "page[size]": min(max(limit, 1), 100)}
+    data = _get("/hackers/reports", params=params)
+    if "error" in data and "401" not in str(data.get("error", "")):
+        data = _get("/me/reports", params=params)
     if "error" in data:
         return json.dumps(data)
 
@@ -418,8 +441,10 @@ def h1_submit_report(
     if severity.lower() not in {"none", "low", "medium", "high", "critical"}:
         return json.dumps({"error": f"invalid severity {severity!r}"})
 
-    # Resolve program to its relationship id
-    progs = _get("/me/programs", params={"page[size]": 100})
+    # Resolve program to its relationship id (hacker-first, org fallback)
+    progs = _get("/hackers/programs", params={"page[size]": 100})
+    if "error" in progs and "401" not in str(progs.get("error", "")):
+        progs = _get("/me/programs", params={"page[size]": 100})
     if "error" in progs:
         return json.dumps(progs)
     program_id: Optional[str] = None
