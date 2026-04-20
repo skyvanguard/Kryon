@@ -7,11 +7,14 @@ across all agents while keeping individual tool lists focused.
 
 from kryon.tools.ai.claude_code import claude_code
 from kryon.tools.knowledge import (
+    findings_library_stats,
     get_exploit_techniques,
     get_security_tools,
     list_recent_experiences,
     query_knowledge_base,
+    query_similar_findings,
     recall_similar_experiences,
+    record_engagement_findings,
     search_vulnerabilities,
 )
 from kryon.tools.reconnaissance.exec_code import execute_code
@@ -24,10 +27,23 @@ CORE_TOOLS = [run_command, execute_code]
 # recall_similar_experiences is included here so EVERY agent that does
 # recon can bias its plan toward attack chains that worked against
 # similar targets before (self-improving loop — see docs/LEARNING_LOOP.md).
-RAG_TOOLS = [query_knowledge_base, search_vulnerabilities, recall_similar_experiences]
+# F64 — query_similar_findings added so the planner pulls XBOW-style
+# n-days patterns before probing a new target.
+RAG_TOOLS = [
+    query_knowledge_base,
+    search_vulnerabilities,
+    recall_similar_experiences,
+    query_similar_findings,
+]
 
 # RAG full set — for agents doing deep vuln research
-RAG_TOOLS_FULL = RAG_TOOLS + [get_exploit_techniques, get_security_tools, list_recent_experiences]
+RAG_TOOLS_FULL = RAG_TOOLS + [
+    get_exploit_techniques,
+    get_security_tools,
+    list_recent_experiences,
+    record_engagement_findings,
+    findings_library_stats,
+]
 
 # AI delegation tool
 AI_TOOLS = [claude_code]
