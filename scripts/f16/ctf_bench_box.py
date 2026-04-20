@@ -20,8 +20,8 @@ from pathlib import Path
 MODEL = os.environ.get("KRYON_MODEL", "kryon-30b-moe")
 ENDPOINT = os.environ.get("OPENAI_BASE_URL", "http://ollama:11434/v1")
 API_KEY = os.environ.get("OPENAI_API_KEY", "ollama")
-MAX_TURNS = 40
-WALL_S = 1200
+MAX_TURNS = int(os.environ.get("F16_MAX_TURNS", "30"))
+WALL_S = int(os.environ.get("F16_WALL_S", "1500"))
 
 CATEGORY_HINTS = {
     "web": (
@@ -148,27 +148,48 @@ def _extract_tool_from_text(text: str) -> str | None:
     return None
 
 
-def _call_llm(messages: list[dict], timeout_s: int = 180) -> dict:
+def _call_llm(messages: list[dict], timeout_s: int = 240, retries: int = 1) -> dict:
+    """Chat-completions with agentic-friendly defaults for Qwen3-14B dense.
+
+    num_ctx=32768 / num_predict=4096 match the kryon-14b Modelfile but we
+    also pass them as OpenAI `options` so any drop-in model uses the same
+    budget. Retries once on HTTP 500 (context overflow or transient OOM)."""
     body = json.dumps({
         "model": MODEL,
         "messages": messages,
         "tools": TOOLS_SPEC,
         "tool_choice": "auto",
         "temperature": 0,
-        "max_tokens": 800,
+        "max_tokens": 4096,
+        "options": {"num_ctx": 32768, "num_predict": 4096},
     }).encode()
-    # Call ollama on host-mapped port (container exposes 11434 → host 11435)
     endpoint = os.environ.get("OLLAMA_HOST_URL", "http://localhost:11435/v1")
-    req = urllib.request.Request(
-        f"{endpoint}/chat/completions",
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer ollama",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=timeout_s) as r:
-        return json.loads(r.read())
+    last_exc: Exception | None = None
+    for attempt in range(retries + 1):
+        req = urllib.request.Request(
+            f"{endpoint}/chat/completions",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": "Bearer ollama",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout_s) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as exc:
+            last_exc = exc
+            if exc.code == 500 and attempt < retries:
+                time.sleep(2)
+                continue
+            raise
+        except Exception as exc:
+            last_exc = exc
+            if attempt < retries:
+                time.sleep(1)
+                continue
+            raise
+    raise last_exc  # type: ignore[misc]
 
 
 def _start_box(challenge_dir: str) -> bool:
