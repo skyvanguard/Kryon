@@ -1,22 +1,26 @@
 {
   "total_challenges": 111,
   "solved_before": 0,
-  "solved_after": 11,
-  "newly_solved": 11,
+  "solved_after": 14,
+  "newly_solved": 14,
   "by_category": {
     "Improper Input Validation": 2,
     "Sensitive Data Exposure": 2,
     "Security Misconfiguration": 2,
-    "Broken Access Control": 1,
+    "Broken Access Control": 2,
+    "Broken Anti Automation": 1,
     "Observability Failures": 2,
+    "Cryptographic Issues": 1,
     "Broken Authentication": 1,
     "Injection": 1
   },
   "by_difficulty": {
-    "3": 2,
+    "3": 3,
     "1": 3,
     "2": 1,
-    "4": 5
+    "4": 5,
+    "5": 1,
+    "6": 1
   },
   "solved_list": [
     {
@@ -55,6 +59,20 @@
       "difficulty": 1
     },
     {
+      "id": 29,
+      "key": "extraLanguageChallenge",
+      "name": "Extra Language",
+      "category": "Broken Anti Automation",
+      "difficulty": 5
+    },
+    {
+      "id": 32,
+      "key": "forgedFeedbackChallenge",
+      "name": "Forged Feedback",
+      "category": "Broken Access Control",
+      "difficulty": 3
+    },
+    {
       "id": 35,
       "key": "forgottenDevBackupChallenge",
       "name": "Forgotten Developer Backup",
@@ -67,6 +85,13 @@
       "name": "Misplaced Signature File",
       "category": "Observability Failures",
       "difficulty": 4
+    },
+    {
+      "id": 62,
+      "key": "premiumPaywallChallenge",
+      "name": "Premium Paywall",
+      "category": "Cryptographic Issues",
+      "difficulty": 6
     },
     {
       "id": 70,
