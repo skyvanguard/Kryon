@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import time
@@ -28,6 +29,18 @@ from kryon.compliance.checks.base import Check, CheckContext, CheckResult
 
 
 _REGISTERED_CHECKS: list[Check] = []
+_NAT_SORT_SPLIT = re.compile(r"(\d+)")
+
+
+def _natural_sort_key(control_id: str) -> tuple:
+    """Natural-order sort key for CIS-style dotted ids.
+
+    Lexicographic sort puts "CIS-5.2.10" before "CIS-5.2.2", which is
+    wrong for CIS/PCI/BCP numbering. We split the id on digit runs and
+    coerce the numeric segments to int so CIS-5.2.2 < CIS-5.2.10.
+    """
+    parts = _NAT_SORT_SPLIT.split(control_id)
+    return tuple(int(p) if p.isdigit() else p for p in parts)
 
 
 def register_check(check: Check) -> None:
@@ -39,8 +52,8 @@ def register_check(check: Check) -> None:
 
 
 def registered_checks() -> list[Check]:
-    """Return checks sorted by control_id for deterministic execution."""
-    return sorted(_REGISTERED_CHECKS, key=lambda c: c.control_id)
+    """Return checks in natural-order by control_id for deterministic execution."""
+    return sorted(_REGISTERED_CHECKS, key=lambda c: _natural_sort_key(c.control_id))
 
 
 def run_cmd(
