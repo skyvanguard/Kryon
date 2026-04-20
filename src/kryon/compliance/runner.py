@@ -214,6 +214,16 @@ def _import_all_checks() -> None:
         "kryon.compliance.checks.proxmox.c_pve_3_2_api_token_hygiene",
         "kryon.compliance.checks.proxmox.c_pve_4_1_firewall_enabled",
         "kryon.compliance.checks.proxmox.c_pve_5_1_version_currency",
+        # F24 Active Directory hardening (banking profile)
+        "kryon.compliance.checks.active_directory.c_ad_1_1_ldap_signing",
+        "kryon.compliance.checks.active_directory.c_ad_1_2_ldaps_cert",
+        "kryon.compliance.checks.active_directory.c_ad_1_3_anon_bind",
+        "kryon.compliance.checks.active_directory.c_ad_2_1_kerberoastable",
+        "kryon.compliance.checks.active_directory.c_ad_2_2_krbtgt_rotation",
+        "kryon.compliance.checks.active_directory.c_ad_3_1_domain_admins",
+        "kryon.compliance.checks.active_directory.c_ad_3_2_password_policy",
+        "kryon.compliance.checks.active_directory.c_ad_4_1_smb_signing",
+        "kryon.compliance.checks.active_directory.c_ad_5_1_audit_policy",
     ]
     import importlib
     for m in modules:
