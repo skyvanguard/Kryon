@@ -296,7 +296,7 @@ checks:
     severity: HIGH
     rationale: "ADMIN_RESTRICTIONS_LISTENER=ON prevents dynamic SET commands over the listener TCP port (CVE-2012-1675 family)."
     remediation: "Add ADMIN_RESTRICTIONS_LISTENER=ON to listener.ora; lsnrctl reload"
-    command: "find / -name listener.ora -not -path '*/proc/*' 2>/dev/null | head -3 | xargs -r grep -H 'ADMIN_RESTRICTIONS' 2>/dev/null"
+    command: "find /u01 /u02 /opt/oracle /home/oracle /oracle -name listener.ora -maxdepth 8 2>/dev/null | head -3 | xargs -r grep -H 'ADMIN_RESTRICTIONS' 2>/dev/null"
     pass_when:
       any_of:
         - stdout_empty: true
@@ -308,7 +308,7 @@ checks:
     severity: HIGH
     rationale: "Legacy DES 10G-style hash can be cracked offline from a stolen SYS.USER$ dump."
     remediation: "Set SQLNET.ALLOWED_LOGON_VERSION_SERVER=12a in sqlnet.ora; expire all passwords to force re-hash"
-    command: "find / -name 'sqlnet.ora' -not -path '*/proc/*' 2>/dev/null | head -3 | xargs -r grep -H 'SQLNET.ALLOWED_LOGON_VERSION' 2>/dev/null"
+    command: "find /u01 /u02 /opt/oracle /home/oracle /oracle -name 'sqlnet.ora' -maxdepth 8 2>/dev/null | head -3 | xargs -r grep -H 'SQLNET.ALLOWED_LOGON_VERSION' 2>/dev/null"
     pass_when:
       any_of:
         - stdout_empty: true
@@ -320,7 +320,7 @@ checks:
     severity: HIGH
     rationale: "AUDIT_TRAIL=NONE leaves no forensic trail; required by PCI-DSS 10 and BCP PY Art. 25."
     remediation: "ALTER SYSTEM SET AUDIT_TRAIL=DB_EXTENDED SCOPE=SPFILE; restart instance"
-    command: "find / -name 'spfile*.ora' -o -name 'init*.ora' 2>/dev/null | head -3 | xargs -r strings 2>/dev/null | grep -iE 'audit_trail' | head -5"
+    command: "find /u01 /u02 /opt/oracle /home/oracle /oracle -maxdepth 8 \\( -name 'spfile*.ora' -o -name 'init*.ora' \\) 2>/dev/null | head -3 | xargs -r strings 2>/dev/null | grep -iE 'audit_trail' | head -5"
     pass_when:
       any_of:
         - stdout_empty: true
@@ -341,7 +341,7 @@ checks:
     section: "5"
     severity: HIGH
     remediation: "For Oracle: SQLNET.ENCRYPTION_SERVER=required. For DB2: SSL_SVR_LABEL + set_client_auth_mode SERVER_ENCRYPT"
-    command: "find / -name 'tnsnames.ora' -o -name 'db2cli.ini' 2>/dev/null | head -3 | xargs -r grep -H -iE '(PROTOCOL\\s*=\\s*TCPS|SECURITY\\s*=.*SERVER_ENCRYPT)' 2>/dev/null"
+    command: "find /u01 /u02 /opt/oracle /home/oracle /oracle /db2 /home/db2inst1 -maxdepth 8 \\( -name 'tnsnames.ora' -o -name 'db2cli.ini' \\) 2>/dev/null | head -3 | xargs -r grep -H -iE '(PROTOCOL\\s*=\\s*TCPS|SECURITY\\s*=.*SERVER_ENCRYPT)' 2>/dev/null"
     pass_when:
       not:
         stdout_empty: true

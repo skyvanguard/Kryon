@@ -1,0 +1,149 @@
+{
+  "run_id": "eba91710",
+  "timestamp": "20260420-214556",
+  "host": "localhost",
+  "transport": "ssh",
+  "frameworks_run": 10,
+  "total_checks": 422,
+  "verdict_totals": {
+    "PASS": 127,
+    "FAIL": 199,
+    "N/A": 0,
+    "ERROR": 96
+  },
+  "total_elapsed_s": 7.99,
+  "repro_stable": 10,
+  "repro_unstable": 0,
+  "per_framework": [
+    {
+      "framework_id": "atm-security-bcp-2024",
+      "total_checks": 25,
+      "verdicts": {
+        "PASS": 7,
+        "FAIL": 3,
+        "N/A": 0,
+        "ERROR": 15
+      },
+      "hash": "0c71af2d4ea2730adc5d5ba6778d24b6dc2d2715802aaee9c4de6e7d65d6aa70",
+      "elapsed_s": 0.04,
+      "reproducible": true
+    },
+    {
+      "framework_id": "bcp-py-res-12-2021",
+      "total_checks": 18,
+      "verdicts": {
+        "PASS": 2,
+        "FAIL": 16,
+        "N/A": 0,
+        "ERROR": 0
+      },
+      "hash": "7a17487d0ec6eeef93d0f7b98bc8bea5eae2b3742d93047939debb14a59ef437",
+      "elapsed_s": 0.09,
+      "reproducible": true
+    },
+    {
+      "framework_id": "cis-debian-12-l1",
+      "total_checks": 47,
+      "verdicts": {
+        "PASS": 18,
+        "FAIL": 29,
+        "N/A": 0,
+        "ERROR": 0
+      },
+      "hash": "490a16b1f0d935d09873b9a03cdf16270e200810c0121d9c0314b3ff9548a4ca",
+      "elapsed_s": 2.97,
+      "reproducible": true
+    },
+    {
+      "framework_id": "cis-docker-1.6",
+      "total_checks": 54,
+      "verdicts": {
+        "PASS": 23,
+        "FAIL": 18,
+        "N/A": 0,
+        "ERROR": 13
+      },
+      "hash": "3b51fd87d0ab784de46ef87adf9f1b3e3cb786223e378d98b857ec93c53d055b",
+      "elapsed_s": 0.1,
+      "reproducible": true
+    },
+    {
+      "framework_id": "cis-rhel-9-l1",
+      "total_checks": 54,
+      "verdicts": {
+        "PASS": 17,
+        "FAIL": 36,
+        "N/A": 0,
+        "ERROR": 1
+      },
+      "hash": "fed29f3bf518e0cc598578628ed95667154885adfd512a01f7330dfa535624c1",
+      "elapsed_s": 1.52,
+      "reproducible": true
+    },
+    {
+      "framework_id": "cis-ubuntu-22.04-l1",
+      "total_checks": 73,
+      "verdicts": {
+        "PASS": 24,
+        "FAIL": 49,
+        "N/A": 0,
+        "ERROR": 0
+      },
+      "hash": "0f56fa72fe26295084b03e7f5eeedd3b1c82e8077d9f1db1e4fe878e4afec507",
+      "elapsed_s": 1.62,
+      "reproducible": true
+    },
+    {
+      "framework_id": "cis-windows-server-2022-l1",
+      "total_checks": 67,
+      "verdicts": {
+        "PASS": 0,
+        "FAIL": 0,
+        "N/A": 0,
+        "ERROR": 67
+      },
+      "hash": "46da3198eaab93666dcff711ce49adc9e2beeaf3f6cb98c1cd6bd90b092a0f4a",
+      "elapsed_s": 1.34,
+      "reproducible": true
+    },
+    {
+      "framework_id": "core-banking-hardening",
+      "total_checks": 36,
+      "verdicts": {
+        "PASS": 26,
+        "FAIL": 10,
+        "N/A": 0,
+        "ERROR": 0
+      },
+      "hash": "6a11448dade913374877d35eba0dc2f2180f0adc5653bb1cdfd00a6ed5c6fa6d",
+      "elapsed_s": 0.05,
+      "reproducible": true
+    },
+    {
+      "framework_id": "pci-dss-4.0",
+      "total_checks": 31,
+      "verdicts": {
+        "PASS": 7,
+        "FAIL": 24,
+        "N/A": 0,
+        "ERROR": 0
+      },
+      "hash": "9ae0ad45fd01fb79b52d4d063aac847f0a44d259dc693faccf7a43bdc5e25fba",
+      "elapsed_s": 0.21,
+      "reproducible": true
+    },
+    {
+      "framework_id": "swift-csp-2024",
+      "total_checks": 17,
+      "verdicts": {
+        "PASS": 3,
+        "FAIL": 14,
+        "N/A": 0,
+        "ERROR": 0
+      },
+      "hash": "7f2317dde81a0c2306d56d730e26afcc34b295355702083cb73cb12c3e55021a",
+      "elapsed_s": 0.05,
+      "reproducible": true
+    }
+  ]
+}

@@ -181,7 +181,7 @@
       },
       "total_checks": 36,
       "version": "0.1.0",
-      "yaml_sha256": "fe2261406d3177ffa5a24e59294b5b90e1799a91f69980d7d43edcbf6a49729c"
+      "yaml_sha256": "a815a297d5b2266d67bd93a83c855583b0d3c8a935a39ff4a4cde57ca1dc0065"
     },
     "pci-dss-4.0": {
       "id": "pci-dss-4.0",
