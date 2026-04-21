@@ -840,9 +840,11 @@ from pathlib import Path as _Path  # noqa: E402
 _sys.path.insert(0, str(_Path(__file__).resolve().parent))
 from f71_canary_attacks import build_f71_attacks  # noqa: E402
 from f72_canary_attacks import build_f72_attacks  # noqa: E402
+from f73_canary_attacks import build_f73_attacks  # noqa: E402
 
 ATTACKS.extend(build_f71_attacks(base=BASE, login_admin_jwt=login_admin_jwt))
 ATTACKS.extend(build_f72_attacks(base=BASE, login_admin_jwt=login_admin_jwt))
+ATTACKS.extend(build_f73_attacks(base=BASE, login_admin_jwt=login_admin_jwt))
 
 
 def diff_solved(before: list[dict], after: list[dict]) -> list[dict]:
