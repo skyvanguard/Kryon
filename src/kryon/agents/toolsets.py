@@ -76,6 +76,12 @@ from kryon.tools.appsec.web_pentest_tool import (  # noqa: E402  (F63)
     crawl_web_target,
     run_web_pentest,
 )
+from kryon.tools.appsec.pentest_stack import (  # noqa: E402  (F68)
+    pentest_chain_findings,
+    pentest_dispatch_experts,
+    pentest_final_judge,
+    pentest_waf_probe,
+)
 from kryon.tools.platforms.hackerone import (  # noqa: E402  (F65)
     h1_assert_in_scope,
     h1_get_program_scope,
@@ -112,6 +118,13 @@ APPSEC_TOOLS = [
     # F63 — LLM-activated web pentest (F50-F62 pipeline behind @function_tool)
     run_web_pentest,
     crawl_web_target,
+    # F68 — F66/F67 pentest stack exposed as @function_tools. The LLM
+    # chains them: waf_probe -> dispatch_experts -> chain_findings ->
+    # final_judge. Deterministic, VRAM-free, banking-oriented.
+    pentest_waf_probe,
+    pentest_dispatch_experts,
+    pentest_chain_findings,
+    pentest_final_judge,
     # F65 — HackerOne platform integration (scope-enforced engagements)
     h1_list_programs,
     h1_get_program_scope,
