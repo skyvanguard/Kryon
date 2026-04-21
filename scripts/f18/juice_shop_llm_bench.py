@@ -14,13 +14,15 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import queue
 import re
 import subprocess
 import sys
 import threading
 import time
-import urllib.request
 from pathlib import Path
+
+import requests
 
 MODEL = os.environ.get("KRYON_MODEL", "kryon-30b-moe")
 OLLAMA_URL = os.environ.get("OLLAMA_HOST_URL", "http://localhost:11435/v1")
@@ -262,12 +264,50 @@ def extract_tool_from_text(text: str) -> str | None:
 
 
 _LLM_PER_CALL_TIMEOUT = int(os.environ.get("F18_LLM_TIMEOUT", "120"))
+_LLM_CONNECT_TIMEOUT = int(os.environ.get("F18_LLM_CONNECT_TIMEOUT", "15"))
+
+# Long-lived session: avoids per-call TCP reconnect to Ollama.
+_HTTP = requests.Session()
+
+
+def _do_llm_request(payload: dict, read_timeout: int, out_q: "queue.Queue") -> None:
+    """Blocking HTTP POST. Runs in a daemon thread; the result (or
+    exception) is published onto `out_q` so call_llm() can consume it
+    with a wall-clock timeout via queue.get(timeout=…).
+
+    `requests` timeout is (connect, read); `read` is the gap between bytes
+    on the wire — Ollama streams tokens so a slow-trickle response can
+    still outlast it. The queue.get() wall in call_llm() is the real
+    hard deadline. Because the worker thread is daemon=True, a leaked
+    request does not keep the interpreter alive at exit.
+    """
+    try:
+        r = _HTTP.post(
+            f"{OLLAMA_URL}/chat/completions",
+            json=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": "Bearer ollama",
+            },
+            timeout=(_LLM_CONNECT_TIMEOUT, read_timeout),
+        )
+        r.raise_for_status()
+        out_q.put(("ok", r.json()))
+    except BaseException as exc:  # surface any error, including timeouts
+        out_q.put(("err", exc))
 
 
 def call_llm(messages: list[dict], timeout_s: int = _LLM_PER_CALL_TIMEOUT, retries: int = 1) -> dict:
-    """Chat completions call. Ollama accepts non-standard options via `options`
-    (num_ctx, num_predict, etc.). Qwen3-14B supports up to 128K context; we
-    pick 32K which is the sweet spot on 12GB VRAM before spillover."""
+    """Chat completions call. Ollama accepts non-standard options via
+    `options` (num_ctx, num_predict, etc.). Qwen3-14B supports up to 128K
+    context; we pick 32K which is the sweet spot on 12GB VRAM before
+    spillover.
+
+    Hard wall timeout: the HTTP call runs inside a daemon thread; we block
+    on a queue.get(timeout=timeout_s). If it fires, we orphan the thread
+    (daemon=True, dies with the interpreter) and raise TimeoutError. The
+    per-call wall is therefore bounded regardless of socket read behaviour.
+    """
     payload = {
         "model": MODEL,
         "messages": messages,
@@ -280,30 +320,49 @@ def call_llm(messages: list[dict], timeout_s: int = _LLM_PER_CALL_TIMEOUT, retri
             "num_predict": 4096,
         },
     }
-    body = json.dumps(payload).encode()
     last_exc: Exception | None = None
     for attempt in range(retries + 1):
-        req = urllib.request.Request(
-            f"{OLLAMA_URL}/chat/completions",
-            data=body,
-            headers={"Content-Type": "application/json",
-                     "Authorization": "Bearer ollama"},
+        # Cap the read_timeout so the orphaned thread can't live longer
+        # than the budget (+slack for socket close).
+        read_budget = max(10, min(timeout_s + 10, _LLM_PER_CALL_TIMEOUT + 10))
+        out_q: queue.Queue = queue.Queue(maxsize=1)
+        t = threading.Thread(
+            target=_do_llm_request,
+            args=(payload, read_budget, out_q),
+            name=f"llm-call-{attempt}",
+            daemon=True,
         )
+        t.start()
         try:
-            with urllib.request.urlopen(req, timeout=timeout_s) as r:
-                return json.loads(r.read())
-        except urllib.error.HTTPError as exc:
-            last_exc = exc
-            if exc.code == 500 and attempt < retries:
-                time.sleep(2)
-                continue
-            raise
-        except Exception as exc:
-            last_exc = exc
+            kind, result = out_q.get(timeout=timeout_s)
+        except queue.Empty:
+            last_exc = TimeoutError(
+                f"LLM call exceeded {timeout_s}s hard wall deadline"
+            )
             if attempt < retries:
                 time.sleep(1)
                 continue
-            raise
+            raise last_exc
+
+        if kind == "ok":
+            return result  # type: ignore[return-value]
+
+        # kind == "err" — classify and decide whether to retry
+        exc = result
+        last_exc = exc  # type: ignore[assignment]
+        if isinstance(exc, requests.HTTPError):
+            code = exc.response.status_code if exc.response is not None else 0
+            if code == 500 and attempt < retries:
+                time.sleep(2)
+                continue
+            raise exc
+        if isinstance(exc, requests.RequestException):
+            if attempt < retries:
+                time.sleep(1)
+                continue
+            raise exc
+        raise exc  # type: ignore[misc]
+
     raise last_exc  # type: ignore[misc]
 
 
@@ -448,9 +507,10 @@ def main() -> None:
     print()
 
     # Hard watchdog: exit the whole process if run_session doesn't return
-    # within WALL_S + grace. Covers pathological hangs (e.g. stuck HTTP
-    # sockets that urlopen's timeout misses).
-    watchdog_grace = max(60, int(WALL_S * 0.2))
+    # within WALL_S + grace. The in-session executor timeout already bounds
+    # each LLM call, so this is now a belt-and-braces safety net; 60s grace
+    # is enough for the final scoreboard poll + JSON writeout.
+    watchdog_grace = 60
 
     def _watchdog() -> None:
         print(
