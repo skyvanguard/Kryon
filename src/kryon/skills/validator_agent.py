@@ -45,6 +45,13 @@ from typing import Any
 from kryon.tools.code.reader import _find_callers_impl, _read_function_impl
 from kryon.tools.code.sandbox import _run_sandboxed_impl
 
+# Optional — F66.2.b taint path check. Loaded lazily so the rest of the
+# validator keeps working when joern is not compiled into the container.
+try:
+    from kryon.tools.code.joern_tool import _joern_scan_impl as _joern_scan_impl_opt
+except Exception:  # noqa: BLE001
+    _joern_scan_impl_opt = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
 
 
@@ -101,6 +108,9 @@ class Verdict:
     reproduced_crash_type: str = ""
     reproduced_stack_top: list[str] = field(default_factory=list)
     exposure_reachable_from_api: bool | None = None
+    # F66.2.b — taint path status: 'confirmed' | 'absent' | 'not-checked'
+    taint_path_status: str = "not-checked"
+    taint_path_notes: str = ""
 
     def to_json(self) -> str:
         return json.dumps({
@@ -115,6 +125,8 @@ class Verdict:
             "reproduced_crash_type": self.reproduced_crash_type,
             "reproduced_stack_top": self.reproduced_stack_top,
             "exposure_reachable_from_api": self.exposure_reachable_from_api,
+            "taint_path_status": self.taint_path_status,
+            "taint_path_notes": self.taint_path_notes,
         }, indent=2)
 
 
@@ -250,6 +262,89 @@ class ValidatorAgent:
         # Genuine crash.
         return True, result, ""
 
+    # ----- Phase 2b: taint path (F66.2.b — PoC-Adapt) -----
+
+    # CWE claimed by hunter → joern `cwe_focus` key. Joern only supports
+    # a couple of CWEs natively (array-index 121, arith 190). Others fall
+    # through as "not-checked" — we never block on an unsupported CWE.
+    _CWE_TO_JOERN_KEY: dict[str, str] = {
+        "CWE-121": "121",
+        "CWE-122": "121",   # treat generic heap-overflow as 121-style
+        "CWE-787": "121",   # out-of-bounds write — indirect index access
+        "CWE-190": "190",
+        "CWE-191": "190",
+    }
+
+    def phase2b_taint_path(self, f: Finding) -> tuple[str, str]:
+        """Verify user-tainted data actually reaches the vulnerable site.
+
+        Returns (status, note) where status is:
+          * "confirmed"    — joern found a source→sink path ending in the
+                             reported function/file
+          * "absent"       — joern ran but no path reaches this finding;
+                             almost certainly a harness-only crash
+          * "not-checked"  — joern unavailable, CWE unsupported, or repo
+                             path missing. Verdict flow treats this as
+                             INAPPLICABLE and falls through to phase 3.
+        """
+        if _joern_scan_impl_opt is None:
+            return "not-checked", "joern module not importable"
+        if os.environ.get("KRYON_JOERN_ENABLED", "false").lower() != "true":
+            return "not-checked", "KRYON_JOERN_ENABLED is not true"
+        if not f.repo_path or not Path(f.repo_path).is_dir():
+            return "not-checked", "no repo_path to scan"
+
+        jkey = self._CWE_TO_JOERN_KEY.get(f.cwe.upper(), "")
+        if not jkey:
+            return "not-checked", f"CWE {f.cwe!r} not mapped to a joern query"
+
+        try:
+            raw = _joern_scan_impl_opt(
+                target_path=f.repo_path,
+                cwe_focus=jkey,
+                import_timeout_s=120,
+                query_timeout_s=60,
+                max_findings=50,
+            )
+            doc = json.loads(raw)
+        except Exception as exc:  # noqa: BLE001
+            return "not-checked", f"joern invocation failed: {exc}"
+
+        if doc.get("status") not in ("ok", None) and not doc.get("findings"):
+            return "not-checked", f"joern status={doc.get('status')}"
+
+        findings = doc.get("findings") or []
+        if not findings:
+            return "absent", "joern found no tainted source→sink paths"
+
+        # Look for a finding that names the same file + function. Paths
+        # from joern use absolute form (inside the container); the hunter
+        # reports whatever path the harness saw — try both forms.
+        target_fn = f.function_name
+        target_file_basename = Path(f.file_path).name
+        for hit in findings:
+            hit_file = (hit.get("file") or hit.get("sink_file") or "")
+            hit_fn = (hit.get("function") or hit.get("sink_function") or "")
+            # Match basenames to side-step container/host path differences.
+            same_file = (
+                hit_file == f.file_path
+                or Path(hit_file).name == target_file_basename
+            )
+            same_fn = (not target_fn) or (hit_fn == target_fn)
+            if same_file and same_fn:
+                path_len = len(hit.get("path") or [])
+                return (
+                    "confirmed",
+                    f"joern taint path through {hit_fn or target_fn} "
+                    f"(length={path_len})",
+                )
+
+        return (
+            "absent",
+            f"joern has {len(findings)} path(s) but none reach "
+            f"{target_fn} in {target_file_basename}",
+        )
+
     # ----- Phase 3: classification -----
 
     def phase3_classify(
@@ -342,6 +437,25 @@ class ValidatorAgent:
                 severity_claimed=f.severity,
             )
 
+        # Phase 2b — taint path (F66.2.b).
+        # "absent" is a hard reject: the PoC crashes the harness but there
+        # is no data-flow from a user-controlled source to the sink, so it
+        # would not be exploitable via real input. "not-checked" passes
+        # through — joern is optional scaffolding, not mandatory.
+        taint_status, taint_note = self.phase2b_taint_path(f)
+        if taint_status == "absent":
+            return Verdict(
+                verdict="REJECTED",
+                phase_failed="taint_path",
+                reason=taint_note,
+                cwe_claimed=f.cwe,
+                severity_claimed=f.severity,
+                reproduced_crash_type=repro.get("crash_type", ""),
+                reproduced_stack_top=(repro.get("stack_top") or [])[:5],
+                taint_path_status=taint_status,
+                taint_path_notes=taint_note,
+            )
+
         # Phase 3
         cwe_a, sev_a, notes, reachable, reason = self.phase3_classify(f, repro)
         if reason:
@@ -367,6 +481,8 @@ class ValidatorAgent:
             reproduced_crash_type=repro.get("crash_type", ""),
             reproduced_stack_top=(repro.get("stack_top") or [])[:5],
             exposure_reachable_from_api=reachable,
+            taint_path_status=taint_status,
+            taint_path_notes=taint_note,
         )
 
     def triage_batch(self, findings: list[Finding]) -> list[Verdict]:
