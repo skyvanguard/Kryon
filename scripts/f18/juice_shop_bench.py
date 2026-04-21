@@ -829,6 +829,20 @@ ATTACKS: list[tuple[str, list[str]]] = [
 ]
 
 
+# =======================================================================
+# F71 — Canary recipes extracted from juice-shop's own e2e test suite.
+# Ground truth (CI-verified payloads), not writeup heuristics.
+# See scripts/f18/f71_canary_attacks.py for sources per-entry.
+# =======================================================================
+import sys as _sys  # noqa: E402
+from pathlib import Path as _Path  # noqa: E402
+
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from f71_canary_attacks import build_f71_attacks  # noqa: E402
+
+ATTACKS.extend(build_f71_attacks(base=BASE, login_admin_jwt=login_admin_jwt))
+
+
 def diff_solved(before: list[dict], after: list[dict]) -> list[dict]:
     was = {c["id"]: c["solved"] for c in before}
     return [
