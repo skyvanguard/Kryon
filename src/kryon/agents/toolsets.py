@@ -76,7 +76,8 @@ from kryon.tools.appsec.web_pentest_tool import (  # noqa: E402  (F63)
     crawl_web_target,
     run_web_pentest,
 )
-from kryon.tools.appsec.pentest_stack import (  # noqa: E402  (F68)
+from kryon.tools.appsec.pentest_stack import (  # noqa: E402  (F68/F69)
+    pentest_build_engagement_report,
     pentest_chain_findings,
     pentest_dispatch_experts,
     pentest_final_judge,
@@ -125,6 +126,10 @@ APPSEC_TOOLS = [
     pentest_dispatch_experts,
     pentest_chain_findings,
     pentest_final_judge,
+    # F69 — orquestador end-to-end: corre los 4 anteriores y escribe
+    # un JSON compatible con load_webpentest_report() para que el
+    # pipeline F60 + F44 genere el PDF multi-framework.
+    pentest_build_engagement_report,
     # F65 — HackerOne platform integration (scope-enforced engagements)
     h1_list_programs,
     h1_get_program_scope,
