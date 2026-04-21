@@ -109,7 +109,7 @@ COPY src/ ./src/
 RUN uv venv /opt/venv && \
     . /opt/venv/bin/activate && \
     uv pip install --no-cache ".[rag,server,tracing,viz,tui,reporting,orchestration]" && \
-    uv pip install --no-cache impacket bloodhound && \
+    uv pip install --no-cache impacket bloodhound playwright && \
     # F15.2 fix: align all opentelemetry packages to >=1.41 line so chromadb
     # (which pulls exporter 1.41+) and semgrep (which pins ~=1.37) don't
     # collide at runtime via missing ReadableLogRecord/LogData symbols.
@@ -153,6 +153,19 @@ RUN groupadd -r kryon && useradd -r -g kryon -m -s /bin/bash kryon
 RUN mkdir -p /workspace /logs /reports /home/kryon/.kryon /home/kryon/.config/chromadb && \
     chown -R kryon:kryon /workspace /logs /reports /home/kryon
 
+# Playwright browsers live outside /home/kryon so docker-compose volumes that
+# mount ~/.cache don't shadow the installed chromium binary.
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
+
+# System libs chromium needs (libnss3, libatk, libx11 family, fonts, …).
+# `playwright install-deps` is a batteries-included apt wrapper maintained
+# by Microsoft; it fetches the exact list for the current playwright
+# version and passes --no-install-recommends itself.
+RUN /opt/venv/bin/playwright install-deps chromium \
+    && mkdir -p "$PLAYWRIGHT_BROWSERS_PATH" \
+    && chown -R kryon:kryon "$PLAYWRIGHT_BROWSERS_PATH" \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install Claude Code CLI (Node.js already available from base stage apt)
 RUN npm install -g @anthropic-ai/claude-code \
     && claude --version \
@@ -184,6 +197,12 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 WORKDIR /workspace
 
 USER kryon
+
+# Install Chromium as the kryon user so the browser cache is owned by kryon.
+# PLAYWRIGHT_BROWSERS_PATH (set above) steers it to /opt/playwright-browsers
+# which is already chown'd kryon:kryon.
+RUN /opt/venv/bin/playwright install chromium \
+    && echo "Playwright chromium OK"
 
 # Health check against the API server
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
