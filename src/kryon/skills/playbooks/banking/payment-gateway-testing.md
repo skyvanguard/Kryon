@@ -11,6 +11,12 @@ required_tools:
   - nuclei_scan
 ---
 
+> **Estado: TEMPLATE — vendor-specific checks aspiracionales.**
+> Las integraciones (Bancard/Infonet/Stripe/MercadoPago) tienen cada
+> una su propio flow de checkout, webhook signing y 3DS. Este
+> playbook cubre el patrón común; cada banco necesita ajuste al
+> gateway real en uso. Usar sólo tras sandbox de merchant confirmado.
+
 ## Payment Gateway Testing
 
 Testing de integraciones con pasarelas de pago. Common vulns: webhooks sin validar,

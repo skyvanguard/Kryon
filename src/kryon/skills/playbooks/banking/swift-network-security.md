@@ -11,6 +11,12 @@ required_tools:
   - nuclei_scan
 ---
 
+> **Estado: TEMPLATE — mapea los 32 controles CSP, no los ejecuta.**
+> Un audit SWIFT real exige acceso a Alliance Access/Gateway + la red
+> SWIFTNet segregada + atestaciones anuales con el CISO del banco.
+> Este playbook es la checklist que Kryon sigue; los controles se
+> validan manualmente. No es un reemplazo de un KY3P anual.
+
 ## SWIFT Network Security Assessment
 
 Auditoría de la infraestructura SWIFT de un banco. El programa **Customer

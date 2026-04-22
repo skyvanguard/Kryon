@@ -10,6 +10,12 @@ required_tools:
   - execute_code
 ---
 
+> **Estado: TEMPLATE — requiere APK/IPA + sandbox jailbroken.**
+> Mobile pentest no corre en el container de Kryon: necesita un
+> device de prueba (Genymotion o iPhone jailbreak), Frida, objection,
+> y el APK firmado del cliente. Este playbook es la checklist OWASP
+> MASVS; el work real se hace con herramientas externas.
+
 ## Mobile Banking App Security Audit
 
 Auditoría específica para apps de banca móvil. Alto valor = alto riesgo.

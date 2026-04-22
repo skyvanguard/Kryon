@@ -11,6 +11,12 @@ required_tools:
   - nuclei_scan
 ---
 
+> **Estado: TEMPLATE — requiere acceso físico + lab del vendor.**
+> ATM testing es hands-on con hardware (NCR, Diebold Nixdorf,
+> Wincor): black-box attacks, jackpotting, card skimming detection.
+> Kryon puede guiar metodología y levantar el informe, pero no
+> reemplaza un pentest físico con equipo certificado PCI-PTS.
+
 ## ATM Security Assessment
 
 Testing de seguridad para ATMs. Alto riesgo físico y financiero.

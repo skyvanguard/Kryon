@@ -116,3 +116,31 @@ KRYON_EMBEDDING_MODEL=nomic-embed-text
 - Client data handling: **NDA first**, data retention policy, secure destruction after engagement.
 - For PCI-DSS audits, confirm the SAQ level (A, A-EP, B, B-IP, C, C-VT, D) before scoping.
 - For SWIFT CSP audits, the attestation is annual — coordinate with the SWIFT CISO of the bank.
+
+## Banking vertical — current reality vs pitch (F77.C)
+
+The README and marketing surface may describe "Kryon for banking" as a
+turnkey product. For internal development purposes, the honest status is:
+
+| Playbook | Status | Notes |
+|---|---|---|
+| `pci-dss-audit.md` | **production-capable** | F15.1 + F39: 40 deterministic checks wired to compliance runner. Reproducibility-hashed. Ready for SAQ B/C/D scoping. |
+| `proxmox-audit.md` | **production-capable** | F23 + F23.1: 7 deterministic PVE checks. Validated in the F48 internal pilot. |
+| `audit-bank-full.md` | **production-capable** | F46: orchestrates the three above + multi-framework PDF (F44). |
+| `core-banking-assessment.md` | **template** | Vendor-specific (T24/Flexcube/Finacle/Bantotal): methodology + checklist only. No out-of-the-box scanner for any of these. Needs vendor sandbox + credentials per engagement. |
+| `swift-network-security.md` | **template** | Maps CSP v2024 (32 controls). Execution is manual + with Alliance Access access. Not a KY3P replacement. |
+| `atm-security.md` | **template** | Requires physical access + NCR/Diebold lab + PCI-PTS certified team. |
+| `open-banking-api.md` | **template** | FAPI 1.0 Advanced methodology. Per-bank mTLS certs + client_id required. |
+| `payment-gateway-testing.md` | **template** | Vendor-specific (Bancard/Infonet/Stripe/MercadoPago). Checklist only. |
+| `fraud-detection.md` | **template** | Interview + rule-review guide, not a technical scan. |
+| `mobile-banking-audit.md` | **template** | Needs Frida/objection/jailbroken device outside the Kryon container. |
+
+**What Kryon actually runs end-to-end today**: local-network compliance
+sweep (PCI-DSS + CIS + Proxmox + AD) → multi-framework consolidated
+PDF (F27.5) → deterministic reproducibility hash. Juice Shop
+benchmark (F18-F73) at 85/111 and Juliet SAST (F74.C-F76.2) at 67.1%
+recall + 15% FPR@HIGH are the proof-points. Banking templates are
+starter frames, not finished offerings.
+
+Whenever recommending a banking playbook to the user, surface the
+status. If it's `template`, say so — don't promise what isn't there.

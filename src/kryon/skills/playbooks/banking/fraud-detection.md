@@ -10,6 +10,12 @@ required_tools:
   - query_knowledge_base
 ---
 
+> **Estado: TEMPLATE — auditoría de lógica, no scan técnico.**
+> Las reglas antifraude son per-banco (velocity, device fingerprint,
+> ML scoring interno). Este playbook guía la conversación con el
+> equipo de riesgo y la revisión manual de reglas; Kryon no scan'ea
+> el modelo ni dispara transacciones de prueba sin sandbox explícito.
+
 ## Audit de Detección de Fraude Bancario
 
 Evaluación de sistemas antifraude. Objetivo: confirmar que los controles

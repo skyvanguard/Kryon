@@ -13,6 +13,14 @@ required_tools:
   - query_knowledge_base
 ---
 
+> **Estado: TEMPLATE — no validado contra un engagement real.**
+> Este playbook describe la metodología que Kryon seguiría en un core
+> bancario, pero los checks vendor-specific (T24/Flexcube/Finacle) son
+> skeletons: requieren acceso al ambiente del cliente + credenciales +
+> ajuste por instalación antes de arrojar hallazgos accionables. No
+> usar este playbook como prueba de capacidad sin un pilot con el
+> vendor correspondiente.
+
 ## Core Banking Security Assessment
 
 Evaluación de core banking systems. Cubre productos comunes en LATAM/Paraguay:

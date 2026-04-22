@@ -10,6 +10,12 @@ required_tools:
   - nuclei_scan
 ---
 
+> **Estado: TEMPLATE — FAPI checks requieren el sandbox del banco.**
+> Kryon conoce la metodología FAPI 1.0 Advanced + mTLS + JARM,
+> pero los certificados OB, el client_id registrado y el scope
+> autorizado son per-engagement. Este playbook es guía, no un scan
+> out-of-the-box.
+
 ## Open Banking / PSD2 API Security
 
 Auditoría de APIs Open Banking. Stack típico: **OAuth 2.0 + OpenID Connect + FAPI + mTLS**.
