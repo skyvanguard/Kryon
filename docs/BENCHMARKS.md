@@ -36,24 +36,30 @@
 | CWE-416 | 75% | 75% | — |
 | CWE-476 | 73% | 73% | — |
 
-### FPR proxy — F75.6 severity-stratified (zlib N=41)
+### FPR proxy — F75.6 / F76.1 severity-stratified (zlib N=41)
 
 | Runner | FPR@any | **FPR@HIGH** (triage queue) | context_filter downgrades |
 |---|---|---|---|
 | heuristic | 61.0% | 0.0% | 0 |
 | semgrep | 36.6% | 34.1% | 0 |
-| **hybrid** | **61.0%** | **14.6%** | **46** |
+| **hybrid** (triage queue mode) | **61.0%** | **14.6%** | 46 |
+| **hybrid-filter** (CI gate mode, F76.1) | **39.0%** | **7.3%** | 11 |
 
-**The 14.6% hybrid FPR@HIGH** is the real production-threshold FPR and lands
-Kryon in **Veracode / Semgrep Pro tier** (12-20%). The 61% any-finding FPR
-was hiding the value — 77% of those findings are WARNING-severity
-(heuristic pattern hits), not HIGH-actionable.
+### Two operating modes
 
-### F75 + F75.6 full breakdown
+| Mode | Recall@CWE | FPR@HIGH | Tier | Use case |
+|---|---|---|---|---|
+| hybrid | 67.1% | 14.6% | Klocwork | Sec engineer triage queue |
+| **hybrid-filter** | **52.0%** | **7.3%** | **Coverity FPR / Veracode recall** | Automated CI gate, high-confidence only |
 
-See [`reports/f75_juliet_scaffolding.md`](../reports/f75_juliet_scaffolding.md)
-(main F75) and [`reports/f75_6_juliet_fpr_high.md`](../reports/f75_6_juliet_fpr_high.md)
-(severity-stratified metric + per-CWE @HIGH table).
+Both modes ship from the same binary. Client picks based on whether a
+human reviews findings (→ hybrid) or a pipeline blocks PRs (→ hybrid-filter).
+
+### F75 / F75.6 / F76.1 full breakdown
+
+- [`reports/f75_juliet_scaffolding.md`](../reports/f75_juliet_scaffolding.md) — F75 phases 1-4
+- [`reports/f75_6_juliet_fpr_high.md`](../reports/f75_6_juliet_fpr_high.md) — severity-stratified metric, per-CWE @HIGH
+- [`reports/f76_1_hybrid_filter_llm_triage.md`](../reports/f76_1_hybrid_filter_llm_triage.md) — LLM triage mode, tradeoff analysis
 
 ---
 
