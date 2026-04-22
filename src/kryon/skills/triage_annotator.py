@@ -59,22 +59,35 @@ _VERDICT_PRIORITY = {
 _PROMPT = """You are a security triage analyst reviewing static scanner findings.
 Decide: REAL bug (KEEP) | clear false positive (SUPPRESS) | unsure (UNCERTAIN).
 
-BIAS RULES (F76.2 — prevent aggressive over-suppression):
+BIAS RULES (F76.2/F76.3 — prevent aggressive over-suppression):
 1. If the snippet shows a dangerous API (strcpy/strcat/sprintf/memcpy/alloca/
-   memmove/gets) whose size is NOT a compile-time constant, default to KEEP.
+   memmove/realloc/gets) whose size is NOT a compile-time constant, default
+   to KEEP.
 2. For CWE-121/122 buffer overflows: the unsafe write may be several lines
    AFTER the flagged line. If you only see the allocation/input read, that
    alone is enough signal — KEEP with confidence medium (not SUPPRESS high).
-3. For CWE-476 null-deref: if the snippet reads a value that could be NULL
+3. For CWE-122 heap overflows specifically: malloc/calloc/realloc followed
+   by memmove/memcpy/strcpy is a classic heap-overflow pattern. Always
+   KEEP unless the destination size is proven literal via sizeof() or a
+   compile-time constant.
+4. For CWE-476 null-deref: if the snippet reads a value that could be NULL
    and later dereferences it WITHOUT an intervening null check visible in
    the window, KEEP. Only SUPPRESS when a clear `if (!p) return` appears
    BEFORE the deref.
-4. SUPPRESS is reserved for clearly safe patterns:
+5. **NEVER judge code based on its filename, path, or structural hints
+   about being a test case.** Treat the code as if it were production.
+   Do NOT SUPPRESS because:
+   - the filename contains "CWE", "bad", "good", "vuln", "test"
+   - comments mention "bad sink", "good sink", "vulnerable", "POC"
+   - the function is named `main`, `bad()`, `good*()`, `sink()`
+   These are common in Juliet/NIST/SARD datasets and in legitimately
+   vulnerable production code. Judge the code flow, not the labels.
+6. SUPPRESS is reserved for clearly safe patterns in the CODE:
    - size is a compile-time literal or sizeof()
-   - the flagged call is inside `#if 0`, dead code, or a test harness
-   - the surrounding code has an explicit `// SAFE:` / `// CHECKED` comment
-   - the file path contains `/tests/`, `/examples/`, or `/deprecated/`
-5. When in doubt → UNCERTAIN (never SUPPRESS just because the snippet
+   - the flagged call is inside `#if 0` / `#ifdef DEBUG_ONLY` dead code
+   - a valid `if (!p) return` guard is visible in window before the deref
+   - the dangerous destination was proven sized equal to source
+7. When in doubt → UNCERTAIN (never SUPPRESS just because the snippet
    seems 'ok in isolation').
 
 --- FEW-SHOT EXAMPLES ---
@@ -95,6 +108,18 @@ Example 2 (CWE-121 KEEP — allocation only, overflow later):
     REASON: ALLOCA with variable size commonly precedes strcpy/memcpy
       overflow further down the function.
     CONFIDENCE: medium
+
+Example 2b (CWE-122 KEEP — heap alloc + memmove, ignore filename):
+  File: /somewhere/CWE122_Heap_Based_Buffer_Overflow__memmove_bad.c
+  Rule: heuristic-memmove  CWE: CWE-122  Line: 48
+      46: data = (char *)malloc(100 * sizeof(char));
+  >   48: memmove(data, source, strlen(source));
+  Output:
+    VERDICT: KEEP
+    REASON: memmove copies strlen(source) bytes into a 100-byte heap
+      buffer without bound check; heap overflow possible. Do not
+      SUPPRESS based on filename/path hints about "test case".
+    CONFIDENCE: high
 
 Example 3 (CWE-476 KEEP — deref may happen on a path not shown):
   Rule: semgrep-null-deref  CWE: CWE-476  Line: 78
