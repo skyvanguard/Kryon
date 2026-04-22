@@ -8,7 +8,57 @@
 >   --runners heuristic,semgrep,hybrid
 > ```
 
-## Latest results — F6 baselines RECALIBRATED with N=100 + bootstrap CI
+## Latest results — F75 scaffolding release (2026-04-22)
+
+**Date:** 2026-04-22 (F75 — Juliet scaffolding)
+**Commits applied:** F6.x + F8.1.b + F10.3-B + **F75** (context_filter + multisource_tier + CWE-134 pattern expansion)
+**Raw:** [`bench_results/bench_juliet_f75.json`](bench_results/bench_juliet_f75.json)
+**Baseline:** [`bench_results/baseline_pre_f75.json`](bench_results/baseline_pre_f75.json) (F74.C, 2026-04-21)
+**Methodology:** 100 files per CWE × 7 CWEs = 700 recall samples + 41 clean zlib baseline files for FPR.
+
+### Pooled recall@CWE (N=700)
+
+| Runner | Baseline (F74.C) | **F75** | Delta |
+|---|---|---|---|
+| heuristic | 57.7% [54.1, 61.3] | **59.9%** | +2.2pp |
+| semgrep | 25.4% [22.1, 28.9] | **28.1%** | +2.7pp |
+| **hybrid** | **65.0% [61.4, 68.3]** | **67.1%** | **+2.1pp** |
+
+### Per-CWE hybrid recall@CWE
+
+| CWE | Baseline | **F75** | Note |
+|---|---|---|---|
+| CWE-121 | 69% | 69% | — |
+| CWE-122 | 74% | 74% | — |
+| **CWE-134** | **21%** | **36%** | **+15pp from F75 pattern expansion** |
+| CWE-190 | 56% | 56% | — |
+| CWE-415 | 87% | 87% | — |
+| CWE-416 | 75% | 75% | — |
+| CWE-476 | 73% | 73% | — |
+
+### FPR proxy (zlib N=41)
+
+F75 FPR unchanged at 61% heuristic / 37% semgrep / 61% hybrid.
+**This reflects a metric limitation, not a pipeline failure.** F75
+Phases 2-3 (context filter + multi-source tier) downgrade finding
+severity HIGH→MEDIUM without removing findings. The current FPR
+proxy counts any finding regardless of severity. A severity-stratified
+FPR@HIGH proxy is planned for F75.6.
+
+Every finding now carries auditable stamps (`severity_original`,
+`_context_downgrade`, `_severity_source`) so the downgrades are
+visible in raw JSON even though the aggregate metric doesn't move.
+
+### F75 full breakdown
+
+See [`reports/f75_juliet_scaffolding.md`](../reports/f75_juliet_scaffolding.md)
+for the complete phase-by-phase analysis, scaling projections for britimp
+pitch (12GB→24GB→48GB→80GB hardware curve), and competitive positioning
+table.
+
+---
+
+## Historical — F6 baselines RECALIBRATED with N=100 + bootstrap CI
 
 **Date:** 2026-04-14 (recalibrated post-F8.2)
 **Commits applied:** F5.x + F6 + F6.3 R2 + F6.5 R2 + F8.1.b plumbing fix
