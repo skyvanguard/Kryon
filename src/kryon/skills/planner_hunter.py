@@ -1404,15 +1404,94 @@ class HybridHunter:
         except Exception as exc:
             logger.warning("allow-list annotate failed: %s", exc)
 
-        # F10.3-B — optional LLM triage annotation. Never filters; only
-        # stamps triage_verdict / triage_reason / triage_confidence so the
-        # analyst (or an opt-in --triage-filter step) can triage faster.
+        # F75 Fase 2 — context-window FP suppression. Runs before LLM
+        # triage so the triage model sees the downgraded severity and
+        # can skip obvious dead-code / null-checked findings entirely.
+        # Zero-cost regex pass, on by default. Disable via
+        # KRYON_CONTEXT_FILTER=off (for A/B measurement).
+        if (
+            all_findings
+            and os.environ.get(
+                "KRYON_CONTEXT_FILTER", "on"
+            ).strip().lower() not in {"off", "0", "false", "no"}
+        ):
+            try:
+                from kryon.skills.context_filter import ContextFilter
+                ContextFilter().apply(all_findings)
+            except Exception as exc:
+                logger.warning("context filter failed: %s", exc)
+
+        # F75 Fase 3 — multi-source agreement severity tier.
+        # F74.C bench showed semgrep FPR (37%) < heuristic FPR (61%).
+        # Heuristic-only singletons tagged HIGH are the main FPR source.
+        # Rule applied here:
+        #   _source_count == 1 AND _sources == ['heuristic'] AND
+        #   severity in {HIGH, CRITICAL}      -> downgrade to MEDIUM
+        # Intersection findings keep their severity. Disable via
+        # KRYON_MULTISOURCE_TIER=off (A/B).
+        if (
+            all_findings
+            and os.environ.get(
+                "KRYON_MULTISOURCE_TIER", "on"
+            ).strip().lower() not in {"off", "0", "false", "no"}
+        ):
+            downgraded = 0
+            for f in all_findings:
+                srcs = f.get("_sources") or []
+                if (
+                    f.get("_source_count", 1) == 1
+                    and srcs == ["heuristic"]
+                    and str(f.get("severity", "")).upper()
+                    in {"HIGH", "CRITICAL"}
+                ):
+                    f["severity_original"] = f.get(
+                        "severity_original", f.get("severity", "")
+                    )
+                    f["severity"] = "MEDIUM"
+                    f.setdefault(
+                        "_severity_source", "F75-multisource:heuristic-solo"
+                    )
+                    downgraded += 1
+            if downgraded:
+                logger.info(
+                    "hybrid: multisource tier downgraded %d heuristic-only "
+                    "HIGH findings to MEDIUM",
+                    downgraded,
+                )
+
+        # F10.3-B / F75 — LLM triage annotation + opt-in filter.
+        # Modes (KRYON_HYBRID_TRIAGE env var):
+        #   off      -> skip entirely (fastest, legacy behaviour) [default]
+        #   annotate -> stamp verdicts, do not filter
+        #   filter   -> stamp verdicts AND drop SUPPRESS-high findings
+        # Default is 'off' so existing callers that depend on HybridHunter
+        # (e.g. CLI engagements) keep zero-LLM-cost semantics. Benches
+        # opt in explicitly; production users enable via env.
+        # Legacy alias: KRYON_LLM_TRIAGE=1 is treated as 'annotate'.
+        _triage_mode = os.environ.get(
+            "KRYON_HYBRID_TRIAGE", "off"
+        ).strip().lower()
         if os.environ.get("KRYON_LLM_TRIAGE", "").strip().lower() in {
             "1", "true", "yes", "on",
-        } and all_findings:
+        }:
+            _triage_mode = "annotate"
+        if _triage_mode in {"annotate", "filter"} and all_findings:
             try:
-                from kryon.skills.triage_annotator import TriageAnnotator
+                from kryon.skills.triage_annotator import (
+                    TriageAnnotator,
+                    filter_suppress_high,
+                )
                 TriageAnnotator().annotate(all_findings)
+                if _triage_mode == "filter":
+                    kept = filter_suppress_high(all_findings)
+                    dropped_n = len(all_findings) - len(kept)
+                    if dropped_n:
+                        logger.info(
+                            "hybrid: triage filter dropped %d SUPPRESS-high "
+                            "findings (kept %d)",
+                            dropped_n, len(kept),
+                        )
+                    all_findings = kept
             except Exception as exc:
                 logger.warning("triage annotation failed: %s", exc)
                 for f in all_findings:

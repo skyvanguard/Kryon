@@ -2,17 +2,63 @@ cwe: CWE-134
 name: Use of Externally-Controlled Format String
 aliases: []
 detection:
+  # Core printf family — format string is a bare identifier (not literal).
   - regex: "\\bprintf\\s*\\(\\s*[a-zA-Z_]\\w*\\s*\\)"
     confidence: high
   - regex: "\\bfprintf\\s*\\([^,]+,\\s*[a-zA-Z_]\\w*\\s*\\)"
     confidence: high
-  - regex: "\\bsnprintf\\s*\\([^,]+,[^,]+,\\s*[a-zA-Z_]\\w*\\s*\\)"
-    confidence: medium
-  - regex: "\\bsyslog\\s*\\([^,]+,\\s*[a-zA-Z_]\\w*\\s*\\)"
+  - regex: "\\bsprintf\\s*\\([^,]+,\\s*[a-zA-Z_]\\w*\\s*[,)]"
     confidence: high
+  - regex: "\\bsnprintf\\s*\\([^,]+,[^,]+,\\s*[a-zA-Z_]\\w*\\s*[,)]"
+    confidence: medium
+  - regex: "\\bsyslog\\s*\\([^,]+,\\s*[a-zA-Z_]\\w*\\s*[,)]"
+    confidence: high
+
+  # va_list variants — the format string comes in as the first fmt param.
   - regex: "\\bvprintf\\s*\\(\\s*[a-zA-Z_]\\w*"
     confidence: medium
-  - regex: "\\bprintf\\s*\\([^)]*?(?:argv|getenv|gets|fgets|recv|read)"
+  - regex: "\\bvfprintf\\s*\\([^,]+,\\s*[a-zA-Z_]\\w*\\s*,"
+    confidence: medium
+  - regex: "\\bvsprintf\\s*\\([^,]+,\\s*[a-zA-Z_]\\w*\\s*,"
+    confidence: medium
+  - regex: "\\bvsnprintf\\s*\\([^,]+,[^,]+,\\s*[a-zA-Z_]\\w*\\s*,"
+    confidence: medium
+  - regex: "\\bvsyslog\\s*\\([^,]+,\\s*[a-zA-Z_]\\w*\\s*,"
+    confidence: medium
+
+  # GNU asprintf / dprintf — allocate or write-to-fd with attacker fmt.
+  - regex: "\\basprintf\\s*\\(\\s*&[^,]+,\\s*[a-zA-Z_]\\w*\\s*[,)]"
+    confidence: high
+  - regex: "\\bvasprintf\\s*\\(\\s*&[^,]+,\\s*[a-zA-Z_]\\w*\\s*,"
+    confidence: medium
+  - regex: "\\bdprintf\\s*\\(\\s*[^,]+,\\s*[a-zA-Z_]\\w*\\s*[,)]"
+    confidence: high
+  - regex: "\\bvdprintf\\s*\\(\\s*[^,]+,\\s*[a-zA-Z_]\\w*\\s*,"
+    confidence: medium
+
+  # BSD err.h family — warn/warnx/err/errx(fmt, ...) with fmt as identifier.
+  - regex: "\\bwarn(?:x)?\\s*\\(\\s*[a-zA-Z_]\\w*\\s*[,)]"
+    confidence: high
+  - regex: "\\berr(?:x)?\\s*\\(\\s*[0-9][^,]*,\\s*[a-zA-Z_]\\w*\\s*[,)]"
+    confidence: high
+  - regex: "\\bv(?:warn|warnx|err|errx)\\s*\\([^,]*,\\s*[a-zA-Z_]\\w*\\s*,"
+    confidence: medium
+
+  # GNU error() and error_at_line().
+  - regex: "\\berror\\s*\\([^,]+,[^,]+,\\s*[a-zA-Z_]\\w*\\s*[,)]"
+    confidence: high
+  - regex: "\\berror_at_line\\s*\\([^,]+,[^,]+,[^,]+,[^,]+,\\s*[a-zA-Z_]\\w*\\s*[,)]"
+    confidence: high
+
+  # _s variants (Annex K) — same vuln if fmt is user-controlled.
+  - regex: "\\bsprintf_s\\s*\\([^,]+,[^,]+,\\s*[a-zA-Z_]\\w*\\s*[,)]"
+    confidence: high
+  - regex: "\\bsnprintf_s\\s*\\([^,]+,[^,]+,\\s*[a-zA-Z_]\\w*\\s*[,)]"
+    confidence: medium
+
+  # Taint-aware: any printf-family call whose format arg is clearly
+  # user-derived (argv / getenv / gets / fgets / recv / read).
+  - regex: "\\b(?:printf|fprintf|sprintf|snprintf|syslog)\\s*\\([^)]*?(?:argv|getenv|gets|fgets|recv|read)"
     confidence: high
 verification:
   poc_skeleton: |

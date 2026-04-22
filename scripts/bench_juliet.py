@@ -122,8 +122,10 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
         os.environ["KRYON_JOERN_ENABLED"] = "false"
         runner = SemgrepHunter()
     elif runner_type == "hybrid":
-        # F6.3 R2 baseline — Joern explicitly OFF.
+        # F6.3 R2 baseline — Joern + LLM triage explicitly OFF so this
+        # runner reproduces the F74.C / 2026-04-14 numbers exactly.
         os.environ["KRYON_JOERN_ENABLED"] = "false"
+        os.environ["KRYON_HYBRID_TRIAGE"] = "off"
         os.environ["KRYON_HYBRID_MAX_LLM_CANDIDATES"] = "0"
         _reset_hybrid_budget()
         runner = HybridHunter()
@@ -141,7 +143,17 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
     elif runner_type == "hybrid-triage":
         # F10.3-B — hybrid + LLM triage annotation (does NOT filter).
         os.environ["KRYON_JOERN_ENABLED"] = "false"
-        os.environ["KRYON_LLM_TRIAGE"] = "true"
+        os.environ["KRYON_HYBRID_TRIAGE"] = "annotate"
+        os.environ["KRYON_HYBRID_MAX_LLM_CANDIDATES"] = "0"
+        _reset_hybrid_budget()
+        runner = HybridHunter()
+    elif runner_type == "hybrid-filter":
+        # F75 — hybrid + LLM triage + drop SUPPRESS-high findings.
+        # Post-filter step lowers FPR; gated by SUPPRESS precision >= 65%
+        # (from the F10.3-B precision bench). Use this only when the
+        # triage model's SUPPRESS precision was measured recently.
+        os.environ["KRYON_JOERN_ENABLED"] = "false"
+        os.environ["KRYON_HYBRID_TRIAGE"] = "filter"
         os.environ["KRYON_HYBRID_MAX_LLM_CANDIDATES"] = "0"
         _reset_hybrid_budget()
         runner = HybridHunter()
