@@ -1435,14 +1435,18 @@ class HybridHunter:
                 "KRYON_MULTISOURCE_TIER", "on"
             ).strip().lower() not in {"off", "0", "false", "no"}
         ):
+            # High-severity bucket mirrors the semgrep rule grading:
+            # HIGH/CRITICAL (explicit) or ERROR (semgrep default for
+            # severity: ERROR rules). WARNING is not downgraded — it's
+            # already medium-tier.
+            _hi_bucket = {"HIGH", "CRITICAL", "ERROR"}
             downgraded = 0
             for f in all_findings:
                 srcs = f.get("_sources") or []
                 if (
                     f.get("_source_count", 1) == 1
                     and srcs == ["heuristic"]
-                    and str(f.get("severity", "")).upper()
-                    in {"HIGH", "CRITICAL"}
+                    and str(f.get("severity", "")).upper() in _hi_bucket
                 ):
                     f["severity_original"] = f.get(
                         "severity_original", f.get("severity", "")

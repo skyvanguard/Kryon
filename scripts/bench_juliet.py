@@ -148,12 +148,18 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
         _reset_hybrid_budget()
         runner = HybridHunter()
     elif runner_type == "hybrid-filter":
-        # F75 — hybrid + LLM triage + drop SUPPRESS-high findings.
+        # F75/F76.1 — hybrid + LLM triage + drop SUPPRESS-high findings.
         # Post-filter step lowers FPR; gated by SUPPRESS precision >= 65%
-        # (from the F10.3-B precision bench). Use this only when the
-        # triage model's SUPPRESS precision was measured recently.
+        # (from the F10.3-B precision bench). F76.1 swap: the default
+        # triage model `qwen3-coder:30b-32k` is 18GB and spills to CPU
+        # on 12GB VRAM (30-60s/call). Override to `kryon-14b` which fits
+        # VRAM and runs ~3s/call. A caller can still override via
+        # KRYON_TRIAGE_MODEL in the environment before invoking bench.
         os.environ["KRYON_JOERN_ENABLED"] = "false"
         os.environ["KRYON_HYBRID_TRIAGE"] = "filter"
+        os.environ.setdefault("KRYON_TRIAGE_MODEL", "kryon-14b")
+        # Cap triage latency so a stuck ollama call doesn't block a run.
+        os.environ.setdefault("KRYON_TRIAGE_TIMEOUT_S", "15")
         os.environ["KRYON_HYBRID_MAX_LLM_CANDIDATES"] = "0"
         _reset_hybrid_budget()
         runner = HybridHunter()
@@ -237,12 +243,57 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
         if f.get("triage_verdict")
     ]
 
+    # F75.6 — severity-stratified counters. Fases 2-3 (context_filter,
+    # multisource_tier) downgrade severity HIGH->MEDIUM without removing
+    # findings, so the original `n_findings` metric is invariant. The
+    # HIGH-only counter surfaces the downgrade effect.
+    # Bucket: HIGH/CRITICAL (explicit) or ERROR (semgrep default for
+    # severity: ERROR rules). WARNING is medium-tier.
+    _hi_bucket = {"HIGH", "CRITICAL", "ERROR"}
+    n_findings_high = sum(
+        1 for f in findings
+        if str(f.get("severity", "")).upper() in _hi_bucket
+    )
+    cwe_matched_high = False
+    if cwe_label:
+        for f in findings:
+            sev = str(f.get("severity", "")).upper()
+            if sev not in _hi_bucket:
+                continue
+            fcwe = f.get("cwe", "")
+            if _cwe_matches_safe(fcwe, cwe_label):
+                cwe_matched_high = True
+                break
+            for alias in f.get("cwe_aliases") or []:
+                if alias and _cwe_matches_safe(alias, cwe_label):
+                    cwe_matched_high = True
+                    break
+            if cwe_matched_high:
+                break
+
+    # Also surface context_filter / multisource_tier downgrade counts
+    # so the report can show how many findings each F75 gate touched.
+    n_ctx_downgrades = sum(
+        1 for f in findings
+        if (f.get("_context_downgrade") or {}).get("downgrade")
+    )
+    n_multisource_downgrades = sum(
+        1 for f in findings
+        if str(f.get("_severity_source", "")).startswith(
+            "F75-multisource"
+        )
+    )
+
     return {
         "file": file_path.name,
         "runner": runner_type,
         "cwe_target": cwe,
         "n_findings": len(findings),
+        "n_findings_high": n_findings_high,
         "cwe_matched": cwe_matched,
+        "cwe_matched_high": cwe_matched_high,
+        "n_ctx_downgrades": n_ctx_downgrades,
+        "n_multisource_downgrades": n_multisource_downgrades,
         "finding_cwes": finding_cwes[:5],
         "sources_seen": sorted(sources_seen),
         "hunters_failed": sorted(set(hunters_failed)),
@@ -281,8 +332,13 @@ async def run_recall_for_cwe(
 
     for runner in runners:
         any_finding = 0
+        any_finding_high = 0
         cwe_matched = 0
+        cwe_matched_high = 0
         total_findings = 0
+        total_findings_high = 0
+        total_ctx_downgrades = 0
+        total_multisource_downgrades = 0
         total_dur = 0.0
         # F7.5 overlap matrix — for each file, what {heuristic|semgrep|joern}
         # source set produced a CWE-matching finding?
@@ -295,40 +351,64 @@ async def run_recall_for_cwe(
             _ALL_PER_FILE.append(r)
             if r["n_findings"] > 0:
                 any_finding += 1
+            if r.get("n_findings_high", 0) > 0:
+                any_finding_high += 1
             if r["cwe_matched"]:
                 cwe_matched += 1
                 # Bucket source combination for the overlap matrix.
                 combo = tuple(r["sources_seen"] or ["<none>"])
                 overlap_counter[combo] = overlap_counter.get(combo, 0) + 1
+            if r.get("cwe_matched_high"):
+                cwe_matched_high += 1
             total_findings += r["n_findings"]
+            total_findings_high += r.get("n_findings_high", 0)
+            total_ctx_downgrades += r.get("n_ctx_downgrades", 0)
+            total_multisource_downgrades += r.get("n_multisource_downgrades", 0)
             total_dur += r["duration_s"]
             if r["hunters_failed"]:
                 hunters_failed_files += 1
         per_runner[runner] = {
             "n_files": len(files),
             "any_finding": any_finding,
+            "any_finding_high": any_finding_high,
             "cwe_matched": cwe_matched,
+            "cwe_matched_high": cwe_matched_high,
             "recall_any": round(any_finding / len(files), 3),
+            "recall_any_high": round(any_finding_high / len(files), 3),
             "recall_cwe_match": round(cwe_matched / len(files), 3),
+            "recall_cwe_match_high": round(cwe_matched_high / len(files), 3),
             "avg_findings_per_file": round(total_findings / len(files), 2),
+            "avg_findings_high_per_file": round(
+                total_findings_high / len(files), 2
+            ),
             "avg_duration_s": round(total_dur / len(files), 2),
+            "total_ctx_downgrades": total_ctx_downgrades,
+            "total_multisource_downgrades": total_multisource_downgrades,
             "overlap": {
                 "|".join(sorted(k)): v for k, v in overlap_counter.items()
             },
             "hunters_failed_files": hunters_failed_files,
             "hunters_failed_rate": round(hunters_failed_files / len(files), 3),
             # F8.2 — per-file {1,0} labels for bootstrap CI post-processing.
-            # One int per file: cwe_matched (0/1). Needed so the CI estimator
-            # doesn't need to re-run the bench.
             "per_file_cwe_matched": [1 if x["cwe_matched"] else 0
                                      for x in per_file],
             "per_file_any_finding": [1 if x["n_findings"] > 0 else 0
                                      for x in per_file],
+            "per_file_cwe_matched_high": [
+                1 if x.get("cwe_matched_high") else 0 for x in per_file
+            ],
+            "per_file_any_finding_high": [
+                1 if x.get("n_findings_high", 0) > 0 else 0 for x in per_file
+            ],
         }
+        dg = total_ctx_downgrades + total_multisource_downgrades
         print(
-            f"  {runner:<12} recall@any={per_runner[runner]['recall_any']:.0%}  "
+            f"  {runner:<12} "
+            f"recall@any={per_runner[runner]['recall_any']:.0%}  "
             f"recall@CWE={per_runner[runner]['recall_cwe_match']:.0%}  "
+            f"@CWE-HIGH={per_runner[runner]['recall_cwe_match_high']:.0%}  "
             f"avg={per_runner[runner]['avg_findings_per_file']:.1f} f/file  "
+            f"dg={dg}  "
             f"failed={per_runner[runner]['hunters_failed_rate']:.0%}  "
             f"{per_runner[runner]['avg_duration_s']:.1f}s/file"
         )
@@ -344,23 +424,43 @@ async def run_fpr_proxy(
     per_runner: dict[str, dict] = {}
     for runner in runners:
         files_with_finding = 0
+        files_with_finding_high = 0
         total_findings = 0
+        total_findings_high = 0
+        total_ctx_downgrades = 0
+        total_multisource_downgrades = 0
         for fp in repo_files:
             r = await scan_one(runner, fp, cwe=0)
             _ALL_PER_FILE.append(r)
             if r["n_findings"] > 0:
                 files_with_finding += 1
+            if r.get("n_findings_high", 0) > 0:
+                files_with_finding_high += 1
             total_findings += r["n_findings"]
+            total_findings_high += r.get("n_findings_high", 0)
+            total_ctx_downgrades += r.get("n_ctx_downgrades", 0)
+            total_multisource_downgrades += r.get(
+                "n_multisource_downgrades", 0
+            )
+        n = max(1, len(repo_files))
         per_runner[runner] = {
             "n_files": len(repo_files),
             "files_with_finding": files_with_finding,
-            "fpr_proxy": round(files_with_finding / max(1, len(repo_files)), 3),
+            "files_with_finding_high": files_with_finding_high,
+            "fpr_proxy": round(files_with_finding / n, 3),
+            "fpr_proxy_high": round(files_with_finding_high / n, 3),
             "total_findings": total_findings,
+            "total_findings_high": total_findings_high,
+            "total_ctx_downgrades": total_ctx_downgrades,
+            "total_multisource_downgrades": total_multisource_downgrades,
         }
         print(
-            f"  {runner:<10} fpr_proxy={per_runner[runner]['fpr_proxy']:.0%}  "
-            f"({files_with_finding}/{len(repo_files)} files)  "
-            f"{total_findings} total findings"
+            f"  {runner:<12} "
+            f"fpr_proxy={per_runner[runner]['fpr_proxy']:.0%}  "
+            f"@HIGH={per_runner[runner]['fpr_proxy_high']:.0%}  "
+            f"({files_with_finding}/{len(repo_files)} any, "
+            f"{files_with_finding_high}/{len(repo_files)} high)  "
+            f"downgrades={total_ctx_downgrades + total_multisource_downgrades}"
         )
     return per_runner
 
@@ -390,16 +490,41 @@ def render_markdown_table(results: dict) -> str:
             v = r["per_runner"][runner]["recall_any"]
             row.append(f"{v:.0%}")
         lines.append("| " + " | ".join(row) + " |")
+    # F75.6 — severity-stratified recall table (hybrid is the one that
+    # gets downgraded by context_filter / multisource_tier).
+    lines.append("")
+    lines.append("## Recall@CWE-HIGH (severity HIGH/CRITICAL only — F75.6)")
+    lines.append("")
+    lines.append("| CWE | files | " + " | ".join(runners) + " |")
+    lines.append("|---|---|" + "|".join("---" for _ in runners) + "|")
+    for r in cwes:
+        row = [f"CWE-{r['cwe']}", str(r["n_files"])]
+        for runner in runners:
+            v = r["per_runner"][runner].get("recall_cwe_match_high", 0)
+            row.append(f"{v:.0%}")
+        lines.append("| " + " | ".join(row) + " |")
+
     if results.get("fpr"):
         lines.append("")
-        lines.append("## FPR proxy (clean baseline)")
+        lines.append("## FPR proxy (clean baseline) — any-finding + HIGH-only")
         lines.append("")
-        lines.append("| runner | files_with_finding | total_findings | fpr_proxy |")
-        lines.append("|---|---|---|---|")
+        lines.append(
+            "| runner | any / N | fpr_any | HIGH / N | **fpr_HIGH** | "
+            "downgrades (ctx+ms) |"
+        )
+        lines.append("|---|---|---|---|---|---|")
         for runner, v in results["fpr"].items():
+            dg = (
+                v.get("total_ctx_downgrades", 0)
+                + v.get("total_multisource_downgrades", 0)
+            )
             lines.append(
-                f"| {runner} | {v['files_with_finding']}/{v['n_files']} | "
-                f"{v['total_findings']} | {v['fpr_proxy']:.0%} |"
+                f"| {runner} | "
+                f"{v['files_with_finding']}/{v['n_files']} | "
+                f"{v['fpr_proxy']:.0%} | "
+                f"{v.get('files_with_finding_high', 0)}/{v['n_files']} | "
+                f"**{v.get('fpr_proxy_high', 0):.0%}** | "
+                f"{dg} |"
             )
 
     # F7.5 — overlap matrix + hunters_failed rate for runners that aggregate

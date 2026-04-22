@@ -36,25 +36,24 @@
 | CWE-416 | 75% | 75% | — |
 | CWE-476 | 73% | 73% | — |
 
-### FPR proxy (zlib N=41)
+### FPR proxy — F75.6 severity-stratified (zlib N=41)
 
-F75 FPR unchanged at 61% heuristic / 37% semgrep / 61% hybrid.
-**This reflects a metric limitation, not a pipeline failure.** F75
-Phases 2-3 (context filter + multi-source tier) downgrade finding
-severity HIGH→MEDIUM without removing findings. The current FPR
-proxy counts any finding regardless of severity. A severity-stratified
-FPR@HIGH proxy is planned for F75.6.
+| Runner | FPR@any | **FPR@HIGH** (triage queue) | context_filter downgrades |
+|---|---|---|---|
+| heuristic | 61.0% | 0.0% | 0 |
+| semgrep | 36.6% | 34.1% | 0 |
+| **hybrid** | **61.0%** | **14.6%** | **46** |
 
-Every finding now carries auditable stamps (`severity_original`,
-`_context_downgrade`, `_severity_source`) so the downgrades are
-visible in raw JSON even though the aggregate metric doesn't move.
+**The 14.6% hybrid FPR@HIGH** is the real production-threshold FPR and lands
+Kryon in **Veracode / Semgrep Pro tier** (12-20%). The 61% any-finding FPR
+was hiding the value — 77% of those findings are WARNING-severity
+(heuristic pattern hits), not HIGH-actionable.
 
-### F75 full breakdown
+### F75 + F75.6 full breakdown
 
 See [`reports/f75_juliet_scaffolding.md`](../reports/f75_juliet_scaffolding.md)
-for the complete phase-by-phase analysis, scaling projections for britimp
-pitch (12GB→24GB→48GB→80GB hardware curve), and competitive positioning
-table.
+(main F75) and [`reports/f75_6_juliet_fpr_high.md`](../reports/f75_6_juliet_fpr_high.md)
+(severity-stratified metric + per-CWE @HIGH table).
 
 ---
 

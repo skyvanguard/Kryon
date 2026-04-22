@@ -95,6 +95,13 @@ class ContextFilter:
     def __init__(self, window: int = 3) -> None:
         self.window = window
 
+    # Severity levels considered "actionable high" — downgrade candidates.
+    # Kryon hunters emit these as their strong signal:
+    #   - semgrep rules marked `severity: ERROR`
+    #   - heuristic patterns with `confidence: high` (emit HIGH/CRITICAL)
+    #   - validator-asserted CRITICAL
+    _HIGH_BUCKET = {"HIGH", "CRITICAL", "ERROR"}
+
     def apply(self, findings: list[dict]) -> list[dict]:
         """Mutate findings in-place, return same list. Each finding
         touched gets ``_context_downgrade: ContextVerdict`` set."""
@@ -109,7 +116,7 @@ class ContextFilter:
             }
             if verdict.downgrade:
                 sev_raw = str(f.get("severity", "")).upper()
-                if sev_raw in {"HIGH", "CRITICAL"}:
+                if sev_raw in self._HIGH_BUCKET:
                     f["severity_original"] = f.get("severity", "")
                     f["severity"] = "MEDIUM"
                     f["_severity_source"] = f"F75-ctx:{verdict.reason}"
