@@ -1,18 +1,23 @@
-"""F12.7 — `kryon engage` end-to-end orchestrator for the demo flow.
+"""F12.7 / F77.A — `kryon engage` end-to-end orchestrator.
 
 Single command that takes a target (host / CIDR / domain) and produces:
 
   Phase 1  discovery (nmap with live_progress)
   Phase 2  service-specific assessment (SSH config check, HTTP probe,
            DB banner grab)
+  Phase 2b optional compliance audit (F77.A — when --framework given)
   Phase 3  findings summary + rule-based remediation proposals
   Phase 4  optional approval prompt + apply (when --ssh provided)
   Phase 5  re-audit
-  Phase 6  HTML + PDF report via kryon.reporting.demo_report
+  Phase 6  HTML + PDF report. When --framework is used the consolidated
+           multi-framework PDF is produced; otherwise the demo_report.
 
-This is the MVP demo orchestrator — deterministic, rule-based,
-predictable. Not the full agent loop (that still exists via `kryon`
-REPL). Reliability for the britimp demo over flexibility.
+F77.A wires engage into the rest of the stack:
+- `--framework FW[,FW2,...]` runs the compliance runner and consolidates
+  findings into the multi-framework PDF (F44).
+- `--use-agent` / KRYON_ENGAGE_AGENT=true bolts the unified Kryon agent
+  onto the tail of Phase 2 for LLM-driven deepening of the findings
+  surface. Off by default to preserve demo determinism.
 
 Usage:
 
@@ -26,6 +31,8 @@ Usage:
 
     kryon engage 127.0.0.1 --dry-run-only        # no apply, just report
     kryon engage 127.0.0.1 --auto-approve        # lab/demo only
+    kryon engage 127.0.0.1 --framework pci_dss,bcp_py  # compliance sweep
+    kryon engage 127.0.0.1 --use-agent           # agent-driven deepening
 """
 
 from __future__ import annotations
@@ -312,6 +319,130 @@ def _check_mysql(svc: DiscoveredService) -> list[Finding]:
 
 
 # -----------------------------------------------------------------------------
+# F77.A — compliance + agent integration
+# -----------------------------------------------------------------------------
+
+
+def _run_compliance(
+    frameworks: list[str],
+    *,
+    host: str,
+    ssh_target: str | None,
+    ssh_password: str | None,
+    ssh_key: str | None,
+) -> dict[str, list[dict]]:
+    """Run the compliance runner per framework.
+
+    Returns a dict keyed by framework id with CheckResult-dict lists
+    ready to feed ``multi_framework_pdf.render_multi_framework_pdf``.
+    """
+    from kryon.compliance.checks.base import CheckContext
+    from kryon.compliance.runner import (
+        _import_all_checks,
+        registered_checks,
+        run_all,
+    )
+
+    # Side-effect import populates _REGISTERED_CHECKS.
+    _import_all_checks()
+
+    ssh_user = ""
+    ssh_port = 22
+    if ssh_target:
+        user, _, host_port = ssh_target.partition("@")
+        ssh_user = user
+        host_only, _, port = host_port.partition(":")
+        host = host_only or host
+        ssh_port = int(port) if port else 22
+
+    # CheckContext only exposes ssh_key_path (no password field) — mirror
+    # that. For password-only engagements the runner falls back to the
+    # SSHPASS env var, which matches how the deterministic Phase 2 checks
+    # already authenticate.
+    if ssh_password:
+        os.environ.setdefault("SSHPASS", ssh_password)
+    ctx = CheckContext(
+        host=host,
+        ssh_user=ssh_user,
+        ssh_key_path=ssh_key or "",
+        ssh_port=ssh_port,
+    )
+
+    all_results = run_all(ctx)
+    all_dicts = [
+        r.to_json_reproducible() if hasattr(r, "to_json_reproducible") else r.__dict__
+        for r in all_results
+    ]
+
+    # Bucket results by their registered framework. Each Check carries
+    # a `frameworks` attribute listing the regulations it maps to.
+    check_frameworks: dict[str, set[str]] = {}
+    for check in registered_checks():
+        fws = getattr(check, "frameworks", None) or [
+            getattr(check, "framework", "pci_dss")
+        ]
+        check_frameworks[check.control_id] = {fw.lower() for fw in fws}
+
+    wanted = {fw.lower() for fw in frameworks}
+    out: dict[str, list[dict]] = {fw: [] for fw in wanted}
+    for r in all_dicts:
+        control_id = r.get("control_id", "")
+        result_fws = check_frameworks.get(control_id, set())
+        for fw in wanted:
+            if fw in result_fws or not result_fws:
+                out[fw].append(r)
+    # Drop frameworks with no results so the PDF renderer's
+    # "must contain at least one framework" guard doesn't trip.
+    return {fw: lst for fw, lst in out.items() if lst}
+
+
+def _invoke_agent_deepening(
+    console, *, target: str, scope: str, findings: list[Finding]
+) -> list[str]:
+    """Spin up the unified Kryon agent for one deep-dive turn.
+
+    Returns a list of text observations the agent produced so we can
+    surface them in the report appendix. Failures are non-fatal — the
+    deterministic Phase 2 output is the authoritative surface; the
+    agent contributes depth, not correctness.
+    """
+    try:
+        from kryon.agents import get_agent_by_name
+        from kryon.sdk.agents.run import Runner
+    except Exception as exc:  # pragma: no cover — dependency missing
+        console.print(f"  [dim]agent deepening skipped: {exc}[/dim]")
+        return []
+
+    os.environ["KRYON_AGENT_TYPE"] = "kryon"
+    try:
+        agent = get_agent_by_name("kryon", agent_id="ENGAGE")
+    except Exception as exc:  # pragma: no cover — runtime only
+        console.print(f"  [yellow]agent load failed: {exc}[/yellow]")
+        return []
+
+    preamble = (
+        f"Ya se ejecutó un barrido determinista contra {target} (scope: "
+        f"{scope}) y hay {len(findings)} hallazgos. Revisa los servicios "
+        "abiertos y confirma o extiende la superficie de riesgo. "
+        "Termina con un resumen ejecutivo."
+    )
+    summary_lines: list[str] = []
+    try:
+        import asyncio
+
+        async def _one_shot() -> str:
+            result = await Runner.run(agent, preamble, max_turns=4)
+            return getattr(result, "final_output", "") or ""
+
+        text = asyncio.run(_one_shot())
+        if text:
+            summary_lines.append(text.strip())
+    except Exception as exc:  # pragma: no cover — runtime only
+        console.print(f"  [yellow]agent turn failed: {exc}[/yellow]")
+    return summary_lines
+
+
+# -----------------------------------------------------------------------------
 # Orchestration
 # -----------------------------------------------------------------------------
 
@@ -385,6 +516,44 @@ def run_engage(args: argparse.Namespace) -> int:
 
     findings.sort(key=lambda f: f.severity_rank)
     console.print(f"  [yellow]{len(findings)}[/yellow] hallazgos detectados")
+
+    # --- Phase 2b: compliance sweep (F77.A) -------------------------------
+    framework_results: dict[str, list[dict]] = {}
+    frameworks = [
+        fw.strip().lower()
+        for fw in (args.framework or "").split(",")
+        if fw.strip()
+    ]
+    if frameworks:
+        _banner(console, f"Fase 2b — compliance ({', '.join(frameworks)})")
+        try:
+            framework_results = _run_compliance(
+                frameworks,
+                host=target,
+                ssh_target=args.ssh,
+                ssh_password=args.ssh_password,
+                ssh_key=args.ssh_key,
+            )
+            for fw, results in framework_results.items():
+                fail = sum(1 for r in results if r.get("verdict") == "FAIL")
+                console.print(
+                    f"  [cyan]{fw}[/cyan]: {len(results)} controls, "
+                    f"[red]{fail} FAIL[/red]"
+                )
+        except Exception as exc:
+            console.print(f"  [red]compliance runner failed:[/red] {exc}")
+
+    # --- Phase 2c: optional agent deepening (F77.A) -----------------------
+    agent_observations: list[str] = []
+    if args.use_agent or os.environ.get("KRYON_ENGAGE_AGENT", "").lower() in {
+        "1", "true", "yes"
+    }:
+        _banner(console, "Fase 2c — agente Kryon (deep-dive)")
+        agent_observations = _invoke_agent_deepening(
+            console, target=target, scope=scope, findings=findings
+        )
+        if agent_observations:
+            console.print(f"  [green]✓[/green] agente produjo {len(agent_observations)} observaciones")
 
     # --- Phase 3: findings table ------------------------------------------
     _banner(console, "Fase 3 — resumen")
@@ -483,26 +652,71 @@ def run_engage(args: argparse.Namespace) -> int:
         else:
             console.print("  [dim]sin acciones con comando de remediación[/dim]")
 
-    # --- Phase 5: report --------------------------------------------------
+    # --- Phase 5: re-audit (when remediation applied) ---------------------
+    if applied_findings and not args.skip_reaudit:
+        _banner(console, "Fase 5 — re-auditoría")
+        xml2 = _run_nmap(target, timeout_s=args.nmap_timeout)
+        services2 = _parse_nmap_xml(xml2, target)
+        console.print(
+            f"  [dim]re-scan:[/dim] {sum(1 for s in services2 if s.state == 'open')} "
+            "puertos abiertos tras aplicar"
+        )
+
+    # --- Phase 6: report --------------------------------------------------
     _banner(console, "Fase 6 — reporte")
-    from kryon.reporting.demo_report import render_demo_report
     findings_dict = [
         {
             **{k: v for k, v in asdict(f).items() if k != "severity_rank"},
         }
         for f in findings
     ]
+
+    paths: dict[str, str] = {}
+    if framework_results:
+        # Multi-framework consolidated PDF (F44) — the banking-grade output.
+        from kryon.reporting.multi_framework_pdf import (
+            render_multi_framework_html,
+            render_multi_framework_pdf,
+        )
+
+        html_path = out_dir / f"kryon-{engagement_id}-consolidated.html"
+        pdf_path = out_dir / f"kryon-{engagement_id}-consolidated.pdf"
+        html_path.write_text(
+            render_multi_framework_html(
+                framework_results,
+                host=scope,
+                client_name=args.client or "",
+            ),
+            encoding="utf-8",
+        )
+        paths["html_multi"] = str(html_path)
+        try:
+            render_multi_framework_pdf(
+                framework_results,
+                str(pdf_path),
+                host=scope,
+                client_name=args.client or "",
+            )
+            paths["pdf_multi"] = str(pdf_path)
+        except ImportError as exc:
+            console.print(f"  [yellow]PDF skipped — weasyprint unavailable: {exc}[/yellow]")
+
+    # Always emit the demo_report as a secondary deliverable so the
+    # deterministic surface is documented even when compliance ran.
+    from kryon.reporting.demo_report import render_demo_report
     ctx = {
         "client_name": args.client or "",
         "engagement_id": engagement_id,
         "target_scope": scope,
         "auditor": args.auditor or "SkyVanguard / Kryon",
         "applied": applied_findings,
+        "agent_observations": agent_observations,
     }
-    paths = render_demo_report(
+    demo_paths = render_demo_report(
         findings_dict, ctx, output_dir=out_dir,
         filename_stem=f"kryon-{engagement_id}",
     )
+    paths.update(demo_paths)
     for k, v in paths.items():
         console.print(f"  [green]{k}[/green] → {v}")
     return 0
@@ -541,4 +755,15 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
                    help="skip approval prompt (lab / demo only — NEVER prod)")
     p.add_argument("--nmap-timeout", type=int, default=600,
                    help="nmap wall-clock timeout in seconds (default: 600)")
+    p.add_argument("--framework", default="",
+                   help="comma-separated compliance frameworks to audit "
+                        "(e.g. 'pci_dss,bcp_py,swift_csp'). Produces the "
+                        "multi-framework consolidated PDF.")
+    p.add_argument("--use-agent", action="store_true",
+                   help="invoke the unified Kryon agent after Phase 2 to "
+                        "deepen coverage (KRYON_ENGAGE_AGENT env also works)")
+    p.add_argument("--ssh-key", default="",
+                   help="SSH private key path for compliance runner")
+    p.add_argument("--skip-reaudit", action="store_true",
+                   help="skip the post-remediation re-scan (Phase 5)")
     return p

@@ -32,7 +32,7 @@ Environment Variables
             (default: "true"). When enabled, traces execution
             flow and agent interactions for debugging and analysis.
         KRYON_AGENT_TYPE: Specify the agents to use it could take
-            the value of (default: "recon_scout"). Use "/agent"
+            the value of (default: "kryon"). Use "/agent"
             command in CLI to list all available agents.
         KRYON_STATE: Enable/disable stateful mode (default: "false").
             When enabled, the agent will use a state agent to keep
@@ -77,12 +77,12 @@ Environment Variables
 
 Usage Examples:
 
-    # Run against a CTF
+    # Run against a CTF with the unified Kryon agent (v2.x default)
     CTF_NAME="kiddoctf" CTF_CHALLENGE="02 linux ii" \
-        KRYON_AGENT_TYPE="recon_scout" KRYON_MODEL="gpt-4o" \
+        KRYON_AGENT_TYPE="kryon" KRYON_MODEL="kryon-14b" \
         KRYON_TRACING="false" kryon
 
-    # Run a harder CTF
+    # Legacy static agent (v1.x backward compat)
     CTF_NAME="hackableii" KRYON_AGENT_TYPE="pentest_agent" \
         CTF_INSIDE="False" KRYON_MODEL="gpt-4o" \
         KRYON_TRACING="false" kryon
@@ -107,8 +107,8 @@ Usage Examples:
         CTF_HINTS="False" kryon
 
     # Run with parallel agents (3 instances)
-    CTF_NAME="hackableII" KRYON_AGENT_TYPE="pentest_agent" \
-        KRYON_MODEL="gpt-4o" KRYON_PARALLEL="3" kryon
+    CTF_NAME="hackableII" KRYON_AGENT_TYPE="kryon" \
+        KRYON_MODEL="kryon-14b" KRYON_PARALLEL="3" kryon
 """
 
 # Load environment variables from .env file FIRST, before any imports
@@ -476,7 +476,7 @@ def run_kryon_cli(
     # Use legacy_windows=False on Windows to enable proper UTF-8 Unicode rendering
     console = Console(legacy_windows=False) if sys.platform == "win32" else Console()
     last_model = os.getenv("KRYON_MODEL", "gpt-4o")
-    last_agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
+    last_agent_type = os.getenv("KRYON_AGENT_TYPE", "kryon")
     parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
     use_initial_prompt = initial_prompt is not None
 
@@ -597,7 +597,7 @@ def run_kryon_cli(
                 last_model = current_model
 
             # Check if agent type has changed and recreate agent if needed
-            current_agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
+            current_agent_type = os.getenv("KRYON_AGENT_TYPE", "kryon")
             # Update parallel_count to reflect changes from /parallel command
             parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
 
@@ -737,6 +737,26 @@ def run_kryon_cli(
             if not user_input.strip():
                 user_input = (
                     "User input is empty, maybe wants to continue"  # Set a default message to continue the conversation
+                )
+
+            # Skill hot-swap: if the unified "kryon" agent is active, re-match
+            # skills against the new user input so the prompt + tool set adapt
+            # per turn. This preserves conversation history (in-place mutation).
+            try:
+                if last_agent_type == "kryon" and hasattr(agent, "_skill_loader"):
+                    from kryon.skills.unified_agent import update_agent_skills
+
+                    loader = agent._skill_loader
+                    prior_skills = getattr(agent, "_active_skills", []) or []
+                    prior_names = {s.name for s in prior_skills}
+                    new_skills = loader.match(user_msg=user_input)
+                    if new_skills and {s.name for s in new_skills} != prior_names:
+                        update_agent_skills(agent, new_skills)
+            except Exception as _skill_swap_err:  # pragma: no cover — safety net
+                import logging
+
+                logging.getLogger(__name__).debug(
+                    "Skill hot-swap skipped: %s", _skill_swap_err
                 )
 
             # In parallel mode, all configured agents will run automatically
@@ -2338,7 +2358,7 @@ def main():
     initial_prompt = args.prompt
 
     # Get agent type from environment variables or use default
-    agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
+    agent_type = os.getenv("KRYON_AGENT_TYPE", "kryon")
 
     # Get the agent instance by name with default ID P1
     agent = get_agent_by_name(agent_type, agent_id="P1")
