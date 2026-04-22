@@ -56,16 +56,81 @@ _VERDICT_PRIORITY = {
     ("SUPPRESS", "high"): 6,
 }
 
-_PROMPT = """You are a security triage analyst. A static scanner flagged the
-following potential vulnerability. Decide if it's a REAL bug (KEEP), a clear
-false positive (SUPPRESS), or you can't tell from the snippet (UNCERTAIN).
+_PROMPT = """You are a security triage analyst reviewing static scanner findings.
+Decide: REAL bug (KEEP) | clear false positive (SUPPRESS) | unsure (UNCERTAIN).
+
+BIAS RULES (F76.2 — prevent aggressive over-suppression):
+1. If the snippet shows a dangerous API (strcpy/strcat/sprintf/memcpy/alloca/
+   memmove/gets) whose size is NOT a compile-time constant, default to KEEP.
+2. For CWE-121/122 buffer overflows: the unsafe write may be several lines
+   AFTER the flagged line. If you only see the allocation/input read, that
+   alone is enough signal — KEEP with confidence medium (not SUPPRESS high).
+3. For CWE-476 null-deref: if the snippet reads a value that could be NULL
+   and later dereferences it WITHOUT an intervening null check visible in
+   the window, KEEP. Only SUPPRESS when a clear `if (!p) return` appears
+   BEFORE the deref.
+4. SUPPRESS is reserved for clearly safe patterns:
+   - size is a compile-time literal or sizeof()
+   - the flagged call is inside `#if 0`, dead code, or a test harness
+   - the surrounding code has an explicit `// SAFE:` / `// CHECKED` comment
+   - the file path contains `/tests/`, `/examples/`, or `/deprecated/`
+5. When in doubt → UNCERTAIN (never SUPPRESS just because the snippet
+   seems 'ok in isolation').
+
+--- FEW-SHOT EXAMPLES ---
+
+Example 1 (CWE-121 KEEP — heuristic-only signal):
+  Rule: heuristic-strcpy  CWE: CWE-121  Line: 45
+  >   45: strcpy(local_buf, user_input);
+  Output:
+    VERDICT: KEEP
+    REASON: strcpy with non-literal source can overflow local_buf.
+    CONFIDENCE: high
+
+Example 2 (CWE-121 KEEP — allocation only, overflow later):
+  Rule: heuristic-alloca  CWE: CWE-121  Line: 32
+  >   32: char *buf = (char *)ALLOCA(size);
+  Output:
+    VERDICT: KEEP
+    REASON: ALLOCA with variable size commonly precedes strcpy/memcpy
+      overflow further down the function.
+    CONFIDENCE: medium
+
+Example 3 (CWE-476 KEEP — deref may happen on a path not shown):
+  Rule: semgrep-null-deref  CWE: CWE-476  Line: 78
+  >   78: int x = foo->id;
+  Output:
+    VERDICT: KEEP
+    REASON: foo is dereferenced without a visible null check in window.
+    CONFIDENCE: medium
+
+Example 4 (CWE-476 SUPPRESS — explicit guard 2 lines above):
+  Rule: semgrep-null-deref  CWE: CWE-476
+      76: if (!foo) return -1;
+  >   78: int x = foo->id;
+  Output:
+    VERDICT: SUPPRESS
+    REASON: foo is explicitly null-checked before the deref.
+    CONFIDENCE: high
+
+Example 5 (CWE-190 SUPPRESS — literal size):
+  Rule: semgrep-int-overflow  CWE: CWE-190  Line: 12
+  >   12: memcpy(dst, src, 32);
+  Output:
+    VERDICT: SUPPRESS
+    REASON: size is a compile-time literal (32), not attacker-controlled.
+    CONFIDENCE: high
+
+--- THIS FINDING ---
 
 Rule that fired: {rule_id}
 CWE: {cwe}
 File: {file}
 Line: {line}
+Scanner severity: {severity}
+Sources: {sources}
 
-Code (the marker > is the flagged line):
+Code (the marker > is the flagged line; ±8 line window):
 {snippet}
 
 Reply in EXACTLY this format, nothing else:
@@ -83,7 +148,7 @@ class TriageDecision:
     latency_s: float
 
 
-def _snippet(file_path: str, line: int, ctx: int = 3) -> str:
+def _snippet(file_path: str, line: int, ctx: int = 8) -> str:
     try:
         from pathlib import Path
         lines = Path(file_path).read_text(errors="replace").splitlines()
@@ -155,6 +220,8 @@ class TriageAnnotator:
             cwe=finding.get("cwe", ""),
             file=file_path,
             line=line,
+            severity=finding.get("severity", ""),
+            sources=",".join(finding.get("_sources") or []) or "unknown",
             snippet=_snippet(file_path, line),
         )
 
