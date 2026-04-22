@@ -45,21 +45,24 @@
 | **hybrid** (triage queue mode) | **61.0%** | **14.6%** | 46 |
 | **hybrid-filter** (CI gate mode, F76.1) | **39.0%** | **7.3%** | 11 |
 
-### Two operating modes
+### Two operating modes (F76.2 — prompt tuned)
 
 | Mode | Recall@CWE | FPR@HIGH | Tier | Use case |
 |---|---|---|---|---|
 | hybrid | 67.1% | 14.6% | Klocwork | Sec engineer triage queue |
-| **hybrid-filter** | **52.0%** | **7.3%** | **Coverity FPR / Veracode recall** | Automated CI gate, high-confidence only |
+| **hybrid-filter (F76.2)** | **65.3%** | **12.2%** | **Klocwork on recall, Veracode on FPR** | Automated CI gate |
 
-Both modes ship from the same binary. Client picks based on whether a
-human reviews findings (→ hybrid) or a pipeline blocks PRs (→ hybrid-filter).
+Both modes ship from the same binary. Both now sit **in Klocwork tier on
+recall** simultaneously. Hybrid-filter adds a 3pp FPR improvement at the
+cost of 1.8pp recall — a clean tradeoff (F76.1 cost 15pp recall, F76.2
+brings that back via prompt tuning).
 
-### F75 / F75.6 / F76.1 full breakdown
+### F75 / F75.6 / F76.1 / F76.2 full breakdown
 
 - [`reports/f75_juliet_scaffolding.md`](../reports/f75_juliet_scaffolding.md) — F75 phases 1-4
 - [`reports/f75_6_juliet_fpr_high.md`](../reports/f75_6_juliet_fpr_high.md) — severity-stratified metric, per-CWE @HIGH
 - [`reports/f76_1_hybrid_filter_llm_triage.md`](../reports/f76_1_hybrid_filter_llm_triage.md) — LLM triage mode, tradeoff analysis
+- [`reports/f76_2_triage_prompt_tuning.md`](../reports/f76_2_triage_prompt_tuning.md) — prompt tuning recovers 13pp recall
 
 ---
 
