@@ -158,19 +158,35 @@ class TriageAnnotator:
             snippet=_snippet(file_path, line),
         )
 
+        # F76.1.b — use Ollama NATIVE API (/api/chat) instead of the
+        # OpenAI-compat endpoint (/v1/chat/completions). The native API
+        # honors `think: false` per-request; the OpenAI-compat shim
+        # silently drops that flag and falls back to thinking-ON, which
+        # hangs reasoning-enabled models like kryon-14b on a trivial
+        # 3-way classification prompt.
+        # The rest of the Kryon system (unified agent, F66 experts,
+        # validators) still uses the OpenAI-compat endpoint so thinking
+        # stays ON for complex pentest/audit tasks.
+        # Endpoint derivation: the injected `endpoint` may point at the
+        # OpenAI-compat path (e.g. `http://ollama:11434/v1`); strip the
+        # trailing `/v1` so we land on the native chat path.
+        base = self.endpoint
+        if base.endswith("/v1"):
+            base = base[:-3]
         body = json.dumps({
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.1,
-            "max_tokens": self.max_tokens,
+            "think": False,
+            "stream": False,
+            "options": {
+                "temperature": 0.1,
+                "num_predict": self.max_tokens,
+            },
         }).encode()
         req = urllib.request.Request(
-            f"{self.endpoint}/chat/completions",
+            f"{base}/api/chat",
             data=body,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            },
+            headers={"Content-Type": "application/json"},
         )
         t0 = time.time()
         try:
@@ -181,7 +197,7 @@ class TriageAnnotator:
             return TriageDecision("ERROR", f"http: {exc}"[:200], "", time.time() - t0)
         elapsed = time.time() - t0
 
-        text = (doc.get("choices") or [{}])[0].get("message", {}).get("content", "")
+        text = (doc.get("message") or {}).get("content", "")
         verdict, reason, confidence = _parse(text)
         return TriageDecision(verdict, reason, confidence, elapsed)
 
