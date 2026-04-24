@@ -153,6 +153,57 @@ if (
 _USER_AGENT = f"Agents/Python {__version__}"
 _HEADERS = {"User-Agent": _USER_AGENT}
 
+# --- Tool-calling guardrails -------------------------------------------------
+# Synthetic user-role prefixes produced by Kryon's session layer (MAGIC DOC
+# auto-updates, intent-change hooks, piped tool output). These should NOT
+# reset the per-turn interaction counter that drives KRYON_FORCE_TOOL_TURNS.
+_SYNTHETIC_USER_PREFIXES = (
+    "[SESSION CONTEXT]",
+    "[INTENT CHANGE",
+    "[TOOL OUTPUT",
+    "[MAGIC DOC]",
+)
+
+# Patterns that flag an assistant message as a "prose plan" — text that
+# imitates tool calls with markdown/backticks but emits no structured
+# tool_calls. Once these enter the history the local model mimics them
+# and stops emitting real tool_calls. Keep them OUT of message_history.
+_PROSE_PLAN_PATTERNS = (
+    re.compile(r"```\s*\n?\s*AN[ÁA]LISIS\b", re.IGNORECASE),
+    re.compile(r"\bPLAN\s*\(\s*ejecutando\s*#", re.IGNORECASE),
+    re.compile(r"^\s*\d+\.\s*`[a-z_]+\s*\(", re.MULTILINE),
+    re.compile(r"`(?:run_command|nuclei_scan|nmap_scan|query_knowledge_base|whatweb_scan|gobuster_scan|recall_similar_experiences|add_to_memory_semantic|duckduckgo_search|wpscan)\s*\(", re.IGNORECASE),
+)
+# Minimum content length to consider a message for prose-plan filtering.
+# Short messages ("¡Hola!", refusals) must NEVER be filtered.
+_PROSE_PLAN_MIN_LEN = 200
+# Environment kill-switch. Set to "false" to disable the filter (for debugging).
+_PROSE_PLAN_FILTER_ENABLED = os.getenv("KRYON_STRIP_PROSE_PLANS", "true").lower() != "false"
+
+
+def _is_prose_plan_contamination(content: str) -> bool:
+    """Return True when an assistant *text-only* message exhibits the
+    prose-plan failure mode (markdown-formatted tool calls as narrative).
+    """
+    if not _PROSE_PLAN_FILTER_ENABLED:
+        return False
+    if not isinstance(content, str) or len(content) < _PROSE_PLAN_MIN_LEN:
+        return False
+    hits = sum(1 for pat in _PROSE_PLAN_PATTERNS if pat.search(content))
+    # Require at least 2 pattern matches to avoid over-aggressive filtering.
+    return hits >= 2
+
+
+def _should_reset_counter_for_user(content: Any) -> bool:
+    """Return True for *real* user messages — not synthetic session-context
+    / intent-change / tool-output injections. These should reset
+    interaction_counter so KRYON_FORCE_TOOL_TURNS applies per user turn.
+    """
+    if not isinstance(content, str):
+        return False
+    stripped = content.lstrip()
+    return not any(stripped.startswith(p) for p in _SYNTHETIC_USER_PREFIXES)
+
 # Global registry to track active model instances
 # This allows us to access instance-based histories for commands like /history
 import contextvars
@@ -400,6 +451,16 @@ class OpenAIChatCompletionsModel(Model):
 
         # Track interaction counter and token totals for cli display
         self.interaction_counter = 0
+        # Per-user-turn LLM call counter used exclusively by the Ollama
+        # KRYON_FORCE_TOOL_TURNS gate. Resets when a real user message is
+        # added, so forcing applies to the first N LLM calls *per turn*
+        # instead of once per session. Distinct from interaction_counter,
+        # which tracks session-wide activity for the CLI display.
+        self._turn_llm_calls = 0
+        # Effective tool_choice as passed to Ollama (may differ from model_settings.tool_choice
+        # when KRYON_FORCE_TOOL_TURNS upgrades it to "required"). Captured so
+        # rec_training_data can log what was actually sent, not the raw user value.
+        self._last_effective_tool_choice: Any = None
         self.total_input_tokens = 0
         self.total_output_tokens = 0
         self.total_reasoning_tokens = 0
@@ -496,6 +557,29 @@ class OpenAIChatCompletionsModel(Model):
             except Exception:
                 pass
 
+        # Fix B: drop prose-plan contamination at the source. A text-only
+        # assistant message that mimics tool calls as markdown poisons the
+        # history — the local model imitates the pattern in later turns and
+        # stops emitting real tool_calls. Exclude it from history entirely.
+        if (
+            msg.get("role") == "assistant"
+            and not msg.get("tool_calls")
+            and _is_prose_plan_contamination(msg.get("content", ""))
+        ):
+            preview = str(msg.get("content", ""))[:80].replace("\n", " ")
+            logger.debug("dropped prose-plan contamination from history: %r", preview)
+            return
+
+        # Fix A: reset the per-turn LLM call counter on each *real* user
+        # message so that KRYON_FORCE_TOOL_TURNS applies per user turn
+        # rather than once per session. Synthetic prefixes
+        # ([SESSION CONTEXT], [INTENT CHANGE], ...) do not count as new turns.
+        # We deliberately do NOT reset interaction_counter (session-wide).
+        if msg.get("role") == "user" and _should_reset_counter_for_user(msg.get("content")):
+            if self._turn_llm_calls != 0:
+                logger.debug("resetting _turn_llm_calls on new user turn (was %d)", self._turn_llm_calls)
+            self._turn_llm_calls = 0
+
         is_duplicate = False
 
         if self.message_history:
@@ -557,6 +641,9 @@ class OpenAIChatCompletionsModel(Model):
     ) -> ModelResponse:
         # Increment the interaction counter for CLI display
         self.interaction_counter += 1
+        # Per-turn counter: increments with every LLM call and only resets
+        # when a new real user message arrives (see add_to_message_history).
+        self._turn_llm_calls += 1
         self._intermediate_logs()
 
         # Set this as the current active model for tool execution context
@@ -1120,14 +1207,18 @@ class OpenAIChatCompletionsModel(Model):
                         }
                         self.add_to_message_history(tool_msg)
 
-            # Log the complete response for the session
+            # Log the complete response for the session.
+            # Tools are wrapped to match what actually goes to the API (OpenAI tool format);
+            # tool_choice reflects the effective value after KRYON_FORCE_TOOL_TURNS.
+            effective_tc = self._last_effective_tool_choice
+            logged_tc = effective_tc if effective_tc is not None else model_settings.tool_choice
             self.logger.rec_training_data(
                 {
                     "model": str(self.model),
                     "messages": converted_messages,
                     "stream": False,
-                    "tools": [t.params_json_schema for t in tools] if tools else [],
-                    "tool_choice": model_settings.tool_choice,
+                    "tools": [ToolConverter.to_openai(t) for t in tools] if tools else [],
+                    "tool_choice": logged_tc,
                 },
                 response,
                 self.total_cost,
@@ -1229,6 +1320,8 @@ class OpenAIChatCompletionsModel(Model):
 
             # Increment the interaction counter for CLI display
             self.interaction_counter += 1
+            # Per-turn counter: see get_response for the rationale.
+            self._turn_llm_calls += 1
             self._intermediate_logs()
 
             # Stop idle timer and start active timer to track LLM processing time
@@ -2403,14 +2496,19 @@ class OpenAIChatCompletionsModel(Model):
                 # Reset the suppress flag for future requests
                 self.suppress_final_output = False
 
-                # Log the complete response
+                # Log the complete response (streaming path).
+                # Mirror the non-streaming path: wrap tools and log effective tool_choice.
+                effective_tc_stream = self._last_effective_tool_choice
+                logged_tc_stream = (
+                    effective_tc_stream if effective_tc_stream is not None else model_settings.tool_choice
+                )
                 self.logger.rec_training_data(
                     {
                         "model": str(self.model),
                         "messages": converted_messages,
                         "stream": True,
-                        "tools": [t.params_json_schema for t in tools] if tools else [],
-                        "tool_choice": model_settings.tool_choice,
+                        "tools": [ToolConverter.to_openai(t) for t in tools] if tools else [],
+                        "tool_choice": logged_tc_stream,
                     },
                     final_response,
                     self.total_cost,
@@ -3344,14 +3442,19 @@ class OpenAIChatCompletionsModel(Model):
         # the single highest-impact change for Ollama tool-calling
         # reliability with models like gemma4.
         effective_tool_choice = tool_choice
-        # Force tool calling for the first N turns so the model chains
-        # tools autonomously (nmap → whatweb → gobuster → nuclei → ...)
-        # instead of stopping to generate text after each tool.
+        # Force tool calling for the first N LLM calls of the current user
+        # turn so the model chains tools autonomously (nmap → whatweb →
+        # gobuster → nuclei → ...) instead of stopping to generate text
+        # after each tool. Counter resets on every real user message so
+        # each turn gets a fresh budget (previously this was session-wide
+        # and exhausted after ~8 calls, leaving later turns unforced).
         _force_tool_turns = int(os.environ.get("KRYON_FORCE_TOOL_TURNS", "8"))
-        if has_tools and self.interaction_counter <= _force_tool_turns:
+        if has_tools and self._turn_llm_calls <= _force_tool_turns:
             effective_tool_choice = "required"
         if effective_tool_choice is not None and effective_tool_choice is not NOT_GIVEN:
             ollama_supported_params["tool_choice"] = effective_tool_choice
+        # Remember the effective value so rec_training_data logs what was actually sent.
+        self._last_effective_tool_choice = effective_tool_choice
 
         # Remove None values and filter out unsupported parameters
         ollama_kwargs = {
