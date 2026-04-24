@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kryon Dashboard
 
-## Getting Started
+Web UI for the Kryon Autonomous Security Operations Platform. Built with
+Next.js 16, React 19, Tailwind 4, shadcn/ui and TanStack Table.
 
-First, run the development server:
+## Quick start
+
+### With the full stack (Docker)
+
+From the repo root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose -f docker/docker-compose.kali.yml up -d dashboard
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open <http://localhost:3000> and log in with one of the demo credentials:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `admin@kryon.py` / `kryon2026`
+- `demo@britimp.com.py` / `demo2026`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Local development
 
-## Learn More
+```bash
+cd dashboard
+pnpm install
+pnpm dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+The dashboard starts in **demo mode** with deterministic mock data when
+`NEXT_PUBLIC_KRYON_API_URL` is unset — ideal for UI work. Copy `.env.example`
+to `.env.local` and point `NEXT_PUBLIC_KRYON_API_URL` at a running FastAPI
+backend to switch to live data.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Architecture
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `src/app/` — Next.js App Router. The `(app)/` route group holds the
+  authenticated shell (sidebar + topbar) and the six primary pages.
+- `src/components/` — UI building blocks grouped by feature (`findings/`,
+  `compliance/`, `overview/`, ...).
+- `src/lib/` — data layer:
+  - `lib/types.ts` — shared domain types.
+  - `lib/api/` — typed FastAPI client with fetch wrapper and adapters.
+  - `lib/data/` — facade that tries the real API and falls back to mocks
+    on any failure. **Components always import from `data/`, never
+    directly from `mocks/` or `api/`.**
+  - `lib/mocks/` — deterministic fixtures used in demo mode.
+- `src/proxy.ts` — route guard (Next.js 16 rename of `middleware.ts`).
 
-## Deploy on Vercel
+## Environment variables
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+See [`.env.example`](./.env.example) for the complete list. The dashboard
+ships with sane demo defaults so unset variables never break the UI.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_KRYON_API_URL` | FastAPI base URL. Empty = demo mode. |
+| `NEXT_PUBLIC_KRYON_API_KEY` | Optional `X-API-Key` header value. |
+
+## Production image
+
+```bash
+docker build -t kryon-dashboard -f dashboard/Dockerfile dashboard/
+docker run --rm -p 3000:3000 \
+  -e NEXT_PUBLIC_KRYON_API_URL=http://host.docker.internal:8000 \
+  kryon-dashboard
+```
+
+The final image is ~180 MB thanks to Next.js `output: "standalone"`.

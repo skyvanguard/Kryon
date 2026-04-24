@@ -105,6 +105,44 @@ services:
       - kryon-mgmt
 
   # ---------------------------------------------------------------------------
+  # Dashboard — Next.js 16 web UI for the platform
+  # ---------------------------------------------------------------------------
+  # Served on http://localhost:3000 by default. Talks to the Kryon FastAPI
+  # backend by service name (http://kryon:8000) over the mgmt network.
+  # When NEXT_PUBLIC_KRYON_API_URL is empty the dashboard renders in demo
+  # mode with deterministic mock data — useful for UI-only testing or when
+  # the engine is being rebuilt.
+  # ---------------------------------------------------------------------------
+  dashboard:
+    build:
+      context: ../dashboard
+      dockerfile: Dockerfile
+    container_name: kryon-dashboard
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      # Point at the Kryon FastAPI service. Leave empty to force demo mode.
+      - NEXT_PUBLIC_KRYON_API_URL=${KRYON_API_URL:-http://kryon:8000}
+      - NEXT_PUBLIC_KRYON_API_KEY=${KRYON_API_KEY:-}
+    ports:
+      - "127.0.0.1:3000:3000"
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    networks:
+      - kryon-mgmt
+    depends_on:
+      kryon:
+        condition: service_started
+
+  # ---------------------------------------------------------------------------
   # Nginx — Reverse proxy with TLS (optional, enable with --profile proxy)
   # ---------------------------------------------------------------------------
   nginx:
