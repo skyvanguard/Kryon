@@ -1,31 +1,46 @@
 import Link from "next/link";
-import { ShieldAlert, Plus } from "lucide-react";
-import { PageHeader, EmptyState } from "@/components/app/page-header";
+import { Plus, Download } from "lucide-react";
+import { PageHeader } from "@/components/app/page-header";
 import { buttonVariants } from "@/components/ui/button";
+import { FindingsTable } from "@/components/findings/findings-table";
+import { getFindings } from "@/lib/mocks/findings";
+import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Findings" };
 
 export default function FindingsPage() {
+  const findings = getFindings();
+  const open = findings.filter((f) => f.status === "open" || f.status === "confirmed").length;
+  const critical = findings.filter((f) => f.severity === "critical").length;
+
   return (
     <div>
       <PageHeader
         title="Findings"
-        description="Vulnerabilidades detectadas con severidad, framework afectado y estado de remediación."
+        description={`${findings.length} vulnerabilidades detectadas · ${open} abiertas · ${critical} críticas. Click en cualquier fila para ver detalle, evidencia y remediación.`}
         actions={
-          <Link
-            href="/scans?new=1"
-            className={buttonVariants({ size: "sm" })}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Nuevo escaneo
-          </Link>
+          <>
+            <button
+              className={cn(
+                buttonVariants({ size: "sm", variant: "outline" })
+              )}
+            >
+              <Download className="h-3.5 w-3.5" />
+              Exportar CSV
+            </button>
+            <Link
+              href="/scans?new=1"
+              className={cn(buttonVariants({ size: "sm" }))}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nuevo escaneo
+            </Link>
+          </>
         }
       />
-      <EmptyState
-        icon={<ShieldAlert className="h-5 w-5" />}
-        title="Construcción en curso — Day 4"
-        description="Acá irá la tabla de findings con 150+ vulnerabilidades de demo, filtros por severidad, framework y asset, y drawer de detalle con steps to reproduce y remediation recommendations."
-      />
+      <div className="px-6 py-6">
+        <FindingsTable findings={findings} />
+      </div>
     </div>
   );
 }
