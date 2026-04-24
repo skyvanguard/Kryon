@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { Zap, LogOut, Plus, Clock, ChevronsUpDown } from "lucide-react";
+import { Zap, LogOut, Plus, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -23,9 +23,11 @@ import { logoutAction } from "@/app/login/actions";
 
 export interface SidebarProps {
   session: AuthSession;
+  /** Server-rendered status pill (e.g. backend health). Optional. */
+  statusSlot?: React.ReactNode;
 }
 
-export function Sidebar({ session }: SidebarProps) {
+export function Sidebar({ session, statusSlot }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -104,20 +106,8 @@ export function Sidebar({ session }: SidebarProps) {
 
       <Separator className="bg-sidebar-border" />
 
-      {/* Status pill */}
-      <div className="px-3 py-3">
-        <div className="flex items-center gap-2 rounded-md border border-sidebar-border bg-card/50 px-2.5 py-1.5 text-xs">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--success)] opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--success)]" />
-          </span>
-          <span className="text-muted-foreground">Motor activo</span>
-          <Clock className="ml-auto h-3 w-3 text-muted-foreground" />
-          <span className="font-mono text-[10px] text-muted-foreground">
-            24/7
-          </span>
-        </div>
-      </div>
+      {/* Status pill — server-rendered in layout when provided */}
+      {statusSlot ? <div className="px-3 py-3">{statusSlot}</div> : null}
 
       {/* User menu */}
       <div className="p-2">

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AUTH_COOKIE, decodeCookie, isSessionValid } from "@/lib/auth";
 import { Sidebar } from "@/components/app/sidebar";
 import { Topbar } from "@/components/app/topbar";
+import { MotorStatus } from "@/components/app/motor-status";
 
 /**
  * Authenticated shell for the dashboard.
@@ -27,7 +28,7 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar session={session} />
+      <Sidebar session={session} statusSlot={<MotorStatus />} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
         <main className="flex-1 overflow-y-auto">{children}</main>
