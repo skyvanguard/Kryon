@@ -339,3 +339,177 @@ def test_same_inputs_produce_same_report() -> None:
     r1 = evaluate_draft_against_corpus(**args)
     r2 = evaluate_draft_against_corpus(**args)
     assert r1 == r2
+
+
+# ---------- F77.G.4 — Guide gate integration (relevance + naturalness) ----------
+
+
+def _good_body(tools: list[str]) -> str:
+    """Body that satisfies the Guide axes — long enough, has sections,
+    references each tool. Used for tests that need the Guide gate to PASS."""
+    tool_lines = "\n".join(f"- Run `{t}` on the target." for t in tools)
+    return (
+        "## Pre-flight\n"
+        "Verify the target host is in scope and the engagement letter is signed.\n\n"
+        "## Steps\n"
+        f"{tool_lines}\n"
+        "Capture findings to ~/.kryon/findings/.\n\n"
+        "## Detection\n"
+        "Detects exposed admin panels and outdated middleware.\n"
+    )
+
+
+def _draft_with_body(tools: list[str], body: str) -> Any:
+    from kryon.learning.skill_synthesizer import SkillDraft
+
+    fm = {
+        "name": "guide-test",
+        "description": "test",
+        "triggers": {"tech": ["wordpress"], "ports": [80], "keywords": []},
+        "priority": 50,
+        "required_tools": tools,
+        "_provenance": {"cluster_id": "c1", "source": "auto-cluster"},
+    }
+    return SkillDraft(name="guide-test", body=body, frontmatter=fm)
+
+
+def test_guide_gate_off_by_default_no_guide_score_in_report() -> None:
+    """Banking-safe rollout — without the env flag or kwarg, the Guide
+    gate doesn't run and `guide_score` stays None."""
+    from kryon.learning.skill_evaluator import evaluate_draft_against_corpus
+
+    report = evaluate_draft_against_corpus(
+        draft=_draft_with_tools(["nmap", "nuclei_scan"]),
+        cluster=_cluster(),
+        findings=[_finding(cwe="CWE-89") for _ in range(5)],
+    )
+    assert report.guide_score is None
+
+
+def test_guide_gate_kwarg_enables_with_clean_draft_passes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Clean body + correct frontmatter → Guide passes, technical eval runs."""
+    monkeypatch.delenv("KRYON_GUIDE_GATE", raising=False)
+    from kryon.learning.skill_evaluator import evaluate_draft_against_corpus
+
+    tools = ["nmap", "nuclei_scan"]
+    report = evaluate_draft_against_corpus(
+        draft=_draft_with_body(tools, _good_body(tools)),
+        cluster=_cluster(),
+        findings=[_finding(cwe="CWE-89") for _ in range(5)],
+        apply_guide_gate=True,
+    )
+    assert report.eval_status == "passed"
+    assert report.guide_score is not None
+    assert report.guide_score["combined"] >= 0.6
+
+
+def test_guide_gate_short_circuits_on_broken_draft() -> None:
+    """A draft that fails the Guide should skip technical eval entirely."""
+    from kryon.learning.skill_evaluator import evaluate_draft_against_corpus
+
+    # Empty body + matching tools → relevance ~0, naturalness ~0.
+    report = evaluate_draft_against_corpus(
+        draft=_draft_with_body(["nmap", "nuclei_scan"], body=""),
+        cluster=_cluster(),
+        findings=[_finding(cwe="CWE-89") for _ in range(5)],
+        apply_guide_gate=True,
+    )
+    assert report.eval_status == "rejected_by_guide"
+    assert report.guide_score is not None
+    assert report.guide_score["combined"] < 0.6
+    # Technical eval did NOT run — findings_evaluated stays at 0.
+    assert report.findings_evaluated == 0
+
+
+def test_guide_gate_loop_artifact_rejected() -> None:
+    """Generative-loop draft (repeated nonsense + heavy placeholders + no
+    section header) gets rejected by Guide before the corpus walk."""
+    from kryon.learning.skill_evaluator import evaluate_draft_against_corpus
+
+    body = "TODO TODO TODO XXXX\n" * 30
+    report = evaluate_draft_against_corpus(
+        draft=_draft_with_body(["nmap"], body=body),
+        cluster=_cluster(),
+        findings=[_finding(cwe="CWE-89") for _ in range(5)],
+        apply_guide_gate=True,
+    )
+    assert report.eval_status == "rejected_by_guide"
+    # Reasons should reference both axes (multiple symptoms).
+    reasons = report.guide_score["reasons"]
+    assert any("relevance:" in r for r in reasons)
+    assert any("naturalness:" in r for r in reasons)
+
+
+def test_guide_gate_env_flag_enables_default_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`KRYON_GUIDE_GATE=true` activates the gate without explicit kwarg."""
+    monkeypatch.setenv("KRYON_GUIDE_GATE", "true")
+    from kryon.learning.skill_evaluator import evaluate_draft_against_corpus
+
+    report = evaluate_draft_against_corpus(
+        draft=_draft_with_body(["nmap", "nuclei_scan"], body=""),
+        cluster=_cluster(),
+        findings=[_finding(cwe="CWE-89") for _ in range(5)],
+    )
+    assert report.eval_status == "rejected_by_guide"
+
+
+def test_guide_gate_threshold_overridable_via_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`KRYON_GUIDE_THRESHOLD=0.95` makes a slightly imperfect draft fail."""
+    monkeypatch.setenv("KRYON_GUIDE_THRESHOLD", "0.95")
+    from kryon.learning.skill_evaluator import evaluate_draft_against_corpus
+
+    # Draft is good but missing one section → combined ~0.88 (passes 0.6
+    # but not 0.95).
+    body = "## Steps\n- Run `nmap`.\n- Run `nuclei_scan`.\n" * 3
+    report = evaluate_draft_against_corpus(
+        draft=_draft_with_body(["nmap", "nuclei_scan"], body=body),
+        cluster=_cluster(),
+        findings=[_finding(cwe="CWE-89") for _ in range(5)],
+        apply_guide_gate=True,
+    )
+    assert report.eval_status == "rejected_by_guide"
+
+
+def test_guide_gate_invalid_threshold_falls_back_to_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Garbled `KRYON_GUIDE_THRESHOLD` doesn't crash — falls back to 0.6."""
+    monkeypatch.setenv("KRYON_GUIDE_THRESHOLD", "not-a-float")
+    from kryon.learning.skill_evaluator import evaluate_draft_against_corpus
+
+    tools = ["nmap", "nuclei_scan"]
+    report = evaluate_draft_against_corpus(
+        draft=_draft_with_body(tools, _good_body(tools)),
+        cluster=_cluster(),
+        findings=[_finding(cwe="CWE-89") for _ in range(5)],
+        apply_guide_gate=True,
+    )
+    # Default threshold (0.6) — clean draft passes.
+    assert report.eval_status == "passed"
+
+
+def test_guide_score_payload_shape_is_serializable() -> None:
+    """`guide_score` must be a plain dict so it round-trips through json
+    when written to `_auto/*.eval.json`."""
+    import json
+
+    from kryon.learning.skill_evaluator import evaluate_draft_against_corpus
+
+    tools = ["nmap", "nuclei_scan"]
+    report = evaluate_draft_against_corpus(
+        draft=_draft_with_body(tools, _good_body(tools)),
+        cluster=_cluster(),
+        findings=[_finding(cwe="CWE-89") for _ in range(5)],
+        apply_guide_gate=True,
+    )
+    # No exception — guide_score serializes cleanly.
+    payload = json.dumps(report.guide_score)
+    parsed = json.loads(payload)
+    assert set(parsed.keys()) == {"relevance", "naturalness", "combined", "reasons"}
+    assert isinstance(parsed["reasons"], list)

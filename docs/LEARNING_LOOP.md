@@ -390,3 +390,85 @@ pytest tests/learning/test_pattern_detector.py \
        tests/learning/test_auto_pipeline.py \
        tests/learning/test_auto_e2e.py
 ```
+
+## F77.G.4 — Guide gate (relevance + naturalness)
+
+A textual second-axis filter on auto-generated drafts, layered on top of
+the F3 technical eval. Inspired by SGS (https://arxiv.org/abs/2604.20209),
+which showed that a Guide role scoring synthetic problems for *quality*
++ *relevance* prevents the Conjecturer from collapsing into reward-hacked
+nonsense. Applied here: even a draft that passes the CWE→tools eval can
+still be textually broken (mismatched frontmatter/body, placeholder soup,
+loop artifacts). The Guide catches that for free.
+
+### What it scores
+
+`src/kryon/learning/guide_scorer.py` — two axes, weighted average,
+zero LLM calls (stdlib regex only):
+
+- **`relevance` (weight 0.6)** — coherence frontmatter ↔ body. Penalties
+  for tools in `required_tools:` not mentioned in body, missing
+  Steps/Playbook/Detection section, empty body or empty
+  `required_tools:`.
+- **`naturalness` (weight 0.4)** — generative-loop / stub artifacts.
+  Penalties for length out of 200..20000 chars, high placeholder
+  density (TODO, XXXX, `{ALL_CAPS}`), repeated identical lines beyond
+  25%, empty fenced code blocks.
+
+`combined = 0.6 * relevance + 0.4 * naturalness`. Default threshold
+**0.6** to pass. Banking-safe rollout — empirically validated to give
+zero false positives against the 107 hand-written playbooks shipped in
+`src/kryon/skills/playbooks/` (lowest real playbook scores 0.60, highest
+1.00).
+
+### Activate
+
+The gate is **off by default** (banking-safe). Activate via:
+
+```bash
+# Per-process env flag (preferred)
+export KRYON_GUIDE_GATE=true
+export KRYON_GUIDE_THRESHOLD=0.6   # optional override
+
+# Or programmatically (e.g. in tests)
+from kryon.learning.skill_evaluator import evaluate_draft_against_corpus
+evaluate_draft_against_corpus(..., apply_guide_gate=True)
+```
+
+When active, `EvalReport.eval_status` can take a new value
+`rejected_by_guide` and the technical eval is short-circuited (no
+findings walk). The report's `guide_score` field carries
+`{relevance, naturalness, combined, reasons}` for the operator to see
+WHY a draft was kicked out.
+
+### Test it yourself against your own drafts
+
+```bash
+python -c "
+from pathlib import Path
+import yaml
+from kryon.learning.guide_scorer import score_draft
+
+class _D:
+    def __init__(s, b, fm): s.body, s.frontmatter, s.name = b, fm, 'x'
+
+for p in Path('~/.kryon/drafts/_auto').expanduser().rglob('*.md'):
+    raw = p.read_text(encoding='utf-8')
+    end = raw.find('---', 3)
+    fm = yaml.safe_load(raw[3:end]) or {}
+    body = raw[end+3:].lstrip()
+    s = score_draft(_D(body, fm))
+    flag = 'PASS' if s.passes() else 'FAIL'
+    print(f'{flag}  {s.combined:.2f}  {p.name}')
+    for r in s.reasons:
+        print(f'         - {r}')
+"
+```
+
+### Why opt-in (not default-on yet)
+
+The 107-playbook regression confirms 0% false positives in the hand-
+written corpus, but real auto-drafts (under 50 in production at time of
+writing) are too small a sample to flip the default. Once we have ≥ 200
+auto-drafts evaluated with the gate ON via env, and the false-rejection
+rate stays under 5%, Fase 4 of F77.G.4 flips the default.

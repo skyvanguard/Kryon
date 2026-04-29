@@ -283,12 +283,16 @@ class EvalReport:
     """Result of evaluating a draft against the findings corpus."""
 
     cluster_id: str
-    eval_status: str  # "passed" | "rejected" | "skipped"
+    eval_status: str  # "passed" | "rejected" | "skipped" | "rejected_by_guide"
     findings_evaluated: int = 0
     findings_passed: int = 0
     pass_rate: float = 0.0
     reason: str = ""
     matched_findings: tuple[str, ...] = field(default_factory=tuple)
+    # F77.G.4 — Guide score (relevance + naturalness). Populated when the
+    # caller requests `apply_guide_gate=True`. None when the gate didn't
+    # run (off by default — banking-safe rollout).
+    guide_score: dict[str, Any] | None = None
 
 
 def _profile_tech(profile: dict[str, Any]) -> set[str]:
@@ -345,6 +349,27 @@ def _is_finding_detectable(
     return bool(detecting & chain_tools)
 
 
+def _guide_gate_enabled() -> bool:
+    """F77.G.4 — `KRYON_GUIDE_GATE=true` enables the Guide axis. Off by
+    default during the banking-safe rollout (Fase 4 flips this once we
+    have empirical false-positive numbers from real drafts)."""
+    return os.environ.get("KRYON_GUIDE_GATE", "").lower() in ("1", "true", "yes")
+
+
+def _guide_threshold() -> float:
+    """`KRYON_GUIDE_THRESHOLD` overrides the default 0.6 cutoff."""
+    raw = os.environ.get("KRYON_GUIDE_THRESHOLD", "")
+    if not raw:
+        from kryon.learning.guide_scorer import GUIDE_DEFAULT_THRESHOLD
+        return GUIDE_DEFAULT_THRESHOLD
+    try:
+        return float(raw)
+    except ValueError:
+        logger.warning("Invalid KRYON_GUIDE_THRESHOLD=%r — falling back to default", raw)
+        from kryon.learning.guide_scorer import GUIDE_DEFAULT_THRESHOLD
+        return GUIDE_DEFAULT_THRESHOLD
+
+
 def evaluate_draft_against_corpus(
     *,
     draft: Any,
@@ -353,6 +378,7 @@ def evaluate_draft_against_corpus(
     min_pass_rate: float = 0.7,
     min_findings_evaluated: int = 3,
     cwe_to_tools: dict[str, set[str]] | None = None,
+    apply_guide_gate: bool | None = None,
 ) -> EvalReport:
     """Heuristic evaluation of a draft against a findings corpus.
 
@@ -366,10 +392,46 @@ def evaluate_draft_against_corpus(
             before we draw a conclusion. Below this → skipped.
         cwe_to_tools: optional override of the CWE → detection-tools
             map. When None, the default banking-conservative map applies.
+        apply_guide_gate: When True, run the F77.G.4 Guide score
+            (relevance + naturalness) BEFORE the technical eval. A draft
+            that fails the Guide is rejected with status
+            `rejected_by_guide` and the technical eval is skipped (cheap
+            short-circuit). When None, falls back to the
+            `KRYON_GUIDE_GATE` env flag.
 
     Returns:
-        EvalReport with one of {passed, rejected, skipped}.
+        EvalReport with one of
+        {passed, rejected, skipped, rejected_by_guide}.
     """
+    # F77.G.4 — Guide gate runs FIRST. Cheap (stdlib heuristics, no I/O).
+    # If a draft is textually broken, no point in walking findings.
+    use_guide = apply_guide_gate if apply_guide_gate is not None else _guide_gate_enabled()
+    if use_guide:
+        from kryon.learning.guide_scorer import score_draft
+
+        guide = score_draft(draft)
+        guide_payload = {
+            "relevance": guide.relevance,
+            "naturalness": guide.naturalness,
+            "combined": guide.combined,
+            "reasons": list(guide.reasons),
+        }
+        if not guide.passes(_guide_threshold()):
+            return EvalReport(
+                cluster_id=cluster.cluster_id,
+                eval_status="rejected_by_guide",
+                reason=(
+                    f"Guide score {guide.combined:.2f} below threshold "
+                    f"{_guide_threshold():.2f} "
+                    f"(relevance={guide.relevance:.2f}, "
+                    f"naturalness={guide.naturalness:.2f}). "
+                    "Fix the draft text before promoting."
+                ),
+                guide_score=guide_payload,
+            )
+    else:
+        guide_payload = None
+
     if cwe_to_tools is not None:
         # Explicit caller intent — bypass any file override.
         eff_map = dict(cwe_to_tools)
@@ -387,6 +449,7 @@ def evaluate_draft_against_corpus(
                 "Findings corpus empty or none match the cluster's tech "
                 "profile. Insufficient signal to draw a conclusion."
             ),
+            guide_score=guide_payload,
         )
 
     # Walk relevant findings, classify each.
@@ -406,6 +469,7 @@ def evaluate_draft_against_corpus(
                 f"Only {len(decided)} relevant + classifiable findings "
                 f"(need >= {min_findings_evaluated}). Insufficient corpus."
             ),
+            guide_score=guide_payload,
         )
 
     passed_count = sum(1 for _, ok in decided if ok)
@@ -426,6 +490,7 @@ def evaluate_draft_against_corpus(
                 f"({rate * 100:.1f}% >= {min_pass_rate * 100:.1f}% threshold)."
             ),
             matched_findings=matched_ids,
+            guide_score=guide_payload,
         )
 
     return EvalReport(
@@ -440,4 +505,5 @@ def evaluate_draft_against_corpus(
             f"Add detection tools (sqlmap, burp, etc.) before promoting."
         ),
         matched_findings=matched_ids,
+        guide_score=guide_payload,
     )
