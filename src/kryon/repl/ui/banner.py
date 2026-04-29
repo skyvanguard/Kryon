@@ -157,9 +157,39 @@ def count_mission_logs():
     return "100+"
 
 
+def _full_banner_enabled() -> bool:
+    """The legacy ASCII-art banner is opt-in. Default = compact 3-line."""
+    val = os.environ.get("KRYON_FULL_BANNER", "").strip().lower()
+    return val in ("1", "true", "yes", "on")
+
+
+def _display_compact_banner(console: Console, version: str, codename: str) -> None:
+    """Tight 3-line banner with palette B accents.
+
+    Replaces ~12 lines of ASCII art that ran on every startup. The full
+    art is still available via `KRYON_FULL_BANNER=1` for those who like
+    the classic look.
+    """
+    console.print(
+        f"[bold cyan]KRYON[/bold cyan] "
+        f"[dim cyan]v{version} — {codename}[/dim cyan]"
+    )
+    console.print(
+        "[dim]autonomous cybersecurity agent for financial services · "
+        "all actions logged[/dim]"
+    )
+    console.print(
+        "[dim cyan]/help · /skill list · /agent select · Ctrl+C interrupt · /exit[/dim cyan]"
+    )
+
+
 def display_banner(console: Console):
     """
-    Display KRYON initialization banner with cyber-themed aesthetics.
+    Display KRYON initialization banner.
+
+    Default: compact 3-line banner (palette B). The legacy ASCII art
+    banner is opt-in via `KRYON_FULL_BANNER=1` — useful for screencasts
+    or first-time intros, noisy in everyday use.
 
     Args:
         console: Rich console for output
@@ -168,6 +198,14 @@ def display_banner(console: Console):
     import kryon
 
     codename = getattr(kryon, "__codename__", "Genesis")
+
+    # Default path: compact banner. Opt out for the legacy art.
+    if not _full_banner_enabled():
+        try:
+            _display_compact_banner(console, version, codename)
+            return
+        except Exception:
+            pass  # Fall through to legacy banner
 
     # KRYON banner with indigo/cyan cyber theme (Unicode)
     banner_unicode = f"""

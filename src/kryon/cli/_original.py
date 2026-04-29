@@ -720,6 +720,28 @@ def run_kryon_cli(
                     user_input = initial_prompt
                     use_initial_prompt = False  # Only use it once
                 else:
+                    # Update shared runtime state so the bottom toolbar
+                    # (running in a background thread) sees the current
+                    # active skills + tool count for this turn.
+                    try:
+                        from kryon.repl.ui.runtime_state import set_active_agent
+                        set_active_agent(agent)
+                    except Exception:  # pragma: no cover
+                        pass
+
+                    # Render the per-turn status header (skills + ollama
+                    # + drafts pendientes + last experience) BEFORE
+                    # opening the prompt. Best-effort — failures here
+                    # never block input.
+                    try:
+                        from kryon.repl.ui.status_line import render_status_line
+                        render_status_line(agent, console)
+                    except Exception as _sl_err:  # pragma: no cover
+                        import logging as _sl_logging
+                        _sl_logging.getLogger(__name__).debug(
+                            "status_line render failed: %s", _sl_err
+                        )
+
                     # Get user input with command completion and history
                     user_input = get_user_input(
                         command_completer, kb, history_file, get_toolbar_with_refresh, current_text
