@@ -4210,6 +4210,39 @@ class _Converter:
                     "execution_info": {"start_time": time.time()},
                 }
 
+                # F77.D / Fase 8: print "▸ tool args" right when the model decides to
+                # invoke a tool, BEFORE we wait on its execution. With KRYON_STREAM=false
+                # the legacy pipeline only renders AFTER the tool completes, leaving the
+                # user staring at a blank screen for tens of seconds. The completion glyph
+                # ("✓ Ns · summary") is still rendered later via cli_print_tool_output.
+                _tool_name_for_invocation = func_call.get("name", "")
+                if (
+                    _tool_name_for_invocation
+                    and _tool_name_for_invocation != "execute_code"
+                ):
+                    try:
+                        from rich.console import Console
+                        from kryon.repl.ui.tool_call_renderer import (
+                            render_tool_invocation,
+                            summarize_args,
+                        )
+                        _args_for_invocation = func_call.get("arguments", "")
+                        if isinstance(_args_for_invocation, str):
+                            try:
+                                _args_for_invocation = json.loads(_args_for_invocation)
+                            except (json.JSONDecodeError, ValueError):
+                                _args_for_invocation = {}
+                        _summary = summarize_args(
+                            _tool_name_for_invocation, _args_for_invocation,
+                        )
+                        render_tool_invocation(
+                            tool_name=_tool_name_for_invocation,
+                            args_summary=_summary,
+                            console=Console(),
+                        )
+                    except Exception:
+                        pass
+
                 arguments = func_call.get("arguments")  # func_call is a dict here
                 # Ensure arguments is a valid JSON string, defaulting to "{}" if empty or None
                 if arguments is None or (isinstance(arguments, str) and arguments.strip() == ""):

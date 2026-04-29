@@ -1106,43 +1106,40 @@ def cli_print_agent_messages(
         if parsed_message and not is_rich_content:
             text.append(tokens_text)
 
-    # Create the panel content based on whether we have rich content or not
-    if is_rich_content:
-        # For rich content, create a Group with the header, content, and tokens
-        panel_content = []
-        panel_content.append(text)
-
-        # Add spacing between header and content for better readability
-        panel_content.append(Text("\n"))
-
-        # Add the Group with highlighted content
-        panel_content.append(parsed_message)
-
-        # Add token information at the bottom with proper spacing
-        if tokens_text:
-            panel_content.append(Text("\n"))
-            panel_content.append(tokens_text)
-
-        panel = Panel(
-            Group(*panel_content),
-            border_style="red" if agent_name == "Reasoner Agent" else "blue",
-            box=ROUNDED,
-            padding=(1, 1),  # Increased padding for better appearance
-            title="",
-            title_align="left",
-        )
+    # F77.D / Fase 9: agent narrative renders inline (no Panel envelope).
+    # Reasoner Agent kept its red panel because it's a separate sub-flow
+    # whose output the operator wants visually segregated.
+    if agent_name == "Reasoner Agent":
+        if is_rich_content:
+            panel_content = [text, Text("\n"), parsed_message]
+            if tokens_text:
+                panel_content.extend([Text("\n"), tokens_text])
+            panel = Panel(
+                Group(*panel_content),
+                border_style="red",
+                box=ROUNDED,
+                padding=(1, 1),
+                title="",
+                title_align="left",
+            )
+        else:
+            panel = Panel(
+                text,
+                border_style="red",
+                box=ROUNDED,
+                padding=(0, 1),
+                title="",
+                title_align="left",
+            )
+        console.print(panel)
     else:
-        # For regular text content, use the original panel format
-        panel = Panel(
-            text,
-            border_style="red" if agent_name == "Reasoner Agent" else "blue",
-            box=ROUNDED,
-            padding=(0, 1),
-            title="",
-            title_align="left",
-        )
-    # console.print("\n")
-    console.print(panel)
+        if is_rich_content:
+            panel_content = [text, Text("\n"), parsed_message]
+            if tokens_text:
+                panel_content.extend([Text("\n"), tokens_text])
+            console.print(Group(*panel_content))
+        else:
+            console.print(text)
 
     # If there are tool panels, print them after the main message panel
     # But only in non-streaming mode to avoid duplicates

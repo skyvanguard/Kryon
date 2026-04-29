@@ -1897,25 +1897,11 @@ def run_kryon_cli(
                         # Continue the conversation loop instead of crashing
                         continue
 
-                    # Display and persist the model's final text output.
-                    # Previously this only ran in Claude Code CLI mode, but it's
-                    # needed for ALL non-streaming runs — otherwise the user
-                    # never sees the model's analysis and the next turn loses context.
+                    # F77.D / Fase 9: persist the model's final text to history,
+                    # but DO NOT print it again — `cli_print_agent_messages` already
+                    # streamed it inline during the turn. The legacy duplicate panel
+                    # ("╭─ Kryon ─╮" wrapping the same Markdown) was removed.
                     if response and hasattr(response, "final_output") and response.final_output:
-                        from rich.markdown import Markdown
-                        from rich.panel import Panel
-
-                        console.print()
-                        console.print(
-                            Panel(
-                                Markdown(str(response.final_output)),
-                                title=f"[bold green]{get_agent_short_name(agent)}[/bold green]",
-                                border_style="blue",
-                                padding=(1, 2),
-                            )
-                        )
-                        console.print()
-                        # Persist to history so the next turn has context
                         agent.model.add_to_message_history(
                             {"role": "assistant", "content": str(response.final_output)}
                         )
