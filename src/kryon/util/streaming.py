@@ -16,6 +16,14 @@ import time
 import uuid
 from typing import Any
 
+
+def _hide_cost() -> bool:
+    """Cost counters add noise when running on local Ollama (cost = 0).
+    Default: hidden. Set `KRYON_HIDE_COST=0` to show them again
+    (relevant if you ever route through a paid API)."""
+    val = os.environ.get("KRYON_HIDE_COST", "1").strip().lower()
+    return val in ("1", "true", "yes", "on")
+
 from rich.box import ROUNDED
 from rich.console import Console, Group
 from rich.live import Live
@@ -450,28 +458,29 @@ def _print_simple_tool_output(tool_name, args, output, execution_info=None, toke
                 )
             )
 
-            current_cost = COST_TRACKER.process_interaction_cost(
-                model,
-                interaction_input_tokens,
-                interaction_output_tokens,
-                interaction_reasoning_tokens,
-                token_info.get("interaction_cost"),
-            )
-            total_cost_value = COST_TRACKER.process_total_cost(
-                model,
-                total_input_tokens,
-                total_output_tokens,
-                total_reasoning_tokens,
-                token_info.get("total_cost"),
-            )
-            session_cost = COST_TRACKER.session_total_cost
-            print(
-                color(
-                    f"  Cost: Current ${current_cost:.4f} | Total ${total_cost_value:.4f} "
-                    f"| Session ${session_cost:.4f}",
-                    fg="cyan",
+            if not _hide_cost():
+                current_cost = COST_TRACKER.process_interaction_cost(
+                    model,
+                    interaction_input_tokens,
+                    interaction_output_tokens,
+                    interaction_reasoning_tokens,
+                    token_info.get("interaction_cost"),
                 )
-            )
+                total_cost_value = COST_TRACKER.process_total_cost(
+                    model,
+                    total_input_tokens,
+                    total_output_tokens,
+                    total_reasoning_tokens,
+                    token_info.get("total_cost"),
+                )
+                session_cost = COST_TRACKER.session_total_cost
+                print(
+                    color(
+                        f"  Cost: Current ${current_cost:.4f} | Total ${total_cost_value:.4f} "
+                        f"| Session ${session_cost:.4f}",
+                        fg="cyan",
+                    )
+                )
 
             context_pct = interaction_input_tokens / get_model_input_tokens(model) * 100
             if context_pct < 50:
@@ -1343,11 +1352,11 @@ def update_agent_streaming_content(context, text_delta, token_stats=None):
                 footer_stats.append(" | ", style="dim")
                 footer_stats.append(f"I:{input_tokens} O:{output_tokens}", style="green")
 
-                if interaction_cost > 0:
-                    footer_stats.append(f" (${interaction_cost:.4f})", style="bold cyan")
-
-                footer_stats.append(" | Session: ", style="dim")
-                footer_stats.append(f"${session_total_cost:.4f}", style="bold magenta")
+                if not _hide_cost():
+                    if interaction_cost > 0:
+                        footer_stats.append(f" (${interaction_cost:.4f})", style="bold cyan")
+                    footer_stats.append(" | Session: ", style="dim")
+                    footer_stats.append(f"${session_total_cost:.4f}", style="bold magenta")
 
                 model_name = context.get("model", os.environ.get("KRYON_MODEL", "gpt-4o"))
                 context_pct = input_tokens / get_model_input_tokens(model_name) * 100
@@ -1468,13 +1477,14 @@ def finish_agent_streaming(context, final_stats=None):
                 compact_tokens = Text()
                 compact_tokens.append(" | ", style="dim")
                 compact_tokens.append(f"I:{interaction_input_tokens} O:{interaction_output_tokens} ", style="green")
-                compact_tokens.append(f"(${interaction_cost:.4f}) ", style="bold cyan")
 
-                session_total_cost = (
-                    COST_TRACKER.session_total_cost if hasattr(COST_TRACKER, "session_total_cost") else total_cost
-                )
-                compact_tokens.append(" | Session: ", style="dim")
-                compact_tokens.append(f"${session_total_cost:.4f}", style="bold magenta")
+                if not _hide_cost():
+                    compact_tokens.append(f"(${interaction_cost:.4f}) ", style="bold cyan")
+                    session_total_cost = (
+                        COST_TRACKER.session_total_cost if hasattr(COST_TRACKER, "session_total_cost") else total_cost
+                    )
+                    compact_tokens.append(" | Session: ", style="dim")
+                    compact_tokens.append(f"${session_total_cost:.4f}", style="bold magenta")
 
                 context_pct = interaction_input_tokens / get_model_input_tokens(model_name) * 100
                 if context_pct < 50:
@@ -1954,7 +1964,10 @@ def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None,
             interaction_cost = calculate_model_cost(model_name, input_tokens, output_tokens)
 
         if input_tokens > 0:
-            compact_tokens = f"\n[Tokens: I:{input_tokens} O:{output_tokens} | Cost: ${interaction_cost:.4f}]"
+            if _hide_cost():
+                compact_tokens = f"\n[Tokens: I:{input_tokens} O:{output_tokens}]"
+            else:
+                compact_tokens = f"\n[Tokens: I:{input_tokens} O:{output_tokens} | Cost: ${interaction_cost:.4f}]"
             if output:
                 if not output.endswith("\n"):
                     output += "\n"

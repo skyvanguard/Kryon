@@ -40,6 +40,28 @@ required_tools:
   - reflect_on_hypothesis
 ---
 
+## Pre-flight — ¿hay target?
+
+**Antes de cualquier otra cosa**, chequeá si el input del operador
+contiene un target real (dominio, IP, URL, hostname interno, CIDR).
+
+Si NO hay target — el operador solo saludó (`hola`, `que tal`, `vamos`,
+`probemos`, `start`), pidió ayuda genérica (`que podes hacer`,
+`/help`), o el mensaje no tiene una IP / dominio válido:
+
+1. **NO ejecutes ningún tool.** No corras `run_command`, no hagas
+   `recall_similar_experiences`, NADA.
+2. Respondé en UN solo mensaje de texto, conversacional, en español.
+   Algo como: "Listo. Pasame el target (dominio, IP, CIDR, o URL) y
+   arrancamos. Ejemplos: `audit 192.168.1.1`, `escanear bcp.com.py`,
+   `pentest https://lab.local/`."
+3. **Termina el turno.** Esperá la próxima entrada del operador.
+   NO entres en loop de `echo "Por favor proporciona target"` —
+   eso quema turns sin valor.
+
+Solo cuando el operador YA dio un target en su mensaje (o en el
+contexto de un turn previo) seguís al flujo de TRES fases abajo.
+
 ## Flujo en TRES fases (no termines en fase 1)
 
 ### Fase 1 — Recon inicial (5-8 min wall)
