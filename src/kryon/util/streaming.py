@@ -356,33 +356,19 @@ def _create_token_display(
     else:
         total_cost_value = COST_TRACKER.last_total_cost
 
+    # F77.D / Fase 5: compact footer (mirrors message_utils._create_token_display).
     tokens_text = Text(justify="left")
-    tokens_text.append(" ", style="bold")
+    show_cost = not _hide_cost()
 
-    tokens_text.append("Current: ", style="bold")
-    tokens_text.append(f"I:{interaction_input_tokens} ", style="green")
-    tokens_text.append(f"O:{interaction_output_tokens} ", style="red")
-    tokens_text.append(f"R:{interaction_reasoning_tokens} ", style="yellow")
-    tokens_text.append(f"(${current_cost:.4f}) ", style="bold")
+    tokens_text.append(
+        f"I:{interaction_input_tokens} O:{interaction_output_tokens}", style="dim cyan",
+    )
+    if interaction_reasoning_tokens > 0:
+        tokens_text.append(f" R:{interaction_reasoning_tokens}", style="dim cyan")
+    if show_cost and current_cost > 0:
+        tokens_text.append(f" (${current_cost:.4f})", style="dim")
 
-    tokens_text.append("| ", style="dim")
-
-    tokens_text.append("Total: ", style="bold")
-    tokens_text.append(f"I:{total_input_tokens} ", style="green")
-    tokens_text.append(f"O:{total_output_tokens} ", style="red")
-    tokens_text.append(f"R:{total_reasoning_tokens} ", style="yellow")
-    tokens_text.append(f"(${total_cost_value:.4f}) ", style="bold")
-
-    tokens_text.append("| ", style="dim")
-
-    tokens_text.append("Session: ", style="bold magenta")
-    tokens_text.append(f"${COST_TRACKER.session_total_cost:.4f}", style="bold magenta")
-
-    tokens_text.append(" | ", style="dim")
     context_pct = interaction_input_tokens / get_model_input_tokens(model_name) * 100
-    tokens_text.append("Context: ", style="bold")
-    tokens_text.append(f"{context_pct:.1f}% ", style="bold")
-
     if context_pct < 50:
         indicator = "OK"
         color_local = "green"
@@ -393,7 +379,10 @@ def _create_token_display(
         indicator = "XX"
         color_local = "red"
 
-    tokens_text.append(f"{indicator}", style=color_local)
+    tokens_text.append(" · ", style="dim")
+    tokens_text.append(f"ctx {context_pct:.0f}%", style="dim cyan")
+    tokens_text.append(" ", style="dim")
+    tokens_text.append(indicator, style=color_local)
 
     return tokens_text
 
@@ -781,6 +770,22 @@ def cli_print_tool_output(
     if _cleanup_in_progress:
         return
 
+    # F77.D / Fase 6: route non-execute_code finals through the flat renderer.
+    # Streaming chunks and execute_code keep the legacy panel pipeline.
+    if (
+        not streaming
+        and tool_name
+        and tool_name != "execute_code"
+        and output
+    ):
+        try:
+            _render_simple_tool_completion(
+                tool_name, args, output, execution_info, token_info,
+            )
+            return
+        except Exception:
+            pass  # fall through to legacy renderer below
+
     if not hasattr(cli_print_tool_output, "_streaming_sessions"):
         cli_print_tool_output._streaming_sessions = {}
 
@@ -919,7 +924,9 @@ def cli_print_tool_output(
                 if execution_info:
                     status = execution_info.get("status", "running")
 
-                border_style = "yellow"
+                # F77.D / Fase 6: palette B — running uses cyan (was yellow).
+                # Semantic colors preserved: green=ok, red=error.
+                border_style = "cyan"
                 if status == "completed":
                     border_style = "green"
                 elif status in ["error", "timeout"]:
@@ -930,7 +937,7 @@ def cli_print_tool_output(
                     agent_prefix = f"[cyan]{token_info['agent_name']}[/cyan] - "
 
                 if status == "running":
-                    title = f"{agent_prefix}[bold yellow]Running[/bold yellow]"
+                    title = f"{agent_prefix}[bold cyan]Running[/bold cyan]"
                 elif status == "completed":
                     title = f"{agent_prefix}[bold green]Completed[/bold green]"
                 elif status == "error":
@@ -1114,7 +1121,8 @@ def cli_print_tool_output(
         )
         args_str = _format_tool_args(display_args, tool_name=tool_name)
 
-        border_style = "blue"
+        # F77.D / Fase 6: palette B — neutral default is cyan (was blue).
+        border_style = "cyan"
         if execution_info:
             status = execution_info.get("status", "completed")
             if status == "completed":
@@ -1150,9 +1158,9 @@ def cli_print_tool_output(
                 elif status == "timeout":
                     title = f"{agent_prefix}[bold red]Handoff: {agent_name} [Timeout][/bold red]"
                 else:
-                    title = f"{agent_prefix}[bold blue]Handoff: {agent_name}[/bold blue]"
+                    title = f"{agent_prefix}[bold cyan]Handoff: {agent_name}[/bold cyan]"
             else:
-                title = f"{agent_prefix}[bold blue]Handoff: {agent_name}[/bold blue]"
+                title = f"{agent_prefix}[bold cyan]Handoff: {agent_name}[/bold cyan]"
         else:
             if execution_info:
                 status = execution_info.get("status", "completed")
@@ -1163,9 +1171,9 @@ def cli_print_tool_output(
                 elif status == "timeout":
                     title = f"{agent_prefix}[bold red]{tool_name}({args_str}) [Timeout][/bold red]"
                 else:
-                    title = f"{agent_prefix}[bold blue]{tool_name}({args_str})[/bold blue]"
+                    title = f"{agent_prefix}[bold cyan]{tool_name}({args_str})[/bold cyan]"
             else:
-                title = f"{agent_prefix}[bold blue]{tool_name}({args_str})[/bold blue]"
+                title = f"{agent_prefix}[bold cyan]{tool_name}({args_str})[/bold cyan]"
 
         panel = Panel(
             content,
@@ -1254,16 +1262,8 @@ def create_agent_streaming_context(agent_name, counter, model):
             footer.append(f" ({model})", style="bold magenta")
         footer.append("]", style="dim")
 
-        panel = Panel(
-            Text.assemble(header, content, footer),
-            border_style="cyan",
-            box=ROUNDED,
-            padding=(0, 1),
-            title="Stream",
-            title_align="left",
-            width=panel_width,
-            expand=True,
-        )
+        # F77.D / Fase 4: agent narrative renders inline (no Panel envelope).
+        panel = Text.assemble(header, content, footer)
 
         live = Live(
             panel,
@@ -1373,15 +1373,9 @@ def update_agent_streaming_content(context, text_delta, token_stats=None):
 
             context["footer"] = footer_stats
 
-        updated_panel = Panel(
-            Text.assemble(context["header"], context["content"], context["footer"]),
-            border_style="cyan",
-            box=ROUNDED,
-            padding=(0, 1),
-            title="Stream",
-            title_align="left",
-            width=context.get("panel_width", 100),
-            expand=True,
+        # F77.D / Fase 4: agent narrative renders inline (no Panel envelope).
+        updated_panel = Text.assemble(
+            context["header"], context["content"], context["footer"]
         )
 
         if not context.get("is_started", False):
@@ -1511,20 +1505,12 @@ def finish_agent_streaming(context, final_stats=None):
         raw_text = context["content"].plain if context.get("content") else ""
         body: Any = Markdown(raw_text) if raw_text.strip() else Text("")
 
-        final_panel = Panel(
-            Group(
-                context["header"],
-                body,
-                tokens_text if tokens_text else Text(""),
-                context["footer"],
-            ),
-            border_style="cyan",
-            box=ROUNDED,
-            padding=(0, 1),
-            title="Stream",
-            title_align="left",
-            width=context.get("panel_width", 100),
-            expand=True,
+        # F77.D / Fase 4: agent narrative renders inline (no Panel envelope).
+        final_panel = Group(
+            context["header"],
+            body,
+            tokens_text if tokens_text else Text(""),
+            context["footer"],
         )
 
         if context.get("is_started", False):
@@ -1707,6 +1693,29 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
         k: v for k, v in start_tool_streaming._recent_commands.items() if current_time - v.get("timestamp", 0) < 30
     }
 
+    # NEW PATH (Fase 3): non-code tools render their invocation as a
+    # single line via the palette-B renderer. execute_code keeps the
+    # syntax-highlighted code panel below — that's a value-add.
+    if tool_name and tool_name != "execute_code":
+        try:
+            from kryon.repl.ui.tool_call_renderer import (
+                render_tool_invocation,
+                summarize_args,
+            )
+            local_console = Console()
+            args_summary = summarize_args(tool_name, args)
+            render_tool_invocation(
+                tool_name=tool_name,
+                args_summary=args_summary,
+                console=local_console,
+            )
+            # No early return — let the rest of start_tool_streaming
+            # finish bookkeeping (streaming session registration, etc.).
+            # We just suppressed the legacy "Executing Command" panel.
+            return call_id or f"call_{str(uuid.uuid4())[:8]}"
+        except Exception:  # pragma: no cover — fall through to legacy
+            pass
+
     if tool_name == "execute_code" and isinstance(args, dict) and "code" in args:
         local_console = Console()
 
@@ -1835,6 +1844,73 @@ def update_tool_streaming(tool_name, args, output, call_id, token_info=None, pro
     )
 
 
+def _render_simple_tool_completion(tool_name, args, output, execution_info, token_info):
+    """Palette-B rendering path for non-execute_code tools.
+
+    Replaces the legacy CAI-style nested panels (Executing Command +
+    Completed wrapper + tool output) with the flat layout from
+    `tool_call_renderer`:
+
+        ▸ tool_name  args
+          ✓ Ns · summary · /show N
+
+    Long outputs (> 8 lines) are stored in tool_output_buffer for /show
+    recall; short outputs render inline with a small cyan panel.
+    """
+    try:
+        from kryon.repl.ui.tool_call_renderer import (
+            render_tool_completion,
+            summarize_args,
+        )
+        from kryon.repl.ui.tool_output_buffer import record
+    except Exception:  # pragma: no cover
+        return  # If the new path imports fail, fall through to legacy.
+
+    local_console = Console()
+
+    # Duration: prefer execution_info["tool_time"], fall back to total
+    duration_s = 0.0
+    if execution_info:
+        duration_s = float(
+            execution_info.get("tool_time")
+            or execution_info.get("total_time")
+            or 0.0
+        )
+
+    status_str = (execution_info or {}).get("status", "completed")
+    if status_str in ("completed", "ok", "success"):
+        status = "ok"
+    elif status_str in ("error", "failed", "fail"):
+        status = "error"
+    else:
+        status = "warn"
+
+    output_str = output if isinstance(output, str) else (str(output) if output else "")
+
+    # Bank the full output so /show can recover it.
+    step_id = record(tool_name=tool_name, output=output_str)
+
+    # Quick one-line summary derived from output if not provided.
+    summary = ""
+    if output_str:
+        first_line = output_str.splitlines()[0].strip()
+        # Very short first line is often a meaningful summary
+        if 0 < len(first_line) <= 80:
+            summary = first_line
+        elif len(output_str) > 0:
+            summary = f"{len(output_str.splitlines())} lines"
+
+    render_tool_completion(
+        tool_name=tool_name,
+        duration_s=duration_s,
+        status=status,
+        summary=summary,
+        output=output_str,
+        console=local_console,
+        step_id=step_id,
+    )
+
+
 def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None, token_info=None):
     """Complete a streaming tool execution."""
     # Clean up progress state in finally to prevent memory leak
@@ -1846,6 +1922,28 @@ def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None,
     if token_info and isinstance(token_info, dict):
         agent_id = token_info.get("agent_id", "")
         if agent_id and agent_id.startswith("P") and agent_id[1:].isdigit():
+            pass
+
+    # NEW PATH (Fase 3): non-code tools use the palette-B renderer.
+    # `execute_code` keeps its specialized syntax-highlighted path below
+    # because the syntax-highlighted code panel is genuinely useful.
+    if tool_name and tool_name != "execute_code":
+        try:
+            _render_simple_tool_completion(
+                tool_name=tool_name,
+                args=args,
+                output=output,
+                execution_info=execution_info,
+                token_info=token_info,
+            )
+            # Mark the streaming session complete so the legacy bookkeeping stays sane.
+            if (
+                hasattr(cli_print_tool_output, "_streaming_sessions")
+                and call_id in cli_print_tool_output._streaming_sessions
+            ):
+                cli_print_tool_output._streaming_sessions[call_id]["is_complete"] = True
+            return
+        except Exception:  # pragma: no cover — fall through to legacy on any error
             pass
 
     if tool_name == "execute_code" and isinstance(args, dict) and "code" in args:

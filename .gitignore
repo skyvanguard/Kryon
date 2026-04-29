@@ -216,5 +216,7 @@ populate_knowledge_quick.py
 docs/*
 !docs/examples/
 !docs/examples/**
+!docs/REPL_DESIGN.md
+!docs/REPL_RENDERING_AUDIT.md
 .gitnexus
 scripts/f18/juiceshop_sources/

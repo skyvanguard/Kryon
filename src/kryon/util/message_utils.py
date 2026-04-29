@@ -861,48 +861,21 @@ def _create_token_display(
         # Use the last recorded total cost
         total_cost_value = COST_TRACKER.last_total_cost
 
-    # Create display text
+    # F77.D / Fase 5: compact footer. One line, dim cyan, semantic context indicator.
+    # Old: "Current: I:N O:N R:N (cost) | Total:... | Session: $X | Context: X% OK"
+    # New: "I:N O:N · ctx X% OK"  (R: only when > 0; cost only when relevant)
     tokens_text = Text(justify="left")
-    tokens_text.append(" ", style="bold")
-
     show_cost = not _hide_cost()
 
-    # Palette B: token counters use dim cyan unified (no rainbow). The
-    # context-usage indicator KEEPS its semantic colors (green/yellow/red)
-    # because that's a status signal, not chrome.
+    tokens_text.append(
+        f"I:{interaction_input_tokens} O:{interaction_output_tokens}", style="dim cyan",
+    )
+    if interaction_reasoning_tokens > 0:
+        tokens_text.append(f" R:{interaction_reasoning_tokens}", style="dim cyan")
+    if show_cost and current_cost > 0:
+        tokens_text.append(f" (${current_cost:.4f})", style="dim")
 
-    # Current interaction tokens
-    tokens_text.append("Current: ", style="dim")
-    tokens_text.append(f"I:{interaction_input_tokens} ", style="dim cyan")
-    tokens_text.append(f"O:{interaction_output_tokens} ", style="dim cyan")
-    tokens_text.append(f"R:{interaction_reasoning_tokens} ", style="dim cyan")
-    if show_cost:
-        tokens_text.append(f"(${current_cost:.4f}) ", style="dim")
-
-    # Separator
-    tokens_text.append("| ", style="dim")
-
-    # Total tokens for this agent run
-    tokens_text.append("Total: ", style="dim")
-    tokens_text.append(f"I:{total_input_tokens} ", style="dim cyan")
-    tokens_text.append(f"O:{total_output_tokens} ", style="dim cyan")
-    tokens_text.append(f"R:{total_reasoning_tokens} ", style="dim cyan")
-    if show_cost:
-        tokens_text.append(f"(${total_cost_value:.4f}) ", style="dim")
-
-    # Session total across all agents (cost only — skip on local Ollama)
-    if show_cost:
-        tokens_text.append("| ", style="dim")
-        tokens_text.append("Session: ", style="dim")
-        tokens_text.append(f"${COST_TRACKER.session_total_cost:.4f}", style="dim magenta")
-
-    # Context usage
-    tokens_text.append(" | ", style="dim")
     context_pct = interaction_input_tokens / get_model_input_tokens(model_name) * 100
-    tokens_text.append("Context: ", style="dim")
-    tokens_text.append(f"{context_pct:.1f}% ", style="cyan")
-
-    # Context indicator — semantic status colors preserved.
     if context_pct < 50:
         indicator = "OK"
         color_local = "green"
@@ -913,7 +886,10 @@ def _create_token_display(
         indicator = "XX"
         color_local = "red"
 
-    tokens_text.append(f"{indicator}", style=color_local)
+    tokens_text.append(" · ", style="dim")
+    tokens_text.append(f"ctx {context_pct:.0f}%", style="dim cyan")
+    tokens_text.append(" ", style="dim")
+    tokens_text.append(indicator, style=color_local)
 
     return tokens_text
 
