@@ -447,6 +447,14 @@ class AgentSpinner:
             async def on_tool_start(self, context, agent, tool):
                 name = getattr(tool, "name", None) or str(tool)
                 spinner.update(tool_name=name)
+                # Persistent line above the transient spinner so the user
+                # sees a Claude-Code-style trace of every tool invocation.
+                try:
+                    spinner._console.print(
+                        f"[dim cyan]●[/dim cyan] [cyan]{name}[/cyan][dim]…[/dim]"
+                    )
+                except Exception:
+                    pass
 
             async def on_tool_end(self, context, agent, tool, result):
                 name = getattr(tool, "name", None) or str(tool)
@@ -457,10 +465,21 @@ class AgentSpinner:
                     spinner._tools_run.append(name)
                     spinner._tool_results.append((name, status, summary))
                     spinner._tool_name = None
+                # Persistent summary line so the user sees what each call did.
+                try:
+                    icon = "[red]✗[/red]" if status == "error" else "[green]✓[/green]"
+                    detail = f" [dim]→[/dim] {summary}" if summary and summary != "done" else ""
+                    spinner._console.print(f"  {icon} [dim]{name}[/dim]{detail}")
+                except Exception:
+                    pass
 
             async def on_handoff(self, context, from_agent, to_agent):
                 to_name = getattr(to_agent, "name", None) or str(to_agent)
                 spinner.update(handoff_agent=to_name)
+                try:
+                    spinner._console.print(f"[dim cyan]⤳ handoff →[/dim cyan] {to_name}")
+                except Exception:
+                    pass
 
         return SpinnerRunHooks()
 

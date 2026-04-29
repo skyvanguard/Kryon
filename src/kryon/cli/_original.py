@@ -752,6 +752,15 @@ def run_kryon_cli(
                     new_skills = loader.match(user_msg=user_input)
                     if new_skills and {s.name for s in new_skills} != prior_names:
                         update_agent_skills(agent, new_skills)
+                        # Surface the swap so the user knows the agent
+                        # re-routed to a different skill set this turn.
+                        try:
+                            new_names = ", ".join(s.name for s in new_skills)
+                            console.print(
+                                f"[dim cyan]◆ skills updated →[/dim cyan] {new_names}"
+                            )
+                        except Exception:
+                            pass
             except Exception as _skill_swap_err:  # pragma: no cover — safety net
                 import logging
 
@@ -1454,6 +1463,31 @@ def run_kryon_cli(
             else:
                 conversation_input = messages_ctf + user_input
 
+            # Pre-hook deterministic execution — runs BEFORE the LLM takes
+            # control. Skills with `pre_hooks:` in their frontmatter get
+            # their tools invoked here; the output is injected into the
+            # conversation_input as authoritative context. The LLM cannot
+            # skip the detector — it can only narrate the findings.
+            try:
+                from kryon.skills.pre_hook_integration import maybe_run_pre_hooks
+
+                pre_hook_suffix = asyncio.run(
+                    maybe_run_pre_hooks(agent, user_input, console)
+                )
+                if pre_hook_suffix:
+                    if isinstance(conversation_input, str):
+                        conversation_input = conversation_input + pre_hook_suffix
+                    elif isinstance(conversation_input, list) and conversation_input:
+                        last = conversation_input[-1]
+                        if isinstance(last, dict) and last.get("role") == "user":
+                            last["content"] = last.get("content", "") + pre_hook_suffix
+            except Exception as _ph_err:  # pragma: no cover — safety net
+                import logging as _ph_logging
+
+                _ph_logging.getLogger(__name__).warning(
+                    "pre-hook integration error: %s", _ph_err
+                )
+
             # Process the conversation with the agent - with parallel execution if enabled
             if parallel_count > 1:
                 # Parallel execution mode (always non-streaming)
@@ -1682,6 +1716,20 @@ def run_kryon_cli(
                             spinner.patch_model(agent.model)
                         if hasattr(agent, "tools"):
                             spinner.patch_tools(agent.tools)
+                        # Persistent header: which skills + tool count are
+                        # active for this turn. Goes BEFORE the transient
+                        # spinner so it sticks in scrollback.
+                        try:
+                            active = getattr(agent, "_active_skills", None) or []
+                            if active:
+                                names = ", ".join(s.name for s in active)
+                                tool_count = len(getattr(agent, "tools", []) or [])
+                                console.print(
+                                    f"[dim cyan]◆[/dim cyan] [bold]skills:[/bold] {names}  "
+                                    f"[dim]({tool_count} tools)[/dim]"
+                                )
+                        except Exception:
+                            pass
                         with spinner:
                             asyncio.run(process_streamed_response(agent, conversation_input, spinner))
 

@@ -55,10 +55,37 @@ Top-level layout: `src/kryon/` (package), `tests/` (mirrors package layout), `do
 
 **Critical**: Skills are **the primary way to add functionality** in v2.x. Do not create new Python agent files unless absolutely necessary. Prefer writing a `.md` playbook.
 
+**Skill `pre_hooks:` — F80 deterministic-first execution**. A skill can declare a YAML
+list of tool invocations that run BEFORE the LLM gets control of the turn. The
+output is injected into `conversation_input` as authoritative context — the LLM
+narrates findings, it can NOT skip the detector. Schema lives in
+`src/kryon/skills/pre_hook_spec.py` (frozen dataclass, SSTI-guarded template
+substitution, strict allowlist `{ctx.host, ctx.ssh_user, ctx.ssh_key_path,
+ctx.ssh_port, ctx.target, ctx.session_id, ctx.client_name}`). Runner lives in
+`src/kryon/skills/pre_hook_runner.py` (sync+async, timeouts, required vs
+optional). Integration in `src/kryon/skills/pre_hook_integration.py` extracts
+callables via `function_tool._raw_fn`. Currently used by: `fortigate-audit`,
+`unifi-audit`, `proxmox-audit`, `pci-dss-audit`, `audit-bank-full`.
+
+Two execution modes:
+- **Declarative** (`tool: <name>` + `args: {...}`): YAML-driven, args support
+  `{ctx.X}` template substitution from the whitelist. Use for 80% of cases.
+- **Python escape hatch** (`python: ./<file>.py:<func>`): Fase 5. The file
+  resolves relative to the skill `.md` directory and MUST stay inside the
+  Kryon repo (path traversal blocked via `Path.resolve().relative_to`). The
+  callable receives the full `ctx` dict and returns `str | dict | list`
+  (dicts get JSON-encoded). Use only for hooks that need conditional logic
+  the declarative form can't express.
+
 ### Other core subsystems
 
-- **`learning/`** — Self-improving loop. `experiences.py` (ChromaDB), `profiler.py` (target extraction), `chain_extractor.py` (attack chain mining). Agents query `recall_similar_experiences` at engagement start.
-- **`services/`** — Context management. `micro_compact.py` (trim tool outputs ~85%), `session_memory.py` (Magic Doc auto-report), `auto_extract.py` (save experience on exit), `tool_output_cap.py` (save >5K outputs to disk).
+- **`learning/`** — Self-improving loop, **v2 closed**. v1 capture: `experiences.py` (ChromaDB), `profiler.py`, `chain_extractor.py`, `findings_library.py`. v2 closes the loop in three layers (full doc: `docs/LEARNING_LOOP.md` v2 section):
+  - **F1 drafting** — `skill_synthesizer.py` + `draft_writer.py`. Every successful engagement auto-writes a draft `.md` to `~/.kryon/drafts/`. Operator promotes via `/skill promote`.
+  - **F2 scoring** — `skill_scorer.py` (Wilson 95% lower bound) + `selection_telemetry.py` (JSONL log). Activate hybrid ranking with `KRYON_SKILL_RANKING=hybrid`. Off by default (banking-safe).
+  - **F3 auto-creation** — `pattern_detector.py` (Jaccard clustering) + `synthesize_from_cluster()` (LLM-assisted body, hallucinated tool names rejected) + `skill_evaluator.py` (CWE→tools eval gate, conservative precision-over-recall) + `auto_pipeline.py`. Manual trigger: `/skill auto detect`.
+  - REPL commands: `/skill drafts|review|promote|discard|scores|auto`.
+  - CWE map override: `~/.kryon/cwe_map.yaml` (template at `docs/examples/cwe_map.yaml`) or `KRYON_CWE_MAP` env var.
+- **`services/`** — Context management. `micro_compact.py` (trim tool outputs ~85%), `session_memory.py` (Magic Doc auto-report), `auto_extract.py` (save experience on exit + auto-synth draft), `tool_output_cap.py` (save >5K outputs to disk).
 - **`sdk/`** — Agent runtime SDK (under `sdk/agents/`). Run loop, tool executor, MCP integration, model adapters. Most of `mypy` and coverage is focused here.
 - **`agents/`** — Legacy 33+ agents (still work for backward compat via `/agent select <name>`). In v2.x the default is `kryon` (unified).
 - **`tools/`** — 204+ tool implementations by kill-chain category. Agents bind to categories/tools rather than individual files.
@@ -134,12 +161,16 @@ turnkey product. For internal development purposes, the honest status is:
 | `payment-gateway-testing.md` | **template** | Vendor-specific (Bancard/Infonet/Stripe/MercadoPago). Checklist only. |
 | `fraud-detection.md` | **template** | Interview + rule-review guide, not a technical scan. |
 | `mobile-banking-audit.md` | **template** | Needs Frida/objection/jailbroken device outside the Kryon container. |
+| `fortigate-audit.md` | **production-capable** | F78: 21 checks deterministicos (FGT-1.1..FGT-5.3) cableados a `run_compliance_audit(framework="fortigate")`. CIS Fortinet Benchmark mapping + CVE catalog hardcoded (CVE-2022-42475, CVE-2024-21762, CVE-2024-23113). Read-only via SSH al CLI FortiOS. Hash de reproducibilidad estable. |
+| `unifi-audit.md` | **production-capable (controller)** + **template (WiFi capture)** | F79: 18 controller checks deterministicos (UNF-1.1..UNF-4.2) cableados a `run_compliance_audit(framework="unifi")` via `mongo --port 27117 ace`. Hash estable. La captura activa WiFi (handshake / PMKID + crack offline) sigue siendo guiada y corre en el host del operador (no en el container — no hay raw 802.11). Deauth requiere autorización escrita explícita. |
 
 **What Kryon actually runs end-to-end today**: local-network compliance
-sweep (PCI-DSS + CIS + Proxmox + AD) → multi-framework consolidated
-PDF (F27.5) → deterministic reproducibility hash. Juice Shop
+sweep (PCI-DSS + CIS + Proxmox + AD + FortiGate + Unifi) → multi-framework
+consolidated PDF (F27.5) → deterministic reproducibility hash. Juice Shop
 benchmark (F18-F73) at 85/111 and Juliet SAST (F74.C-F76.2) at 67.1%
-recall + 15% FPR@HIGH are the proof-points. Banking templates are
+recall + 15% FPR@HIGH are the proof-points. Edge-network audits (F78
+FortiGate + F79 Unifi) extend coverage from the data center to the
+perimeter and WiFi. Banking templates (T24/Flexcube/SWIFT/ATM) are
 starter frames, not finished offerings.
 
 Whenever recommending a banking playbook to the user, surface the

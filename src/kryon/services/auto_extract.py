@@ -47,7 +47,35 @@ def auto_extract_on_exit() -> None:
         ok, exp_id = close_and_save_experience("")  # use chain_extractor's auto-summary
         if ok and exp_id:
             print(f"\n✅ Experience auto-saved: {exp_id}")
+            _try_synthesize_skill_draft(exp_id)
         else:
             logger.debug("auto_extract: nothing to save (no target or no tools)")
     except Exception as e:
         logger.debug("auto_extract: failed: %s", e)
+
+
+def _try_synthesize_skill_draft(exp_id: str) -> None:
+    """Best-effort: turn the persisted experience into a draft skill.
+
+    Runs after the experience itself was saved. Failures here NEVER
+    block exit — if synthesizer / draft_writer / chromadb is unavailable
+    we just log and move on. The user only sees the drafts/path message
+    when a draft was actually produced (otherwise silence).
+    """
+    try:
+        from kryon.learning import get_experience
+        from kryon.learning.draft_writer import try_synthesize_and_persist
+    except Exception as e:
+        logger.debug("auto_extract: synthesizer imports unavailable: %s", e)
+        return
+
+    try:
+        experience = get_experience(exp_id)
+        if not experience:
+            return
+        draft_path = try_synthesize_and_persist(experience)
+        if draft_path is not None:
+            print(f"📝 Skill draft synthesized: {draft_path}")
+            print(f"   Review with: /skill review {draft_path.stem}")
+    except Exception as e:
+        logger.debug("auto_extract: synthesizer step failed: %s", e)

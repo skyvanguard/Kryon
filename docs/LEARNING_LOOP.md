@@ -199,3 +199,194 @@ We won't wire metrics dashboards in v1. Engagement logs already land in
 - Cross-agent experience sharing (Pentest Agent reads Recon Scout experiences)
 - Outcome auto-labeling via a small classifier model
 - Time-decay on old experiences
+
+
+---
+
+# v2 — Closed loop (Fases 1+2+3)
+
+> Status: shipped 2026-04-29
+> Owner: skyvanguard
+> Test count: 231 dedicated to learning loop, all green
+
+v1 captured engagements but the loop never came back to influence anything.
+v2 closes that loop in three layers:
+
+```
+   v1: engagement ──→ experience store ──→ recall on next engagement
+       (capture only)
+
+   v2: engagement ──→ experience store
+                              │
+       ┌──────────────────────┼──────────────────────┐
+       │                      │                      │
+       ▼                      ▼                      ▼
+   F1: Drafting          F2: Scoring             F3: Auto-creation
+   (single→draft)        (corpus→ranking)        (cluster→eval→draft)
+```
+
+## Layer F1 — Skill drafting (human-in-the-loop)
+
+**Trigger**: every engagement with `outcome ∈ {success, partial}` and chain
+length ≥ 2 produces a draft markdown skill in `~/.kryon/drafts/`.
+
+**Pipeline**:
+1. `auto_extract_on_exit()` (REPL exit handler) saves the experience.
+2. `_try_synthesize_skill_draft()` calls `synthesize_draft(experience)`.
+3. `try_synthesize_and_persist()` writes `<name>.md` to drafts dir.
+
+**REPL commands**:
+
+| Command | What it does |
+|---|---|
+| `/skill drafts` | List drafts pending review (name + outcome + source experience) |
+| `/skill review <name>` | Render the draft body for inspection |
+| `/skill promote <name>` | Move draft → `playbooks/_drafts/` for staging |
+| `/skill discard <name>` | Delete the draft permanently |
+
+**Critical**: `playbooks/_drafts/` is **ignored** by `SkillLoader.scan()` —
+the underscore prefix marks the dir as inactive. Promotion to production
+still requires the operator to hand-edit + move out of `_drafts/`.
+
+**Files involved**:
+- `src/kryon/learning/skill_synthesizer.py` — templating
+- `src/kryon/learning/draft_writer.py` — filesystem IO
+- `src/kryon/services/auto_extract.py` — auto-trigger on REPL exit
+- `src/kryon/repl/commands/skill.py` — REPL commands
+
+## Layer F2 — Scoring + bandit-lite ranking
+
+**Goal**: when two skills both match a turn's keywords, pick the one with
+better track record without a human re-ordering `priority:` fields by hand.
+
+**Pipeline**:
+1. `score_skills(experiences, skill_names)` aggregates per-skill stats
+   (success/partial/fail counts, win rate, Wilson 95% lower bound).
+2. `SkillLoader.match()` accepts a `ranking` arg with three modes:
+   - `priority` (default) — pure priority sort, exactly v1 behaviour.
+   - `hybrid` — priority is tier-1 sort, score breaks ties within tiers.
+   - `score` — score-only ranking; experimental, not banking-safe.
+3. Activation: env var `KRYON_SKILL_RANKING=hybrid` (off by default for
+   regulated audits — priority remains deterministic).
+
+**Wilson lower bound** keeps a 5/5-cold-starter from leapfrogging an
+80/100-veteran. Skills with sample < 10 are flagged `is_low_confidence`
+and fall back to priority-only within their tier.
+
+**Telemetry**: `~/.kryon/selection_log.jsonl` records every match
+decision (hashed user_msg, ranking mode, candidates, selected). Plaintext
+logging is opt-in via `KRYON_SELECTION_LOG_PLAINTEXT=1` (banking privacy
+posture is hashed-by-default).
+
+**REPL command**:
+
+| Command | What it does |
+|---|---|
+| `/skill scores` | Leaderboard with win rate, Wilson lower bound, last used |
+
+**Files involved**:
+- `src/kryon/learning/skill_scorer.py` — Wilson + ranking helpers
+- `src/kryon/learning/selection_telemetry.py` — JSONL log
+- `src/kryon/skills/loader.py` — `match()` extended with ranking arg
+
+## Layer F3 — Autonomous skill creation with eval gate
+
+**Trigger**: manual via `/skill auto detect` (no cron — operator decides
+when to run). Scans the experience corpus for clusters of similar
+engagements (≥ 3 by default) and proposes one draft per cluster.
+
+**Pipeline**:
+1. `detect_recurrent_chains(experiences)` — Jaccard on bigrams +
+   profile tech overlap → `ChainCluster` objects with deterministic ids.
+2. `synthesize_from_cluster(cluster, llm_caller=...)` — frontmatter is
+   100% deterministic; body is templated, optionally refined by an LLM
+   that only sees a constrained prompt. **Hallucinated tool names are
+   rejected** (validator checks every backtick / underscore identifier
+   against `required_tools`).
+3. `evaluate_draft_against_corpus(draft, cluster, findings)` — heuristic
+   gate: would the draft's chain have detected the historical findings
+   that match the cluster's profile? Returns `passed` / `rejected` /
+   `skipped` (precision-over-recall posture: when in doubt, skip).
+4. Output split:
+   - **passed** → `~/.kryon/drafts/_auto/<name>.md` + `.eval.json` sidecar
+   - **rejected / skipped** → `~/.kryon/drafts/_rejected/<name>.md` + sidecar
+
+**REPL command**:
+
+| Command | What it does |
+|---|---|
+| `/skill auto detect` | Run the full pipeline; print summary |
+| `/skill auto status` | List drafts in `_auto/` and `_rejected/` with eval reasons |
+
+**CWE → tools map** (used by `evaluate_draft_against_corpus`):
+
+The default map (`_DEFAULT_CWE_TO_TOOLS`) covers ~30 CWEs with real
+Kryon tool names (`sqlmap_scan`, `nuclei_scan`, `bloodhound_collect`,
+`kerberoast`, etc.). Customize without code edits via:
+
+- `~/.kryon/cwe_map.yaml` (default lookup)
+- `KRYON_CWE_MAP=/path/to/file.yaml` (env override)
+- `evaluate_draft_against_corpus(..., cwe_to_tools={...})` (programmatic)
+
+See `docs/examples/cwe_map.yaml` for syntax + commented examples.
+
+Per-CWE entries in the file **replace** the default for that CWE (no
+within-CWE union — your team is the authority on what tools you trust).
+New CWEs in the file extend the map.
+
+**Files involved**:
+- `src/kryon/learning/pattern_detector.py` — clustering
+- `src/kryon/learning/skill_synthesizer.py` — `synthesize_from_cluster`
+- `src/kryon/learning/skill_evaluator.py` — eval gate + CWE map
+- `src/kryon/learning/auto_pipeline.py` — orchestrator
+
+## Environment variables
+
+| Var | Effect |
+|---|---|
+| `KRYON_SKILL_RANKING` | `priority` (default) / `hybrid` / `score` |
+| `KRYON_DRAFTS_DIR` | Override `~/.kryon/drafts/` |
+| `KRYON_SELECTION_LOG` | Override `~/.kryon/selection_log.jsonl` path |
+| `KRYON_SELECTION_LOG_DISABLE` | `1` skips telemetry writes |
+| `KRYON_SELECTION_LOG_PLAINTEXT` | `1` stores user_msg verbatim (default: SHA-256 only) |
+| `KRYON_CWE_MAP` | Path to a yaml CWE → tools override |
+| `KRYON_EXPERIENCES_DIR` | (v1) override ChromaDB persist path |
+| `KRYON_EMBEDDING_BASE_URL` | (v1) Ollama URL for embeddings |
+
+## Filesystem layout
+
+```
+~/.kryon/
+├── chromadb/                         # v1 experience store (kryon_experiences)
+├── drafts/
+│   ├── <name>.md                      # F1 — pending operator review
+│   ├── _auto/<name>.md                # F3 — passed eval gate
+│   ├── _auto/<name>.eval.json         # eval report sidecar
+│   ├── _rejected/<name>.md            # F3 — failed/skipped eval
+│   └── _rejected/<name>.eval.json
+├── selection_log.jsonl               # F2 — per-turn ranking decisions
+└── cwe_map.yaml                      # F3 — operator-supplied override (optional)
+
+src/kryon/skills/playbooks/
+├── _drafts/                           # operator promoted; loader IGNORES
+└── <regular dirs>                     # active skills (loaded normally)
+```
+
+## Test commands
+
+```bash
+# Pure tests (no chromadb required) — should always pass.
+pytest tests/learning/
+
+# With chromadb extra — tests that hit a real persistence layer come
+# alive. They use tmp_path so don't pollute the user's ~/.kryon.
+uv sync --extra rag
+pytest tests/learning/
+
+# Just the auto-creation pipeline (Fase 3):
+pytest tests/learning/test_pattern_detector.py \
+       tests/learning/test_synthesize_from_cluster.py \
+       tests/learning/test_skill_evaluator.py \
+       tests/learning/test_auto_pipeline.py \
+       tests/learning/test_auto_e2e.py
+```

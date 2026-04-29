@@ -30,6 +30,16 @@ required_tools:
   - run_command
   - nuclei_scan
   - search_vulnerabilities
+pre_hooks:
+  - tool: run_compliance_audit
+    args:
+      framework: pci-dss
+      host: "{ctx.host}"
+      ssh_user: "{ctx.ssh_user}"
+      ssh_key_path: "{ctx.ssh_key_path}"
+    inject_as: deterministic_compliance_findings
+    required: true
+    timeout_s: 180
 ---
 
 ## Default behavior — F15.1 deterministic auditor first

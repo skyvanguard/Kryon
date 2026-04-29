@@ -24,6 +24,16 @@ required_tools:
   - generate_compliance_pdf
   - run_command
   - nuclei_scan
+pre_hooks:
+  - tool: run_compliance_audit
+    args:
+      framework: proxmox
+      host: "{ctx.host}"
+      ssh_user: "{ctx.ssh_user}"
+      ssh_key_path: "{ctx.ssh_key_path}"
+    inject_as: deterministic_compliance_findings
+    required: true
+    timeout_s: 120
 ---
 
 ## Default behavior — F23 deterministic auditor first
