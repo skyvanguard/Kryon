@@ -218,5 +218,6 @@ docs/*
 !docs/examples/**
 !docs/REPL_DESIGN.md
 !docs/REPL_RENDERING_AUDIT.md
+!docs/PLAN_PARITY_CAI.md
 .gitnexus
 scripts/f18/juiceshop_sources/
