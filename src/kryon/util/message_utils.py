@@ -10,6 +10,13 @@ import os
 import re
 from datetime import datetime
 
+
+def _hide_cost() -> bool:
+    """Hide cost counters when running on local Ollama (always $0).
+    Default: hidden. Set `KRYON_HIDE_COST=0` to show them again."""
+    val = os.environ.get("KRYON_HIDE_COST", "1").strip().lower()
+    return val in ("1", "true", "yes", "on")
+
 from rich.box import ROUNDED
 from rich.console import Console, Group
 from rich.markdown import Markdown
@@ -858,12 +865,15 @@ def _create_token_display(
     tokens_text = Text(justify="left")
     tokens_text.append(" ", style="bold")
 
+    show_cost = not _hide_cost()
+
     # Current interaction tokens
     tokens_text.append("Current: ", style="bold")
     tokens_text.append(f"I:{interaction_input_tokens} ", style="green")
     tokens_text.append(f"O:{interaction_output_tokens} ", style="red")
     tokens_text.append(f"R:{interaction_reasoning_tokens} ", style="yellow")
-    tokens_text.append(f"(${current_cost:.4f}) ", style="bold")
+    if show_cost:
+        tokens_text.append(f"(${current_cost:.4f}) ", style="bold")
 
     # Separator
     tokens_text.append("| ", style="dim")
@@ -873,14 +883,14 @@ def _create_token_display(
     tokens_text.append(f"I:{total_input_tokens} ", style="green")
     tokens_text.append(f"O:{total_output_tokens} ", style="red")
     tokens_text.append(f"R:{total_reasoning_tokens} ", style="yellow")
-    tokens_text.append(f"(${total_cost_value:.4f}) ", style="bold")
+    if show_cost:
+        tokens_text.append(f"(${total_cost_value:.4f}) ", style="bold")
 
-    # Separator
-    tokens_text.append("| ", style="dim")
-
-    # Session total across all agents
-    tokens_text.append("Session: ", style="bold magenta")
-    tokens_text.append(f"${COST_TRACKER.session_total_cost:.4f}", style="bold magenta")
+    # Session total across all agents (cost only — skip on local Ollama)
+    if show_cost:
+        tokens_text.append("| ", style="dim")
+        tokens_text.append("Session: ", style="bold magenta")
+        tokens_text.append(f"${COST_TRACKER.session_total_cost:.4f}", style="bold magenta")
 
     # Context usage
     tokens_text.append(" | ", style="dim")
