@@ -4215,31 +4215,38 @@ class _Converter:
                 # the legacy pipeline only renders AFTER the tool completes, leaving the
                 # user staring at a blank screen for tens of seconds. The completion glyph
                 # ("✓ Ns · summary") is still rendered later via cli_print_tool_output.
+                #
+                # Fase 11: dedup by call_id — items_to_messages() walks the
+                # full history each turn, so without this guard every prior
+                # tool re-emits its "▸" line N times.
                 _tool_name_for_invocation = func_call.get("name", "")
+                _call_id_for_invocation = func_call.get("call_id", "")
                 if (
                     _tool_name_for_invocation
                     and _tool_name_for_invocation != "execute_code"
                 ):
                     try:
-                        from rich.console import Console
-                        from kryon.repl.ui.tool_call_renderer import (
-                            render_tool_invocation,
-                            summarize_args,
-                        )
-                        _args_for_invocation = func_call.get("arguments", "")
-                        if isinstance(_args_for_invocation, str):
-                            try:
-                                _args_for_invocation = json.loads(_args_for_invocation)
-                            except (json.JSONDecodeError, ValueError):
-                                _args_for_invocation = {}
-                        _summary = summarize_args(
-                            _tool_name_for_invocation, _args_for_invocation,
-                        )
-                        render_tool_invocation(
-                            tool_name=_tool_name_for_invocation,
-                            args_summary=_summary,
-                            console=Console(),
-                        )
+                        from kryon.util.streaming import _dedup_render_check
+                        if not _dedup_render_check("invocation", _call_id_for_invocation):
+                            from rich.console import Console
+                            from kryon.repl.ui.tool_call_renderer import (
+                                render_tool_invocation,
+                                summarize_args,
+                            )
+                            _args_for_invocation = func_call.get("arguments", "")
+                            if isinstance(_args_for_invocation, str):
+                                try:
+                                    _args_for_invocation = json.loads(_args_for_invocation)
+                                except (json.JSONDecodeError, ValueError):
+                                    _args_for_invocation = {}
+                            _summary = summarize_args(
+                                _tool_name_for_invocation, _args_for_invocation,
+                            )
+                            render_tool_invocation(
+                                tool_name=_tool_name_for_invocation,
+                                args_summary=_summary,
+                                console=Console(),
+                            )
                     except Exception:
                         pass
 

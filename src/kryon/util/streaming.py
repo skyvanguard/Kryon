@@ -24,6 +24,41 @@ def _hide_cost() -> bool:
     val = os.environ.get("KRYON_HIDE_COST", "1").strip().lower()
     return val in ("1", "true", "yes", "on")
 
+
+def _dedup_render_check(stage: str, call_id: str | None) -> bool:
+    """F77.D / Fase 11 — returns True if (stage, call_id) was ALREADY
+    rendered, so the caller should skip emitting console output again.
+
+    The SDK adapter's `items_to_messages()` walks the entire item history
+    every turn to rebuild the API payload, which re-fires the render
+    hooks for every previously-seen tool call. Without dedup, a tool from
+    turn 1 prints (1 + remaining_turns) times.
+
+    Stage is "invocation" (▸ tool args) or "completion" (✓ Ns · summary).
+    Call_id is the model-supplied unique id for that tool invocation
+    (e.g. "call_ga118jr7"). Returns False (and marks rendered) if call_id
+    is None — empty call_id can't be deduped, so we err toward showing it
+    once rather than swallowing it.
+    """
+    if not call_id:
+        return False
+    if not hasattr(_dedup_render_check, "_seen"):
+        _dedup_render_check._seen = set()
+    key = f"{stage}:{call_id}"
+    if key in _dedup_render_check._seen:
+        return True
+    _dedup_render_check._seen.add(key)
+    return False
+
+
+def _reset_render_dedup() -> None:
+    """Reset the cross-stage render dedup set. Wired to REPL turn boundaries
+    so a fresh user prompt starts with a clean slate (and to keep the
+    long-lived REPL session from accumulating call_ids forever).
+    """
+    if hasattr(_dedup_render_check, "_seen"):
+        _dedup_render_check._seen.clear()
+
 from rich.box import ROUNDED
 from rich.console import Console, Group
 from rich.live import Live
@@ -772,12 +807,18 @@ def cli_print_tool_output(
 
     # F77.D / Fase 6: route non-execute_code finals through the flat renderer.
     # Streaming chunks and execute_code keep the legacy panel pipeline.
+    # Fase 11: dedup by call_id — items_to_messages() in the SDK adapter
+    # walks the full history every turn and re-fires this callback for
+    # already-completed tools. Without dedup the same `✓ Ns · summary`
+    # prints once per remaining turn (visible bug in screenshot).
     if (
         not streaming
         and tool_name
         and tool_name != "execute_code"
         and output
     ):
+        if _dedup_render_check("completion", call_id):
+            return
         try:
             _render_simple_tool_completion(
                 tool_name, args, output, execution_info, token_info,

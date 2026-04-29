@@ -761,6 +761,18 @@ def run_kryon_cli(
                     "User input is empty, maybe wants to continue"  # Set a default message to continue the conversation
                 )
 
+            # F77.D / Fase 11: reset per-turn render dedup so a fresh user
+            # prompt starts with a clean call_id ledger. Without this the
+            # _seen set grows for the lifetime of the REPL session.
+            try:
+                from kryon.util.streaming import _reset_render_dedup
+                from kryon.repl.ui.tool_output_buffer import new_turn
+
+                _reset_render_dedup()
+                new_turn()
+            except Exception:
+                pass
+
             # Skill hot-swap: if the unified "kryon" agent is active, re-match
             # skills against the new user input so the prompt + tool set adapt
             # per turn. This preserves conversation history (in-place mutation).
