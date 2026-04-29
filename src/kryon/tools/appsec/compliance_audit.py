@@ -33,6 +33,13 @@ _FRAMEWORK_PREFIX = {
     "pve":     ("PVE-",),
     "ad":      ("AD-",),                      # F24
     "active-directory": ("AD-",),
+    "fortigate": ("FGT-",),                   # F78 FortiOS hardening
+    "fgt":      ("FGT-",),
+    "fortinet": ("FGT-",),
+    "fortios":  ("FGT-",),
+    "unifi":    ("UNF-",),                    # F79 Unifi / Ubiquiti
+    "ubnt":     ("UNF-",),
+    "ubiquiti": ("UNF-",),
     "all":     (),
 }
 
@@ -74,7 +81,7 @@ def run_compliance_audit(
         then PASSes / N/As, citing the exact evidence_command for each FAIL
         so the user can reproduce manually.
     """
-    # Accept legacy alias + new multi-framework keys (F23/F24)
+    # Accept legacy alias + new multi-framework keys (F23/F24/F78/F79)
     fw_alias = {
         "pci-dss-v4": "pci-dss",
         "pci-dss": "pci-dss",
@@ -83,6 +90,13 @@ def run_compliance_audit(
         "pve": "proxmox",
         "ad": "ad",
         "active-directory": "ad",
+        "fortigate": "fortigate",
+        "fgt": "fortigate",
+        "fortinet": "fortigate",
+        "fortios": "fortigate",
+        "unifi": "unifi",
+        "ubnt": "unifi",
+        "ubiquiti": "unifi",
         "all": "all",
     }
     fw_key = fw_alias.get((framework or "pci-dss").lower())
@@ -324,7 +338,7 @@ def generate_compliance_pdf(
         host: Target hostname.
         out_path: Where to write the PDF. Default: /reports/kryon_<fw>_<host>_<ts>.pdf
             (`/reports` is bind-mounted on docker so the host sees the file).
-        framework: One of "pci-dss" | "proxmox" | "ad" | "all" (default).
+        framework: One of "pci-dss" | "proxmox" | "ad" | "fortigate" | "unifi" | "all" (default).
         skip_llm_narrative: If True, deterministic-only PDF (faster, no Ollama).
 
     Returns:
