@@ -666,23 +666,36 @@ def _pick_logo() -> str:
 
 
 def display_compact_banner(console: Console) -> None:
-    """Minimal startup banner for returning users."""
+    """Minimal startup banner for returning users.
+
+    By default: 3-line compact (palette B). Set `KRYON_FULL_BANNER=1`
+    to get the legacy panel with the full ASCII-art logo.
+    """
     ctx = _get_context()
+
+    # Default = real 3-line compact banner with palette B accents.
+    if not _full_banner_enabled():
+        console.print(
+            f"[bold cyan]KRYON[/bold cyan] "
+            f"[dim cyan]v{ctx['version']} — {ctx['codename']}[/dim cyan]"
+        )
+        console.print(
+            "[dim]autonomous cybersecurity agent for financial services · "
+            "all actions logged[/dim]"
+        )
+        console.print(
+            "[dim cyan]/help · /skill list · /agent select · "
+            "Ctrl+C interrupt · /exit[/dim cyan]"
+        )
+        return
+
+    # Opt-in: legacy panel with the ASCII art logo.
     logo = _pick_logo()
-
-    # Detect backend
-    if os.getenv("KRYON_CLAUDE_CODE", "").lower() in ("true", "1", "yes"):
-        model_display = {"opus": "Opus 4.6", "sonnet": "Sonnet 4.6", "haiku": "Haiku 4.5"}
-        model_name = model_display.get(os.getenv("KRYON_CLAUDE_MODEL", "opus"), ctx["model"])
-    else:
-        model_name = ctx["model"]
-
     body = Text.from_markup(
         f"{logo}\n\n"
         f"  [bold white]v{ctx['version']}[/bold white]"
         f" [dim]·[/dim] [cyan]{ctx['agent']}[/cyan]\n"
     )
-
     panel = Panel(body, border_style="blue", box=ROUNDED, padding=(0, 2))
     console.print()
     console.print(panel)
