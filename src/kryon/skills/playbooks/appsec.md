@@ -4,7 +4,20 @@ description: "Application security — SAST, DAST, SCA para web apps"
 triggers:
   tech: ["php", "laravel", "django", "node", "react", "angular", "java", "spring"]
   ports: [8080, 8443, 3000, 5000, 8000]
-  keywords: ["appsec", "owasp", "sast", "dast", "sca", "web app", "application security"]
+  keywords:
+    - "appsec"
+    - "owasp"
+    - "sast"
+    - "dast"
+    - "sca"
+    - "web app"
+    - "application security"
+    - "seguridad de aplicación"
+    - "seguridad de aplicacion"
+    - "seguridad de la aplicación"
+    - "seguridad de la aplicacion"
+    - "auditoría de aplicación"
+    - "auditoria de aplicacion"
 priority: 25
 required_tools:
   - run_command

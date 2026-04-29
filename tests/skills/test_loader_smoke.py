@@ -53,6 +53,62 @@ def test_match_web_intent(loader: SkillLoader) -> None:
     ), f"no web/pentest skill surfaced: {names}"
 
 
+# ---------- F77.E — whole-word keyword matching ----------
+
+
+def test_short_keyword_does_not_match_inside_word(loader: SkillLoader) -> None:
+    """Pre-fix: keyword "ad" (active-directory-recon) matched
+    "segurid**ad**" via substring. Now whole-word — must NOT match."""
+    skills = loader.match(user_msg="análisis de seguridad de la web")
+    names = [s.name for s in skills]
+    assert "active-directory-recon" not in names, (
+        f"'ad' keyword matched 'seguridad' (substring bug): {names}"
+    )
+
+
+def test_short_keyword_still_matches_as_whole_word(loader: SkillLoader) -> None:
+    """The whole-word fix must NOT break legitimate short-keyword matches."""
+    skills = loader.match(user_msg="enumerate ad domain controllers")
+    names = [s.name for s in skills]
+    assert "active-directory-recon" in names, (
+        f"'ad' as whole word should still match: {names}"
+    )
+
+
+def test_natural_spanish_web_prompt_loads_web_pentest(loader: SkillLoader) -> None:
+    """Operator types a natural Spanish prompt — web-pentest must surface."""
+    skills = loader.match(user_msg="quiero un análisis de seguridad de la web: example.com")
+    names = [s.name for s in skills]
+    assert "web-pentest" in names, (
+        f"natural Spanish web-security prompt didn't surface web-pentest: {names}"
+    )
+
+
+def test_fix_keyword_does_not_match_prefix_or_suffix(loader: SkillLoader) -> None:
+    """`fix` keyword (safe-modification) must not eat 'pre**fix**' / 'su**ffix**'."""
+    skills = loader.match(user_msg="prefix this path with /api and add a suffix")
+    names = [s.name for s in skills]
+    assert "safe-modification" not in names, (
+        f"'fix' keyword matched prefix/suffix (substring bug): {names}"
+    )
+
+
+def test_unicode_accented_keyword_matches(loader: SkillLoader) -> None:
+    """`análisis` (with acute) must match in real Spanish text."""
+    skills = loader.match(user_msg="hagamos un análisis del host")
+    names = [s.name for s in skills]
+    assert "recon-scout" in names, (
+        f"accented Spanish keyword should match: {names}"
+    )
+
+
+def test_substring_within_unicode_word_does_not_match(loader: SkillLoader) -> None:
+    """`ad` must not match inside 'seguridad' even with accented Spanish."""
+    skills = loader.match(user_msg="evaluemos la seguridad")
+    names = [s.name for s in skills]
+    assert "active-directory-recon" not in names
+
+
 def test_get_by_name_known_skill(loader: SkillLoader) -> None:
     """recon-scout must resolve by name (fallback path in unified_agent)."""
     skill = loader.get_by_name("recon-scout")

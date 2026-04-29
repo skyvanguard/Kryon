@@ -18,6 +18,28 @@ _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 _DEFAULT_SKILL_DIR = Path(__file__).parent / "playbooks"
 
 
+def _keyword_matches(keyword: str, user_lower: str) -> bool:
+    """Whole-word keyword matcher.
+
+    The legacy `keyword in user_lower` substring match was catastrophic
+    for short keywords: `"ad"` (active-directory-recon) matched
+    "segurid**ad**", `"fix"` (safe-modification) would match "pre**fix**",
+    `"spa"` (browser-exploit) would match "e**spa**ña". Result: random
+    skills got loaded for unrelated prompts.
+
+    Whole-word match using `\\b` boundaries restores the intended
+    semantics: `"ad"` matches "ad" / "ad-hoc" / "(ad)" but NOT
+    "seguridad". Multi-word keywords ("active directory", "auditoría
+    web") work the same way — \\b only fires at the outer edges, so the
+    whole phrase has to be present.
+
+    Python's `\\b` is Unicode-aware by default in re module, so accented
+    keywords ("análisis", "auditoría") match natural Spanish text.
+    """
+    pattern = r"\b" + re.escape(keyword.lower()) + r"\b"
+    return re.search(pattern, user_lower) is not None
+
+
 @dataclass(frozen=True)
 class Skill:
     name: str
@@ -286,9 +308,10 @@ class SkillLoader:
             triggers = skill.triggers
             matched = False
 
-            # Keyword match (highest signal)
+            # Keyword match (highest signal). Whole-word — see
+            # `_keyword_matches` for why substring is broken.
             if triggers.get("keywords"):
-                if any(kw.lower() in user_lower for kw in triggers["keywords"]):
+                if any(_keyword_matches(kw, user_lower) for kw in triggers["keywords"]):
                     matched = True
 
             # Tech match
