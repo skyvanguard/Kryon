@@ -151,12 +151,24 @@ def render_status_line(agent: Any, console: Any) -> None:
     """Print a status header before the user's turn.
 
     Layout (line 1 always, line 2 only when there's something to say):
+        ──────────────────────────  (separator, dim cyan)
         ◆ skills: a, b, c (14 tools)  •  ollama ✓
         📝 3 drafts  •  last: eng_a3f9b2c1d4
+
+    The horizontal rule replaces the visual chunkiness the legacy ASCII
+    banner used to provide between turns — without burning 12 lines.
 
     All optional components degrade silently on error — the REPL
     never crashes from the status line.
     """
+    # Visual separator from previous turn's output. Rich.Rule auto-fills
+    # the terminal width, no need to compute it ourselves.
+    try:
+        from rich.rule import Rule
+        console.print(Rule(style="dim cyan"))
+    except Exception:  # pragma: no cover
+        pass
+
     # Line 1 — skills + ollama
     line1_parts = [_format_skills(agent)]
     olla = _format_ollama()

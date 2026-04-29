@@ -658,7 +658,7 @@ def parse_message_tool_call(message, tool_output=None):
                 # Create a panel with just the output
                 tool_panel = Panel(
                     Group(*panel_content),
-                    border_style="blue",
+                    border_style="cyan",
                     box=ROUNDED,
                     padding=(1, 2),
                     title="[bold]Tool Output[/bold]",  # Changed title to indicate this is just output
@@ -867,38 +867,42 @@ def _create_token_display(
 
     show_cost = not _hide_cost()
 
+    # Palette B: token counters use dim cyan unified (no rainbow). The
+    # context-usage indicator KEEPS its semantic colors (green/yellow/red)
+    # because that's a status signal, not chrome.
+
     # Current interaction tokens
-    tokens_text.append("Current: ", style="bold")
-    tokens_text.append(f"I:{interaction_input_tokens} ", style="green")
-    tokens_text.append(f"O:{interaction_output_tokens} ", style="red")
-    tokens_text.append(f"R:{interaction_reasoning_tokens} ", style="yellow")
+    tokens_text.append("Current: ", style="dim")
+    tokens_text.append(f"I:{interaction_input_tokens} ", style="dim cyan")
+    tokens_text.append(f"O:{interaction_output_tokens} ", style="dim cyan")
+    tokens_text.append(f"R:{interaction_reasoning_tokens} ", style="dim cyan")
     if show_cost:
-        tokens_text.append(f"(${current_cost:.4f}) ", style="bold")
+        tokens_text.append(f"(${current_cost:.4f}) ", style="dim")
 
     # Separator
     tokens_text.append("| ", style="dim")
 
     # Total tokens for this agent run
-    tokens_text.append("Total: ", style="bold")
-    tokens_text.append(f"I:{total_input_tokens} ", style="green")
-    tokens_text.append(f"O:{total_output_tokens} ", style="red")
-    tokens_text.append(f"R:{total_reasoning_tokens} ", style="yellow")
+    tokens_text.append("Total: ", style="dim")
+    tokens_text.append(f"I:{total_input_tokens} ", style="dim cyan")
+    tokens_text.append(f"O:{total_output_tokens} ", style="dim cyan")
+    tokens_text.append(f"R:{total_reasoning_tokens} ", style="dim cyan")
     if show_cost:
-        tokens_text.append(f"(${total_cost_value:.4f}) ", style="bold")
+        tokens_text.append(f"(${total_cost_value:.4f}) ", style="dim")
 
     # Session total across all agents (cost only — skip on local Ollama)
     if show_cost:
         tokens_text.append("| ", style="dim")
-        tokens_text.append("Session: ", style="bold magenta")
-        tokens_text.append(f"${COST_TRACKER.session_total_cost:.4f}", style="bold magenta")
+        tokens_text.append("Session: ", style="dim")
+        tokens_text.append(f"${COST_TRACKER.session_total_cost:.4f}", style="dim magenta")
 
     # Context usage
     tokens_text.append(" | ", style="dim")
     context_pct = interaction_input_tokens / get_model_input_tokens(model_name) * 100
-    tokens_text.append("Context: ", style="bold")
-    tokens_text.append(f"{context_pct:.1f}% ", style="bold")
+    tokens_text.append("Context: ", style="dim")
+    tokens_text.append(f"{context_pct:.1f}% ", style="cyan")
 
-    # Context indicator (use ASCII-safe characters for Windows compatibility)
+    # Context indicator — semantic status colors preserved.
     if context_pct < 50:
         indicator = "OK"
         color_local = "green"

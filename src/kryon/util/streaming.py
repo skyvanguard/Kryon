@@ -674,7 +674,7 @@ def _create_tool_panel_content(
             output_panel = Panel(
                 output_syntax,
                 title=output_panel_title,
-                border_style="green",
+                border_style="cyan",
                 title_align="left",
                 box=ROUNDED,
                 padding=(0, 1),
@@ -687,7 +687,7 @@ def _create_tool_panel_content(
             output_panel = Panel(
                 output_syntax,
                 title="Command Output",
-                border_style="green",
+                border_style="cyan",
                 title_align="left",
                 box=ROUNDED,
                 padding=(0, 1),
@@ -719,7 +719,7 @@ def _create_tool_panel_content(
         output_display_panel = Panel(
             output_syntax,
             title="Tool Output",
-            border_style="green",
+            border_style="cyan",
             title_align="left",
             box=ROUNDED,
             padding=(0, 1),
@@ -1199,7 +1199,7 @@ def cli_print_tool_output(
             command_panel = Panel(
                 f"[bold cyan]{command_text}[/bold cyan]",
                 title=f"[bold blue]{display_agent_name} - Executing Command[/bold blue]",
-                border_style="blue",
+                border_style="cyan",
                 padding=(0, 1),
                 box=ROUNDED,
                 title_align="left",
@@ -1256,7 +1256,7 @@ def create_agent_streaming_context(agent_name, counter, model):
 
         panel = Panel(
             Text.assemble(header, content, footer),
-            border_style="blue",
+            border_style="cyan",
             box=ROUNDED,
             padding=(0, 1),
             title="Stream",
@@ -1375,7 +1375,7 @@ def update_agent_streaming_content(context, text_delta, token_stats=None):
 
         updated_panel = Panel(
             Text.assemble(context["header"], context["content"], context["footer"]),
-            border_style="blue",
+            border_style="cyan",
             box=ROUNDED,
             padding=(0, 1),
             title="Stream",
@@ -1518,7 +1518,7 @@ def finish_agent_streaming(context, final_stats=None):
                 tokens_text if tokens_text else Text(""),
                 context["footer"],
             ),
-            border_style="blue",
+            border_style="cyan",
             box=ROUNDED,
             padding=(0, 1),
             title="Stream",
