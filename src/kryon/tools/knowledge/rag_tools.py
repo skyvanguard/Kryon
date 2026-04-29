@@ -71,12 +71,51 @@ def query_knowledge_base(
         }
 
 
+# Relevance thresholds for RAG-returned CVEs.
+# The RAG engine returns *negative* relevance scores where higher (closer to 0)
+# means more relevant. Empirically -250 is the boundary below which results are
+# semantic noise (e.g. CVEs of unrelated products that happen to share tokens).
+_SEARCH_VULNS_HARD_DISCARD = -250.0
+_SEARCH_VULNS_HIGH_CONFIDENCE = -100.0
+
+# Generic terms that should NOT count as a tech-match (would let almost anything pass).
+_TECH_MATCH_STOPWORDS = {"http", "web", "api", "server", "service", "ssl", "tls"}
+
+
+def _tech_match(technology: str, *fields: Any) -> bool:
+    """Return True when the technology name appears literally in any field.
+
+    Avoids false positives from semantic-only matches (e.g. an "Apache" query
+    pulling Telesquare/Serviio CVEs that share embedding space but never
+    mention Apache in their actual text).
+    """
+    tech = (technology or "").strip().lower()
+    if not tech or tech in _TECH_MATCH_STOPWORDS:
+        return True  # Stopword-only queries can't be validated; skip the check.
+    for field in fields:
+        if not field:
+            continue
+        if tech in str(field).lower():
+            return True
+    return False
+
+
+def _confidence_label(score: float) -> str:
+    if score >= _SEARCH_VULNS_HIGH_CONFIDENCE:
+        return "high"
+    if score >= _SEARCH_VULNS_HARD_DISCARD:
+        return "medium"
+    return "low"
+
+
 @function_tool
 def search_vulnerabilities(
     technology: str,
-    version: Optional[str] = None,
-    severity_min: Optional[str] = None,
+    version: Optional[str] = None,  # noqa: UP045 — keep symmetry with sibling tools in this module
+    severity_min: Optional[str] = None,  # noqa: UP045
     max_results: int = 5,
+    min_score: float = _SEARCH_VULNS_HARD_DISCARD,
+    require_tech_match: bool = True,
 ) -> dict[str, Any]:
     """
     Search for vulnerabilities related to a specific technology.
@@ -86,56 +125,85 @@ def search_vulnerabilities(
         version: Specific version (e.g., "2.4.49")
         severity_min: Minimum severity ("LOW", "MEDIUM", "HIGH", "CRITICAL")
         max_results: Maximum results to return
+        min_score: Hard cutoff for RAG relevance score. Results below this
+            are dropped to avoid hallucinations from low-relevance hits.
+        require_tech_match: When True, drop results whose description does
+            not literally mention the queried technology.
 
     Returns:
-        Dictionary with matching CVEs and exploits
-
-    Example:
-        >>> result = search_vulnerabilities("apache", "2.4.49", "HIGH")
-        >>> for vuln in result['vulnerabilities']:
-        ...     print(f"{vuln['cve_id']}: {vuln['severity']}")
+        Dictionary with matching CVEs (each with a `confidence` label) plus
+        a `discarded` list explaining why noisy results were filtered out.
     """
     try:
         from kryon.knowledge import query_knowledge
 
-        # Build query
+        # Over-fetch so the post-filter still has results to return.
+        fetch_k = max(max_results * 3, max_results + 5)
+
         query = f"vulnerabilities in {technology}"
         if version:
             query += f" version {version}"
 
-        # Query knowledge base
         result = query_knowledge(
             question=query,
-            top_k=max_results,
-            source_filter="nvd",  # Focus on CVEs
-            use_llm=False,  # Just retrieval
+            top_k=fetch_k,
+            source_filter="nvd",
+            use_llm=False,
         )
 
-        vulnerabilities = []
+        severity_levels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+        min_severity_idx = severity_levels.index(severity_min) if severity_min in severity_levels else None
+
+        vulnerabilities: list[dict[str, Any]] = []
+        discarded: list[dict[str, Any]] = []
+
         for src in result["sources"]:
-            metadata = src.get("metadata", {})
+            metadata = src.get("metadata", {}) or {}
+            content = src.get("content", "") or ""
+            score = float(src.get("score", 0.0))
+            cve_id = metadata.get("cve_id", "Unknown")
 
-            # Filter by severity if specified
-            if severity_min:
+            if score < min_score:
+                discarded.append(
+                    {"cve_id": cve_id, "reason": f"low_relevance: score {score:.2f} < {min_score:.2f}"}
+                )
+                continue
+
+            if require_tech_match and not _tech_match(
+                technology, content, metadata.get("affected_product"), metadata.get("title")
+            ):
+                snippet = content[:80].replace("\n", " ")
+                discarded.append(
+                    {
+                        "cve_id": cve_id,
+                        "reason": f"tech_mismatch: '{technology}' not found in description ({snippet!r})",
+                    }
+                )
+                continue
+
+            if min_severity_idx is not None:
                 src_severity = metadata.get("severity", "UNKNOWN")
-                severity_levels = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
-
                 if src_severity in severity_levels:
-                    min_idx = severity_levels.index(severity_min)
-                    src_idx = severity_levels.index(src_severity)
-                    if src_idx < min_idx:
+                    if severity_levels.index(src_severity) < min_severity_idx:
+                        discarded.append(
+                            {"cve_id": cve_id, "reason": f"below_severity_min: {src_severity} < {severity_min}"}
+                        )
                         continue
 
             vulnerabilities.append(
                 {
-                    "cve_id": metadata.get("cve_id", "Unknown"),
+                    "cve_id": cve_id,
                     "severity": metadata.get("severity", "Unknown"),
                     "cvss_score": metadata.get("cvss_score", "N/A"),
-                    "description": src["content"][:200] + "...",
-                    "score": src["score"],
+                    "description": content[:1500],
+                    "score": score,
+                    "confidence": _confidence_label(score),
                     "published": metadata.get("published", "Unknown"),
                 }
             )
+
+            if len(vulnerabilities) >= max_results:
+                break
 
         return {
             "success": True,
@@ -143,6 +211,8 @@ def search_vulnerabilities(
             "version": version,
             "vulnerabilities": vulnerabilities,
             "count": len(vulnerabilities),
+            "discarded": discarded,
+            "discarded_count": len(discarded),
         }
 
     except Exception as e:
@@ -152,6 +222,8 @@ def search_vulnerabilities(
             "technology": technology,
             "vulnerabilities": [],
             "count": 0,
+            "discarded": [],
+            "discarded_count": 0,
         }
 
 

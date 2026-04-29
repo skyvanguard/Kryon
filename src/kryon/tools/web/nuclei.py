@@ -10,9 +10,53 @@ PERFORMANCE: Results are cached with 12-hour TTL to avoid redundant
 vulnerability scans and improve response times by 10-30x for repeated scans.
 """
 
+import re
+
 from kryon.cache import cache_scan_result
 from kryon.sdk.agents import function_tool
 from kryon.tools.common import run_command
+
+# Markers Nuclei prints to stdout when a scan failed to actually execute.
+# Detect these so the agent does NOT interpret a failed scan as "0 findings".
+_NUCLEI_FATAL_PATTERNS = (
+    re.compile(r"\[FTL\]"),
+    re.compile(r"\[FATAL\]"),
+    re.compile(r"could not find template", re.IGNORECASE),
+    re.compile(r"no templates provided for scan", re.IGNORECASE),
+    re.compile(r"could not run nuclei", re.IGNORECASE),
+)
+
+
+def _detect_nuclei_failure(output: str) -> str | None:
+    """Return a short reason string if the Nuclei output indicates the scan
+    didn't actually run. Otherwise return None.
+    """
+    if not output:
+        return "empty_output"
+    for pat in _NUCLEI_FATAL_PATTERNS:
+        m = pat.search(output)
+        if m:
+            line = ""
+            for raw in output.splitlines():
+                if pat.search(raw):
+                    line = raw.strip()
+                    break
+            return line or m.group(0)
+    return None
+
+
+def _wrap_failed_scan(reason: str, raw_output: str) -> str:
+    """Prefix the raw output with an unambiguous error block so the LLM
+    cannot mistake a non-executed scan for a clean result.
+    """
+    return (
+        "[KRYON_TOOL_ERROR] nuclei_scan did NOT execute successfully.\n"
+        f"Reason: {reason}\n"
+        "IMPORTANT: do NOT infer 'no vulnerabilities found'. The scan never ran.\n"
+        "Suggested retry: omit `templates=` for the default scan, or use `templates='cves/'`.\n"
+        "\n--- raw output below ---\n"
+        f"{raw_output}"
+    )
 
 
 @function_tool
@@ -269,7 +313,11 @@ def nuclei_scan(
     cmd_parts.append("-nc")  # No color for cleaner parsing
 
     command = " ".join(cmd_parts)
-    return run_command(command, ctf=ctf)
+    output = run_command(command, ctf=ctf)
+    failure = _detect_nuclei_failure(output)
+    if failure:
+        return _wrap_failed_scan(failure, output)
+    return output
 
 
 @function_tool
