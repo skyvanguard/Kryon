@@ -276,6 +276,9 @@ def _import_all_checks() -> None:
         "kryon.compliance.checks.fortigate.c_fgt_5_1_fortios_version_currency",
         "kryon.compliance.checks.fortigate.c_fgt_5_2_fortiguard_licenses",
         "kryon.compliance.checks.fortigate.c_fgt_5_3_known_cve_exposure",
+        # F84 OT/ICS — Modbus/TCP audit (Sprint 1: 2 checks)
+        "kryon.compliance.checks.ot.modbus.c_mod_1_1_unauth_read",
+        "kryon.compliance.checks.ot.modbus.c_mod_1_2_device_identification",
         # F79 Unifi (Ubiquiti) controller + WiFi configuration audit
         "kryon.compliance.checks.unifi.c_unf_1_1_default_creds",
         "kryon.compliance.checks.unifi.c_unf_1_2_controller_internet_exposure",
