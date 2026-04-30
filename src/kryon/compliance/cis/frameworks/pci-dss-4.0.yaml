@@ -156,6 +156,57 @@ checks:
       stdout_empty: true
 
   # =========================================================================
+  # Requirement 4 — Protect cardholder data with strong cryptography
+  # =========================================================================
+  - id: "4.2.1"
+    title: "TLS 1.2 or higher enforced on cardholder-data ports"
+    section: "4"
+    severity: CRITICAL
+    rationale: >
+      Req 4.2.1: cardholder data transmitted over public networks must use
+      strong cryptography. TLS 1.0/1.1 and SSLv2/v3 are explicitly
+      forbidden in PCI-DSS 4.0.
+    remediation: >
+      In nginx: `ssl_protocols TLSv1.2 TLSv1.3;`. In Apache:
+      `SSLProtocol -all +TLSv1.2 +TLSv1.3`. Disable any 'SSLv2', 'SSLv3',
+      'TLSv1', 'TLSv1.1' lines. Reload the service.
+    command: >
+      grep -rhE 'ssl_protocols|SSLProtocol' /etc/nginx/ /etc/apache2/ /etc/httpd/ 2>/dev/null
+      | grep -vE '^\\s*#' | tr -s ' '
+    pass_when:
+      all_of:
+        - not:
+            stdout_matches: "(?i)\\b(ssl|tls)v?\\s*(2|3|1\\.0|1\\.1)\\b"
+        - any_of:
+            - stdout_matches: "(?i)tlsv?1\\.2"
+            - stdout_matches: "(?i)tlsv?1\\.3"
+
+  # =========================================================================
+  # Requirement 5 — Protect systems and networks from malicious software
+  # =========================================================================
+  - id: "5.2.1"
+    title: "Anti-malware solution deployed on commonly-affected systems"
+    section: "5"
+    severity: HIGH
+    rationale: >
+      Req 5.2.1: an anti-malware solution must be deployed on every system
+      component commonly affected by malware. On Linux servers handling
+      cardholder data this typically means clamav, sophos-av, eset, or
+      crowdstrike-falcon.
+    remediation: >
+      `apt-get install -y clamav clamav-daemon` and ensure freshclam runs
+      daily, OR deploy the bank's chosen EDR (CrowdStrike, SentinelOne,
+      Defender for Endpoint) and confirm the agent is running.
+    command: >
+      (dpkg -l 2>/dev/null | grep -ciE '^ii\\s+(clamav|sophos|esets|sentinelone|crowdstrike|cylance)';
+       systemctl is-active falcon-sensor 2>/dev/null;
+       systemctl is-active clamav-daemon 2>/dev/null) | head -3
+    pass_when:
+      any_of:
+        - stdout_matches: "(?m)^\\s*[1-9]"
+        - stdout_matches: "(?im)^active"
+
+  # =========================================================================
   # Requirement 8 — Identify users and authenticate access
   # =========================================================================
   - id: "8.2.1"
@@ -233,6 +284,30 @@ checks:
         - stdout_contains: "pam_duo"
         - stdout_contains: "pam_yubico"
         - stdout_matches: "authenticationmethods.*keyboard-interactive"
+
+  - id: "8.4.2"
+    title: "MFA enforced for all non-console access into the CDE (broader than 8.4.1)"
+    section: "8"
+    severity: CRITICAL
+    rationale: >
+      Req 8.4.2: every administrator, user, or service account accessing
+      the CDE remotely (SSH, VPN, web admin, RDP) must complete MFA in
+      addition to the password. PAM google-authenticator / U2F /
+      enterprise SSO with MFA all qualify. 8.4.1 is admin-only;
+      8.4.2 extends to ALL non-console access (regular users included).
+    remediation: >
+      Configure pam_google_authenticator or pam_u2f in /etc/pam.d/sshd
+      and set `ChallengeResponseAuthentication yes` +
+      `AuthenticationMethods publickey,keyboard-interactive` in
+      /etc/ssh/sshd_config. Enterprise SSO (Okta/AzureAD with MFA
+      claim) is also acceptable; document the SSO provider on the
+      audit artifact.
+    command: >
+      grep -rhE 'pam_(google_authenticator|u2f|oath|yubico|duo)' /etc/pam.d/ 2>/dev/null
+      | grep -vE '^\\s*#' | head -3
+    pass_when:
+      not:
+        stdout_empty: true
 
   - id: "8.6.1"
     title: "Interactive login for system/service accounts disabled"
@@ -380,3 +455,4 @@ checks:
     pass_when:
       not:
         stdout_empty: true
+

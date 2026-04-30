@@ -103,3 +103,45 @@ def test_every_check_has_substantive_fields(framework):
         assert len(c.command.strip()) >= 3
         assert len(c.remediation.strip()) >= 10
         assert c.severity in {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}
+
+
+# ---------- F39.2 — runner integration: 40 PCI checks live in registry ----------
+
+
+def test_runner_registers_full_pci_baseline() -> None:
+    """The CLAUDE.md banking pitch promises 40 PCI-DSS checks. This pins
+    the actual count of PCI-shaped IDs the runner registers — YAML
+    framework + hand-written sections, deduplicated."""
+    import re
+
+    from kryon.compliance.runner import _import_all_checks, registered_checks
+
+    _import_all_checks()
+    pci_id_re = re.compile(r"^\d+(\.\d+){1,3}$")
+    pci_checks = [c for c in registered_checks() if pci_id_re.match(c.control_id)]
+
+    assert len(pci_checks) == 40, (
+        f"PCI baseline drifted from 40 (CLAUDE.md commitment) to "
+        f"{len(pci_checks)}. If this is intentional, update CLAUDE.md "
+        f"and the Banking-vertical reality table."
+    )
+
+    # Sanity — no duplicate ids from YAML colliding with hand-written.
+    ids = [c.control_id for c in pci_checks]
+    assert len(ids) == len(set(ids)), f"duplicate PCI control_ids: {sorted(ids)}"
+
+
+def test_runner_pci_baseline_covers_4_2_1_and_5_2_1_and_8_4_2() -> None:
+    """The 3 controls added on top of the YAML 31 + Python 6 to reach 40
+    must be present in the registry — these are the cryptography (4.2.1),
+    anti-malware (5.2.1) and broad-MFA (8.4.2) controls explicitly
+    called out by PCI auditors when the original YAML omitted them."""
+    from kryon.compliance.runner import _import_all_checks, registered_checks
+
+    _import_all_checks()
+    by_id = {c.control_id: c for c in registered_checks()}
+    for required in ("4.2.1", "5.2.1", "8.4.2"):
+        assert required in by_id, (
+            f"PCI control {required} missing from registry — "
+            f"the 6→40 upgrade pipeline regressed."
+        )

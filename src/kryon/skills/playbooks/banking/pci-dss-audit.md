@@ -42,6 +42,25 @@ pre_hooks:
     timeout_s: 180
 ---
 
+## Coverage — 40 deterministic checks (as of F39.2)
+
+The PCI baseline ships **40 controls** wired into `run_compliance_audit`:
+
+- **6 hand-written Python** in `src/kryon/compliance/checks/section_*`:
+  2.2.2, 2.2.7, 6.3.3, 6.4.1, 8.3.6, 10.2.1.
+- **34 YAML-based** in `src/kryon/compliance/cis/frameworks/pci-dss-4.0.yaml`,
+  registered automatically by the runner. IDs span Req 1, 2, 3, 4, 5,
+  8, 10, 11.
+
+The runner deduplicates by `control_id` so the YAML never silently
+shadows a Python check (test pinned: `tests/compliance/test_pci_dss_4_0.py
+::test_runner_registers_full_pci_baseline`).
+
+Out of scope (organizational / policy-only PCI requirements not
+amenable to deterministic ssh checks): training records, signed NDAs,
+retention period documents, vendor risk-assessment artifacts. Those
+are auditor manual-review items.
+
 ## Default behavior — F15.1 deterministic auditor first
 
 Cuando el usuario pide compliance / audit / hardening:

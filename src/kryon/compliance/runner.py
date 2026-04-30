@@ -305,6 +305,27 @@ def _import_all_checks() -> None:
             # will only include what exists so far.
             pass
 
+    # F39 — register YAML-based PCI-DSS 4.0 checks. Built per-call so the
+    # framework gets the same `_REGISTERED_CHECKS` instance the runner
+    # writes into (runner imported as __main__ vs library has separate
+    # registries; see the comment at the bottom of this file).
+    try:
+        from pathlib import Path
+        from kryon.compliance.cis import register_framework
+
+        yaml_path = (
+            Path(__file__).resolve().parent
+            / "cis"
+            / "frameworks"
+            / "pci-dss-4.0.yaml"
+        )
+        if yaml_path.exists():
+            register_framework(yaml_path)
+    except Exception:
+        # YAML framework optional — runner stays usable with hand-written
+        # checks even if the loader/parsing fails for any reason.
+        pass
+
 
 if __name__ == "__main__":
     # Avoid double-instance gotcha: when python -m loads runner as __main__,
