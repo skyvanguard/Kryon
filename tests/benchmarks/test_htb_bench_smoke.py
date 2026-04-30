@@ -283,3 +283,85 @@ class TestRunnerDryRun:
         assert result.chain_match_score == 0.0  # no required tool used
         assert result.time_to_pwn_seconds is None
         assert result.flag_match_pattern is None
+
+
+# ---------- F82 — multi-platform CLI ----------
+
+
+class TestPlatformResolution:
+    """The CLI must walk both htb_style/ and tryhackme/ labsets so a
+    slug from either platform resolves cleanly."""
+
+    def test_resolves_htb_slug_when_platform_unspecified(self) -> None:
+        from scripts.htb_bench.cli import _resolve_walkthrough
+
+        path, plat = _resolve_walkthrough("portswigger-sqli-where-clause", None)
+        assert plat == "htb"
+        assert path.exists()
+
+    def test_resolves_tryhackme_slug_when_platform_unspecified(self) -> None:
+        from scripts.htb_bench.cli import _resolve_walkthrough
+
+        path, plat = _resolve_walkthrough("thm-bandit-ssh-foothold", None)
+        assert plat == "tryhackme"
+        assert path.exists()
+
+    def test_explicit_platform_wins_over_autodetect(self) -> None:
+        """When the operator says `--platform htb` for a slug that exists
+        only on tryhackme, the resolver still returns the htb path
+        (caller wants to fail fast, not silently cross-platform)."""
+        from scripts.htb_bench.cli import _resolve_walkthrough
+
+        path, plat = _resolve_walkthrough("thm-bandit-ssh-foothold", "htb")
+        assert plat == "htb"
+        # File doesn't exist in htb dir — caller will see SKIP, not silent jump.
+        assert not path.exists()
+
+    def test_pilots_present_on_both_platforms(self) -> None:
+        """Pin: at least one ready walkthrough exists per platform so the
+        F83 scoreboard always has a non-empty data point per column."""
+        from scripts.htb_bench.cli import _load_labset_for, PLATFORMS
+
+        for plat in PLATFORMS:
+            labset = _load_labset_for(plat)
+            ready = [t for t in labset["targets"] if t.get("status") == "ready"]
+            assert ready, f"platform {plat!r} has no ready walkthrough"
+
+    def test_select_targets_all_platforms_returns_tuples(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """`--platform all --status ready` must yield (slug, platform)
+        tuples covering both labsets."""
+        import argparse
+
+        from scripts.htb_bench.cli import _select_targets
+
+        args = argparse.Namespace(
+            target=None, all=True, platform="all", status="ready",
+        )
+        pairs = _select_targets(args)
+        platforms_seen = {plat for _, plat in pairs}
+        assert "htb" in platforms_seen
+        assert "tryhackme" in platforms_seen
+
+
+class TestTryHackMeWalkthroughs:
+    def test_bandit_walkthrough_loads(self) -> None:
+        from scripts.htb_bench.runner import load_walkthrough
+        from scripts.htb_bench.cli import _resolve_walkthrough
+
+        path, _ = _resolve_walkthrough("thm-bandit-ssh-foothold", "tryhackme")
+        wt = load_walkthrough(path)
+        assert wt["category"] == "auth"
+        assert any(s["required"] for s in wt["expected_chain"])
+        assert wt["source"]["type"] == "url"  # ToS-safe — no automation needed
+
+    def test_shellshock_walkthrough_loads(self) -> None:
+        from scripts.htb_bench.runner import load_walkthrough
+        from scripts.htb_bench.cli import _resolve_walkthrough
+
+        path, _ = _resolve_walkthrough("thm-vulhub-shellshock", "tryhackme")
+        wt = load_walkthrough(path)
+        assert wt["category"] == "rce"
+        # CVE-2014-6271 reproducer is a docker-compose target.
+        assert wt["source"]["type"] == "docker_compose"

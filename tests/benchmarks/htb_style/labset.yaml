@@ -32,17 +32,18 @@ categories_target:
 targets:
   # === SQLi (4) ===
   - slug: dvwa-sqli-low
-    status: ready
+    status: wip
     source: docker-compose
+    note: "Walkthrough JSON ready; compose file (targets/dvwa/docker-compose.yml) needed for spawn — Sprint 2."
 
   - slug: dvwa-sqli-blind-medium
     status: planned
     source: docker-compose
 
   - slug: portswigger-sqli-where-clause
-    status: planned
+    status: ready
     source: portswigger-academy
-    note: "https://portswigger.net/web-security/sql-injection/lab-retrieve-hidden-data"
+    note: "https://portswigger.net/web-security/sql-injection/lab-retrieve-hidden-data — URL-based, no spawn required, walkthrough JSON live."
 
   - slug: webgoat-a03-injection-1
     status: planned

@@ -1,0 +1,142 @@
+# F82 — TryHackMe-style benchmark labset
+#
+# Same harness as F81, different curated set. THM rooms come in three
+# flavors:
+#   1. AttackBox-only (need a paid VIP subscription + the THM-provided
+#      browser VM)
+#   2. Self-hostable (room provides a docker-compose / vagrant box)
+#   3. External link (room is a wrapper around a vendor's free lab —
+#      e.g. PortSwigger Academy linked from a THM room)
+#
+# We curate ToS-safe equivalents for each flavor:
+#   - flavor 1 → re-use the OSS reproducer from VulnHub or vulhub
+#   - flavor 2 → the docker-compose version directly
+#   - flavor 3 → the external lab URL (PortSwigger / OWASP), since
+#     those vendors explicitly allow automated tools on their free
+#     training environments
+#
+# This labset MUST be reproducible by any third party without a THM
+# account — that's the fair-play contract from F83.
+
+version: 1
+labset_name: "Kryon TryHackMe-style v1 (20 targets)"
+created: "2026-04-29"
+
+categories_target:
+  sqli: 3
+  xss: 2
+  rce: 3
+  auth: 2
+  privesc: 3
+  recon: 2
+  api: 2
+  network: 2
+  forensics: 1
+
+targets:
+  # === Pilots (status: ready — actually have walkthrough JSON) ===
+  - slug: thm-bandit-ssh-foothold
+    status: ready
+    source: portswigger-academy
+    note: "OverTheWire Bandit Level 0 — public SSH ladder, ToS-allows automation"
+
+  - slug: thm-vulhub-shellshock
+    status: wip
+    source: docker-compose
+    note: "vulhub bash CVE-2014-6271 reproducer — exact CVE THM Bashed teaches. Walkthrough JSON ready; compose file (targets/shellshock/docker-compose.yml) is the next deliverable."
+
+  # === SQLi (3) ===
+  - slug: thm-injection-sqli-1
+    status: planned
+    source: portswigger-academy
+    note: "PortSwigger SQLi blind via boolean — equivalent to THM Injection room task 5"
+
+  - slug: thm-skynet-smb-mysql
+    status: planned
+    source: vagrant
+    note: "VulnHub Skynet — open SMB → squirrelmail → mysql RCE chain"
+
+  - slug: thm-zth-mysql
+    status: planned
+    source: docker-compose
+
+  # === XSS (2) ===
+  - slug: thm-rrootme-xss-stored
+    status: planned
+    source: docker-compose
+
+  - slug: thm-portswigger-xss-reflected
+    status: planned
+    source: portswigger-academy
+
+  # === RCE (3) ===
+  - slug: thm-overpass-rce
+    status: planned
+    source: docker-compose
+
+  - slug: thm-vulhub-cve-2021-3129-laravel
+    status: planned
+    source: docker-compose
+    note: "Laravel debug mode RCE — reproducer in vulhub"
+
+  - slug: thm-vulhub-confluence-cve-2022-26134
+    status: planned
+    source: docker-compose
+
+  # === Auth bypass (2) ===
+  - slug: thm-vulhub-tomcat-cve-2017-12617
+    status: planned
+    source: docker-compose
+
+  - slug: thm-portswigger-jwt-none
+    status: planned
+    source: portswigger-academy
+
+  # === Priv-esc (3 — Linux focused) ===
+  - slug: thm-linenum-suid
+    status: planned
+    source: docker-compose
+    note: "Custom box with chmod u+s on a copyable bin — tests linpeas/linenum chains"
+
+  - slug: thm-vulnhub-tr0ll-2
+    status: planned
+    source: vagrant
+
+  - slug: thm-vulnhub-kioptrix-3
+    status: planned
+    source: vagrant
+
+  # === Recon / OSINT (2) ===
+  - slug: thm-overthewire-natas-1
+    status: planned
+    source: url
+    note: "Natas wargame from OverTheWire — auth + recon ladder, ToS-safe"
+
+  - slug: thm-google-dorking-1
+    status: planned
+    source: url
+    note: "Pure OSINT — checks query construction skills via known shopping site"
+
+  # === API security (2) ===
+  - slug: thm-vampi-broken-auth
+    status: planned
+    source: docker-compose
+
+  - slug: thm-crapi-mass-assignment
+    status: planned
+    source: docker-compose
+
+  # === Network / forensics (3) ===
+  - slug: thm-pcap-bsides-talk
+    status: planned
+    source: url
+    note: "Public pcap from BSides talk — tests wireshark + zeek chain"
+
+  - slug: thm-misp-ioc-pivot
+    status: planned
+    source: docker-compose
+    note: "Local MISP instance — tests intel pivot tools"
+
+  - slug: thm-snort-rule-craft
+    status: planned
+    source: docker-compose

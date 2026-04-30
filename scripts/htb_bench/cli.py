@@ -1,9 +1,10 @@
-"""F81 — CLI entry point.
+"""F81/F82 — CLI entry point (platform-agnostic).
 
 Usage:
-  python -m scripts.htb_bench --target dvwa-sqli-low
-  python -m scripts.htb_bench --all
-  python -m scripts.htb_bench --status ready --out reports/htb_2026-04-29.json
+  python -m scripts.htb_bench --target dvwa-sqli-low                         # auto-detect platform
+  python -m scripts.htb_bench --platform htb --all
+  python -m scripts.htb_bench --platform tryhackme --all
+  python -m scripts.htb_bench --platform all --status ready --out reports/r.json
 """
 
 from __future__ import annotations
@@ -21,40 +22,80 @@ from scripts.htb_bench.runner import RunResult, load_walkthrough, run_target
 from scripts.htb_bench.scorer import aggregate
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_LABSET = _REPO_ROOT / "tests" / "benchmarks" / "htb_style" / "labset.yaml"
-_WALKTHROUGHS = _REPO_ROOT / "tests" / "benchmarks" / "htb_style" / "walkthroughs"
+_BENCH_ROOT = _REPO_ROOT / "tests" / "benchmarks"
+
+# Each platform has the same shape: <root>/<platform>/labset.yaml + walkthroughs/.
+# Add a new entry here and the harness picks it up — no code change needed.
+PLATFORMS: dict[str, dict[str, Path]] = {
+    "htb": {
+        "labset":       _BENCH_ROOT / "htb_style" / "labset.yaml",
+        "walkthroughs": _BENCH_ROOT / "htb_style" / "walkthroughs",
+    },
+    "tryhackme": {
+        "labset":       _BENCH_ROOT / "tryhackme" / "labset.yaml",
+        "walkthroughs": _BENCH_ROOT / "tryhackme" / "walkthroughs",
+    },
+}
 
 
-def _load_labset() -> dict[str, Any]:
-    return yaml.safe_load(_LABSET.read_text(encoding="utf-8"))
+def _load_labset_for(platform: str) -> dict[str, Any]:
+    return yaml.safe_load(PLATFORMS[platform]["labset"].read_text(encoding="utf-8"))
 
 
-def _select_targets(args: argparse.Namespace) -> list[str]:
-    """Apply --target / --all / --status filters → ordered slug list."""
-    labset = _load_labset()
-    all_targets = labset.get("targets", [])
+def _resolve_walkthrough(slug: str, platform: str | None) -> tuple[Path, str]:
+    """Locate a walkthrough JSON. When `platform` is None, search every
+    configured platform — the first match wins. Returns (path, platform).
+    """
+    if platform and platform != "all":
+        return PLATFORMS[platform]["walkthroughs"] / f"{slug}.json", platform
 
+    # `--platform all` or unspecified: search across platforms.
+    for plat, paths in PLATFORMS.items():
+        candidate = paths["walkthroughs"] / f"{slug}.json"
+        if candidate.exists():
+            return candidate, plat
+    # Default to htb so the error message points somewhere consistent.
+    return PLATFORMS["htb"]["walkthroughs"] / f"{slug}.json", "htb"
+
+
+def _select_targets(args: argparse.Namespace) -> list[tuple[str, str]]:
+    """Apply --target / --all / --status / --platform filters.
+    Returns a list of (slug, platform) tuples in display order."""
     if args.target:
-        # Explicit single target. Skip status check — caller knows.
-        return [args.target]
+        # Explicit single slug. Resolve platform from filename.
+        _, plat = _resolve_walkthrough(args.target, args.platform)
+        return [(args.target, plat)]
 
-    if args.all:
-        slugs = [t["slug"] for t in all_targets]
-        if args.status:
-            slugs = [
-                t["slug"] for t in all_targets if t.get("status") == args.status
-            ]
-        return slugs
+    platforms = (
+        list(PLATFORMS.keys())
+        if (args.platform in (None, "all"))
+        else [args.platform]
+    )
 
-    # No selector — default: only `status: ready`.
-    return [t["slug"] for t in all_targets if t.get("status") == "ready"]
+    selected: list[tuple[str, str]] = []
+    for plat in platforms:
+        labset = _load_labset_for(plat)
+        for entry in labset.get("targets", []):
+            if args.status and entry.get("status") != args.status:
+                continue
+            if not args.status and not args.all:
+                # No selector → only `status: ready` (legacy default).
+                if entry.get("status") != "ready":
+                    continue
+            selected.append((entry["slug"], plat))
+    return selected
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="F81 HTB-style benchmark harness")
+    ap = argparse.ArgumentParser(description="F81/F82 lab benchmark harness")
     g = ap.add_mutually_exclusive_group()
     g.add_argument("--target", help="single target slug to run")
-    g.add_argument("--all", action="store_true", help="run every target in the labset")
+    g.add_argument("--all", action="store_true", help="run every target in the selected platform(s)")
+    ap.add_argument(
+        "--platform",
+        choices=["htb", "tryhackme", "all"],
+        help="which labset(s) to draw from (default: all when --all is used)",
+    )
     ap.add_argument(
         "--status",
         choices=["ready", "wip", "planned"],
@@ -62,23 +103,23 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument(
         "--out",
-        default="reports/htb_bench.json",
+        default="reports/bench.json",
         help="path to write aggregated JSON report",
     )
     args = ap.parse_args(argv)
 
-    slugs = _select_targets(args)
-    if not slugs:
+    pairs = _select_targets(args)
+    if not pairs:
         print("No targets selected. Use --all or --target <slug>.", file=sys.stderr)
         return 2
 
     results: list[RunResult] = []
     walkthroughs: dict[str, dict[str, Any]] = {}
 
-    for slug in slugs:
-        wt_path = _WALKTHROUGHS / f"{slug}.json"
+    for slug, platform in pairs:
+        wt_path, _ = _resolve_walkthrough(slug, platform)
         if not wt_path.exists():
-            print(f"  [SKIP] {slug} — no walkthrough JSON", file=sys.stderr)
+            print(f"  [SKIP] {slug} ({platform}) — no walkthrough JSON", file=sys.stderr)
             continue
 
         try:
@@ -89,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
 
         walkthroughs[slug] = wt
 
-        print(f"  [RUN ] {slug} …", flush=True)
+        print(f"  [RUN ] {platform}/{slug} ...", flush=True)
         result = run_target(wt_path)
         results.append(result)
 
@@ -97,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
         if result.error:
             status = "ERR "
         elapsed = f"{result.wall_time_seconds:.1f}s"
-        print(f"  [{status}] {slug}  {elapsed}", flush=True)
+        print(f"  [{status}] {platform}/{slug}  {elapsed}", flush=True)
 
     report = aggregate(results, walkthroughs)
 
@@ -106,6 +147,7 @@ def main(argv: list[str] | None = None) -> int:
     payload = {
         "report": asdict(report),
         "results": [asdict(r) for r in results],
+        "platforms_scanned": sorted({plat for _, plat in pairs}),
     }
     out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
