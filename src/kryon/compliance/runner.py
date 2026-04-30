@@ -285,6 +285,9 @@ def _import_all_checks() -> None:
         # F84 OT/ICS — Siemens S7Comm audit (Sprint 3: 2 checks)
         "kryon.compliance.checks.ot.s7.c_s7_1_1_anonymous_session",
         "kryon.compliance.checks.ot.s7.c_s7_2_1_firmware_currency",
+        # F84 OT/ICS — IEC 60870-5-104 audit (Sprint 4: 2 checks)
+        "kryon.compliance.checks.ot.iec104.c_iec104_1_1_anonymous_session",
+        "kryon.compliance.checks.ot.iec104.c_iec104_2_1_perimeter_exposure",
         # F79 Unifi (Ubiquiti) controller + WiFi configuration audit
         "kryon.compliance.checks.unifi.c_unf_1_1_default_creds",
         "kryon.compliance.checks.unifi.c_unf_1_2_controller_internet_exposure",
