@@ -282,6 +282,9 @@ def _import_all_checks() -> None:
         # F84 OT/ICS — DNP3 audit (Sprint 2: 2 checks)
         "kryon.compliance.checks.ot.dnp3.c_dnp3_1_1_unauth_read",
         "kryon.compliance.checks.ot.dnp3.c_dnp3_2_1_device_health",
+        # F84 OT/ICS — Siemens S7Comm audit (Sprint 3: 2 checks)
+        "kryon.compliance.checks.ot.s7.c_s7_1_1_anonymous_session",
+        "kryon.compliance.checks.ot.s7.c_s7_2_1_firmware_currency",
         # F79 Unifi (Ubiquiti) controller + WiFi configuration audit
         "kryon.compliance.checks.unifi.c_unf_1_1_default_creds",
         "kryon.compliance.checks.unifi.c_unf_1_2_controller_internet_exposure",
