@@ -59,9 +59,9 @@ targets:
     source: docker-compose
 
   - slug: portswigger-xss-dom-1
-    status: planned
+    status: ready
     source: portswigger-academy
-    note: "https://portswigger.net/web-security/cross-site-scripting/dom-based"
+    note: "https://portswigger.net/web-security/cross-site-scripting/dom-based — URL-based, walkthrough JSON live"
 
   # === RCE (4) ===
   - slug: dvwa-command-injection-low
@@ -98,9 +98,9 @@ targets:
 
   # === IDOR (2) ===
   - slug: portswigger-idor-1
-    status: planned
+    status: ready
     source: portswigger-academy
-    note: "https://portswigger.net/web-security/access-control/lab-insecure-direct-object-references"
+    note: "https://portswigger.net/web-security/access-control/lab-insecure-direct-object-references — URL-based, walkthrough JSON live"
 
   - slug: webgoat-a01-broken-access-control-1
     status: planned

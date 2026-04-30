@@ -106,6 +106,11 @@ def main(argv: list[str] | None = None) -> int:
         default="reports/bench.json",
         help="path to write aggregated JSON report",
     )
+    ap.add_argument(
+        "--html",
+        help="path to ALSO write a static HTML scoreboard (F83). Optional; "
+             "the JSON is the source of truth, this is just a viewer.",
+    )
     args = ap.parse_args(argv)
 
     pairs = _select_targets(args)
@@ -150,6 +155,12 @@ def main(argv: list[str] | None = None) -> int:
         "platforms_scanned": sorted({plat for _, plat in pairs}),
     }
     out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    if args.html:
+        from scripts.htb_bench.reporter import write_report
+
+        html_path = write_report(payload, Path(args.html))
+        print(f"  HTML  -> {html_path}", flush=True)
 
     print()
     print(f"  Total: {report.total_targets}  Pwned: {report.pwned}  "

@@ -89,8 +89,9 @@ targets:
     source: docker-compose
 
   - slug: thm-portswigger-jwt-none
-    status: planned
+    status: ready
     source: portswigger-academy
+    note: "https://portswigger.net/web-security/jwt/lab-jwt-authentication-bypass-via-unverified-signature — URL-based, walkthrough JSON live"
 
   # === Priv-esc (3 — Linux focused) ===
   - slug: thm-linenum-suid
@@ -108,9 +109,9 @@ targets:
 
   # === Recon / OSINT (2) ===
   - slug: thm-overthewire-natas-1
-    status: planned
+    status: ready
     source: url
-    note: "Natas wargame from OverTheWire — auth + recon ladder, ToS-safe"
+    note: "Natas wargame from OverTheWire — auth + recon ladder, ToS-safe. Walkthrough JSON live."
 
   - slug: thm-google-dorking-1
     status: planned

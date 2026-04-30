@@ -365,3 +365,115 @@ class TestTryHackMeWalkthroughs:
         assert wt["category"] == "rce"
         # CVE-2014-6271 reproducer is a docker-compose target.
         assert wt["source"]["type"] == "docker_compose"
+
+
+# ---------- F83 — HTML scoreboard reporter ----------
+
+
+class TestReporter:
+    def _payload(self, *, pwned: int = 1, total: int = 2,
+                 platforms: list[str] | None = None) -> dict:
+        """Build a minimal payload matching what cli.main() writes."""
+        results = [
+            {
+                "slug": f"target-{i}",
+                "pwn": i < pwned,
+                "chain_match_score": 1.0 if i < pwned else 0.0,
+                "time_to_pwn_seconds": 12.0 if i < pwned else None,
+                "wall_time_seconds": 15.0,
+                "actual_chain": ["run_command"],
+                "expected_required": ["run_command"],
+                "chain_extra": [],
+                "flag_match_pattern": "FLAG" if i < pwned else None,
+                "error": None,
+                "raw_output": "",
+            }
+            for i in range(total)
+        ]
+        return {
+            "report": {
+                "total_targets": total,
+                "pwned": pwned,
+                "pwn_rate": pwned / total if total else 0.0,
+                "mean_chain_match": 1.0 if pwned else 0.0,
+                "median_time_to_pwn_seconds": 12.0 if pwned else None,
+                "by_category": {"sqli": {"total": float(total), "pwned": float(pwned), "pwn_rate": pwned / total if total else 0.0}},
+                "errors": 0,
+                "error_breakdown": {},
+            },
+            "results": results,
+            "platforms_scanned": platforms or ["htb"],
+        }
+
+    def test_render_html_includes_pwn_rate_kpi(self) -> None:
+        from scripts.htb_bench.reporter import render_html
+
+        out = render_html(self._payload(pwned=3, total=4))
+        assert "75.0%" in out
+        assert "Pwn rate" in out
+        assert "<!doctype html>" in out
+
+    def test_render_html_includes_per_target_rows(self) -> None:
+        from scripts.htb_bench.reporter import render_html
+
+        payload = self._payload(pwned=1, total=2)
+        out = render_html(payload)
+        assert "target-0" in out
+        assert "target-1" in out
+        assert ">PWN<" in out
+        assert ">FAIL<" in out
+
+    def test_render_html_includes_category_breakdown(self) -> None:
+        from scripts.htb_bench.reporter import render_html
+
+        out = render_html(self._payload(pwned=2, total=2))
+        assert "By category" in out
+        assert "sqli" in out
+
+    def test_render_html_marks_error_distinctly(self) -> None:
+        """A target with an `error` field must render as ERR, not FAIL —
+        the operator needs to distinguish 'tried and failed' from
+        'never ran' to decide whether to retry vs investigate."""
+        from scripts.htb_bench.reporter import render_html
+
+        payload = self._payload(pwned=0, total=1)
+        payload["results"][0]["error"] = "target_not_ready"
+        out = render_html(payload)
+        assert ">ERR<" in out
+        assert ">FAIL<" not in out
+
+    def test_render_html_handles_zero_targets(self) -> None:
+        """Empty run shouldn't crash — operator might filter to a status
+        that has no targets yet."""
+        from scripts.htb_bench.reporter import render_html
+
+        payload = self._payload(pwned=0, total=0)
+        out = render_html(payload)
+        assert "0.0%" in out
+        assert "<!doctype html>" in out
+
+    def test_write_report_round_trip(self, tmp_path: Path) -> None:
+        from scripts.htb_bench.reporter import write_report
+
+        payload = self._payload(pwned=1, total=1)
+        out_path = tmp_path / "subdir" / "scoreboard.html"
+        result = write_report(payload, out_path)
+        assert result == out_path
+        assert out_path.exists()
+        # Self-contained — no external CSS/JS references.
+        content = out_path.read_text(encoding="utf-8")
+        assert "<style>" in content
+        assert "<link " not in content  # no external stylesheets
+        assert "<script src" not in content  # no external JS
+
+    def test_render_html_escapes_user_data(self) -> None:
+        """Walkthrough slug from config could in theory contain HTML —
+        the renderer must escape it to prevent stored XSS in the
+        published scoreboard."""
+        from scripts.htb_bench.reporter import render_html
+
+        payload = self._payload(pwned=1, total=1)
+        payload["results"][0]["slug"] = "<script>alert(1)</script>"
+        out = render_html(payload)
+        assert "<script>alert(1)</script>" not in out
+        assert "&lt;script&gt;" in out
