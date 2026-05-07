@@ -160,8 +160,9 @@ _HEADERS = {"User-Agent": _USER_AGENT}
 # centralise the model-aware lookup so callers don't have to know the per-
 # provider naming.
 def _model_emits_reasoning(model_str: str) -> bool:
-    """True when the model is known to emit a separate reasoning field that
-    Kryon should preserve across multi-turn tool-calling conversations."""
+    """True when the model emits a separate reasoning field on responses.
+    Used to decide whether to render a thinking panel and to extract
+    reasoning for cost accounting."""
     s = model_str.lower()
     if "deepseek" in s and "deepseek-chat" not in s:
         return True
@@ -170,6 +171,20 @@ def _model_emits_reasoning(model_str: str) -> bool:
     if "gpt-oss" in s and "safeguard" not in s:
         return True
     return False
+
+
+def _preserves_reasoning_in_history(model_str: str) -> bool:
+    """True when the model's API REQUIRES reasoning_content to be passed
+    back in subsequent requests (DeepSeek API spec).
+
+    Groq explicitly REJECTS messages that carry reasoning_content with
+    HTTP 400 'property reasoning_content is unsupported', so we must NOT
+    preserve it for Groq even though Groq emits reasoning on responses.
+    Anthropic's redacted_thinking flow is more complex and out of scope
+    here.
+    """
+    s = model_str.lower()
+    return "deepseek" in s and "deepseek-chat" not in s
 
 
 def _extract_reasoning(assistant_msg) -> str | None:
@@ -1234,23 +1249,22 @@ class OpenAIChatCompletionsModel(Model):
                         ],
                     }
 
-                    # Per DeepSeek API spec: when tool calls occur, the
-                    # `reasoning_content` from the assistant turn must be
-                    # passed back in subsequent requests. Preserve it on
-                    # the message stored in history.
+                    # Render the thinking panel for any reasoning model so
+                    # the operator sees the chain-of-thought in non-stream.
+                    # Then preserve reasoning_content on the assistant
+                    # message ONLY for providers whose API accepts it back
+                    # (DeepSeek). Groq rejects it with 400 on the next turn.
                     if _model_emits_reasoning(str(self.model)):
                         _rc = _extract_reasoning(assistant_msg)
                         if _rc:
-                            tool_call_msg["reasoning_content"] = _rc
-                            # Render thinking panel/text once per turn —
-                            # the streaming path does this in its delta
-                            # loop, but in non-streaming nobody else has.
                             try:
                                 from kryon.util import print_claude_reasoning_simple
 
                                 print_claude_reasoning_simple(_rc, self.agent_name, str(self.model))
                             except Exception:
                                 pass
+                            if _preserves_reasoning_in_history(str(self.model)):
+                                tool_call_msg["reasoning_content"] = _rc
 
                     # Store for later atomic addition with response
                     self._pending_tool_calls[tool_call.id] = tool_call_msg
@@ -1287,21 +1301,21 @@ class OpenAIChatCompletionsModel(Model):
             # If the assistant message is just text, add it as well
             elif hasattr(assistant_msg, "content") and assistant_msg.content:
                 asst_msg = {"role": "assistant", "content": assistant_msg.content}
-                # Preserve reasoning content alongside the answer so
-                # multi-turn conversations don't lose the chain-of-thought
-                # context between requests. DeepSeek emits `reasoning_content`,
-                # Groq emits `reasoning` — we normalise via _extract_reasoning.
+                # Render the thinking panel for any reasoning model, then
+                # preserve the reasoning on the assistant message ONLY for
+                # providers whose API accepts it back. Groq returns
+                # 400 'property reasoning_content is unsupported' otherwise.
                 if _model_emits_reasoning(str(self.model)):
                     _rc = _extract_reasoning(assistant_msg)
                     if _rc:
-                        asst_msg["reasoning_content"] = _rc
-                        # Show the thinking before the answer in non-streaming.
                         try:
                             from kryon.util import print_claude_reasoning_simple
 
                             print_claude_reasoning_simple(_rc, self.agent_name, str(self.model))
                         except Exception:
                             pass
+                        if _preserves_reasoning_in_history(str(self.model)):
+                            asst_msg["reasoning_content"] = _rc
                 self.add_to_message_history(asst_msg)
                 # Log the assistant message
                 self.logger.log_assistant_message(assistant_msg.content)
@@ -2104,11 +2118,13 @@ class OpenAIChatCompletionsModel(Model):
                                         }
                                     ],
                                 }
-                                # Preserve DeepSeek reasoning_content so the
-                                # next request can pass it back per spec.
+                                # Preserve reasoning_content so the next
+                                # request can pass it back per provider spec.
+                                # Only DeepSeek accepts this on input —
+                                # Groq returns 400 if we send it back.
                                 if (
                                     accumulated_reasoning_content
-                                    and "deepseek" in str(self.model).lower()
+                                    and _preserves_reasoning_in_history(str(self.model))
                                 ):
                                     tool_call_msg["reasoning_content"] = accumulated_reasoning_content
                                 # Only add if not already in streamed_tool_calls
