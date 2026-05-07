@@ -16,10 +16,13 @@ class RateLimitConfig:
     tpm: int = 6000  # tokens per minute
 
 
-# Pre-configured presets for common providers
+# Pre-configured presets for common providers.
+# Free tier limits documented at https://console.groq.com/docs/rate-limits
+# (May 2026). Note: Groq RPD limits are aggressive (1K/day for most reasoning
+# models); plan capacity accordingly for long agentic sessions.
 PRESETS: dict[str, RateLimitConfig] = {
-    "groq_free": RateLimitConfig(rpm=30, tpm=6000),
-    "groq_paid": RateLimitConfig(rpm=100, tpm=100000),
+    "groq_free": RateLimitConfig(rpm=30, tpm=12000),
+    "groq_paid": RateLimitConfig(rpm=600, tpm=300000),
     "openai": RateLimitConfig(rpm=500, tpm=90000),
     "ollama": RateLimitConfig(rpm=9999, tpm=999999),
     "deepseek": RateLimitConfig(rpm=500, tpm=200000),

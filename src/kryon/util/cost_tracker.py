@@ -29,6 +29,16 @@ PRICING_USD: dict[str, tuple[float, float, float]] = {
     # V4 Pro is on a 75% launch promo through 2026-05-31. Update when the
     # promo expires: post-promo prices are (1.74, 0.0145, 3.48).
     "deepseek-v4-pro": (0.435, 0.003625, 0.87),
+    # Groq paid tier — free tier returns $0 because it's metered separately.
+    # Pricing reference: https://groq.com/pricing (May 2026).
+    # Cache hits not separately priced — Groq prefix-caches transparently.
+    "llama-3.3-70b-versatile": (0.59, 0.59, 0.79),
+    "llama-3.1-8b-instant": (0.05, 0.05, 0.08),
+    "qwen/qwen3-32b": (0.29, 0.29, 0.59),
+    "qwen3-32b": (0.29, 0.29, 0.59),
+    "openai/gpt-oss-20b": (0.10, 0.10, 0.50),
+    "openai/gpt-oss-120b": (0.15, 0.15, 0.75),
+    "meta-llama/llama-4-scout-17b-16e-instruct": (0.11, 0.11, 0.34),
     # Local Ollama models — explicit zero so they never hit the catch-all.
     "qwen3": (0.0, 0.0, 0.0),
     "qwen2.5": (0.0, 0.0, 0.0),

@@ -153,6 +153,40 @@ if (
 _USER_AGENT = f"Agents/Python {__version__}"
 _HEADERS = {"User-Agent": _USER_AGENT}
 
+# --- Reasoning-content helpers -----------------------------------------------
+# Different reasoning providers expose chain-of-thought under different field
+# names: DeepSeek uses `reasoning_content`, Groq (Qwen3 / GPT-OSS) uses
+# `reasoning`, some Anthropic-flavoured paths use `thinking`. These helpers
+# centralise the model-aware lookup so callers don't have to know the per-
+# provider naming.
+def _model_emits_reasoning(model_str: str) -> bool:
+    """True when the model is known to emit a separate reasoning field that
+    Kryon should preserve across multi-turn tool-calling conversations."""
+    s = model_str.lower()
+    if "deepseek" in s and "deepseek-chat" not in s:
+        return True
+    if "qwen3" in s or "qwq" in s:
+        return True
+    if "gpt-oss" in s and "safeguard" not in s:
+        return True
+    return False
+
+
+def _extract_reasoning(assistant_msg) -> str | None:
+    """Pull reasoning out of a chat-completion message, regardless of which
+    field the provider used. Returns None when no reasoning is present."""
+    for attr in ("reasoning_content", "reasoning", "thinking"):
+        val = getattr(assistant_msg, attr, None)
+        if val:
+            return str(val)
+    if isinstance(assistant_msg, dict):
+        for key in ("reasoning_content", "reasoning", "thinking"):
+            val = assistant_msg.get(key)
+            if val:
+                return str(val)
+    return None
+
+
 # --- Tool-calling guardrails -------------------------------------------------
 # Synthetic user-role prefixes produced by Kryon's session layer (MAGIC DOC
 # auto-updates, intent-change hooks, piped tool output). These should NOT
@@ -1204,10 +1238,8 @@ class OpenAIChatCompletionsModel(Model):
                     # `reasoning_content` from the assistant turn must be
                     # passed back in subsequent requests. Preserve it on
                     # the message stored in history.
-                    if "deepseek" in str(self.model).lower():
-                        _rc = getattr(assistant_msg, "reasoning_content", None)
-                        if _rc is None and isinstance(assistant_msg, dict):
-                            _rc = assistant_msg.get("reasoning_content")
+                    if _model_emits_reasoning(str(self.model)):
+                        _rc = _extract_reasoning(assistant_msg)
                         if _rc:
                             tool_call_msg["reasoning_content"] = _rc
                             # Render thinking panel/text once per turn —
@@ -1255,13 +1287,12 @@ class OpenAIChatCompletionsModel(Model):
             # If the assistant message is just text, add it as well
             elif hasattr(assistant_msg, "content") and assistant_msg.content:
                 asst_msg = {"role": "assistant", "content": assistant_msg.content}
-                # Preserve DeepSeek reasoning_content alongside the answer
-                # so multi-turn conversations don't lose the chain-of-thought
-                # context between requests.
-                if "deepseek" in str(self.model).lower():
-                    _rc = getattr(assistant_msg, "reasoning_content", None)
-                    if _rc is None and isinstance(assistant_msg, dict):
-                        _rc = assistant_msg.get("reasoning_content")
+                # Preserve reasoning content alongside the answer so
+                # multi-turn conversations don't lose the chain-of-thought
+                # context between requests. DeepSeek emits `reasoning_content`,
+                # Groq emits `reasoning` — we normalise via _extract_reasoning.
+                if _model_emits_reasoning(str(self.model)):
+                    _rc = _extract_reasoning(assistant_msg)
                     if _rc:
                         asst_msg["reasoning_content"] = _rc
                         # Show the thinking before the answer in non-streaming.
@@ -1696,15 +1727,26 @@ class OpenAIChatCompletionsModel(Model):
                         # Handle Claude reasoning content first (before regular content)
                         reasoning_content = None
 
-                        # Check for Claude reasoning in different possible formats
+                        # Check for reasoning content in different possible formats:
+                        #   - DeepSeek: `reasoning_content`
+                        #   - Groq (Qwen3, GPT-OSS): `reasoning`
+                        #   - Anthropic/Claude: `thinking` (handled below)
                         if hasattr(delta, "reasoning_content") and delta.reasoning_content is not None:
                             reasoning_content = delta.reasoning_content
+                        elif hasattr(delta, "reasoning") and delta.reasoning is not None:
+                            reasoning_content = delta.reasoning
                         elif (
                             isinstance(delta, dict)
                             and "reasoning_content" in delta
                             and delta["reasoning_content"] is not None
                         ):
                             reasoning_content = delta["reasoning_content"]
+                        elif (
+                            isinstance(delta, dict)
+                            and "reasoning" in delta
+                            and delta["reasoning"] is not None
+                        ):
+                            reasoning_content = delta["reasoning"]
 
                         # Also check for thinking_blocks structure (Claude 4 format)
                         thinking_blocks = None
@@ -2973,6 +3015,30 @@ class OpenAIChatCompletionsModel(Model):
             elif provider == "gemini":
                 kwargs.pop("parallel_tool_calls", None)
                 # Add any specific gemini settings if needed
+            elif (
+                "groq.com" in os.getenv("OPENAI_BASE_URL", "").lower()
+                or provider in ("qwen", "openai", "meta-llama")
+            ):
+                # Groq with provider-routed names (qwen/qwen3-32b,
+                # openai/gpt-oss-120b, meta-llama/llama-4-scout). Same
+                # scrubbing as bare-name Groq below — kept inline for
+                # consistency with the file's flat-branch style.
+                litellm.drop_params = True
+                kwargs.pop("store", None)
+                # GPT-OSS family does NOT support parallel tool calls.
+                if "gpt-oss" in model_str:
+                    kwargs.pop("parallel_tool_calls", None)
+                if not converted_tools:
+                    kwargs.pop("tool_choice", None)
+                # CRITICAL: Groq reasoning models (qwen3, gpt-oss, qwq)
+                # require reasoning_format=parsed when tools are present.
+                # Default raw + tools = HTTP 400 from Groq.
+                _has_reasoning = (
+                    "qwen3" in model_str or "gpt-oss" in model_str or "qwq" in model_str
+                )
+                if _has_reasoning and converted_tools:
+                    kwargs.setdefault("extra_body", {})
+                    kwargs["extra_body"].setdefault("reasoning_format", "parsed")
         else:
             # Handle models without provider prefix
             if "claude" in model_str or "anthropic" in model_str:
@@ -3032,6 +3098,23 @@ class OpenAIChatCompletionsModel(Model):
                 ):
                     kwargs.setdefault("extra_body", {})
                     kwargs["extra_body"].setdefault("thinking", {"type": "enabled"})
+            elif "groq.com" in os.getenv("OPENAI_BASE_URL", "").lower():
+                # Groq with bare-name models (llama-3.3-70b-versatile,
+                # llama-3.1-8b-instant, mixtral-8x7b-32768, etc.). Mirrors
+                # the provider-routed Groq branch above so /-delimited
+                # and bare names get the same param scrubbing.
+                litellm.drop_params = True
+                kwargs.pop("store", None)
+                if "gpt-oss" in model_str:
+                    kwargs.pop("parallel_tool_calls", None)
+                if not converted_tools:
+                    kwargs.pop("tool_choice", None)
+                _has_reasoning = (
+                    "qwen3" in model_str or "gpt-oss" in model_str or "qwq" in model_str
+                )
+                if _has_reasoning and converted_tools:
+                    kwargs.setdefault("extra_body", {})
+                    kwargs["extra_body"].setdefault("reasoning_format", "parsed")
             elif "qwen" in model_str or ":" in model_str:
                 # Handle Ollama-served models with custom formats (e.g., gpt-4o)
                 # These typically need the Ollama provider
