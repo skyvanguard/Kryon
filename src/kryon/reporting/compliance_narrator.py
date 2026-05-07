@@ -20,9 +20,8 @@ import re
 import urllib.request
 from dataclasses import dataclass
 
-
-_DEFAULT_MODEL = os.environ.get("KRYON_COMPLIANCE_NARRATOR_MODEL", "qwen3-coder:30b-32k")
-_DEFAULT_ENDPOINT = os.environ.get("OPENAI_BASE_URL", "http://ollama:11434/v1")
+_DEFAULT_MODEL = os.environ.get("KRYON_COMPLIANCE_NARRATOR_MODEL", "deepseek-chat")
+_DEFAULT_ENDPOINT = os.environ.get("OPENAI_BASE_URL", "https://api.deepseek.com/v1")
 _DEFAULT_TIMEOUT_S = int(os.environ.get("KRYON_NARRATOR_TIMEOUT_S", "30"))
 
 _PROMPT_TEMPLATE = """You are writing TWO short prose paragraphs for a PCI-DSS v4
@@ -80,12 +79,17 @@ def narrate(check_result_dict: dict, *, timeout_s: int = _DEFAULT_TIMEOUT_S) -> 
         "top_p": 1,
         "max_tokens": 500,
     }).encode()
+    # Pick auth token by endpoint flavour: Ollama accepts any string
+    # (including the literal "ollama"); external OpenAI-compat APIs
+    # need the real OPENAI_API_KEY.
+    _is_ollama = "11434" in _DEFAULT_ENDPOINT or "ollama" in _DEFAULT_ENDPOINT
+    _auth_token = "ollama" if _is_ollama else os.environ.get("OPENAI_API_KEY", "")
     req = urllib.request.Request(
         f"{_DEFAULT_ENDPOINT}/chat/completions",
         data=body,
         headers={
             "Content-Type": "application/json",
-            "Authorization": "Bearer ollama",
+            "Authorization": f"Bearer {_auth_token}",
         },
     )
     try:
