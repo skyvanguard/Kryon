@@ -26,6 +26,11 @@ PRESETS: dict[str, RateLimitConfig] = {
     "openai": RateLimitConfig(rpm=500, tpm=90000),
     "ollama": RateLimitConfig(rpm=9999, tpm=999999),
     "deepseek": RateLimitConfig(rpm=500, tpm=200000),
+    # OpenRouter free tier: 20 RPM, 50 RPD shared across ALL :free models
+    # without account credit. With ≥$10 credit, 1000 RPD shared.
+    # TPM is per-model on the upstream provider, not enforced by OpenRouter.
+    "openrouter_free": RateLimitConfig(rpm=20, tpm=20000),
+    "openrouter_paid": RateLimitConfig(rpm=200, tpm=200000),
 }
 
 
@@ -61,6 +66,8 @@ class RateLimiter:
             return cls.from_preset("deepseek")
         if "groq.com" in url_lower:
             return cls.from_preset("groq_free")
+        if "openrouter.ai" in url_lower:
+            return cls.from_preset("openrouter_free")
         if "localhost" in url_lower or "127.0.0.1" in url_lower or "11434" in url_lower:
             return cls.from_preset("ollama")
         if "openai.com" in url_lower or not url:

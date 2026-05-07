@@ -39,6 +39,16 @@ PRICING_USD: dict[str, tuple[float, float, float]] = {
     "openai/gpt-oss-20b": (0.10, 0.10, 0.50),
     "openai/gpt-oss-120b": (0.15, 0.15, 0.75),
     "meta-llama/llama-4-scout-17b-16e-instruct": (0.11, 0.11, 0.34),
+    # OpenRouter free tier — explicit zero so they bypass the substring
+    # fallback and never charge. The `:free` suffix is part of the model id.
+    "openai/gpt-oss-120b:free": (0.0, 0.0, 0.0),
+    "openai/gpt-oss-20b:free": (0.0, 0.0, 0.0),
+    "qwen/qwen3-next-80b-a3b-instruct:free": (0.0, 0.0, 0.0),
+    "qwen/qwen3-coder:free": (0.0, 0.0, 0.0),
+    "nvidia/nemotron-3-super-120b-a12b:free": (0.0, 0.0, 0.0),
+    "minimax/minimax-m2.5:free": (0.0, 0.0, 0.0),
+    "z-ai/glm-4.5-air:free": (0.0, 0.0, 0.0),
+    "meta-llama/llama-3.3-70b-instruct:free": (0.0, 0.0, 0.0),
     # Local Ollama models — explicit zero so they never hit the catch-all.
     "qwen3": (0.0, 0.0, 0.0),
     "qwen2.5": (0.0, 0.0, 0.0),

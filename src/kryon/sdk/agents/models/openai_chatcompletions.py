@@ -3031,6 +3031,16 @@ class OpenAIChatCompletionsModel(Model):
             elif provider == "gemini":
                 kwargs.pop("parallel_tool_calls", None)
                 # Add any specific gemini settings if needed
+            elif "openrouter.ai" in os.getenv("OPENAI_BASE_URL", "").lower():
+                # OpenRouter — OpenAI-compat aggregator. Standard OpenAI
+                # params apply; reasoning surfaces via the standard
+                # `reasoning` field (no Groq-style reasoning_format hack).
+                litellm.drop_params = True
+                kwargs.pop("store", None)
+                if "gpt-oss" in model_str:
+                    kwargs.pop("parallel_tool_calls", None)
+                if not converted_tools:
+                    kwargs.pop("tool_choice", None)
             elif (
                 "groq.com" in os.getenv("OPENAI_BASE_URL", "").lower()
                 or provider in ("qwen", "openai", "meta-llama")
