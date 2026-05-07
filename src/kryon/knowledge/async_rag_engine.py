@@ -19,7 +19,7 @@ Classification: RESTRICTED
 import asyncio
 import os
 import time
-from typing import Any, Optional
+from typing import Any
 
 
 class AsyncRAGEngine:
@@ -47,7 +47,7 @@ class AsyncRAGEngine:
     def __init__(
         self,
         vector_db=None,
-        llm_config: Optional[dict] = None,
+        llm_config: dict | None = None,
         max_concurrent_llm_calls: int = 3,
         use_async_vector_db: bool = True,
     ):
@@ -86,18 +86,22 @@ class AsyncRAGEngine:
         }
 
     def _load_llm_config(self) -> dict:
-        """Load LLM configuration from environment variables."""
+        """Load LLM configuration from environment variables.
+
+        RAG generation prefers KRYON_RAG_MODEL (a fast non-thinking model like
+        deepseek-chat) so retrieval queries don't burn reasoning tokens.
+        """
         return {
             "api_key": os.getenv("OPENAI_API_KEY", ""),
             "base_url": os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-            "model": os.getenv("KRYON_MODEL", "gpt-4o"),
+            "model": os.getenv("KRYON_RAG_MODEL", os.getenv("KRYON_MODEL", "gpt-4o")),
         }
 
     async def query(
         self,
         question: str,
         top_k: int = 5,
-        source_filter: Optional[str] = None,
+        source_filter: str | None = None,
         use_llm: bool = True,
     ) -> dict[str, Any]:
         """
@@ -154,7 +158,7 @@ class AsyncRAGEngine:
         self,
         questions: list[str],
         top_k: int = 5,
-        source_filter: Optional[str] = None,
+        source_filter: str | None = None,
         use_llm: bool = True,
     ) -> list[dict[str, Any]]:
         """
