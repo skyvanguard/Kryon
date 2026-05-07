@@ -163,6 +163,29 @@ def _full_banner_enabled() -> bool:
     return val in ("1", "true", "yes", "on")
 
 
+def _external_llm_warning() -> list:
+    """Banner fragments that warn the operator when LLM inference is
+    routed to a third-party endpoint (DeepSeek, OpenAI, OpenRouter, etc).
+
+    Returns a list of (text, style) tuples ready to be spread into a
+    Text.assemble() call. Empty list when running against local Ollama
+    or no configured endpoint — no warning needed.
+    """
+    base_url = os.getenv("OPENAI_BASE_URL", "").lower()
+    if not base_url:
+        return []
+    # Local endpoints don't warrant a warning
+    if any(local in base_url for local in ("localhost", "127.0.0.1", "ollama", "11434")):
+        return []
+    # Anything else is external — warn loudly
+    return [
+        ("⚠️  WARNING: LLM inference routed to external provider.\n", "bold yellow on red"),
+        (f"   Endpoint: {os.getenv('OPENAI_BASE_URL', '')}\n", "yellow"),
+        ("   Do not include client PAN, credentials, or PII in prompts.\n", "yellow"),
+        ("   Get explicit written authorization before bank engagements.\n\n", "yellow"),
+    ]
+
+
 def _display_compact_banner(console: Console, version: str, codename: str) -> None:
     """Tight 3-line banner with palette B accents.
 
@@ -508,7 +531,13 @@ def display_quick_guide(console: Console):
         ("  KRYON_STREAM", "green"),
         f" = {os.getenv('KRYON_STREAM', 'true')}\n",
         ("  KRYON_WORKSPACE", "green"),
-        f" = {os.getenv('KRYON_WORKSPACE', 'default')}\n\n",
+        f" = {os.getenv('KRYON_WORKSPACE', 'default')}\n",
+        ("  OPENAI_BASE_URL", "green"),
+        f" = {os.getenv('OPENAI_BASE_URL', '(default OpenAI)')}\n\n",
+        # Warn loudly when LLM inference goes to a third-party endpoint —
+        # the operator should know they're sending prompts off-host before
+        # a banking client engagement.
+        *_external_llm_warning(),
         ("💡 Pro Tips:", "bold yellow"),
         "\n",
         ("• Use /help for detailed command help\n", "dim"),
