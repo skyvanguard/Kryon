@@ -22,6 +22,7 @@ PRESETS: dict[str, RateLimitConfig] = {
     "groq_paid": RateLimitConfig(rpm=100, tpm=100000),
     "openai": RateLimitConfig(rpm=500, tpm=90000),
     "ollama": RateLimitConfig(rpm=9999, tpm=999999),
+    "deepseek": RateLimitConfig(rpm=500, tpm=200000),
 }
 
 
@@ -53,9 +54,11 @@ class RateLimiter:
         url = base_url or os.getenv("OPENAI_BASE_URL", "")
         url_lower = url.lower()
 
+        if "deepseek.com" in url_lower:
+            return cls.from_preset("deepseek")
         if "groq.com" in url_lower:
             return cls.from_preset("groq_free")
-        if "localhost" in url_lower or "127.0.0.1" in url_lower:
+        if "localhost" in url_lower or "127.0.0.1" in url_lower or "11434" in url_lower:
             return cls.from_preset("ollama")
         if "openai.com" in url_lower or not url:
             return cls.from_preset("openai")
