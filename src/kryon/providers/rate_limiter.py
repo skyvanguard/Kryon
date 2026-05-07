@@ -51,7 +51,7 @@ class RateLimiter:
         """Auto-detect provider from OPENAI_BASE_URL and return appropriate limiter."""
         import os
 
-        url = base_url or os.getenv("OPENAI_BASE_URL", "")
+        url: str = base_url or os.getenv("OPENAI_BASE_URL", "") or ""
         url_lower = url.lower()
 
         if "deepseek.com" in url_lower:
