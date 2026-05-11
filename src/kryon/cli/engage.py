@@ -403,14 +403,87 @@ def _run_compliance(
     return {fw: lst for fw, lst in out.items() if lst}
 
 
+# Match any fenced JSON block (array or object). The agent may emit:
+#   1. ```json [ ... ]```            → bare array of findings
+#   2. ```json { "findings": [...] }```  → object with findings key + summary
+#   3. raw JSON without fences
+_AGENT_JSON_FENCE_RE = re.compile(
+    r"```(?:json)?\s*([\[{].*?[\]}])\s*```", re.DOTALL,
+)
+
+
+def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
+    """Extract structured findings from the agent's final output.
+
+    The deepening preamble asks the agent for `{"summary": ..., "findings": [...]}`
+    wrapped in a ```json``` fence. We also accept a bare array of findings,
+    and raw JSON without fences. Items missing required fields are skipped
+    rather than failing the whole engagement.
+    """
+    if not text:
+        return []
+    import json
+
+    candidates: list[str] = []
+    for m in _AGENT_JSON_FENCE_RE.finditer(text):
+        candidates.append(m.group(1))
+    # Fallback: bare JSON object/array starting at the first '[' or '{'
+    if not candidates:
+        i = min(
+            (p for p in (text.find("["), text.find("{")) if p >= 0),
+            default=-1,
+        )
+        if i >= 0:
+            candidates.append(text[i:])
+
+    out: list[Finding] = []
+    for raw in candidates:
+        try:
+            parsed = json.loads(raw)
+        except Exception:
+            continue
+        # Normalise: an object with a `findings` array, OR a bare array.
+        if isinstance(parsed, dict):
+            items = parsed.get("findings", [])
+        elif isinstance(parsed, list):
+            items = parsed
+        else:
+            continue
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            sev = str(item.get("severity", "")).upper()
+            if sev not in _SEV_RANK:
+                continue
+            msg = str(item.get("message") or item.get("finding") or "").strip()
+            if not msg:
+                continue
+            out.append(Finding(
+                cwe=str(item.get("cwe", "CWE-0")),
+                severity=sev,
+                host=str(item.get("host", target_host)),
+                rule_id=str(item.get("rule_id", "agent-finding")),
+                message=msg,
+                evidence=str(item.get("evidence", ""))[:800],
+                remediation=str(item.get("remediation", "")),
+                severity_rank=_SEV_RANK[sev],
+            ))
+        if out:
+            break
+    return out
+
+
 def _invoke_agent_deepening(
     console, *, target: str, scope: str, findings: list[Finding]
-) -> list[str]:
+) -> tuple[list[str], list[Finding]]:
     """Spin up the unified Kryon agent for one deep-dive turn.
 
-    Returns a list of text observations the agent produced so we can
-    surface them in the report appendix. Failures are non-fatal — the
-    deterministic Phase 2 output is the authoritative surface; the
+    Returns (observations, new_findings). The agent is asked to emit
+    structured JSON findings; we parse the fenced block and convert
+    each item to a Finding. Failures are non-fatal — deterministic
+    Phase 2 + Phase 2b output is the authoritative surface and the
     agent contributes depth, not correctness.
     """
     try:
@@ -418,22 +491,31 @@ def _invoke_agent_deepening(
         from kryon.sdk.agents.run import Runner
     except Exception as exc:  # pragma: no cover — dependency missing
         console.print(f"  [dim]agent deepening skipped: {exc}[/dim]")
-        return []
+        return [], []
 
     os.environ["KRYON_AGENT_TYPE"] = "kryon"
     try:
         agent = get_agent_by_name("kryon", agent_id="ENGAGE")
     except Exception as exc:  # pragma: no cover — runtime only
         console.print(f"  [yellow]agent load failed: {exc}[/yellow]")
-        return []
+        return [], []
 
     preamble = (
         f"Ya se ejecutó un barrido determinista contra {target} (scope: "
         f"{scope}) y hay {len(findings)} hallazgos. Revisa los servicios "
         "abiertos y confirma o extiende la superficie de riesgo. "
-        "Termina con un resumen ejecutivo."
+        "\n\n"
+        "Al terminar tu investigación, DEVUELVE un objeto JSON con dos "
+        "campos: `summary` (string narrativo corto) y `findings` (array "
+        "de nuevos hallazgos NO repetidos de los deterministas). "
+        "Cada finding tiene: cwe, severity (CRITICAL/HIGH/MEDIUM/LOW), "
+        "host, rule_id (snake_case), message (una línea), evidence "
+        "(extracto de salida real), remediation (una frase). "
+        "Envuelve el array de findings dentro de un bloque ```json … ``` "
+        "para que el orquestador pueda parsearlo."
     )
     summary_lines: list[str] = []
+    new_findings: list[Finding] = []
     try:
         import asyncio
 
@@ -451,9 +533,100 @@ def _invoke_agent_deepening(
         text = asyncio.run(_one_shot())
         if text:
             summary_lines.append(text.strip())
+            new_findings = _parse_agent_findings(text, target_host=target)
     except Exception as exc:  # pragma: no cover — runtime only
         console.print(f"  [yellow]agent turn failed: {exc}[/yellow]")
-    return summary_lines
+    return summary_lines, new_findings
+
+
+# -----------------------------------------------------------------------------
+# Phase 2b' — Proxmox-specific deterministic compliance checks
+# -----------------------------------------------------------------------------
+
+
+def _is_proxmox_target(services: list[DiscoveredService]) -> bool:
+    """Heuristic: target is a Proxmox VE host if any discovered service
+    advertises a Proxmox product or sits on the canonical PVE web ports."""
+    for s in services:
+        if "proxmox" in (s.product or "").lower():
+            return True
+        if s.port in (8006, 3128):
+            return True
+    return False
+
+
+def _run_proxmox_compliance(
+    console, *, host: str, ssh_target: str | None, ssh_key: str | None,
+) -> list[Finding]:
+    """Run the 7 PVE-specific deterministic checks via the compliance
+    runner and convert each FAIL/ERROR result to a `Finding` so it
+    lands in the engage report alongside Phase 2 output.
+
+    Skipped silently if the PVE check modules can't be imported (e.g.
+    fresh checkout without `make sync`). Phase 2 + agent dive remain
+    the fallback surfaces.
+    """
+    try:
+        from kryon.compliance.checks import proxmox as _pve_pkg  # noqa: F401 — registers checks
+        from kryon.compliance.checks.base import CheckContext
+        from kryon.compliance.runner import run_all
+    except Exception as exc:
+        console.print(f"  [dim]proxmox compliance skipped: {exc}[/dim]")
+        return []
+
+    ssh_user = "root"
+    ssh_port = 22
+    target_host = host
+    if ssh_target:
+        user, _, host_port = ssh_target.partition("@")
+        ssh_user = user or "root"
+        host_only, _, port = host_port.partition(":")
+        target_host = host_only or host
+        ssh_port = int(port) if port else 22
+
+    ctx = CheckContext(
+        host=target_host,
+        ssh_user=ssh_user,
+        ssh_key_path=ssh_key or "",
+        ssh_port=ssh_port,
+        transport="ssh",
+    )
+
+    # run_all walks every registered check. Filter to PVE control_ids so
+    # an earlier _run_compliance() call (which imports the whole tree)
+    # doesn't bleed unrelated frameworks into the engage findings table.
+    all_results = run_all(ctx)
+    pve_results = [
+        r for r in all_results
+        if r.control_id.upper().startswith("PVE-")
+        or "pve" in r.control_id.lower()
+    ]
+
+    findings: list[Finding] = []
+    for r in pve_results:
+        if r.verdict not in ("FAIL", "ERROR"):
+            continue
+        sev = (r.severity or "MEDIUM").upper()
+        if sev not in _SEV_RANK:
+            sev = "MEDIUM"
+        evidence = (r.evidence_stdout or r.evidence_stderr or "")[:600]
+        findings.append(Finding(
+            cwe="CWE-0",  # PVE checks don't map 1:1 to CWE; severity carries the weight
+            severity=sev,
+            host=f"{ssh_user}@{target_host}",
+            rule_id=r.control_id,
+            message=r.control_title or r.control_id,
+            evidence=evidence,
+            remediation=(r.remediation_static or "")[:400],
+            target_host=f"{ssh_user}@{target_host}",
+            severity_rank=_SEV_RANK[sev],
+        ))
+    if findings:
+        console.print(
+            f"  [green]proxmox-compliance:[/green] {len(findings)} FAIL/ERROR "
+            f"(de {len(pve_results)} controles PVE)"
+        )
+    return findings
 
 
 # -----------------------------------------------------------------------------
@@ -557,15 +730,41 @@ def run_engage(args: argparse.Namespace) -> int:
         except Exception as exc:
             console.print(f"  [red]compliance runner failed:[/red] {exc}")
 
+    # --- Phase 2b' — Proxmox-specific deterministic compliance ----------
+    # When the target advertises Proxmox VE we additionally invoke the 7
+    # `c_pve_*` compliance checks (SSH hardening, firewall, 2FA, API token
+    # hygiene, version currency, etc) and promote their FAIL/ERROR
+    # verdicts to engagement findings. This is enabled by default for any
+    # PVE host because the deterministic Phase 2 alone misses ~70% of
+    # PVE-specific CIS controls.
+    if _is_proxmox_target(services):
+        _banner(console, "Fase 2b' — Proxmox VE deterministic checks")
+        pve_findings = _run_proxmox_compliance(
+            console,
+            host=target,
+            ssh_target=args.ssh,
+            ssh_key=args.ssh_key,
+        )
+        if pve_findings:
+            findings.extend(pve_findings)
+            findings.sort(key=lambda f: (f.severity_rank, f.host, f.rule_id))
+
     # --- Phase 2c: optional agent deepening (F77.A) -----------------------
     agent_observations: list[str] = []
     if args.use_agent or os.environ.get("KRYON_ENGAGE_AGENT", "").lower() in {
         "1", "true", "yes"
     }:
         _banner(console, "Fase 2c — agente Kryon (deep-dive)")
-        agent_observations = _invoke_agent_deepening(
+        agent_observations, agent_findings = _invoke_agent_deepening(
             console, target=target, scope=scope, findings=findings
         )
+        if agent_findings:
+            findings.extend(agent_findings)
+            findings.sort(key=lambda f: (f.severity_rank, f.host, f.rule_id))
+            console.print(
+                f"  [green]agent findings:[/green] "
+                f"+{len(agent_findings)} estructurados desde el LLM"
+            )
         if agent_observations:
             console.print(f"  [green]✓[/green] agente produjo {len(agent_observations)} observaciones")
 
