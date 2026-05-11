@@ -37,7 +37,9 @@ def test_deduplication_with_streaming_disabled(capsys):
 
     captured = capsys.readouterr()
     assert "test output" in captured.out
-    assert "run_command" in captured.out
+    # Tool name is no longer printed in the visible header after the F77.D
+    # palette overhaul — Rich renders tool calls as `  ✓ 0.0s  · ...` with
+    # the tool name moved into the panel border / metadata only.
 
     # For this test, we need to manually set the display time to be recent
     # because Rich rendering takes over 1 second
@@ -69,7 +71,6 @@ def test_deduplication_with_streaming_disabled(capsys):
 
     captured = capsys.readouterr()
     assert "test output 2" in captured.out
-    assert "run_command" in captured.out
 
 
 def test_deduplication_with_streaming_enabled(capsys):
@@ -86,6 +87,15 @@ def test_deduplication_with_streaming_enabled(capsys):
 
     captured = capsys.readouterr()
     assert "test output" in captured.out
+
+    # Prime the display-time tracker so the duplicate check fires
+    # immediately (the dedup window depends on the timestamp the renderer
+    # stored on the first call; after the F77.D refactor the tracker is
+    # not populated until the first render returns, so we set it
+    # explicitly to keep the test deterministic).
+    command_key = "run_command:pwd"
+    if hasattr(cli_print_tool_output, "_command_display_times"):
+        cli_print_tool_output._command_display_times[command_key] = time.time() - 0.1
 
     # Duplicate should always be suppressed when streaming is enabled
     cli_print_tool_output(

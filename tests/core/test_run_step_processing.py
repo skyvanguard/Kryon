@@ -93,7 +93,14 @@ async def test_single_tool_call():
 
 
 @pytest.mark.asyncio
-async def test_missing_tool_call_raises_error():
+async def test_missing_tool_call_returns_error_output():
+    """When the model calls a tool that doesn't exist, process_model_response
+    returns an error ToolCallOutputItem rather than raising ModelBehaviorError.
+
+    Behavioral change in F85: the OpenAI-compat path used to raise and crash
+    the run, but that's too harsh for local models like kryon-14b that
+    occasionally hallucinate tool names. Returning an error string lets the
+    LLM self-correct on the next turn — matches Claude Code's behavior."""
     agent = Agent(name="test", tools=[get_function_tool(name="test")])
     response = ModelResponse(
         output=[
@@ -104,14 +111,19 @@ async def test_missing_tool_call_raises_error():
         referenceable_id=None,
     )
 
-    with pytest.raises(ModelBehaviorError):
-        RunImpl.process_model_response(
-            agent=agent,
-            response=response,
-            output_schema=None,
-            handoffs=[],
-            all_tools=await agent.get_all_tools(),
-        )
+    result = RunImpl.process_model_response(
+        agent=agent,
+        response=response,
+        output_schema=None,
+        handoffs=[],
+        all_tools=await agent.get_all_tools(),
+    )
+
+    # The hallucinated tool call is not in functions; instead an error
+    # output item describing the available tools is appended.
+    assert not result.functions
+    error_items = [it for it in result.new_items if "does not exist" in str(getattr(it, "raw_item", ""))]
+    assert len(error_items) == 1
 
 
 @pytest.mark.asyncio
@@ -195,7 +207,11 @@ async def test_handoffs_parsed_correctly():
 
 
 @pytest.mark.asyncio
-async def test_missing_handoff_fails():
+async def test_missing_handoff_returns_error_output():
+    """When the model targets a handoff that isn't wired up, the runner
+    falls through to the function-not-found branch and emits an error
+    output rather than raising ModelBehaviorError — same self-correction
+    path as test_missing_tool_call_returns_error_output above."""
     agent_1 = Agent(name="test_1")
     agent_2 = Agent(name="test_2")
     agent_3 = Agent(name="test_3", handoffs=[agent_1])
@@ -204,14 +220,19 @@ async def test_missing_handoff_fails():
         usage=Usage(),
         referenceable_id=None,
     )
-    with pytest.raises(ModelBehaviorError):
-        RunImpl.process_model_response(
-            agent=agent_3,
-            response=response,
-            output_schema=None,
-            handoffs=Runner._get_handoffs(agent_3),
-            all_tools=await agent_3.get_all_tools(),
-        )
+
+    result = RunImpl.process_model_response(
+        agent=agent_3,
+        response=response,
+        output_schema=None,
+        handoffs=Runner._get_handoffs(agent_3),
+        all_tools=await agent_3.get_all_tools(),
+    )
+
+    assert not result.handoffs
+    assert not result.functions
+    error_items = [it for it in result.new_items if "does not exist" in str(getattr(it, "raw_item", ""))]
+    assert len(error_items) == 1
 
 
 @pytest.mark.asyncio

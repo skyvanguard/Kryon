@@ -45,8 +45,12 @@ async def test_runner_calls_mcp_tool(streaming: bool):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("streaming", [False, True])
-async def test_runner_asserts_when_mcp_tool_not_found(streaming: bool):
-    """Test that the runner asserts when an MCP tool is not found."""
+async def test_runner_self_corrects_when_mcp_tool_not_found(streaming: bool):
+    """When the model invokes an MCP tool that doesn't exist, the runner
+    no longer raises ModelBehaviorError. Instead it returns an error
+    tool-output so the model can self-correct on the next turn —
+    matches the F85 hallucination-tolerance behaviour shipped for local
+    models like kryon-14b that occasionally invent tool names."""
     server = FakeMCPServer()
     server.add_tool("test_tool_1", {})
     server.add_tool("test_tool_2", {})
@@ -67,13 +71,18 @@ async def test_runner_asserts_when_mcp_tool_not_found(streaming: bool):
         ]
     )
 
-    with pytest.raises(ModelBehaviorError):
-        if streaming:
-            result = Runner.run_streamed(agent, input="user_message")
-            async for _ in result.stream_events():
-                pass
-        else:
-            await Runner.run(agent, input="user_message")
+    # No exception: the hallucinated MCP tool name produces an error
+    # ToolCallOutputItem, the run continues, and the second turn closes
+    # the conversation cleanly.
+    if streaming:
+        result = Runner.run_streamed(agent, input="user_message")
+        async for _ in result.stream_events():
+            pass
+    else:
+        await Runner.run(agent, input="user_message")
+
+    # The fake MCP server should not have been called for the missing tool.
+    assert "test_tool_doesnt_exist" not in server.tool_calls
 
 
 @pytest.mark.asyncio
