@@ -1,7 +1,6 @@
 """Diagnostic: inspect JSONL session log to analyze tool-call behavior."""
 import json
 import sys
-from pathlib import Path
 
 path = sys.argv[1] if len(sys.argv) > 1 else "/workspace/logs/last"
 calls = []

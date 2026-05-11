@@ -19,7 +19,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 _MIN_LENGTH = 12
 _PREFERRED_LENGTH = 14
 _COMMON_TAILS = re.compile(r"(?:\d{2}|\d{4}|\d{2,4}!?)$")

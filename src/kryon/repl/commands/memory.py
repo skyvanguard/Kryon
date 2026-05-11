@@ -8,7 +8,7 @@ import datetime
 import json
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from openai import AsyncOpenAI
 from rich.console import Console
@@ -79,7 +79,7 @@ class MemoryCommand(Command):
         # Ensure memory directory exists
         self._ensure_memory_dir()
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         """Handle the memory command."""
         if not args:
             # Show control panel
@@ -119,7 +119,7 @@ class MemoryCommand(Command):
         if not MEMORY_INDEX_FILE.exists():
             self._initialize_index()
 
-    def _get_memory_id_by_filename(self, filename: str) -> Optional[str]:
+    def _get_memory_id_by_filename(self, filename: str) -> str | None:
         """Get the memory ID for a given filename."""
         index = self._load_index()
         for mem_id, mem_file in index.get("mappings", {}).items():
@@ -143,7 +143,7 @@ class MemoryCommand(Command):
                 name += ".md"
         return MEMORY_DIR / name
 
-    def _resolve_agent_name(self, identifier: str) -> Optional[str]:
+    def _resolve_agent_name(self, identifier: str) -> str | None:
         """Resolve an agent identifier (name or ID) to the actual agent name."""
         # Check if it's an ID (P1, P2, etc.)
         if identifier.upper().startswith("P") and len(identifier) >= 2 and identifier[1:].isdigit():
@@ -334,7 +334,7 @@ class MemoryCommand(Command):
 
         return True
 
-    def handle_list(self, args: Optional[list[str]] = None) -> bool:
+    def handle_list(self, args: list[str] | None = None) -> bool:
         """List all stored memories."""
         memories = list(MEMORY_DIR.glob("*.md"))
 
@@ -388,7 +388,7 @@ class MemoryCommand(Command):
 
         return True
 
-    def handle_save(self, args: Optional[list[str]] = None, preserve_history: bool = True) -> bool:
+    def handle_save(self, args: list[str] | None = None, preserve_history: bool = True) -> bool:
         """Save current agent history as memory."""
         if not args:
             # Use current active agent
@@ -478,7 +478,7 @@ Model: {get_compact_model() or os.environ.get("KRYON_MODEL", "gpt-4")}
 
         return True
 
-    def handle_apply(self, args: Optional[list[str]] = None) -> bool:
+    def handle_apply(self, args: list[str] | None = None) -> bool:
         """Apply a memory to an agent by injecting it into the system prompt."""
         if not args:
             console.print("[red]Error: Memory ID or name required[/red]")
@@ -624,7 +624,7 @@ Model: {get_compact_model() or os.environ.get("KRYON_MODEL", "gpt-4")}
 
         return True
 
-    def handle_show(self, args: Optional[list[str]] = None) -> bool:
+    def handle_show(self, args: list[str] | None = None) -> bool:
         """Show memory content."""
         if not args:
             console.print("[red]Error: Memory ID or name required[/red]")
@@ -662,7 +662,7 @@ Model: {get_compact_model() or os.environ.get("KRYON_MODEL", "gpt-4")}
 
         return True
 
-    def handle_delete(self, args: Optional[list[str]] = None) -> bool:
+    def handle_delete(self, args: list[str] | None = None) -> bool:
         """Delete a stored memory."""
         if not args:
             console.print("[red]Error: Memory ID or name required[/red]")
@@ -705,7 +705,7 @@ Model: {get_compact_model() or os.environ.get("KRYON_MODEL", "gpt-4")}
 
         return True
 
-    def handle_merge(self, args: Optional[list[str]] = None) -> bool:
+    def handle_merge(self, args: list[str] | None = None) -> bool:
         """Merge multiple memories into one."""
         if not args or len(args) < 2:
             console.print("[red]Error: At least 2 memory IDs or names required[/red]")
@@ -855,7 +855,7 @@ Model: Merged from {len(memory_identifiers)} memories
 
         return True
 
-    def handle_status(self, args: Optional[list[str]] = None) -> bool:
+    def handle_status(self, args: list[str] | None = None) -> bool:
         """Show memory status."""
         console.print("[bold cyan]Memory Status[/bold cyan]\n")
 
@@ -902,7 +902,7 @@ Model: Merged from {len(memory_identifiers)} memories
 
         return True
 
-    def handle_compact(self, args: Optional[list[str]] = None) -> bool:
+    def handle_compact(self, args: list[str] | None = None) -> bool:
         """Compact a specific agent's history or all agents."""
         if not args:
             console.print("[red]Error: Agent name/ID or 'all' required[/red]")
@@ -1128,7 +1128,7 @@ Model: {get_compact_model() or os.environ.get("KRYON_MODEL", "gpt-4")}
         if agent_name in PERSISTENT_MESSAGE_HISTORIES:
             PERSISTENT_MESSAGE_HISTORIES[agent_name].clear()
 
-    async def _ai_summarize_history(self, agent_name: Optional[str] = None) -> Optional[str]:
+    async def _ai_summarize_history(self, agent_name: str | None = None) -> str | None:
         """Use an AI agent to summarize conversation history."""
         # Get history to summarize
         if agent_name:
@@ -1336,7 +1336,7 @@ This session is being continued from a previous conversation that ran out of con
 
         return "\n\n".join(formatted_parts[-50:])  # Limit to last 50 exchanges
 
-    def _get_current_agent_name(self) -> Optional[str]:
+    def _get_current_agent_name(self) -> str | None:
         """Get the name of the current active agent."""
         # First check AGENT_MANAGER for the active agent
         active_agent = AGENT_MANAGER.get_active_agent()
@@ -1496,7 +1496,7 @@ This session is being continued from a previous conversation that ran out of con
             console.print(f"[yellow]Warning: Could not reload agent automatically: {e}[/yellow]")
             console.print("[dim]The memory will be applied on the next agent interaction[/dim]")
 
-    def handle_remove(self, args: Optional[list[str]] = None) -> bool:
+    def handle_remove(self, args: list[str] | None = None) -> bool:
         """Remove a specific memory from an agent."""
         if not args or len(args) < 2:
             console.print("[red]Error: Memory ID and agent name required[/red]")
@@ -1554,7 +1554,7 @@ This session is being continued from a previous conversation that ran out of con
 
         return True
 
-    def handle_clear(self, args: Optional[list[str]] = None) -> bool:
+    def handle_clear(self, args: list[str] | None = None) -> bool:
         """Clear all memories from an agent."""
         if not args:
             console.print("[red]Error: Agent name required[/red]")
@@ -1589,7 +1589,7 @@ This session is being continued from a previous conversation that ran out of con
 
         return True
 
-    def handle_list_applied(self, args: Optional[list[str]] = None) -> bool:
+    def handle_list_applied(self, args: list[str] | None = None) -> bool:
         """Show which memories are applied to an agent."""
         if not args:
             # Show all agents with applied memories
@@ -1667,7 +1667,7 @@ MEMORY_COMMAND_INSTANCE = MemoryCommand()
 register_command(MEMORY_COMMAND_INSTANCE)
 
 
-def get_compacted_summary(agent_name: Optional[str] = None) -> Optional[str]:
+def get_compacted_summary(agent_name: str | None = None) -> str | None:
     """Get compacted summary for injection into system prompt.
 
     This retrieves any applied memory summaries for the agent.
@@ -1723,7 +1723,7 @@ def get_compacted_summary(agent_name: Optional[str] = None) -> Optional[str]:
     return None
 
 
-def get_applied_memory_id(agent_name: str) -> Optional[str]:
+def get_applied_memory_id(agent_name: str) -> str | None:
     """Get the ID of the memory currently applied to an agent.
 
     For backward compatibility, returns first memory ID if multiple exist.

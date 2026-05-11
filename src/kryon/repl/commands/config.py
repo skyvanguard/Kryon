@@ -4,7 +4,6 @@ Config command for KRYON via environmental variables.
 
 # Standard library imports
 import os
-from typing import Optional
 
 # Third party imports
 from rich.console import Console  # pylint: disable=import-error
@@ -237,7 +236,7 @@ class ConfigCommand(Command):
             # If we can't get agents, just skip adding these variables
             pass
 
-    def handle_list(self, _: Optional[list[str]] = None) -> bool:
+    def handle_list(self, _: list[str] | None = None) -> bool:
         """List all environment variables and their values.
 
         Args:
@@ -264,7 +263,7 @@ class ConfigCommand(Command):
         console.print("\nUsage: /config set <number> <value> to configure a variable")
         return True
 
-    def handle_get(self, args: Optional[list[str]] = None) -> bool:
+    def handle_get(self, args: list[str] | None = None) -> bool:
         """Get the value of an environment variable by its number.
 
         Args:
@@ -297,7 +296,7 @@ class ConfigCommand(Command):
             console.print("[red]Error: Variable number must be an integer[/red]")
             return False
 
-    def handle_set(self, args: Optional[list[str]] = None) -> bool:
+    def handle_set(self, args: list[str] | None = None) -> bool:
         """Set an environment variable by its number.
 
         Args:

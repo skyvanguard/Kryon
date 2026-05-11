@@ -765,8 +765,8 @@ def run_kryon_cli(
             # prompt starts with a clean call_id ledger. Without this the
             # _seen set grows for the lifetime of the REPL session.
             try:
-                from kryon.util.streaming import _reset_render_dedup
                 from kryon.repl.ui.tool_output_buffer import new_turn
+                from kryon.util.streaming import _reset_render_dedup
 
                 _reset_render_dedup()
                 new_turn()

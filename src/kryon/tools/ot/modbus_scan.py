@@ -33,7 +33,6 @@ from __future__ import annotations
 import socket
 import struct
 from dataclasses import dataclass, field
-from typing import Any
 
 # MBAP header structure (7 bytes):
 #   transaction_id : uint16 BE
@@ -130,7 +129,7 @@ def _probe_read_coils(host: str, port: int, unit_id: int) -> tuple[bool, bytes]:
     req = _build_request(transaction_id=0x0001, unit_id=unit_id, pdu=pdu)
     try:
         resp = _send_recv(host, port, req)
-    except (OSError, socket.timeout):
+    except (TimeoutError, OSError):
         return False, b""
     mbap = _parse_mbap(resp)
     if mbap is None or len(resp) < 8:
@@ -145,7 +144,7 @@ def _probe_read_holding(host: str, port: int, unit_id: int) -> tuple[bool, bytes
     req = _build_request(transaction_id=0x0002, unit_id=unit_id, pdu=pdu)
     try:
         resp = _send_recv(host, port, req)
-    except (OSError, socket.timeout):
+    except (TimeoutError, OSError):
         return False, b""
     mbap = _parse_mbap(resp)
     if mbap is None or len(resp) < 8:
@@ -167,7 +166,7 @@ def _probe_device_identification(host: str, port: int, unit_id: int) -> dict[str
     req = _build_request(transaction_id=0x0003, unit_id=unit_id, pdu=pdu)
     try:
         resp = _send_recv(host, port, req)
-    except (OSError, socket.timeout):
+    except (TimeoutError, OSError):
         return {}
     if len(resp) < 12 or resp[7] != 0x2B:
         return {}
@@ -218,7 +217,7 @@ def modbus_scan(
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(_CONNECT_TIMEOUT_S)
             s.connect((host, port))
-    except (OSError, socket.timeout) as e:
+    except (TimeoutError, OSError) as e:
         return ModbusScanResult(
             host=host,
             port=port,
@@ -249,7 +248,7 @@ def modbus_scan(
                 len(resp) >= 8
                 and resp[7] == 0x05
             )
-        except (OSError, socket.timeout):
+        except (TimeoutError, OSError):
             write_ok = False
 
     return ModbusScanResult(

@@ -32,7 +32,7 @@ def _parse_last_upgrade_days(dpkg_log_output: str) -> int | None:
 
     Input: `grep -h ' upgrade ' /var/log/dpkg.log*`-style output (head lines: 'YYYY-MM-DD HH:MM:SS upgrade pkg ...')
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
     latest: datetime | None = None
     for line in dpkg_log_output.splitlines():
         m = re.match(r"(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) upgrade ", line)

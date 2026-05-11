@@ -13,7 +13,6 @@ from pathlib import Path
 
 import pytest
 
-
 # ---------- Pure helpers ----------
 
 
@@ -320,7 +319,7 @@ class TestPlatformResolution:
     def test_pilots_present_on_both_platforms(self) -> None:
         """Pin: at least one ready walkthrough exists per platform so the
         F83 scoreboard always has a non-empty data point per column."""
-        from scripts.htb_bench.cli import _load_labset_for, PLATFORMS
+        from scripts.htb_bench.cli import PLATFORMS, _load_labset_for
 
         for plat in PLATFORMS:
             labset = _load_labset_for(plat)
@@ -347,8 +346,8 @@ class TestPlatformResolution:
 
 class TestTryHackMeWalkthroughs:
     def test_bandit_walkthrough_loads(self) -> None:
-        from scripts.htb_bench.runner import load_walkthrough
         from scripts.htb_bench.cli import _resolve_walkthrough
+        from scripts.htb_bench.runner import load_walkthrough
 
         path, _ = _resolve_walkthrough("thm-bandit-ssh-foothold", "tryhackme")
         wt = load_walkthrough(path)
@@ -357,8 +356,8 @@ class TestTryHackMeWalkthroughs:
         assert wt["source"]["type"] == "url"  # ToS-safe — no automation needed
 
     def test_shellshock_walkthrough_loads(self) -> None:
-        from scripts.htb_bench.runner import load_walkthrough
         from scripts.htb_bench.cli import _resolve_walkthrough
+        from scripts.htb_bench.runner import load_walkthrough
 
         path, _ = _resolve_walkthrough("thm-vulhub-shellshock", "tryhackme")
         wt = load_walkthrough(path)

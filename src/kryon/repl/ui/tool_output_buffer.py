@@ -20,7 +20,6 @@ from __future__ import annotations
 import threading
 from typing import Any
 
-
 # Max bytes kept per step's output. Beyond this we truncate with a
 # marker; the original output still goes to the JSONL log.
 MAX_OUTPUT_BYTES_PER_STEP = 65536  # 64 KB

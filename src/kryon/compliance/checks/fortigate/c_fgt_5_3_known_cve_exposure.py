@@ -17,7 +17,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 # (CVE_ID, fixed-in-version triple, fixed-in-version-major-only-fallback,
 #  affected-version-range-textual). Extend as new advisories drop.
 # Format of fixed_in: (major, minor, patch). A running version >= fixed_in

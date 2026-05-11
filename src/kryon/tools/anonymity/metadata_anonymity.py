@@ -19,10 +19,10 @@ This module provides:
 import os
 import struct
 import subprocess
-from typing import Any, Optional
+from typing import Any
 
 
-def strip_exif_metadata(image_path: str, output_path: Optional[str] = None, tool: str = "exiftool") -> dict[str, Any]:
+def strip_exif_metadata(image_path: str, output_path: str | None = None, tool: str = "exiftool") -> dict[str, Any]:
     """
     Strip EXIF metadata from images (JPG, PNG, TIFF, etc.).
 
@@ -176,7 +176,7 @@ def strip_exif_metadata(image_path: str, output_path: Optional[str] = None, tool
     return results
 
 
-def strip_pdf_metadata(pdf_path: str, output_path: Optional[str] = None) -> dict[str, Any]:
+def strip_pdf_metadata(pdf_path: str, output_path: str | None = None) -> dict[str, Any]:
     """
     Strip metadata from PDF files.
 
@@ -277,7 +277,7 @@ def strip_pdf_metadata(pdf_path: str, output_path: Optional[str] = None) -> dict
     return results
 
 
-def strip_office_metadata(doc_path: str, output_path: Optional[str] = None, doc_type: str = "auto") -> dict[str, Any]:
+def strip_office_metadata(doc_path: str, output_path: str | None = None, doc_type: str = "auto") -> dict[str, Any]:
     """
     Strip metadata from Office documents (DOCX, XLSX, PPTX).
 
@@ -436,7 +436,7 @@ def strip_office_metadata(doc_path: str, output_path: Optional[str] = None, doc_
     return results
 
 
-def strip_video_metadata(video_path: str, output_path: Optional[str] = None) -> dict[str, Any]:
+def strip_video_metadata(video_path: str, output_path: str | None = None) -> dict[str, Any]:
     """
     Strip metadata from video files (MP4, AVI, MOV, etc.).
 
@@ -547,7 +547,7 @@ def strip_video_metadata(video_path: str, output_path: Optional[str] = None) -> 
 
 def anonymize_document(
     file_path: str,
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
     strip_metadata: bool = True,
     randomize_timestamps: bool = True,
 ) -> dict[str, Any]:

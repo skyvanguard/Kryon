@@ -9,7 +9,7 @@ import json
 import os
 import subprocess
 import time
-from typing import Any, Optional
+from typing import Any
 
 import rich.box
 from rich.console import Console
@@ -798,7 +798,7 @@ class VirtualizationCommand(Command):
         self.add_subcommand("pull", "Pull a Docker image", self.handle_pull_subcommand)
         self.add_subcommand("run", "Run a Docker container", self.handle_run_subcommand)
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         """Handle the virtualization command.
 
         Args:
@@ -1192,7 +1192,7 @@ class VirtualizationCommand(Command):
             "[dim]When a container is active, all shell commands will execute inside that container. LLM commands will also be executed in this environment.[/dim]"
         )
 
-    def handle_pull_subcommand(self, args: Optional[list[str]] = None) -> bool:
+    def handle_pull_subcommand(self, args: list[str] | None = None) -> bool:
         """Handle the pull subcommand.
 
         Args:
@@ -1232,7 +1232,7 @@ class VirtualizationCommand(Command):
 
         return success
 
-    def handle_run_subcommand(self, args: Optional[list[str]] = None) -> bool:
+    def handle_run_subcommand(self, args: list[str] | None = None) -> bool:
         """Handle the run subcommand.
 
         Args:

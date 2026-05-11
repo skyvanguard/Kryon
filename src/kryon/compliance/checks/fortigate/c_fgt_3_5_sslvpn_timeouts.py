@@ -15,7 +15,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 _MAX_IDLE_SEC = 1800       # 30 min
 _MAX_AUTH_SEC = 28800      # 8 h
 

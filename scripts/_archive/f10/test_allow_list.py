@@ -13,7 +13,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from kryon.services.allow_list import AllowList, SuppressionRule, add_entry, load
+from kryon.services.allow_list import add_entry, load
 
 
 def test_load_missing_yaml() -> None:

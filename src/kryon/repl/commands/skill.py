@@ -16,7 +16,6 @@ import json
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -143,7 +142,7 @@ class SkillCommand(Command):
 
     # ------------------------------------------------------------------
 
-    def handle_list(self, args: Optional[list[str]] = None) -> bool:
+    def handle_list(self, args: list[str] | None = None) -> bool:
         from kryon.skills.loader import SkillLoader
 
         loader = SkillLoader()
@@ -173,7 +172,7 @@ class SkillCommand(Command):
         console.print(table)
         return True
 
-    def handle_show(self, args: Optional[list[str]] = None) -> bool:
+    def handle_show(self, args: list[str] | None = None) -> bool:
         if not args:
             console.print("[red]Usage: /skill show <name>[/red]")
             return False
@@ -186,7 +185,7 @@ class SkillCommand(Command):
         console.print(Panel(Markdown(skill.body), title=skill.name, border_style="cyan"))
         return True
 
-    def handle_search(self, args: Optional[list[str]] = None) -> bool:
+    def handle_search(self, args: list[str] | None = None) -> bool:
         if not args:
             console.print("[red]Usage: /skill search <query>[/red]")
             return False
@@ -212,10 +211,10 @@ class SkillCommand(Command):
         for s in matches[:20]:
             table.add_row(s["name"], s.get("description", "")[:100])
         console.print(table)
-        console.print(f"[dim]Install with: [bold]/skill import <name>[/bold][/dim]")
+        console.print("[dim]Install with: [bold]/skill import <name>[/bold][/dim]")
         return True
 
-    def handle_import(self, args: Optional[list[str]] = None) -> bool:
+    def handle_import(self, args: list[str] | None = None) -> bool:
         if not args:
             console.print("[red]Usage: /skill import <upstream-name>[/red]")
             return False
@@ -253,7 +252,7 @@ class SkillCommand(Command):
         )
         return True
 
-    def handle_reload(self, args: Optional[list[str]] = None) -> bool:
+    def handle_reload(self, args: list[str] | None = None) -> bool:
         from kryon.skills.loader import SkillLoader
 
         loader = SkillLoader()
@@ -266,7 +265,7 @@ class SkillCommand(Command):
     # Drafts (Fase 1 — human-in-the-loop skill review)
     # ------------------------------------------------------------------
 
-    def handle_drafts(self, args: Optional[list[str]] = None) -> bool:
+    def handle_drafts(self, args: list[str] | None = None) -> bool:
         """List synthesized drafts pending review."""
         try:
             from kryon.learning.draft_writer import (
@@ -311,7 +310,7 @@ class SkillCommand(Command):
         )
         return True
 
-    def handle_review(self, args: Optional[list[str]] = None) -> bool:
+    def handle_review(self, args: list[str] | None = None) -> bool:
         """Show the full body of a draft."""
         if not args:
             console.print("[red]Usage: /skill review <draft-name>[/red]")
@@ -347,7 +346,7 @@ class SkillCommand(Command):
         )
         return True
 
-    def handle_promote(self, args: Optional[list[str]] = None) -> bool:
+    def handle_promote(self, args: list[str] | None = None) -> bool:
         """Move ~/.kryon/drafts/<name>.md → playbooks/_drafts/<name>.md."""
         if not args:
             console.print("[red]Usage: /skill promote <draft-name>[/red]")
@@ -396,7 +395,7 @@ class SkillCommand(Command):
         )
         return True
 
-    def handle_discard(self, args: Optional[list[str]] = None) -> bool:
+    def handle_discard(self, args: list[str] | None = None) -> bool:
         if not args:
             console.print("[red]Usage: /skill discard <draft-name>[/red]")
             return False
@@ -417,7 +416,7 @@ class SkillCommand(Command):
     # Scores leaderboard (Fase 2 — experience-derived ranking)
     # ------------------------------------------------------------------
 
-    def handle_scores(self, args: Optional[list[str]] = None) -> bool:
+    def handle_scores(self, args: list[str] | None = None) -> bool:
         """Render a leaderboard of skills by experience-based win rate."""
         try:
             from kryon.learning import list_experiences
@@ -495,7 +494,7 @@ class SkillCommand(Command):
     # Auto pipeline (Fase 3 — pattern detection + auto-synthesis)
     # ------------------------------------------------------------------
 
-    def handle_auto(self, args: Optional[list[str]] = None) -> bool:
+    def handle_auto(self, args: list[str] | None = None) -> bool:
         """Dispatch /skill auto <detect|status>."""
         sub = (args[0].lower() if args else "status")
         if sub == "detect":

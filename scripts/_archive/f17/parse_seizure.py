@@ -1,5 +1,7 @@
 """Parse Seizure-Cipher paperscript and render the canvas to image + OCR."""
-import re, math, json, sys
+import json
+import math
+import re
 
 body = open('/tmp/sc.html').read()
 idx = body.find('paperscript')

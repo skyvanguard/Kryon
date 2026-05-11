@@ -247,7 +247,7 @@ def dnp3_probe(
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(_CONNECT_TIMEOUT_S)
             s.connect((host, port))
-    except (OSError, socket.timeout) as e:
+    except (TimeoutError, OSError) as e:
         return DNP3ProbeResult(
             host=host,
             port=port,
@@ -260,7 +260,7 @@ def dnp3_probe(
     frame = _build_read_class0_frame(source=source, destination=destination)
     try:
         response = _send_recv(host, port, frame)
-    except (OSError, socket.timeout) as e:
+    except (TimeoutError, OSError) as e:
         return DNP3ProbeResult(
             host=host,
             port=port,

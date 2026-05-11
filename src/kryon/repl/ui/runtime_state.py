@@ -21,7 +21,6 @@ from __future__ import annotations
 import threading
 from typing import Any
 
-
 _lock = threading.Lock()
 _state: dict[str, Any] = {
     "skill_names": [],

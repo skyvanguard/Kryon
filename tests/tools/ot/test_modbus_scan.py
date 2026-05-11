@@ -94,7 +94,7 @@ class _MockSocket:
         self._buffer = self._buffer[n:]
         return chunk
 
-    def __enter__(self) -> "_MockSocket":
+    def __enter__(self) -> _MockSocket:
         return self
 
     def __exit__(self, *exc: object) -> None:
@@ -150,7 +150,7 @@ class TestReachability:
             def __enter__(self): return self
             def __exit__(self, *a): return None
             def settimeout(self, _t): pass
-            def connect(self, _a): raise socket.timeout("slow")
+            def connect(self, _a): raise TimeoutError("slow")
 
         monkeypatch.setattr(socket, "socket", lambda *a, **k: _Timeout())
 

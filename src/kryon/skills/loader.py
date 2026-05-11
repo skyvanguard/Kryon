@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -177,9 +177,10 @@ def _parse_skill_file(path: Path) -> Skill | None:
     if "pre_hooks:" in fm_text:
         try:
             import yaml  # PyYAML, available in our base deps via transitives
+
             from kryon.skills.pre_hook_spec import (
-                parse_pre_hooks,
                 PreHookSchemaError,
+                parse_pre_hooks,
             )
 
             full = yaml.safe_load(fm_text) or {}

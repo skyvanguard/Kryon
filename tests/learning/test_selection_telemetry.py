@@ -191,11 +191,12 @@ def test_read_recent_returns_newest_first(log_dir: Path) -> None:
 
 def test_read_recent_handles_missing_log() -> None:
     """No log yet — read_recent returns []."""
-    from kryon.learning.selection_telemetry import read_recent
-
     # Don't override env — points at default ~/.kryon/selection_log.jsonl
     # which may not exist on the test runner. Use a guaranteed-missing path.
-    import os, tempfile
+    import os
+    import tempfile
+
+    from kryon.learning.selection_telemetry import read_recent
 
     with tempfile.TemporaryDirectory() as td:
         os.environ["KRYON_SELECTION_LOG"] = str(Path(td) / "ghost.jsonl")

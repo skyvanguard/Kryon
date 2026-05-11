@@ -15,7 +15,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 _DEFAULT_PORTS = {"443", "10443"}
 
 

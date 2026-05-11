@@ -1,4 +1,3 @@
-from typing import Optional
 
 import graphviz  # type: ignore
 
@@ -31,7 +30,7 @@ def get_main_graph(agent: Agent) -> str:
     return "".join(parts)
 
 
-def get_all_nodes(agent: Agent, parent: Optional[Agent] = None) -> str:
+def get_all_nodes(agent: Agent, parent: Agent | None = None) -> str:
     """
     Recursively generates the nodes for the given agent and its handoffs in DOT format.
 
@@ -81,7 +80,7 @@ def get_all_nodes(agent: Agent, parent: Optional[Agent] = None) -> str:
     return "".join(parts)
 
 
-def get_all_edges(agent: Agent, parent: Optional[Agent] = None) -> str:
+def get_all_edges(agent: Agent, parent: Agent | None = None) -> str:
     """
     Recursively generates the edges for the given agent and its handoffs in DOT format.
 
@@ -117,7 +116,7 @@ def get_all_edges(agent: Agent, parent: Optional[Agent] = None) -> str:
     return "".join(parts)
 
 
-def draw_graph(agent: Agent, filename: Optional[str] = None) -> graphviz.Source:
+def draw_graph(agent: Agent, filename: str | None = None) -> graphviz.Source:
     """
     Draws the graph for the given agent and optionally saves it as a PNG file.
 

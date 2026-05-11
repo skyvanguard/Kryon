@@ -10,7 +10,6 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-
 FAKE_RESPONSE = {
     "choices": [{
         "message": {

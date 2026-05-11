@@ -19,7 +19,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 _REQUIRED_WATCHES = (
     r"-w\s+/etc/passwd",
     r"-w\s+/etc/shadow",

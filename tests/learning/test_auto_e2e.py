@@ -83,7 +83,8 @@ def test_auto_detect_passed_flow_writes_files(
 
     # Stub findings_library.list → return wordpress SQLi findings.
     # The handler imports it lazily so we patch the module path directly.
-    import sys, types
+    import sys
+    import types
 
     fake_fnd = types.ModuleType("kryon.learning.findings_library")
     fake_fnd.list = lambda: [_finding("CWE-89") for _ in range(5)]  # type: ignore[attr-defined]
@@ -177,7 +178,8 @@ def test_passed_auto_draft_can_be_loaded_via_skill_loader(
     exps = [_experience(f"e{i}", ["nmap", "nuclei_scan"], ["wordpress"]) for i in range(3)]
     stub_list_experiences(exps)
 
-    import sys, types
+    import sys
+    import types
 
     fake_fnd = types.ModuleType("kryon.learning.findings_library")
     fake_fnd.list = lambda: [_finding("CWE-89") for _ in range(5)]  # type: ignore[attr-defined]

@@ -11,11 +11,9 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 import time
 import urllib.request
 from pathlib import Path
-
 
 LABELED = Path("/tmp/f13_gnucash_labeled.jsonl")
 OUT = Path("/tmp/f13_gnucash_triaged.jsonl")

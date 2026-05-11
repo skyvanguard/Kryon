@@ -13,7 +13,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 # PCI-DSS 8.1.8 ceiling. We also surface a stricter "preferred" of 5min.
 _MAX_TIMEOUT_MINUTES = 15
 _PREFERRED_TIMEOUT_MINUTES = 5

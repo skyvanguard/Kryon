@@ -19,7 +19,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 _WEB_PORTS = {80, 443, 8080, 8443, 8000, 8888}
 
 _REQUIRED_HEADERS_HTTP = ("content-security-policy", "x-frame-options", "x-content-type-options")

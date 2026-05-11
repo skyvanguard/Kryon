@@ -11,8 +11,6 @@ the current turn.
 
 from __future__ import annotations
 
-from typing import Optional
-
 from rich.console import Console
 
 from kryon.repl.commands.base import Command, register_command
@@ -29,7 +27,7 @@ class ShowCommand(Command):
             description="Show the full output of a previously-collapsed tool step",
         )
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         if not args:
             console.print(
                 "[red]Usage: /show <step_number>[/red]\n"

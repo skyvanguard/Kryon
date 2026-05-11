@@ -13,7 +13,6 @@ from typing import Iterator
 
 import pytest
 
-
 # ---------- DNP3 frame helpers ----------
 
 
@@ -69,7 +68,7 @@ class _MockSocket:
         self._buffer = self._buffer[n:]
         return chunk
 
-    def __enter__(self) -> "_MockSocket": return self
+    def __enter__(self) -> _MockSocket: return self
     def __exit__(self, *exc: object) -> None: return None
 
 

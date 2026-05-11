@@ -18,12 +18,12 @@ This module provides:
 import glob
 import os
 import subprocess
-from typing import Any, Optional
+from typing import Any
 
 
 def clean_linux_logs(
     comprehensive: bool = True,
-    specific_logs: Optional[list[str]] = None,
+    specific_logs: list[str] | None = None,
     preserve_size: bool = True,
 ) -> dict[str, Any]:
     """

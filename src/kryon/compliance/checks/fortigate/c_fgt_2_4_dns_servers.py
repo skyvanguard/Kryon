@@ -16,7 +16,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 # Allowed public DNS that FortiGate uses by design (FortiGuard servers).
 _VENDOR_DNS = {
     "208.91.112.53", "208.91.112.52",         # FortiGuard

@@ -2,9 +2,9 @@
 what the model actually produces under the exact same conditions.
 """
 import json
+import os
 import sys
 import urllib.request
-import os
 
 path = sys.argv[1]
 call_idx = int(sys.argv[2])

@@ -23,7 +23,7 @@ import json
 import os
 import time
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 try:
     from openai import OpenAI
@@ -66,7 +66,7 @@ class AutonomousDecision:
     def __init__(
         self,
         mode: OperationMode = OperationMode.MODERATE,
-        llm_config: Optional[dict] = None,
+        llm_config: dict | None = None,
         enable_logging: bool = True,
     ):
         """

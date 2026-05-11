@@ -11,7 +11,7 @@ from kryon.repl.commands import (  # pylint: disable=import-error,unused-import,
     allow,  # /allow — F10.1 per-engagement allow-list
     compact,  # Add the compact command
     config,
-    corpus,   # /corpus — inspect the CVE-with-diff corpus (F4.5)
+    corpus,  # /corpus — inspect the CVE-with-diff corpus (F4.5)
     dry_run,  # /dry-run — toggle simulation of destructive commands
     env,
     exit,

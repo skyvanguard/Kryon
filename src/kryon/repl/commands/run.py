@@ -6,7 +6,6 @@ queue prompts for different agents and then execute them all.
 """
 
 import os
-from typing import Optional
 
 from rich.console import Console
 from rich.table import Table
@@ -34,7 +33,7 @@ class RunCommand(Command):
         self.add_subcommand("clear", "Clear all queued prompts", self.handle_clear)
         self.add_subcommand("remove", "Remove a specific queued prompt", self.handle_remove)
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         """Handle the run command - execute all queued prompts.
 
         Args:
@@ -78,7 +77,7 @@ class RunCommand(Command):
 
         return True
 
-    def handle_queue(self, args: Optional[list[str]] = None) -> bool:
+    def handle_queue(self, args: list[str] | None = None) -> bool:
         """Queue a prompt for a specific agent.
 
         Args:
@@ -113,7 +112,7 @@ class RunCommand(Command):
 
         return True
 
-    def handle_list(self, args: Optional[list[str]] = None) -> bool:
+    def handle_list(self, args: list[str] | None = None) -> bool:
         """List all queued prompts.
 
         Args:
@@ -154,7 +153,7 @@ class RunCommand(Command):
 
         return True
 
-    def handle_clear(self, args: Optional[list[str]] = None) -> bool:
+    def handle_clear(self, args: list[str] | None = None) -> bool:
         """Clear all queued prompts.
 
         Args:
@@ -169,7 +168,7 @@ class RunCommand(Command):
         console.print(f"[green]Cleared {count} queued prompts[/green]")
         return True
 
-    def handle_remove(self, args: Optional[list[str]] = None) -> bool:
+    def handle_remove(self, args: list[str] | None = None) -> bool:
         """Remove a specific queued prompt by index.
 
         Args:

@@ -28,7 +28,6 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
-
 # Z-score for a 95% confidence interval (two-sided).
 _Z_95 = 1.96
 

@@ -29,16 +29,12 @@ for architecture and data model.
 """
 
 # ---- Capture layer (existing) ----
-from kryon.learning.chain_extractor import extract_chain_from_history
-from kryon.learning.experiences import (
-    add_experience,
-    count_experiences,
-    delete_experience,
-    get_experience,
-    list_experiences,
-    recall_similar,
+# ---- Auto-creation with eval gate (Fase 3) ----
+from kryon.learning.auto_pipeline import (
+    PipelineResult,
+    run_auto_pipeline,
 )
-from kryon.learning.profiler import build_profile
+from kryon.learning.chain_extractor import extract_chain_from_history
 
 # ---- Drafting layer (Fase 1) ----
 from kryon.learning.draft_writer import (
@@ -49,29 +45,13 @@ from kryon.learning.draft_writer import (
     try_synthesize_and_persist,
     write_draft,
 )
-from kryon.learning.skill_synthesizer import (
-    SkillDraft,
-    synthesize_draft,
-    synthesize_from_cluster,
-)
-
-# ---- Scoring + bandit (Fase 2) ----
-from kryon.learning.selection_telemetry import (
-    log_selection,
-    read_recent,
-)
-from kryon.learning.skill_scorer import (
-    SkillScore,
-    rank_skills_hybrid,
-    rank_skills_score_only,
-    score_skills,
-    wilson_lower_bound,
-)
-
-# ---- Auto-creation with eval gate (Fase 3) ----
-from kryon.learning.auto_pipeline import (
-    PipelineResult,
-    run_auto_pipeline,
+from kryon.learning.experiences import (
+    add_experience,
+    count_experiences,
+    delete_experience,
+    get_experience,
+    list_experiences,
+    recall_similar,
 )
 from kryon.learning.pattern_detector import (
     ChainCluster,
@@ -81,12 +61,30 @@ from kryon.learning.pattern_detector import (
     jaccard,
     profile_similarity,
 )
+from kryon.learning.profiler import build_profile
+
+# ---- Scoring + bandit (Fase 2) ----
+from kryon.learning.selection_telemetry import (
+    log_selection,
+    read_recent,
+)
 from kryon.learning.skill_evaluator import (
     EvalReport,
     evaluate_draft_against_corpus,
     load_cwe_map_override,
 )
-
+from kryon.learning.skill_scorer import (
+    SkillScore,
+    rank_skills_hybrid,
+    rank_skills_score_only,
+    score_skills,
+    wilson_lower_bound,
+)
+from kryon.learning.skill_synthesizer import (
+    SkillDraft,
+    synthesize_draft,
+    synthesize_from_cluster,
+)
 
 __all__ = [
     # Capture

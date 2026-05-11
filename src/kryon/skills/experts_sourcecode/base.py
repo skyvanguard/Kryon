@@ -23,7 +23,6 @@ from typing import Iterator
 from kryon.skills.patterns import iter_all_patterns
 from kryon.skills.validator_agent import Finding
 
-
 # File extensions we consider source code worth scanning. The Juliet test
 # suite and most C/C++ OSS use .c / .cpp / .h / .hpp; Python / JS are
 # handled by separate experts in the web pipeline.

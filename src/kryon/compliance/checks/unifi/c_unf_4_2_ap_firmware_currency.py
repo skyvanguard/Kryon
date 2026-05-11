@@ -17,7 +17,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 # Threshold in minor revisions. Anything above is FAIL.
 _MAX_MINOR_BEHIND = 2
 

@@ -4,7 +4,6 @@ This module provides commands for clearing conversation history.
 """
 
 import os
-from typing import Optional
 
 from rich.console import Console  # pylint: disable=import-error
 from rich.panel import Panel  # pylint: disable=import-error
@@ -29,7 +28,7 @@ class FlushCommand(Command):
         self.add_subcommand("all", "Clear history for all agents", self.handle_all)
         self.add_subcommand("agent", "Clear history for a specific agent", self.handle_agent)
 
-    def handle(self, args: Optional[list[str]] = None, messages: Optional[list[dict]] = None) -> bool:
+    def handle(self, args: list[str] | None = None, messages: list[dict] | None = None) -> bool:
         """Handle the flush command.
 
         Args:
@@ -126,7 +125,7 @@ class FlushCommand(Command):
 
         return True
 
-    def handle_all(self, args: Optional[list[str]] = None) -> bool:
+    def handle_all(self, args: list[str] | None = None) -> bool:
         """Clear history for all agents."""
         try:
             from kryon.sdk.agents.models.openai_chatcompletions import (
@@ -191,7 +190,7 @@ class FlushCommand(Command):
 
         return True
 
-    def handle_agent(self, args: Optional[list[str]] = None) -> bool:
+    def handle_agent(self, args: list[str] | None = None) -> bool:
         """Clear history for a specific agent using 'agent' subcommand."""
         if not args:
             console.print("[red]Error: Agent name required[/red]")
@@ -513,7 +512,7 @@ class FlushCommand(Command):
 
         return True
 
-    def handle_no_args(self, messages: Optional[list[dict]] = None) -> bool:
+    def handle_no_args(self, messages: list[dict] | None = None) -> bool:
         """Legacy method for backward compatibility."""
         return self.handle_current_agent()
 

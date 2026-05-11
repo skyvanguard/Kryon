@@ -22,7 +22,6 @@ from typing import Any
 
 from kryon.sdk.agents import function_tool
 
-
 # Framework → control_id prefix mapping (used by both tools for filtering).
 # "all" keeps every check. Reserved keys here stay aligned with the CLI
 # wrapper scripts/kryon-audit.sh.
@@ -108,12 +107,12 @@ def run_compliance_audit(
     prefixes = _FRAMEWORK_PREFIX.get(fw_key, ())
 
     try:
-        from kryon.compliance.runner import (
-            run_all,
-            reproducibility_hash,
-            _import_all_checks,
-        )
         from kryon.compliance.checks.base import CheckContext
+        from kryon.compliance.runner import (
+            _import_all_checks,
+            reproducibility_hash,
+            run_all,
+        )
     except ImportError as exc:
         return json.dumps({"error": f"compliance module not loadable: {exc}"})
 
@@ -131,7 +130,7 @@ def run_compliance_audit(
         results = all_results
     hash_ = reproducibility_hash(results)
 
-    summary = {v: 0 for v in ("PASS", "FAIL", "N/A", "ERROR")}
+    summary = dict.fromkeys(("PASS", "FAIL", "N/A", "ERROR"), 0)
     findings: list[dict[str, Any]] = []
     for r in results:
         summary[r.verdict] = summary.get(r.verdict, 0) + 1
@@ -202,12 +201,12 @@ def _run_compliance_pdf(
     from pathlib import Path
 
     try:
-        from kryon.compliance.runner import (
-            run_all,
-            reproducibility_hash,
-            _import_all_checks,
-        )
         from kryon.compliance.checks.base import CheckContext
+        from kryon.compliance.runner import (
+            _import_all_checks,
+            reproducibility_hash,
+            run_all,
+        )
         from kryon.reporting.compliance_pdf import render_pdf
     except ImportError as exc:
         return json.dumps({"error": f"reporting module not loadable: {exc}"})

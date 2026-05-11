@@ -17,7 +17,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 _TRUSTHOST_LINE = re.compile(
     r"^\s*set\s+trusthost\d+\s+(\S+)\s+(\S+)\s*$",
     re.M,

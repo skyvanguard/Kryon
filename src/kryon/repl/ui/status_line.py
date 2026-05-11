@@ -20,7 +20,6 @@ import time
 from typing import Any
 
 from kryon.repl.ui.theme import (
-    ACCENT_DIM,
     accent,
     dim,
     err,

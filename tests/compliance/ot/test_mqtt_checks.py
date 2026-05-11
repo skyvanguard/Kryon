@@ -9,9 +9,9 @@ from kryon.tools.ot.mqtt_industrial_audit import MqttProbeResult
 
 
 def _stub_audit(monkeypatch: pytest.MonkeyPatch, result: MqttProbeResult) -> None:
-    import kryon.tools.ot.mqtt_industrial_audit as src
     import kryon.compliance.checks.ot.mqtt.c_mqtt_1_1_anonymous_connect as c11
     import kryon.compliance.checks.ot.mqtt.c_mqtt_2_1_sys_topic_disclosure as c21
+    import kryon.tools.ot.mqtt_industrial_audit as src
 
     fake = lambda *a, **k: result  # noqa: E731
     monkeypatch.setattr(src, "mqtt_industrial_audit", fake)

@@ -19,7 +19,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 # Update on each Kryon release. As of 2026-04-28 the FortiOS GA branches
 # under active maintenance are 7.6.x and 7.4.x; 7.2.x is in extended
 # support. So the supported floor is 7.2.x; below that is FAIL.

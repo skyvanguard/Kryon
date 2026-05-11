@@ -29,7 +29,6 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
-
 # Jaccard threshold for "same chain pattern". 0.75 = mostly same tool order.
 _DEFAULT_SIMILARITY_THRESHOLD = 0.75
 _MIN_REPETITIONS = 3

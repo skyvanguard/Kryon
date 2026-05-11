@@ -21,7 +21,6 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-
 _SEV_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
 _VERDICT_COLOR = {
     "FAIL": "#c1272d",

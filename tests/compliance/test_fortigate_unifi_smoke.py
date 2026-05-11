@@ -234,8 +234,8 @@ def test_run_compliance_audit_with_fortigate_framework_returns_only_fgt() -> Non
     else:
         # function_tool wraps to async; smoke-call the sync inner where present.
         # The simplest stable surface is to import the underlying logic directly.
-        from kryon.compliance.runner import _import_all_checks, run_all, reproducibility_hash
         from kryon.compliance.checks.base import CheckContext as _Ctx
+        from kryon.compliance.runner import _import_all_checks, reproducibility_hash, run_all
         _import_all_checks()
         all_results = run_all(_Ctx(host="localhost"))
         fgt = [r for r in all_results if r.control_id.startswith("FGT-")]

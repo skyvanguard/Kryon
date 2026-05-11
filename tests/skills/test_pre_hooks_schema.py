@@ -28,12 +28,11 @@ import pytest
 
 # These imports must work after Fase 1 lands. Tests fail until then.
 from kryon.skills.pre_hook_spec import (  # noqa: E402
-    PreHookSpec,
-    PreHookSchemaError,
-    parse_pre_hooks,
     ALLOWED_TEMPLATE_VARS,
+    PreHookSchemaError,
+    PreHookSpec,
+    parse_pre_hooks,
 )
-
 
 # ---------- Valid shapes ----------
 

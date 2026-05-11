@@ -12,7 +12,6 @@ import sys
 
 import pytest
 
-
 try:
     _runner = importlib.import_module("kryon.compliance.runners.winrm_runner")
     _base = importlib.import_module("kryon.compliance.checks.base")

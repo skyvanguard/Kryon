@@ -16,7 +16,6 @@ from typing import Any
 
 import pytest
 
-
 # ---------- Helpers ----------
 
 
@@ -288,6 +287,7 @@ def test_representative_profile_aggregates_member_tech() -> None:
 
 def test_chain_cluster_is_frozen() -> None:
     from dataclasses import FrozenInstanceError
+
     from kryon.learning.pattern_detector import ChainCluster
 
     c = ChainCluster(

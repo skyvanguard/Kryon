@@ -14,7 +14,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 _MAX_SUPER_ADMINS = 2
 
 

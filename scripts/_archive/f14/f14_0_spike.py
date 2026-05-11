@@ -19,11 +19,9 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 import time
 import urllib.request
 from pathlib import Path
-
 
 SCENARIOS = Path("/tmp/f14_scenarios.yaml")
 OUT = Path("/tmp/f14_spike_results.jsonl")

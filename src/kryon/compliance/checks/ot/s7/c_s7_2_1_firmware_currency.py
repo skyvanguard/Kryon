@@ -24,7 +24,6 @@ from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check
 from kryon.tools.ot.s7_enum import s7_enum
 
-
 # Tuples of (order_code_prefix, min_safe_version_tuple).
 # A firmware below the second entry is flagged FAIL.
 _VULN_BANDS = (

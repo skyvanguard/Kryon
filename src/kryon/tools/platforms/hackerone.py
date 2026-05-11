@@ -47,14 +47,11 @@ Security notes:
 
 from __future__ import annotations
 
-import base64
-import fnmatch
 import json
 import os
-import re
 import threading
 import time
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 try:
@@ -72,7 +69,7 @@ _RL_CALLS: list[float] = []
 _RL_MAX_PER_MINUTE = 600
 
 
-def _auth() -> Optional[tuple[str, str]]:
+def _auth() -> tuple[str, str] | None:
     """Return (username, token) tuple or None if env vars missing."""
     user = os.environ.get("HACKERONE_API_USERNAME", "").strip()
     token = os.environ.get("HACKERONE_API_TOKEN", "").strip()
@@ -106,7 +103,7 @@ def _rate_limit_ok() -> bool:
     return True
 
 
-def _get(path: str, params: Optional[dict] = None) -> dict[str, Any]:
+def _get(path: str, params: dict | None = None) -> dict[str, Any]:
     """Authenticated GET against HackerOne API. Returns dict (or an
     ``{"error": "..."}`` shape on failure)."""
     if requests is None:
@@ -240,7 +237,7 @@ def _match_asset(target_url: str, asset_id: str, asset_type: str) -> bool:
 
 
 def is_in_scope(
-    target_url: str, program_handle: str, scope_cache: Optional[dict] = None,
+    target_url: str, program_handle: str, scope_cache: dict | None = None,
 ) -> tuple[bool, str]:
     """Python helper (NOT a @function_tool).
 
@@ -263,7 +260,7 @@ def is_in_scope(
     # wildcard. Programs commonly scope "*.example.com" + exclude
     # specific subdomains (admin.example.com, internal.*, etc).
     assets = scope_cache.get("data") or []
-    matched_allow: Optional[str] = None
+    matched_allow: str | None = None
     matched_allow_type: str = ""
     for asset in assets:
         attrs = asset.get("attributes") or {}
@@ -447,7 +444,7 @@ def h1_submit_report(
         progs = _get("/me/programs", params={"page[size]": 100})
     if "error" in progs:
         return json.dumps(progs)
-    program_id: Optional[str] = None
+    program_id: str | None = None
     for item in progs.get("data") or []:
         attrs = item.get("attributes") or {}
         if attrs.get("handle") == program_handle:

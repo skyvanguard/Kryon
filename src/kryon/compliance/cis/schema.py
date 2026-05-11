@@ -13,8 +13,8 @@ stay as hand-written modules under ``compliance/checks/``.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Literal, Optional
+from dataclasses import dataclass
+from typing import Literal
 
 Severity = Literal["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
 
@@ -40,15 +40,15 @@ class PassWhen:
         ``not_``                 the sub-expression fails
     """
 
-    stdout_contains: Optional[str] = None
-    stdout_not_contains: Optional[str] = None
-    stdout_matches: Optional[str] = None
-    stdout_not_matches: Optional[str] = None
-    stdout_empty: Optional[bool] = None
-    exit_code_is: Optional[int] = None
-    all_of: Optional[tuple["PassWhen", ...]] = None
-    any_of: Optional[tuple["PassWhen", ...]] = None
-    not_: Optional["PassWhen"] = None
+    stdout_contains: str | None = None
+    stdout_not_contains: str | None = None
+    stdout_matches: str | None = None
+    stdout_not_matches: str | None = None
+    stdout_empty: bool | None = None
+    exit_code_is: int | None = None
+    all_of: tuple[PassWhen, ...] | None = None
+    any_of: tuple[PassWhen, ...] | None = None
+    not_: PassWhen | None = None
 
 
 @dataclass(frozen=True)

@@ -18,7 +18,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 # Minimum major.minor that is still vendor-supported as of bench date.
 SUPPORTED_MIN = (8, 0)
 EOL_MAJOR = {7: "2024-07", 6: "2022-07"}

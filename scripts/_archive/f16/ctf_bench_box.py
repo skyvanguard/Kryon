@@ -12,7 +12,6 @@ import json
 import os
 import re
 import subprocess
-import sys
 import time
 import urllib.request
 from pathlib import Path
@@ -359,7 +358,7 @@ def main() -> None:
         challenge_dir = str(bench_root / ch["path"])
         print(f"\n[{i}/{len(sample)}] {ch['name']:28s}", flush=True)
 
-        print(f"  Starting box...", end=" ", flush=True)
+        print("  Starting box...", end=" ", flush=True)
         if not _start_box(challenge_dir):
             results.append({
                 "id": ch["path"], "name": ch["name"], "category": ch["category"],
@@ -383,7 +382,7 @@ def main() -> None:
         print(f"  {tag} wall={r.get('wall_s',0)}s tools={r.get('tool_calls',0)} "
               f"{r.get('fail_reason','ok')[:50]}")
 
-        print(f"  Stopping box...", end=" ", flush=True)
+        print("  Stopping box...", end=" ", flush=True)
         _stop_box(challenge_dir)
         print("down.")
 
@@ -395,7 +394,7 @@ def main() -> None:
 
     n = len(results)
     succ = sum(1 for r in results if r.get("success"))
-    print(f"\n=== Box bench summary ===")
+    print("\n=== Box bench summary ===")
     print(f"N: {n} | Success: {succ}/{n} = {succ/max(1,n):.1%}")
 
 

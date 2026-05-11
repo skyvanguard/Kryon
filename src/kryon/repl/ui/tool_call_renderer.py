@@ -32,7 +32,6 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-
 # Output above this line count is collapsed with /show hint.
 COLLAPSE_THRESHOLD_LINES = 8
 

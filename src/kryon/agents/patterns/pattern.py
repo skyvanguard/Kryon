@@ -7,7 +7,7 @@ based on the pattern type (parallel, swarm, hierarchical, etc.).
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Union
 
 from kryon.repl.commands.parallel import ParallelConfig
 
@@ -45,16 +45,16 @@ class Pattern:
 
     # Type-specific attributes
     configs: list[ParallelConfig] = field(default_factory=list)  # For parallel
-    entry_agent: Optional[Any] = None  # For swarm
+    entry_agent: Any | None = None  # For swarm
     agents: list[Any] = field(default_factory=list)  # For swarm/hierarchical
-    root_agent: Optional[Any] = None  # For hierarchical
+    root_agent: Any | None = None  # For hierarchical
     sequence: list[Any] = field(default_factory=list)  # For sequential
     conditions: dict[str, Any] = field(default_factory=dict)  # For conditional
 
     # Common configuration options
-    max_concurrent: Optional[int] = None
+    max_concurrent: int | None = None
     unified_context: bool = True
-    timeout: Optional[float] = None
+    timeout: float | None = None
     retry_on_failure: bool = False
 
     # Metadata
@@ -135,7 +135,7 @@ class Pattern:
         self.sequence.append({"agent": agent, "wait_for_previous": wait_for_previous})
         return self
 
-    def add_condition(self, condition_name: str, agent: Any, predicate: Optional[Callable] = None) -> "Pattern":
+    def add_condition(self, condition_name: str, agent: Any, predicate: Callable | None = None) -> "Pattern":
         """Add a conditional branch."""
         if self.type != PatternType.CONDITIONAL:
             raise ValueError(f"add_condition only works for CONDITIONAL patterns, not {self.type.value}")
@@ -255,7 +255,7 @@ class Pattern:
 
 
 # Factory functions for creating patterns
-def parallel_pattern(name: str, description: str = "", agents: Optional[list[str]] = None, **kwargs) -> Pattern:
+def parallel_pattern(name: str, description: str = "", agents: list[str] | None = None, **kwargs) -> Pattern:
     """Create a parallel execution pattern."""
     pattern = Pattern(name=name, type=PatternType.PARALLEL, description=description, **kwargs)
 
@@ -267,7 +267,7 @@ def parallel_pattern(name: str, description: str = "", agents: Optional[list[str
 
 
 def swarm_pattern(
-    name: str, entry_agent: Any, description: str = "", agents: Optional[list[Any]] = None, **kwargs
+    name: str, entry_agent: Any, description: str = "", agents: list[Any] | None = None, **kwargs
 ) -> Pattern:
     """Create a swarm collaboration pattern."""
     pattern = Pattern(name=name, type=PatternType.SWARM, description=description, **kwargs)
@@ -283,7 +283,7 @@ def hierarchical_pattern(
     name: str,
     root_agent: Any,
     description: str = "",
-    children: Optional[list[Any]] = None,
+    children: list[Any] | None = None,
     **kwargs,
 ) -> Pattern:
     """Create a hierarchical pattern."""

@@ -8,7 +8,6 @@ from typing import Iterator
 
 import pytest
 
-
 # ---------- MQTT frame helpers ----------
 
 
@@ -60,14 +59,14 @@ class _MockSocket:
         if (self._drain_after is not None
                 and self._sends_seen >= self._drain_after
                 and not self._buffer):
-            raise socket.timeout("simulated drain timeout")
+            raise TimeoutError("simulated drain timeout")
         chunk = self._buffer[:n]
         self._buffer = self._buffer[n:]
         return chunk
 
     def close(self) -> None: pass
 
-    def __enter__(self) -> "_MockSocket": return self
+    def __enter__(self) -> _MockSocket: return self
     def __exit__(self, *exc: object) -> None: self.close()
 
 

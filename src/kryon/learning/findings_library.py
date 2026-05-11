@@ -25,10 +25,9 @@ import json
 import logging
 import os
 import re
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
@@ -321,8 +320,8 @@ def recall_similar(
     query: str,
     k: int = 5,
     *,
-    filter_cwe: Optional[str] = None,
-    filter_tech: Optional[str] = None,
+    filter_cwe: str | None = None,
+    filter_tech: str | None = None,
 ) -> list[dict[str, Any]]:
     """Retrieve top-k findings similar to the query string.
 
@@ -333,7 +332,7 @@ def recall_similar(
     Score is in [0, 1]; higher = more similar.
     """
     collection = _get_collection()
-    where: Optional[dict] = None
+    where: dict | None = None
     if filter_cwe and filter_tech:
         where = {"$and": [{"cwe_id": filter_cwe}, {"tech_fingerprint": filter_tech}]}
     elif filter_cwe:

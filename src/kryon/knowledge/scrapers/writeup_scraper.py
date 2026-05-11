@@ -6,7 +6,7 @@ Scrape CTF writeups from various sources (HTB, THM, blogs).
 """
 
 import time
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -33,7 +33,7 @@ class WriteupScraper(BaseScraper):
         """Get source name."""
         return self.source_name
 
-    def scrape(self, sources: Optional[list[str]] = None, max_results: int = 100) -> list[dict[str, Any]]:
+    def scrape(self, sources: list[str] | None = None, max_results: int = 100) -> list[dict[str, Any]]:
         """
         Scrape writeups from various sources.
 

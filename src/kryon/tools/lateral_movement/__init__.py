@@ -22,6 +22,7 @@ Authorization: Only use within authorized penetration testing scope.
 
 # --- Red-team gate (F12.8) --- disabled by default; see docs/RED_TEAM_MODULES.md
 from kryon.tools._offensive_gate import require_red_team
+
 require_red_team(__name__)
 # --- end gate ---
 

@@ -7,7 +7,7 @@ Scrape vulnerability information from NIST National Vulnerability Database.
 
 import time
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -34,7 +34,7 @@ class NVDScraper(BaseScraper):
     def scrape(
         self,
         days_back: int = 30,
-        keywords: Optional[list[str]] = None,
+        keywords: list[str] | None = None,
         severity_min: str = "MEDIUM",
         max_results: int = 500,
         cvss_min: float = 0.0,

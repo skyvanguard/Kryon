@@ -209,7 +209,7 @@ def _drain_publishes(sock: socket.socket, timeout_s: float = 1.0) -> list[bytes]
             if not chunk:
                 break
             frames.append(chunk)
-    except (socket.timeout, OSError):
+    except (TimeoutError, OSError):
         pass
     return frames
 
@@ -232,7 +232,7 @@ def mqtt_industrial_audit(
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(_CONNECT_TIMEOUT_S)
         sock.connect((host, port))
-    except (OSError, socket.timeout) as e:
+    except (TimeoutError, OSError) as e:
         return MqttProbeResult(
             host=host,
             port=port,
@@ -246,7 +246,7 @@ def mqtt_industrial_audit(
         # Step 2 — anonymous CONNECT.
         try:
             connack = _send_recv(sock, _build_connect(), want_bytes=4)
-        except (OSError, socket.timeout) as e:
+        except (TimeoutError, OSError) as e:
             return MqttProbeResult(
                 host=host,
                 port=port,
@@ -294,7 +294,7 @@ def mqtt_industrial_audit(
                     # Move cursor past this PUBLISH frame.
                     rem_len, body_start = _decode_remaining_length(raw[cursor:], start=1)
                     cursor += body_start + rem_len
-        except (OSError, socket.timeout, ValueError):
+        except (TimeoutError, OSError, ValueError):
             # Drain failures don't undo the CONNECT finding.
             pass
 

@@ -29,7 +29,6 @@ Design notes:
 
 from __future__ import annotations
 
-
 # ---------------------------------------------------------------------------
 # Chrome palette (cyan + magenta — palette B "cybersec modern")
 # ---------------------------------------------------------------------------

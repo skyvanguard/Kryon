@@ -22,7 +22,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 FRAMEWORK_ID = "fortigate"
 FRAMEWORK_NAME = "FortiGate (FortiOS) hardening — CIS Fortinet Benchmark profile"
 FRAMEWORK_VERSION = "1.0"

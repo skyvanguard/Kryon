@@ -11,7 +11,7 @@ import time
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 from .items import ItemHelpers, ToolCallOutputItem
 from .run_context import RunContextWrapper
@@ -30,8 +30,8 @@ class PendingToolCall:
     agent_name: str
     context_wrapper: RunContextWrapper
     submitted_at: float = field(default_factory=time.time)
-    result: Optional[Any] = None
-    error: Optional[Exception] = None
+    result: Any | None = None
+    error: Exception | None = None
     completed: bool = False
 
 
@@ -51,7 +51,7 @@ class ParallelToolExecutor:
         self._lock = asyncio.Lock()
         self._semaphore = asyncio.Semaphore(max_concurrent_tools)
         self._running = True
-        self._executor_task: Optional[asyncio.Task] = None
+        self._executor_task: asyncio.Task | None = None
 
     async def start(self):
         """Start the background executor task."""
@@ -80,7 +80,7 @@ class ParallelToolExecutor:
         arguments: dict[str, Any],
         agent_name: str,
         context_wrapper: RunContextWrapper,
-        tool_call_id: Optional[str] = None,
+        tool_call_id: str | None = None,
     ) -> str:
         """
         Submit a tool call for parallel execution.
@@ -106,7 +106,7 @@ class ParallelToolExecutor:
         logger.debug(f"Submitted tool call {tool_call_id} for {tool_name} from {agent_name}")
         return tool_call_id
 
-    async def get_tool_result(self, tool_call_id: str, timeout: float = 300) -> tuple[Any, Optional[Exception]]:
+    async def get_tool_result(self, tool_call_id: str, timeout: float = 300) -> tuple[Any, Exception | None]:
         """
         Wait for and retrieve the result of a tool call.
 
@@ -129,7 +129,7 @@ class ParallelToolExecutor:
 
         raise asyncio.TimeoutError(f"Tool call {tool_call_id} timed out after {timeout} seconds")
 
-    async def get_agent_results(self, agent_name: str) -> list[tuple[str, Any, Optional[Exception]]]:
+    async def get_agent_results(self, agent_name: str) -> list[tuple[str, Any, Exception | None]]:
         """
         Get all completed results for a specific agent.
 
@@ -216,7 +216,7 @@ class ParallelToolExecutor:
 
 
 # Global instance for shared tool execution
-_global_executor: Optional[ParallelToolExecutor] = None
+_global_executor: ParallelToolExecutor | None = None
 
 
 def get_parallel_tool_executor() -> ParallelToolExecutor:

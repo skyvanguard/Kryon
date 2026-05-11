@@ -1,4 +1,4 @@
-from kryon.sdk.agents.models.openai_chatcompletions import _is_prose_plan_contamination, _PROSE_PLAN_PATTERNS
+from kryon.sdk.agents.models.openai_chatcompletions import _PROSE_PLAN_PATTERNS, _is_prose_plan_contamination
 
 samples = [
     # From call 26 of obsidian session — final prose summary

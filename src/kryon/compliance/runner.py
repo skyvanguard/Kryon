@@ -23,10 +23,8 @@ import sys
 import time
 import uuid
 from pathlib import Path
-from typing import Callable
 
 from kryon.compliance.checks.base import Check, CheckContext, CheckResult
-
 
 _REGISTERED_CHECKS: list[Check] = []
 _NAT_SORT_SPLIT = re.compile(r"(\d+)")
@@ -326,6 +324,7 @@ def _import_all_checks() -> None:
     # registries; see the comment at the bottom of this file).
     try:
         from pathlib import Path
+
         from kryon.compliance.cis import register_framework
 
         yaml_path = (

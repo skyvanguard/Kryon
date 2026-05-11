@@ -15,7 +15,7 @@ import pickle
 import sys
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -139,8 +139,8 @@ class SimpleVectorDatabase:
     def add_documents(
         self,
         documents: list[str],
-        metadatas: Optional[list[dict[str, Any]]] = None,
-        ids: Optional[list[str]] = None,
+        metadatas: list[dict[str, Any]] | None = None,
+        ids: list[str] | None = None,
     ) -> int:
         """
         Add documents to vector database.
@@ -179,7 +179,7 @@ class SimpleVectorDatabase:
 
         return len(documents)
 
-    def query(self, query_text: str, top_k: int = 5, filter_metadata: Optional[dict] = None) -> list[dict[str, Any]]:
+    def query(self, query_text: str, top_k: int = 5, filter_metadata: dict | None = None) -> list[dict[str, Any]]:
         """
         Query vector database with semantic search.
 
@@ -405,8 +405,8 @@ class VectorDatabase:
     def add_documents(
         self,
         documents: list[str],
-        metadatas: Optional[list[dict]] = None,
-        ids: Optional[list[str]] = None,
+        metadatas: list[dict] | None = None,
+        ids: list[str] | None = None,
     ) -> int:
         """Add documents to backend."""
         if self.backend_type == "chromadb":
@@ -419,7 +419,7 @@ class VectorDatabase:
         else:
             return self.backend.add_documents(documents, metadatas, ids)
 
-    def query(self, query_text: str, top_k: int = 5, filter_metadata: Optional[dict] = None) -> list[dict]:
+    def query(self, query_text: str, top_k: int = 5, filter_metadata: dict | None = None) -> list[dict]:
         """Query backend."""
         if self.backend_type == "chromadb":
             results = self.backend.query(query_texts=[query_text], n_results=top_k, where=filter_metadata)

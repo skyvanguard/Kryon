@@ -20,7 +20,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 # Known vendor-default password hashes seen on freshly imaged FGT VMs.
 # FortiOS uses unique salts so this match rarely triggers in practice; we
 # keep it as a sanity layer alongside the empty-password detection.

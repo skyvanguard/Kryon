@@ -15,7 +15,7 @@ See docs/LEARNING_LOOP.md for the architecture.
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -23,7 +23,6 @@ from rich.table import Table
 
 from kryon.repl.commands.base import Command, register_command
 from kryon.sdk.agents.models.openai_chatcompletions import (
-    get_agent_message_history,
     get_all_agent_histories,
 )
 
@@ -59,7 +58,7 @@ class ExperiencesCommand(Command):
     def handle_no_args(self) -> bool:
         """Default: show count + a short summary table of recent experiences."""
         try:
-            from kryon.learning import count_experiences, list_experiences
+            from kryon.learning import count_experiences
         except Exception as e:
             console.print(f"[red]Learning module unavailable: {e}[/red]")
             return False
@@ -83,13 +82,13 @@ class ExperiencesCommand(Command):
             )
             return True
 
-    def handle_count(self, args: Optional[list[str]] = None) -> bool:
+    def handle_count(self, args: list[str] | None = None) -> bool:
         from kryon.learning import count_experiences
 
         console.print(f"Total experiences: [bold green]{count_experiences()}[/bold green]")
         return True
 
-    def handle_list(self, args: Optional[list[str]] = None) -> bool:
+    def handle_list(self, args: list[str] | None = None) -> bool:
         try:
             from kryon.learning import list_experiences
         except Exception as e:
@@ -129,7 +128,7 @@ class ExperiencesCommand(Command):
         console.print(table)
         return True
 
-    def handle_show(self, args: Optional[list[str]] = None) -> bool:
+    def handle_show(self, args: list[str] | None = None) -> bool:
         if not args:
             console.print("[red]Usage: /experiences show <id>[/red]")
             return False
@@ -155,7 +154,7 @@ class ExperiencesCommand(Command):
         )
         return True
 
-    def handle_search(self, args: Optional[list[str]] = None) -> bool:
+    def handle_search(self, args: list[str] | None = None) -> bool:
         if not args:
             console.print("[red]Usage: /experiences search <free text query>[/red]")
             return False
@@ -189,7 +188,7 @@ class ExperiencesCommand(Command):
         console.print(table)
         return True
 
-    def handle_delete(self, args: Optional[list[str]] = None) -> bool:
+    def handle_delete(self, args: list[str] | None = None) -> bool:
         if not args:
             console.print("[red]Usage: /experiences delete <id>[/red]")
             return False
@@ -207,7 +206,7 @@ class ExperiencesCommand(Command):
             console.print(f"[yellow]No experience with id '{args[0]}'[/yellow]")
         return True
 
-    def handle_close(self, args: Optional[list[str]] = None) -> bool:
+    def handle_close(self, args: list[str] | None = None) -> bool:
         """Walk the current agent histories, extract the chain, build a
         profile, and persist one experience record."""
 

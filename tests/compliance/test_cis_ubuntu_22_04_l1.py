@@ -119,8 +119,7 @@ def test_severities_distribution_has_critical_and_high(framework):
 def test_register_all_frameworks_ingests_ubuntu_file():
     """The auto-discovery helper must pick up the production framework
     and skip the _sample.yaml file."""
-    from kryon.compliance import cis as cis_pkg
-    from kryon.compliance import runner
+    from kryon.compliance import cis as cis_pkg, runner
 
     before = {c.control_id for c in runner._REGISTERED_CHECKS}
     try:

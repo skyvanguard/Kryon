@@ -11,22 +11,18 @@ We're validating:
   - Prompts stay under the char cap and cite evidence
 """
 import asyncio
-import json
-import time
 
-from kryon.skills.supervisor_tools import (
-    HunterJob,
-    HunterPool,
-    get_state,
-    reset_supervisor,
-    set_pool,
-)
 from kryon.skills.dynamic_prompt import (
     _MAX_CHARS,
     build_todo_list,
     generate_hunter_prompt,
 )
-
+from kryon.skills.supervisor_tools import (
+    HunterJob,
+    HunterPool,
+    get_state,
+    reset_supervisor,
+)
 
 # ----- Mock hunter runners -----
 

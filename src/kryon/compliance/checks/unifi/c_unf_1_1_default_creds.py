@@ -21,7 +21,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 _DEFAULT_NAMES = {"ubnt", "admin", "root"}
 _SHA1_HEX = re.compile(r"^[0-9a-fA-F]{40}$")
 

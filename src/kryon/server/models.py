@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -24,7 +24,7 @@ def _sanitize_html(value: str) -> str:
 class RunRequest(BaseModel):
     agent_key: str = Field(..., min_length=1, max_length=100, description="Agent key (e.g. 'recon_scout')")
     input: str = Field(..., max_length=50000, description="User prompt")
-    session_id: Optional[str] = Field(None, description="Session ID to continue conversation")
+    session_id: str | None = Field(None, description="Session ID to continue conversation")
     stream: bool = Field(False, description="Stream response via SSE")
     max_turns: int = Field(10, ge=1, le=100, description="Max agent turns")
 
@@ -150,8 +150,8 @@ class AutoScanStatus(BaseModel):
     high_count: int = 0
     elapsed_seconds: float = 0.0
     log_messages: list[str] = Field(default_factory=list)
-    report_path: Optional[str] = None
-    error: Optional[str] = None
+    report_path: str | None = None
+    error: str | None = None
 
 
 class AutoScanFinding(BaseModel):
@@ -160,7 +160,7 @@ class AutoScanFinding(BaseModel):
     severity: str
     affected_asset: str
     description: str = ""
-    cvss_score: Optional[float] = None
+    cvss_score: float | None = None
     tool_source: str = ""
     remediation: str = ""
 

@@ -208,21 +208,23 @@ isort = { combine-as-imports = true, known-first-party = ["agents"] }
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["E501", "E402", "F401", "F841"]
+"tests/**/*.py" = ["E501", "E402", "F401", "F841", "E731", "C408"]
+# Benchmark and ops scripts — research code, looser style
+"scripts/**/*.py" = ["E501", "E402", "F401", "F841", "E702", "E701", "E731", "E741", "B007", "C401", "C408", "C414", "C416", "B904", "I001"]
 # Files with mathematical formulas/long docstrings
 "src/kryon/agents/*.py" = ["E501", "E402"]
 # Files with security tool documentation
-"src/kryon/tools/**/*.py" = ["E501"]
+"src/kryon/tools/**/*.py" = ["E501", "E402", "F841"]
 # Files with UI strings and long messages
-"src/kryon/repl/**/*.py" = ["E501", "E402"]
+"src/kryon/repl/**/*.py" = ["E501", "E402", "E702", "F841"]
 "src/kryon/sdk/**/*.py" = ["E501", "E402"]
 "src/kryon/knowledge/**/*.py" = ["E501"]
 "src/kryon/intelligence/**/*.py" = ["E501"]
-"src/kryon/reporting/**/*.py" = ["E501", "B904"]
+"src/kryon/reporting/**/*.py" = ["E501", "B904", "E701", "F841"]
 "src/kryon/server/**/*.py" = ["E501", "B904", "B008"]
 "src/kryon/memory/**/*.py" = ["E501"]
 "src/kryon/evaluation/**/*.py" = ["E501"]
-"src/kryon/compliance/**/*.py" = ["E501"]
+"src/kryon/compliance/**/*.py" = ["E501", "F841", "C414"]
 "src/kryon/engagements/**/*.py" = ["E501", "E402"]
 "src/kryon/remediation/**/*.py" = ["E501"]
 "src/kryon/tenancy/**/*.py" = ["E501"]
@@ -230,8 +232,13 @@ convention = "google"
 "src/kryon/billing/**/*.py" = ["B904"]
 "src/kryon/notifications/**/*.py" = ["E501"]
 "src/kryon/tui/**/*.py" = ["E501"]
+"src/kryon/util/**/*.py" = ["E402", "F841", "E501"]
+"src/kryon/skills/**/*.py" = ["B007", "F841", "C401", "E702", "E501"]
+"src/kryon/learning/**/*.py" = ["E501", "F841", "B007"]
+"src/kryon/services/**/*.py" = ["E501"]
+"src/kryon/webexploit/**/*.py" = ["E501", "E702", "C401", "C408", "C416", "F841"]
 # Files with intentional late imports (warning config, circular import avoidance)
-"src/kryon/cli/*.py" = ["E402", "E501"]
+"src/kryon/cli/*.py" = ["E402", "E501", "F823"]
 "src/kryon/agents/hk_aerial.py" = ["E402"]
 "src/kryon/agents/patterns/__init__.py" = ["E402"]
 

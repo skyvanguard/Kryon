@@ -1901,7 +1901,6 @@ def _render_simple_tool_completion(tool_name, args, output, execution_info, toke
     try:
         from kryon.repl.ui.tool_call_renderer import (
             render_tool_completion,
-            summarize_args,
         )
         from kryon.repl.ui.tool_output_buffer import record
     except Exception:  # pragma: no cover

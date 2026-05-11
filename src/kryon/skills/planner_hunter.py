@@ -41,7 +41,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-from kryon.services.micro_compact import compact_hunter_session
 from kryon.skills.dynamic_prompt import build_todo_list, generate_hunter_prompt
 from kryon.skills.supervisor_tools import (
     HunterJob,
@@ -52,10 +51,9 @@ from kryon.skills.supervisor_tools import (
 )
 from kryon.skills.validator_agent import Finding, ValidatorAgent, Verdict
 from kryon.tools.code.git_tools import _git_clone_and_index_impl
-from kryon.tools.code.priority import _code_priority_score_impl
-from kryon.tools.code.reader import _read_function_impl
-from kryon.tools.code.sandbox import _run_sandboxed_impl
 from kryon.tools.code.joern_tool import _joern_scan_impl
+from kryon.tools.code.priority import _code_priority_score_impl
+from kryon.tools.code.sandbox import _run_sandboxed_impl
 from kryon.tools.code.semgrep_tool import _semgrep_scan_impl
 
 logger = logging.getLogger(__name__)
@@ -312,7 +310,9 @@ def _build_isolation_poc(pattern_kind: str, snippet: str) -> str:
     # YAML library lookup with alias resolution
     try:
         from kryon.skills.patterns import (
-            cwes_match, get_poc_template, iter_all_patterns,
+            cwes_match,
+            get_poc_template,
+            iter_all_patterns,
         )
         # Direct hit
         poc = get_poc_template(pattern_kind)
@@ -1159,7 +1159,7 @@ class LLMHunter:
 
 
 def _build_focused_llm_prompt(
-    job: "HunterJob",
+    job: HunterJob,
     semgrep_findings: list[dict],
     base_prompt: str,
 ) -> str:
@@ -1353,7 +1353,7 @@ class HybridHunter:
         self._heur = HeuristicHunter()
         self._joern = JoernHunter() if _joern_enabled() else None
 
-    async def __call__(self, job: "HunterJob") -> list[dict]:
+    async def __call__(self, job: HunterJob) -> list[dict]:
         # Stage 1: all static hunters in parallel. Collect per-hunter status.
         tasks: list[tuple[str, Any]] = [
             ("heuristic", self._heur(job)),
@@ -1733,7 +1733,7 @@ async def hunt_zero_days(
                 )
                 # Fall back to reading the file head if evidence is sparse
                 try:
-                    with open(full, "r", encoding="utf-8", errors="replace") as fh:
+                    with open(full, encoding="utf-8", errors="replace") as fh:
                         signal += "\n" + fh.read(3000)
                 except OSError:
                     pass

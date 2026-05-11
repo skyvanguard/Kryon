@@ -7,7 +7,7 @@ Scrape PoC exploits and security tools from GitHub repositories.
 
 import os
 import time
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -21,7 +21,7 @@ class GitHubScraper(BaseScraper):
     Searches for PoCs, exploits, and security tools.
     """
 
-    def __init__(self, api_token: Optional[str] = None):
+    def __init__(self, api_token: str | None = None):
         """
         Initialize GitHub scraper.
 
@@ -39,8 +39,8 @@ class GitHubScraper(BaseScraper):
 
     def scrape(
         self,
-        keywords: Optional[list[str]] = None,
-        topics: Optional[list[str]] = None,
+        keywords: list[str] | None = None,
+        topics: list[str] | None = None,
         min_stars: int = 10,
         max_results: int = 100,
     ) -> list[dict[str, Any]]:

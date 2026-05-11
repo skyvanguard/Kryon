@@ -33,7 +33,6 @@ from kryon.reporting.compliance_pdf import (
     _summary_table,
 )
 
-
 # Per-framework metadata — titles + regulatory mappings for consolidation table.
 FRAMEWORK_META: dict[str, dict[str, str]] = {
     "pci-dss-4.0": {

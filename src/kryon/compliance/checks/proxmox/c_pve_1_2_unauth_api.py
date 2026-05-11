@@ -15,12 +15,10 @@ PVE-1.1 finding), reading its own 8006/tcp.
 from __future__ import annotations
 
 import json
-import re
 import time
 
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
-
 
 SHOULD_BE_AUTHED = [
     "/api2/json/nodes",

@@ -17,16 +17,16 @@ This module provides:
 
 import re
 import subprocess
-from typing import Any, Optional
+from typing import Any
 
 
 def psexec_lateral_movement(
     target_host: str,
     username: str,
-    password: Optional[str] = None,
-    ntlm_hash: Optional[str] = None,
+    password: str | None = None,
+    ntlm_hash: str | None = None,
     command: str = "cmd.exe",
-    domain: Optional[str] = None,
+    domain: str | None = None,
 ) -> dict[str, Any]:
     """
     Execute commands on remote Windows host using PSExec.
@@ -130,10 +130,10 @@ def psexec_lateral_movement(
 def wmi_lateral_movement(
     target_host: str,
     username: str,
-    password: Optional[str] = None,
-    ntlm_hash: Optional[str] = None,
+    password: str | None = None,
+    ntlm_hash: str | None = None,
     command: str = "whoami",
-    domain: Optional[str] = None,
+    domain: str | None = None,
 ) -> dict[str, Any]:
     """
     Execute commands on remote Windows host using WMI.
@@ -214,9 +214,9 @@ def wmi_lateral_movement(
 
 def enumerate_smb_shares(
     target_host: str,
-    username: Optional[str] = None,
-    password: Optional[str] = None,
-    ntlm_hash: Optional[str] = None,
+    username: str | None = None,
+    password: str | None = None,
+    ntlm_hash: str | None = None,
 ) -> dict[str, Any]:
     """
     Enumerate SMB shares on target Windows host.
@@ -322,7 +322,7 @@ def enumerate_smb_shares(
     return results
 
 
-def _test_share_access(host: str, share: str, username: Optional[str], password: Optional[str]) -> dict[str, bool]:
+def _test_share_access(host: str, share: str, username: str | None, password: str | None) -> dict[str, bool]:
     """Test read/write access to SMB share."""
     access = {"readable": False, "writable": False}
 
@@ -367,7 +367,7 @@ def pass_the_hash_attack(
     username: str,
     ntlm_hash: str,
     command: str = "whoami",
-    domain: Optional[str] = None,
+    domain: str | None = None,
     method: str = "psexec",
 ) -> dict[str, Any]:
     """
@@ -435,7 +435,7 @@ def winrm_lateral_movement(
     username: str,
     password: str,
     command: str = "whoami",
-    domain: Optional[str] = None,
+    domain: str | None = None,
     use_ssl: bool = False,
 ) -> dict[str, Any]:
     """

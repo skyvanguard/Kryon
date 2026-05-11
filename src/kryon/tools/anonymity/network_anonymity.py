@@ -23,7 +23,7 @@ import socket
 import subprocess
 import tempfile
 import time
-from typing import Any, Optional
+from typing import Any
 
 
 def setup_tor_proxy(port: int = 9050, control_port: int = 9051, auto_start: bool = True) -> dict[str, Any]:
@@ -298,7 +298,7 @@ tcp_connect_time_out 8000
     return results
 
 
-def rotate_ip(method: str = "tor", tor_control_port: int = 9051, tor_password: Optional[str] = None) -> dict[str, Any]:
+def rotate_ip(method: str = "tor", tor_control_port: int = 9051, tor_password: str | None = None) -> dict[str, Any]:
     """
     Rotate IP address to get new exit node.
 
@@ -382,7 +382,7 @@ def rotate_ip(method: str = "tor", tor_control_port: int = 9051, tor_password: O
 
 
 def spoof_mac_address(
-    interface: str = "eth0", random_mac: bool = True, custom_mac: Optional[str] = None
+    interface: str = "eth0", random_mac: bool = True, custom_mac: str | None = None
 ) -> dict[str, Any]:
     """
     Spoof MAC address to prevent hardware tracking.
@@ -577,7 +577,7 @@ def setup_i2p(router_port: int = 7657, proxy_port: int = 4444, auto_start: bool 
     return results
 
 
-def setup_onion_routing(num_hops: int = 3, exit_country: Optional[str] = None) -> dict[str, Any]:
+def setup_onion_routing(num_hops: int = 3, exit_country: str | None = None) -> dict[str, Any]:
     """
     Configure custom onion routing parameters for Tor.
 

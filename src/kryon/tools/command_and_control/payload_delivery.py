@@ -21,7 +21,7 @@ import http.server
 import os
 import socketserver
 import threading
-from typing import Any, Optional
+from typing import Any
 
 
 def create_payload_server(
@@ -29,8 +29,8 @@ def create_payload_server(
     protocol: str = "http",
     host: str = "0.0.0.0",
     port: int = 8000,
-    ssl_cert: Optional[str] = None,
-    ssl_key: Optional[str] = None,
+    ssl_cert: str | None = None,
+    ssl_key: str | None = None,
     auto_destroy: bool = False,
     max_downloads: int = 0,
 ) -> dict[str, Any]:
@@ -161,8 +161,8 @@ def create_payload_server(
 def create_smb_share(
     payload_path: str,
     share_name: str = "share",
-    username: Optional[str] = None,
-    password: Optional[str] = None,
+    username: str | None = None,
+    password: str | None = None,
 ) -> dict[str, Any]:
     """
     Create SMB share for payload delivery.
@@ -451,7 +451,7 @@ def create_hta_payload(powershell_command: str, output_file: str = "payload.hta"
 
 
 def create_lnk_payload(
-    target_command: str, lnk_name: str = "Document.lnk", icon_path: Optional[str] = None
+    target_command: str, lnk_name: str = "Document.lnk", icon_path: str | None = None
 ) -> dict[str, Any]:
     """
     Create malicious LNK (Windows shortcut) file.
@@ -564,7 +564,7 @@ action=Install Software
 
 
 def encode_payload(
-    payload_data: bytes, encoding: str = "base64", encryption_key: Optional[bytes] = None
+    payload_data: bytes, encoding: str = "base64", encryption_key: bytes | None = None
 ) -> dict[str, Any]:
     """
     Encode/encrypt payload for delivery.

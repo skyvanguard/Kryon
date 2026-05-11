@@ -22,7 +22,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 _PUBLIC_BIND_PATTERN = re.compile(
     r"\b(0\.0\.0\.0|::|\*):(?:8443|8080|8843|8880)\b"
 )

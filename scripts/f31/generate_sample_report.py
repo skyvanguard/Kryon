@@ -16,7 +16,6 @@ import json
 import sys
 from pathlib import Path
 
-
 # Each entry mirrors the CheckResult dict shape consumed by render_pdf().
 # Mix chosen to represent a real first-engagement scan of a mid-size bank:
 #   - Some obvious FAILs (cert self-signed, no TFA, lots of DAs)

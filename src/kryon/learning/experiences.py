@@ -14,7 +14,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -259,7 +259,7 @@ def add_experience(experience: dict[str, Any]) -> str:
 def recall_similar(
     profile_or_query: dict[str, Any] | str,
     k: int = 3,
-    where: Optional[dict[str, Any]] = None,
+    where: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Retrieve the top-k most similar past experiences.
 
@@ -320,7 +320,7 @@ def list_experiences(limit: int = 20) -> list[dict[str, Any]]:
     return rows[:limit]
 
 
-def get_experience(experience_id: str) -> Optional[dict[str, Any]]:
+def get_experience(experience_id: str) -> dict[str, Any] | None:
     """Return a single experience by id, or None."""
     collection = _get_collection()
     try:

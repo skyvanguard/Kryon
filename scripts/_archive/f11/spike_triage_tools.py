@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 import os
-import random
 import re
 import sys
 import time
@@ -30,7 +29,7 @@ from pathlib import Path
 
 # -- Reuse the exact sample pickers from the F10.3 spike ----------------------
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "f10"))
-from spike_triage import pick_fps, pick_tps, _percentile  # type: ignore
+from spike_triage import _percentile, pick_fps, pick_tps  # type: ignore
 
 # -- Config -------------------------------------------------------------------
 MODEL = os.environ.get("KRYON_MODEL", "qwen3-coder:30b-32k")

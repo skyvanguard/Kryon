@@ -16,7 +16,6 @@ is broken — this is the E2E canary for F3.
 
 import asyncio
 import json
-import os
 import time
 
 from kryon.skills.planner_hunter import hunt_zero_days

@@ -11,7 +11,6 @@ import importlib
 
 import pytest
 
-
 try:
     _mod = importlib.import_module("kryon.skills.loader")
     SkillLoader = _mod.SkillLoader

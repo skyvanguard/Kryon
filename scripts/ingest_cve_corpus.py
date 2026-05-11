@@ -21,7 +21,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 import time
 from pathlib import Path
@@ -37,7 +36,8 @@ def _configure_logging(verbose: bool) -> None:
 
 def stage1_scrape(out_path: Path, limit: int, cwes: list[str], ecosystems: list[str] | None) -> int:
     from kryon.knowledge.scrapers.github_advisory_scraper import (
-        GitHubAdvisoryScraper, write_jsonl,
+        GitHubAdvisoryScraper,
+        write_jsonl,
     )
     print(f"[1/3] scraping advisory-database  limit={limit}  cwes={cwes}")
     t0 = time.time()
@@ -86,7 +86,7 @@ def stage2_enrich(
 
 def stage3_ingest(enriched_path: Path) -> dict:
     from kryon.knowledge import cve_corpus
-    print(f"[3/3] ingesting into ChromaDB")
+    print("[3/3] ingesting into ChromaDB")
     t0 = time.time()
     n = cve_corpus.ingest_jsonl(str(enriched_path))
     stats = cve_corpus.corpus_stats()

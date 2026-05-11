@@ -11,7 +11,6 @@ import pytest
 
 from kryon.learning.chain_extractor import extract_chain_from_history
 
-
 # ---------- Shape: OpenAI chat tool_calls ----------
 
 

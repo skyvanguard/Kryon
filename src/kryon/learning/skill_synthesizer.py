@@ -26,7 +26,6 @@ from typing import Any
 
 import yaml
 
-
 # Ordering of outcome quality. `success` is the strongest signal; `fail`
 # carries no actionable pattern.
 _OUTCOME_RANK = {

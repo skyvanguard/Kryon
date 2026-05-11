@@ -24,14 +24,12 @@ import json
 import os
 import statistics
 import subprocess
-import time
-from pathlib import Path
-
 
 # --- VRAM sampling ---
 # We run a side thread that polls nvidia-smi; if not available we skip.
-
 import threading
+import time
+from pathlib import Path
 
 
 class VramSampler:

@@ -13,7 +13,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 _TRIVIAL_COMMUNITIES = {"public", "private", "fortinet", "snmp", "community", ""}
 
 

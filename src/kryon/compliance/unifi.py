@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 FRAMEWORK_ID = "unifi"
 FRAMEWORK_NAME = "Unifi (Ubiquiti) controller + WiFi configuration audit"
 FRAMEWORK_VERSION = "1.0"

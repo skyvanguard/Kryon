@@ -27,11 +27,9 @@ import argparse
 import json
 import random
 import re
-import sys
 import time
 import urllib.request
 from pathlib import Path
-
 
 CORPUS_ROOT = Path("/workspace/gnucash")  # inside kryon container
 LABELED_IN = Path("/tmp/f13_gnucash_labeled.jsonl")
@@ -414,7 +412,7 @@ def summarize(triaged: list[dict]) -> None:
     keep_labels = [t["_label"] for t in labeled_triaged if t["_f11_verdict"] == "KEEP"]
     point, lo, hi = bootstrap_ci(keep_labels, lambda l: (l == "TP", l in ("TP", "FP")))
     print(f"\nKEEP precision (F11.1): {point:.1%} [{lo:.1%}, {hi:.1%}] (N={len(keep_labels)})")
-    print(f"Baseline F13.2:         57.1% (N=7 — CI wide, computed separately)")
+    print("Baseline F13.2:         57.1% (N=7 — CI wide, computed separately)")
 
     # SUPPRESS recall
     fp_labels = [t["_label"] for t in labeled_triaged if t["_label"] == "FP"]

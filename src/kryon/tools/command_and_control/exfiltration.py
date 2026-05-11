@@ -19,7 +19,7 @@ This module provides:
 
 import base64
 import secrets
-from typing import Any, Optional
+from typing import Any
 
 
 def exfiltrate_via_http(
@@ -28,7 +28,7 @@ def exfiltrate_via_http(
     method: str = "POST",
     chunk_size: int = 1024 * 1024,
     encrypted: bool = True,
-    user_agent: Optional[str] = None,
+    user_agent: str | None = None,
 ) -> dict[str, Any]:
     """
     Exfiltrate file via HTTP/HTTPS POST.

@@ -26,7 +26,6 @@ from kryon.skills.pre_hook_integration import (
 )
 from kryon.skills.pre_hook_spec import parse_pre_hooks
 
-
 # ---------- Stubs ----------
 
 

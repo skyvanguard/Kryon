@@ -16,7 +16,7 @@ This module provides:
 
 import json
 import secrets
-from typing import Any, Optional
+from typing import Any
 
 
 def setup_freenet_node(mode: str = "opennet", datastore_size: int = 10, port: int = 8888) -> dict[str, Any]:
@@ -129,7 +129,7 @@ cat ~/.freenet/node.ref
 
 def publish_to_freenet(
     content_path: str,
-    site_key: Optional[str] = None,
+    site_key: str | None = None,
     site_name: str = "kryon-site",
     persistent: bool = True,
 ) -> dict[str, Any]:
@@ -320,9 +320,9 @@ gnunet-identity -d  # List identities
 
 def gnunet_file_sharing(
     action: str,
-    file_path: Optional[str] = None,
-    search_query: Optional[str] = None,
-    uri: Optional[str] = None,
+    file_path: str | None = None,
+    search_query: str | None = None,
+    uri: str | None = None,
 ) -> dict[str, Any]:
     """
     Share or download files via GNUnet.
@@ -674,7 +674,7 @@ python3 zeronet.py --tor always
     return results
 
 
-def create_zeronet_site(site_title: str = "Anonymous Site", content_path: Optional[str] = None) -> dict[str, Any]:
+def create_zeronet_site(site_title: str = "Anonymous Site", content_path: str | None = None) -> dict[str, Any]:
     """
     Create new ZeroNet site.
 

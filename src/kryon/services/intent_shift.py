@@ -38,7 +38,7 @@ _ATTACK_VERBS = {
 # Attack-surface / vector nouns. Switching between these is an intent shift.
 _VECTOR_NOUNS = {
     "sql", "sqli", "xss", "ssrf", "rce", "lfi", "rfi",
-    "xxe", "ssti", "xxe", "idor", "csrf",
+    "xxe", "ssti", "idor", "csrf",
     "deserialization", "deserializacion",
     "auth", "login", "jwt", "oauth", "session", "cookie",
     "upload", "uploads", "file", "directory", "path",

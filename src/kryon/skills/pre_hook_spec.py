@@ -29,7 +29,6 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-
 # Whitelist of variables that may appear as `{ctx.X}` in pre-hook args.
 # Keep this small. Adding entries is fine; removing breaks contracts.
 ALLOWED_TEMPLATE_VARS: frozenset[str] = frozenset({

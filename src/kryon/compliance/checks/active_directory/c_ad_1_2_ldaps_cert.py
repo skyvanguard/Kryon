@@ -13,10 +13,12 @@ import re
 import time
 from datetime import datetime, timezone
 
-from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.checks.active_directory._helpers import (
-    ad_env, check_tool, tool_missing_error,
+    ad_env,
+    check_tool,
+    tool_missing_error,
 )
+from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
 

@@ -9,7 +9,7 @@ import hashlib
 import threading
 import time
 from collections import OrderedDict
-from typing import Any, Optional
+from typing import Any
 
 
 class QueryCache:
@@ -33,12 +33,12 @@ class QueryCache:
         self.stats = {"hits": 0, "misses": 0, "evictions": 0}
         self._lock = threading.RLock()
 
-    def _generate_key(self, query: str, top_k: int, source_filter: Optional[str]) -> str:
+    def _generate_key(self, query: str, top_k: int, source_filter: str | None) -> str:
         """Generate cache key from query parameters."""
         key_str = f"{query}_{top_k}_{source_filter or 'all'}"
         return hashlib.sha256(key_str.encode()).hexdigest()
 
-    def get(self, query: str, top_k: int = 5, source_filter: Optional[str] = None) -> Optional[dict[str, Any]]:
+    def get(self, query: str, top_k: int = 5, source_filter: str | None = None) -> dict[str, Any] | None:
         """
         Get cached result.
 
@@ -74,7 +74,7 @@ class QueryCache:
         query: str,
         result: dict[str, Any],
         top_k: int = 5,
-        source_filter: Optional[str] = None,
+        source_filter: str | None = None,
     ):
         """
         Cache query result.
@@ -143,7 +143,7 @@ def cache_query(query: str, result: dict, **kwargs):
     return get_query_cache().set(query, result, **kwargs)
 
 
-def get_cached_query(query: str, **kwargs) -> Optional[dict]:
+def get_cached_query(query: str, **kwargs) -> dict | None:
     """Get cached query result."""
     return get_query_cache().get(query, **kwargs)
 

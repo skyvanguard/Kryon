@@ -1,4 +1,5 @@
-import json, sys
+import json
+import sys
 
 d = json.load(open(sys.argv[1] if len(sys.argv) > 1 else "/tmp/bench_juliet_f74c.json"))
 recall = d["recall"]

@@ -10,9 +10,9 @@ from kryon.tools.ot.iec104_probe import IEC104ProbeResult
 
 def _stub_probe(monkeypatch: pytest.MonkeyPatch, result: IEC104ProbeResult) -> None:
     """Shadow-aware patch — both checks bind `iec104_probe` at import."""
-    import kryon.tools.ot.iec104_probe as src
     import kryon.compliance.checks.ot.iec104.c_iec104_1_1_anonymous_session as c11
     import kryon.compliance.checks.ot.iec104.c_iec104_2_1_perimeter_exposure as c21
+    import kryon.tools.ot.iec104_probe as src
 
     fake = lambda *a, **k: result  # noqa: E731
     monkeypatch.setattr(src, "iec104_probe", fake)

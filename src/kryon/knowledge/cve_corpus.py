@@ -28,7 +28,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Iterable
 
 from kryon.sdk.agents import function_tool
 
@@ -59,8 +59,8 @@ def _build_embedder():
     if not embed_url:
         return None
 
-    from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
     import requests
+    from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
 
     class _OllamaEmbed(EmbeddingFunction[Documents]):
         def __init__(self, base_url: str, model: str) -> None:

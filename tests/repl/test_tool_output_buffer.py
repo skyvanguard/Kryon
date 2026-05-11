@@ -135,6 +135,7 @@ def test_buffer_caps_max_steps_per_turn() -> None:
 def test_concurrent_record_and_get_does_not_crash() -> None:
     """Toolbar / agent loop / /show command run in different threads."""
     import threading
+
     from kryon.repl.ui.tool_output_buffer import get, record
 
     stop = threading.Event()

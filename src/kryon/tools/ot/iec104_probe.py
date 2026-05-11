@@ -158,7 +158,7 @@ def iec104_probe(
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(_CONNECT_TIMEOUT_S)
         sock.connect((host, port))
-    except (OSError, socket.timeout) as e:
+    except (TimeoutError, OSError) as e:
         return IEC104ProbeResult(
             host=host,
             port=port,
@@ -174,7 +174,7 @@ def iec104_probe(
         startdt_act = _build_u_frame(_STARTDT_ACT)
         try:
             response = _send_recv(sock, startdt_act)
-        except (OSError, socket.timeout) as e:
+        except (TimeoutError, OSError) as e:
             return IEC104ProbeResult(
                 host=host,
                 port=port,
@@ -205,7 +205,7 @@ def iec104_probe(
             try:
                 testfr_resp = _send_recv(sock, testfr_act)
                 testfr_ok = _is_u_frame_response(testfr_resp, _TESTFR_CON)
-            except (OSError, socket.timeout):
+            except (TimeoutError, OSError):
                 testfr_ok = False
 
         # Step 4 — STOPDT to close cleanly.

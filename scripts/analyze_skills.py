@@ -1,8 +1,8 @@
 """Analyze the 754 skills from mukul975 repo, categorize them for Kryon."""
+import base64
 import json
 import re
 import sys
-import base64
 from collections import defaultdict
 
 with open(sys.argv[1]) as f:

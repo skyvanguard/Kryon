@@ -6,7 +6,7 @@ Extract metadata from documents for better indexing.
 """
 
 import re
-from typing import Any, Optional
+from typing import Any
 
 
 class MetadataExtractor:
@@ -130,7 +130,7 @@ class MetadataExtractor:
 
         return found_platforms
 
-    def _extract_difficulty(self, content: str) -> Optional[str]:
+    def _extract_difficulty(self, content: str) -> str | None:
         """Extract difficulty level."""
         content_lower = content.lower()
 

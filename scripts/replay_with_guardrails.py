@@ -3,7 +3,6 @@ through the Fix B filter (drop prose-plan contamination) to simulate what
 Kryon would send now. Compare with the unfiltered baseline.
 """
 import json
-import os
 import sys
 import urllib.request
 

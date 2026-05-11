@@ -26,7 +26,7 @@ import os
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable
+from typing import Awaitable, Callable
 
 from kryon.sdk.agents import function_tool
 

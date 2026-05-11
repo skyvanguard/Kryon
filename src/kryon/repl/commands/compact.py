@@ -5,7 +5,6 @@ Compacts current conversation and manages model/prompt settings.
 
 import datetime
 import os
-from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
@@ -45,7 +44,7 @@ class CompactCommand(Command):
         # Cache for model numbers
         self.cached_model_numbers = {}
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         """Handle the compact command."""
         # Parse arguments for --model and --prompt flags
         model_override = None
@@ -86,7 +85,7 @@ class CompactCommand(Command):
         # If arguments provided, perform compaction with overrides
         return self._perform_compaction(model_override, prompt_override)
 
-    def handle_model(self, args: Optional[list[str]] = None) -> bool:
+    def handle_model(self, args: list[str] | None = None) -> bool:
         """Set model for compaction."""
         if not args:
             # Display current model
@@ -165,7 +164,7 @@ class CompactCommand(Command):
 
         return True
 
-    def handle_prompt(self, args: Optional[list[str]] = None) -> bool:
+    def handle_prompt(self, args: list[str] | None = None) -> bool:
         """Set custom summarization prompt."""
         if not args:
             if self.custom_prompt:
@@ -189,7 +188,7 @@ class CompactCommand(Command):
 
         return True
 
-    def handle_status(self, args: Optional[list[str]] = None) -> bool:
+    def handle_status(self, args: list[str] | None = None) -> bool:
         """Show compaction settings."""
         current_model = get_current_active_model()
 
@@ -431,9 +430,9 @@ class CompactCommand(Command):
 
     def _perform_compaction(
         self,
-        model_override: Optional[str] = None,
-        prompt_override: Optional[str] = None,
-        agent_name: Optional[str] = None,
+        model_override: str | None = None,
+        prompt_override: str | None = None,
+        agent_name: str | None = None,
         *args,
         **kwargs,
     ) -> bool:
@@ -603,7 +602,7 @@ COMPACT_COMMAND_INSTANCE = CompactCommand()
 register_command(COMPACT_COMMAND_INSTANCE)
 
 
-def get_compact_model() -> Optional[str]:
+def get_compact_model() -> str | None:
     """Get the configured compaction model.
 
     Returns:
@@ -612,7 +611,7 @@ def get_compact_model() -> Optional[str]:
     return COMPACT_COMMAND_INSTANCE.compact_model
 
 
-def get_custom_prompt() -> Optional[str]:
+def get_custom_prompt() -> str | None:
     """Get the custom summarization prompt.
 
     Returns:

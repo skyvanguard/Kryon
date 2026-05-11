@@ -10,7 +10,7 @@ import json
 import re
 import time
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from .cache_manager import CacheManager, get_cache
 
@@ -27,7 +27,7 @@ class ScanCache:
     - Target-based indexing
     """
 
-    def __init__(self, cache_manager: Optional[CacheManager] = None):
+    def __init__(self, cache_manager: CacheManager | None = None):
         """
         Initialize scan cache.
 
@@ -62,7 +62,7 @@ class ScanCache:
 
         return target
 
-    def _generate_scan_key(self, tool: str, target: str, params: Optional[dict[str, Any]] = None) -> str:
+    def _generate_scan_key(self, tool: str, target: str, params: dict[str, Any] | None = None) -> str:
         """Generate unique key for scan result."""
         normalized_target = self._normalize_target(target)
 
@@ -78,7 +78,7 @@ class ScanCache:
             return {}
         return index
 
-    def _update_scan_index(self, target: str, tool: str, scan_key: str, params: Optional[dict[str, Any]] = None):
+    def _update_scan_index(self, target: str, tool: str, scan_key: str, params: dict[str, Any] | None = None):
         """Update scan index with new scan metadata."""
         index = self._get_scan_index()
         normalized_target = self._normalize_target(target)
@@ -109,7 +109,7 @@ class ScanCache:
         tool: str,
         target: str,
         result: Any,
-        params: Optional[dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
         ttl: int = 7200,  # 2 hours default for scan results
     ) -> str:
         """
@@ -145,7 +145,7 @@ class ScanCache:
 
         return scan_key
 
-    def get_scan(self, tool: str, target: str, params: Optional[dict[str, Any]] = None) -> Optional[Any]:
+    def get_scan(self, tool: str, target: str, params: dict[str, Any] | None = None) -> Any | None:
         """
         Get cached scan result.
 
@@ -166,8 +166,8 @@ class ScanCache:
         return None
 
     def get_scan_metadata(
-        self, tool: str, target: str, params: Optional[dict[str, Any]] = None
-    ) -> Optional[dict[str, Any]]:
+        self, tool: str, target: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """
         Get scan metadata (timestamp, params, etc.).
 
@@ -197,8 +197,8 @@ class ScanCache:
     def find_similar_scans(
         self,
         target: str,
-        tool: Optional[str] = None,
-        max_age: Optional[int] = None,  # seconds
+        tool: str | None = None,
+        max_age: int | None = None,  # seconds
     ) -> list[dict[str, Any]]:
         """
         Find similar scans for target.
@@ -331,7 +331,7 @@ class ScanCache:
 
 
 # Global scan cache instance
-_global_scan_cache: Optional[ScanCache] = None
+_global_scan_cache: ScanCache | None = None
 _scan_cache_lock = __import__("threading").Lock()
 
 
@@ -345,7 +345,7 @@ def get_scan_cache() -> ScanCache:
     return _global_scan_cache
 
 
-def cache_scan_result(scan_type: Optional[str] = None, ttl: int = 7200):
+def cache_scan_result(scan_type: str | None = None, ttl: int = 7200):
     """
     Decorator factory for caching scan tool results.
 
@@ -397,7 +397,7 @@ def cache_scan_result(scan_type: Optional[str] = None, ttl: int = 7200):
     return decorator
 
 
-def cache_scan(tool: str, target: str, result: Any, params: Optional[dict[str, Any]] = None, ttl: int = 7200) -> str:
+def cache_scan(tool: str, target: str, result: Any, params: dict[str, Any] | None = None, ttl: int = 7200) -> str:
     """
     Cache scan result directly (convenience function).
 
@@ -415,7 +415,7 @@ def cache_scan(tool: str, target: str, result: Any, params: Optional[dict[str, A
     return scan_cache.cache_scan(tool, target, result, params, ttl)
 
 
-def find_similar_scans(target: str, tool: Optional[str] = None, max_age: Optional[int] = None) -> list[dict[str, Any]]:
+def find_similar_scans(target: str, tool: str | None = None, max_age: int | None = None) -> list[dict[str, Any]]:
     """
     Find similar scans (convenience function).
 
@@ -431,7 +431,7 @@ def find_similar_scans(target: str, tool: Optional[str] = None, max_age: Optiona
     return scan_cache.find_similar_scans(target, tool, max_age)
 
 
-def get_cached_scan(tool: str, target: str, params: Optional[dict[str, Any]] = None) -> Optional[Any]:
+def get_cached_scan(tool: str, target: str, params: dict[str, Any] | None = None) -> Any | None:
     """
     Get cached scan result (convenience function).
 

@@ -18,7 +18,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 # Best-effort list of WPA3-capable Ubiquiti AP model strings.
 _WPA3_CAPABLE_MODELS = {
     "U6-Lite", "U6-LR", "U6-Pro", "U6-Mesh", "U6-Enterprise",

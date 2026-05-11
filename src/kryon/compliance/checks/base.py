@@ -11,7 +11,7 @@ it from the reproducibility-hashed artifact.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal, Protocol
 
 Verdict = Literal["PASS", "FAIL", "N/A", "ERROR"]

@@ -26,7 +26,7 @@ This module provides the 5th pillar of KRYON's Autonomy Framework v3.1:
 
 import random
 import time
-from typing import Any, Optional
+from typing import Any
 
 # Import existing evasion tools
 from kryon.tools.evasion import (
@@ -76,7 +76,7 @@ class EvasionTechnique:
     USER_AGENT_ROTATION = "user_agent_rotation"
 
 
-def detect_defense_mechanism(response_data: dict[str, Any], target_url: Optional[str] = None) -> tuple[str, float]:
+def detect_defense_mechanism(response_data: dict[str, Any], target_url: str | None = None) -> tuple[str, float]:
     """
     Detect security defense mechanism from response patterns.
 
@@ -206,7 +206,7 @@ def select_evasion_techniques(defense_type: str, exploitation_context: dict[str,
     return techniques
 
 
-def apply_evasion_technique(technique: str, payload: str, context: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+def apply_evasion_technique(technique: str, payload: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
     """
     Apply specific evasion technique to payload.
 

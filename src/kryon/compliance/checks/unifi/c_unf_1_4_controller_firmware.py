@@ -16,7 +16,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 # Unifi Network Application supported floor as of 2026-04-28. The 7.x line
 # is in security-only support; anything below 7.5 has known unpatched issues
 # in older builds. 8.x is current GA.

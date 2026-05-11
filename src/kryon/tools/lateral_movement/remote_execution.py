@@ -10,7 +10,7 @@ Primary Users:
 - Network Analyst (Alpha-Silver)
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from kryon.tools.common import run_command
 
@@ -18,9 +18,9 @@ from kryon.tools.common import run_command
 def psexec_execute(
     target: str,
     username: str,
-    password: Optional[str] = None,
-    ntlm_hash: Optional[str] = None,
-    domain: Optional[str] = ".",
+    password: str | None = None,
+    ntlm_hash: str | None = None,
+    domain: str | None = ".",
     command: str = "whoami",
 ) -> dict[str, Any]:
     """
@@ -79,9 +79,9 @@ def psexec_execute(
 def wmiexec_execute(
     target: str,
     username: str,
-    password: Optional[str] = None,
-    ntlm_hash: Optional[str] = None,
-    domain: Optional[str] = ".",
+    password: str | None = None,
+    ntlm_hash: str | None = None,
+    domain: str | None = ".",
     command: str = "whoami",
 ) -> dict[str, Any]:
     """Execute command via WMI."""
@@ -115,9 +115,9 @@ def wmiexec_execute(
 def smbexec_execute(
     target: str,
     username: str,
-    password: Optional[str] = None,
-    ntlm_hash: Optional[str] = None,
-    domain: Optional[str] = ".",
+    password: str | None = None,
+    ntlm_hash: str | None = None,
+    domain: str | None = ".",
     command: str = "whoami",
 ) -> dict[str, Any]:
     """Execute command via SMB."""
@@ -151,9 +151,9 @@ def smbexec_execute(
 def dcomexec_execute(
     target: str,
     username: str,
-    password: Optional[str] = None,
-    ntlm_hash: Optional[str] = None,
-    domain: Optional[str] = ".",
+    password: str | None = None,
+    ntlm_hash: str | None = None,
+    domain: str | None = ".",
     command: str = "whoami",
     object_type: str = "MMC20",
 ) -> dict[str, Any]:
@@ -189,8 +189,8 @@ def dcomexec_execute(
 def ssh_execute(
     target: str,
     username: str,
-    password: Optional[str] = None,
-    key_file: Optional[str] = None,
+    password: str | None = None,
+    key_file: str | None = None,
     command: str = "whoami",
     port: int = 22,
 ) -> dict[str, Any]:
@@ -226,7 +226,7 @@ def winrm_execute(
     target: str,
     username: str,
     password: str,
-    domain: Optional[str] = ".",
+    domain: str | None = ".",
     command: str = "whoami",
     port: int = 5985,
     ssl: bool = False,

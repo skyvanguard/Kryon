@@ -21,7 +21,6 @@ import sys
 import urllib.request
 from pathlib import Path
 
-
 REPO_RAW = "https://raw.githubusercontent.com/mukul975/Anthropic-Cybersecurity-Skills/main/skills"
 
 # Curated set — 20 skills relevant to ASOBAN banking audit scenarios.

@@ -12,7 +12,6 @@ import pytest
 from kryon.compliance.checks.base import CheckContext
 from kryon.tools.ot.modbus_scan import ModbusScanResult
 
-
 # ---------- Helpers ----------
 
 
@@ -21,9 +20,9 @@ def _stub_scan_result(monkeypatch: pytest.MonkeyPatch, result: ModbusScanResult)
     Each check did `from kryon.tools.ot.modbus_scan import modbus_scan`,
     so a single setattr on the source isn't enough — the symbol is
     already bound in the check module's namespace."""
-    import kryon.tools.ot.modbus_scan as src
     import kryon.compliance.checks.ot.modbus.c_mod_1_1_unauth_read as c11
     import kryon.compliance.checks.ot.modbus.c_mod_1_2_device_identification as c12
+    import kryon.tools.ot.modbus_scan as src
 
     fake = lambda *a, **k: result  # noqa: E731
     monkeypatch.setattr(src, "modbus_scan", fake)

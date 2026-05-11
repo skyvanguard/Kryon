@@ -11,8 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from kryon.learning.findings_library import url_shape, _content_fingerprint
-
+from kryon.learning.findings_library import _content_fingerprint, url_shape
 
 # ---------- url_shape: integer-id normalization ----------
 

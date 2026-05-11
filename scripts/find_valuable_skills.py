@@ -1,6 +1,6 @@
 """Find the most valuable skills we haven't imported yet."""
-import json
 import base64
+import json
 import re
 import sys
 

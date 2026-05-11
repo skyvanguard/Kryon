@@ -8,7 +8,6 @@ showing the sequence of user and agent interactions, including tool calls.
 
 import importlib.util
 import os
-from typing import Optional
 
 from rich.console import Console  # pylint: disable=import-error
 from rich.panel import Panel
@@ -18,7 +17,7 @@ from kryon.repl.commands.base import Command, register_command
 console = Console()
 
 
-def find_agent_name_by_instructions(target_instructions: str, agents_dir: str) -> Optional[str]:
+def find_agent_name_by_instructions(target_instructions: str, agents_dir: str) -> str | None:
     """
     Search all Python files in the agents directory for an agent whose 'instructions'
     attribute matches the given target_instructions (ignoring leading/trailing whitespace).
@@ -71,7 +70,7 @@ class GraphCommand(Command):
         self.add_subcommand("stats", "Show detailed statistics", self.handle_stats)
         self.add_subcommand("export", "Export graph data", self.handle_export)
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         """
         Handle the /graph command.
 
@@ -113,7 +112,7 @@ class GraphCommand(Command):
             # Single agent mode - check for agent parameter
             return self._handle_single_agent_graph()
 
-    def _handle_single_agent_graph(self, agent_name: Optional[str] = None) -> bool:
+    def _handle_single_agent_graph(self, agent_name: str | None = None) -> bool:
         """Handle graph display for a single agent"""
         from kryon.sdk.agents.simple_agent_manager import AGENT_MANAGER
 
@@ -770,11 +769,11 @@ class GraphCommand(Command):
         console.print(f"[cyan]Showing graph for {agent_name} [{agent_id}][/cyan]")
         return self._handle_single_agent_graph(agent_name)
 
-    def handle_all(self, args: Optional[list[str]] = None) -> bool:
+    def handle_all(self, args: list[str] | None = None) -> bool:
         """Show graphs for all agents with history."""
         return self._handle_multi_agent_graph()
 
-    def handle_timeline(self, args: Optional[list[str]] = None) -> bool:
+    def handle_timeline(self, args: list[str] | None = None) -> bool:
         """Show a unified timeline view of all agent interactions."""
 
         from rich.table import Table
@@ -876,7 +875,7 @@ class GraphCommand(Command):
         console.print(f"\n[bold]Total events: {len(timeline_events)}[/bold]")
         return True
 
-    def handle_stats(self, args: Optional[list[str]] = None) -> bool:
+    def handle_stats(self, args: list[str] | None = None) -> bool:
         """Show detailed statistics about agent conversations."""
         from collections import Counter
 
@@ -969,7 +968,7 @@ class GraphCommand(Command):
 
         return True
 
-    def handle_export(self, args: Optional[list[str]] = None) -> bool:
+    def handle_export(self, args: list[str] | None = None) -> bool:
         """Export graph data to various formats."""
         if not args:
             console.print("[yellow]Export format required[/yellow]")

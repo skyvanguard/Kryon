@@ -47,7 +47,7 @@ _cache_mtime: float = 0.0
 
 _ALIAS_FAMILIES: list[set[str]] = [
     # Out-of-bounds write family
-    {"CWE-787", "CWE-121", "CWE-122", "CWE-124", "CWE-119", "CWE-787"},
+    {"CWE-787", "CWE-121", "CWE-122", "CWE-124", "CWE-119"},
     # Out-of-bounds read family
     {"CWE-125", "CWE-126", "CWE-127"},
     # Use of dangerous string functions → overflow family

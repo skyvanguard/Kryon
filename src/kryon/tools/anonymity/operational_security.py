@@ -17,10 +17,10 @@ This module provides:
 """
 
 import os
-from typing import Any, Optional
+from typing import Any
 
 
-def opsec_checklist_validator(operation_type: str, checks: Optional[list[str]] = None) -> dict[str, Any]:
+def opsec_checklist_validator(operation_type: str, checks: list[str] | None = None) -> dict[str, Any]:
     """
     Validate OpSec checklist before operation.
 

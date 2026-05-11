@@ -264,7 +264,7 @@ def s7_enum(
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(_CONNECT_TIMEOUT_S)
         sock.connect((host, port))
-    except (OSError, socket.timeout) as e:
+    except (TimeoutError, OSError) as e:
         return S7EnumResult(
             host=host,
             port=port,
@@ -308,7 +308,7 @@ def s7_enum(
         try:
             szl_resp = _send_recv(sock, szl_req)
             module_id = _parse_szl_module_id(szl_resp)
-        except (OSError, socket.timeout):
+        except (TimeoutError, OSError):
             module_id = {}
 
         firmware = module_id.get("firmware", "")

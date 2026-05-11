@@ -10,14 +10,14 @@ Primary Users:
 """
 
 import os
-from typing import Any, Optional
+from typing import Any
 
 from kryon.tools.common import run_command
 
 
 def compress_file(
     file_path: str,
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
     compression_type: str = "gzip",
 ) -> dict[str, Any]:
     """
@@ -87,8 +87,8 @@ def compress_file(
 
 def encrypt_file(
     file_path: str,
-    output_path: Optional[str] = None,
-    password: Optional[str] = None,
+    output_path: str | None = None,
+    password: str | None = None,
     method: str = "openssl",
 ) -> dict[str, Any]:
     """
@@ -147,7 +147,7 @@ def encrypt_file(
 def split_file(
     file_path: str,
     chunk_size_mb: int = 10,
-    output_dir: Optional[str] = None,
+    output_dir: str | None = None,
 ) -> dict[str, Any]:
     """
     Split file into chunks for exfiltration.
@@ -198,7 +198,7 @@ def split_file(
 
 def encode_base64(
     file_path: str,
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
 ) -> dict[str, Any]:
     """
     Base64 encode file.
@@ -241,7 +241,7 @@ def prepare_for_exfil(
     file_path: str,
     compress: bool = True,
     encrypt: bool = True,
-    password: Optional[str] = None,
+    password: str | None = None,
     split_chunks: bool = False,
     chunk_size_mb: int = 10,
 ) -> dict[str, Any]:

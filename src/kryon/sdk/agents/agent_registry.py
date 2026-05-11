@@ -8,7 +8,6 @@ their IDs, and their display names throughout the KRYON system.
 import weakref
 from dataclasses import dataclass
 from threading import Lock
-from typing import Optional
 
 
 @dataclass
@@ -22,7 +21,7 @@ class AgentInstanceInfo:
     model_name: str  # The model being used
     is_parallel: bool = False  # Whether this is a parallel instance
     is_pattern: bool = False  # Whether this is part of a pattern
-    pattern_name: Optional[str] = None  # Name of the pattern if applicable
+    pattern_name: str | None = None  # Name of the pattern if applicable
 
 
 class AgentRegistry:
@@ -42,10 +41,10 @@ class AgentRegistry:
         model_instance,
         agent_type: str,
         display_name: str,
-        agent_id: Optional[str] = None,
+        agent_id: str | None = None,
         is_parallel: bool = False,
         is_pattern: bool = False,
-        pattern_name: Optional[str] = None,
+        pattern_name: str | None = None,
     ) -> str:
         """
         Register a new agent instance.
@@ -91,7 +90,7 @@ class AgentRegistry:
 
             return agent_id
 
-    def get_agent_by_id(self, agent_id: str) -> Optional[tuple[object, AgentInstanceInfo]]:
+    def get_agent_by_id(self, agent_id: str) -> tuple[object, AgentInstanceInfo] | None:
         """
         Get agent model and info by ID.
 
@@ -113,7 +112,7 @@ class AgentRegistry:
 
             return (model, self._instance_info[agent_id])
 
-    def get_agent_by_name(self, name: str) -> Optional[tuple[object, AgentInstanceInfo]]:
+    def get_agent_by_name(self, name: str) -> tuple[object, AgentInstanceInfo] | None:
         """
         Get agent by display name or type name.
 

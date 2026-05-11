@@ -12,7 +12,6 @@ from typing import Iterator
 
 import pytest
 
-
 # ---------- Frame helpers ----------
 
 
@@ -93,7 +92,7 @@ class _MockSocket:
     def close(self) -> None:
         self.closed = True
 
-    def __enter__(self) -> "_MockSocket": return self
+    def __enter__(self) -> _MockSocket: return self
     def __exit__(self, *exc: object) -> None: self.close()
 
 

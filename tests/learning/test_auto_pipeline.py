@@ -218,6 +218,7 @@ def test_running_twice_does_not_duplicate(drafts_dir: Path) -> None:
 
 def test_pipeline_result_is_frozen() -> None:
     from dataclasses import FrozenInstanceError
+
     from kryon.learning.auto_pipeline import PipelineResult
 
     r = PipelineResult(

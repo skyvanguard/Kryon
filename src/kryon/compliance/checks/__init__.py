@@ -19,8 +19,8 @@ from kryon.compliance.checks.base import (
     Check,
     CheckContext,
     CheckResult,
-    Verdict,
     Severity,
+    Verdict,
 )
 
 __all__ = ["Check", "CheckContext", "CheckResult", "Verdict", "Severity"]

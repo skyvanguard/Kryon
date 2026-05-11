@@ -21,7 +21,6 @@ import time
 import urllib.request
 from pathlib import Path
 
-
 HERE = Path(__file__).resolve().parent
 SAMPLE_JSON = Path(os.environ.get("F16_SAMPLE", "/tmp/f16_sample.json"))
 BENCH_ROOT = Path(os.environ.get("F16_BENCH_ROOT", "/tmp/NYU_dev"))
@@ -379,7 +378,7 @@ def main() -> None:
 
     n = len(results)
     succ = sum(1 for r in results if r.get("success"))
-    print(f"\n=== F16.v2 iteration summary ===")
+    print("\n=== F16.v2 iteration summary ===")
     print(f"N: {n} | Success: {succ}/{n} = {succ/max(1,n):.1%}")
     by_cat: dict[str, list] = {}
     for r in results:

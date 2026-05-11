@@ -24,7 +24,6 @@ from kryon.sdk.agents.models.openai_chatcompletions import (
     _should_reset_counter_for_user,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fix B — prose-plan detector unit tests
 # ---------------------------------------------------------------------------

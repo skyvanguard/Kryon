@@ -12,12 +12,10 @@ Falls back to `/etc/ssh/sshd_config` parse if `sshd -T` unavailable.
 
 from __future__ import annotations
 
-import re
 import time
 
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
-
 
 _WEAK_CIPHERS = {"aes128-cbc", "aes192-cbc", "aes256-cbc", "3des-cbc", "blowfish-cbc"}
 

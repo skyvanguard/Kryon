@@ -22,7 +22,7 @@ if str(_src_path) not in sys.path:
 
 @function_tool
 def query_knowledge_base(
-    question: str, top_k: int = 3, source_filter: Optional[str] = None, use_llm: bool = False
+    question: str, top_k: int = 3, source_filter: str | None = None, use_llm: bool = False
 ) -> dict[str, Any]:
     """
     Query the KRYON knowledge base with RAG.
@@ -228,7 +228,7 @@ def search_vulnerabilities(
 
 
 @function_tool
-def get_exploit_techniques(attack_type: str, platform: Optional[str] = None, max_results: int = 3) -> dict[str, Any]:
+def get_exploit_techniques(attack_type: str, platform: str | None = None, max_results: int = 3) -> dict[str, Any]:
     """
     Get exploit techniques for a specific attack type.
 

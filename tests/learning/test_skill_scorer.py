@@ -12,7 +12,6 @@ from typing import Any
 
 import pytest
 
-
 # ---------- Helpers ----------
 
 
@@ -38,6 +37,7 @@ def _experience(
 
 def test_skill_score_is_frozen() -> None:
     from dataclasses import FrozenInstanceError
+
     from kryon.learning.skill_scorer import SkillScore
 
     score = SkillScore(skill_name="x", sample_size=0)

@@ -25,7 +25,7 @@ import threading
 import time
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 class LLMResponseCache:
@@ -104,7 +104,7 @@ class LLMResponseCache:
         key_string = f"{query_norm}|||{context_norm}"
         return hashlib.sha256(key_string.encode()).hexdigest()
 
-    def _is_expired(self, entry: dict[str, Any], ttl: Optional[int] = None) -> bool:
+    def _is_expired(self, entry: dict[str, Any], ttl: int | None = None) -> bool:
         """
         Check if cache entry is expired.
 
@@ -132,7 +132,7 @@ class LLMResponseCache:
                 key, _ = self._cache.popitem(last=False)
                 self._stats["evictions"] += 1
 
-    def get(self, query: str, context: str, ttl: Optional[int] = None) -> Optional[str]:
+    def get(self, query: str, context: str, ttl: int | None = None) -> str | None:
         """
         Get cached LLM response if available and not expired.
 
@@ -176,7 +176,7 @@ class LLMResponseCache:
         context: str,
         answer: str,
         generation_time: float = 15.0,
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
     ):
         """
         Cache an LLM response.
@@ -205,7 +205,7 @@ class LLMResponseCache:
 
             self._cache[cache_key] = entry
 
-    def invalidate(self, query: Optional[str] = None, context: Optional[str] = None):
+    def invalidate(self, query: str | None = None, context: str | None = None):
         """
         Invalidate cache entries.
 
@@ -291,7 +291,7 @@ class LLMResponseCache:
 
 
 # Global cache instance
-_global_llm_cache: Optional[LLMResponseCache] = None
+_global_llm_cache: LLMResponseCache | None = None
 _llm_cache_lock = threading.Lock()
 
 
@@ -305,7 +305,7 @@ def get_llm_cache() -> LLMResponseCache:
     return _global_llm_cache
 
 
-def get_cached_llm_response(query: str, context: str, ttl: Optional[int] = None) -> Optional[str]:
+def get_cached_llm_response(query: str, context: str, ttl: int | None = None) -> str | None:
     """
     Get cached LLM response (convenience function).
 
@@ -321,7 +321,7 @@ def get_cached_llm_response(query: str, context: str, ttl: Optional[int] = None)
     return cache.get(query, context, ttl)
 
 
-def cache_llm_response(query: str, context: str, answer: str, generation_time: float = 15.0, ttl: Optional[int] = None):
+def cache_llm_response(query: str, context: str, answer: str, generation_time: float = 15.0, ttl: int | None = None):
     """
     Cache an LLM response (convenience function).
 

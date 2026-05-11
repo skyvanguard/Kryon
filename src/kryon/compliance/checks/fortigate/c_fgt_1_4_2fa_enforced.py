@@ -19,7 +19,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 _TWO_FACTOR_RE = re.compile(r"^\s*set\s+two-factor\s+(\S+)", re.M)
 _PROFILE_RE = re.compile(r'^\s*set\s+accprofile\s+"([^"]+)"', re.M)
 

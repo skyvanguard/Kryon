@@ -10,9 +10,9 @@ from kryon.tools.ot.s7_enum import S7EnumResult
 
 def _stub_enum(monkeypatch: pytest.MonkeyPatch, result: S7EnumResult) -> None:
     """Shadow-aware monkey-patch shared by both S7 checks."""
-    import kryon.tools.ot.s7_enum as src
     import kryon.compliance.checks.ot.s7.c_s7_1_1_anonymous_session as c11
     import kryon.compliance.checks.ot.s7.c_s7_2_1_firmware_currency as c21
+    import kryon.tools.ot.s7_enum as src
 
     fake = lambda *a, **k: result  # noqa: E731
     monkeypatch.setattr(src, "s7_enum", fake)

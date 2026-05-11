@@ -14,9 +14,7 @@ Lets you sanity-check retrieval quality WITHOUT launching a full /hunt.
 
 from __future__ import annotations
 
-import os
 from collections import Counter
-from typing import Optional
 
 from rich.console import Console
 from rich.table import Table
@@ -49,7 +47,7 @@ class CorpusCommand(Command):
 
     # ------------------------------------------------------------------
 
-    def handle_stats(self, args: Optional[list[str]] = None) -> bool:
+    def handle_stats(self, args: list[str] | None = None) -> bool:
         try:
             coll, cvc = _get_collection()
         except Exception as e:
@@ -116,7 +114,7 @@ class CorpusCommand(Command):
 
     # ------------------------------------------------------------------
 
-    def handle_query(self, args: Optional[list[str]] = None) -> bool:
+    def handle_query(self, args: list[str] | None = None) -> bool:
         if not args:
             console.print("[yellow]usage: /corpus query \"<code snippet or CWE keyword>\"[/yellow]")
             return False
@@ -160,7 +158,7 @@ class CorpusCommand(Command):
 
     # ------------------------------------------------------------------
 
-    def handle_show(self, args: Optional[list[str]] = None) -> bool:
+    def handle_show(self, args: list[str] | None = None) -> bool:
         if not args:
             console.print("[yellow]usage: /corpus show <GHSA-xxxx-... | CVE-YYYY-NNNN>[/yellow]")
             return False
@@ -199,7 +197,7 @@ class CorpusCommand(Command):
 
     # ------------------------------------------------------------------
 
-    def handle_cwe(self, args: Optional[list[str]] = None) -> bool:
+    def handle_cwe(self, args: list[str] | None = None) -> bool:
         try:
             coll, _ = _get_collection()
         except Exception as e:
@@ -225,7 +223,7 @@ class CorpusCommand(Command):
         console.print(t)
         return True
 
-    def handle_repos(self, args: Optional[list[str]] = None) -> bool:
+    def handle_repos(self, args: list[str] | None = None) -> bool:
         try:
             coll, _ = _get_collection()
         except Exception as e:

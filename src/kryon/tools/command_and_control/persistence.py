@@ -19,13 +19,13 @@ This module provides:
 
 import base64
 import secrets
-from typing import Any, Optional
+from typing import Any
 
 
 def create_registry_persistence(
     payload_path: str,
     key: str = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-    value_name: Optional[str] = None,
+    value_name: str | None = None,
     encoded: bool = True,
 ) -> dict[str, Any]:
     """
@@ -102,7 +102,7 @@ def create_scheduled_task(
     task_name: str,
     payload_path: str,
     trigger: str = "logon",
-    interval_minutes: Optional[int] = None,
+    interval_minutes: int | None = None,
     run_as: str = "SYSTEM",
 ) -> dict[str, Any]:
     """
@@ -193,8 +193,8 @@ Register-ScheduledTask -TaskName "{task_name}" -Action $action -Trigger $trigger
 def create_service_persistence(
     service_name: str,
     payload_path: str,
-    display_name: Optional[str] = None,
-    description: Optional[str] = None,
+    display_name: str | None = None,
+    description: str | None = None,
     start_type: str = "auto",
 ) -> dict[str, Any]:
     """
@@ -269,7 +269,7 @@ New-Service -Name "{service_name}" -BinaryPathName "{payload_path}" -DisplayName
 
 
 def create_startup_folder_persistence(
-    payload_path: str, user: str = "current", link_name: Optional[str] = None
+    payload_path: str, user: str = "current", link_name: str | None = None
 ) -> dict[str, Any]:
     """
     Copy payload to Windows startup folder.
@@ -340,7 +340,7 @@ $Shortcut.Save()
 
 
 def create_wmi_persistence(
-    payload_command: str, event_name: Optional[str] = None, trigger: str = "logon"
+    payload_command: str, event_name: str | None = None, trigger: str = "logon"
 ) -> dict[str, Any]:
     """
     Create WMI event subscription for persistence.

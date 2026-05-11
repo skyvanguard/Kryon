@@ -10,9 +10,9 @@ from kryon.tools.ot.dnp3_probe import DNP3ProbeResult
 
 def _stub_probe(monkeypatch: pytest.MonkeyPatch, result: DNP3ProbeResult) -> None:
     """Same shadow-aware stub pattern as F84.1 modbus tests."""
-    import kryon.tools.ot.dnp3_probe as src
     import kryon.compliance.checks.ot.dnp3.c_dnp3_1_1_unauth_read as c11
     import kryon.compliance.checks.ot.dnp3.c_dnp3_2_1_device_health as c21
+    import kryon.tools.ot.dnp3_probe as src
 
     fake = lambda *a, **k: result  # noqa: E731
     monkeypatch.setattr(src, "dnp3_probe", fake)

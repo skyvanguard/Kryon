@@ -37,10 +37,8 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from kryon.tools.code.reader import _find_callers_impl, _read_function_impl
 from kryon.tools.code.sandbox import _run_sandboxed_impl

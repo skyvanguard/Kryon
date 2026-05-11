@@ -11,7 +11,6 @@ The allow-list file lives at the nearest repo root (directory with
 from __future__ import annotations
 
 import getpass
-import sys
 from pathlib import Path
 
 from kryon.repl.commands.base import Command, register_command

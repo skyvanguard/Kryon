@@ -25,7 +25,7 @@ import json
 import logging
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Callable
 
 from kryon.learning.draft_writer import get_drafts_dir, list_existing_names
 from kryon.learning.pattern_detector import (

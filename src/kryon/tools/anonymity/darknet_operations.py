@@ -22,13 +22,13 @@ import random
 import socket
 import subprocess
 import time
-from typing import Any, Optional
+from typing import Any
 
 
 def create_onion_service(
     service_port: int = 80,
     local_port: int = 8080,
-    service_name: Optional[str] = None,
+    service_name: str | None = None,
     version: int = 3,
 ) -> dict[str, Any]:
     """
@@ -247,7 +247,7 @@ def access_onion_site(onion_url: str, tor_port: int = 9050, method: str = "reque
     return results
 
 
-def i2p_eepsite_setup(local_port: int = 8080, eepsite_name: Optional[str] = None) -> dict[str, Any]:
+def i2p_eepsite_setup(local_port: int = 8080, eepsite_name: str | None = None) -> dict[str, Any]:
     """
     Create I2P eepsite (I2P hidden service).
 

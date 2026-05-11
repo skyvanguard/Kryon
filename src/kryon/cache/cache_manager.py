@@ -14,7 +14,7 @@ import zlib
 from collections import OrderedDict
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +104,7 @@ class CacheManager:
                 self._stats["expirations"] += 1
                 self._remove_from_disk(key)
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """
         Get value from cache.
 
@@ -135,7 +135,7 @@ class CacheManager:
 
             return entry["value"]
 
-    def set(self, key: str, value: Any, ttl: Optional[int] = None):
+    def set(self, key: str, value: Any, ttl: int | None = None):
         """
         Set value in cache.
 
@@ -277,7 +277,7 @@ class CacheManager:
 
 
 # Global cache instance
-_global_cache: Optional[CacheManager] = None
+_global_cache: CacheManager | None = None
 _cache_lock = threading.Lock()
 
 
@@ -303,7 +303,7 @@ def cache_stats() -> dict[str, Any]:
     return cache.get_stats()
 
 
-def cache_result(ttl: Optional[int] = None, key_prefix: str = ""):
+def cache_result(ttl: int | None = None, key_prefix: str = ""):
     """
     Decorator to cache function results.
 
@@ -352,7 +352,7 @@ def cache_result(ttl: Optional[int] = None, key_prefix: str = ""):
     return decorator
 
 
-def cache_by_key(cache_key: str, ttl: Optional[int] = None) -> Callable:
+def cache_by_key(cache_key: str, ttl: int | None = None) -> Callable:
     """
     Decorator to cache function results with explicit key.
 
@@ -406,7 +406,7 @@ class CachedResult:
             return result
     """
 
-    def __init__(self, key: str, ttl: Optional[int] = None):
+    def __init__(self, key: str, ttl: int | None = None):
         self.key = hashlib.sha256(key.encode()).hexdigest()
         self.ttl = ttl
         self.cache = get_cache()
@@ -421,7 +421,7 @@ class CachedResult:
         """Check if value exists in cache."""
         return self.cache.get(self.key) is not None
 
-    def get(self) -> Optional[Any]:
+    def get(self) -> Any | None:
         """Get value from cache."""
         return self.cache.get(self.key)
 

@@ -8,7 +8,6 @@ and tool list adapt to the target being assessed.
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
 logger = logging.getLogger(__name__)

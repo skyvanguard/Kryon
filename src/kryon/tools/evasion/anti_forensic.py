@@ -20,7 +20,7 @@ import os
 import random
 import shlex
 import subprocess
-from typing import Any, Optional
+from typing import Any
 
 
 def secure_delete_file(file_path: str, overwrite_passes: int = 3, method: str = "random") -> dict[str, Any]:
@@ -106,7 +106,7 @@ def secure_delete_file(file_path: str, overwrite_passes: int = 3, method: str = 
     return results
 
 
-def wipe_free_space(drive_path: str = "/", method: str = "zeros", max_size_mb: Optional[int] = None) -> dict[str, Any]:
+def wipe_free_space(drive_path: str = "/", method: str = "zeros", max_size_mb: int | None = None) -> dict[str, Any]:
     """
     Wipe free space on drive to prevent recovery of deleted files.
 

@@ -8,7 +8,6 @@ remediation playbooks (e.g. `server-hardening`) for safe previews.
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 from rich.console import Console
 
@@ -43,17 +42,17 @@ class DryRunCommand(Command):
         console.print("Usage: /dry-run [on|off|status]")
         return False
 
-    def handle_on(self, args: Optional[list[str]] = None) -> bool:
+    def handle_on(self, args: list[str] | None = None) -> bool:
         os.environ["KRYON_DRY_RUN"] = "true"
         console.print("[green]🔒 Dry-run mode ON — destructive commands will be simulated[/green]")
         return True
 
-    def handle_off(self, args: Optional[list[str]] = None) -> bool:
+    def handle_off(self, args: list[str] | None = None) -> bool:
         os.environ["KRYON_DRY_RUN"] = "false"
         console.print("[yellow]⚠️  Dry-run mode OFF — destructive commands will execute normally[/yellow]")
         return True
 
-    def handle_status(self, args: Optional[list[str]] = None) -> bool:
+    def handle_status(self, args: list[str] | None = None) -> bool:
         if _is_on():
             console.print("[green]Dry-run mode: ON[/green]")
         else:

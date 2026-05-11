@@ -10,7 +10,6 @@ import pytest
 
 from kryon.learning.profiler import build_profile
 
-
 # ---------- Host extraction ----------
 
 

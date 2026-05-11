@@ -72,16 +72,16 @@ from kryon.tools.appsec.compliance_audit import (  # noqa: E402  (F15.2)
     generate_compliance_pdf,
     run_compliance_audit,
 )
-from kryon.tools.appsec.web_pentest_tool import (  # noqa: E402  (F63)
-    crawl_web_target,
-    run_web_pentest,
-)
 from kryon.tools.appsec.pentest_stack import (  # noqa: E402  (F68/F69)
     pentest_build_engagement_report,
     pentest_chain_findings,
     pentest_dispatch_experts,
     pentest_final_judge,
     pentest_waf_probe,
+)
+from kryon.tools.appsec.web_pentest_tool import (  # noqa: E402  (F63)
+    crawl_web_target,
+    run_web_pentest,
 )
 from kryon.tools.platforms.hackerone import (  # noqa: E402  (F65)
     h1_assert_in_scope,

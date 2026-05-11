@@ -16,12 +16,10 @@ visible to anyone reproducing the report (per HOW_TO_REPRODUCE.md).
 from __future__ import annotations
 
 import html
-import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-
 
 _HTML_HEAD = """<!doctype html>
 <html lang="en">
@@ -104,7 +102,7 @@ def _bar_html(pct: float, width_px: int = 200) -> str:
     """Inline progress bar — green if pct >= 0.5, amber if 0 < pct < 0.5,
     grey if 0."""
     if pct <= 0:
-        return f'<span class="bar empty"></span>'
+        return '<span class="bar empty"></span>'
     cls = "" if pct >= 0.5 else "partial"
     fill_px = max(2, int(width_px * pct))
     return f'<span class="bar {cls}" style="width:{fill_px}px"></span>'

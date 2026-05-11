@@ -9,7 +9,7 @@ Primary Users:
 - Forensic Analyzer (Alpha-Platinum)
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from kryon.tools.common import run_command
 
@@ -18,8 +18,8 @@ def upload_to_s3(
     file_path: str,
     bucket_name: str,
     object_key: str,
-    aws_access_key: Optional[str] = None,
-    aws_secret_key: Optional[str] = None,
+    aws_access_key: str | None = None,
+    aws_secret_key: str | None = None,
     region: str = "us-east-1",
 ) -> dict[str, Any]:
     """
@@ -77,7 +77,7 @@ def upload_to_azure(
     file_path: str,
     container_name: str,
     blob_name: str,
-    connection_string: Optional[str] = None,
+    connection_string: str | None = None,
 ) -> dict[str, Any]:
     """
     Upload file to Azure Blob Storage.
@@ -125,7 +125,7 @@ def upload_to_azure(
 
 def upload_to_gdrive(
     file_path: str,
-    folder_id: Optional[str] = None,
+    folder_id: str | None = None,
 ) -> dict[str, Any]:
     """
     Upload file to Google Drive using rclone.
@@ -165,8 +165,8 @@ def upload_to_gdrive(
 
 def upload_via_pastebin(
     data: str,
-    api_key: Optional[str] = None,
-    paste_name: Optional[str] = None,
+    api_key: str | None = None,
+    paste_name: str | None = None,
     private: bool = True,
 ) -> dict[str, Any]:
     """
@@ -262,7 +262,7 @@ def upload_via_ftp(
     ftp_host: str,
     ftp_user: str,
     ftp_password: str,
-    remote_path: Optional[str] = None,
+    remote_path: str | None = None,
     port: int = 21,
 ) -> dict[str, Any]:
     """

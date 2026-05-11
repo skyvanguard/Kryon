@@ -14,7 +14,6 @@ from pathlib import Path
 
 import pytest
 
-
 # ---------- File resolution ----------
 
 
@@ -227,9 +226,9 @@ def test_evaluator_auto_loads_override_when_no_explicit_map(
     )
     monkeypatch.setenv("KRYON_CWE_MAP", str(p))
 
+    from kryon.learning.pattern_detector import ChainCluster
     from kryon.learning.skill_evaluator import evaluate_draft_against_corpus
     from kryon.learning.skill_synthesizer import SkillDraft
-    from kryon.learning.pattern_detector import ChainCluster
 
     draft = SkillDraft(
         name="t",
@@ -273,9 +272,9 @@ def test_explicit_cwe_to_tools_arg_skips_file_override(
     )
     monkeypatch.setenv("KRYON_CWE_MAP", str(p))
 
+    from kryon.learning.pattern_detector import ChainCluster
     from kryon.learning.skill_evaluator import evaluate_draft_against_corpus
     from kryon.learning.skill_synthesizer import SkillDraft
-    from kryon.learning.pattern_detector import ChainCluster
 
     draft = SkillDraft(
         name="t",

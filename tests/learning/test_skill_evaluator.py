@@ -72,6 +72,7 @@ def _finding(
 
 def test_eval_report_is_frozen() -> None:
     from dataclasses import FrozenInstanceError
+
     from kryon.learning.skill_evaluator import EvalReport
 
     rep = EvalReport(

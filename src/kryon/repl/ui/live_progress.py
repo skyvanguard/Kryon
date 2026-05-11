@@ -37,8 +37,8 @@ from rich.text import Text
 
 from kryon.repl.ui.progress import (
     ProgressState,
-    get_parser_for_command,
     format_progress_bar,
+    get_parser_for_command,
 )
 
 

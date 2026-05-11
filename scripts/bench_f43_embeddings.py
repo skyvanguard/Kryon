@@ -19,7 +19,6 @@ import sys
 import time
 from pathlib import Path
 
-
 FIXTURES = [
     (
         "CVE-A001", "CWE-787",

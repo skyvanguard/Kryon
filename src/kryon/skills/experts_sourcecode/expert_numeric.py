@@ -22,7 +22,6 @@ from kryon.skills.experts_sourcecode.base import (
 )
 from kryon.skills.validator_agent import Finding
 
-
 # Simple upper-bound indicator — if any of these appear within 10 lines
 # BEFORE the match, we assume the arithmetic was validated.
 _BOUND_MARKERS = re.compile(

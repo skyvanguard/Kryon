@@ -13,7 +13,6 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-
 # We require these subscriptions for any policy that uses UTM features.
 _REQUIRED_FEATURES = ("AV", "IPS", "App Detection", "Web Filtering")
 

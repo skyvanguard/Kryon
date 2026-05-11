@@ -27,7 +27,6 @@ from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check
 from kryon.tools.ot.dnp3_probe import dnp3_probe
 
-
 _TROUBLE_FLAGS = (
     "device_restart",
     "device_trouble",

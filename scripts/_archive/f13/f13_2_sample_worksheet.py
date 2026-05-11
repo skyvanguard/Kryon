@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import json
 import random
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent.parent

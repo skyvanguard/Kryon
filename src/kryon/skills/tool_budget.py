@@ -34,7 +34,6 @@ def build_tool_registry() -> dict[str, Any]:
         AI_TOOLS,
         CORE_TOOLS,
         MEMORY_TOOLS,
-        RAG_TOOLS,
         RAG_TOOLS_FULL,
     )
 
