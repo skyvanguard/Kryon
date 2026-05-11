@@ -1,9 +1,12 @@
 from dataclasses import dataclass, field
-from typing import Any, Generic
+from typing import TYPE_CHECKING, Any, Generic, Optional
 
 from typing_extensions import TypeVar
 
 from .usage import Usage
+
+if TYPE_CHECKING:
+    from ._stuck_detector import StuckDetector
 
 TContext = TypeVar("TContext", default=Any)
 
@@ -24,3 +27,10 @@ class RunContextWrapper(Generic[TContext]):
     """The usage of the agent run so far. For streamed responses, the usage will be stale until the
     last chunk of the stream is processed.
     """
+
+    stuck_detector: Optional["StuckDetector"] = None
+    """F85.E — Per-run loop detector. Populated by ``Runner.run`` at the
+    start of each engagement. After each tool call, ``_run_impl`` calls
+    ``stuck_detector.record(...)`` and may inject a system message
+    ("intervene") or raise ``StuckError`` ("abort") if the same
+    (tool, args, result) triple repeats too many times."""

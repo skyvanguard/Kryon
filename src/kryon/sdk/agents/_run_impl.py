@@ -301,6 +301,45 @@ class RunImpl:
         if interrupt_exception:
             raise interrupt_exception
 
+        # F85.E — Feed every completed tool call to the StuckDetector.
+        # When the detector flags a loop, either inject a system-style
+        # tool output telling the LLM to reconsider ("intervene") or
+        # raise StuckError so the orchestrator terminates cleanly
+        # with outcome="stuck" instead of letting the run consume the
+        # full max_turns / price budget repeating itself.
+        stuck_detector = getattr(context_wrapper, "stuck_detector", None)
+        if stuck_detector is not None:
+            from .exceptions import StuckError
+
+            for fr in function_results:
+                action = stuck_detector.record(
+                    fr.tool.name,
+                    fr.run_item.raw_item.get("arguments", "") if isinstance(fr.run_item.raw_item, dict) else "",
+                    fr.output,
+                )
+                if action.kind == "abort":
+                    raise StuckError(
+                        tool_name=action.tool_name,
+                        repeat_count=action.repeat_count,
+                        window_size=action.window_size,
+                    )
+                if action.kind == "intervene":
+                    # Append a synthetic tool-output item so the LLM
+                    # sees the "reconsider approach" message before
+                    # its next turn. We piggyback on the existing
+                    # ToolCallOutputItem shape so the items_to_messages
+                    # adapter handles it transparently.
+                    intervene_item = ToolCallOutputItem(
+                        output=action.message,
+                        raw_item={
+                            "type": "function_call_output",
+                            "call_id": f"stuck-intervene-{action.tool_name}",
+                            "output": action.message,
+                        },
+                        agent=agent,
+                    )
+                    new_step_items.append(intervene_item)
+
         # Second, check if there are any handoffs
         if run_handoffs := processed_response.handoffs:
             return await cls.execute_handoffs(
