@@ -17,7 +17,7 @@ class TestRateLimitConfig:
     def test_groq_free_limits(self):
         cfg = PRESETS["groq_free"]
         assert cfg.rpm == 30
-        assert cfg.tpm == 6000
+        assert cfg.tpm == 12000
 
 
 class TestRateLimiterInit:

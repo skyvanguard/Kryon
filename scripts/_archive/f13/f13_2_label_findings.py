@@ -31,10 +31,10 @@ Labeling rules (all categories):
 from __future__ import annotations
 
 import json
-import re
 import random
-from pathlib import Path
+import re
 from collections import defaultdict
+from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent.parent
@@ -372,7 +372,7 @@ def main() -> None:
     lines.append(f"- Pooled N = {len([l for l in pooled_engine_labels if l in ('TP','FP')])}")
     lines.append(f"- Precision point = **{p_eng:.2%}**")
     lines.append(f"- 95% CI = [{lo_eng:.2%}, {hi_eng:.2%}]")
-    lines.append(f"- F13.2 engine gate threshold: **≥ 40%**")
+    lines.append("- F13.2 engine gate threshold: **≥ 40%**")
     status = "PASS" if lo_eng >= 0.40 else ("MARGINAL" if p_eng >= 0.40 else "FAIL")
     lines.append(f"- Gate status: **{status}** (CI lower bound comparison)")
 

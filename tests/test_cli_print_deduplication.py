@@ -20,11 +20,19 @@ def reset_cli_print_state():
         cli_print_tool_output._seen_calls.clear()
     if hasattr(cli_print_tool_output, "_streaming_sessions"):
         cli_print_tool_output._streaming_sessions.clear()
+    # F77.D / Fase 11 — flat renderer dedups by call_id, not by
+    # command_key. Reset its seen-set too so each test starts clean.
+    from kryon.util.streaming import _reset_render_dedup
+
+    _reset_render_dedup()
     yield
 
 
 def test_deduplication_with_streaming_disabled(capsys):
-    """Test that duplicate suppression works correctly when KRYON_STREAM=false"""
+    """Test that duplicate suppression works correctly when KRYON_STREAM=false.
+
+    After F77.D the primary dedup key is call_id, not tool_name:command.
+    Passing the same call_id twice should suppress the second render."""
     os.environ["KRYON_STREAM"] = "false"
 
     # First call should display
@@ -32,44 +40,38 @@ def test_deduplication_with_streaming_disabled(capsys):
         tool_name="run_command",
         args={"command": "ls -la"},
         output="test output",
+        call_id="call_abc123",
         streaming=False,
     )
 
     captured = capsys.readouterr()
     assert "test output" in captured.out
-    assert "run_command" in captured.out
 
-    # For this test, we need to manually set the display time to be recent
-    # because Rich rendering takes over 1 second
-    command_key = "run_command:ls -la"
-    if hasattr(cli_print_tool_output, "_command_display_times"):
-        # Set the display time to be very recent (0.1 seconds ago)
-        cli_print_tool_output._command_display_times[command_key] = time.time() - 0.1
-
-    # Immediate duplicate should be suppressed
+    # Immediate duplicate (same call_id) should be suppressed by the
+    # F77.D _dedup_render_check.
     cli_print_tool_output(
         tool_name="run_command",
         args={"command": "ls -la"},
         output="test output",
+        call_id="call_abc123",
         streaming=False,
     )
 
     captured = capsys.readouterr()
-    # The output should be empty since we're suppressing the duplicate
     assert captured.out == ""  # Should be empty, duplicate suppressed
 
-    # After delay, same command should display again
-    time.sleep(0.6)
+    # A different call_id (e.g. a fresh tool invocation in a later turn)
+    # always renders, even with the same args.
     cli_print_tool_output(
         tool_name="run_command",
         args={"command": "ls -la"},
         output="test output 2",
+        call_id="call_def456",
         streaming=False,
     )
 
     captured = capsys.readouterr()
     assert "test output 2" in captured.out
-    assert "run_command" in captured.out
 
 
 def test_deduplication_with_streaming_enabled(capsys):
@@ -81,17 +83,19 @@ def test_deduplication_with_streaming_enabled(capsys):
         tool_name="run_command",
         args={"command": "pwd"},
         output="test output",
+        call_id="call_xyz789",
         streaming=False,
     )
 
     captured = capsys.readouterr()
     assert "test output" in captured.out
 
-    # Duplicate should always be suppressed when streaming is enabled
+    # Duplicate same call_id should always be suppressed
     cli_print_tool_output(
         tool_name="run_command",
         args={"command": "pwd"},
         output="test output",
+        call_id="call_xyz789",
         streaming=False,
     )
 

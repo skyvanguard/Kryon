@@ -9,12 +9,14 @@ without needing an LLM call.
 from __future__ import annotations
 
 import re
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable
 
 _URL_RE = re.compile(r"(?:https?://)?(?P<host>[a-z0-9._-]+\.[a-z]{2,})(?::(?P<port>\d+))?", re.IGNORECASE)
 _IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _NMAP_HOST_LINE_RE = re.compile(r"Nmap scan report for\s+(?P<host>\S+)(?:\s+\((?P<ip>[0-9.]+)\))?")
-_NMAP_PORT_LINE_RE = re.compile(r"^(?P<port>\d+)/tcp\s+(?P<state>\w+)\s+(?P<service>\S+)(?:\s+(?P<version>.*))?", re.MULTILINE)
+_NMAP_PORT_LINE_RE = re.compile(
+    r"^(?P<port>\d+)/tcp\s+(?P<state>\w+)\s+(?P<service>\S+)(?:\s+(?P<version>.*))?", re.MULTILINE
+)
 _HTTP_TITLE_RE = re.compile(r"http-title:\s*(?P<title>.+)")
 _HTTP_SERVER_RE = re.compile(r"http-server-header:\s*(?P<server>[^\n]+)", re.IGNORECASE)
 
@@ -33,7 +35,7 @@ _TECH_SIGNALS = {
 }
 
 
-def _extract_host(text: str) -> Optional[str]:
+def _extract_host(text: str) -> str | None:
     """Best-effort extraction of a hostname from arbitrary text."""
     m = _NMAP_HOST_LINE_RE.search(text)
     if m:
@@ -47,7 +49,7 @@ def _extract_host(text: str) -> Optional[str]:
     return None
 
 
-def _extract_resolved_ip(text: str) -> Optional[str]:
+def _extract_resolved_ip(text: str) -> str | None:
     m = _NMAP_HOST_LINE_RE.search(text)
     if m and m.group("ip"):
         return m.group("ip")
@@ -92,7 +94,7 @@ def _extract_tech(text: str) -> list[str]:
     return sorted(set(found))
 
 
-def _guess_os(text: str) -> Optional[str]:
+def _guess_os(text: str) -> str | None:
     lower = text.lower()
     if any(sig in lower for sig in ("linux", "ubuntu", "debian", "centos", "apache/2", "openssh")):
         return "linux"
@@ -129,10 +131,10 @@ def _collect_text(sources: Iterable[Any]) -> str:
 
 def build_profile(
     *,
-    user_message: Optional[str] = None,
-    history: Optional[list[Any]] = None,
-    tool_outputs: Optional[list[str]] = None,
-    notes: Optional[str] = None,
+    user_message: str | None = None,
+    history: list[Any] | None = None,
+    tool_outputs: list[str] | None = None,
+    notes: str | None = None,
 ) -> dict[str, Any]:
     """Build a target profile from whatever signals the caller has.
 

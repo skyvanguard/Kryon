@@ -23,10 +23,8 @@ import sys
 import time
 import uuid
 from pathlib import Path
-from typing import Callable
 
 from kryon.compliance.checks.base import Check, CheckContext, CheckResult
-
 
 _REGISTERED_CHECKS: list[Check] = []
 _NAT_SORT_SPLIT = re.compile(r"(\d+)")
@@ -77,6 +75,7 @@ def run_cmd(
     transport = getattr(ctx, "transport", "ssh") or "ssh"
     if transport == "winrm":
         from kryon.compliance.runners.winrm_runner import run_winrm_cmd
+
         return run_winrm_cmd(ctx, cmd, timeout_s=timeout_s)
 
     if ctx.host not in ("", "localhost", "127.0.0.1"):
@@ -90,13 +89,20 @@ def run_cmd(
         # itself we still pass explicitly via -i.
         ssh_cmd = [
             "ssh",
-            "-F", "/dev/null",
-            "-o", "BatchMode=yes",
-            "-o", "ConnectTimeout=5",
-            "-o", "StrictHostKeyChecking=accept-new",
-            "-o", "UserKnownHostsFile=/tmp/kryon_known_hosts",
-            "-o", "IdentitiesOnly=yes",
-            "-p", str(ctx.ssh_port),
+            "-F",
+            "/dev/null",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=5",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "UserKnownHostsFile=/tmp/kryon_known_hosts",
+            "-o",
+            "IdentitiesOnly=yes",
+            "-p",
+            str(ctx.ssh_port),
         ]
         if ctx.ssh_key_path:
             ssh_cmd += ["-i", ctx.ssh_key_path]
@@ -179,8 +185,7 @@ def _cli() -> int:
     ap.add_argument("--ssh-port", type=int, default=22)
     ap.add_argument("--deep-evidence", action="store_true")
     ap.add_argument("--out", default="compliance-report.json")
-    ap.add_argument("--repro-check", type=int, default=0,
-                    help="Run N consecutive times and compare hashes.")
+    ap.add_argument("--repro-check", type=int, default=0, help="Run N consecutive times and compare hashes.")
     args = ap.parse_args()
 
     # Import side-effect: register all section check modules.
@@ -199,7 +204,7 @@ def _cli() -> int:
         for i in range(args.repro_check):
             results = run_all(ctx)
             h = reproducibility_hash(results)
-            print(f"run {i+1}/{args.repro_check}  hash={h}")
+            print(f"run {i + 1}/{args.repro_check}  hash={h}")
             hashes.append(h)
         ok = len(set(hashes)) == 1
         print(f"reproducibility: {'PASS' if ok else 'FAIL'} — {len(set(hashes))} distinct hash(es)")
@@ -210,14 +215,8 @@ def _cli() -> int:
     summary = {
         "host": args.host,
         "repro_hash": h,
-        "checks": [
-            {**r.to_json_reproducible(), "duration_ms": r.duration_ms, "run_id": r.run_id}
-            for r in results
-        ],
-        "summary": {
-            v: sum(1 for r in results if r.verdict == v)
-            for v in ("PASS", "FAIL", "N/A", "ERROR")
-        },
+        "checks": [{**r.to_json_reproducible(), "duration_ms": r.duration_ms, "run_id": r.run_id} for r in results],
+        "summary": {v: sum(1 for r in results if r.verdict == v) for v in ("PASS", "FAIL", "N/A", "ERROR")},
     }
     Path(args.out).write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"wrote {args.out}  hash={h}")
@@ -254,8 +253,65 @@ def _import_all_checks() -> None:
         "kryon.compliance.checks.active_directory.c_ad_3_2_password_policy",
         "kryon.compliance.checks.active_directory.c_ad_4_1_smb_signing",
         "kryon.compliance.checks.active_directory.c_ad_5_1_audit_policy",
+        # F78 FortiGate (FortiOS) hardening — CIS Fortinet Benchmark
+        "kryon.compliance.checks.fortigate.c_fgt_1_1_default_creds",
+        "kryon.compliance.checks.fortigate.c_fgt_1_2_admin_https_only",
+        "kryon.compliance.checks.fortigate.c_fgt_1_3_trusthost",
+        "kryon.compliance.checks.fortigate.c_fgt_1_4_2fa_enforced",
+        "kryon.compliance.checks.fortigate.c_fgt_1_5_admin_idle_timeout",
+        "kryon.compliance.checks.fortigate.c_fgt_1_6_super_admin_count",
+        "kryon.compliance.checks.fortigate.c_fgt_2_1_iface_allowaccess",
+        "kryon.compliance.checks.fortigate.c_fgt_2_2_snmp_community",
+        "kryon.compliance.checks.fortigate.c_fgt_2_3_ntp_auth",
+        "kryon.compliance.checks.fortigate.c_fgt_2_4_dns_servers",
+        "kryon.compliance.checks.fortigate.c_fgt_3_1_sslvpn_tls_min",
+        "kryon.compliance.checks.fortigate.c_fgt_3_2_sslvpn_mfa",
+        "kryon.compliance.checks.fortigate.c_fgt_3_3_sslvpn_portal_exposure",
+        "kryon.compliance.checks.fortigate.c_fgt_3_4_sslvpn_policy_source",
+        "kryon.compliance.checks.fortigate.c_fgt_3_5_sslvpn_timeouts",
+        "kryon.compliance.checks.fortigate.c_fgt_4_1_syslog_upstream",
+        "kryon.compliance.checks.fortigate.c_fgt_4_2_log_storage",
+        "kryon.compliance.checks.fortigate.c_fgt_4_3_log_retention",
+        "kryon.compliance.checks.fortigate.c_fgt_5_1_fortios_version_currency",
+        "kryon.compliance.checks.fortigate.c_fgt_5_2_fortiguard_licenses",
+        "kryon.compliance.checks.fortigate.c_fgt_5_3_known_cve_exposure",
+        # F84 OT/ICS — Modbus/TCP audit (Sprint 1: 2 checks)
+        "kryon.compliance.checks.ot.modbus.c_mod_1_1_unauth_read",
+        "kryon.compliance.checks.ot.modbus.c_mod_1_2_device_identification",
+        # F84 OT/ICS — DNP3 audit (Sprint 2: 2 checks)
+        "kryon.compliance.checks.ot.dnp3.c_dnp3_1_1_unauth_read",
+        "kryon.compliance.checks.ot.dnp3.c_dnp3_2_1_device_health",
+        # F84 OT/ICS — Siemens S7Comm audit (Sprint 3: 2 checks)
+        "kryon.compliance.checks.ot.s7.c_s7_1_1_anonymous_session",
+        "kryon.compliance.checks.ot.s7.c_s7_2_1_firmware_currency",
+        # F84 OT/ICS — IEC 60870-5-104 audit (Sprint 4: 2 checks)
+        "kryon.compliance.checks.ot.iec104.c_iec104_1_1_anonymous_session",
+        "kryon.compliance.checks.ot.iec104.c_iec104_2_1_perimeter_exposure",
+        # F84 OT/ICS — MQTT industrial broker audit (Sprint 5: 2 checks)
+        "kryon.compliance.checks.ot.mqtt.c_mqtt_1_1_anonymous_connect",
+        "kryon.compliance.checks.ot.mqtt.c_mqtt_2_1_sys_topic_disclosure",
+        # F79 Unifi (Ubiquiti) controller + WiFi configuration audit
+        "kryon.compliance.checks.unifi.c_unf_1_1_default_creds",
+        "kryon.compliance.checks.unifi.c_unf_1_2_controller_internet_exposure",
+        "kryon.compliance.checks.unifi.c_unf_1_3_admin_2fa",
+        "kryon.compliance.checks.unifi.c_unf_1_4_controller_firmware",
+        "kryon.compliance.checks.unifi.c_unf_1_5_auto_backup",
+        "kryon.compliance.checks.unifi.c_unf_2_1_wpa_mode",
+        "kryon.compliance.checks.unifi.c_unf_2_2_wpa_passphrase_strength",
+        "kryon.compliance.checks.unifi.c_unf_2_3_wps_disabled",
+        "kryon.compliance.checks.unifi.c_unf_2_4_wpa3_available",
+        "kryon.compliance.checks.unifi.c_unf_2_5_open_ssid",
+        "kryon.compliance.checks.unifi.c_unf_2_6_guest_isolation",
+        "kryon.compliance.checks.unifi.c_unf_2_7_hide_ssid_only",
+        "kryon.compliance.checks.unifi.c_unf_3_1_mgmt_vs_guest_vlan",
+        "kryon.compliance.checks.unifi.c_unf_3_2_corp_guest_vlan_separation",
+        "kryon.compliance.checks.unifi.c_unf_3_3_radius_hygiene",
+        "kryon.compliance.checks.unifi.c_unf_3_4_inform_encryption",
+        "kryon.compliance.checks.unifi.c_unf_4_1_remote_syslog",
+        "kryon.compliance.checks.unifi.c_unf_4_2_ap_firmware_currency",
     ]
     import importlib
+
     for m in modules:
         try:
             importlib.import_module(m)
@@ -264,6 +320,23 @@ def _import_all_checks() -> None:
             # will only include what exists so far.
             pass
 
+    # F39 — register YAML-based PCI-DSS 4.0 checks. Built per-call so the
+    # framework gets the same `_REGISTERED_CHECKS` instance the runner
+    # writes into (runner imported as __main__ vs library has separate
+    # registries; see the comment at the bottom of this file).
+    try:
+        from pathlib import Path
+
+        from kryon.compliance.cis import register_framework
+
+        yaml_path = Path(__file__).resolve().parent / "cis" / "frameworks" / "pci-dss-4.0.yaml"
+        if yaml_path.exists():
+            register_framework(yaml_path)
+    except Exception:
+        # YAML framework optional — runner stays usable with hand-written
+        # checks even if the loader/parsing fails for any reason.
+        pass
+
 
 if __name__ == "__main__":
     # Avoid double-instance gotcha: when python -m loads runner as __main__,
@@ -271,4 +344,5 @@ if __name__ == "__main__":
     # load runner AGAIN as a non-main module with its own _REGISTERED_CHECKS.
     # Dispatch to the non-main module's CLI so state is consistent.
     from kryon.compliance import runner as _r
+
     sys.exit(_r._cli())

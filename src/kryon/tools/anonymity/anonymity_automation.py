@@ -18,14 +18,14 @@ This module provides:
 - Automated OpSec compliance
 """
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 
 def threat_detection_engine(
     monitoring: list[str] = None,
     auto_respond: bool = True,
     kill_switch: bool = True,
-    callback: Optional[Callable] = None,
+    callback: Callable | None = None,
 ) -> dict[str, Any]:
     """
     Real-time threat detection engine for anonymity breaches.
@@ -391,7 +391,7 @@ enable_global_anonymity(
     return results
 
 
-def continuous_leak_monitoring(check_interval: int = 60, alert_callback: Optional[Callable] = None) -> dict[str, Any]:
+def continuous_leak_monitoring(check_interval: int = 60, alert_callback: Callable | None = None) -> dict[str, Any]:
     """
     Continuous background monitoring for anonymity leaks.
 

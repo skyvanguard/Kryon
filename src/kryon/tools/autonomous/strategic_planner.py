@@ -21,7 +21,7 @@ Features:
 import time
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from kryon.sdk.agents import function_tool
 
@@ -217,8 +217,8 @@ class StrategicPlanner:
         self,
         target_network: str,
         objectives: list[str],
-        constraints: Optional[dict[str, Any]] = None,
-        resources: Optional[dict[str, Any]] = None,
+        constraints: dict[str, Any] | None = None,
+        resources: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Generate comprehensive mission plan with multiple objectives.
@@ -555,7 +555,7 @@ class StrategicPlanner:
         self,
         current_plan: dict[str, Any],
         current_progress: dict[str, Any],
-        new_discoveries: Optional[dict[str, Any]] = None,
+        new_discoveries: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Dynamically adjust plan based on current progress and new discoveries.
@@ -826,8 +826,8 @@ class StrategicPlanner:
 def plan_autonomous_mission(
     target_network: str,
     objectives: list[str],
-    constraints: Optional[dict[str, Any]] = None,
-    resources: Optional[dict[str, Any]] = None,
+    constraints: dict[str, Any] | None = None,
+    resources: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Plan autonomous mission with strategic planner.
@@ -848,7 +848,7 @@ def plan_autonomous_mission(
 def adjust_plan_dynamically(
     current_plan: dict[str, Any],
     current_progress: dict[str, Any],
-    new_discoveries: Optional[dict[str, Any]] = None,
+    new_discoveries: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Adjust plan based on current execution state.

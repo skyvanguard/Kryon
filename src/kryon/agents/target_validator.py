@@ -62,7 +62,10 @@ REMEMBER: Precision is critical. Extract ONLY the flag, nothing else.
 ═══════════════════════════════════════════════════════════════════════""",
     model=OpenAIChatCompletionsModel(
         model="gpt-4o" if os.getenv("KRYON_MODEL", "gpt-4o") == "o3-mini" else model,
-        openai_client=AsyncOpenAI(api_key=api_key),
+        openai_client=AsyncOpenAI(
+            api_key=api_key,
+            base_url=os.getenv("OPENAI_BASE_URL"),
+        ),
     ),
     tools=RAG_TOOLS + AI_TOOLS,
     handoffs=[

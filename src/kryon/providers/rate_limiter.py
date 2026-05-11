@@ -16,12 +16,21 @@ class RateLimitConfig:
     tpm: int = 6000  # tokens per minute
 
 
-# Pre-configured presets for common providers
+# Pre-configured presets for common providers.
+# Free tier limits documented at https://console.groq.com/docs/rate-limits
+# (May 2026). Note: Groq RPD limits are aggressive (1K/day for most reasoning
+# models); plan capacity accordingly for long agentic sessions.
 PRESETS: dict[str, RateLimitConfig] = {
-    "groq_free": RateLimitConfig(rpm=30, tpm=6000),
-    "groq_paid": RateLimitConfig(rpm=100, tpm=100000),
+    "groq_free": RateLimitConfig(rpm=30, tpm=12000),
+    "groq_paid": RateLimitConfig(rpm=600, tpm=300000),
     "openai": RateLimitConfig(rpm=500, tpm=90000),
     "ollama": RateLimitConfig(rpm=9999, tpm=999999),
+    "deepseek": RateLimitConfig(rpm=500, tpm=200000),
+    # OpenRouter free tier: 20 RPM, 50 RPD shared across ALL :free models
+    # without account credit. With ≥$10 credit, 1000 RPD shared.
+    # TPM is per-model on the upstream provider, not enforced by OpenRouter.
+    "openrouter_free": RateLimitConfig(rpm=20, tpm=20000),
+    "openrouter_paid": RateLimitConfig(rpm=200, tpm=200000),
 }
 
 
@@ -50,12 +59,16 @@ class RateLimiter:
         """Auto-detect provider from OPENAI_BASE_URL and return appropriate limiter."""
         import os
 
-        url = base_url or os.getenv("OPENAI_BASE_URL", "")
+        url: str = base_url or os.getenv("OPENAI_BASE_URL", "") or ""
         url_lower = url.lower()
 
+        if "deepseek.com" in url_lower:
+            return cls.from_preset("deepseek")
         if "groq.com" in url_lower:
             return cls.from_preset("groq_free")
-        if "localhost" in url_lower or "127.0.0.1" in url_lower:
+        if "openrouter.ai" in url_lower:
+            return cls.from_preset("openrouter_free")
+        if "localhost" in url_lower or "127.0.0.1" in url_lower or "11434" in url_lower:
             return cls.from_preset("ollama")
         if "openai.com" in url_lower or not url:
             return cls.from_preset("openai")

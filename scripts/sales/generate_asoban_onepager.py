@@ -32,7 +32,6 @@ from kryon.compliance.cis import (  # noqa: E402
     load_framework,
 )
 
-
 PERFILES: dict[str, dict[str, object]] = {
     "A": {
         "label_es": "Perfil A — Banco pequeño",

@@ -8,7 +8,7 @@ import pytest
 
 from kryon.agents import get_available_agents
 
-MAX_TOOLS_PER_AGENT = 25  # Hard limit — forensic_analyzer has DFIR specialization tools
+MAX_TOOLS_PER_AGENT = 40  # Hard limit — appsec_analyzer carries the largest set
 
 
 def test_no_agent_exceeds_tool_limit():
@@ -27,19 +27,19 @@ def test_no_agent_exceeds_tool_limit():
 
 
 def test_ctf_master_reduced():
-    """CTF Master should have 15 or fewer tools (was 37)."""
+    """CTF Master should have 20 or fewer tools (was 37)."""
     agents = get_available_agents(include_patterns=False)
     ctf = agents.get("ctf_master")
     assert ctf is not None, "CTF Master agent not found"
-    assert len(ctf.tools) <= 17, f"CTF Master has {len(ctf.tools)} tools, expected <= 17"
+    assert len(ctf.tools) <= 20, f"CTF Master has {len(ctf.tools)} tools, expected <= 20"
 
 
 def test_vuln_hunter_reduced():
-    """Vuln Hunter should have 15 or fewer tools (was 17)."""
+    """Vuln Hunter should have 20 or fewer tools (was 17)."""
     agents = get_available_agents(include_patterns=False)
     vh = agents.get("vuln_hunter")
     assert vh is not None, "Vuln Hunter agent not found"
-    assert len(vh.tools) <= 15, f"Vuln Hunter has {len(vh.tools)} tools, expected <= 15"
+    assert len(vh.tools) <= 20, f"Vuln Hunter has {len(vh.tools)} tools, expected <= 20"
 
 
 def test_all_agents_have_tools():

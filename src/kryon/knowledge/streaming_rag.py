@@ -18,7 +18,7 @@ Classification: CORE INFRASTRUCTURE
 import asyncio
 import os
 from collections.abc import AsyncIterator
-from typing import Any, Optional
+from typing import Any
 
 
 class StreamingRAGEngine:
@@ -33,7 +33,7 @@ class StreamingRAGEngine:
         ...     print(chunk, end='', flush=True)
     """
 
-    def __init__(self, vector_db=None, llm_config: Optional[dict] = None, use_async_vector_db: bool = True):
+    def __init__(self, vector_db=None, llm_config: dict | None = None, use_async_vector_db: bool = True):
         """
         Initialize streaming RAG engine.
 
@@ -60,16 +60,18 @@ class StreamingRAGEngine:
         self._stats_lock = asyncio.Lock()
 
     def _load_llm_config(self) -> dict:
-        """Load LLM configuration from environment variables."""
+        """Load LLM configuration from environment variables.
+
+        RAG generation prefers KRYON_RAG_MODEL (a fast non-thinking model like
+        deepseek-chat) so retrieval queries don't burn reasoning tokens.
+        """
         return {
             "api_key": os.getenv("OPENAI_API_KEY", ""),
             "base_url": os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-            "model": os.getenv("KRYON_MODEL", "gpt-4o"),
+            "model": os.getenv("KRYON_RAG_MODEL", os.getenv("KRYON_MODEL", "gpt-4o")),
         }
 
-    async def query_stream(
-        self, question: str, top_k: int = 5, source_filter: Optional[str] = None
-    ) -> AsyncIterator[str]:
+    async def query_stream(self, question: str, top_k: int = 5, source_filter: str | None = None) -> AsyncIterator[str]:
         """
         Query with streaming LLM response.
 
@@ -195,7 +197,7 @@ class StreamingRAGEngine:
 
         return prompt
 
-    async def query_full(self, question: str, top_k: int = 5, source_filter: Optional[str] = None) -> dict[str, Any]:
+    async def query_full(self, question: str, top_k: int = 5, source_filter: str | None = None) -> dict[str, Any]:
         """
         Query with full response (collect all streamed tokens).
 
@@ -265,9 +267,7 @@ def get_streaming_rag_engine() -> StreamingRAGEngine:
 
 
 # Convenience function
-async def query_knowledge_stream(
-    question: str, top_k: int = 5, source_filter: Optional[str] = None
-) -> AsyncIterator[str]:
+async def query_knowledge_stream(question: str, top_k: int = 5, source_filter: str | None = None) -> AsyncIterator[str]:
     """
     Query knowledge base with streaming response.
 

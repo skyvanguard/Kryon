@@ -24,7 +24,7 @@ Tools:
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
+from typing import Any
 
 from kryon.sdk.agents import function_tool
 
@@ -98,11 +98,13 @@ def record_engagement_findings(
     except Exception as e:  # noqa: BLE001
         return json.dumps({"error": f"add_findings_batch failed: {e}"})
 
-    return json.dumps({
-        "stored": len(ids),
-        "ids": ids,
-        "library_total_after": count_findings(),
-    })
+    return json.dumps(
+        {
+            "stored": len(ids),
+            "ids": ids,
+            "library_total_after": count_findings(),
+        }
+    )
 
 
 @function_tool(strict_mode=False)
@@ -173,7 +175,8 @@ def query_similar_findings(
 
         try:
             semantic = recall_similar(
-                composite, k=remaining,
+                composite,
+                k=remaining,
                 filter_cwe=cwe_id or None,
                 filter_tech=tech_fingerprint or None,
             )
@@ -190,20 +193,22 @@ def query_similar_findings(
     # Trim output to keep token cost down
     lean: list[dict[str, Any]] = []
     for h in hits[:k]:
-        lean.append({
-            "score": round(float(h.get("score") or 0.0), 3),
-            "cwe_id": h.get("cwe_id"),
-            "probe_id": h.get("probe_id"),
-            "severity": h.get("severity"),
-            "status": h.get("status"),
-            "title": h.get("title"),
-            "url_shape": h.get("url_shape"),
-            "host": h.get("host"),
-            "tech_fingerprint": h.get("tech_fingerprint"),
-            "compliance_citations": h.get("compliance_citations") or [],
-            "evidence": (h.get("evidence") or "")[:256],
-            "remediation": (h.get("remediation") or "")[:256],
-        })
+        lean.append(
+            {
+                "score": round(float(h.get("score") or 0.0), 3),
+                "cwe_id": h.get("cwe_id"),
+                "probe_id": h.get("probe_id"),
+                "severity": h.get("severity"),
+                "status": h.get("status"),
+                "title": h.get("title"),
+                "url_shape": h.get("url_shape"),
+                "host": h.get("host"),
+                "tech_fingerprint": h.get("tech_fingerprint"),
+                "compliance_citations": h.get("compliance_citations") or [],
+                "evidence": (h.get("evidence") or "")[:256],
+                "remediation": (h.get("remediation") or "")[:256],
+            }
+        )
 
     return json.dumps({"count": len(lean), "findings": lean})
 

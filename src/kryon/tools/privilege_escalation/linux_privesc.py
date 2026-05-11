@@ -11,7 +11,7 @@ Primary Users:
 """
 
 import os
-from typing import Any, Optional
+from typing import Any
 
 from kryon.sdk.agents import function_tool
 from kryon.tools.common import run_command
@@ -89,7 +89,7 @@ def enumerate_linux_privesc(verbose: bool = False) -> dict[str, Any]:
     return result
 
 
-def find_suid_binaries(search_paths: Optional[list[str]] = None, interesting_only: bool = False) -> dict[str, Any]:
+def find_suid_binaries(search_paths: list[str] | None = None, interesting_only: bool = False) -> dict[str, Any]:
     """
     Find SUID/SGID binaries on the system.
 
@@ -186,7 +186,7 @@ def find_suid_binaries(search_paths: Optional[list[str]] = None, interesting_onl
     return result
 
 
-def find_writable_files(search_paths: Optional[list[str]] = None, exclude_proc: bool = True) -> dict[str, Any]:
+def find_writable_files(search_paths: list[str] | None = None, exclude_proc: bool = True) -> dict[str, Any]:
     """
     Find world-writable files and directories.
 
@@ -285,7 +285,7 @@ def check_sudo_permissions() -> dict[str, Any]:
     return result
 
 
-def suggest_kernel_exploits(kernel_version: Optional[str] = None) -> dict[str, Any]:
+def suggest_kernel_exploits(kernel_version: str | None = None) -> dict[str, Any]:
     """
     Suggest kernel exploits based on kernel version.
 

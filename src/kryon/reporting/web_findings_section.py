@@ -23,9 +23,8 @@ from __future__ import annotations
 
 import html as _html
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
 
 from kryon.compliance.cwe_mapping import frameworks_for_cwe
 
@@ -73,17 +72,19 @@ def load_webpentest_report(path: str | Path) -> WebReportData:
         cwe = f.get("cwe_id", "")
         tags = frameworks_for_cwe(cwe)
         citations = tuple(tags.citations()) if tags else ()
-        enriched.append(WebFinding(
-            cwe_id=cwe,
-            probe_id=f.get("probe_id", ""),
-            severity=f.get("severity", "MEDIUM"),
-            status=f.get("status", "CANDIDATE"),
-            title=f.get("title", ""),
-            url=f.get("url", ""),
-            evidence=f.get("evidence", ""),
-            remediation=f.get("remediation", ""),
-            compliance_citations=citations,
-        ))
+        enriched.append(
+            WebFinding(
+                cwe_id=cwe,
+                probe_id=f.get("probe_id", ""),
+                severity=f.get("severity", "MEDIUM"),
+                status=f.get("status", "CANDIDATE"),
+                title=f.get("title", ""),
+                url=f.get("url", ""),
+                evidence=f.get("evidence", ""),
+                remediation=f.get("remediation", ""),
+                compliance_citations=citations,
+            )
+        )
 
     return WebReportData(
         target=payload.get("target", ""),
@@ -122,14 +123,14 @@ def render_web_section_html(data: WebReportData) -> str:
 
     sev_badge = {
         "CRITICAL": '<span class="badge-critical">CRITICAL</span>',
-        "HIGH":     '<span class="badge-high">HIGH</span>',
-        "MEDIUM":   '<span class="badge-medium">MEDIUM</span>',
-        "LOW":      '<span class="badge-low">LOW</span>',
-        "INFO":     '<span class="badge-info">INFO</span>',
+        "HIGH": '<span class="badge-high">HIGH</span>',
+        "MEDIUM": '<span class="badge-medium">MEDIUM</span>',
+        "LOW": '<span class="badge-low">LOW</span>',
+        "INFO": '<span class="badge-info">INFO</span>',
     }
     status_badge = {
-        "CONFIRMED":      '<span class="badge-fail">CONFIRMED</span>',
-        "CANDIDATE":      '<span class="badge-warn">CANDIDATE</span>',
+        "CONFIRMED": '<span class="badge-fail">CONFIRMED</span>',
+        "CANDIDATE": '<span class="badge-warn">CANDIDATE</span>',
         "FALSE_POSITIVE": '<span class="badge-pass">FALSE POSITIVE</span>',
     }
 
@@ -176,7 +177,7 @@ def render_web_section_html(data: WebReportData) -> str:
         <th>Cumplimiento / Normativa</th>
       </tr>
     </thead>
-    <tbody>{''.join(rows)}</tbody>
+    <tbody>{"".join(rows)}</tbody>
   </table>
 </section>
 """.strip()
@@ -195,27 +196,29 @@ def findings_as_checkresult_dicts(data: WebReportData) -> list[dict]:
     """
     status_to_verdict = {
         "CONFIRMED": "FAIL",
-        "CANDIDATE": "FAIL",          # treat as fail; narrative says 'needs manual confirm'
+        "CANDIDATE": "FAIL",  # treat as fail; narrative says 'needs manual confirm'
         "FALSE_POSITIVE": "PASS",
     }
     out: list[dict] = []
     for f in sorted(data.findings, key=_order_key):
-        out.append({
-            "control_id": f.probe_id,
-            "control_title": f.title,
-            "section": f.cwe_id,
-            "verdict": status_to_verdict.get(f.status, "FAIL"),
-            "evidence_command": f.url,
-            "evidence_stdout": f.evidence[:2048],
-            "evidence_stderr": "",
-            "evidence_parsed": {
-                "cwe_id": f.cwe_id,
-                "status": f.status,
-                "compliance_citations": list(f.compliance_citations),
-                "probe_id": f.probe_id,
-            },
-            "remediation_static": f.remediation,
-            "severity": f.severity,
-            "host": data.target,
-        })
+        out.append(
+            {
+                "control_id": f.probe_id,
+                "control_title": f.title,
+                "section": f.cwe_id,
+                "verdict": status_to_verdict.get(f.status, "FAIL"),
+                "evidence_command": f.url,
+                "evidence_stdout": f.evidence[:2048],
+                "evidence_stderr": "",
+                "evidence_parsed": {
+                    "cwe_id": f.cwe_id,
+                    "status": f.status,
+                    "compliance_citations": list(f.compliance_citations),
+                    "probe_id": f.probe_id,
+                },
+                "remediation_static": f.remediation,
+                "severity": f.severity,
+                "host": data.target,
+            }
+        )
     return out

@@ -117,7 +117,9 @@ async def export_table(
     assert table in _EXPORTABLE_TABLES, f"Table {table!r} not in allowlist"  # nosec
     try:
         if client_id:
-            rows = conn.execute(f"SELECT * FROM {table} WHERE client_id = ? LIMIT ? OFFSET ?", (client_id, limit, offset)).fetchall()
+            rows = conn.execute(
+                f"SELECT * FROM {table} WHERE client_id = ? LIMIT ? OFFSET ?", (client_id, limit, offset)
+            ).fetchall()
         else:
             rows = conn.execute(f"SELECT * FROM {table} LIMIT ? OFFSET ?", (limit, offset)).fetchall()
     except Exception:

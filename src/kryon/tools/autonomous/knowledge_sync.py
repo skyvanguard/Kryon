@@ -22,7 +22,7 @@ import json
 import sqlite3
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 class KnowledgeSync:
@@ -391,9 +391,7 @@ class KnowledgeSync:
 
         return merged
 
-    def sync_with_remote(
-        self, remote_url: str, api_key: Optional[str] = None, direction: str = "both"
-    ) -> dict[str, Any]:
+    def sync_with_remote(self, remote_url: str, api_key: str | None = None, direction: str = "both") -> dict[str, Any]:
         """
         Sync knowledge with remote KRYON instance.
 

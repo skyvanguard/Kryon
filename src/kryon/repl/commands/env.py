@@ -4,7 +4,6 @@ This module provides commands for displaying environment variables.
 """
 
 import os
-from typing import Optional
 
 from rich.console import Console  # pylint: disable=import-error
 from rich.table import Table  # pylint: disable=import-error
@@ -25,7 +24,7 @@ class EnvCommand(Command):
             aliases=["/e"],
         )
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         """Handle the env command.
 
         Args:

@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import time
 
-from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.checks.active_directory._helpers import (
-    ad_env, check_tool, tool_missing_error,
+    ad_env,
+    check_tool,
+    tool_missing_error,
 )
+from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
 
@@ -39,9 +41,15 @@ class _SmbSigningCheck:
 
         if not check_tool(ctx, "nmap"):
             return tool_missing_error(
-                self.control_id, self.control_title, self.section,
-                self.severity, self.remediation_static, ctx.host, t0,
-                tool="nmap", install_hint="apt install nmap",
+                self.control_id,
+                self.control_title,
+                self.section,
+                self.severity,
+                self.remediation_static,
+                ctx.host,
+                t0,
+                tool="nmap",
+                install_hint="apt install nmap",
             )
 
         cmd = f"nmap -Pn -p 445 --script smb2-security-mode {dc} 2>&1 | tail -30"

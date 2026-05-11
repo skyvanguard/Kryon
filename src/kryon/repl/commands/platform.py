@@ -3,8 +3,6 @@ Platform command for KRYON REPL.
 This module provides commands for interacting with platform-specific features.
 """
 
-from typing import Optional
-
 from rich.console import Console  # pylint: disable=import-error
 from rich.panel import Panel  # pylint: disable=import-error
 
@@ -48,7 +46,7 @@ class PlatformCommand(Command):
                         lambda args, p=platform, c=cmd: self.handle_platform_command([p, c] + (args or [])),
                     )
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         """Handle the platform command.
 
         Args:
@@ -63,7 +61,7 @@ class PlatformCommand(Command):
 
         return self.handle_platform_command(args)
 
-    def handle_list(self, args: Optional[list[str]] = None) -> bool:  # pylint: disable=unused-argument # noqa: E501
+    def handle_list(self, args: list[str] | None = None) -> bool:  # pylint: disable=unused-argument # noqa: E501
         """Handle /platform list command."""
         if not is_kryon_extensions_platform_available():
             console.print("[red]Platform extensions are not available[/red]")
@@ -84,7 +82,7 @@ class PlatformCommand(Command):
         )
         return True
 
-    def handle_platform_command(self, args: Optional[list[str]] = None) -> bool:
+    def handle_platform_command(self, args: list[str] | None = None) -> bool:
         """Handle platform specific commands."""
         if not is_kryon_extensions_platform_available():
             console.print("[red]Platform extensions are not available[/red]")
@@ -122,7 +120,7 @@ class PlatformCommand(Command):
         platform.handle_command(args[1:])
         return True
 
-    def handle_vpn_status(self, args: Optional[list[str]] = None) -> bool:  # pylint: disable=unused-argument # noqa: E501
+    def handle_vpn_status(self, args: list[str] | None = None) -> bool:  # pylint: disable=unused-argument # noqa: E501
         """
         Check the status of the VPN connection.
 
@@ -168,7 +166,7 @@ class PlatformCommand(Command):
             console.print("[red]HTB platform module not available[/red]")
             return False
 
-    def handle_keep_vpn(self, args: Optional[list[str]] = None) -> bool:  # pylint: disable=unused-argument # noqa: E501
+    def handle_keep_vpn(self, args: list[str] | None = None) -> bool:  # pylint: disable=unused-argument # noqa: E501
         """
         Set the VPN to remain active even when the program is interrupted.
 

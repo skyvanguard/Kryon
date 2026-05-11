@@ -5,12 +5,12 @@ System data transfer utilities
 import os
 import shutil
 import tempfile
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
 
-def _prepare_payload(source_path: str, identifier: Optional[str] = None) -> Optional[dict[str, Any]]:
+def _prepare_payload(source_path: str, identifier: str | None = None) -> dict[str, Any] | None:
     """Prepare data payload"""
     if not os.path.exists(source_path):
         return None
@@ -47,7 +47,7 @@ def _transmit_data(payload: dict[str, Any], endpoint: str) -> bool:
         return False
 
 
-def process(path: str, endpoint: str, identifier: Optional[str] = None) -> bool:
+def process(path: str, endpoint: str, identifier: str | None = None) -> bool:
     """Process data transfer"""
     payload = _prepare_payload(path, identifier)
     if not payload:

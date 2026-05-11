@@ -7,7 +7,7 @@ Scrape OWASP Cheat Sheet Series from GitHub for RAG knowledge base.
 
 import logging
 import time
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -111,7 +111,7 @@ class OWASPScraper(BaseScraper):
             self.log_error(f"Error fetching OWASP index: {e}")
             return []
 
-    def _fetch_sheet(self, filename: str) -> Optional[str]:
+    def _fetch_sheet(self, filename: str) -> str | None:
         """Fetch a single cheat sheet by filename."""
         url = f"{_RAW_BASE}{filename}"
         try:

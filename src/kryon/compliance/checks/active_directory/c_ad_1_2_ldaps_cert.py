@@ -13,10 +13,12 @@ import re
 import time
 from datetime import datetime, timezone
 
-from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.checks.active_directory._helpers import (
-    ad_env, check_tool, tool_missing_error,
+    ad_env,
+    check_tool,
+    tool_missing_error,
 )
+from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
 
@@ -40,9 +42,15 @@ class _LdapsCertCheck:
 
         if not check_tool(ctx, "openssl"):
             return tool_missing_error(
-                self.control_id, self.control_title, self.section,
-                self.severity, self.remediation_static, ctx.host, t0,
-                tool="openssl", install_hint="apt install openssl",
+                self.control_id,
+                self.control_title,
+                self.section,
+                self.severity,
+                self.remediation_static,
+                ctx.host,
+                t0,
+                tool="openssl",
+                install_hint="apt install openssl",
             )
 
         cmd = (
@@ -77,8 +85,7 @@ class _LdapsCertCheck:
         notafter = _grab(r"^notAfter=(.+)$", out)
 
         issues: list[str] = []
-        parsed: dict = {"subject": subject or "", "issuer": issuer or "",
-                        "not_after": notafter or ""}
+        parsed: dict = {"subject": subject or "", "issuer": issuer or "", "not_after": notafter or ""}
 
         if subject and issuer and subject.strip() == issuer.strip():
             issues.append("LDAPS certificate is self-signed")
@@ -86,8 +93,7 @@ class _LdapsCertCheck:
 
         if notafter:
             try:
-                exp = datetime.strptime(notafter.strip(), "%b %d %H:%M:%S %Y %Z").replace(
-                    tzinfo=timezone.utc)
+                exp = datetime.strptime(notafter.strip(), "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc)
                 days = (exp - datetime.now(timezone.utc)).days
                 parsed["days_to_expiry"] = days
                 if days < 0:

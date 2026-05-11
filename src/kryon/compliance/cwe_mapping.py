@@ -15,10 +15,9 @@ Example:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 _MAPPING_PATH = Path(__file__).resolve().parent / "cwe_to_framework.yaml"
 
@@ -96,7 +95,7 @@ def _load_mapping() -> dict[str, FrameworkTags]:
     return out
 
 
-def frameworks_for_cwe(cwe_id: str) -> Optional[FrameworkTags]:
+def frameworks_for_cwe(cwe_id: str) -> FrameworkTags | None:
     """Return the regulatory tags for ``cwe_id`` (e.g. "CWE-89"), or
     ``None`` if the CWE is not mapped."""
     return _load_mapping().get(cwe_id.upper())

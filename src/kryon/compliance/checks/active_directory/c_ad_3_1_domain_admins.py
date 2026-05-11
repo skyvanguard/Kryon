@@ -12,12 +12,14 @@ from __future__ import annotations
 import re
 import time
 
-from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.checks.active_directory._helpers import (
-    ad_env, check_tool, missing_creds_error, tool_missing_error,
+    ad_env,
+    check_tool,
+    missing_creds_error,
+    tool_missing_error,
 )
+from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
-
 
 DA_THRESHOLD = 5  # banking default
 
@@ -42,24 +44,32 @@ class _DomainAdminsCheck:
 
         if not (domain and user and pwd and dc):
             return missing_creds_error(
-                self.control_id, self.control_title, self.section,
-                self.severity, self.remediation_static, ctx.host, t0,
+                self.control_id,
+                self.control_title,
+                self.section,
+                self.severity,
+                self.remediation_static,
+                ctx.host,
+                t0,
             )
 
         if not check_tool(ctx, "ldapsearch"):
             return tool_missing_error(
-                self.control_id, self.control_title, self.section,
-                self.severity, self.remediation_static, ctx.host, t0,
-                tool="ldapsearch", install_hint="apt install ldap-utils",
+                self.control_id,
+                self.control_title,
+                self.section,
+                self.severity,
+                self.remediation_static,
+                ctx.host,
+                t0,
+                tool="ldapsearch",
+                install_hint="apt install ldap-utils",
             )
 
         base_dn = ",".join(f"DC={p}" for p in domain.split("."))
         # Get member list of Domain Admins (CN=Domain Admins,CN=Users,<base>)
         da_dn = f"CN=Domain Admins,CN=Users,{base_dn}"
-        cmd = (
-            f"ldapsearch -x -H ldap://{dc} -D '{user}' -w '{pwd}' "
-            f"-b '{da_dn}' -s base member 2>&1"
-        )
+        cmd = f"ldapsearch -x -H ldap://{dc} -D '{user}' -w '{pwd}' -b '{da_dn}' -s base member 2>&1"
         out, err, rc = run_cmd(ctx, cmd, shell=True, timeout_s=10)
 
         if "result: 0 Success" not in out and rc != 0:
@@ -71,8 +81,7 @@ class _DomainAdminsCheck:
                 evidence_command=cmd.replace(pwd, "***"),
                 evidence_stdout=out[:1024],
                 evidence_stderr=err[:512],
-                evidence_parsed={"reason": "LDAP query for Domain Admins failed",
-                                 "rc": rc},
+                evidence_parsed={"reason": "LDAP query for Domain Admins failed", "rc": rc},
                 remediation_static=self.remediation_static,
                 severity=self.severity,
                 duration_ms=int((time.time() - t0) * 1000),

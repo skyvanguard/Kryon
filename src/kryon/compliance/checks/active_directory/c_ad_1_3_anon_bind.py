@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import time
 
-from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.checks.active_directory._helpers import (
-    ad_env, check_tool, tool_missing_error,
+    ad_env,
+    check_tool,
+    tool_missing_error,
 )
+from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
 
@@ -39,21 +41,23 @@ class _AnonBindCheck:
 
         if not check_tool(ctx, "ldapsearch"):
             return tool_missing_error(
-                self.control_id, self.control_title, self.section,
-                self.severity, self.remediation_static, ctx.host, t0,
-                tool="ldapsearch", install_hint="apt install ldap-utils",
+                self.control_id,
+                self.control_title,
+                self.section,
+                self.severity,
+                self.remediation_static,
+                ctx.host,
+                t0,
+                tool="ldapsearch",
+                install_hint="apt install ldap-utils",
             )
 
         # Anonymous bind (-x, no -D / -w), query rootDSE for anything useful
-        cmd = (
-            f"ldapsearch -x -H ldap://{dc}:389 -b '' -s base "
-            f"namingContexts supportedLDAPVersion 2>&1 | head -15"
-        )
+        cmd = f"ldapsearch -x -H ldap://{dc}:389 -b '' -s base namingContexts supportedLDAPVersion 2>&1 | head -15"
         out, err, rc = run_cmd(ctx, cmd, shell=True, timeout_s=8)
 
         # Markers
-        anon_ok = ("result: 0 Success" in out
-                   or ("namingContexts:" in out and "result:" in out))
+        anon_ok = "result: 0 Success" in out or ("namingContexts:" in out and "result:" in out)
         rejected_markers = [
             "Operations error",
             "000004DC",  # NT_STATUS_LOGON_FAILURE
@@ -74,8 +78,7 @@ class _AnonBindCheck:
                 evidence_command=cmd,
                 evidence_stdout=out[:1024],
                 evidence_stderr=err[:512],
-                evidence_parsed={"reason": "could not determine anon bind state",
-                                 "rc": rc},
+                evidence_parsed={"reason": "could not determine anon bind state", "rc": rc},
                 remediation_static=self.remediation_static,
                 severity=self.severity,
                 duration_ms=int((time.time() - t0) * 1000),

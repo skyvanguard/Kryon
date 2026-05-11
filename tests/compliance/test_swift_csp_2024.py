@@ -16,13 +16,7 @@ except (ImportError, ModuleNotFoundError):
 
 
 _YAML_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "kryon"
-    / "compliance"
-    / "cis"
-    / "frameworks"
-    / "swift-csp-2024.yaml"
+    Path(__file__).resolve().parents[2] / "src" / "kryon" / "compliance" / "cis" / "frameworks" / "swift-csp-2024.yaml"
 )
 _SWIFT_ID_RE = re.compile(r"^SWIFT-\d+\.\d+$")
 _MIN_CHECKS = 15
@@ -49,6 +43,7 @@ def test_all_ids_follow_swift_format(framework):
 
 def test_natural_sort_order(framework):
     from kryon.compliance.runner import _natural_sort_key
+
     ids = [c.id for c in framework.checks]
     assert ids == sorted(ids, key=_natural_sort_key)
 

@@ -47,14 +47,11 @@ Security notes:
 
 from __future__ import annotations
 
-import base64
-import fnmatch
 import json
 import os
-import re
 import threading
 import time
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 try:
@@ -72,7 +69,7 @@ _RL_CALLS: list[float] = []
 _RL_MAX_PER_MINUTE = 600
 
 
-def _auth() -> Optional[tuple[str, str]]:
+def _auth() -> tuple[str, str] | None:
     """Return (username, token) tuple or None if env vars missing."""
     user = os.environ.get("HACKERONE_API_USERNAME", "").strip()
     token = os.environ.get("HACKERONE_API_TOKEN", "").strip()
@@ -106,7 +103,7 @@ def _rate_limit_ok() -> bool:
     return True
 
 
-def _get(path: str, params: Optional[dict] = None) -> dict[str, Any]:
+def _get(path: str, params: dict | None = None) -> dict[str, Any]:
     """Authenticated GET against HackerOne API. Returns dict (or an
     ``{"error": "..."}`` shape on failure)."""
     if requests is None:
@@ -156,7 +153,10 @@ def _post(path: str, payload: dict) -> dict[str, Any]:
     url = f"{_H1_BASE}{path}"
     try:
         resp = requests.post(
-            url, auth=creds, json=payload, timeout=30,
+            url,
+            auth=creds,
+            json=payload,
+            timeout=30,
             headers={"Accept": "application/json", "Content-Type": "application/json"},
         )
     except requests.RequestException as exc:
@@ -240,7 +240,9 @@ def _match_asset(target_url: str, asset_id: str, asset_type: str) -> bool:
 
 
 def is_in_scope(
-    target_url: str, program_handle: str, scope_cache: Optional[dict] = None,
+    target_url: str,
+    program_handle: str,
+    scope_cache: dict | None = None,
 ) -> tuple[bool, str]:
     """Python helper (NOT a @function_tool).
 
@@ -263,7 +265,7 @@ def is_in_scope(
     # wildcard. Programs commonly scope "*.example.com" + exclude
     # specific subdomains (admin.example.com, internal.*, etc).
     assets = scope_cache.get("data") or []
-    matched_allow: Optional[str] = None
+    matched_allow: str | None = None
     matched_allow_type: str = ""
     for asset in assets:
         attrs = asset.get("attributes") or {}
@@ -274,8 +276,7 @@ def is_in_scope(
         if not attrs.get("eligible_for_submission"):
             return (
                 False,
-                f"explicit out-of-scope: asset {asset_id!r} is marked "
-                f"not-eligible-for-submission in {program_handle}",
+                f"explicit out-of-scope: asset {asset_id!r} is marked not-eligible-for-submission in {program_handle}",
             )
         if matched_allow is None:
             matched_allow = asset_id
@@ -314,14 +315,16 @@ def h1_list_programs(limit: int = 25) -> str:
     programs = []
     for item in (data.get("data") or [])[:limit]:
         attrs = item.get("attributes") or {}
-        programs.append({
-            "handle": attrs.get("handle"),
-            "name": attrs.get("name"),
-            "submission_state": attrs.get("submission_state"),
-            "offers_bounties": attrs.get("offers_bounties"),
-            "offers_swag": attrs.get("offers_swag"),
-            "policy_url": f"https://hackerone.com/{attrs.get('handle', '')}",
-        })
+        programs.append(
+            {
+                "handle": attrs.get("handle"),
+                "name": attrs.get("name"),
+                "submission_state": attrs.get("submission_state"),
+                "offers_bounties": attrs.get("offers_bounties"),
+                "offers_swag": attrs.get("offers_swag"),
+                "policy_url": f"https://hackerone.com/{attrs.get('handle', '')}",
+            }
+        )
     return json.dumps({"count": len(programs), "programs": programs})
 
 
@@ -351,21 +354,25 @@ def h1_get_program_scope(program_handle: str) -> str:
     assets = []
     for item in data.get("data") or []:
         attrs = item.get("attributes") or {}
-        assets.append({
-            "asset_identifier": attrs.get("asset_identifier"),
-            "asset_type": attrs.get("asset_type"),
-            "eligible_for_bounty": attrs.get("eligible_for_bounty"),
-            "eligible_for_submission": attrs.get("eligible_for_submission"),
-            "instruction": (attrs.get("instruction") or "")[:512],
-            "max_severity": attrs.get("max_severity"),
-        })
+        assets.append(
+            {
+                "asset_identifier": attrs.get("asset_identifier"),
+                "asset_type": attrs.get("asset_type"),
+                "eligible_for_bounty": attrs.get("eligible_for_bounty"),
+                "eligible_for_submission": attrs.get("eligible_for_submission"),
+                "instruction": (attrs.get("instruction") or "")[:512],
+                "max_severity": attrs.get("max_severity"),
+            }
+        )
     eligible = [a for a in assets if a.get("eligible_for_submission")]
-    return json.dumps({
-        "program": program_handle,
-        "total_assets": len(assets),
-        "eligible_assets": len(eligible),
-        "assets": assets,
-    })
+    return json.dumps(
+        {
+            "program": program_handle,
+            "total_assets": len(assets),
+            "eligible_assets": len(eligible),
+            "assets": assets,
+        }
+    )
 
 
 @function_tool(strict_mode=False)
@@ -394,15 +401,17 @@ def h1_list_my_reports(state: str = "new", limit: int = 20) -> str:
         attrs = item.get("attributes") or {}
         program = (item.get("relationships") or {}).get("program") or {}
         program_data = (program.get("data") or {}).get("attributes") or {}
-        reports.append({
-            "id": item.get("id"),
-            "title": attrs.get("title"),
-            "state": attrs.get("state"),
-            "severity": attrs.get("severity_rating"),
-            "created_at": attrs.get("created_at"),
-            "vulnerability_types": attrs.get("vulnerability_information") or "",
-            "program_handle": program_data.get("handle") or "",
-        })
+        reports.append(
+            {
+                "id": item.get("id"),
+                "title": attrs.get("title"),
+                "state": attrs.get("state"),
+                "severity": attrs.get("severity_rating"),
+                "created_at": attrs.get("created_at"),
+                "vulnerability_types": attrs.get("vulnerability_information") or "",
+                "program_handle": program_data.get("handle") or "",
+            }
+        )
     return json.dumps({"count": len(reports), "state": state, "reports": reports})
 
 
@@ -447,7 +456,7 @@ def h1_submit_report(
         progs = _get("/me/programs", params={"page[size]": 100})
     if "error" in progs:
         return json.dumps(progs)
-    program_id: Optional[str] = None
+    program_id: str | None = None
     for item in progs.get("data") or []:
         attrs = item.get("attributes") or {}
         if attrs.get("handle") == program_handle:
@@ -475,10 +484,7 @@ def h1_submit_report(
                 "severity_rating": severity.lower(),
             },
             "relationships": {
-                "weakness": (
-                    {"data": {"type": "weakness", "id": str(weakness_id)}}
-                    if weakness_id else None
-                ),
+                "weakness": ({"data": {"type": "weakness", "id": str(weakness_id)}} if weakness_id else None),
             },
         },
     }
@@ -492,13 +498,15 @@ def h1_submit_report(
 
     created = data.get("data") or {}
     rid = created.get("id")
-    return json.dumps({
-        "submitted": True,
-        "report_id": rid,
-        "url": f"https://hackerone.com/reports/{rid}" if rid else None,
-        "title": title,
-        "severity": severity,
-    })
+    return json.dumps(
+        {
+            "submitted": True,
+            "report_id": rid,
+            "url": f"https://hackerone.com/reports/{rid}" if rid else None,
+            "title": title,
+            "severity": severity,
+        }
+    )
 
 
 @function_tool(strict_mode=False)
@@ -510,9 +518,11 @@ def h1_assert_in_scope(target_url: str, program_handle: str) -> str:
     refuse to probe when in_scope=false.
     """
     ok, reason = is_in_scope(target_url, program_handle)
-    return json.dumps({
-        "target_url": target_url,
-        "program": program_handle,
-        "in_scope": ok,
-        "reason": reason,
-    })
+    return json.dumps(
+        {
+            "target_url": target_url,
+            "program": program_handle,
+            "in_scope": ok,
+            "reason": reason,
+        }
+    )

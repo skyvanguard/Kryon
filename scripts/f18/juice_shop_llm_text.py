@@ -157,7 +157,7 @@ def run_session() -> dict:
                 'Your previous response was not a valid JSON. Respond with ONLY: '
                 '{"name":"shell","arguments":{"command":"<cmd>"}} on one line.'})
             if parse_fails > 5:
-                print(f"  too many parse fails, abort")
+                print("  too many parse fails, abort")
                 break
             continue
 
@@ -197,7 +197,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="docs/bench_results/f19_foundation_sec.json")
     args = ap.parse_args()
-    print(f"F19 Juice Shop LLM-text bench")
+    print("F19 Juice Shop LLM-text bench")
     print(f"  model: {MODEL}")
     print(f"  turns: {MAX_TURNS}  wall: {WALL_S}s")
     r = run_session()

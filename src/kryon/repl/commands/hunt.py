@@ -19,10 +19,8 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 
 from kryon.repl.commands.base import Command, register_command
@@ -70,7 +68,7 @@ def _save_report(report_json: str) -> Path:
     return path
 
 
-def _load_last_report() -> Optional[dict]:
+def _load_last_report() -> dict | None:
     if not _LAST_REPORT_PATH.exists():
         return None
     try:
@@ -95,11 +93,15 @@ class HuntCommand(Command):
         self.add_subcommand("report", "Pretty-print the last hunt report", self.handle_report)
         self.add_subcommand("last", "Alias for /hunt report", self.handle_report)
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         # If first arg is a URL (http...) or path, treat as positional launch
-        if args and not args[0].startswith("/") and (
-            args[0].startswith(("http://", "https://", "git@", "/"))
-            or args[0] in ("status", "stop", "report", "last")
+        if (
+            args
+            and not args[0].startswith("/")
+            and (
+                args[0].startswith(("http://", "https://", "git@", "/"))
+                or args[0] in ("status", "stop", "report", "last")
+            )
         ):
             if args[0] in self.subcommands:
                 return super().handle(args)
@@ -127,8 +129,7 @@ class HuntCommand(Command):
         repo_url = positional[0]
         runner_type = flags.get("runner", "heuristic").lower()
         if runner_type not in {"heuristic", "llm", "semgrep", "hybrid"}:
-            console.print(f"[red]unknown runner: {runner_type!r} "
-                          "(use heuristic|llm|semgrep|hybrid)[/red]")
+            console.print(f"[red]unknown runner: {runner_type!r} (use heuristic|llm|semgrep|hybrid)[/red]")
             return False
 
         try:
@@ -174,7 +175,7 @@ class HuntCommand(Command):
         console.print(f"[dim]Report saved at {path}[/dim]")
         return True
 
-    def handle_status(self, args: Optional[list[str]] = None) -> bool:
+    def handle_status(self, args: list[str] | None = None) -> bool:
         from kryon.skills.supervisor_tools import get_pool, get_state
 
         pool = get_pool()
@@ -211,7 +212,7 @@ class HuntCommand(Command):
                 )
         return True
 
-    def handle_stop(self, args: Optional[list[str]] = None) -> bool:
+    def handle_stop(self, args: list[str] | None = None) -> bool:
         if not args:
             console.print("[yellow]usage: /hunt stop <hunter_id>[/yellow]")
             return False
@@ -230,7 +231,7 @@ class HuntCommand(Command):
             console.print(f"[red]could not terminate {hunter_id} (not found or done)[/red]")
         return ok
 
-    def handle_report(self, args: Optional[list[str]] = None) -> bool:
+    def handle_report(self, args: list[str] | None = None) -> bool:
         data = _load_last_report()
         if data is None:
             console.print("[yellow]No prior hunt report. Launch one with `/hunt <repo_url>`.[/yellow]")

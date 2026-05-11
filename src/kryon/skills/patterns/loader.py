@@ -23,6 +23,7 @@ Schema (per file under patterns/cwe/):
 The loader minimally validates and caches by mtime — adding a new
 CWE requires only dropping a YAML file in.
 """
+
 from __future__ import annotations
 
 import logging
@@ -47,14 +48,13 @@ _cache_mtime: float = 0.0
 
 _ALIAS_FAMILIES: list[set[str]] = [
     # Out-of-bounds write family
-    {"CWE-787", "CWE-121", "CWE-122", "CWE-124", "CWE-119", "CWE-787"},
+    {"CWE-787", "CWE-121", "CWE-122", "CWE-124", "CWE-119"},
     # Out-of-bounds read family
     {"CWE-125", "CWE-126", "CWE-127"},
     # Use of dangerous string functions → overflow family
     {"CWE-676", "CWE-787", "CWE-121", "CWE-122"},
     # Integer family
-    {"CWE-190", "CWE-191", "CWE-192", "CWE-193", "CWE-194", "CWE-195",
-     "CWE-196", "CWE-197", "CWE-680"},
+    {"CWE-190", "CWE-191", "CWE-192", "CWE-193", "CWE-194", "CWE-195", "CWE-196", "CWE-197", "CWE-680"},
     # Use-after-free / double-free family
     {"CWE-416", "CWE-415", "CWE-672"},
     # Null deref family
@@ -122,6 +122,7 @@ def _parse_yaml(text: str) -> dict[str, Any]:
     parser only if PyYAML is missing (kept for portability)."""
     try:
         import yaml
+
         result = yaml.safe_load(text)
         return result if isinstance(result, dict) else {}
     except ImportError:
@@ -170,8 +171,7 @@ def _parse_yaml_simple(text: str) -> dict[str, Any]:
                 continue
             elif val.startswith("[") and val.endswith("]"):
                 # Inline list
-                items = [x.strip().strip('"').strip("'")
-                         for x in val[1:-1].split(",") if x.strip()]
+                items = [x.strip().strip('"').strip("'") for x in val[1:-1].split(",") if x.strip()]
                 result[key] = items
             elif val:
                 result[key] = val.strip('"').strip("'")
@@ -196,7 +196,8 @@ def _parse_yaml_simple(text: str) -> dict[str, Any]:
                             # Dict item with possibly more keys at deeper indent
                             sub: dict = {}
                             ikey, _, ival = item_body.partition(":")
-                            ikey = ikey.strip(); ival = ival.strip()
+                            ikey = ikey.strip()
+                            ival = ival.strip()
                             if ival == "|":
                                 block: list[str] = []
                                 i += 1
@@ -209,7 +210,9 @@ def _parse_yaml_simple(text: str) -> dict[str, Any]:
                                     n2_indent = len(n2) - len(n2.lstrip())
                                     if n2_indent <= nxt_indent + 2:
                                         break
-                                    block.append(n2[nxt_indent + 4:] if n2.startswith(" " * (nxt_indent + 4)) else n2.lstrip())
+                                    block.append(
+                                        n2[nxt_indent + 4 :] if n2.startswith(" " * (nxt_indent + 4)) else n2.lstrip()
+                                    )
                                     i += 1
                                 sub[ikey] = "\n".join(block)
                                 next_items.append(sub)
@@ -311,7 +314,7 @@ def iter_detection_regexes() -> list[tuple[str, str, str]]:
     out: list[tuple[str, str, str]] = []
     for entry in _scan_patterns().values():
         cwe = entry.get("cwe", "")
-        for det in (entry.get("detection") or []):
+        for det in entry.get("detection") or []:
             if isinstance(det, dict) and det.get("regex"):
                 out.append((det["regex"], cwe, det.get("confidence", "medium")))
     return out

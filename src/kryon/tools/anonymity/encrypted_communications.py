@@ -19,10 +19,10 @@ This module provides:
 
 import base64
 import secrets
-from typing import Any, Optional
+from typing import Any
 
 
-def signal_protocol_encryption(recipient_key: str, message: str, session_id: Optional[str] = None) -> dict[str, Any]:
+def signal_protocol_encryption(recipient_key: str, message: str, session_id: str | None = None) -> dict[str, Any]:
     """
     Encrypt message using Signal Protocol (Double Ratchet Algorithm).
 
@@ -116,8 +116,8 @@ Signal's Double Ratchet Algorithm:
 def pgp_automation(
     action: str,
     content: str = "",
-    recipient_key: Optional[str] = None,
-    passphrase: Optional[str] = None,
+    recipient_key: str | None = None,
+    passphrase: str | None = None,
 ) -> dict[str, Any]:
     """
     Automate PGP operations (key generation, encryption, signing).
@@ -243,7 +243,7 @@ decrypted = gpg.decrypt(encrypted_data)
     return results
 
 
-def otr_messaging(action: str = "setup", message: str = "", fingerprint: Optional[str] = None) -> dict[str, Any]:
+def otr_messaging(action: str = "setup", message: str = "", fingerprint: str | None = None) -> dict[str, Any]:
     """
     Off-the-Record (OTR) messaging with perfect forward secrecy.
 
@@ -440,7 +440,7 @@ dig TXT drop{secrets.token_hex(4)}.{drop_location}
     return results
 
 
-def secure_voice_call(protocol: str = "zrtp", sip_server: Optional[str] = None) -> dict[str, Any]:
+def secure_voice_call(protocol: str = "zrtp", sip_server: str | None = None) -> dict[str, Any]:
     """
     Setup secure voice call with ZRTP encryption.
 

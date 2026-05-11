@@ -281,19 +281,41 @@ def detect_claude_thinking_in_stream(model_name):
         or "thinking" in model_str
     )
 
-    # Check for DeepSeek models with reasoning capability
-    has_deepseek_reasoning = "deepseek" in model_str and (
-        # DeepSeek reasoner models
-        "reasoner" in model_str
-        or
-        # DeepSeek chat models also support reasoning
-        "chat" in model_str
-        or
-        # Generic deepseek models likely support it
-        "/" in model_str  # e.g., deepseek/deepseek-chat
+    # Check for DeepSeek models with reasoning capability.
+    # Note: `deepseek-chat` is the non-thinking alias and must NOT match
+    # — it routes to V4 Flash without thinking and emits no
+    # reasoning_content. Matching it would render an empty thinking panel.
+    has_deepseek_reasoning = (
+        "deepseek" in model_str
+        and "deepseek-chat" not in model_str
+        and (
+            # Legacy reasoner alias (deprecated 2026-07-24)
+            "reasoner" in model_str
+            or
+            # Provider-routed names (e.g., openrouter/deepseek/deepseek-r1)
+            "/" in model_str
+            or
+            # New bare V4 names — V4 Pro always has thinking; V4 Flash
+            # supports thinking via the `thinking` request flag.
+            "v4-pro" in model_str
+            or
+            # V4 Flash with explicit thinking marker
+            ("v4-flash" in model_str and "thinking" in model_str)
+            or
+            # Explicit reasoning markers (R1 distills, thinking variants)
+            "r1" in model_str
+            or "thinking" in model_str
+        )
     )
 
-    return has_claude_reasoning or has_deepseek_reasoning
+    # Groq reasoning families: Qwen3 (with <think> tags) and OpenAI's
+    # GPT-OSS (with separate `reasoning` field). Exclude the smaller
+    # gpt-oss-safeguard which is policy-only and not a general agent.
+    has_groq_reasoning = (
+        "qwen3" in model_str or "qwq" in model_str or ("gpt-oss" in model_str and "safeguard" not in model_str)
+    )
+
+    return has_claude_reasoning or has_deepseek_reasoning or has_groq_reasoning
 
 
 def print_claude_reasoning_simple(reasoning_content, agent_name, model_name):

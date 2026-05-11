@@ -12,10 +12,13 @@ from __future__ import annotations
 
 import time
 
-from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.checks.active_directory._helpers import (
-    ad_env, check_tool, missing_creds_error, tool_missing_error,
+    ad_env,
+    check_tool,
+    missing_creds_error,
+    tool_missing_error,
 )
+from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
 
@@ -40,23 +43,30 @@ class _LdapSigningCheck:
 
         if not (domain and user and pwd and dc):
             return missing_creds_error(
-                self.control_id, self.control_title, self.section,
-                self.severity, self.remediation_static, ctx.host, t0,
+                self.control_id,
+                self.control_title,
+                self.section,
+                self.severity,
+                self.remediation_static,
+                ctx.host,
+                t0,
             )
 
         if not check_tool(ctx, "ldapsearch"):
             return tool_missing_error(
-                self.control_id, self.control_title, self.section,
-                self.severity, self.remediation_static, ctx.host, t0,
-                tool="ldapsearch", install_hint="apt install ldap-utils",
+                self.control_id,
+                self.control_title,
+                self.section,
+                self.severity,
+                self.remediation_static,
+                ctx.host,
+                t0,
+                tool="ldapsearch",
+                install_hint="apt install ldap-utils",
             )
 
         # Simple bind over cleartext 389 — should FAIL if signing enforced.
-        cmd = (
-            f"ldapsearch -x -H ldap://{dc}:389 "
-            f"-D '{user}' -w '{pwd}' "
-            f"-b '' -s base namingContexts 2>&1 | head -20"
-        )
+        cmd = f"ldapsearch -x -H ldap://{dc}:389 -D '{user}' -w '{pwd}' -b '' -s base namingContexts 2>&1 | head -20"
         out, err, rc = run_cmd(ctx, cmd, shell=True, timeout_s=10)
 
         issues: list[str] = []

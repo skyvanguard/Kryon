@@ -34,9 +34,9 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_MODEL = os.environ.get("KRYON_TRIAGE_MODEL", "qwen3-coder:30b-32k")
-_DEFAULT_ENDPOINT = os.environ.get("OPENAI_BASE_URL", "http://ollama:11434/v1")
-_DEFAULT_API_KEY = os.environ.get("OPENAI_API_KEY", "ollama")
+_DEFAULT_MODEL = os.environ.get("KRYON_TRIAGE_MODEL", "deepseek-chat")
+_DEFAULT_ENDPOINT = os.environ.get("OPENAI_BASE_URL", "https://api.deepseek.com/v1")
+_DEFAULT_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 _DEFAULT_TIMEOUT_S = int(os.environ.get("KRYON_TRIAGE_TIMEOUT_S", "30"))
 _DEFAULT_MAX_TOKENS = int(os.environ.get("KRYON_TRIAGE_MAX_TOKENS", "2000"))
 
@@ -176,6 +176,7 @@ class TriageDecision:
 def _snippet(file_path: str, line: int, ctx: int = 8) -> str:
     try:
         from pathlib import Path
+
         lines = Path(file_path).read_text(errors="replace").splitlines()
     except OSError:
         return ""
@@ -186,7 +187,7 @@ def _snippet(file_path: str, line: int, ctx: int = 8) -> str:
     out = []
     for i in range(lo, hi):
         marker = ">" if i == line - 1 else " "
-        out.append(f"{marker}{i+1:>5}: {lines[i][:120]}")
+        out.append(f"{marker}{i + 1:>5}: {lines[i][:120]}")
     return "\n".join(out)
 
 
@@ -233,7 +234,7 @@ class TriageAnnotator:
         import time
 
         file_path = finding.get("file_path", "")
-        line_raw = (finding.get("line_range") or "0-0")
+        line_raw = finding.get("line_range") or "0-0"
         line_raw = str(line_raw).lstrip("~")
         try:
             line = int(line_raw.split("-", 1)[0])
@@ -250,37 +251,56 @@ class TriageAnnotator:
             snippet=_snippet(file_path, line),
         )
 
-        # F76.1.b — use Ollama NATIVE API (/api/chat) instead of the
-        # OpenAI-compat endpoint (/v1/chat/completions). The native API
-        # honors `think: false` per-request; the OpenAI-compat shim
-        # silently drops that flag and falls back to thinking-ON, which
-        # hangs reasoning-enabled models like kryon-14b on a trivial
-        # 3-way classification prompt.
-        # The rest of the Kryon system (unified agent, F66 experts,
-        # validators) still uses the OpenAI-compat endpoint so thinking
-        # stays ON for complex pentest/audit tasks.
-        # Endpoint derivation: the injected `endpoint` may point at the
-        # OpenAI-compat path (e.g. `http://ollama:11434/v1`); strip the
-        # trailing `/v1` so we land on the native chat path.
-        base = self.endpoint
-        if base.endswith("/v1"):
-            base = base[:-3]
-        body = json.dumps({
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "think": False,
-            "stream": False,
-            "options": {
-                "temperature": 0.1,
-                "num_predict": self.max_tokens,
-            },
-        }).encode()
-        req = urllib.request.Request(
-            f"{base}/api/chat",
-            data=body,
-            headers={"Content-Type": "application/json"},
-        )
+        # Detect endpoint flavour:
+        #   - Ollama native (port 11434 / hostname "ollama"): use /api/chat
+        #     which honours `think: false` per-request to skip reasoning.
+        #     The OpenAI-compat shim drops `think` and hangs reasoning
+        #     models on trivial 3-way classification.
+        #   - Anything else (DeepSeek API, OpenAI, vLLM, etc): use the
+        #     standard /v1/chat/completions with Bearer auth. We pick a
+        #     non-thinking model (deepseek-chat default) so reasoning is
+        #     already off — no `think` flag needed.
+        is_ollama_native = "11434" in self.endpoint or "ollama" in self.endpoint
         t0 = time.time()
+        if is_ollama_native:
+            base = self.endpoint
+            if base.endswith("/v1"):
+                base = base[:-3]
+            body = json.dumps(
+                {
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "think": False,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.1,
+                        "num_predict": self.max_tokens,
+                    },
+                }
+            ).encode()
+            req = urllib.request.Request(
+                f"{base}/api/chat",
+                data=body,
+                headers={"Content-Type": "application/json"},
+            )
+        else:
+            body = json.dumps(
+                {
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.1,
+                    "max_tokens": self.max_tokens,
+                    "stream": False,
+                }
+            ).encode()
+            req = urllib.request.Request(
+                f"{self.endpoint}/chat/completions",
+                data=body,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.api_key}",
+                },
+            )
         try:
             with urllib.request.urlopen(req, timeout=self.timeout_s) as r:
                 doc = json.loads(r.read())
@@ -289,7 +309,10 @@ class TriageAnnotator:
             return TriageDecision("ERROR", f"http: {exc}"[:200], "", time.time() - t0)
         elapsed = time.time() - t0
 
-        text = (doc.get("message") or {}).get("content", "")
+        if is_ollama_native:
+            text = (doc.get("message") or {}).get("content", "")
+        else:
+            text = ((doc.get("choices") or [{}])[0].get("message") or {}).get("content", "")
         verdict, reason, confidence = _parse(text)
         return TriageDecision(verdict, reason, confidence, elapsed)
 
@@ -305,10 +328,4 @@ def filter_suppress_high(findings: list[dict]) -> list[dict]:
     """Opt-in filter: drops only SUPPRESS-high verdicts. Keeps SUPPRESS-low
     and SUPPRESS-medium because the LLM was unsure. Triggered by
     `--triage-filter` / `KRYON_TRIAGE_FILTER=true`."""
-    return [
-        f for f in findings
-        if not (
-            f.get("triage_verdict") == "SUPPRESS"
-            and f.get("triage_confidence") == "high"
-        )
-    ]
+    return [f for f in findings if not (f.get("triage_verdict") == "SUPPRESS" and f.get("triage_confidence") == "high")]

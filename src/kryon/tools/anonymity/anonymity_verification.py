@@ -19,10 +19,10 @@ This module provides:
 
 import json
 import subprocess
-from typing import Any, Optional
+from typing import Any
 
 
-def check_ip_leak(expected_country: Optional[str] = None) -> dict[str, Any]:
+def check_ip_leak(expected_country: str | None = None) -> dict[str, Any]:
     """
     Check for IP address leaks.
 
@@ -137,7 +137,7 @@ def check_ip_leak(expected_country: Optional[str] = None) -> dict[str, Any]:
     return results
 
 
-def check_dns_leak(expected_dns_servers: Optional[list[str]] = None) -> dict[str, Any]:
+def check_dns_leak(expected_dns_servers: list[str] | None = None) -> dict[str, Any]:
     """
     Check for DNS leaks.
 
@@ -534,7 +534,7 @@ def check_fingerprint_uniqueness(fingerprint_data: dict[str, Any]) -> dict[str, 
     return results
 
 
-def comprehensive_anonymity_check(expected_country: Optional[str] = None) -> dict[str, Any]:
+def comprehensive_anonymity_check(expected_country: str | None = None) -> dict[str, Any]:
     """
     Comprehensive anonymity check - all tests.
 

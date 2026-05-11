@@ -15,12 +15,10 @@ PVE-1.1 finding), reading its own 8006/tcp.
 from __future__ import annotations
 
 import json
-import re
 import time
 
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
-
 
 SHOULD_BE_AUTHED = [
     "/api2/json/nodes",
@@ -49,10 +47,7 @@ class _UnauthApiCheck:
         parsed: dict = {"endpoints": {}}
 
         # First: confirm /version responds (sanity that pveproxy is up).
-        ver_cmd = (
-            "curl -sk -m 5 -o /dev/null -w '%{http_code}' "
-            "https://127.0.0.1:8006/api2/json/version"
-        )
+        ver_cmd = "curl -sk -m 5 -o /dev/null -w '%{http_code}' https://127.0.0.1:8006/api2/json/version"
         v_out, v_err, _ = run_cmd(ctx, ver_cmd, shell=True, timeout_s=8)
         version_code = v_out.strip() or "ERR"
         parsed["endpoints"]["/api2/json/version"] = version_code
@@ -76,10 +71,7 @@ class _UnauthApiCheck:
 
         # Now every privileged endpoint must NOT return 200.
         for ep in SHOULD_BE_AUTHED:
-            cmd = (
-                "curl -sk -m 5 -o /dev/null -w '%{http_code}' "
-                f"https://127.0.0.1:8006{ep}"
-            )
+            cmd = f"curl -sk -m 5 -o /dev/null -w '%{{http_code}}' https://127.0.0.1:8006{ep}"
             c_out, _, _ = run_cmd(ctx, cmd, shell=True, timeout_s=8)
             code = c_out.strip() or "ERR"
             parsed["endpoints"][ep] = code

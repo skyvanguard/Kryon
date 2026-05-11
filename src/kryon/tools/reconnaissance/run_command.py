@@ -267,9 +267,18 @@ async def run_command(command: str = "", interactive: bool = False, session_id: 
         # hackthissite.org session showed gobuster timing out repeatedly.
         cmd_lower = command.lower()
         long_tools = (
-            "gobuster", "dirb", "feroxbuster", "ffuf", "wfuzz",
-            "nuclei", "nikto", "wpscan", "sqlmap", "amass",
-            "masscan", "subfinder",
+            "gobuster",
+            "dirb",
+            "feroxbuster",
+            "ffuf",
+            "wfuzz",
+            "nuclei",
+            "nikto",
+            "wpscan",
+            "sqlmap",
+            "amass",
+            "masscan",
+            "subfinder",
         )
         if any(t in cmd_lower for t in long_tools):
             timeout = 900
@@ -451,29 +460,37 @@ async def run_command(command: str = "", interactive: bool = False, session_id: 
     # hit rich.Live. Only kicks in for recognised recon tools, outside
     # session_id context (session_id routes through persistent shells
     # where a transient progress panel would conflict with the shell UI).
-    if (
-        not session_id
-        and os.environ.get("KRYON_LIVE_PROGRESS", "").strip().lower() in {
-            "1", "true", "yes", "on",
-        }
-    ):
+    if not session_id and os.environ.get("KRYON_LIVE_PROGRESS", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
         recon_head = command.strip().split(" ", 1)[0].split("/")[-1].lower()
         recon_tools = {
-            "nmap", "masscan", "rustscan", "amass", "subfinder",
-            "dnsenum", "gobuster", "ffuf", "feroxbuster", "nikto",
+            "nmap",
+            "masscan",
+            "rustscan",
+            "amass",
+            "subfinder",
+            "dnsenum",
+            "gobuster",
+            "ffuf",
+            "feroxbuster",
+            "nikto",
         }
         if recon_head in recon_tools:
             try:
                 from kryon.repl.ui.live_progress import run_with_progress
+
                 cmd_result = await asyncio.to_thread(
-                    run_with_progress, command, timeout_s=timeout,
+                    run_with_progress,
+                    command,
+                    timeout_s=timeout,
                 )
                 out = cmd_result.stdout or ""
                 if cmd_result.returncode != 0:
-                    out += (
-                        f"\n[exit {cmd_result.returncode} after "
-                        f"{cmd_result.duration_s:.1f}s]"
-                    )
+                    out += f"\n[exit {cmd_result.returncode} after {cmd_result.duration_s:.1f}s]"
                     if cmd_result.stderr:
                         out += f"\n[stderr]\n{cmd_result.stderr}"
                 return out or f"[{recon_head} produced no output]"

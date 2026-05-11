@@ -21,10 +21,10 @@ import re
 import subprocess
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
-def scan_wifi_networks(interface: str = "wlan0", timeout: int = 30, channel: Optional[int] = None) -> dict[str, Any]:
+def scan_wifi_networks(interface: str = "wlan0", timeout: int = 30, channel: int | None = None) -> dict[str, Any]:
     """
     Scan for WiFi networks in range.
 
@@ -404,7 +404,7 @@ def capture_handshake(
 def crack_wpa_handshake(
     capture_file: str,
     wordlist: str = "/usr/share/wordlists/rockyou.txt",
-    bssid: Optional[str] = None,
+    bssid: str | None = None,
 ) -> dict[str, Any]:
     """
     Crack WPA/WPA2 handshake using aircrack-ng.
@@ -502,7 +502,7 @@ def crack_wpa_handshake(
 def deauth_attack(
     bssid: str,
     interface: str = "wlan0mon",
-    client: Optional[str] = None,
+    client: str | None = None,
     packet_count: int = 0,
     duration: int = 60,
 ) -> dict[str, Any]:

@@ -21,7 +21,7 @@ import re
 import shlex
 import subprocess
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from kryon.sdk.agents import function_tool
 
@@ -31,7 +31,7 @@ def check_thm_vpn(
     expected_network: str = "10.10.",
     vpn_interface: str = "tun0",
     auto_reconnect: bool = False,
-    config_path: Optional[str] = None,
+    config_path: str | None = None,
 ) -> dict[str, Any]:
     """
     Verify TryHackMe OpenVPN connection status.
@@ -190,7 +190,7 @@ def check_thm_vpn(
     return results
 
 
-def get_target_ip(room_url: Optional[str] = None, auto_detect: bool = True) -> dict[str, Any]:
+def get_target_ip(room_url: str | None = None, auto_detect: bool = True) -> dict[str, Any]:
     """
     Extract target IP from TryHackMe room information.
 
@@ -305,7 +305,7 @@ def get_target_ip(room_url: Optional[str] = None, auto_detect: bool = True) -> d
     return results
 
 
-def submit_thm_answer(answer: str, question_number: Optional[int] = None, format_type: str = "auto") -> dict[str, Any]:
+def submit_thm_answer(answer: str, question_number: int | None = None, format_type: str = "auto") -> dict[str, Any]:
     """
     Format answers for TryHackMe submission.
 
@@ -526,10 +526,10 @@ def parse_thm_questions(room_description: str) -> dict[str, Any]:
 
 def generate_thm_notes(
     room_name: str,
-    target_ip: Optional[str] = None,
-    questions: Optional[list[dict]] = None,
-    findings: Optional[dict] = None,
-    output_file: Optional[str] = None,
+    target_ip: str | None = None,
+    questions: list[dict] | None = None,
+    findings: dict | None = None,
+    output_file: str | None = None,
 ) -> dict[str, Any]:
     """
     Generate structured notes for TryHackMe rooms.

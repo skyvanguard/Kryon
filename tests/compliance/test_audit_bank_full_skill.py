@@ -11,7 +11,6 @@ import importlib
 
 import pytest
 
-
 try:
     _mod = importlib.import_module("kryon.skills.loader")
     SkillLoader = _mod.SkillLoader
@@ -118,9 +117,7 @@ def test_positive_trigger_matches(loader):
     for msg in positive_intents:
         matches = loader.match(user_msg=msg)
         names = [m.name for m in matches]
-        assert "audit-bank-full" in names, (
-            f"audit-bank-full did NOT trigger on {msg!r}; matched: {names[:5]}"
-        )
+        assert "audit-bank-full" in names, f"audit-bank-full did NOT trigger on {msg!r}; matched: {names[:5]}"
 
 
 def test_body_warns_about_pii_handling(skill):

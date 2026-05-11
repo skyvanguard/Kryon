@@ -33,7 +33,6 @@ from kryon.reporting.compliance_pdf import (
     _summary_table,
 )
 
-
 # Per-framework metadata — titles + regulatory mappings for consolidation table.
 FRAMEWORK_META: dict[str, dict[str, str]] = {
     "pci-dss-4.0": {
@@ -177,10 +176,7 @@ def _aggregate_counts(results: list[dict]) -> dict[str, int]:
 
 
 def _critical_fail_count(results: list[dict]) -> int:
-    return sum(
-        1 for r in results
-        if r.get("verdict") == "FAIL" and r.get("severity") == "CRITICAL"
-    )
+    return sum(1 for r in results if r.get("verdict") == "FAIL" and r.get("severity") == "CRITICAL")
 
 
 def compute_repro_hash(framework_results: dict[str, list[dict]]) -> str:
@@ -208,14 +204,8 @@ def _framework_summary_row(fw_id: str, results: list[dict]) -> str:
     counts = _aggregate_counts(results)
     risk_label, risk_color = _risk_level(counts)
     crit_fails = _critical_fail_count(results)
-    fail_style = (
-        f'style="color:{_VERDICT_COLOR["FAIL"]};font-weight:700"'
-        if counts["FAIL"] > 0 else ""
-    )
-    crit_cell = (
-        f'<strong style="color:#c1272d">{crit_fails}</strong>'
-        if crit_fails > 0 else "0"
-    )
+    fail_style = f'style="color:{_VERDICT_COLOR["FAIL"]};font-weight:700"' if counts["FAIL"] > 0 else ""
+    crit_cell = f'<strong style="color:#c1272d">{crit_fails}</strong>' if crit_fails > 0 else "0"
     return f"""<tr>
   <td><strong>{_esc(meta["title_es"])}</strong><br/>
       <span style="font-size:8pt;color:#666">{_esc(meta.get("maps_to", ""))}</span></td>
@@ -229,10 +219,7 @@ def _framework_summary_row(fw_id: str, results: list[dict]) -> str:
 
 
 def _cross_framework_summary_table(framework_results: dict[str, list[dict]]) -> str:
-    rows = "".join(
-        _framework_summary_row(fw_id, framework_results[fw_id])
-        for fw_id in sorted(framework_results)
-    )
+    rows = "".join(_framework_summary_row(fw_id, framework_results[fw_id]) for fw_id in sorted(framework_results))
     return f"""<table class="summary-table">
 <thead><tr>
   <th>Framework</th>
@@ -254,10 +241,7 @@ def _cross_mapping_section(applicable_frameworks: set[str]) -> str:
     ``applicable_frameworks`` (to avoid showing SWIFT mappings in a
     PCI-only audit, for instance).
     """
-    relevant = [
-        m for m in CROSS_MAPPINGS
-        if set(m["frameworks"]) & applicable_frameworks
-    ]
+    relevant = [m for m in CROSS_MAPPINGS if set(m["frameworks"]) & applicable_frameworks]
     if not relevant:
         return ""
     rows = []
@@ -268,9 +252,9 @@ def _cross_mapping_section(applicable_frameworks: set[str]) -> str:
                 label = FRAMEWORK_META.get(fw_id, {}).get("title_es", fw_id)
                 refs.append(f"<strong>{_esc(label)}</strong> {_esc(control)}")
         rows.append(
-            f'<tr><td>{_esc(m["topic_es"])}<br/>'
+            f"<tr><td>{_esc(m['topic_es'])}<br/>"
             f'<span style="font-size:8pt;color:#666">{_esc(m["topic_en"])}</span></td>'
-            f'<td>{" · ".join(refs)}</td></tr>'
+            f"<td>{' · '.join(refs)}</td></tr>"
         )
     body = "".join(rows)
     return f"""<h2>Mapeo cruzado / Cross-framework mapping</h2>
@@ -296,10 +280,7 @@ def _framework_section(fw_id: str, results: list[dict], narratives: dict[str, di
     meta = FRAMEWORK_META.get(fw_id, {"title_es": fw_id, "scope_es": ""})
     counts = _aggregate_counts(results)
     risk_label, risk_color = _risk_level(counts)
-    cards = "\n".join(
-        _finding_card(r, narratives.get(r.get("control_id", "")))
-        for r in _sort_results(results)
-    )
+    cards = "\n".join(_finding_card(r, narratives.get(r.get("control_id", ""))) for r in _sort_results(results))
     return f"""<h2>{_esc(meta["title_es"])}</h2>
 <p style="margin-top:0">
 <strong>Alcance:</strong> {_esc(meta.get("scope_es", ""))} ·
@@ -348,25 +329,21 @@ def render_multi_framework_html(
     summary_html = _cross_framework_summary_table(framework_results)
 
     per_fw_sections = "\n".join(
-        _framework_section(fw_id, framework_results[fw_id], narratives)
-        for fw_id in sorted(framework_results)
+        _framework_section(fw_id, framework_results[fw_id], narratives) for fw_id in sorted(framework_results)
     )
 
     per_fw_appendices = "\n".join(
-        f'<h3>{_esc(FRAMEWORK_META.get(fw_id, {}).get("title_es", fw_id))}</h3>\n'
+        f"<h3>{_esc(FRAMEWORK_META.get(fw_id, {}).get('title_es', fw_id))}</h3>\n"
         + "\n".join(_appendix_evidence(r) for r in _sort_results(framework_results[fw_id]))
         for fw_id in sorted(framework_results)
     )
 
     css = _css().replace("var(--hash)", f'"{repro_hash[:16]}..."')
-    client_line = (
-        f"Cliente: <strong>{_esc(client_name)}</strong> · "
-        if client_name else ""
-    )
+    client_line = f"Cliente: <strong>{_esc(client_name)}</strong> · " if client_name else ""
 
     return f"""<!doctype html>
 <html lang="es"><head><meta charset="utf-8">
-<title>Auditoría Consolidada — {_esc(host)} — {audit_date.strftime('%Y-%m-%d')}</title>
+<title>Auditoría Consolidada — {_esc(host)} — {audit_date.strftime("%Y-%m-%d")}</title>
 <style>{css}
 .risk-banner {{
   display:inline-block; padding:4pt 10pt; border-radius:4pt;
@@ -386,7 +363,7 @@ def render_multi_framework_html(
 <h1>Auditoría de cumplimiento consolidada</h1>
 <div class="cover-meta">
   {client_line}Host: <strong>{_esc(host)}</strong> ·
-  Fecha / Date: {audit_date.strftime('%Y-%m-%d %H:%M')} ·
+  Fecha / Date: {audit_date.strftime("%Y-%m-%d %H:%M")} ·
   Frameworks: <strong>{len(framework_results)}</strong>
 </div>
 <div class="cover-meta">
@@ -399,10 +376,10 @@ def render_multi_framework_html(
 <p>Se ejecutaron <strong>{total_checks}</strong> controles a través de
 <strong>{len(framework_results)}</strong> frameworks de cumplimiento.
 Resultados agregados:
-<strong style="color:{_VERDICT_COLOR['FAIL']}">{totals['FAIL']} FAIL</strong>
+<strong style="color:{_VERDICT_COLOR["FAIL"]}">{totals["FAIL"]} FAIL</strong>
 (incluidos <strong style="color:#c1272d">{total_crit} críticos</strong>),
-<strong style="color:{_VERDICT_COLOR['PASS']}">{totals['PASS']} PASS</strong>,
-{totals['N/A']} N/A, {totals['ERROR']} ERROR.
+<strong style="color:{_VERDICT_COLOR["PASS"]}">{totals["PASS"]} PASS</strong>,
+{totals["N/A"]} N/A, {totals["ERROR"]} ERROR.
 Nivel de riesgo agregado:
 <strong style="color:{overall_risk_color}">{overall_risk_label}</strong>.</p>
 
@@ -411,10 +388,10 @@ Nivel de riesgo agregado:
   <strong>Executive summary (consolidated).</strong>
   {total_checks} controls were executed across {len(framework_results)}
   compliance frameworks. Aggregate results:
-  <strong style="color:{_VERDICT_COLOR['FAIL']}">{totals['FAIL']} FAIL</strong>
+  <strong style="color:{_VERDICT_COLOR["FAIL"]}">{totals["FAIL"]} FAIL</strong>
   (including <strong style="color:#c1272d">{total_crit} critical</strong>),
-  <strong style="color:{_VERDICT_COLOR['PASS']}">{totals['PASS']} PASS</strong>,
-  {totals['N/A']} N/A, {totals['ERROR']} ERROR.
+  <strong style="color:{_VERDICT_COLOR["PASS"]}">{totals["PASS"]} PASS</strong>,
+  {totals["N/A"]} N/A, {totals["ERROR"]} ERROR.
   Overall risk:
   <strong style="color:{overall_risk_color}">{overall_risk_label}</strong>.
 </div>
@@ -459,9 +436,7 @@ def render_multi_framework_pdf(
     try:
         from weasyprint import HTML  # type: ignore
     except ImportError as exc:
-        raise ImportError(
-            "weasyprint is required for PDF output; install with `pip install weasyprint`"
-        ) from exc
+        raise ImportError("weasyprint is required for PDF output; install with `pip install weasyprint`") from exc
 
     html_str = render_multi_framework_html(framework_results, **kwargs)
     HTML(string=html_str).write_pdf(output_path)

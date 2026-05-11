@@ -42,10 +42,12 @@ from kryon.knowledge.scrapers.base_scraper import BaseScraper
 logger = logging.getLogger(__name__)
 
 # Default location for the cloned DB — large (~300 MB), persist it.
-_DB_PATH = Path(os.environ.get(
-    "KRYON_ADVISORY_DB_PATH",
-    "/workspace/sources/_advisory_database",
-))
+_DB_PATH = Path(
+    os.environ.get(
+        "KRYON_ADVISORY_DB_PATH",
+        "/workspace/sources/_advisory_database",
+    )
+)
 _DB_URL = "https://github.com/github/advisory-database.git"
 
 # GitHub commit URL parser
@@ -75,8 +77,11 @@ class GitHubAdvisoryScraper(BaseScraper):
             logger.info("Advisory DB present at %s, pulling updates...", _DB_PATH)
             r = subprocess.run(
                 ["git", "pull", "--ff-only", "--depth", "1"],
-                cwd=str(_DB_PATH), capture_output=True, text=True,
-                timeout=600, check=False,
+                cwd=str(_DB_PATH),
+                capture_output=True,
+                text=True,
+                timeout=600,
+                check=False,
             )
             if r.returncode != 0:
                 logger.warning("git pull failed: %s", r.stderr[:200])
@@ -85,7 +90,10 @@ class GitHubAdvisoryScraper(BaseScraper):
             logger.info("Cloning %s into %s (shallow)...", _DB_URL, _DB_PATH)
             r = subprocess.run(
                 ["git", "clone", "--depth", "1", _DB_URL, str(_DB_PATH)],
-                capture_output=True, text=True, timeout=900, check=False,
+                capture_output=True,
+                text=True,
+                timeout=900,
+                check=False,
             )
             if r.returncode != 0:
                 raise RuntimeError(f"clone failed: {r.stderr[:500]}")
@@ -124,15 +132,11 @@ class GitHubAdvisoryScraper(BaseScraper):
         severity = ""
         # OSV severity can be in 'database_specific' or 'severity' list
         db_spec = adv.get("database_specific") or {}
-        severity = (
-            db_spec.get("severity")
-            or (adv.get("severity") or [{}])[0].get("type", "")
-            or ""
-        )
+        severity = db_spec.get("severity") or (adv.get("severity") or [{}])[0].get("type", "") or ""
 
         # CVE id — from aliases
         cve_id = ""
-        for alias in (adv.get("aliases") or []):
+        for alias in adv.get("aliases") or []:
             if alias.startswith("CVE-"):
                 cve_id = alias
                 break
@@ -162,19 +166,19 @@ class GitHubAdvisoryScraper(BaseScraper):
                     fixed_in = ev["fixed"]
 
         return {
-            "ghsa_id":   ghsa_id,
-            "cve_id":    cve_id,
-            "cwe_ids":   cwes,
-            "summary":   summary,
-            "severity":  str(severity).upper(),
+            "ghsa_id": ghsa_id,
+            "cve_id": cve_id,
+            "cwe_ids": cwes,
+            "summary": summary,
+            "severity": str(severity).upper(),
             "ecosystem": ecosystem,
-            "package":   package,
-            "fixed_in":  fixed_in,
+            "package": package,
+            "fixed_in": fixed_in,
             "vulnerable_range": vulnerable_range,
             "references": refs[:20],
             "fix_commits": fix_commits,
-            "published":  adv.get("published", "") or "",
-            "_path":      str(path.relative_to(_DB_PATH)) if _DB_PATH in path.parents else path.name,
+            "published": adv.get("published", "") or "",
+            "_path": str(path.relative_to(_DB_PATH)) if _DB_PATH in path.parents else path.name,
         }
 
     # ------------------------------------------------------------------
@@ -215,9 +219,7 @@ class GitHubAdvisoryScraper(BaseScraper):
                     continue
                 if require_fix_commit and not rec["fix_commits"]:
                     continue
-                if ecosystems and rec["ecosystem"].lower() not in {
-                    e.lower() for e in ecosystems
-                }:
+                if ecosystems and rec["ecosystem"].lower() not in {e.lower() for e in ecosystems}:
                     continue
                 if cwe_filter:
                     want = {c.upper() for c in cwe_filter}

@@ -37,8 +37,8 @@ from rich.text import Text
 
 from kryon.repl.ui.progress import (
     ProgressState,
-    get_parser_for_command,
     format_progress_bar,
+    get_parser_for_command,
 )
 
 
@@ -160,7 +160,9 @@ def run_with_progress(
             logger.debug("stderr drainer: %s", exc)
 
     stderr_thread = threading.Thread(
-        target=_drain_stderr, name="live-progress-stderr", daemon=True,
+        target=_drain_stderr,
+        name="live-progress-stderr",
+        daemon=True,
     )
     stderr_thread.start()
 
@@ -189,9 +191,16 @@ def run_with_progress(
                     proc.terminate()
                     break
 
-                live.update(_render_panel(
-                    command, parser.name, state, started, tail, spinner,
-                ))
+                live.update(
+                    _render_panel(
+                        command,
+                        parser.name,
+                        state,
+                        started,
+                        tail,
+                        spinner,
+                    )
+                )
 
             proc.wait()
             # Give the stderr drainer a short grace period to finish

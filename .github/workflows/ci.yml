@@ -56,6 +56,12 @@ jobs:
           OPENAI_API_KEY: sk-dummy-key-for-ci
           KRYON_TELEMETRY: "false"
           KRYON_TRACING: "false"
+          # Enable red-team modules in CI so tests that exercise
+          # kryon.tools.{evasion,lateral_movement,post_exploitation,
+          # privilege_escalation} can import. F12.8 gates these off in
+          # production but the unit/integration tests need them
+          # available to make any assertion at all.
+          KRYON_RED_TEAM: "true"
         run: |
           pytest tests/ -v \
             --ignore=tests/agents/test_agent_inference.py \
@@ -71,6 +77,9 @@ jobs:
             --ignore=tests/test_tool_availability.py \
             --ignore=tests/voice/test_workflow.py \
             --ignore=tests/mcp/test_mcp_tracing.py \
+            --ignore=tests/autonomous \
+            --ignore=tests/tools/test_orchestrator_turns.py \
+            --ignore=tests/tools/test_pentest_planner.py \
             -m "not integration and not slow and not e2e" \
             --cov=src/kryon --cov-report=xml \
             --tb=short

@@ -7,7 +7,7 @@ import datetime
 import os
 
 # Standard library imports
-from typing import Any, Optional
+from typing import Any
 
 # Third-party imports
 import requests  # pylint: disable=import-error
@@ -123,7 +123,7 @@ class ModelCommand(Command):
         self.cached_model_numbers = {}
         self.last_model_fetch = datetime.datetime.now() - datetime.timedelta(minutes=10)
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         """Handle the model command.
 
         Args:
@@ -330,7 +330,7 @@ class ModelShowCommand(Command):
             aliases=["/mod-show"],
         )
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements,line-too-long # noqa: E501
+    def handle(self, args: list[str] | None = None) -> bool:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements,line-too-long # noqa: E501
         """Handle the model-show command.
 
         Args:

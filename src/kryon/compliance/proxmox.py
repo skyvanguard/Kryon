@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 FRAMEWORK_ID = "proxmox-ve"
 FRAMEWORK_NAME = "Proxmox VE hardening (banking profile)"
 FRAMEWORK_VERSION = "1.0"

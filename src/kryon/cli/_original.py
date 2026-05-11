@@ -263,11 +263,13 @@ if not sys.warnoptions:
 # These are cosmetic — subprocess cleanup after asyncio.run() destroys the loop
 _original_del = getattr(asyncio.base_subprocess.BaseSubprocessTransport, "__del__", None)
 if _original_del:
+
     def _quiet_del(self):
         try:
             _original_del(self)
         except RuntimeError:
             pass
+
     asyncio.base_subprocess.BaseSubprocessTransport.__del__ = _quiet_del
     warnings.simplefilter("ignore", ResourceWarning)  # Also ignore ResourceWarnings
 
@@ -720,6 +722,29 @@ def run_kryon_cli(
                     user_input = initial_prompt
                     use_initial_prompt = False  # Only use it once
                 else:
+                    # Update shared runtime state so the bottom toolbar
+                    # (running in a background thread) sees the current
+                    # active skills + tool count for this turn.
+                    try:
+                        from kryon.repl.ui.runtime_state import set_active_agent
+
+                        set_active_agent(agent)
+                    except Exception:  # pragma: no cover
+                        pass
+
+                    # Render the per-turn status header (skills + ollama
+                    # + drafts pendientes + last experience) BEFORE
+                    # opening the prompt. Best-effort — failures here
+                    # never block input.
+                    try:
+                        from kryon.repl.ui.status_line import render_status_line
+
+                        render_status_line(agent, console)
+                    except Exception as _sl_err:  # pragma: no cover
+                        import logging as _sl_logging
+
+                        _sl_logging.getLogger(__name__).debug("status_line render failed: %s", _sl_err)
+
                     # Get user input with command completion and history
                     user_input = get_user_input(
                         command_completer, kb, history_file, get_toolbar_with_refresh, current_text
@@ -739,6 +764,18 @@ def run_kryon_cli(
                     "User input is empty, maybe wants to continue"  # Set a default message to continue the conversation
                 )
 
+            # F77.D / Fase 11: reset per-turn render dedup so a fresh user
+            # prompt starts with a clean call_id ledger. Without this the
+            # _seen set grows for the lifetime of the REPL session.
+            try:
+                from kryon.repl.ui.tool_output_buffer import new_turn
+                from kryon.util.streaming import _reset_render_dedup
+
+                _reset_render_dedup()
+                new_turn()
+            except Exception:
+                pass
+
             # Skill hot-swap: if the unified "kryon" agent is active, re-match
             # skills against the new user input so the prompt + tool set adapt
             # per turn. This preserves conversation history (in-place mutation).
@@ -752,12 +789,17 @@ def run_kryon_cli(
                     new_skills = loader.match(user_msg=user_input)
                     if new_skills and {s.name for s in new_skills} != prior_names:
                         update_agent_skills(agent, new_skills)
+                        # Surface the swap so the user knows the agent
+                        # re-routed to a different skill set this turn.
+                        try:
+                            new_names = ", ".join(s.name for s in new_skills)
+                            console.print(f"[dim cyan]◆ skills updated →[/dim cyan] {new_names}")
+                        except Exception:
+                            pass
             except Exception as _skill_swap_err:  # pragma: no cover — safety net
                 import logging
 
-                logging.getLogger(__name__).debug(
-                    "Skill hot-swap skipped: %s", _skill_swap_err
-                )
+                logging.getLogger(__name__).debug("Skill hot-swap skipped: %s", _skill_swap_err)
 
             # In parallel mode, all configured agents will run automatically
             # No agent selection menu - just run all agents
@@ -1454,6 +1496,27 @@ def run_kryon_cli(
             else:
                 conversation_input = messages_ctf + user_input
 
+            # Pre-hook deterministic execution — runs BEFORE the LLM takes
+            # control. Skills with `pre_hooks:` in their frontmatter get
+            # their tools invoked here; the output is injected into the
+            # conversation_input as authoritative context. The LLM cannot
+            # skip the detector — it can only narrate the findings.
+            try:
+                from kryon.skills.pre_hook_integration import maybe_run_pre_hooks
+
+                pre_hook_suffix = asyncio.run(maybe_run_pre_hooks(agent, user_input, console))
+                if pre_hook_suffix:
+                    if isinstance(conversation_input, str):
+                        conversation_input = conversation_input + pre_hook_suffix
+                    elif isinstance(conversation_input, list) and conversation_input:
+                        last = conversation_input[-1]
+                        if isinstance(last, dict) and last.get("role") == "user":
+                            last["content"] = last.get("content", "") + pre_hook_suffix
+            except Exception as _ph_err:  # pragma: no cover — safety net
+                import logging as _ph_logging
+
+                _ph_logging.getLogger(__name__).warning("pre-hook integration error: %s", _ph_err)
+
             # Process the conversation with the agent - with parallel execution if enabled
             if parallel_count > 1:
                 # Parallel execution mode (always non-streaming)
@@ -1682,6 +1745,20 @@ def run_kryon_cli(
                             spinner.patch_model(agent.model)
                         if hasattr(agent, "tools"):
                             spinner.patch_tools(agent.tools)
+                        # Persistent header: which skills + tool count are
+                        # active for this turn. Goes BEFORE the transient
+                        # spinner so it sticks in scrollback.
+                        try:
+                            active = getattr(agent, "_active_skills", None) or []
+                            if active:
+                                names = ", ".join(s.name for s in active)
+                                tool_count = len(getattr(agent, "tools", []) or [])
+                                console.print(
+                                    f"[dim cyan]◆[/dim cyan] [bold]skills:[/bold] {names}  "
+                                    f"[dim]({tool_count} tools)[/dim]"
+                                )
+                        except Exception:
+                            pass
                         with spinner:
                             asyncio.run(process_streamed_response(agent, conversation_input, spinner))
 
@@ -1827,28 +1904,12 @@ def run_kryon_cli(
                         # Continue the conversation loop instead of crashing
                         continue
 
-                    # Display and persist the model's final text output.
-                    # Previously this only ran in Claude Code CLI mode, but it's
-                    # needed for ALL non-streaming runs — otherwise the user
-                    # never sees the model's analysis and the next turn loses context.
+                    # F77.D / Fase 9: persist the model's final text to history,
+                    # but DO NOT print it again — `cli_print_agent_messages` already
+                    # streamed it inline during the turn. The legacy duplicate panel
+                    # ("╭─ Kryon ─╮" wrapping the same Markdown) was removed.
                     if response and hasattr(response, "final_output") and response.final_output:
-                        from rich.markdown import Markdown
-                        from rich.panel import Panel
-
-                        console.print()
-                        console.print(
-                            Panel(
-                                Markdown(str(response.final_output)),
-                                title=f"[bold green]{get_agent_short_name(agent)}[/bold green]",
-                                border_style="blue",
-                                padding=(1, 2),
-                            )
-                        )
-                        console.print()
-                        # Persist to history so the next turn has context
-                        agent.model.add_to_message_history(
-                            {"role": "assistant", "content": str(response.final_output)}
-                        )
+                        agent.model.add_to_message_history({"role": "assistant", "content": str(response.final_output)})
 
                     # En modo no-streaming, procesamos SOLO los tool outputs de response.new_items
                     # Los tool calls (assistant messages) ya se añaden correctamente en openai_chatcompletions.py
@@ -2125,6 +2186,7 @@ def main():
 
     # --- engage subcommand (F12.7) — end-to-end demo orchestrator ---
     from kryon.cli.engage import add_engage_subparser
+
     add_engage_subparser(subparsers)
 
     # --- default (REPL) arguments ---
@@ -2200,6 +2262,7 @@ def main():
     # --- Handle report subcommand ---
     if args.command == "engage":
         from kryon.cli.engage import run_engage
+
         sys.exit(run_engage(args))
 
     if args.command == "report":

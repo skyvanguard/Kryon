@@ -11,9 +11,8 @@ Calibration target from F3 plan:
   - 100% of hallucinated findings rejected
   -  ≥ 90% of real findings confirmed
 """
-import json
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 from kryon.skills.validator_agent import Finding, ValidatorAgent, crash_to_cwe, severity_for_crash
 

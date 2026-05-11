@@ -157,9 +157,54 @@ def count_mission_logs():
     return "100+"
 
 
+def _full_banner_enabled() -> bool:
+    """The legacy ASCII-art banner is opt-in. Default = compact 3-line."""
+    val = os.environ.get("KRYON_FULL_BANNER", "").strip().lower()
+    return val in ("1", "true", "yes", "on")
+
+
+def _external_llm_warning() -> list:
+    """Banner fragments that warn the operator when LLM inference is
+    routed to a third-party endpoint (DeepSeek, OpenAI, OpenRouter, etc).
+
+    Returns a list of (text, style) tuples ready to be spread into a
+    Text.assemble() call. Empty list when running against local Ollama
+    or no configured endpoint — no warning needed.
+    """
+    base_url = os.getenv("OPENAI_BASE_URL", "").lower()
+    if not base_url:
+        return []
+    # Local endpoints don't warrant a warning
+    if any(local in base_url for local in ("localhost", "127.0.0.1", "ollama", "11434")):
+        return []
+    # Anything else is external — warn loudly
+    return [
+        ("⚠️  WARNING: LLM inference routed to external provider.\n", "bold yellow on red"),
+        (f"   Endpoint: {os.getenv('OPENAI_BASE_URL', '')}\n", "yellow"),
+        ("   Do not include client PAN, credentials, or PII in prompts.\n", "yellow"),
+        ("   Get explicit written authorization before bank engagements.\n\n", "yellow"),
+    ]
+
+
+def _display_compact_banner(console: Console, version: str, codename: str) -> None:
+    """Tight 3-line banner with palette B accents.
+
+    Replaces ~12 lines of ASCII art that ran on every startup. The full
+    art is still available via `KRYON_FULL_BANNER=1` for those who like
+    the classic look.
+    """
+    console.print(f"[bold cyan]KRYON[/bold cyan] [dim cyan]v{version} — {codename}[/dim cyan]")
+    console.print("[dim]autonomous cybersecurity agent for financial services · all actions logged[/dim]")
+    console.print("[dim cyan]/help · /skill list · /agent select · Ctrl+C interrupt · /exit[/dim cyan]")
+
+
 def display_banner(console: Console):
     """
-    Display KRYON initialization banner with cyber-themed aesthetics.
+    Display KRYON initialization banner.
+
+    Default: compact 3-line banner (palette B). The legacy ASCII art
+    banner is opt-in via `KRYON_FULL_BANNER=1` — useful for screencasts
+    or first-time intros, noisy in everyday use.
 
     Args:
         console: Rich console for output
@@ -168,6 +213,14 @@ def display_banner(console: Console):
     import kryon
 
     codename = getattr(kryon, "__codename__", "Genesis")
+
+    # Default path: compact banner. Opt out for the legacy art.
+    if not _full_banner_enabled():
+        try:
+            _display_compact_banner(console, version, codename)
+            return
+        except Exception:
+            pass  # Fall through to legacy banner
 
     # KRYON banner with indigo/cyan cyber theme (Unicode)
     banner_unicode = f"""
@@ -470,7 +523,13 @@ def display_quick_guide(console: Console):
         ("  KRYON_STREAM", "green"),
         f" = {os.getenv('KRYON_STREAM', 'true')}\n",
         ("  KRYON_WORKSPACE", "green"),
-        f" = {os.getenv('KRYON_WORKSPACE', 'default')}\n\n",
+        f" = {os.getenv('KRYON_WORKSPACE', 'default')}\n",
+        ("  OPENAI_BASE_URL", "green"),
+        f" = {os.getenv('OPENAI_BASE_URL', '(default OpenAI)')}\n\n",
+        # Warn loudly when LLM inference goes to a third-party endpoint —
+        # the operator should know they're sending prompts off-host before
+        # a banking client engagement.
+        *_external_llm_warning(),
         ("💡 Pro Tips:", "bold yellow"),
         "\n",
         ("• Use /help for detailed command help\n", "dim"),
@@ -628,23 +687,25 @@ def _pick_logo() -> str:
 
 
 def display_compact_banner(console: Console) -> None:
-    """Minimal startup banner for returning users."""
+    """Minimal startup banner for returning users.
+
+    By default: 3-line compact (palette B). Set `KRYON_FULL_BANNER=1`
+    to get the legacy panel with the full ASCII-art logo.
+    """
     ctx = _get_context()
+
+    # Default = real 3-line compact banner with palette B accents.
+    if not _full_banner_enabled():
+        console.print(f"[bold cyan]KRYON[/bold cyan] [dim cyan]v{ctx['version']} — {ctx['codename']}[/dim cyan]")
+        console.print("[dim]autonomous cybersecurity agent for financial services · all actions logged[/dim]")
+        console.print("[dim cyan]/help · /skill list · /agent select · Ctrl+C interrupt · /exit[/dim cyan]")
+        return
+
+    # Opt-in: legacy panel with the ASCII art logo.
     logo = _pick_logo()
-
-    # Detect backend
-    if os.getenv("KRYON_CLAUDE_CODE", "").lower() in ("true", "1", "yes"):
-        model_display = {"opus": "Opus 4.6", "sonnet": "Sonnet 4.6", "haiku": "Haiku 4.5"}
-        model_name = model_display.get(os.getenv("KRYON_CLAUDE_MODEL", "opus"), ctx["model"])
-    else:
-        model_name = ctx["model"]
-
     body = Text.from_markup(
-        f"{logo}\n\n"
-        f"  [bold white]v{ctx['version']}[/bold white]"
-        f" [dim]·[/dim] [cyan]{ctx['agent']}[/cyan]\n"
+        f"{logo}\n\n  [bold white]v{ctx['version']}[/bold white] [dim]·[/dim] [cyan]{ctx['agent']}[/cyan]\n"
     )
-
     panel = Panel(body, border_style="blue", box=ROUNDED, padding=(0, 2))
     console.print()
     console.print(panel)

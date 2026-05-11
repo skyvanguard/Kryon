@@ -48,10 +48,10 @@ class EnrichedEntry:
     ecosystem: str
     package: str
     commit_sha: str
-    repo: str          # "owner/name"
-    subject: str       # commit subject
+    repo: str  # "owner/name"
+    subject: str  # commit subject
     files: list[dict]  # from git_diff_fix.files
-    pattern: str       # short text for embedding
+    pattern: str  # short text for embedding
 
     def to_dict(self) -> dict:
         return self.__dict__
@@ -82,7 +82,10 @@ def _ensure_sha_available(repo_path: str, sha: str) -> bool:
     # Does the SHA already resolve?
     r = subprocess.run(
         ["git", "cat-file", "-e", sha],
-        cwd=repo_path, capture_output=True, text=True, check=False,
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     if r.returncode == 0:
         return True
@@ -90,7 +93,11 @@ def _ensure_sha_available(repo_path: str, sha: str) -> bool:
     # Try fetching that specific object
     r = subprocess.run(
         ["git", "fetch", "--depth", "5", "origin", sha],
-        cwd=repo_path, capture_output=True, text=True, timeout=120, check=False,
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
     )
     if r.returncode == 0:
         return True
@@ -99,14 +106,21 @@ def _ensure_sha_available(repo_path: str, sha: str) -> bool:
     logger.debug("unshallowing %s to find %s", repo_path, sha[:10])
     r = subprocess.run(
         ["git", "fetch", "--unshallow"],
-        cwd=repo_path, capture_output=True, text=True, timeout=600, check=False,
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        timeout=600,
+        check=False,
     )
     if r.returncode != 0:
         return False
 
     r = subprocess.run(
         ["git", "cat-file", "-e", sha],
-        cwd=repo_path, capture_output=True, text=True, check=False,
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     return r.returncode == 0
 
@@ -257,7 +271,10 @@ def enrich_batch(
             if i % progress_every == 0:
                 logger.info(
                     "progress: %d advisories, %d entries, %d failures, %.1fs",
-                    i, written, failed, time.time() - t0,
+                    i,
+                    written,
+                    failed,
+                    time.time() - t0,
                 )
 
     return {

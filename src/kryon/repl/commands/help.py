@@ -3,8 +3,6 @@ Help command for KRYON REPL.
 This module provides commands for displaying help information.
 """
 
-from typing import Optional
-
 try:
     from rich.console import Console
     from rich.panel import Panel
@@ -106,7 +104,7 @@ class HelpCommand(Command):
         self.add_subcommand("quick", "Quick reference guide", self.handle_quick)
         self.add_subcommand("quickstart", "Show quickstart guide for new users", self.handle_quickstart)
 
-    def handle_memory(self, _: Optional[list[str]] = None) -> bool:
+    def handle_memory(self, _: list[str] | None = None) -> bool:
         """Show help for memory commands."""
         # Get the memory command and show its help
         memory_cmd = next((cmd for cmd in COMMANDS.values() if cmd.name == "/memory"), None)
@@ -118,7 +116,7 @@ class HelpCommand(Command):
         self.handle_help_memory()
         return True
 
-    def handle_agent(self, _: Optional[list[str]] = None) -> bool:
+    def handle_agent(self, _: list[str] | None = None) -> bool:
         """Show help for agent management."""
         console.print(
             Panel(
@@ -152,7 +150,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_graph(self, _: Optional[list[str]] = None) -> bool:
+    def handle_graph(self, _: list[str] | None = None) -> bool:
         """Show help for graph visualization."""
         console.print(
             Panel(
@@ -192,7 +190,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_platform(self, _: Optional[list[str]] = None) -> bool:
+    def handle_platform(self, _: list[str] | None = None) -> bool:
         """Show help for platform-specific features."""
         platform_cmd = next((cmd for cmd in COMMANDS.values() if cmd.name == "/platform"), None)
 
@@ -217,7 +215,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_shell(self, _: Optional[list[str]] = None) -> bool:
+    def handle_shell(self, _: list[str] | None = None) -> bool:
         """Show help for shell command execution."""
         console.print(
             Panel(
@@ -241,7 +239,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_env(self, _: Optional[list[str]] = None) -> bool:
+    def handle_env(self, _: list[str] | None = None) -> bool:
         """Show help for environment variables."""
         console.print(
             Panel(
@@ -272,19 +270,19 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_aliases(self, _: Optional[list[str]] = None) -> bool:
+    def handle_aliases(self, _: list[str] | None = None) -> bool:
         """Show all command aliases."""
         return self.handle_help_aliases()
 
-    def handle_model(self, _: Optional[list[str]] = None) -> bool:
+    def handle_model(self, _: list[str] | None = None) -> bool:
         """Show help for model selection."""
         return self.handle_help_model()
 
-    def handle_turns(self, _: Optional[list[str]] = None) -> bool:
+    def handle_turns(self, _: list[str] | None = None) -> bool:
         """Show help for managing turns."""
         return self.handle_help_turns()
 
-    def handle_config(self, _: Optional[list[str]] = None) -> bool:
+    def handle_config(self, _: list[str] | None = None) -> bool:
         """Display help for config commands.
 
         Args:
@@ -713,7 +711,7 @@ class HelpCommand(Command):
 
         return True
 
-    def handle_parallel(self, _: Optional[list[str]] = None) -> bool:
+    def handle_parallel(self, _: list[str] | None = None) -> bool:
         """Show help for parallel execution."""
         console.print(
             Panel(
@@ -745,7 +743,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_run(self, _: Optional[list[str]] = None) -> bool:
+    def handle_run(self, _: list[str] | None = None) -> bool:
         """Show help for queued execution."""
         console.print(
             Panel(
@@ -772,7 +770,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_history(self, _: Optional[list[str]] = None) -> bool:
+    def handle_history(self, _: list[str] | None = None) -> bool:
         """Show help for conversation history."""
         console.print(
             Panel(
@@ -802,7 +800,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_compact(self, _: Optional[list[str]] = None) -> bool:
+    def handle_compact(self, _: list[str] | None = None) -> bool:
         """Show help for conversation compaction."""
         console.print(
             Panel(
@@ -830,7 +828,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_flush(self, _: Optional[list[str]] = None) -> bool:
+    def handle_flush(self, _: list[str] | None = None) -> bool:
         """Show help for clearing histories."""
         console.print(
             Panel(
@@ -858,7 +856,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_load(self, _: Optional[list[str]] = None) -> bool:
+    def handle_load(self, _: list[str] | None = None) -> bool:
         """Show help for loading JSONL files."""
         console.print(
             Panel(
@@ -885,7 +883,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_workspace(self, _: Optional[list[str]] = None) -> bool:
+    def handle_workspace(self, _: list[str] | None = None) -> bool:
         """Show help for workspace management."""
         console.print(
             Panel(
@@ -914,7 +912,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_virtualization(self, _: Optional[list[str]] = None) -> bool:
+    def handle_virtualization(self, _: list[str] | None = None) -> bool:
         """Show help for Docker container management."""
         console.print(
             Panel(
@@ -944,7 +942,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_mcp(self, _: Optional[list[str]] = None) -> bool:
+    def handle_mcp(self, _: list[str] | None = None) -> bool:
         """Show help for Model Context Protocol."""
         console.print(
             Panel(
@@ -978,7 +976,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_kill(self, _: Optional[list[str]] = None) -> bool:
+    def handle_kill(self, _: list[str] | None = None) -> bool:
         """Show help for process management."""
         console.print(
             Panel(
@@ -1005,7 +1003,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_commands(self, _: Optional[list[str]] = None) -> bool:
+    def handle_commands(self, _: list[str] | None = None) -> bool:
         """List all available commands."""
         console.print(
             Panel(
@@ -1090,7 +1088,7 @@ class HelpCommand(Command):
         console.print("\n[dim]Use /help <command> for detailed information about any command.[/dim]")
         return True
 
-    def handle_quick(self, _: Optional[list[str]] = None) -> bool:
+    def handle_quick(self, _: list[str] | None = None) -> bool:
         """Show quick reference guide."""
         console.print(
             Panel(
@@ -1182,7 +1180,7 @@ class HelpCommand(Command):
 
         return True
 
-    def handle_merge_help(self, _: Optional[list[str]] = None) -> bool:
+    def handle_merge_help(self, _: list[str] | None = None) -> bool:
         """Show help for merge command."""
         console.print(
             Panel(
@@ -1222,7 +1220,7 @@ class HelpCommand(Command):
         )
         return True
 
-    def handle_quickstart(self, _: Optional[list[str]] = None) -> bool:
+    def handle_quickstart(self, _: list[str] | None = None) -> bool:
         """Show quickstart guide by calling the quickstart command."""
         from kryon.repl.commands.base import handle_command
 

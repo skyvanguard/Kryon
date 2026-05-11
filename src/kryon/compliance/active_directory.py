@@ -23,7 +23,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 FRAMEWORK_ID = "active-directory"
 FRAMEWORK_NAME = "Active Directory hardening (banking profile)"
 FRAMEWORK_VERSION = "1.0"

@@ -41,7 +41,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-from kryon.services.micro_compact import compact_hunter_session
 from kryon.skills.dynamic_prompt import build_todo_list, generate_hunter_prompt
 from kryon.skills.supervisor_tools import (
     HunterJob,
@@ -52,10 +51,9 @@ from kryon.skills.supervisor_tools import (
 )
 from kryon.skills.validator_agent import Finding, ValidatorAgent, Verdict
 from kryon.tools.code.git_tools import _git_clone_and_index_impl
-from kryon.tools.code.priority import _code_priority_score_impl
-from kryon.tools.code.reader import _read_function_impl
-from kryon.tools.code.sandbox import _run_sandboxed_impl
 from kryon.tools.code.joern_tool import _joern_scan_impl
+from kryon.tools.code.priority import _code_priority_score_impl
+from kryon.tools.code.sandbox import _run_sandboxed_impl
 from kryon.tools.code.semgrep_tool import _semgrep_scan_impl
 
 logger = logging.getLogger(__name__)
@@ -71,6 +69,7 @@ logger = logging.getLogger(__name__)
 # without restarting the process. Each entry: (compiled_regex, cwe, confidence).
 def _load_heuristic_patterns() -> list[tuple[str, str, str]]:
     from kryon.skills.patterns import iter_detection_regexes
+
     out: list[tuple[str, str, str]] = list(iter_detection_regexes())
     # Keep the legacy hard-coded patterns as a tiny safety net in case the
     # YAML library is ever empty (regression guard).
@@ -91,6 +90,7 @@ _HEURISTIC_PATTERNS: list[tuple[str, str, str]] = _load_heuristic_patterns()
 # the surrounding source, returns True if the finding should be SKIPPED
 # (counted as a false positive avoided).
 
+
 def _is_string_literal_arg(line: str) -> bool:
     """For strcpy/strcat/sprintf-class patterns: was the 2nd arg a literal?
     e.g. strcpy(buf, "hello") — safe."""
@@ -103,19 +103,23 @@ def _is_macro_constant_arg(line: str) -> bool:
     Common safe pattern: strcpy(buf, ZLIB_VERSION), sprintf(out, FMT_HEADER, ...).
     """
     # Match: func(<dst>, MACRO_NAME)  where MACRO_NAME is ALL_CAPS with optional digits/_
-    return bool(re.search(
-        r"\b(?:str(?:cpy|cat|n?cpy)|sprintf|wcscpy)\s*\([^,]+,\s*[A-Z][A-Z0-9_]{2,}\s*[,)]",
-        line,
-    ))
+    return bool(
+        re.search(
+            r"\b(?:str(?:cpy|cat|n?cpy)|sprintf|wcscpy)\s*\([^,]+,\s*[A-Z][A-Z0-9_]{2,}\s*[,)]",
+            line,
+        )
+    )
 
 
 def _malloc_size_is_sizeof(line: str) -> bool:
     """F6.3 round 2: malloc(sizeof(struct)) is the canonical safe pattern.
     Also matches `sizeof(T) * N` and `N * sizeof(T)` — bounded allocations."""
-    return bool(re.search(
-        r"\b(?:malloc|calloc|realloc|alloca)\s*\([^)]*\bsizeof\s*\(",
-        line,
-    ))
+    return bool(
+        re.search(
+            r"\b(?:malloc|calloc|realloc|alloca)\s*\([^)]*\bsizeof\s*\(",
+            line,
+        )
+    )
 
 
 def _is_constant_index(match_text: str) -> bool:
@@ -247,7 +251,11 @@ def _drop_safe_constructed_fopen(text: str, match_start: int, match_text: str) -
 
 
 def _passes_fpr_filters(
-    text: str, match_start: int, match_text: str, cwe: str, confidence: str,
+    text: str,
+    match_start: int,
+    match_text: str,
+    cwe: str,
+    confidence: str,
 ) -> bool:
     """Return True if the finding survives FPR filtering (= keep it).
 
@@ -294,9 +302,11 @@ def _passes_fpr_filters(
     # CWE-476 recall fall 73% -> 27% with only -3pp FPR gain. Rolled back.
     # The fopen-with-safe-construction filter is preserved because it has
     # no measurable effect on CWEs in the recall bench (CWE-78/22).
-    if cwe in ("CWE-78", "CWE-22") and re.search(
-        r"\b(?:fopen|open|popen)\s*\(", match_text
-    ) and _drop_safe_constructed_fopen(text, match_start, match_text):
+    if (
+        cwe in ("CWE-78", "CWE-22")
+        and re.search(r"\b(?:fopen|open|popen)\s*\(", match_text)
+        and _drop_safe_constructed_fopen(text, match_start, match_text)
+    ):
         return False
 
     return True
@@ -312,8 +322,11 @@ def _build_isolation_poc(pattern_kind: str, snippet: str) -> str:
     # YAML library lookup with alias resolution
     try:
         from kryon.skills.patterns import (
-            cwes_match, get_poc_template, iter_all_patterns,
+            cwes_match,
+            get_poc_template,
+            iter_all_patterns,
         )
+
         # Direct hit
         poc = get_poc_template(pattern_kind)
         if poc:
@@ -413,7 +426,7 @@ class HeuristicHunter:
             # F6.3 — apply FPR filters; find FIRST hit that passes
             surviving_hit = None
             for h in hits:
-                match_text = text[h.start():h.end()]
+                match_text = text[h.start() : h.end()]
                 if _passes_fpr_filters(text, h.start(), match_text, cwe, confidence):
                     surviving_hit = h
                     break
@@ -421,7 +434,7 @@ class HeuristicHunter:
                 continue
             seen_kinds.add(cwe)
 
-            poc = _build_isolation_poc(cwe, text[surviving_hit.start():surviving_hit.end()])
+            poc = _build_isolation_poc(cwe, text[surviving_hit.start() : surviving_hit.end()])
             verified = False
             crash_type = ""
             stack_top: list[str] = []
@@ -439,22 +452,24 @@ class HeuristicHunter:
             fname = self._enclosing_function(text, surviving_hit.start()) or "(unknown)"
             line_no = text.count("\n", 0, surviving_hit.start()) + 1
 
-            findings.append({
-                "file_path": str(p),
-                "repo_path": str(p.parent),
-                "function_name": fname,
-                "line_range": f"~{line_no}",
-                "cwe": cwe,
-                "crash_type": crash_type,
-                "stack_top": stack_top,
-                "severity": "MEDIUM" if verified else "WARNING",
-                "language": "c",
-                "poc_source": poc if verified else "",
-                "trigger_input": "",
-                "_hunter": "heuristic",
-                "_pattern": regex_src,
-                "_asan_verified": verified,
-            })
+            findings.append(
+                {
+                    "file_path": str(p),
+                    "repo_path": str(p.parent),
+                    "function_name": fname,
+                    "line_range": f"~{line_no}",
+                    "cwe": cwe,
+                    "crash_type": crash_type,
+                    "stack_top": stack_top,
+                    "severity": "MEDIUM" if verified else "WARNING",
+                    "language": "c",
+                    "poc_source": poc if verified else "",
+                    "trigger_input": "",
+                    "_hunter": "heuristic",
+                    "_pattern": regex_src,
+                    "_asan_verified": verified,
+                }
+            )
             if len(findings) >= self.max_findings_per_file:
                 break
 
@@ -480,7 +495,7 @@ class HeuristicHunter:
 
 # Map semgrep rule prefixes to the CWE pattern class used by _build_isolation_poc
 _SEMGREP_CWE_MAP: dict[str, str] = {
-    "string-copy-fn": "CWE-787",    # strcpy family
+    "string-copy-fn": "CWE-787",  # strcpy family
     "strcpy": "CWE-787",
     "strcat": "CWE-787",
     "sprintf": "CWE-787",
@@ -573,9 +588,7 @@ class SemgrepHunter:
 
             severity = (hit.get("severity") or "WARNING").upper()
             line_range = f"{hit.get('start_line', 0)}-{hit.get('end_line', 0)}"
-            function = self._guess_enclosing_function(
-                job.file_path, hit.get("start_line", 0)
-            )
+            function = self._guess_enclosing_function(job.file_path, hit.get("start_line", 0))
             message = (hit.get("message") or "")[:200]
 
             # Try PoC verification ONLY for CWE classes we can crash-demo.
@@ -596,30 +609,30 @@ class SemgrepHunter:
                             verified = True
                             crash_type = vres.get("crash_type", "")
                             stack_top = vres.get("stack_top") or []
-                            verified_count_by_cwe[cwe] = (
-                                verified_count_by_cwe.get(cwe, 0) + 1
-                            )
+                            verified_count_by_cwe[cwe] = verified_count_by_cwe.get(cwe, 0) + 1
                     except json.JSONDecodeError:
                         pass
 
-            findings.append({
-                "file_path": job.file_path,
-                "repo_path": str(Path(job.file_path).parent),
-                "function_name": function,
-                "line_range": line_range,
-                "cwe": cwe,
-                "cwe_aliases": cwe_aliases,
-                "crash_type": crash_type,
-                "stack_top": stack_top,
-                "severity": severity,
-                "language": "c",
-                "poc_source": poc if verified else "",
-                "trigger_input": "",
-                "_hunter": "semgrep",
-                "_semgrep_rule_id": rule_id,
-                "_semgrep_message": message,
-                "_asan_verified": verified,
-            })
+            findings.append(
+                {
+                    "file_path": job.file_path,
+                    "repo_path": str(Path(job.file_path).parent),
+                    "function_name": function,
+                    "line_range": line_range,
+                    "cwe": cwe,
+                    "cwe_aliases": cwe_aliases,
+                    "crash_type": crash_type,
+                    "stack_top": stack_top,
+                    "severity": severity,
+                    "language": "c",
+                    "poc_source": poc if verified else "",
+                    "trigger_input": "",
+                    "_hunter": "semgrep",
+                    "_semgrep_rule_id": rule_id,
+                    "_semgrep_message": message,
+                    "_asan_verified": verified,
+                }
+            )
             if len(findings) >= self.max_findings_per_file:
                 break
 
@@ -674,7 +687,10 @@ def _joern_enabled() -> bool:
     flip the flag without reloading planner_hunter.
     """
     return os.environ.get("KRYON_JOERN_ENABLED", "false").strip().lower() in {
-        "1", "true", "yes", "on",
+        "1",
+        "true",
+        "yes",
+        "on",
     }
 
 
@@ -747,7 +763,9 @@ class JoernHunter:
             setattr(job, self._REASON_KEY, scan.get("reason", ""))
             logger.info(
                 "joern hunter degraded on %s: status=%s reason=%s",
-                job.file_path, status, scan.get("reason", "")[:100],
+                job.file_path,
+                status,
+                scan.get("reason", "")[:100],
             )
             return []
         setattr(job, self._REASON_KEY, "")
@@ -755,28 +773,28 @@ class JoernHunter:
         findings: list[dict] = []
         for hit in scan.get("findings") or []:
             sink_line = int(hit.get("start_line") or 0)
-            method = hit.get("method") or SemgrepHunter._guess_enclosing_function(
-                job.file_path, sink_line
+            method = hit.get("method") or SemgrepHunter._guess_enclosing_function(job.file_path, sink_line)
+            findings.append(
+                {
+                    "file_path": job.file_path,
+                    "repo_path": str(Path(job.file_path).parent),
+                    "function_name": method,
+                    "line_range": f"{sink_line}-{sink_line}",
+                    "cwe": hit.get("cwe", ""),
+                    "crash_type": "",
+                    "stack_top": [],
+                    "severity": hit.get("severity", "ERROR"),
+                    "confidence": hit.get("confidence", "high"),
+                    "language": "c",
+                    "poc_source": "",
+                    "trigger_input": "",
+                    "_hunter": "joern",
+                    "_joern_rule_id": hit.get("rule_id", ""),
+                    "_joern_message": hit.get("message", "")[:200],
+                    "_joern_flow": hit.get("flow") or [],
+                    "_asan_verified": False,
+                }
             )
-            findings.append({
-                "file_path": job.file_path,
-                "repo_path": str(Path(job.file_path).parent),
-                "function_name": method,
-                "line_range": f"{sink_line}-{sink_line}",
-                "cwe": hit.get("cwe", ""),
-                "crash_type": "",
-                "stack_top": [],
-                "severity": hit.get("severity", "ERROR"),
-                "confidence": hit.get("confidence", "high"),
-                "language": "c",
-                "poc_source": "",
-                "trigger_input": "",
-                "_hunter": "joern",
-                "_joern_rule_id": hit.get("rule_id", ""),
-                "_joern_message": hit.get("message", "")[:200],
-                "_joern_flow": hit.get("flow") or [],
-                "_asan_verified": False,
-            })
         return findings
 
 
@@ -834,26 +852,28 @@ def _parse_findings_from_text(text: str, repo_path: str) -> list[dict]:
 
         # Extract the PoC code block following this finding
         window_start = m.end()
-        window = text[window_start:window_start + 4000]
+        window = text[window_start : window_start + 4000]
         poc_m = _POC_BLOCK_RE.search(window)
         poc = poc_m.group(1).strip() if poc_m else ""
 
-        findings.append({
-            "file_path": fpath or fields.get("file", ""),
-            "function_name": fname or fields.get("function", ""),
-            "line_range": line_range,
-            "cwe": fields.get("cwe", ""),
-            "severity": fields.get("severity", "").upper(),
-            "crash_type": fields.get("crash_type", ""),
-            "stack_top": [s.strip() for s in fields.get("stack_top", "").split(",") if s.strip()],
-            "poc_source": poc,
-            "trigger_input": fields.get("trigger", ""),
-            "repo_path": repo_path,
-            "language": "c",
-            "_hunter": "llm",
-            "_deepening": fields.get("deepening_outcome", ""),
-            "_suggested_fix": fields.get("suggested_fix", ""),
-        })
+        findings.append(
+            {
+                "file_path": fpath or fields.get("file", ""),
+                "function_name": fname or fields.get("function", ""),
+                "line_range": line_range,
+                "cwe": fields.get("cwe", ""),
+                "severity": fields.get("severity", "").upper(),
+                "crash_type": fields.get("crash_type", ""),
+                "stack_top": [s.strip() for s in fields.get("stack_top", "").split(",") if s.strip()],
+                "poc_source": poc,
+                "trigger_input": fields.get("trigger", ""),
+                "repo_path": repo_path,
+                "language": "c",
+                "_hunter": "llm",
+                "_deepening": fields.get("deepening_outcome", ""),
+                "_suggested_fix": fields.get("suggested_fix", ""),
+            }
+        )
 
     # NO FINDING blocks — negative results. We keep them with severity=NONE
     # so the planner's report shows the hunter actually did something and
@@ -865,23 +885,25 @@ def _parse_findings_from_text(text: str, repo_path: str) -> list[dict]:
             k = kv.group(1).strip().lower().replace(" ", "_")
             v = kv.group(2).strip()
             fields[k] = v
-        findings.append({
-            "file_path": fields.get("file", ""),
-            "function_name": "",
-            "line_range": "",
-            "cwe": "",
-            "severity": "NONE",
-            "crash_type": "",
-            "stack_top": [],
-            "poc_source": "",
-            "trigger_input": "",
-            "repo_path": repo_path,
-            "language": "c",
-            "_hunter": "llm",
-            "_negative": True,
-            "_reason": fields.get("reason", ""),
-            "_attempts": fields.get("attempted_hypotheses", ""),
-        })
+        findings.append(
+            {
+                "file_path": fields.get("file", ""),
+                "function_name": "",
+                "line_range": "",
+                "cwe": "",
+                "severity": "NONE",
+                "crash_type": "",
+                "stack_top": [],
+                "poc_source": "",
+                "trigger_input": "",
+                "repo_path": repo_path,
+                "language": "c",
+                "_hunter": "llm",
+                "_negative": True,
+                "_reason": fields.get("reason", ""),
+                "_attempts": fields.get("attempted_hypotheses", ""),
+            }
+        )
     return findings
 
 
@@ -908,10 +930,7 @@ class LLMHunter:
         if timeout_s is None:
             # Respect KRYON_LLM_HUNTER_TIMEOUT_S if set; else trail pool by 30s
             llm_env = os.environ.get("KRYON_LLM_HUNTER_TIMEOUT_S")
-            timeout_s = (
-                int(llm_env) if llm_env is not None
-                else max(60, pool_timeout - 30)
-            )
+            timeout_s = int(llm_env) if llm_env is not None else max(60, pool_timeout - 30)
         # Enforce: internal timeout strictly less than pool safety net
         self.timeout_s = min(timeout_s, max(60, pool_timeout - 10))
 
@@ -950,10 +969,7 @@ class LLMHunter:
                 final_text = getattr(result, "final_output", "") or ""
                 if not final_text and hasattr(result, "messages"):
                     for msg in reversed(result.messages):
-                        if (
-                            msg.get("role") == "assistant"
-                            and isinstance(msg.get("content"), str)
-                        ):
+                        if msg.get("role") == "assistant" and isinstance(msg.get("content"), str):
                             final_text = msg["content"]
                             break
             except Exception:
@@ -963,10 +979,13 @@ class LLMHunter:
             logger.warning("LLMHunter timeout for %s", job.file_path)
         except Exception as e:
             logger.exception("LLMHunter runner error on %s: %s", job.file_path, e)
-            return [self._timeout_record(
-                job, f"runner_error: {e}"[:200],
-                self._harvest_progress(agent),
-            )]
+            return [
+                self._timeout_record(
+                    job,
+                    f"runner_error: {e}"[:200],
+                    self._harvest_progress(agent),
+                )
+            ]
 
         # F5.1.d — extract structured submissions from submit_finding /
         # submit_no_finding tool calls BEFORE trying the old text-block parser.
@@ -975,43 +994,47 @@ class LLMHunter:
         parsed: list[dict] = []
         for sub in submissions:
             if sub["kind"] == "finding":
-                parsed.append({
-                    "file_path": sub["args"].get("file_path", ""),
-                    "function_name": sub["args"].get("function_name", ""),
-                    "line_range": sub["args"].get("line_range", ""),
-                    "cwe": sub["args"].get("cwe", ""),
-                    "severity": sub["args"].get("severity", "MEDIUM").upper(),
-                    "crash_type": sub["args"].get("crash_type", ""),
-                    "stack_top": [s.strip() for s in sub["args"].get("stack_top", "").split(",") if s.strip()],
-                    "poc_source": sub["args"].get("poc_source", ""),
-                    "trigger_input": sub["args"].get("trigger_input", ""),
-                    "repo_path": repo_path,
-                    "language": "c",
-                    "_hunter": "llm",
-                    "_submitted": True,
-                    "_deepening": sub["args"].get("deepening_outcome", ""),
-                    "_suggested_fix": sub["args"].get("suggested_fix", ""),
-                })
+                parsed.append(
+                    {
+                        "file_path": sub["args"].get("file_path", ""),
+                        "function_name": sub["args"].get("function_name", ""),
+                        "line_range": sub["args"].get("line_range", ""),
+                        "cwe": sub["args"].get("cwe", ""),
+                        "severity": sub["args"].get("severity", "MEDIUM").upper(),
+                        "crash_type": sub["args"].get("crash_type", ""),
+                        "stack_top": [s.strip() for s in sub["args"].get("stack_top", "").split(",") if s.strip()],
+                        "poc_source": sub["args"].get("poc_source", ""),
+                        "trigger_input": sub["args"].get("trigger_input", ""),
+                        "repo_path": repo_path,
+                        "language": "c",
+                        "_hunter": "llm",
+                        "_submitted": True,
+                        "_deepening": sub["args"].get("deepening_outcome", ""),
+                        "_suggested_fix": sub["args"].get("suggested_fix", ""),
+                    }
+                )
             elif sub["kind"] == "no_finding":
-                parsed.append({
-                    "file_path": sub["args"].get("file_path", job.file_path),
-                    "function_name": "",
-                    "line_range": "",
-                    "cwe": "",
-                    "severity": "NONE",
-                    "crash_type": "",
-                    "stack_top": [],
-                    "poc_source": "",
-                    "trigger_input": "",
-                    "repo_path": repo_path,
-                    "language": "c",
-                    "_hunter": "llm",
-                    "_negative": True,
-                    "_submitted": True,
-                    "_reason": sub["args"].get("reason", ""),
-                    "_attempts": str(sub["args"].get("attempted_hypotheses", "")),
-                    "_notes": sub["args"].get("notes", ""),
-                })
+                parsed.append(
+                    {
+                        "file_path": sub["args"].get("file_path", job.file_path),
+                        "function_name": "",
+                        "line_range": "",
+                        "cwe": "",
+                        "severity": "NONE",
+                        "crash_type": "",
+                        "stack_top": [],
+                        "poc_source": "",
+                        "trigger_input": "",
+                        "repo_path": repo_path,
+                        "language": "c",
+                        "_hunter": "llm",
+                        "_negative": True,
+                        "_submitted": True,
+                        "_reason": sub["args"].get("reason", ""),
+                        "_attempts": str(sub["args"].get("attempted_hypotheses", "")),
+                        "_notes": sub["args"].get("notes", ""),
+                    }
+                )
 
         # If no structured submission, fall back to the text-block parser
         # (for older runs / models that still use the text format).
@@ -1042,7 +1065,8 @@ class LLMHunter:
                     if fb:
                         logger.info(
                             "LLMHunter fallback produced %d heuristic findings for %s",
-                            len(fb), job.file_path,
+                            len(fb),
+                            job.file_path,
                         )
                     parsed.extend(fb)
                 except Exception as e:
@@ -1080,7 +1104,7 @@ class LLMHunter:
         for msg in history:
             if msg.get("role") != "assistant":
                 continue
-            for tc in (msg.get("tool_calls") or []):
+            for tc in msg.get("tool_calls") or []:
                 fn = (tc.get("function") or {}).get("name") or ""
                 args = (tc.get("function") or {}).get("arguments") or ""
                 if isinstance(args, str) and len(args) > 200:
@@ -1107,7 +1131,7 @@ class LLMHunter:
         for msg in history:
             if msg.get("role") != "assistant":
                 continue
-            for tc in (msg.get("tool_calls") or []):
+            for tc in msg.get("tool_calls") or []:
                 fn = (tc.get("function") or {}).get("name") or ""
                 if fn not in ("submit_finding", "submit_no_finding"):
                     continue
@@ -1159,7 +1183,7 @@ class LLMHunter:
 
 
 def _build_focused_llm_prompt(
-    job: "HunterJob",
+    job: HunterJob,
     semgrep_findings: list[dict],
     base_prompt: str,
 ) -> str:
@@ -1178,9 +1202,7 @@ def _build_focused_llm_prompt(
         "these locations as suspicious. Your job is NOT to find new bugs "
         "— it's to VERIFY or REJECT each of these specific hits. For each:"
     )
-    hints.append(
-        "  1) Read the function around the flagged line via `read_function`."
-    )
+    hints.append("  1) Read the function around the flagged line via `read_function`.")
     hints.append(
         "  2) If the pattern is real and reachable with attacker input, "
         "build a PoC that crashes under `run_sandboxed` and call "
@@ -1269,24 +1291,18 @@ def _merge_findings(a: dict, b: dict) -> dict:
     evidence and record provenance of both hunters."""
     # Which one has stronger confidence?
     primary, secondary = (
-        (a, b) if _CONF_RANK.get(a.get("confidence", "medium"), 2)
-                 >= _CONF_RANK.get(b.get("confidence", "medium"), 2)
+        (a, b)
+        if _CONF_RANK.get(a.get("confidence", "medium"), 2) >= _CONF_RANK.get(b.get("confidence", "medium"), 2)
         else (b, a)
     )
     merged = dict(primary)
     # Stronger severity wins regardless of confidence ordering.
-    if _SEV_RANK.get(b.get("severity", ""), 0) > _SEV_RANK.get(
-        a.get("severity", ""), 0
-    ):
+    if _SEV_RANK.get(b.get("severity", ""), 0) > _SEV_RANK.get(a.get("severity", ""), 0):
         merged["severity"] = b.get("severity")
-    if _SEV_RANK.get(a.get("severity", ""), 0) > _SEV_RANK.get(
-        merged.get("severity", ""), 0
-    ):
+    if _SEV_RANK.get(a.get("severity", ""), 0) > _SEV_RANK.get(merged.get("severity", ""), 0):
         merged["severity"] = a.get("severity")
     # Preserve ASAN verification from either side.
-    merged["_asan_verified"] = bool(
-        a.get("_asan_verified") or b.get("_asan_verified")
-    )
+    merged["_asan_verified"] = bool(a.get("_asan_verified") or b.get("_asan_verified"))
     # Collect source provenance.
     srcs = []
     for f in (primary, secondary):
@@ -1353,7 +1369,7 @@ class HybridHunter:
         self._heur = HeuristicHunter()
         self._joern = JoernHunter() if _joern_enabled() else None
 
-    async def __call__(self, job: "HunterJob") -> list[dict]:
+    async def __call__(self, job: HunterJob) -> list[dict]:
         # Stage 1: all static hunters in parallel. Collect per-hunter status.
         tasks: list[tuple[str, Any]] = [
             ("heuristic", self._heur(job)),
@@ -1375,11 +1391,12 @@ class HybridHunter:
             if name == "joern":
                 status = getattr(job, JoernHunter._STATUS_KEY, "ok")
                 if status != "ok":
-                    hunters_failed.append({
-                        "name": "joern",
-                        "reason": f"{status}: "
-                                  f"{getattr(job, JoernHunter._REASON_KEY, '')[:150]}",
-                    })
+                    hunters_failed.append(
+                        {
+                            "name": "joern",
+                            "reason": f"{status}: {getattr(job, JoernHunter._REASON_KEY, '')[:150]}",
+                        }
+                    )
                     continue
             hunters_used.append(name)
             grouped.append(res)
@@ -1398,6 +1415,7 @@ class HybridHunter:
         # written to an append-only audit log.
         try:
             from kryon.services.allow_list import load as _load_allow
+
             repo_root = _find_repo_root(job.file_path)
             if repo_root is not None:
                 _load_allow(repo_root).annotate(all_findings)
@@ -1409,14 +1427,15 @@ class HybridHunter:
         # can skip obvious dead-code / null-checked findings entirely.
         # Zero-cost regex pass, on by default. Disable via
         # KRYON_CONTEXT_FILTER=off (for A/B measurement).
-        if (
-            all_findings
-            and os.environ.get(
-                "KRYON_CONTEXT_FILTER", "on"
-            ).strip().lower() not in {"off", "0", "false", "no"}
-        ):
+        if all_findings and os.environ.get("KRYON_CONTEXT_FILTER", "on").strip().lower() not in {
+            "off",
+            "0",
+            "false",
+            "no",
+        }:
             try:
                 from kryon.skills.context_filter import ContextFilter
+
                 ContextFilter().apply(all_findings)
             except Exception as exc:
                 logger.warning("context filter failed: %s", exc)
@@ -1429,12 +1448,12 @@ class HybridHunter:
         #   severity in {HIGH, CRITICAL}      -> downgrade to MEDIUM
         # Intersection findings keep their severity. Disable via
         # KRYON_MULTISOURCE_TIER=off (A/B).
-        if (
-            all_findings
-            and os.environ.get(
-                "KRYON_MULTISOURCE_TIER", "on"
-            ).strip().lower() not in {"off", "0", "false", "no"}
-        ):
+        if all_findings and os.environ.get("KRYON_MULTISOURCE_TIER", "on").strip().lower() not in {
+            "off",
+            "0",
+            "false",
+            "no",
+        }:
             # High-severity bucket mirrors the semgrep rule grading:
             # HIGH/CRITICAL (explicit) or ERROR (semgrep default for
             # severity: ERROR rules). WARNING is not downgraded — it's
@@ -1448,18 +1467,13 @@ class HybridHunter:
                     and srcs == ["heuristic"]
                     and str(f.get("severity", "")).upper() in _hi_bucket
                 ):
-                    f["severity_original"] = f.get(
-                        "severity_original", f.get("severity", "")
-                    )
+                    f["severity_original"] = f.get("severity_original", f.get("severity", ""))
                     f["severity"] = "MEDIUM"
-                    f.setdefault(
-                        "_severity_source", "F75-multisource:heuristic-solo"
-                    )
+                    f.setdefault("_severity_source", "F75-multisource:heuristic-solo")
                     downgraded += 1
             if downgraded:
                 logger.info(
-                    "hybrid: multisource tier downgraded %d heuristic-only "
-                    "HIGH findings to MEDIUM",
+                    "hybrid: multisource tier downgraded %d heuristic-only HIGH findings to MEDIUM",
                     downgraded,
                 )
 
@@ -1472,11 +1486,12 @@ class HybridHunter:
         # (e.g. CLI engagements) keep zero-LLM-cost semantics. Benches
         # opt in explicitly; production users enable via env.
         # Legacy alias: KRYON_LLM_TRIAGE=1 is treated as 'annotate'.
-        _triage_mode = os.environ.get(
-            "KRYON_HYBRID_TRIAGE", "off"
-        ).strip().lower()
+        _triage_mode = os.environ.get("KRYON_HYBRID_TRIAGE", "off").strip().lower()
         if os.environ.get("KRYON_LLM_TRIAGE", "").strip().lower() in {
-            "1", "true", "yes", "on",
+            "1",
+            "true",
+            "yes",
+            "on",
         }:
             _triage_mode = "annotate"
         if _triage_mode in {"annotate", "filter"} and all_findings:
@@ -1485,15 +1500,16 @@ class HybridHunter:
                     TriageAnnotator,
                     filter_suppress_high,
                 )
+
                 TriageAnnotator().annotate(all_findings)
                 if _triage_mode == "filter":
                     kept = filter_suppress_high(all_findings)
                     dropped_n = len(all_findings) - len(kept)
                     if dropped_n:
                         logger.info(
-                            "hybrid: triage filter dropped %d SUPPRESS-high "
-                            "findings (kept %d)",
-                            dropped_n, len(kept),
+                            "hybrid: triage filter dropped %d SUPPRESS-high findings (kept %d)",
+                            dropped_n,
+                            len(kept),
                         )
                     all_findings = kept
             except Exception as exc:
@@ -1519,9 +1535,10 @@ class HybridHunter:
         budget = _get_hybrid_budget()
         if not await budget.acquire():
             logger.info(
-                "hybrid: LLM budget exhausted (%d/%d used), returning "
-                "pattern-only findings for %s",
-                budget.used, budget.max_calls, job.file_path,
+                "hybrid: LLM budget exhausted (%d/%d used), returning pattern-only findings for %s",
+                budget.used,
+                budget.max_calls,
+                job.file_path,
             )
             return all_findings
 
@@ -1629,11 +1646,7 @@ class HuntReport:
                 reason = v.get("reason", "")
                 tcnt = v.get("_tool_calls", 0)
                 tools = ", ".join(v.get("_last_tools") or [])
-                lines.append(
-                    f"  {v.get('_file', '?')}  "
-                    f"tools_used={tcnt}  "
-                    f"reason: {reason[:80]}"
-                )
+                lines.append(f"  {v.get('_file', '?')}  tools_used={tcnt}  reason: {reason[:80]}")
                 if tools:
                     lines.append(f"    last tools: {tools}")
         return "\n".join(lines)
@@ -1676,7 +1689,9 @@ async def hunt_zero_days(
     get_state().update_todos(todos)
     logger.info(
         "Priority top-%d files scored for %s: %s",
-        len(top), repo_url, [t.get("file") for t in top[:5]],
+        len(top),
+        repo_url,
+        [t.get("file") for t in top[:5]],
     )
 
     # ---- Step 3: spawn hunters with bounded parallelism ----
@@ -1703,6 +1718,7 @@ async def hunt_zero_days(
     corpus_available = False
     try:
         from kryon.knowledge import cve_corpus as _cvc
+
         stats = _cvc.corpus_stats()
         corpus_available = stats.get("count", 0) > 0
         if corpus_available:
@@ -1733,7 +1749,7 @@ async def hunt_zero_days(
                 )
                 # Fall back to reading the file head if evidence is sparse
                 try:
-                    with open(full, "r", encoding="utf-8", errors="replace") as fh:
+                    with open(full, encoding="utf-8", errors="replace") as fh:
                         signal += "\n" + fh.read(3000)
                 except OSError:
                     pass
@@ -1784,68 +1800,70 @@ async def hunt_zero_days(
     verdicts_raw: list[dict] = []
     for f in raw_findings:
         if f.get("_negative"):
-            verdicts_raw.append({
-                "verdict": "INFO",
-                "phase_failed": None,
-                "reason": f.get("_reason", "hunter produced no finding"),
-                "cwe_actual": "",
-                "cwe_claimed": "",
-                "severity_actual": "NONE",
-                "severity_claimed": "",
-                "reproduced_crash_type": "",
-                "reproduced_stack_top": [],
-                "exposure_reachable_from_api": None,
-                "_file": f.get("file_path", ""),
-                "_function": "",
-                "_hunter_id": f.get("_hunter_id", ""),
-                "_pattern": "",
-                "_tool_calls": f.get("_tool_calls", 0),
-                "_last_tools": f.get("_last_tools", []),
-            })
+            verdicts_raw.append(
+                {
+                    "verdict": "INFO",
+                    "phase_failed": None,
+                    "reason": f.get("_reason", "hunter produced no finding"),
+                    "cwe_actual": "",
+                    "cwe_claimed": "",
+                    "severity_actual": "NONE",
+                    "severity_claimed": "",
+                    "reproduced_crash_type": "",
+                    "reproduced_stack_top": [],
+                    "exposure_reachable_from_api": None,
+                    "_file": f.get("file_path", ""),
+                    "_function": "",
+                    "_hunter_id": f.get("_hunter_id", ""),
+                    "_pattern": "",
+                    "_tool_calls": f.get("_tool_calls", 0),
+                    "_last_tools": f.get("_last_tools", []),
+                }
+            )
             continue
         # Pattern-only finding (no ASAN verification): emit as PATTERN
         # verdict so the report shows it without running the validator
         # on a missing PoC. These are legitimate rule hits — semgrep,
         # heuristic CWEs not crash-verifiable (CWE-78 cmd injection,
         # CWE-22 path traversal), industry rules with no PoC class.
-        if not f.get("_asan_verified") and f.get("_hunter") in (
-            "semgrep", "heuristic", "hybrid-llm"
-        ):
-            verdicts_raw.append({
-                "verdict": "PATTERN",
-                "phase_failed": None,
-                "reason": f.get("_semgrep_message", "") or
-                          f.get("_pattern", "") or
-                          f.get("_reason", ""),
-                "cwe_actual": f.get("cwe", ""),
-                "cwe_claimed": f.get("cwe", ""),
-                "severity_actual": f.get("severity", "WARNING"),
-                "severity_claimed": f.get("severity", "WARNING"),
-                "reproduced_crash_type": "",
-                "reproduced_stack_top": [],
-                "exposure_reachable_from_api": None,
-                "_file": f.get("file_path", ""),
-                "_function": f.get("function_name", ""),
-                "_line_range": f.get("line_range", ""),
-                "_hunter_id": f.get("_hunter_id", ""),
-                "_hunter": f.get("_hunter", ""),
-                "_semgrep_rule_id": f.get("_semgrep_rule_id", ""),
-                "_pattern": f.get("_pattern", ""),
-            })
+        if not f.get("_asan_verified") and f.get("_hunter") in ("semgrep", "heuristic", "hybrid-llm"):
+            verdicts_raw.append(
+                {
+                    "verdict": "PATTERN",
+                    "phase_failed": None,
+                    "reason": f.get("_semgrep_message", "") or f.get("_pattern", "") or f.get("_reason", ""),
+                    "cwe_actual": f.get("cwe", ""),
+                    "cwe_claimed": f.get("cwe", ""),
+                    "severity_actual": f.get("severity", "WARNING"),
+                    "severity_claimed": f.get("severity", "WARNING"),
+                    "reproduced_crash_type": "",
+                    "reproduced_stack_top": [],
+                    "exposure_reachable_from_api": None,
+                    "_file": f.get("file_path", ""),
+                    "_function": f.get("function_name", ""),
+                    "_line_range": f.get("line_range", ""),
+                    "_hunter_id": f.get("_hunter_id", ""),
+                    "_hunter": f.get("_hunter", ""),
+                    "_semgrep_rule_id": f.get("_semgrep_rule_id", ""),
+                    "_pattern": f.get("_pattern", ""),
+                }
+            )
             continue
-        finding_obj = Finding.from_dict({
-            "file_path": f.get("file_path", ""),
-            "function_name": f.get("function_name", ""),
-            "crash_type": f.get("crash_type", ""),
-            "cwe": f.get("cwe", ""),
-            "poc_source": f.get("poc_source", ""),
-            "trigger_input": f.get("trigger_input", ""),
-            "repo_path": f.get("repo_path") or repo_path,
-            "line_range": f.get("line_range", ""),
-            "stack_top": f.get("stack_top") or [],
-            "severity": f.get("severity", ""),
-            "language": f.get("language", "c"),
-        })
+        finding_obj = Finding.from_dict(
+            {
+                "file_path": f.get("file_path", ""),
+                "function_name": f.get("function_name", ""),
+                "crash_type": f.get("crash_type", ""),
+                "cwe": f.get("cwe", ""),
+                "poc_source": f.get("poc_source", ""),
+                "trigger_input": f.get("trigger_input", ""),
+                "repo_path": f.get("repo_path") or repo_path,
+                "line_range": f.get("line_range", ""),
+                "stack_top": f.get("stack_top") or [],
+                "severity": f.get("severity", ""),
+                "language": f.get("language", "c"),
+            }
+        )
         verdict: Verdict = validator.triage_one(finding_obj)
         record = json.loads(verdict.to_json())
         record["_file"] = f.get("file_path", "")

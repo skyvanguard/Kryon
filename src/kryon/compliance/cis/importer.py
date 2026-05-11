@@ -63,15 +63,11 @@ _COMBINATORS = {"all_of", "any_of", "not_", "not"}
 def _parse_pass_when(raw: Any, path: str) -> PassWhen:
     """Parse a ``pass_when:`` YAML fragment into a :class:`PassWhen`."""
     if not isinstance(raw, dict):
-        raise FrameworkSchemaError(
-            f"{path}: pass_when must be a mapping, got {type(raw).__name__}"
-        )
+        raise FrameworkSchemaError(f"{path}: pass_when must be a mapping, got {type(raw).__name__}")
 
     unknown = set(raw) - _LEAF_PREDICATES - _COMBINATORS
     if unknown:
-        raise FrameworkSchemaError(
-            f"{path}: unknown pass_when keys: {sorted(unknown)}"
-        )
+        raise FrameworkSchemaError(f"{path}: unknown pass_when keys: {sorted(unknown)}")
 
     kwargs: dict[str, Any] = {}
 
@@ -82,17 +78,11 @@ def _parse_pass_when(raw: Any, path: str) -> PassWhen:
     if "all_of" in raw:
         if not isinstance(raw["all_of"], list) or not raw["all_of"]:
             raise FrameworkSchemaError(f"{path}: all_of must be a non-empty list")
-        kwargs["all_of"] = tuple(
-            _parse_pass_when(sub, f"{path}.all_of[{i}]")
-            for i, sub in enumerate(raw["all_of"])
-        )
+        kwargs["all_of"] = tuple(_parse_pass_when(sub, f"{path}.all_of[{i}]") for i, sub in enumerate(raw["all_of"]))
     if "any_of" in raw:
         if not isinstance(raw["any_of"], list) or not raw["any_of"]:
             raise FrameworkSchemaError(f"{path}: any_of must be a non-empty list")
-        kwargs["any_of"] = tuple(
-            _parse_pass_when(sub, f"{path}.any_of[{i}]")
-            for i, sub in enumerate(raw["any_of"])
-        )
+        kwargs["any_of"] = tuple(_parse_pass_when(sub, f"{path}.any_of[{i}]") for i, sub in enumerate(raw["any_of"]))
     # Accept both `not` and `not_` — YAML authors prefer `not`.
     for nkey in ("not_", "not"):
         if nkey in raw:
@@ -100,31 +90,24 @@ def _parse_pass_when(raw: Any, path: str) -> PassWhen:
             break
 
     if not kwargs:
-        raise FrameworkSchemaError(
-            f"{path}: pass_when must set at least one predicate or combinator"
-        )
+        raise FrameworkSchemaError(f"{path}: pass_when must set at least one predicate or combinator")
 
     return PassWhen(**kwargs)
 
 
 def _parse_check(raw: Any, index: int) -> CheckSpec:
     if not isinstance(raw, dict):
-        raise FrameworkSchemaError(
-            f"checks[{index}]: entry must be a mapping, got {type(raw).__name__}"
-        )
+        raise FrameworkSchemaError(f"checks[{index}]: entry must be a mapping, got {type(raw).__name__}")
 
     required = {"id", "title", "section", "severity", "remediation", "command", "pass_when"}
     missing = required - set(raw)
     if missing:
-        raise FrameworkSchemaError(
-            f"checks[{index}] ({raw.get('id', '?')}): missing keys: {sorted(missing)}"
-        )
+        raise FrameworkSchemaError(f"checks[{index}] ({raw.get('id', '?')}): missing keys: {sorted(missing)}")
 
     severity = str(raw["severity"]).upper()
     if severity not in _ALLOWED_SEVERITIES:
         raise FrameworkSchemaError(
-            f"checks[{index}] {raw['id']}: severity must be one of "
-            f"{sorted(_ALLOWED_SEVERITIES)}, got {severity!r}"
+            f"checks[{index}] {raw['id']}: severity must be one of {sorted(_ALLOWED_SEVERITIES)}, got {severity!r}"
         )
 
     pw = _parse_pass_when(raw["pass_when"], f"checks[{index}].{raw['id']}.pass_when")
@@ -157,9 +140,7 @@ def _parse_framework(raw: Any) -> Framework:
         raise FrameworkSchemaError("top-level YAML must be a mapping")
 
     if "framework" not in raw or "checks" not in raw:
-        raise FrameworkSchemaError(
-            "YAML must contain top-level 'framework' and 'checks' keys"
-        )
+        raise FrameworkSchemaError("YAML must contain top-level 'framework' and 'checks' keys")
 
     fw_raw = raw["framework"]
     if not isinstance(fw_raw, dict):
@@ -185,9 +166,7 @@ def _parse_framework(raw: Any) -> Framework:
     for i, c in enumerate(checks_raw):
         spec = _parse_check(c, i)
         if spec.id in seen_ids:
-            raise FrameworkSchemaError(
-                f"duplicate check id {spec.id!r} at checks[{i}]"
-            )
+            raise FrameworkSchemaError(f"duplicate check id {spec.id!r} at checks[{i}]")
         seen_ids.add(spec.id)
         checks.append(spec)
 
@@ -200,8 +179,7 @@ def load_framework(path: str | Path) -> Framework:
         import yaml  # noqa: PLC0415 — optional dep, avoid hard import cost
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
-            "PyYAML is required for CIS framework import; add it to the "
-            "compliance optional extras."
+            "PyYAML is required for CIS framework import; add it to the compliance optional extras."
         ) from exc
 
     src = Path(path)

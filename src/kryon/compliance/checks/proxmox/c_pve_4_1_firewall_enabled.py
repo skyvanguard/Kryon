@@ -76,10 +76,9 @@ class _FirewallEnabledCheck:
             section=self.section,
             verdict=verdict,
             evidence_command=f"{status_cmd} ; {cluster_fw}",
-            evidence_stdout=(
-                f"=== pve-firewall status ===\n{s_out}\n\n"
-                f"=== cluster.fw [OPTIONS] ===\n{opts_block}"
-            )[:2048],
+            evidence_stdout=(f"=== pve-firewall status ===\n{s_out}\n\n=== cluster.fw [OPTIONS] ===\n{opts_block}")[
+                :2048
+            ],
             evidence_stderr=(s_err + "\n" + c_err)[:512],
             evidence_parsed=parsed,
             remediation_static=self.remediation_static,

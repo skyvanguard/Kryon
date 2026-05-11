@@ -18,7 +18,7 @@ This module provides:
 """
 
 import secrets
-from typing import Any, Optional
+from typing import Any
 
 
 def multi_hop_ssh_tunnel(hops: list[dict[str, str]], local_port: int = 8080, final_port: int = 80) -> dict[str, Any]:
@@ -96,7 +96,7 @@ Host jump2
 
 
 def shadowsocks_setup(
-    server_port: int = 8388, password: Optional[str] = None, method: str = "aes-256-gcm"
+    server_port: int = 8388, password: str | None = None, method: str = "aes-256-gcm"
 ) -> dict[str, Any]:
     """
     Setup Shadowsocks proxy (Great Firewall evasion).

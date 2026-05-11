@@ -22,7 +22,7 @@ import hashlib
 import random
 import time
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from kryon.sdk.agents import function_tool
 
@@ -76,7 +76,7 @@ class AdaptiveStrategy:
         target_ip: str,
         exploit: dict[str, Any],
         service: dict[str, Any],
-        initial_strategy: Optional[dict] = None,
+        initial_strategy: dict | None = None,
     ) -> dict[str, Any]:
         """
         Execute exploit with adaptive retry logic.
@@ -276,7 +276,7 @@ class AdaptiveStrategy:
         failure_reason: FailureReason,
         attempt_result: dict,
         attempt_number: int,
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Adapt strategy based on failure reason.
 

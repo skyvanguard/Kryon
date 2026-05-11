@@ -8,7 +8,6 @@ command shadowing.
 import datetime
 import threading
 import time
-from typing import Optional
 
 # Third-party imports
 import requests  # pylint: disable=import-error,unused-import,line-too-long # noqa: E501
@@ -340,7 +339,7 @@ class FuzzyCommandCompleter(Completer):
     _command_shadow_last_update = 0
     _command_shadow_update_interval = 0.2  # Update every 200ms
 
-    def _get_command_shadow_cached(self, text: str) -> Optional[str]:
+    def _get_command_shadow_cached(self, text: str) -> str | None:
         """Cached version of command shadow lookup."""
         if not text or not text.startswith("/"):
             return None
@@ -360,7 +359,7 @@ class FuzzyCommandCompleter(Completer):
 
         return None
 
-    def get_command_shadow(self, text: str) -> Optional[str]:
+    def get_command_shadow(self, text: str) -> str | None:
         """Get a command shadow suggestion based on command history.
 
         This method returns a suggestion for command shadowing based on

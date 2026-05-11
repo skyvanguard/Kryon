@@ -26,18 +26,15 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import time
 import urllib.request
 from pathlib import Path
-
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent.parent
@@ -301,9 +298,8 @@ def main() -> None:
     # Summary
     n = len(results)
     succ = sum(1 for r in results if r.get("success"))
-    print(f"\n=== F16 baseline summary ===")
+    print("\n=== F16 baseline summary ===")
     print(f"N: {n} | Success: {succ}/{n} = {succ/max(1,n):.1%}")
-    from collections import Counter
     by_cat_succ: dict[str, list] = {}
     for r in results:
         by_cat_succ.setdefault(r["category"], []).append(r.get("success", False))

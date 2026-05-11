@@ -125,8 +125,10 @@ def test_scrape_all_sources_stops_on_network_error():
             raise RuntimeError("feed down")
         return _mock_response(_RSS_GHSL)
 
-    with patch("requests.get", side_effect=fake_get), \
-         patch.object(ResearchWriteupScraper, "rate_limit", return_value=None):
+    with (
+        patch("requests.get", side_effect=fake_get),
+        patch.object(ResearchWriteupScraper, "rate_limit", return_value=None),
+    ):
         items = scraper.scrape(max_per_source=5)
 
     subsources = {item["metadata"]["subsource"] for item in items}
@@ -140,8 +142,10 @@ def test_scrape_all_sources_stops_on_network_error():
 def test_scrape_honours_sources_arg_and_max_per_source():
     scraper = ResearchWriteupScraper()
 
-    with patch("requests.get", return_value=_mock_response(_RSS_P0)) as m, \
-         patch.object(ResearchWriteupScraper, "rate_limit", return_value=None):
+    with (
+        patch("requests.get", return_value=_mock_response(_RSS_P0)) as m,
+        patch.object(ResearchWriteupScraper, "rate_limit", return_value=None),
+    ):
         items = scraper.scrape(sources=["project-zero"], max_per_source=1)
 
     assert m.call_count == 1  # only one feed fetched

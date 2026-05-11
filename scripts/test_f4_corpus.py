@@ -11,7 +11,6 @@ If KRYON_EMBEDDING_BASE_URL is set, uses Ollama embeddings (real semantic
 search). If not, falls back to ChromaDB's default embedder (still works,
 lower quality).
 """
-import json
 import os
 
 os.environ.setdefault("KRYON_CVE_CORPUS_DIR", "/tmp/kryon_cve_corpus_test")

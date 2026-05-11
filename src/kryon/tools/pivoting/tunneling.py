@@ -18,7 +18,7 @@ This module provides:
 import socket
 import subprocess
 import time
-from typing import Any, Optional
+from typing import Any
 
 
 def ssh_local_port_forward(
@@ -28,8 +28,8 @@ def ssh_local_port_forward(
     remote_host: str,
     remote_port: int,
     ssh_port: int = 22,
-    ssh_key: Optional[str] = None,
-    ssh_password: Optional[str] = None,
+    ssh_key: str | None = None,
+    ssh_password: str | None = None,
     background: bool = True,
 ) -> dict[str, Any]:
     """
@@ -167,7 +167,7 @@ def ssh_remote_port_forward(
     local_host: str,
     local_port: int,
     ssh_port: int = 22,
-    ssh_key: Optional[str] = None,
+    ssh_key: str | None = None,
     background: bool = True,
 ) -> dict[str, Any]:
     """
@@ -265,7 +265,7 @@ def ssh_dynamic_port_forward(
     ssh_user: str,
     socks_port: int = 1080,
     ssh_port: int = 22,
-    ssh_key: Optional[str] = None,
+    ssh_key: str | None = None,
     background: bool = True,
 ) -> dict[str, Any]:
     """

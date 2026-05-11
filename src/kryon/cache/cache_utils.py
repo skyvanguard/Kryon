@@ -6,7 +6,7 @@ CLI and programmatic tools for managing KRYON cache system.
 
 import json
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from .cache_manager import cache_stats, clear_cache, get_cache
 from .scan_cache import get_scan_cache
@@ -301,9 +301,9 @@ def export_cache_report(output_file: str = "cache_report.json"):
 def check_cache_before_scan(
     tool: str,
     target: str,
-    params: Optional[dict[str, Any]] = None,
+    params: dict[str, Any] | None = None,
     max_age: int = 3600,  # 1 hour
-) -> Optional[Any]:
+) -> Any | None:
     """
     Check cache before performing scan.
 

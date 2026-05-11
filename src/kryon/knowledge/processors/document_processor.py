@@ -6,7 +6,7 @@ Process various document types (PDF, MD, TXT) for knowledge base.
 """
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 class DocumentProcessor:
@@ -181,7 +181,7 @@ class DocumentProcessor:
         return chunks
 
     def process_directory(
-        self, directory: str, recursive: bool = True, extensions: Optional[list[str]] = None
+        self, directory: str, recursive: bool = True, extensions: list[str] | None = None
     ) -> list[dict[str, Any]]:
         """
         Process all files in a directory.

@@ -6,7 +6,7 @@ unless explicitly configured for parallel execution.
 """
 
 import weakref
-from typing import Any, Optional
+from typing import Any
 
 
 class SimpleAgentManager:
@@ -154,7 +154,7 @@ class SimpleAgentManager:
 
         return result
 
-    def get_agent_by_id(self, agent_id: str) -> Optional[str]:
+    def get_agent_by_id(self, agent_id: str) -> str | None:
         """Get agent name by ID."""
         # Check all registered agents
         for agent_name, aid in self._agent_registry.items():
@@ -162,7 +162,7 @@ class SimpleAgentManager:
                 return agent_name
         return None
 
-    def get_id_by_name(self, agent_name: str) -> Optional[str]:
+    def get_id_by_name(self, agent_name: str) -> str | None:
         """Get ID by agent name."""
         return self._agent_registry.get(agent_name)
 

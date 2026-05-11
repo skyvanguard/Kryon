@@ -15,10 +15,13 @@ from __future__ import annotations
 import re
 import time
 
-from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.checks.active_directory._helpers import (
-    ad_env, check_tool, missing_creds_error, tool_missing_error,
+    ad_env,
+    check_tool,
+    missing_creds_error,
+    tool_missing_error,
 )
+from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
 
@@ -43,15 +46,26 @@ class _KerberoastableCheck:
 
         if not (domain and user and pwd and dc):
             return missing_creds_error(
-                self.control_id, self.control_title, self.section,
-                self.severity, self.remediation_static, ctx.host, t0,
+                self.control_id,
+                self.control_title,
+                self.section,
+                self.severity,
+                self.remediation_static,
+                ctx.host,
+                t0,
             )
 
         if not check_tool(ctx, "ldapsearch"):
             return tool_missing_error(
-                self.control_id, self.control_title, self.section,
-                self.severity, self.remediation_static, ctx.host, t0,
-                tool="ldapsearch", install_hint="apt install ldap-utils",
+                self.control_id,
+                self.control_title,
+                self.section,
+                self.severity,
+                self.remediation_static,
+                ctx.host,
+                t0,
+                tool="ldapsearch",
+                install_hint="apt install ldap-utils",
             )
 
         # Base DN from domain (BANK.LOCAL → DC=BANK,DC=LOCAL)
@@ -104,10 +118,7 @@ class _KerberoastableCheck:
         }
 
         if kerberoastable:
-            issues.append(
-                f"{len(kerberoastable)} active user account(s) with SPN "
-                f"(kerberoastable)"
-            )
+            issues.append(f"{len(kerberoastable)} active user account(s) with SPN (kerberoastable)")
 
         verdict = "PASS" if not issues else "FAIL"
         parsed["issues"] = sorted(issues)

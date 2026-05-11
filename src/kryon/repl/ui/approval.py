@@ -38,16 +38,17 @@ from rich.text import Text
 
 class ApprovalResult(str, Enum):
     """What the operator chose."""
+
     YES = "yes"
     NO = "no"
-    ABORT = "abort"      # stop the whole engagement, not just this step
+    ABORT = "abort"  # stop the whole engagement, not just this step
     DETAILS = "details"  # show full details, re-prompt
 
 
 class Severity(str, Enum):
     DESTRUCTIVE = "destructive"  # rm -rf, mkfs, DROP TABLE, ...
-    MODIFY = "modify"             # sed -i, systemctl reload, chmod, ...
-    READ = "read"                 # cat, ls, ss, ...
+    MODIFY = "modify"  # sed -i, systemctl reload, chmod, ...
+    READ = "read"  # cat, ls, ss, ...
     NEUTRAL = "neutral"
 
 
@@ -65,26 +66,25 @@ class ProposedAction:
 
     command: str
     severity: Severity = Severity.MODIFY
-    purpose: str = ""                 # human-readable, one line
+    purpose: str = ""  # human-readable, one line
     reversible: bool = False
-    backup_path: str | None = None    # if a backup is part of the plan
-    target_host: str = ""             # e.g. "admin@192.168.1.10"
+    backup_path: str | None = None  # if a backup is part of the plan
+    target_host: str = ""  # e.g. "admin@192.168.1.10"
 
 
 @dataclass
 class ApprovalRequest:
     """The bundle the operator approves or rejects as a unit."""
 
-    title: str                              # e.g. "Aplicar 3 correcciones CRITICAL"
-    subtitle: str = ""                      # e.g. target host / engagement id
+    title: str  # e.g. "Aplicar 3 correcciones CRITICAL"
+    subtitle: str = ""  # e.g. target host / engagement id
     actions: list[ProposedAction] = field(default_factory=list)
     impact_notes: list[str] = field(default_factory=list)  # free-form bullets
-    dry_run: bool = False                   # if True, prompt shows "[DRY-RUN]"
+    dry_run: bool = False  # if True, prompt shows "[DRY-RUN]"
 
 
 def _render_actions_table(actions: Iterable[ProposedAction]) -> Table:
-    t = Table(show_header=True, header_style="bold",
-              box=box.SIMPLE, padding=(0, 1), pad_edge=False)
+    t = Table(show_header=True, header_style="bold", box=box.SIMPLE, padding=(0, 1), pad_edge=False)
     t.add_column("#", style="dim", width=3)
     t.add_column("Tipo", width=14)
     t.add_column("Acción")
@@ -103,8 +103,7 @@ def _render_detail_panel(req: ApprovalRequest) -> Panel:
         style, _ = _SEV_STYLE[a.severity]
         header = Text(f"[{i}] {a.purpose or a.command[:80]}", style=style)
         parts.append(header)
-        parts.append(Syntax(a.command, "bash", theme="ansi_dark",
-                            line_numbers=False, word_wrap=True))
+        parts.append(Syntax(a.command, "bash", theme="ansi_dark", line_numbers=False, word_wrap=True))
         meta_bits: list[str] = []
         if a.target_host:
             meta_bits.append(f"host: {a.target_host}")
@@ -113,8 +112,7 @@ def _render_detail_panel(req: ApprovalRequest) -> Panel:
             meta_bits.append(f"backup: {a.backup_path}")
         parts.append(Text("    " + "  ·  ".join(meta_bits), style="dim"))
         parts.append(Text(""))  # spacer
-    return Panel(Group(*parts), title="Detalle por acción",
-                 border_style="cyan", box=box.ROUNDED)
+    return Panel(Group(*parts), title="Detalle por acción", border_style="cyan", box=box.ROUNDED)
 
 
 def _severity_counts(actions: Iterable[ProposedAction]) -> dict[Severity, int]:
@@ -159,11 +157,8 @@ def _render_summary_panel(req: ApprovalRequest) -> Panel:
             impact.append(f"  • {note}", style="yellow")
         body = Group(body, Text(""), impact)
 
-    border = "magenta" if req.dry_run else (
-        "red" if counts.get(Severity.DESTRUCTIVE) else "yellow"
-    )
-    return Panel(body, title="Acción propuesta", border_style=border,
-                 box=box.ROUNDED)
+    border = "magenta" if req.dry_run else ("red" if counts.get(Severity.DESTRUCTIVE) else "yellow")
+    return Panel(body, title="Acción propuesta", border_style=border, box=box.ROUNDED)
 
 
 def ask_approval(
@@ -182,10 +177,7 @@ def ask_approval(
     con.print()
     con.print(_render_summary_panel(request))
 
-    prompt_suffix = (
-        " [bold green]y[/]es / [bold red]N[/]o / [bold cyan]d[/]etalles / "
-        "[bold]a[/]bort"
-    )
+    prompt_suffix = " [bold green]y[/]es / [bold red]N[/]o / [bold cyan]d[/]etalles / [bold]a[/]bort"
     default_char = {
         ApprovalResult.YES: "y",
         ApprovalResult.NO: "N",
@@ -196,7 +188,9 @@ def ask_approval(
         try:
             raw = Prompt.ask(
                 f"¿Aplicar?{prompt_suffix}",
-                default=default_char, show_default=False, console=con,
+                default=default_char,
+                show_default=False,
+                console=con,
             )
         except (KeyboardInterrupt, EOFError):
             con.print("\n[red]cancelado[/red]")
@@ -231,7 +225,9 @@ def ask_yes_no(
         try:
             raw = Prompt.ask(
                 f"{question} [bold green]y[/]/[bold red]N[/]",
-                default=default_char, show_default=False, console=con,
+                default=default_char,
+                show_default=False,
+                console=con,
             )
         except (KeyboardInterrupt, EOFError):
             return False

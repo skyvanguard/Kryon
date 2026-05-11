@@ -18,14 +18,14 @@ This module provides:
 import os
 import subprocess
 import time
-from typing import Any, Optional
+from typing import Any
 
 
 def john_crack(
     hash_file: str,
     format: str = "auto",
-    wordlist: Optional[str] = None,
-    rules: Optional[str] = None,
+    wordlist: str | None = None,
+    rules: str | None = None,
     incremental: bool = False,
     session_name: str = "kryon_john",
     show_cracked: bool = True,

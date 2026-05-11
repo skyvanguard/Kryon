@@ -5,7 +5,7 @@ RAG Mixin for KRYON Agents
 Mixin class to add RAG capabilities to any KRYON agent.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 
 class RAGMixin:
@@ -23,7 +23,7 @@ class RAGMixin:
         self,
         question: str,
         top_k: int = 5,
-        source_filter: Optional[str] = None,
+        source_filter: str | None = None,
         use_llm: bool = True,
         use_cache: bool = True,
     ) -> dict[str, Any]:
@@ -58,7 +58,7 @@ class RAGMixin:
 
         return result
 
-    def get_exploits_for_service(self, service: str, version: Optional[str] = None, max_results: int = 5) -> list[dict]:
+    def get_exploits_for_service(self, service: str, version: str | None = None, max_results: int = 5) -> list[dict]:
         """
         Get exploits for specific service from knowledge base.
 
@@ -83,7 +83,7 @@ class RAGMixin:
 
         return result.get("sources", [])
 
-    def get_techniques(self, technique_type: str, platform: Optional[str] = None, max_results: int = 5) -> list[dict]:
+    def get_techniques(self, technique_type: str, platform: str | None = None, max_results: int = 5) -> list[dict]:
         """
         Get techniques from knowledge base.
 
@@ -103,7 +103,7 @@ class RAGMixin:
 
         return result.get("sources", [])
 
-    def get_cve_info(self, cve_id: str) -> Optional[dict]:
+    def get_cve_info(self, cve_id: str) -> dict | None:
         """
         Get information about specific CVE.
 

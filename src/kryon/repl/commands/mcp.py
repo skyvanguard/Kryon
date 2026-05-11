@@ -54,7 +54,6 @@ import atexit
 import functools
 import logging
 import warnings
-from typing import Optional
 
 # Third-party imports
 from rich.console import Console
@@ -418,7 +417,7 @@ class MCPCommand(Command):
         """
         return self._subcommands.get(subcommand, "")
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         """Handle the MCP command.
 
         Args:
@@ -525,7 +524,7 @@ Example: `/mcp add burp 13`
 """
         console.print(Markdown(usage_text))
 
-    def handle_help(self, args: Optional[list[str]] = None) -> bool:
+    def handle_help(self, args: list[str] | None = None) -> bool:
         """Handle /mcp help command.
 
         Args:
@@ -585,7 +584,7 @@ Example: `/mcp add burp 13`
             finally:
                 sys.stderr = original_stderr
 
-    def handle_load(self, args: Optional[list[str]] = None) -> bool:
+    def handle_load(self, args: list[str] | None = None) -> bool:
         """Handle /mcp load command.
 
         Usage:
@@ -766,7 +765,7 @@ Example: `/mcp add burp 13`
                 del _GLOBAL_MCP_SERVERS[name]
             return False
 
-    def handle_list(self, args: Optional[list[str]] = None) -> bool:
+    def handle_list(self, args: list[str] | None = None) -> bool:
         """Handle /mcp list command.
 
         Args:
@@ -815,7 +814,7 @@ Example: `/mcp add burp 13`
         console.print(table)
         return True
 
-    def handle_add(self, args: Optional[list[str]] = None) -> bool:
+    def handle_add(self, args: list[str] | None = None) -> bool:
         """Handle /mcp add command.
 
         Usage: /mcp add <server_name> <agent_name>
@@ -980,7 +979,7 @@ Example: `/mcp add burp 13`
             console.print(f"[red]Error adding tools: {e}[/red]")
             return False
 
-    def handle_remove(self, args: Optional[list[str]] = None) -> bool:
+    def handle_remove(self, args: list[str] | None = None) -> bool:
         """Handle /mcp remove command.
 
         Args:
@@ -1020,7 +1019,7 @@ Example: `/mcp add burp 13`
                 del _GLOBAL_MCP_SERVERS[server_name]
             return False
 
-    def handle_status(self, args: Optional[list[str]] = None) -> bool:
+    def handle_status(self, args: list[str] | None = None) -> bool:
         """Handle /mcp status command.
 
         Args:
@@ -1098,7 +1097,7 @@ Example: `/mcp add burp 13`
 
         return True
 
-    def handle_tools(self, args: Optional[list[str]] = None) -> bool:
+    def handle_tools(self, args: list[str] | None = None) -> bool:
         """Handle /mcp tools command.
 
         Args:
@@ -1149,7 +1148,7 @@ Example: `/mcp add burp 13`
             console.print(f"[red]Error listing tools: {e}[/red]")
             return False
 
-    def handle_associations(self, args: Optional[list[str]] = None) -> bool:
+    def handle_associations(self, args: list[str] | None = None) -> bool:
         """Handle /mcp associations command to show agent-MCP associations.
 
         Args:
@@ -1191,7 +1190,7 @@ Example: `/mcp add burp 13`
         console.print(table)
         return True
 
-    def handle_test(self, args: Optional[list[str]] = None) -> bool:
+    def handle_test(self, args: list[str] | None = None) -> bool:
         """Handle /mcp test command to test server connectivity.
 
         Args:

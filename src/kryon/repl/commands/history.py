@@ -4,7 +4,7 @@ This module provides commands for displaying conversation history with agent-bas
 """
 
 import json
-from typing import Any, Optional
+from typing import Any
 
 from rich.console import Console  # pylint: disable=import-error
 from rich.panel import Panel  # pylint: disable=import-error
@@ -33,7 +33,7 @@ class HistoryCommand(Command):
         self.add_subcommand("search", "Search messages across all agents", self.handle_search)
         self.add_subcommand("index", "Show message by index and optionally filter by role", self.handle_index)
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         """Handle the history command.
 
         Args:
@@ -356,7 +356,7 @@ class HistoryCommand(Command):
 
         return True
 
-    def handle_all(self, args: Optional[list[str]] = None) -> bool:
+    def handle_all(self, args: list[str] | None = None) -> bool:
         """Show history from all agents in chronological order."""
         from kryon.sdk.agents.simple_agent_manager import AGENT_MANAGER
 
@@ -410,7 +410,7 @@ class HistoryCommand(Command):
         console.print(table)
         return True
 
-    def handle_agent(self, args: Optional[list[str]] = None) -> bool:
+    def handle_agent(self, args: list[str] | None = None) -> bool:
         """Show history for a specific agent."""
         if not args:
             console.print("[red]Error: Agent name or ID required[/red]")
@@ -614,7 +614,7 @@ class HistoryCommand(Command):
         console.print(table)
         return True
 
-    def handle_search(self, args: Optional[list[str]] = None) -> bool:
+    def handle_search(self, args: list[str] | None = None) -> bool:
         """Search for messages containing specific terms across all agents."""
         if not args:
             console.print("[red]Error: Search term required[/red]")
@@ -733,7 +733,7 @@ class HistoryCommand(Command):
             # No content or tool calls (empty message)
             return "[dim italic]Empty message[/dim italic]"
 
-    def handle_index(self, args: Optional[list[str]] = None) -> bool:
+    def handle_index(self, args: list[str] | None = None) -> bool:
         """Show message by index and optionally filter by role.
 
         Usage: /history index <agent_name> <index> [role]

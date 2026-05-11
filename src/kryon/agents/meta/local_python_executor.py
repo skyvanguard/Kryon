@@ -32,7 +32,7 @@ import re
 from collections.abc import Mapping
 from importlib import import_module
 from types import ModuleType
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -1354,9 +1354,9 @@ class FinalAnswerException(Exception):
 
 def evaluate_python_code(
     code: str,
-    static_tools: Optional[dict[str, Callable]] = None,
-    custom_tools: Optional[dict[str, Callable]] = None,
-    state: Optional[dict[str, Any]] = None,
+    static_tools: dict[str, Callable] | None = None,
+    custom_tools: dict[str, Callable] | None = None,
+    state: dict[str, Any] | None = None,
     authorized_imports: list[str] = BASE_BUILTIN_MODULES,
     max_print_outputs_length: int = DEFAULT_MAX_LEN_OUTPUT,
 ):
@@ -1430,7 +1430,7 @@ class LocalPythonInterpreter:
         self,
         additional_authorized_imports: list[str],
         tools: dict,
-        max_print_outputs_length: Optional[int] = None,
+        max_print_outputs_length: int | None = None,
     ):
         self.custom_tools = {}
         self.state = {}

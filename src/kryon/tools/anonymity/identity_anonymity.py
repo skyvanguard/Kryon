@@ -20,10 +20,10 @@ This module provides:
 import random
 import string
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 
-def generate_fake_identity(country: str = "random", gender: Optional[str] = None) -> dict[str, Any]:
+def generate_fake_identity(country: str = "random", gender: str | None = None) -> dict[str, Any]:
     """
     Generate complete fake identity for anonymous operations.
 
@@ -735,7 +735,7 @@ def language_header_randomization() -> dict[str, Any]:
     return results
 
 
-def screen_resolution_spoofing(custom_resolution: Optional[str] = None) -> dict[str, Any]:
+def screen_resolution_spoofing(custom_resolution: str | None = None) -> dict[str, Any]:
     """
     Generate screen resolution spoofing configuration.
 

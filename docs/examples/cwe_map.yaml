@@ -1,0 +1,72 @@
+# CWE → detection-tools override map (Fase 3 eval gate)
+# ----------------------------------------------------------------------
+# Drop this file at one of these paths to customize how the auto-skill
+# pipeline decides whether a draft "would have detected" a past finding:
+#
+#   ~/.kryon/cwe_map.yaml          (default, picked up automatically)
+#   $KRYON_CWE_MAP                  (env var override)
+#
+# Or pass it programmatically:
+#   evaluate_draft_against_corpus(..., cwe_to_tools=load_cwe_map_override(path=...))
+#
+# ----------------------------------------------------------------------
+# Semantics:
+#
+# - Per-CWE entries below REPLACE the corresponding default entry from
+#   `_DEFAULT_CWE_TO_TOOLS` in `src/kryon/learning/skill_evaluator.py`.
+#   No within-CWE union — your team is the authority on what tools you
+#   trust to detect that class.
+#
+# - CWEs absent from this file keep their default tools.
+#
+# - CWEs new to this file extend the map (add coverage for vulns Kryon's
+#   default doesn't recognize, e.g. business-logic flaws).
+#
+# - Tool names MUST match Kryon's @function_tool registrations exactly
+#   — the draft's `required_tools` list is what we compare against. Run
+#   `/skill list` inside the REPL to see all registered tools.
+# ======================================================================
+
+
+# Example 1 — Banking client with proprietary SQLi scanner.
+# Replace the default toolset for CWE-89 with the custom-stack mix:
+CWE-89:
+  - sqlmap_scan
+  - bcp_internal_sqli_scanner    # <— custom @function_tool
+  - nuclei_scan
+  - validate_sqli
+
+
+# Example 2 — Add a CWE the default map doesn't cover (out of conservative
+# precision posture). HttpOnly/Secure cookie flags, missing X-Frame-Options
+# etc. — covered by nuclei_scan templates.
+CWE-1004:
+  - nuclei_scan
+  - zap_baseline_scan
+  - burp_active_scan
+
+
+# Example 3 — Business-logic flaws (CWE-840). Default map has nothing
+# because no static scanner reliably detects these. If your team has a
+# manual review workflow registered as a tool, list it here:
+# CWE-840:
+#   - manual_review_workflow
+
+
+# Example 4 — Kerberos-specific weak auth (CWE-1390 already in default,
+# but tighten it to only the AD-aware tools you've validated):
+# CWE-1390:
+#   - bloodhound_collect
+#   - kerberoast
+#   - dcsync_attack
+#   # — drops bas_ad_reconnaissance + asreproast from default if you
+#   #   don't trust those for production assessments.
+
+
+# Example 5 — Custom client CWE namespace (banking compliance maps).
+# Use any CWE-* prefix; the evaluator treats unmapped strings as
+# "unknown" (skipped, not failed). Listing them here makes them count.
+# CWE-CUSTOM-PCI-1:
+#   - bcp_pci_compliance_checker
+# CWE-CUSTOM-SWIFT-1:
+#   - swift_csp_checker

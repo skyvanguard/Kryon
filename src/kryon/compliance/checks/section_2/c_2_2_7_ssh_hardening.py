@@ -12,12 +12,10 @@ Falls back to `/etc/ssh/sshd_config` parse if `sshd -T` unavailable.
 
 from __future__ import annotations
 
-import re
 import time
 
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
-
 
 _WEAK_CIPHERS = {"aes128-cbc", "aes192-cbc", "aes256-cbc", "3des-cbc", "blowfish-cbc"}
 
@@ -52,9 +50,7 @@ class _C227Check:
 
         if rc != 0 or not stdout.strip():
             # Fallback: parse sshd_config directly
-            sc_out, sc_err, sc_rc = run_cmd(
-                ctx, ["cat", "/etc/ssh/sshd_config"], timeout_s=5
-            )
+            sc_out, sc_err, sc_rc = run_cmd(ctx, ["cat", "/etc/ssh/sshd_config"], timeout_s=5)
             if sc_rc != 0:
                 return CheckResult(
                     control_id=self.control_id,
@@ -106,9 +102,9 @@ class _C227Check:
             "permit_root_login": permit,
             "max_auth_tries": max_auth,
             "protocol": protocol,
-            "ciphers_present_weak": sorted(list(
-                {c.strip().lower() for c in ciphers_raw.split(",")} & _WEAK_CIPHERS
-            )) if ciphers_raw else [],
+            "ciphers_present_weak": sorted(list({c.strip().lower() for c in ciphers_raw.split(",")} & _WEAK_CIPHERS))
+            if ciphers_raw
+            else [],
             "issues": sorted(issues),
         }
 

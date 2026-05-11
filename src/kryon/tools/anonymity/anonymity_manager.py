@@ -20,7 +20,7 @@ import os
 import threading
 import time
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 # Global anonymity state
 _ANONYMITY_STATE = {
@@ -405,7 +405,7 @@ def _start_auto_rotation(interval: int):
     _rotation_thread.start()
 
 
-def save_anonymity_profile(profile_name: str, description: Optional[str] = None) -> dict[str, Any]:
+def save_anonymity_profile(profile_name: str, description: str | None = None) -> dict[str, Any]:
     """
     Save current anonymity configuration as profile.
 

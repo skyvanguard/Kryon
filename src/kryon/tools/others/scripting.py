@@ -138,7 +138,19 @@ def scripting_tool(
             parsed = ast.parse(script)
 
             # AST-level security: block import and attribute access to dangerous names
-            _BLOCKED_ATTRS = {"__subclasses__", "__bases__", "__base__", "__mro__", "__globals__", "__code__", "__class__", "__init__", "__dict__", "__getattr__", "__setattr__"}
+            _BLOCKED_ATTRS = {
+                "__subclasses__",
+                "__bases__",
+                "__base__",
+                "__mro__",
+                "__globals__",
+                "__code__",
+                "__class__",
+                "__init__",
+                "__dict__",
+                "__getattr__",
+                "__setattr__",
+            }
             for node in ast.walk(parsed):
                 if isinstance(node, (ast.Import, ast.ImportFrom)):
                     return "Error: import statements are not allowed in sandboxed scripts"

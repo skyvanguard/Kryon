@@ -49,6 +49,7 @@ def test_all_ids_follow_bcp_format(framework):
 
 def test_natural_sort_order(framework):
     from kryon.compliance.runner import _natural_sort_key
+
     ids = [c.id for c in framework.checks]
     assert ids == sorted(ids, key=_natural_sort_key)
 

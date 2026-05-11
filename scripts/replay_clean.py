@@ -1,8 +1,8 @@
 """Replay call 26 but remove prior assistant 'prose plan' messages to test
 whether history contamination is causing the model to ignore tool_choice."""
 import json
-import urllib.request
 import sys
+import urllib.request
 
 path = sys.argv[1]
 call_idx = int(sys.argv[2])

@@ -34,7 +34,6 @@ def build_tool_registry() -> dict[str, Any]:
         AI_TOOLS,
         CORE_TOOLS,
         MEMORY_TOOLS,
-        RAG_TOOLS,
         RAG_TOOLS_FULL,
     )
 
@@ -53,6 +52,7 @@ def build_tool_registry() -> dict[str, Any]:
     for module_path, attr in _optional_imports:
         try:
             import importlib
+
             mod = importlib.import_module(module_path)
             tools = getattr(mod, attr, [])
             for tool in tools:
@@ -84,6 +84,7 @@ def build_tool_registry() -> dict[str, Any]:
     for mod_path in _extra_tools:
         try:
             import importlib
+
             mod = importlib.import_module(mod_path)
             for attr_name in dir(mod):
                 obj = getattr(mod, attr_name)

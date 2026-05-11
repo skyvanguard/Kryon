@@ -50,8 +50,8 @@ def main() -> None:
         load(f"kryon.compliance.checks.{sec}.{fname}",
              str(ROOT / f"checks/{sec}/{fname}.py"))
 
-    from kryon.compliance.runner import run_all, reproducibility_hash
     from kryon.compliance.checks.base import CheckContext
+    from kryon.compliance.runner import reproducibility_hash, run_all
 
     ctx = CheckContext(host="localhost")
     results = run_all(ctx)

@@ -19,7 +19,7 @@ import json
 import os
 import time
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from kryon.sdk.agents import function_tool
 
@@ -30,7 +30,7 @@ def autonomous_ctf_solver(
     target_type: str = "auto",
     difficulty: str = "medium",
     max_time_hours: int = 2,
-    flags_needed: Optional[list[str]] = None,
+    flags_needed: list[str] | None = None,
     output_report: str = "/tmp/kryon_ctf_report.md",
 ) -> dict[str, Any]:
     """
@@ -641,7 +641,7 @@ def autonomous_network_pivot(
 
 
 def multi_agent_coordination(
-    target_ip: str, agents_to_use: Optional[list[str]] = None, coordination_mode: str = "parallel"
+    target_ip: str, agents_to_use: list[str] | None = None, coordination_mode: str = "parallel"
 ) -> dict[str, Any]:
     """
     Coordinate multiple KRYON agents for comprehensive assessment.
@@ -1001,7 +1001,7 @@ def _autonomous_privilege_escalation(target_ip: str, current_access: dict, targe
         return {"success": len(result.get("critical_findings", [])) > 0, "method": "winpeas"}
 
 
-def _autonomous_flag_hunting(target_ip: str, access_level: str, flags_needed: Optional[list[str]]) -> dict[str, Any]:
+def _autonomous_flag_hunting(target_ip: str, access_level: str, flags_needed: list[str] | None) -> dict[str, Any]:
     """Autonomous flag discovery."""
     from kryon.tools.ctf.ctf_automation import hunt_flags
 

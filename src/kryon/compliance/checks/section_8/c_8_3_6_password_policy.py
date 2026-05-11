@@ -48,13 +48,19 @@ class _C836Check:
     def run(self, ctx: CheckContext) -> CheckResult:
         t0 = time.time()
         logindefs_out, logindefs_err, lrc = run_cmd(
-            ctx, ["cat", "/etc/login.defs"], timeout_s=5,
+            ctx,
+            ["cat", "/etc/login.defs"],
+            timeout_s=5,
         )
         pwquality_out, pwquality_err, prc = run_cmd(
-            ctx, ["cat", "/etc/security/pwquality.conf"], timeout_s=5,
+            ctx,
+            ["cat", "/etc/security/pwquality.conf"],
+            timeout_s=5,
         )
         pam_out, _, _ = run_cmd(
-            ctx, ["cat", "/etc/pam.d/common-password"], timeout_s=3,
+            ctx,
+            ["cat", "/etc/pam.d/common-password"],
+            timeout_s=3,
         )
 
         issues: list[str] = []

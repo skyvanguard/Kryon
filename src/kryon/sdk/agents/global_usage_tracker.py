@@ -10,7 +10,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # Import fcntl only on Unix-like systems
 if platform.system() != "Windows":
@@ -219,7 +219,7 @@ class GlobalUsageTracker:
             # Silently ignore other errors to not disrupt the main program
             pass
 
-    def start_session(self, session_id: str, agent_name: Optional[str] = None):
+    def start_session(self, session_id: str, agent_name: str | None = None):
         """Start tracking a new session"""
         if not self.enabled:
             return
@@ -270,7 +270,7 @@ class GlobalUsageTracker:
         input_tokens: int,
         output_tokens: int,
         cost: float,
-        agent_name: Optional[str] = None,
+        agent_name: str | None = None,
     ):
         """Track usage for a single model interaction with proper synchronization"""
         if not self.enabled:
@@ -372,7 +372,7 @@ class GlobalUsageTracker:
                 traceback.print_exc()
             pass
 
-    def end_session(self, final_cost: Optional[float] = None):
+    def end_session(self, final_cost: float | None = None):
         """End the current session"""
         if not self.enabled:
             return

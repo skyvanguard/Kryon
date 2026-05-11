@@ -11,11 +11,11 @@ from kryon.repl.ui.approval import (
     ApprovalResult,
     ProposedAction,
     Severity,
+    _render_detail_panel,
+    _render_summary_panel,
+    _severity_counts,
     ask_approval,
     ask_yes_no,
-    _render_summary_panel,
-    _render_detail_panel,
-    _severity_counts,
 )
 
 

@@ -6,7 +6,6 @@ import asyncio
 import json
 import uuid
 from collections import OrderedDict
-from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -46,10 +45,10 @@ class ValidationResult(BaseModel):
 
     finding_id: str
     status: str
-    validation_status: Optional[str] = None
-    exploit_proof: Optional[str] = None
-    validation_method: Optional[str] = None
-    details: Optional[str] = None
+    validation_status: str | None = None
+    exploit_proof: str | None = None
+    validation_method: str | None = None
+    details: str | None = None
 
 
 class ValidateBatchRequest(BaseModel):

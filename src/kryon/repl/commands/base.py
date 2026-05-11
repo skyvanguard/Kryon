@@ -3,7 +3,7 @@ Base module for KRYON REPL commands.
 This module provides the base structure for all commands in the KRYON REPL.
 """
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 from rich.console import Console  # pylint: disable=import-error
 
@@ -55,7 +55,7 @@ class Command:
         """
         return self.subcommands.get(subcommand, {}).get("description", "")
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         """Handle the command.
 
         Args:
@@ -115,7 +115,7 @@ def register_command(command: Command) -> None:
         COMMAND_ALIASES[alias] = command.name
 
 
-def get_command(name: str) -> Optional[Command]:
+def get_command(name: str) -> Command | None:
     """Get a command by name or alias.
 
     Args:
@@ -130,7 +130,7 @@ def get_command(name: str) -> Optional[Command]:
     return COMMANDS.get(name)
 
 
-def handle_command(command: str, args: Optional[list[str]] = None) -> bool:
+def handle_command(command: str, args: list[str] | None = None) -> bool:
     """Handle a command.
 
     Args:

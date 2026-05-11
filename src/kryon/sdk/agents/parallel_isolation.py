@@ -7,7 +7,6 @@ ensuring that each agent has its own completely independent copy of the conversa
 
 import copy
 from threading import Lock
-from typing import Optional
 
 from kryon.sdk.agents.simple_agent_manager import AGENT_MANAGER
 
@@ -20,7 +19,7 @@ class ParallelHistoryIsolation:
         self._base_history: list[dict] = []  # The base history before parallel execution
         self._lock = Lock()
         self._parallel_mode = False
-        self._selected_agent_id: Optional[str] = None  # Track which agent was selected after parallel
+        self._selected_agent_id: str | None = None  # Track which agent was selected after parallel
 
     def create_isolated_history(self, base_history: list[dict]) -> list[dict]:
         """Create a deep copy of the given history to ensure complete isolation.
@@ -65,7 +64,7 @@ class ParallelHistoryIsolation:
             return isolated_histories
 
     def transfer_from_parallel(
-        self, agent_histories: dict[str, list[dict]], selected_agent_id: Optional[str] = None
+        self, agent_histories: dict[str, list[dict]], selected_agent_id: str | None = None
     ) -> list[dict]:
         """Transfer from parallel mode back to single agent mode.
 
@@ -98,7 +97,7 @@ class ParallelHistoryIsolation:
             # Return a deep copy to ensure continued isolation
             return copy.deepcopy(selected_history)
 
-    def get_isolated_history(self, agent_id: str) -> Optional[list[dict]]:
+    def get_isolated_history(self, agent_id: str) -> list[dict] | None:
         """Get the isolated history for a specific agent.
 
         Args:
@@ -167,7 +166,7 @@ class ParallelHistoryIsolation:
         with self._lock:
             return copy.deepcopy(self._base_history)
 
-    def get_selected_agent_id(self) -> Optional[str]:
+    def get_selected_agent_id(self) -> str | None:
         """Get the ID of the agent selected after parallel execution."""
         return self._selected_agent_id
 

@@ -52,9 +52,7 @@ def test_yaml_loads(framework):
 
 
 def test_has_at_least_expected_check_count(framework):
-    assert len(framework) >= _MIN_CHECKS, (
-        f"Expected >= {_MIN_CHECKS} checks, found {len(framework)}"
-    )
+    assert len(framework) >= _MIN_CHECKS, f"Expected >= {_MIN_CHECKS} checks, found {len(framework)}"
 
 
 def test_all_ids_are_unique_and_well_formed(framework):
@@ -71,9 +69,7 @@ def test_ids_sorted_in_natural_order(framework):
     from kryon.compliance.runner import _natural_sort_key
 
     ids = [c.id for c in framework.checks]
-    assert ids == sorted(ids, key=_natural_sort_key), (
-        "YAML should list checks in natural-order (not lexicographic)"
-    )
+    assert ids == sorted(ids, key=_natural_sort_key), "YAML should list checks in natural-order (not lexicographic)"
 
 
 def test_every_cis_section_is_represented(framework):
@@ -98,10 +94,15 @@ def test_every_check_has_valid_pass_when(framework):
         has_any = any(
             getattr(pw, f) is not None
             for f in (
-                "stdout_contains", "stdout_not_contains",
-                "stdout_matches", "stdout_not_matches",
-                "stdout_empty", "exit_code_is",
-                "all_of", "any_of", "not_",
+                "stdout_contains",
+                "stdout_not_contains",
+                "stdout_matches",
+                "stdout_not_matches",
+                "stdout_empty",
+                "exit_code_is",
+                "all_of",
+                "any_of",
+                "not_",
             )
         )
         assert has_any, f"{c.id}: empty pass_when parsed"
@@ -119,8 +120,7 @@ def test_severities_distribution_has_critical_and_high(framework):
 def test_register_all_frameworks_ingests_ubuntu_file():
     """The auto-discovery helper must pick up the production framework
     and skip the _sample.yaml file."""
-    from kryon.compliance import cis as cis_pkg
-    from kryon.compliance import runner
+    from kryon.compliance import cis as cis_pkg, runner
 
     before = {c.control_id for c in runner._REGISTERED_CHECKS}
     try:
@@ -129,6 +129,4 @@ def test_register_all_frameworks_ingests_ubuntu_file():
         assert "_sample" not in results
         assert len(results["cis-ubuntu-22.04-l1"]) >= _MIN_CHECKS
     finally:
-        runner._REGISTERED_CHECKS[:] = [
-            c for c in runner._REGISTERED_CHECKS if c.control_id in before
-        ]
+        runner._REGISTERED_CHECKS[:] = [c for c in runner._REGISTERED_CHECKS if c.control_id in before]

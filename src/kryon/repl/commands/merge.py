@@ -5,8 +5,6 @@ Provides a shortcut to merge agent message histories without
 typing the full /parallel merge command.
 """
 
-from typing import Optional
-
 from rich.console import Console
 
 from kryon.repl.commands.base import Command, register_command
@@ -28,7 +26,7 @@ class MergeCommand(Command):
         # Create a ParallelCommand instance to delegate to
         self._parallel_cmd = ParallelCommand()
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         """Handle the merge command by delegating to /parallel merge.
 
         Args:

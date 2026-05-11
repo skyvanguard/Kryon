@@ -81,10 +81,10 @@ def main() -> int:
     _load("kryon.reporting.compliance_pdf", str(root / "reporting/compliance_pdf.py"))
     _load("kryon.reporting.compliance_narrator", str(root / "reporting/compliance_narrator.py"))
 
-    from kryon.compliance.runner import run_all, reproducibility_hash
     from kryon.compliance.checks.base import CheckContext
-    from kryon.reporting.compliance_pdf import render_pdf
+    from kryon.compliance.runner import reproducibility_hash, run_all
     from kryon.reporting.compliance_narrator import narrate_all
+    from kryon.reporting.compliance_pdf import render_pdf
 
     if args.from_json:
         results_dicts = json.loads(Path(args.from_json).read_text(encoding="utf-8"))

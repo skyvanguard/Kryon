@@ -34,19 +34,14 @@ except (ImportError, ModuleNotFoundError):
 
 
 _SAMPLE_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "kryon"
-    / "compliance"
-    / "cis"
-    / "frameworks"
-    / "_sample.yaml"
+    Path(__file__).resolve().parents[2] / "src" / "kryon" / "compliance" / "cis" / "frameworks" / "_sample.yaml"
 )
 
 
 # ---------------------------------------------------------------------------
 # evaluator — leaves
 # ---------------------------------------------------------------------------
+
 
 def test_evaluate_stdout_contains_passes():
     pw = PassWhen(stdout_contains="PermitRootLogin no")
@@ -94,20 +89,25 @@ def test_evaluate_empty_pass_when_raises():
 # evaluator — combinators
 # ---------------------------------------------------------------------------
 
+
 def test_all_of_requires_every_subcondition():
-    pw = PassWhen(all_of=(
-        PassWhen(stdout_contains="foo"),
-        PassWhen(stdout_contains="bar"),
-    ))
+    pw = PassWhen(
+        all_of=(
+            PassWhen(stdout_contains="foo"),
+            PassWhen(stdout_contains="bar"),
+        )
+    )
     assert evaluate(pw, stdout="foo bar baz", stderr="", exit_code=0) is True
     assert evaluate(pw, stdout="foo", stderr="", exit_code=0) is False
 
 
 def test_any_of_passes_if_any_subcondition_holds():
-    pw = PassWhen(any_of=(
-        PassWhen(stdout_contains="foo"),
-        PassWhen(stdout_contains="bar"),
-    ))
+    pw = PassWhen(
+        any_of=(
+            PassWhen(stdout_contains="foo"),
+            PassWhen(stdout_contains="bar"),
+        )
+    )
     assert evaluate(pw, stdout="only bar here", stderr="", exit_code=0) is True
     assert evaluate(pw, stdout="neither", stderr="", exit_code=0) is False
 
@@ -119,10 +119,12 @@ def test_not_inverts_subcondition():
 
 
 def test_nested_combinators():
-    pw = PassWhen(all_of=(
-        PassWhen(stdout_contains="install /bin/true"),
-        PassWhen(not_=PassWhen(stdout_matches=r"^cramfs\s")),
-    ))
+    pw = PassWhen(
+        all_of=(
+            PassWhen(stdout_contains="install /bin/true"),
+            PassWhen(not_=PassWhen(stdout_matches=r"^cramfs\s")),
+        )
+    )
     out_pass = "install /bin/true\nfs info"
     out_fail = "install /bin/true\ncramfs enabled"
     assert evaluate(pw, stdout=out_pass, stderr="", exit_code=0) is True
@@ -132,6 +134,7 @@ def test_nested_combinators():
 # ---------------------------------------------------------------------------
 # _parse_pass_when
 # ---------------------------------------------------------------------------
+
 
 def test_parse_pass_when_rejects_unknown_key():
     with pytest.raises(FrameworkSchemaError):
@@ -157,6 +160,7 @@ def test_parse_pass_when_all_of_requires_non_empty_list():
 # ---------------------------------------------------------------------------
 # framework parser
 # ---------------------------------------------------------------------------
+
 
 def _valid_check_dict() -> dict[str, Any]:
     return {
@@ -217,6 +221,7 @@ def test_parse_framework_rejects_empty_checks_list():
 # sample YAML integration
 # ---------------------------------------------------------------------------
 
+
 def test_sample_framework_loads_and_has_five_checks():
     fw = load_framework(_SAMPLE_PATH)
     assert fw.metadata.id == "cis-sample-ubuntu-l1"
@@ -238,8 +243,10 @@ def test_sample_framework_every_check_has_valid_schema():
 # _CISCheck runtime wrapper — mock run_cmd for deterministic tests
 # ---------------------------------------------------------------------------
 
+
 def _make_check_stub(pass_when: PassWhen) -> Any:
     from kryon.compliance.cis.schema import CheckSpec
+
     spec = CheckSpec(
         id="TEST-X",
         title="test",
@@ -254,6 +261,7 @@ def _make_check_stub(pass_when: PassWhen) -> Any:
 
 def test_check_returns_pass_when_predicate_true(monkeypatch):
     import kryon.compliance.cis.importer as imp
+
     monkeypatch.setattr(imp, "run_cmd", lambda *a, **kw: ("match", "", 0))
     from kryon.compliance.checks.base import CheckContext
 
@@ -266,6 +274,7 @@ def test_check_returns_pass_when_predicate_true(monkeypatch):
 
 def test_check_returns_fail_when_predicate_false(monkeypatch):
     import kryon.compliance.cis.importer as imp
+
     monkeypatch.setattr(imp, "run_cmd", lambda *a, **kw: ("nope", "", 0))
     from kryon.compliance.checks.base import CheckContext
 
@@ -308,9 +317,7 @@ def test_register_framework_registers_all_checks_once(monkeypatch):
         register_framework(_SAMPLE_PATH)
         assert after_ids == {c.control_id for c in runner._REGISTERED_CHECKS}
     finally:
-        runner._REGISTERED_CHECKS[:] = [
-            c for c in runner._REGISTERED_CHECKS if c.control_id in before_ids
-        ]
+        runner._REGISTERED_CHECKS[:] = [c for c in runner._REGISTERED_CHECKS if c.control_id in before_ids]
 
 
 def test_load_framework_missing_file_raises():
@@ -321,6 +328,7 @@ def test_load_framework_missing_file_raises():
 # ---------------------------------------------------------------------------
 # end-to-end smoke: load, run against scripted run_cmd, check all 5 verdicts
 # ---------------------------------------------------------------------------
+
 
 def test_end_to_end_sample_yaml_against_scripted_outputs(monkeypatch):
     """Script run_cmd per check, verify expected verdict for each."""

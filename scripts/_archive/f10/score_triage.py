@@ -89,7 +89,7 @@ def main() -> int:
     p_supp, supp_lo, supp_hi = bootstrap_ci(supp_labels)
     p_keep, keep_lo, keep_hi = bootstrap_ci(keep_labels)
 
-    print(f"\nEntries analysed (non-ambiguous):")
+    print("\nEntries analysed (non-ambiguous):")
     print(f"  SUPPRESS n={len(supp):4d}   KEEP n={len(keep):4d}   UNCERTAIN n={len(unc):4d}   ERROR n={len(err):4d}")
     print()
     print(f"SUPPRESS precision = {p_supp*100:5.1f}%  95% CI [{supp_lo*100:.1f}, {supp_hi*100:.1f}]  "

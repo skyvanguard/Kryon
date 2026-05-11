@@ -30,7 +30,7 @@ class TestQRadarLEEFForwarder:
         fwd = QRadarLEEFForwarder(_make_config())
         event = _make_event()
         leef = fwd.to_leef(event)
-        assert leef.startswith("LEEF:2.0|Kryon|KRYON|1.1.0|")
+        assert leef.startswith("LEEF:2.0|Kryon|KRYON|2.1.0|")
         assert "severity=8" in leef
         assert "title=XSS Detected" in leef
 

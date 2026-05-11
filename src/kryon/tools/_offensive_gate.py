@@ -30,7 +30,10 @@ _RED_TEAM_VAR = "KRYON_RED_TEAM"
 
 def is_red_team_enabled() -> bool:
     return os.environ.get(_RED_TEAM_VAR, "").strip().lower() in {
-        "1", "true", "yes", "on",
+        "1",
+        "true",
+        "yes",
+        "on",
     }
 
 

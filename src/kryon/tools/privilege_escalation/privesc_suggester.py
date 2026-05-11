@@ -11,7 +11,7 @@ Primary Users:
 """
 
 import platform
-from typing import Any, Optional
+from typing import Any
 
 from .linux_privesc import (
     check_capabilities,
@@ -28,7 +28,7 @@ from .windows_privesc import (
 )
 
 
-def suggest_privesc_vectors(os_type: Optional[str] = None, verbose: bool = True) -> dict[str, Any]:
+def suggest_privesc_vectors(os_type: str | None = None, verbose: bool = True) -> dict[str, Any]:
     """
     Analyze system and suggest privilege escalation vectors.
 
@@ -94,7 +94,7 @@ def suggest_privesc_vectors(os_type: Optional[str] = None, verbose: bool = True)
     return result
 
 
-def check_kernel_version(version: Optional[str] = None) -> dict[str, Any]:
+def check_kernel_version(version: str | None = None) -> dict[str, Any]:
     """
     Check if kernel version is vulnerable to known exploits.
 

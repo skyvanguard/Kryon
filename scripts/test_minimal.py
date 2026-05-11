@@ -1,7 +1,7 @@
 """Minimal tool-call test against Ollama, variable context size."""
 import json
-import urllib.request
 import sys
+import urllib.request
 
 scenario = sys.argv[1] if len(sys.argv) > 1 else "simple"
 

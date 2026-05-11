@@ -18,18 +18,18 @@ This module provides:
 import os
 import subprocess
 import time
-from typing import Any, Optional
+from typing import Any
 
 
 def hashcat_crack(
     hash_file: str,
     hash_type: str,
     wordlist: str = "/usr/share/wordlists/rockyou.txt",
-    rules: Optional[str] = None,
+    rules: str | None = None,
     use_gpu: bool = True,
-    output_file: Optional[str] = None,
+    output_file: str | None = None,
     session_name: str = "kryon_hashcat",
-    additional_args: Optional[list[str]] = None,
+    additional_args: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     Crack password hashes using hashcat.
@@ -238,7 +238,7 @@ def hashcat_crack(
 
 
 def generate_hashcat_masks(
-    pattern: Optional[str] = None, min_length: int = 8, max_length: int = 12, charset: str = "mixed"
+    pattern: str | None = None, min_length: int = 8, max_length: int = 12, charset: str = "mixed"
 ) -> dict[str, Any]:
     """
     Generate hashcat mask patterns for brute force attacks.
@@ -437,7 +437,7 @@ def hashcat_mask_attack(
     increment: bool = False,
     increment_min: int = 1,
     increment_max: int = 8,
-    custom_charset: Optional[str] = None,
+    custom_charset: str | None = None,
     session_name: str = "kryon_mask",
 ) -> dict[str, Any]:
     """

@@ -98,6 +98,7 @@ _VERBS = [
 # Color math
 # ---------------------------------------------------------------------------
 
+
 def _lerp_rgb(
     c1: tuple[int, int, int],
     c2: tuple[int, int, int],
@@ -268,29 +269,17 @@ class AgentSpinner:
 
         result.append(" ", style="")
 
-        # ── Status text ──
-        if self._tool_name:
-            result.append("→ ", style=f"bold {_rgb_style(*_COLOR_TOOL)}")
-            result.append(self._tool_name, style=f"bold {_rgb_style(*_COLOR_TOOL)}")
-            if self._progress_state is not None:
-                ps = self._progress_state
-                if ps.percentage is not None:
-                    result.append(f" [{ps.percentage:.0f}%]", style="bold cyan")
-        else:
-            # Verb with shimmer
-            for i, ch in enumerate(self._verb):
-                c = _shimmer_color(elapsed_ms, i + len(display_name) + 2, stall_t)
-                result.append(ch, style=_rgb_style(*c))
-            result.append("…", style=f"dim {_rgb_style(*_COLOR_DIM)}")
+        # F77.D / Fase 10: spinner ahora SOLO muestra "agente vivo" — verbo +
+        # turn counter + elapsed. Las tool invocations/completions las imprime
+        # el renderer plano (Fase 1/3/8) que muestra args y duraciones reales,
+        # así no duplicamos la lista de tools sobre el output ya impreso.
+        for i, ch in enumerate(self._verb):
+            c = _shimmer_color(elapsed_ms, i + len(display_name) + 2, stall_t)
+            result.append(ch, style=_rgb_style(*c))
+        result.append("…", style=f"dim {_rgb_style(*_COLOR_DIM)}")
 
-            if self._llm_turn > 1:
-                result.append(f" turn {self._llm_turn}", style=f"dim {_rgb_style(*_COLOR_DIM)}")
-
-        # ── Recent tools ──
-        if not self._tool_name and self._tools_run:
-            recent = self._tools_run[-3:]
-            result.append("  ran: ", style=f"dim {_rgb_style(*_COLOR_DIM)}")
-            result.append(", ".join(recent), style=f"dim {_rgb_style(160, 160, 160)}")
+        if self._llm_turn > 1:
+            result.append(f" turn {self._llm_turn}", style=f"dim {_rgb_style(*_COLOR_DIM)}")
 
         # ── Elapsed ──
         elapsed_str = self._format_elapsed(elapsed_s)
@@ -298,16 +287,6 @@ class AgentSpinner:
             result.append(f"  ({elapsed_str} — Ctrl+C)", style="bold red")
         else:
             result.append(f"  ({elapsed_str})", style=f"dim {_rgb_style(*_COLOR_DIM)}")
-
-        # ── Completed tool results (Claude Code style) ──
-        if self._tool_results:
-            for name, status, summary in self._tool_results[-5:]:  # last 5
-                indicator = "●" if status == "ok" else "●" if status == "error" else "○"
-                color = _COLOR_TOOL if status == "ok" else _COLOR_STALLED if status == "error" else _COLOR_DIM
-                result.append(f"\n {indicator} ", style=f"{_rgb_style(*color)}")
-                result.append(f"{name}", style=f"dim {_rgb_style(180, 180, 180)}")
-                if summary:
-                    result.append(f" → {summary}", style=f"dim {_rgb_style(*_COLOR_DIM)}")
 
         return result
 
@@ -445,22 +424,33 @@ class AgentSpinner:
 
         class SpinnerRunHooks(RunHooks):
             async def on_tool_start(self, context, agent, tool):
+                # F77.D / Fase 10: tool start line is now printed by the SDK
+                # adapter's `▸ tool args` (Fase 8). The spinner only tracks
+                # internal state for the elapsed/turn header.
                 name = getattr(tool, "name", None) or str(tool)
                 spinner.update(tool_name=name)
 
             async def on_tool_end(self, context, agent, tool, result):
+                # F77.D / Fase 10: completion line is printed by
+                # cli_print_tool_output → _render_simple_tool_completion
+                # (Fase 6). We still track tools_run for diagnostics.
                 name = getattr(tool, "name", None) or str(tool)
                 result_str = str(result) if result else ""
-                summary = _extract_tool_summary(name, result_str)
                 status = "error" if "error" in result_str.lower()[:200] else "ok"
                 with spinner._lock:
                     spinner._tools_run.append(name)
-                    spinner._tool_results.append((name, status, summary))
+                    spinner._tool_results.append(
+                        (name, status, _extract_tool_summary(name, result_str)),
+                    )
                     spinner._tool_name = None
 
             async def on_handoff(self, context, from_agent, to_agent):
                 to_name = getattr(to_agent, "name", None) or str(to_agent)
                 spinner.update(handoff_agent=to_name)
+                try:
+                    spinner._console.print(f"[dim cyan]⤳ handoff →[/dim cyan] {to_name}")
+                except Exception:
+                    pass
 
         return SpinnerRunHooks()
 

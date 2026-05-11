@@ -42,7 +42,7 @@ async def main() -> int:
             except Exception as exc:
                 print(f"WARN: could not load {target}: {exc}. Falling back to about:blank")
                 await page.goto("about:blank")
-                print(f"OK: about:blank loaded")
+                print("OK: about:blank loaded")
             await browser.close()
     except Exception as exc:
         print(f"FAIL: {type(exc).__name__}: {exc}")

@@ -1,0 +1,177 @@
+# F81 — HTB-style benchmark labset
+#
+# Curated 30 reproducible targets covering the OWASP Top 10 and common
+# HTB-Easy patterns. Each `slug` here MUST have a matching JSON file in
+# `walkthroughs/<slug>.json`. Source flagged "ToS-safe": all OSS, no
+# scraping of HTB/THM live infra.
+#
+# Categories balanced for the public scoreboard (F83) — see
+# docs/PLAN_PARITY_CAI.md F81 for the rationale.
+
+version: 1
+labset_name: "Kryon HTB-style v1 (30 targets)"
+created: "2026-04-29"
+
+categories_target:
+  sqli: 4
+  xss: 3
+  rce: 4
+  auth: 3
+  idor: 2
+  ssrf: 2
+  priv-esc: 4
+  recon: 2
+  api: 3
+  crypto: 2
+  ssl: 1
+
+# Status legend:
+#   ready   — walkthrough JSON exists, target source verified spawnable
+#   wip     — walkthrough drafted, target source not yet validated
+#   planned — slot reserved, no walkthrough yet
+targets:
+  # === SQLi (4) ===
+  - slug: dvwa-sqli-low
+    status: wip
+    source: docker-compose
+    note: "Walkthrough JSON ready; compose file (targets/dvwa/docker-compose.yml) needed for spawn — Sprint 2."
+
+  - slug: dvwa-sqli-blind-medium
+    status: planned
+    source: docker-compose
+
+  - slug: portswigger-sqli-where-clause
+    status: ready
+    source: portswigger-academy
+    note: "https://portswigger.net/web-security/sql-injection/lab-retrieve-hidden-data — URL-based, no spawn required, walkthrough JSON live."
+
+  - slug: webgoat-a03-injection-1
+    status: planned
+    source: docker-compose
+
+  # === XSS (3) ===
+  - slug: dvwa-xss-reflected-low
+    status: planned
+    source: docker-compose
+
+  - slug: dvwa-xss-stored-medium
+    status: planned
+    source: docker-compose
+
+  - slug: portswigger-xss-dom-1
+    status: ready
+    source: portswigger-academy
+    note: "https://portswigger.net/web-security/cross-site-scripting/dom-based — URL-based, walkthrough JSON live"
+
+  # === RCE (4) ===
+  - slug: dvwa-command-injection-low
+    status: planned
+    source: docker-compose
+
+  - slug: vulhub-shellshock
+    status: planned
+    source: docker-compose
+    note: "https://github.com/vulhub/vulhub/tree/master/bash"
+
+  - slug: vulhub-log4shell
+    status: planned
+    source: docker-compose
+    note: "CVE-2021-44228; vulhub has a tomcat reproducer"
+
+  - slug: webgoat-a06-vulnerable-component
+    status: planned
+    source: docker-compose
+
+  # === Auth bypass / weak auth (3) ===
+  - slug: dvwa-brute-force-low
+    status: planned
+    source: docker-compose
+
+  - slug: vulnhub-mr-robot-1
+    status: planned
+    source: vagrant
+    note: "https://www.vulnhub.com/entry/mr-robot-1,151/ — wpscan + dictionary"
+
+  - slug: webgoat-a07-auth-failures-1
+    status: planned
+    source: docker-compose
+
+  # === IDOR (2) ===
+  - slug: portswigger-idor-1
+    status: ready
+    source: portswigger-academy
+    note: "https://portswigger.net/web-security/access-control/lab-insecure-direct-object-references — URL-based, walkthrough JSON live"
+
+  - slug: webgoat-a01-broken-access-control-1
+    status: planned
+    source: docker-compose
+
+  # === SSRF (2) ===
+  - slug: portswigger-ssrf-basic
+    status: planned
+    source: portswigger-academy
+    note: "https://portswigger.net/web-security/ssrf/lab-basic-ssrf-against-localhost"
+
+  - slug: webgoat-a10-ssrf-1
+    status: planned
+    source: docker-compose
+
+  # === Privilege escalation / post-exploit (4) ===
+  - slug: vulnhub-kioptrix-1
+    status: planned
+    source: vagrant
+
+  - slug: vulnhub-kioptrix-2
+    status: planned
+    source: vagrant
+
+  - slug: vulnhub-tr0ll-1
+    status: planned
+    source: vagrant
+
+  - slug: vulnhub-dc-1
+    status: planned
+    source: vagrant
+
+  # === Recon (2) ===
+  - slug: htb-style-meta-recon-fingerprint
+    status: planned
+    source: docker-compose
+    note: "Custom box — Apache + WordPress; tests recon-scout fingerprinting"
+
+  - slug: htb-style-meta-recon-subdomains
+    status: planned
+    source: docker-compose
+    note: "Custom box — wildcard DNS; tests subdomain enumeration"
+
+  # === API security (3) ===
+  - slug: vampi-broken-object-level-auth
+    status: planned
+    source: docker-compose
+    note: "https://github.com/erev0s/VAmPI"
+
+  - slug: crapi-mass-assignment
+    status: planned
+    source: docker-compose
+    note: "https://github.com/OWASP/crAPI"
+
+  - slug: portswigger-graphql-1
+    status: planned
+    source: portswigger-academy
+    note: "https://portswigger.net/web-security/graphql/lab-graphql-introspection"
+
+  # === Crypto (2) ===
+  - slug: portswigger-jwt-none-algorithm
+    status: planned
+    source: portswigger-academy
+    note: "https://portswigger.net/web-security/jwt/lab-jwt-authentication-bypass-via-unverified-signature"
+
+  - slug: webgoat-a02-crypto-failures-1
+    status: planned
+    source: docker-compose
+
+  # === SSL/TLS (1) ===
+  - slug: badssl-self-signed-detection
+    status: planned
+    source: url
+    note: "https://self-signed.badssl.com/ — tests ssl-audit skill"

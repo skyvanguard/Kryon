@@ -5,15 +5,15 @@ import io
 
 from rich.console import Console
 
+from kryon.repl.ui.live_progress import run_with_progress
 from kryon.repl.ui.progress import (
     AmassProgressParser,
     MasscanProgressParser,
-    RustscanProgressParser,
     ProgressState,
+    RustscanProgressParser,
     format_progress_bar,
     get_parser_for_command,
 )
-from kryon.repl.ui.live_progress import run_with_progress
 
 
 def test_masscan_parser_percentage_and_rate() -> None:

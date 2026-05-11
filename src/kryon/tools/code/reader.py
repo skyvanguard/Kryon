@@ -52,10 +52,18 @@ _SIG_PATTERNS: dict[str, re.Pattern] = {
 }
 
 _LANG_BY_EXT = {
-    ".c": "c", ".h": "c",
-    ".cc": "c", ".cpp": "c", ".cxx": "c", ".hpp": "c", ".hh": "c",
+    ".c": "c",
+    ".h": "c",
+    ".cc": "c",
+    ".cpp": "c",
+    ".cxx": "c",
+    ".hpp": "c",
+    ".hh": "c",
     ".py": "python",
-    ".js": "javascript", ".mjs": "javascript", ".ts": "javascript", ".tsx": "javascript",
+    ".js": "javascript",
+    ".mjs": "javascript",
+    ".ts": "javascript",
+    ".tsx": "javascript",
     ".go": "go",
     ".rs": "rust",
 }
@@ -102,7 +110,7 @@ def _extract_by_braces(text: str, start: int) -> tuple[int, str]:
             elif ch == "}":
                 depth -= 1
                 if depth == 0:
-                    return i + 1, text[start:i + 1]
+                    return i + 1, text[start : i + 1]
         i += 1
     return n, text[start:n]
 
@@ -135,15 +143,57 @@ def _extract_by_indent(text: str, sig_start: int, indent: str) -> tuple[int, str
 # C / C++ keywords that our loose signature regex can capture as "function names".
 # Filter them out to keep list_functions output honest.
 _C_KEYWORDS = {
-    "if", "else", "for", "while", "switch", "case", "default", "do",
-    "return", "break", "continue", "goto", "sizeof", "typedef",
-    "struct", "enum", "union", "const", "static", "extern", "inline",
-    "volatile", "register", "auto", "unsigned", "signed",
-    "void", "int", "char", "long", "short", "float", "double", "bool",
-    "size_t", "ssize_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t",
-    "int8_t", "int16_t", "int32_t", "int64_t", "ptrdiff_t", "off_t",
+    "if",
+    "else",
+    "for",
+    "while",
+    "switch",
+    "case",
+    "default",
+    "do",
+    "return",
+    "break",
+    "continue",
+    "goto",
+    "sizeof",
+    "typedef",
+    "struct",
+    "enum",
+    "union",
+    "const",
+    "static",
+    "extern",
+    "inline",
+    "volatile",
+    "register",
+    "auto",
+    "unsigned",
+    "signed",
+    "void",
+    "int",
+    "char",
+    "long",
+    "short",
+    "float",
+    "double",
+    "bool",
+    "size_t",
+    "ssize_t",
+    "uint8_t",
+    "uint16_t",
+    "uint32_t",
+    "uint64_t",
+    "int8_t",
+    "int16_t",
+    "int32_t",
+    "int64_t",
+    "ptrdiff_t",
+    "off_t",
     # Often-seen defines/macros that bleed through
-    "FILE", "NULL", "TRUE", "FALSE",
+    "FILE",
+    "NULL",
+    "TRUE",
+    "FALSE",
 }
 
 
@@ -205,10 +255,12 @@ def _list_functions_impl(file_path: str) -> str:
 
     lang = _detect_lang(file_path)
     if lang is None:
-        return json.dumps({
-            "error": f"unsupported extension: {p.suffix}",
-            "supported": sorted(set(_LANG_BY_EXT.values())),
-        })
+        return json.dumps(
+            {
+                "error": f"unsupported extension: {p.suffix}",
+                "supported": sorted(set(_LANG_BY_EXT.values())),
+            }
+        )
 
     try:
         raw_text = p.read_text(encoding="utf-8", errors="replace")
@@ -254,12 +306,15 @@ def _list_functions_impl(file_path: str) -> str:
         seen.add(f["name"])
         unique.append(f)
 
-    return json.dumps({
-        "file": str(p),
-        "lang": lang,
-        "count": len(unique),
-        "functions": unique,
-    }, indent=2)
+    return json.dumps(
+        {
+            "file": str(p),
+            "lang": lang,
+            "count": len(unique),
+            "functions": unique,
+        },
+        indent=2,
+    )
 
 
 def _read_function_impl(
@@ -274,10 +329,12 @@ def _read_function_impl(
 
     lang = _detect_lang(file_path)
     if lang is None:
-        return json.dumps({
-            "error": f"unsupported extension: {p.suffix}",
-            "supported": sorted(set(_LANG_BY_EXT.values())),
-        })
+        return json.dumps(
+            {
+                "error": f"unsupported extension: {p.suffix}",
+                "supported": sorted(set(_LANG_BY_EXT.values())),
+            }
+        )
 
     try:
         text = p.read_text(encoding="utf-8", errors="replace")
@@ -325,20 +382,25 @@ def _read_function_impl(
                 off = nl + 1
             prefix = text[off:line_start]
 
-        return json.dumps({
-            "file": str(p),
-            "function": function_name,
-            "lang": lang,
-            "start_line": start_line,
-            "end_line": end_line,
-            "loc": body.count("\n"),
-            "body": (prefix + body)[:15000],  # cap
-        }, indent=2)
+        return json.dumps(
+            {
+                "file": str(p),
+                "function": function_name,
+                "lang": lang,
+                "start_line": start_line,
+                "end_line": end_line,
+                "loc": body.count("\n"),
+                "body": (prefix + body)[:15000],  # cap
+            },
+            indent=2,
+        )
 
-    return json.dumps({
-        "error": f"function '{function_name}' not found in {file_path}",
-        "lang": lang,
-    })
+    return json.dumps(
+        {
+            "error": f"function '{function_name}' not found in {file_path}",
+            "lang": lang,
+        }
+    )
 
 
 def _find_callers_impl(
@@ -354,13 +416,9 @@ def _find_callers_impl(
 
     call_re = re.compile(rf"\b{re.escape(function_name)}\s*\(")
     # Patterns that indicate this is the definition, not a call:
-    def_signal = re.compile(
-        rf"\b(?:def|fn|func|function)\s+{re.escape(function_name)}\b"
-    )
+    def_signal = re.compile(rf"\b(?:def|fn|func|function)\s+{re.escape(function_name)}\b")
     # C/C++: "type name(" at start of line (approximate — may have false pos)
-    c_def_signal = re.compile(
-        rf"^[\w\s\*]+\s{re.escape(function_name)}\s*\([^;]*\)\s*\{{?\s*$"
-    )
+    c_def_signal = re.compile(rf"^[\w\s\*]+\s{re.escape(function_name)}\s*\([^;]*\)\s*\{{?\s*$")
 
     skip_dirs = {".git", "node_modules", "vendor", "third_party", "build", "dist"}
     hits: list[dict] = []
@@ -393,11 +451,13 @@ def _find_callers_impl(
                 stripped = line.lstrip()
                 if stripped.startswith(("//", "#", "*", "/*")):
                     continue
-                hits.append({
-                    "file": str(rel),
-                    "line": i,
-                    "snippet": line.strip()[:200],
-                })
+                hits.append(
+                    {
+                        "file": str(rel),
+                        "line": i,
+                        "snippet": line.strip()[:200],
+                    }
+                )
                 if len(hits) >= max_hits:
                     break
             if len(hits) >= max_hits:
@@ -405,17 +465,21 @@ def _find_callers_impl(
         if len(hits) >= max_hits:
             break
 
-    return json.dumps({
-        "function": function_name,
-        "repo_path": str(rp),
-        "total_callers": len(hits),
-        "hits": hits,
-    }, indent=2)
+    return json.dumps(
+        {
+            "function": function_name,
+            "repo_path": str(rp),
+            "total_callers": len(hits),
+            "hits": hits,
+        },
+        indent=2,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Public tool wrappers
 # ---------------------------------------------------------------------------
+
 
 @function_tool(strict_mode=False)
 def read_function(

@@ -18,12 +18,9 @@ from __future__ import annotations
 
 import json
 import subprocess
-from pathlib import Path
 
 from kryon.tools.code.git_tools import (
     _git_clone_and_index_impl,
-    _git_diff_fix_impl,
-    _git_log_security_impl,
 )
 from kryon.tools.code.priority import _code_priority_score_impl
 from kryon.tools.code.reader import _find_callers_impl, _read_function_impl

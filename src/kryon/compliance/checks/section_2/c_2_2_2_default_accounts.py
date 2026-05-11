@@ -21,17 +21,15 @@ from kryon.compliance.runner import register_check, run_cmd
 def _check_empty_shadow(ctx: CheckContext) -> tuple[str, str, list[str]]:
     """Return (sub_verdict, raw_output, offending_accounts)."""
     stdout, stderr, rc = run_cmd(
-        ctx, ["awk", "-F:", '($2==""||$2=="!"){print $1}', "/etc/shadow"],
+        ctx,
+        ["awk", "-F:", '($2==""||$2=="!"){print $1}', "/etc/shadow"],
         timeout_s=5,
     )
     if rc != 0:
         return "N/A", (stderr or stdout)[:512], []
     # "!" and "*" mean locked accounts, not empty; we filtered only "" above.
     # Some awk versions list !/! as locked — re-filter in Python to be safe.
-    offenders = [
-        line.strip() for line in stdout.splitlines()
-        if line.strip() and not line.startswith("!")
-    ]
+    offenders = [line.strip() for line in stdout.splitlines() if line.strip() and not line.startswith("!")]
     return ("FAIL" if offenders else "PASS"), stdout, offenders
 
 
@@ -40,7 +38,9 @@ def _check_mysql_root(ctx: CheckContext) -> tuple[str, str, str]:
     if rc != 0 or not which.strip():
         return "N/A", "mysql client not installed", ""
     stdout, stderr, rc = run_cmd(
-        ctx, ["mysql", "-u", "root", "-e", "SELECT 1"], timeout_s=5,
+        ctx,
+        ["mysql", "-u", "root", "-e", "SELECT 1"],
+        timeout_s=5,
     )
     if rc == 0:
         return "FAIL", stdout, "mysql root accepts empty password"
@@ -52,9 +52,19 @@ def _check_snmp_public(ctx: CheckContext) -> tuple[str, str, str]:
     if rc != 0 or not which.strip():
         return "N/A", "snmpwalk not installed", ""
     stdout, stderr, rc = run_cmd(
-        ctx, ["snmpwalk", "-v2c", "-c", "public", "-t", "3", "-r", "0",
-              ctx.host if ctx.host != "localhost" else "127.0.0.1",
-              "1.3.6.1.2.1.1.1.0"],
+        ctx,
+        [
+            "snmpwalk",
+            "-v2c",
+            "-c",
+            "public",
+            "-t",
+            "3",
+            "-r",
+            "0",
+            ctx.host if ctx.host != "localhost" else "127.0.0.1",
+            "1.3.6.1.2.1.1.1.0",
+        ],
         timeout_s=6,
     )
     if rc == 0 and stdout.strip():
@@ -100,11 +110,7 @@ class _C222Check:
                 "snmp": snmp_v,
             },
         }
-        evidence_out = (
-            f"=== shadow ===\n{shadow_out}\n"
-            f"=== mysql ===\n{mysql_out}\n"
-            f"=== snmp ===\n{snmp_out}"
-        )[:4096]
+        evidence_out = (f"=== shadow ===\n{shadow_out}\n=== mysql ===\n{mysql_out}\n=== snmp ===\n{snmp_out}")[:4096]
 
         return CheckResult(
             control_id=self.control_id,

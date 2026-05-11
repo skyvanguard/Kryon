@@ -23,7 +23,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -156,8 +156,8 @@ class AsyncVectorDatabase:
     async def add_documents_async(
         self,
         documents: list[str],
-        metadatas: Optional[list[dict[str, Any]]] = None,
-        ids: Optional[list[str]] = None,
+        metadatas: list[dict[str, Any]] | None = None,
+        ids: list[str] | None = None,
     ) -> int:
         """
         Add documents to vector database (async).
@@ -209,7 +209,7 @@ class AsyncVectorDatabase:
         return len(documents)
 
     async def query_async(
-        self, query_text: str, top_k: int = 5, filter_metadata: Optional[dict] = None
+        self, query_text: str, top_k: int = 5, filter_metadata: dict | None = None
     ) -> list[dict[str, Any]]:
         """
         Query vector database with semantic search (async).
@@ -240,7 +240,7 @@ class AsyncVectorDatabase:
         return results
 
     def _compute_similarities(
-        self, query_embedding: np.ndarray, filter_metadata: Optional[dict], top_k: int
+        self, query_embedding: np.ndarray, filter_metadata: dict | None, top_k: int
     ) -> list[dict[str, Any]]:
         """Compute similarities (sync - called in executor)."""
         similarities = []
@@ -269,7 +269,7 @@ class AsyncVectorDatabase:
         return similarities[:top_k]
 
     async def query_batch_async(
-        self, queries: list[str], top_k: int = 5, filter_metadata: Optional[dict] = None
+        self, queries: list[str], top_k: int = 5, filter_metadata: dict | None = None
     ) -> list[list[dict[str, Any]]]:
         """
         Query multiple queries in parallel.
@@ -334,7 +334,7 @@ def get_async_vector_db() -> AsyncVectorDatabase:
 
 # Convenience functions
 async def add_documents_async(
-    documents: list[str], metadatas: Optional[list[dict]] = None, ids: Optional[list[str]] = None
+    documents: list[str], metadatas: list[dict] | None = None, ids: list[str] | None = None
 ) -> int:
     """
     Add documents to async vector database.
@@ -350,7 +350,7 @@ async def add_documents_async(
     return await get_async_vector_db().add_documents_async(documents, metadatas, ids)
 
 
-async def query_async(query_text: str, top_k: int = 5, filter_metadata: Optional[dict] = None) -> list[dict[str, Any]]:
+async def query_async(query_text: str, top_k: int = 5, filter_metadata: dict | None = None) -> list[dict[str, Any]]:
     """
     Query async vector database.
 

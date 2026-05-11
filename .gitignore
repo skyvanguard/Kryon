@@ -210,7 +210,19 @@ populate_knowledge_quick.py
 # Python 3.13 venv
 .venv313/
 
-# Local docs (not tracked)
-docs/
+# Local docs (not tracked at the top level) — but `docs/examples/` IS
+# versioned so that reference files (e.g. cwe_map.yaml) ship in the repo.
+# The `docs/*` (instead of `docs/`) form lets git re-include sub-paths.
+docs/*
+!docs/examples/
+!docs/examples/**
+!docs/REPL_DESIGN.md
+!docs/REPL_RENDERING_AUDIT.md
+!docs/PLAN_PARITY_CAI.md
+!docs/benchmarks/
+!docs/benchmarks/**
+
+# Benchmark run outputs (per-machine, not versioned)
+reports/
 .gitnexus
 scripts/f18/juiceshop_sources/

@@ -23,7 +23,7 @@ import logging
 import re
 import time
 from html import unescape
-from typing import Any, Optional
+from typing import Any
 from xml.etree import ElementTree as ET
 
 import requests
@@ -88,7 +88,7 @@ class ResearchWriteupScraper(BaseScraper):
 
     def scrape(
         self,
-        sources: Optional[list[str]] = None,
+        sources: list[str] | None = None,
         max_per_source: int = 25,
         **_: Any,
     ) -> list[dict[str, Any]]:
@@ -174,7 +174,7 @@ class ResearchWriteupScraper(BaseScraper):
         entry: ET.Element,
         source: str,
         cfg: dict[str, str],
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         title = (entry.findtext("title") or "").strip()
         link = (entry.findtext("link") or "").strip()
         description = entry.findtext("description") or ""
@@ -191,7 +191,7 @@ class ResearchWriteupScraper(BaseScraper):
         entry: ET.Element,
         source: str,
         cfg: dict[str, str],
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         title = (entry.findtext("atom:title", default="", namespaces=_ATOM_NS) or "").strip()
         link_elem = entry.find("atom:link", _ATOM_NS)
         link = link_elem.get("href", "").strip() if link_elem is not None else ""

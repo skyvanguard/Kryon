@@ -58,15 +58,9 @@ def generate_hunter_prompt(
 
     # --- Mission line ---
     if parent_cve:
-        parts.append(
-            f"VARIANT HUNT. Root CVE: {parent_cve}. "
-            f"Find an unpatched sibling of this bug in the file below."
-        )
+        parts.append(f"VARIANT HUNT. Root CVE: {parent_cve}. Find an unpatched sibling of this bug in the file below.")
     else:
-        parts.append(
-            "ZERO-DAY HUNT. One file, one H->V->R cycle. "
-            "Crash under ASAN or the bug does not exist."
-        )
+        parts.append("ZERO-DAY HUNT. One file, one H->V->R cycle. Crash under ASAN or the bug does not exist.")
 
     # --- Target ---
     parts.append("")
@@ -92,10 +86,7 @@ def generate_hunter_prompt(
                 "(memcpy/strcpy/sprintf/system/eval/pointer-arith patterns)"
             )
         if ev.get("input_hits") is not None:
-            parts.append(
-                f"- Untrusted-input signals: {ev['input_hits']}  "
-                "(argv/recv/request/BytesIO markers)"
-            )
+            parts.append(f"- Untrusted-input signals: {ev['input_hits']}  (argv/recv/request/BytesIO markers)")
 
     # --- Steering hints (optional) ---
     if cwe_hint or hypothesis_hint:
@@ -147,7 +138,7 @@ def generate_hunter_prompt(
     parts.append(
         "Remember: no finding without a `run_sandboxed` crash confirmation. "
         "Log discarded hypotheses via `add_to_memory_semantic` "
-        "(tag=\"discarded-hypothesis\")."
+        '(tag="discarded-hypothesis").'
     )
 
     body = "\n".join(parts)
@@ -168,16 +159,18 @@ def build_todo_list(
     todos: list[dict] = []
     for i, entry in enumerate(priority_top[:max_items]):
         ev = entry.get("evidence") or {}
-        todos.append({
-            "n": i + 1,
-            "file": entry.get("file", ""),
-            "priority": entry.get("score", 0),
-            "danger_hits": ev.get("danger_hits", 0),
-            "input_hits": ev.get("input_hits", 0),
-            "loc": entry.get("loc", 0),
-            "status": "pending",     # pending | running | done | skipped
-            "hunter_id": "",         # filled when spawn_hunter returns
-        })
+        todos.append(
+            {
+                "n": i + 1,
+                "file": entry.get("file", ""),
+                "priority": entry.get("score", 0),
+                "danger_hits": ev.get("danger_hits", 0),
+                "input_hits": ev.get("input_hits", 0),
+                "loc": entry.get("loc", 0),
+                "status": "pending",  # pending | running | done | skipped
+                "hunter_id": "",  # filled when spawn_hunter returns
+            }
+        )
     return todos
 
 

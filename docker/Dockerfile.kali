@@ -173,15 +173,13 @@ RUN npm install -g @anthropic-ai/claude-code \
     || echo "WARNING: Claude Code CLI install failed — claude --claude-code mode will not work"
 
 # Set environment
+# NOTE: LLM endpoint vars (OPENAI_API_KEY, OPENAI_BASE_URL, OLLAMA, KRYON_MODEL)
+# are intentionally NOT baked here. Configure them via docker/.env.docker or
+# `docker run --env`. Baked ENVs win over compose-level overrides on rebuilds.
 ENV PATH="/opt/venv/bin:/home/kryon/.local/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUTF8=1 \
-    # Ollama endpoint (docker service name)
-    OPENAI_API_KEY="ollama" \
-    OPENAI_BASE_URL="http://ollama:11434/v1" \
-    OLLAMA=true \
-    # Kryon defaults
     KRYON_DEBUG=0 \
     KRYON_TRACING=false \
     KRYON_TELEMETRY=false \

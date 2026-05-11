@@ -10,7 +10,7 @@ Primary Users:
 - Network Analyst (Alpha-Silver)
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from kryon.tools.common import run_command
 
@@ -21,8 +21,8 @@ def setup_ssh_tunnel(
     local_port: int,
     remote_host: str,
     remote_port: int,
-    pivot_password: Optional[str] = None,
-    pivot_key: Optional[str] = None,
+    pivot_password: str | None = None,
+    pivot_key: str | None = None,
 ) -> dict[str, Any]:
     """
     Setup SSH tunnel for port forwarding.
@@ -82,7 +82,7 @@ def setup_port_forward(
     pivot_host: str,
     pivot_user: str,
     forward_specs: list[dict[str, Any]],
-    pivot_key: Optional[str] = None,
+    pivot_key: str | None = None,
 ) -> dict[str, Any]:
     """
     Setup multiple port forwards through pivot host.
@@ -142,7 +142,7 @@ def setup_socks_proxy(
     pivot_host: str,
     pivot_user: str,
     local_port: int = 1080,
-    pivot_key: Optional[str] = None,
+    pivot_key: str | None = None,
 ) -> dict[str, Any]:
     """
     Setup SOCKS proxy through pivot host.
@@ -196,7 +196,7 @@ def setup_reverse_port_forward(
     remote_port: int,
     local_host: str,
     local_port: int,
-    pivot_key: Optional[str] = None,
+    pivot_key: str | None = None,
 ) -> dict[str, Any]:
     """
     Setup reverse port forward (pivot host forwards to attacker).
@@ -253,7 +253,7 @@ def check_pivot_connectivity(
     target_host: str,
     target_port: int,
     through_socks: bool = False,
-    socks_proxy: Optional[str] = None,
+    socks_proxy: str | None = None,
 ) -> dict[str, Any]:
     """
     Check connectivity to target through pivot.

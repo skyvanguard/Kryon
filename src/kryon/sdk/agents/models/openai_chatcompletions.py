@@ -153,6 +153,56 @@ if (
 _USER_AGENT = f"Agents/Python {__version__}"
 _HEADERS = {"User-Agent": _USER_AGENT}
 
+
+# --- Reasoning-content helpers -----------------------------------------------
+# Different reasoning providers expose chain-of-thought under different field
+# names: DeepSeek uses `reasoning_content`, Groq (Qwen3 / GPT-OSS) uses
+# `reasoning`, some Anthropic-flavoured paths use `thinking`. These helpers
+# centralise the model-aware lookup so callers don't have to know the per-
+# provider naming.
+def _model_emits_reasoning(model_str: str) -> bool:
+    """True when the model emits a separate reasoning field on responses.
+    Used to decide whether to render a thinking panel and to extract
+    reasoning for cost accounting."""
+    s = model_str.lower()
+    if "deepseek" in s and "deepseek-chat" not in s:
+        return True
+    if "qwen3" in s or "qwq" in s:
+        return True
+    if "gpt-oss" in s and "safeguard" not in s:
+        return True
+    return False
+
+
+def _preserves_reasoning_in_history(model_str: str) -> bool:
+    """True when the model's API REQUIRES reasoning_content to be passed
+    back in subsequent requests (DeepSeek API spec).
+
+    Groq explicitly REJECTS messages that carry reasoning_content with
+    HTTP 400 'property reasoning_content is unsupported', so we must NOT
+    preserve it for Groq even though Groq emits reasoning on responses.
+    Anthropic's redacted_thinking flow is more complex and out of scope
+    here.
+    """
+    s = model_str.lower()
+    return "deepseek" in s and "deepseek-chat" not in s
+
+
+def _extract_reasoning(assistant_msg) -> str | None:
+    """Pull reasoning out of a chat-completion message, regardless of which
+    field the provider used. Returns None when no reasoning is present."""
+    for attr in ("reasoning_content", "reasoning", "thinking"):
+        val = getattr(assistant_msg, attr, None)
+        if val:
+            return str(val)
+    if isinstance(assistant_msg, dict):
+        for key in ("reasoning_content", "reasoning", "thinking"):
+            val = assistant_msg.get(key)
+            if val:
+                return str(val)
+    return None
+
+
 # --- Tool-calling guardrails -------------------------------------------------
 # Synthetic user-role prefixes produced by Kryon's session layer (MAGIC DOC
 # auto-updates, intent-change hooks, piped tool output). These should NOT
@@ -172,7 +222,10 @@ _PROSE_PLAN_PATTERNS = (
     re.compile(r"```\s*\n?\s*AN[ÁA]LISIS\b", re.IGNORECASE),
     re.compile(r"\bPLAN\s*\(\s*ejecutando\s*#", re.IGNORECASE),
     re.compile(r"^\s*\d+\.\s*`[a-z_]+\s*\(", re.MULTILINE),
-    re.compile(r"`(?:run_command|nuclei_scan|nmap_scan|query_knowledge_base|whatweb_scan|gobuster_scan|recall_similar_experiences|add_to_memory_semantic|duckduckgo_search|wpscan)\s*\(", re.IGNORECASE),
+    re.compile(
+        r"`(?:run_command|nuclei_scan|nmap_scan|query_knowledge_base|whatweb_scan|gobuster_scan|recall_similar_experiences|add_to_memory_semantic|duckduckgo_search|wpscan)\s*\(",
+        re.IGNORECASE,
+    ),
 )
 # Minimum content length to consider a message for prose-plan filtering.
 # Short messages ("¡Hola!", refusals) must NEVER be filtered.
@@ -203,6 +256,7 @@ def _should_reset_counter_for_user(content: Any) -> bool:
         return False
     stripped = content.lstrip()
     return not any(stripped.startswith(p) for p in _SYNTHETIC_USER_PREFIXES)
+
 
 # Global registry to track active model instances
 # This allows us to access instance-based histories for commands like /history
@@ -545,6 +599,8 @@ class OpenAIChatCompletionsModel(Model):
 
         Now only adds to the instance's local history, no global registry.
         Tool results exceeding the size cap are persisted to disk.
+        Tool outputs are also screened for prompt-injection patterns before
+        they reach the LLM context.
         """
         # Cap large tool outputs to preserve context window (ported from Claude Code toolLimits)
         if msg.get("role") == "tool" and isinstance(msg.get("content"), str) and len(msg["content"]) > 5000:
@@ -556,6 +612,40 @@ class OpenAIChatCompletionsModel(Model):
                 msg["content"] = cap_tool_output(msg["content"], tool_name=tool_id[:20])
             except Exception:
                 pass
+
+        # Tool-output guardrail (F77.D): tool results come from external
+        # systems (nmap banners, web responses, SSH output) that may carry
+        # adversarial content trying to override the agent's instructions.
+        # Detect known injection patterns synchronously (regex only, no LLM
+        # call → no token cost) and wrap suspicious content with hard
+        # delimiters so the model treats it as DATA, not commands.
+        # Toggle with KRYON_GUARDRAILS=false (same flag as input guardrail).
+        if (
+            msg.get("role") == "tool"
+            and isinstance(msg.get("content"), str)
+            and msg["content"]
+            and os.getenv("KRYON_GUARDRAILS", "true").lower() != "false"
+        ):
+            try:
+                from kryon.agents.guardrails import (
+                    detect_injection_patterns,
+                    sanitize_external_content,
+                )
+
+                is_suspicious, patterns = detect_injection_patterns(msg["content"])
+                if is_suspicious:
+                    tool_id = msg.get("tool_call_id", "")[:20]
+                    logger.warning(
+                        "tool_output_guardrail: suspicious patterns in tool=%s: %s",
+                        tool_id,
+                        patterns[:3],
+                    )
+                    msg = dict(msg)  # don't mutate caller's dict
+                    msg["content"] = sanitize_external_content(msg["content"])
+            except Exception as _gr_exc:
+                # Best-effort — never break the audit if the guardrail
+                # import or pattern check fails.
+                logger.debug("tool_output_guardrail check failed: %s", _gr_exc)
 
         # Fix B: drop prose-plan contamination at the source. A text-only
         # assistant message that mimics tool calls as markdown poisons the
@@ -621,6 +711,24 @@ class OpenAIChatCompletionsModel(Model):
             # Update isolated history if in parallel mode
             if PARALLEL_ISOLATION.is_parallel_mode() and self.agent_id:
                 PARALLEL_ISOLATION.update_isolated_history(self.agent_id, msg)
+
+            # Periodic checkpoint: persist message history every N adds so
+            # DeepSeek 5xx / network drops / balance-out don't lose findings
+            # mid-audit. Tunable via KRYON_CHECKPOINT_EVERY (0 disables).
+            try:
+                _ckpt_n = int(os.getenv("KRYON_CHECKPOINT_EVERY", "50"))
+            except ValueError:
+                _ckpt_n = 50
+            if _ckpt_n > 0 and len(self.message_history) % _ckpt_n == 0:
+                try:
+                    from kryon.services.auto_extract import checkpoint_session
+
+                    checkpoint_session(
+                        self.message_history,
+                        getattr(self, "session_id", None) or self.agent_name,
+                    )
+                except Exception:
+                    pass  # never block adds on checkpoint failure
 
     def set_agent_name(self, name: str) -> None:
         """Set the agent name for CLI display purposes."""
@@ -1146,6 +1254,23 @@ class OpenAIChatCompletionsModel(Model):
                         ],
                     }
 
+                    # Render the thinking panel for any reasoning model so
+                    # the operator sees the chain-of-thought in non-stream.
+                    # Then preserve reasoning_content on the assistant
+                    # message ONLY for providers whose API accepts it back
+                    # (DeepSeek). Groq rejects it with 400 on the next turn.
+                    if _model_emits_reasoning(str(self.model)):
+                        _rc = _extract_reasoning(assistant_msg)
+                        if _rc:
+                            try:
+                                from kryon.util import print_claude_reasoning_simple
+
+                                print_claude_reasoning_simple(_rc, self.agent_name, str(self.model))
+                            except Exception:
+                                pass
+                            if _preserves_reasoning_in_history(str(self.model)):
+                                tool_call_msg["reasoning_content"] = _rc
+
                     # Store for later atomic addition with response
                     self._pending_tool_calls[tool_call.id] = tool_call_msg
 
@@ -1181,6 +1306,21 @@ class OpenAIChatCompletionsModel(Model):
             # If the assistant message is just text, add it as well
             elif hasattr(assistant_msg, "content") and assistant_msg.content:
                 asst_msg = {"role": "assistant", "content": assistant_msg.content}
+                # Render the thinking panel for any reasoning model, then
+                # preserve the reasoning on the assistant message ONLY for
+                # providers whose API accepts it back. Groq returns
+                # 400 'property reasoning_content is unsupported' otherwise.
+                if _model_emits_reasoning(str(self.model)):
+                    _rc = _extract_reasoning(assistant_msg)
+                    if _rc:
+                        try:
+                            from kryon.util import print_claude_reasoning_simple
+
+                            print_claude_reasoning_simple(_rc, self.agent_name, str(self.model))
+                        except Exception:
+                            pass
+                        if _preserves_reasoning_in_history(str(self.model)):
+                            asst_msg["reasoning_content"] = _rc
                 self.add_to_message_history(asst_msg)
                 # Log the assistant message
                 self.logger.log_assistant_message(assistant_msg.content)
@@ -1495,6 +1635,11 @@ class OpenAIChatCompletionsModel(Model):
                 streaming_text_buffer = ""
                 # For tool call streaming, accumulate tool_calls to add to message_history at the end
                 streamed_tool_calls = []
+                # Track DeepSeek reasoning_content across the stream so we
+                # can attach it to assistant messages stored in history.
+                # Per DeepSeek API spec: when tool calls occur, reasoning_content
+                # must be passed back in subsequent requests.
+                accumulated_reasoning_content = ""
 
                 # Initialize Claude thinking display if applicable
                 if should_show_rich_stream:  # Only show thinking in rich streaming mode
@@ -1522,7 +1667,10 @@ class OpenAIChatCompletionsModel(Model):
                     "mistral",
                     "dolphin",
                     "phi",
-                    "deepseek",
+                    # NOTE: "deepseek" deliberately excluded — DeepSeek is a
+                    # hosted API. Locally-served deepseek via Ollama is still
+                    # caught by the `"ollama" in base_url_env` /
+                    # `"11434" in base_url_env` checks below.
                     "yi",
                     "solar",
                     "codellama",
@@ -1598,15 +1746,22 @@ class OpenAIChatCompletionsModel(Model):
                         # Handle Claude reasoning content first (before regular content)
                         reasoning_content = None
 
-                        # Check for Claude reasoning in different possible formats
+                        # Check for reasoning content in different possible formats:
+                        #   - DeepSeek: `reasoning_content`
+                        #   - Groq (Qwen3, GPT-OSS): `reasoning`
+                        #   - Anthropic/Claude: `thinking` (handled below)
                         if hasattr(delta, "reasoning_content") and delta.reasoning_content is not None:
                             reasoning_content = delta.reasoning_content
+                        elif hasattr(delta, "reasoning") and delta.reasoning is not None:
+                            reasoning_content = delta.reasoning
                         elif (
                             isinstance(delta, dict)
                             and "reasoning_content" in delta
                             and delta["reasoning_content"] is not None
                         ):
                             reasoning_content = delta["reasoning_content"]
+                        elif isinstance(delta, dict) and "reasoning" in delta and delta["reasoning"] is not None:
+                            reasoning_content = delta["reasoning"]
 
                         # Also check for thinking_blocks structure (Claude 4 format)
                         thinking_blocks = None
@@ -1641,6 +1796,10 @@ class OpenAIChatCompletionsModel(Model):
 
                         # Update thinking display if we have reasoning content
                         if reasoning_content:
+                            # Accumulate so we can preserve it on the
+                            # assistant message stored in history (DeepSeek
+                            # multi-turn requirement when tool calls occur).
+                            accumulated_reasoning_content += reasoning_content
                             if thinking_context:
                                 # Streaming mode: Update the rich thinking display
                                 from kryon.util import update_claude_thinking_content
@@ -1960,6 +2119,12 @@ class OpenAIChatCompletionsModel(Model):
                                         }
                                     ],
                                 }
+                                # Preserve reasoning_content so the next
+                                # request can pass it back per provider spec.
+                                # Only DeepSeek accepts this on input —
+                                # Groq returns 400 if we send it back.
+                                if accumulated_reasoning_content and _preserves_reasoning_in_history(str(self.model)):
+                                    tool_call_msg["reasoning_content"] = accumulated_reasoning_content
                                 # Only add if not already in streamed_tool_calls
                                 if tool_call_msg not in streamed_tool_calls:
                                     streamed_tool_calls.append(tool_call_msg)
@@ -2817,13 +2982,13 @@ class OpenAIChatCompletionsModel(Model):
                 if not converted_tools:
                     kwargs.pop("tool_choice", None)
 
-                # Add reasoning support for DeepSeek
-                # DeepSeek supports reasoning_effort parameter
+                # DeepSeek's reasoning_effort accepts only "high" and "max"
+                # ("low" and "medium" are silently mapped to "high"). Pass
+                # through only if the caller explicitly set one — don't
+                # default, to avoid quietly bumping every request to "high"
+                # and burning thinking tokens.
                 if hasattr(model_settings, "reasoning_effort") and model_settings.reasoning_effort:
                     kwargs["reasoning_effort"] = model_settings.reasoning_effort
-                else:
-                    # Default to "low" reasoning effort if model supports it
-                    kwargs["reasoning_effort"] = "low"
             elif provider == "claude" or "claude" in model_str:
                 litellm.drop_params = True
                 kwargs.pop("store", None)
@@ -2864,6 +3029,35 @@ class OpenAIChatCompletionsModel(Model):
             elif provider == "gemini":
                 kwargs.pop("parallel_tool_calls", None)
                 # Add any specific gemini settings if needed
+            elif "openrouter.ai" in os.getenv("OPENAI_BASE_URL", "").lower():
+                # OpenRouter — OpenAI-compat aggregator. Standard OpenAI
+                # params apply; reasoning surfaces via the standard
+                # `reasoning` field (no Groq-style reasoning_format hack).
+                litellm.drop_params = True
+                kwargs.pop("store", None)
+                if "gpt-oss" in model_str:
+                    kwargs.pop("parallel_tool_calls", None)
+                if not converted_tools:
+                    kwargs.pop("tool_choice", None)
+            elif "groq.com" in os.getenv("OPENAI_BASE_URL", "").lower() or provider in ("qwen", "openai", "meta-llama"):
+                # Groq with provider-routed names (qwen/qwen3-32b,
+                # openai/gpt-oss-120b, meta-llama/llama-4-scout). Same
+                # scrubbing as bare-name Groq below — kept inline for
+                # consistency with the file's flat-branch style.
+                litellm.drop_params = True
+                kwargs.pop("store", None)
+                # GPT-OSS family does NOT support parallel tool calls.
+                if "gpt-oss" in model_str:
+                    kwargs.pop("parallel_tool_calls", None)
+                if not converted_tools:
+                    kwargs.pop("tool_choice", None)
+                # CRITICAL: Groq reasoning models (qwen3, gpt-oss, qwq)
+                # require reasoning_format=parsed when tools are present.
+                # Default raw + tools = HTTP 400 from Groq.
+                _has_reasoning = "qwen3" in model_str or "gpt-oss" in model_str or "qwq" in model_str
+                if _has_reasoning and converted_tools:
+                    kwargs.setdefault("extra_body", {})
+                    kwargs["extra_body"].setdefault("reasoning_format", "parsed")
         else:
             # Handle models without provider prefix
             if "claude" in model_str or "anthropic" in model_str:
@@ -2897,6 +3091,44 @@ class OpenAIChatCompletionsModel(Model):
                         kwargs["reasoning_effort"] = "low"  # Use reasoning_effort instead of thinking
             elif "gemini" in model_str:
                 kwargs.pop("parallel_tool_calls", None)
+            elif "deepseek" in model_str:
+                # Bare DeepSeek names (deepseek-chat, deepseek-reasoner,
+                # deepseek-v4-flash, deepseek-v4-pro) hit the OpenAI-compat
+                # endpoint at api.deepseek.com. Apply the same param scrubbing
+                # as the provider-routed `deepseek/...` branch above.
+                # Note: reasoning_effort accepts only "high"/"max" — "low" and
+                # "medium" map to "high". Don't default it; pass through only
+                # when the caller explicitly set one.
+                litellm.drop_params = True
+                kwargs.pop("parallel_tool_calls", None)
+                kwargs.pop("store", None)
+                if not converted_tools:
+                    kwargs.pop("tool_choice", None)
+                if hasattr(model_settings, "reasoning_effort") and model_settings.reasoning_effort:
+                    kwargs["reasoning_effort"] = model_settings.reasoning_effort
+
+                # Bare V4 names need explicit `thinking` flag in extra_body
+                # to activate reasoning (the legacy `deepseek-reasoner`
+                # alias activates it implicitly). Skipped for deepseek-chat
+                # which is the non-thinking variant.
+                if ("v4-pro" in model_str or "v4-flash" in model_str) and "deepseek-chat" not in model_str:
+                    kwargs.setdefault("extra_body", {})
+                    kwargs["extra_body"].setdefault("thinking", {"type": "enabled"})
+            elif "groq.com" in os.getenv("OPENAI_BASE_URL", "").lower():
+                # Groq with bare-name models (llama-3.3-70b-versatile,
+                # llama-3.1-8b-instant, mixtral-8x7b-32768, etc.). Mirrors
+                # the provider-routed Groq branch above so /-delimited
+                # and bare names get the same param scrubbing.
+                litellm.drop_params = True
+                kwargs.pop("store", None)
+                if "gpt-oss" in model_str:
+                    kwargs.pop("parallel_tool_calls", None)
+                if not converted_tools:
+                    kwargs.pop("tool_choice", None)
+                _has_reasoning = "qwen3" in model_str or "gpt-oss" in model_str or "qwq" in model_str
+                if _has_reasoning and converted_tools:
+                    kwargs.setdefault("extra_body", {})
+                    kwargs["extra_body"].setdefault("reasoning_format", "parsed")
             elif "qwen" in model_str or ":" in model_str:
                 # Handle Ollama-served models with custom formats (e.g., gpt-4o)
                 # These typically need the Ollama provider
@@ -3098,12 +3330,12 @@ class OpenAIChatCompletionsModel(Model):
                                 "parallel_tool_calls", None
                             )  # DeepSeek doesn't support parallel tool calls
 
-                            # Add reasoning support for DeepSeek
+                            # reasoning_effort: only "high"/"max" are real;
+                            # "low"/"medium" silently map to "high". Don't
+                            # default — pass through only when the caller
+                            # explicitly set one. Mirrors the happy path.
                             if hasattr(model_settings, "reasoning_effort") and model_settings.reasoning_effort:
                                 provider_kwargs["reasoning_effort"] = model_settings.reasoning_effort
-                            else:
-                                # Default to "low" reasoning effort
-                                provider_kwargs["reasoning_effort"] = "low"
                         elif provider == "claude" or "claude" in model_str:
                             provider_kwargs["custom_llm_provider"] = "anthropic"
                             provider_kwargs.pop("store", None)  # Claude doesn't support store parameter
@@ -3137,10 +3369,17 @@ class OpenAIChatCompletionsModel(Model):
                                 "parallel_tool_calls", None
                             )  # Gemini doesn't support parallel tool calls
                         else:
-                            # For unknown providers, try ollama as fallback
-                            return await self._fetch_response_litellm_ollama(
-                                kwargs, model_settings, tool_choice, stream, parallel_tool_calls
-                            )
+                            # Unknown provider — only fall back to Ollama if
+                            # the configured base_url actually points at one.
+                            # Otherwise re-raise so transient API errors (429,
+                            # 503) don't get silently redirected to a local
+                            # service that probably isn't running.
+                            _base_url = os.getenv("OPENAI_BASE_URL", "")
+                            if "ollama" in _base_url or "11434" in _base_url:
+                                return await self._fetch_response_litellm_ollama(
+                                    kwargs, model_settings, tool_choice, stream, parallel_tool_calls
+                                )
+                            raise
 
                 # Check for message sequence errors
                 if (
@@ -3315,8 +3554,10 @@ class OpenAIChatCompletionsModel(Model):
         """
         try:
             if stream:
-                # Standard LiteLLM handling for streaming
-                ret = await litellm.acompletion(**kwargs)
+                # Standard LiteLLM handling for streaming.
+                # Single call only — there used to be a stray duplicate
+                # `ret = await litellm.acompletion(...)` here that was
+                # discarded but billed. Removed to avoid double billing.
                 stream_obj = await litellm.acompletion(**kwargs)
 
                 response = Response(
@@ -3364,9 +3605,9 @@ class OpenAIChatCompletionsModel(Model):
                             ):
                                 tool_call["id"] = tool_call["id"][:40]
                 kwargs["messages"] = messages
-                # Retry once, silently
+                # Retry once, silently.
+                # Same fix as above: drop the discarded duplicate call.
                 if stream:
-                    ret = await litellm.acompletion(**kwargs)
                     stream_obj = await litellm.acompletion(**kwargs)
                     response = Response(
                         id=FAKE_RESPONSES_ID,
@@ -4209,6 +4450,47 @@ class _Converter:
                     "start_time": time.time(),
                     "execution_info": {"start_time": time.time()},
                 }
+
+                # F77.D / Fase 8: print "▸ tool args" right when the model decides to
+                # invoke a tool, BEFORE we wait on its execution. With KRYON_STREAM=false
+                # the legacy pipeline only renders AFTER the tool completes, leaving the
+                # user staring at a blank screen for tens of seconds. The completion glyph
+                # ("✓ Ns · summary") is still rendered later via cli_print_tool_output.
+                #
+                # Fase 11: dedup by call_id — items_to_messages() walks the
+                # full history each turn, so without this guard every prior
+                # tool re-emits its "▸" line N times.
+                _tool_name_for_invocation = func_call.get("name", "")
+                _call_id_for_invocation = func_call.get("call_id", "")
+                if _tool_name_for_invocation and _tool_name_for_invocation != "execute_code":
+                    try:
+                        from kryon.util.streaming import _dedup_render_check
+
+                        if not _dedup_render_check("invocation", _call_id_for_invocation):
+                            from rich.console import Console
+
+                            from kryon.repl.ui.tool_call_renderer import (
+                                render_tool_invocation,
+                                summarize_args,
+                            )
+
+                            _args_for_invocation = func_call.get("arguments", "")
+                            if isinstance(_args_for_invocation, str):
+                                try:
+                                    _args_for_invocation = json.loads(_args_for_invocation)
+                                except (json.JSONDecodeError, ValueError):
+                                    _args_for_invocation = {}
+                            _summary = summarize_args(
+                                _tool_name_for_invocation,
+                                _args_for_invocation,
+                            )
+                            render_tool_invocation(
+                                tool_name=_tool_name_for_invocation,
+                                args_summary=_summary,
+                                console=Console(),
+                            )
+                    except Exception:
+                        pass
 
                 arguments = func_call.get("arguments")  # func_call is a dict here
                 # Ensure arguments is a valid JSON string, defaulting to "{}" if empty or None

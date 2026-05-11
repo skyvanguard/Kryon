@@ -24,7 +24,7 @@ import shlex
 import subprocess
 import tempfile
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from kryon.sdk.agents import function_tool
 
@@ -35,7 +35,7 @@ _SAFE_TARGET_RE = re.compile(r"^[a-zA-Z0-9._:/-]+$")
 def auto_enumerate_target(
     ip: str,
     quick_mode: bool = False,
-    web_ports: Optional[list[int]] = None,
+    web_ports: list[int] | None = None,
     wordlist: str = "/usr/share/wordlists/dirb/common.txt",
 ) -> dict[str, Any]:
     """
@@ -249,8 +249,8 @@ def auto_enumerate_target(
 @function_tool(strict_mode=False)
 def search_exploits(
     service: str,
-    version: Optional[str] = None,
-    platform: Optional[str] = None,
+    version: str | None = None,
+    platform: str | None = None,
     search_metasploit: bool = True,
 ) -> dict[str, Any]:
     """
@@ -592,8 +592,8 @@ def auto_privilege_escalation(
 
 @function_tool(strict_mode=False)
 def hunt_flags(
-    search_paths: Optional[list[str]] = None,
-    flag_patterns: Optional[list[str]] = None,
+    search_paths: list[str] | None = None,
+    flag_patterns: list[str] | None = None,
     check_common_locations: bool = True,
     search_files: bool = True,
 ) -> dict[str, Any]:
@@ -799,10 +799,10 @@ def hunt_flags(
 
 def generate_ctf_report(
     target_ip: str,
-    enumeration_results: Optional[dict] = None,
-    exploit_info: Optional[dict] = None,
-    privesc_info: Optional[dict] = None,
-    flags_found: Optional[dict] = None,
+    enumeration_results: dict | None = None,
+    exploit_info: dict | None = None,
+    privesc_info: dict | None = None,
+    flags_found: dict | None = None,
     output_file: str = "/tmp/ctf_report.md",
 ) -> dict[str, Any]:
     """

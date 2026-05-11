@@ -19,7 +19,7 @@ import platform
 import re
 import signal
 import threading
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Union
 
 # Third-party imports
 from wasabi import color  # pylint: disable=import-error # noqa: E402
@@ -196,11 +196,11 @@ class CodeAgent(Agent):
         model: str = "gpt-4o",
         instructions: Union[str, Callable[[], str]] = None,
         tools: list[Callable] = None,
-        additional_authorized_imports: Optional[list[str]] = None,
+        additional_authorized_imports: list[str] | None = None,
         description: str = """Agent focused on writing and executing code.
                    State-of-the-art in code production.""",
-        max_print_outputs_length: Optional[int] = None,
-        reasoning_effort: Optional[str] = "medium",
+        max_print_outputs_length: int | None = None,
+        reasoning_effort: str | None = "medium",
         max_steps: int = 10,
         execution_timeout: int = 60,  # Default timeout of 60 seconds
         tool_choice: str = "auto",
@@ -397,7 +397,7 @@ I'll execute your code and show you the results.
         messages: list[dict],
         context_variables: dict = None,
         debug: bool = False,
-    ) -> tuple[Result, str, Optional[Any]]:
+    ) -> tuple[Result, str, Any | None]:
         """
         Process a conversation by generating and executing
         Python code.

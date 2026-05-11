@@ -40,14 +40,14 @@ def test_harness_imports_registered_frameworks(harness):
 
 def test_baseline_file_exists():
     assert _BASELINE_PATH.exists(), (
-        f"baseline missing at {_BASELINE_PATH}; run: "
-        f"python scripts/compliance/regression_bench.py --emit"
+        f"baseline missing at {_BASELINE_PATH}; run: python scripts/compliance/regression_bench.py --emit"
     )
 
 
 def test_no_regression_against_baseline(harness):
     """The core CI assertion: no ratchet-down vs. committed baseline."""
     import json
+
     baseline = json.loads(_BASELINE_PATH.read_text(encoding="utf-8"))
     current = harness.build_snapshot()
     problems = harness.compare(current, baseline)
@@ -63,12 +63,10 @@ def test_no_orphan_cross_mapping_refs(harness):
     correspond to an actually-registered YAML."""
     snap = harness.build_snapshot()
     assert snap["orphans"]["cross_mapping"] == [], (
-        f"cross-mapping references {snap['orphans']['cross_mapping']} "
-        f"not present in any registered framework"
+        f"cross-mapping references {snap['orphans']['cross_mapping']} not present in any registered framework"
     )
     assert snap["orphans"]["framework_meta"] == [], (
-        f"FRAMEWORK_META entries {snap['orphans']['framework_meta']} "
-        f"do not match any registered framework YAML"
+        f"FRAMEWORK_META entries {snap['orphans']['framework_meta']} do not match any registered framework YAML"
     )
 
 
@@ -76,6 +74,5 @@ def test_critical_check_floor(harness):
     """Banking-oriented frameworks must retain a minimum CRITICAL coverage."""
     snap = harness.build_snapshot()
     assert snap["totals"]["critical_checks"] >= 30, (
-        f"only {snap['totals']['critical_checks']} CRITICAL checks "
-        f"across all frameworks; banking audits need >=30"
+        f"only {snap['totals']['critical_checks']} CRITICAL checks across all frameworks; banking audits need >=30"
     )

@@ -6,7 +6,6 @@ the context of the current session.
 """
 
 import os
-from typing import Optional
 
 from rich.console import Console  # pylint: disable=import-error
 from rich.table import Table  # pylint: disable=import-error
@@ -43,7 +42,7 @@ class LoadCommand(Command):
             self.handle_load_all,
         )
 
-    def handle(self, args: Optional[list[str]] = None) -> bool:
+    def handle(self, args: list[str] | None = None) -> bool:
         """Handle the load command.
 
         Args:
@@ -193,7 +192,7 @@ class LoadCommand(Command):
         # Otherwise, treat first arg as agent name and rest as file path
         return self.handle_load_to_agent(args)
 
-    def handle_load_pattern_from_jsonl(self, jsonl_file: Optional[str] = None) -> bool:
+    def handle_load_pattern_from_jsonl(self, jsonl_file: str | None = None) -> bool:
         """Load a JSONL file and match agent messages to configured parallel agents.
 
         Args:
@@ -474,7 +473,7 @@ class LoadCommand(Command):
             console.print(f"[red]Error loading pattern from JSONL: {str(e)}[/red]")
             return False
 
-    def handle_load_default(self, jsonl_file: Optional[str] = None) -> bool:
+    def handle_load_default(self, jsonl_file: str | None = None) -> bool:
         """Load a jsonl and merge it into all active agents.
 
         Args:
@@ -647,7 +646,7 @@ class LoadCommand(Command):
 
         return self._load_to_agent(agent_name, jsonl_file)
 
-    def handle_agent(self, args: Optional[list[str]] = None) -> bool:
+    def handle_agent(self, args: list[str] | None = None) -> bool:
         """Load a jsonl file into a specific agent's history using 'agent' subcommand.
 
         Args:
@@ -794,7 +793,7 @@ class LoadCommand(Command):
             console.print(f"[red]Error loading jsonl file: {str(e)}[/red]")
             return False
 
-    def handle_parallel(self, args: Optional[list[str]] = None) -> bool:
+    def handle_parallel(self, args: list[str] | None = None) -> bool:
         """Load a JSONL file matching messages to configured parallel agents.
 
         Args:
@@ -809,7 +808,7 @@ class LoadCommand(Command):
         # Call the pattern loading method
         return self.handle_load_pattern_from_jsonl(jsonl_file)
 
-    def handle_all(self, args: Optional[list[str]] = None) -> bool:
+    def handle_all(self, args: list[str] | None = None) -> bool:
         """Show all available agents that can have history loaded.
 
         Returns:
@@ -909,7 +908,7 @@ class LoadCommand(Command):
 
         return True
 
-    def handle_load_all(self, args: Optional[list[str]] = None) -> bool:
+    def handle_load_all(self, args: list[str] | None = None) -> bool:
         """Load the same JSONL messages into all configured parallel agents.
 
         Args:

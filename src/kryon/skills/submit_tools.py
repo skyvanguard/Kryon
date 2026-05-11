@@ -66,12 +66,14 @@ def submit_finding(
     Returns JSON acknowledgment. The planner reads these arguments from
     the tool-call history.
     """
-    return json.dumps({
-        "accepted": True,
-        "type": "finding",
-        "cwe": cwe,
-        "crash_type": crash_type,
-    })
+    return json.dumps(
+        {
+            "accepted": True,
+            "type": "finding",
+            "cwe": cwe,
+            "crash_type": crash_type,
+        }
+    )
 
 
 @function_tool(strict_mode=False)
@@ -104,12 +106,14 @@ def submit_no_finding(
 
     Returns JSON acknowledgment.
     """
-    return json.dumps({
-        "accepted": True,
-        "type": "no_finding",
-        "reason": reason[:200],
-        "attempted_hypotheses": attempted_hypotheses,
-    })
+    return json.dumps(
+        {
+            "accepted": True,
+            "type": "no_finding",
+            "reason": reason[:200],
+            "attempted_hypotheses": attempted_hypotheses,
+        }
+    )
 
 
 @function_tool(strict_mode=False)
@@ -131,7 +135,9 @@ def reflect_on_hypothesis(
     Returns JSON acknowledgment. The planner keeps these as
     `_reflections[]` on the hunter job for post-hoc analysis.
     """
-    return json.dumps({
-        "accepted": True,
-        "type": "reflection",
-    })
+    return json.dumps(
+        {
+            "accepted": True,
+            "type": "reflection",
+        }
+    )

@@ -25,10 +25,9 @@ import json
 import logging
 import os
 import re
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
@@ -142,10 +141,7 @@ def url_shape(url: str) -> str:
             segments.append("<int>")
         elif _HEX_RE.match(seg):
             segments.append("<hex>")
-        elif (
-            re.search(r"\d{4,}", seg)
-            and any(c.isalpha() for c in seg)
-        ):
+        elif re.search(r"\d{4,}", seg) and any(c.isalpha() for c in seg):
             # mixed alnum with a long numeric run (e.g. "acct_12345",
             # "order-98765") — common account/order id shape in LATAM
             # banking. Short prefixes like "v1", "v2" (API version)
@@ -189,11 +185,7 @@ def _build_document(finding: dict[str, Any]) -> str:
     title = finding.get("title", "")
     tech = finding.get("tech_fingerprint", "")
     evidence = (finding.get("evidence") or "")[:512]
-    return (
-        f"{cwe} | {probe} | url={shape} | tech={tech}\n"
-        f"title: {title}\n"
-        f"evidence: {evidence}"
-    )
+    return f"{cwe} | {probe} | url={shape} | tech={tech}\ntitle: {title}\nevidence: {evidence}"
 
 
 def _jsonable_metadata(finding: dict[str, Any]) -> dict[str, Any]:
@@ -213,11 +205,14 @@ def _jsonable_metadata(finding: dict[str, Any]) -> dict[str, Any]:
         "tech_fingerprint": finding.get("tech_fingerprint", ""),
         # JSON-encoded structured payload that won't fit flat
         "_compliance_json": json.dumps(
-            finding.get("compliance_citations") or [], ensure_ascii=False,
+            finding.get("compliance_citations") or [],
+            ensure_ascii=False,
         ),
         "_evidence_json": json.dumps(
-            {"evidence": (finding.get("evidence") or "")[:2048],
-             "remediation": (finding.get("remediation") or "")[:1024]},
+            {
+                "evidence": (finding.get("evidence") or "")[:2048],
+                "remediation": (finding.get("remediation") or "")[:1024],
+            },
             ensure_ascii=False,
         ),
     }
@@ -261,12 +256,14 @@ def _metadata_to_finding(metadata: dict[str, Any], document: str) -> dict[str, A
 def _content_fingerprint(finding: dict[str, Any]) -> str:
     """Deterministic id from (cwe, probe, url_shape, host) so the same
     finding from the same target de-duplicates instead of accumulating."""
-    key = "|".join([
-        finding.get("cwe_id", ""),
-        finding.get("probe_id", ""),
-        finding.get("url_shape") or url_shape(finding.get("url", "")),
-        finding.get("host", ""),
-    ])
+    key = "|".join(
+        [
+            finding.get("cwe_id", ""),
+            finding.get("probe_id", ""),
+            finding.get("url_shape") or url_shape(finding.get("url", "")),
+            finding.get("host", ""),
+        ]
+    )
     return "fnd_" + hashlib.sha1(key.encode()).hexdigest()[:14]
 
 
@@ -306,8 +303,10 @@ def add_finding(finding: dict[str, Any]) -> str:
     )
     logger.info(
         "Finding %s stored (cwe=%s host=%s shape=%s)",
-        finding["id"], metadata.get("cwe_id"),
-        metadata.get("host"), metadata.get("url_shape"),
+        finding["id"],
+        metadata.get("cwe_id"),
+        metadata.get("host"),
+        metadata.get("url_shape"),
     )
     return finding["id"]
 
@@ -321,8 +320,8 @@ def recall_similar(
     query: str,
     k: int = 5,
     *,
-    filter_cwe: Optional[str] = None,
-    filter_tech: Optional[str] = None,
+    filter_cwe: str | None = None,
+    filter_tech: str | None = None,
 ) -> list[dict[str, Any]]:
     """Retrieve top-k findings similar to the query string.
 
@@ -333,7 +332,7 @@ def recall_similar(
     Score is in [0, 1]; higher = more similar.
     """
     collection = _get_collection()
-    where: Optional[dict] = None
+    where: dict | None = None
     if filter_cwe and filter_tech:
         where = {"$and": [{"cwe_id": filter_cwe}, {"tech_fingerprint": filter_tech}]}
     elif filter_cwe:
@@ -388,9 +387,12 @@ def recall_by_url_shape(shape: str, k: int = 5) -> list[dict[str, Any]]:
     documents = results.get("documents") or []
     out = []
     for i, meta in enumerate(metadatas):
-        out.append(_metadata_to_finding(
-            meta, documents[i] if i < len(documents) else "",
-        ))
+        out.append(
+            _metadata_to_finding(
+                meta,
+                documents[i] if i < len(documents) else "",
+            )
+        )
     return out
 
 

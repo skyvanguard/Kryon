@@ -23,7 +23,7 @@ import socketserver
 import ssl
 import threading
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 # Global state for C2 server
 _C2_STATE = {"running": False, "sessions": {}, "command_queue": {}, "listeners": []}
@@ -115,8 +115,8 @@ def create_c2_server(
     protocol: str = "http",
     host: str = "0.0.0.0",
     port: int = 8080,
-    ssl_cert: Optional[str] = None,
-    ssl_key: Optional[str] = None,
+    ssl_cert: str | None = None,
+    ssl_key: str | None = None,
 ) -> dict[str, Any]:
     """
     Create and start C2 server.
@@ -560,7 +560,7 @@ def download_file_from_beacon(beacon_id: str, remote_file: str, local_path: str)
     return results
 
 
-def execute_module(beacon_id: str, module: str, args: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+def execute_module(beacon_id: str, module: str, args: dict[str, Any] | None = None) -> dict[str, Any]:
     """
     Execute post-exploitation module on beacon.
 

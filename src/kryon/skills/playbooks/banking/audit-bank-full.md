@@ -30,6 +30,16 @@ required_tools:
   - run_command
   - query_knowledge_base
   - request_approval
+pre_hooks:
+  - tool: run_compliance_audit
+    args:
+      framework: all
+      host: "{ctx.host}"
+      ssh_user: "{ctx.ssh_user}"
+      ssh_key_path: "{ctx.ssh_key_path}"
+    inject_as: deterministic_compliance_findings
+    required: true
+    timeout_s: 300
 ---
 
 ## Propósito

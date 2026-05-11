@@ -14,11 +14,18 @@ from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel
 
 
 def get_default_model() -> OpenAIChatCompletionsModel:
-    """Create a shared OpenAIChatCompletionsModel from environment config."""
+    """Create a shared OpenAIChatCompletionsModel from environment config.
+
+    Reads OPENAI_BASE_URL so non-default providers (Groq, OpenRouter,
+    DeepSeek) work without an extra step. Without an explicit base_url
+    the AsyncOpenAI client targets api.openai.com and 401s on any other
+    provider's key.
+    """
     return OpenAIChatCompletionsModel(
         model=os.getenv("KRYON_MODEL", "gpt-4o"),
         openai_client=AsyncOpenAI(
             api_key=os.getenv("OPENAI_API_KEY", "not-set"),
+            base_url=os.getenv("OPENAI_BASE_URL"),
         ),
     )
 

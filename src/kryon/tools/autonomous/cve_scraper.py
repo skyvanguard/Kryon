@@ -11,7 +11,7 @@ Mission: Stay updated with latest vulnerabilities automatically
 import json
 import time
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 
 class CVEScraper:
@@ -23,7 +23,7 @@ class CVEScraper:
 
     def scrape_new_cves(
         self,
-        services: Optional[list[str]] = None,
+        services: list[str] | None = None,
         days_back: int = 30,
         severity_min: str = "medium",
     ) -> list[dict[str, Any]]:
@@ -64,7 +64,7 @@ class CVEScraper:
         self.discovered_cves = unique_cves
         return unique_cves
 
-    def _scrape_nvd(self, services: Optional[list[str]], days_back: int, severity_min: str) -> list[dict]:
+    def _scrape_nvd(self, services: list[str] | None, days_back: int, severity_min: str) -> list[dict]:
         """Scrape NVD (National Vulnerability Database)."""
         try:
             import requests
@@ -125,7 +125,7 @@ class CVEScraper:
 
         return []
 
-    def _scrape_exploitdb(self, services: Optional[list[str]]) -> list[dict]:
+    def _scrape_exploitdb(self, services: list[str] | None) -> list[dict]:
         """Scrape Exploit-DB for recent exploits."""
         # Exploit-DB doesn't have a public API, but we can search local database
         import subprocess
@@ -165,7 +165,7 @@ class CVEScraper:
             print(f"Exploit-DB scraping error: {e}")
             return []
 
-    def _scrape_github_pocs(self, services: Optional[list[str]], days_back: int) -> list[dict]:
+    def _scrape_github_pocs(self, services: list[str] | None, days_back: int) -> list[dict]:
         """Search GitHub for PoC exploits."""
         try:
             import requests

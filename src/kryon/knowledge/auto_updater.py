@@ -9,7 +9,7 @@ import logging
 import threading
 import time
 from collections import deque
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class AutoUpdater:
     def start(
         self,
         schedule_type: str = "daily",
-        sources: Optional[list[str]] = None,
+        sources: list[str] | None = None,
         time_of_day: str = "02:00",
     ):
         """
@@ -91,7 +91,7 @@ class AutoUpdater:
         _get_schedule().clear()
         logger.info("Auto-updater stopped")
 
-    def run_once(self, sources: Optional[list[str]] = None) -> dict[str, Any]:
+    def run_once(self, sources: list[str] | None = None) -> dict[str, Any]:
         """
         Run a single update cycle (for manual/CLI invocation).
 

@@ -41,7 +41,7 @@ class CLIMessageSimulator:
         """Add a user message to the simulation."""
         self.messages.append({"role": "user", "content": content, "interrupt_after": interrupt_after})
 
-    def add_assistant_response(self, content: str, tool_calls: Optional[list[dict]] = None):
+    def add_assistant_response(self, content: str, tool_calls: list[dict] | None = None):
         """Add an expected assistant response."""
         response_data = {"role": "assistant", "content": content}
         if tool_calls:
@@ -57,7 +57,7 @@ class CLIMessageSimulator:
         """Set when to trigger a KeyboardInterrupt."""
         self.interrupt_triggers[message_index] = {"during_execution": during_execution}
 
-    def get_next_message(self) -> Optional[dict]:
+    def get_next_message(self) -> dict | None:
         """Get the next message in the simulation."""
         if self.current_index < len(self.messages):
             msg = self.messages[self.current_index]
@@ -65,7 +65,7 @@ class CLIMessageSimulator:
             return msg
         return None
 
-    def get_completion_response(self, index: int) -> Optional[dict]:
+    def get_completion_response(self, index: int) -> dict | None:
         """Get the completion response for a given index."""
         if index < len(self.completion_responses):
             return self.completion_responses[index]
@@ -134,8 +134,8 @@ class BaseCLITest:
     def create_mock_completion(
         self,
         content: str = "Test response",
-        tool_calls: Optional[list[dict[str, Any]]] = None,
-        usage: Optional[dict[str, int]] = None,
+        tool_calls: list[dict[str, Any]] | None = None,
+        usage: dict[str, int] | None = None,
     ) -> ChatCompletion:
         """
         Create a mock ChatCompletion response with proper structure.
@@ -189,7 +189,7 @@ class BaseCLITest:
 
         return Agent(name="TestAgent", instructions="You are a test assistant", model=test_model)
 
-    def create_mock_model_response(self, content: str = "Test response", items: Optional[list] = None) -> ModelResponse:
+    def create_mock_model_response(self, content: str = "Test response", items: list | None = None) -> ModelResponse:
         """Create a mock ModelResponse for Runner.run."""
         from kryon.sdk.agents.usage import Usage
 
@@ -199,7 +199,7 @@ class BaseCLITest:
             referenceable_id=None,
         )
 
-    def create_input_simulator(self, messages: list[str], interrupts: Optional[dict[int, str]] = None):
+    def create_input_simulator(self, messages: list[str], interrupts: dict[int, str] | None = None):
         """
         Create an input simulator that provides predefined messages and can trigger interrupts.
 
@@ -241,7 +241,7 @@ class BaseCLITest:
 
         return mock_input_function
 
-    def create_litellm_simulator(self, responses: list[ChatCompletion], interrupts: Optional[dict[int, str]] = None):
+    def create_litellm_simulator(self, responses: list[ChatCompletion], interrupts: dict[int, str] | None = None):
         """
         Create a LiteLLM simulator that provides predefined responses and can trigger interrupts.
 
@@ -280,8 +280,8 @@ class BaseCLITest:
         user_inputs: list[str],
         expected_responses: list[str],
         stream_mode: bool = False,
-        interrupts: Optional[dict[int, str]] = None,
-        tool_calls: Optional[dict[int, list[dict]]] = None,
+        interrupts: dict[int, str] | None = None,
+        tool_calls: dict[int, list[dict]] | None = None,
         verify_message_flow: bool = True,
     ) -> dict[str, Any]:
         """
@@ -411,7 +411,7 @@ class BaseCLITest:
         self,
         user_inputs: list[str],
         expected_responses: list[str],
-        tool_calls: Optional[dict[int, list[dict]]] = None,
+        tool_calls: dict[int, list[dict]] | None = None,
     ) -> bool:
         """Verify that the message flow in message_history is correct."""
         try:

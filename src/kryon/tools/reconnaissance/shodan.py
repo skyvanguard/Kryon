@@ -9,7 +9,7 @@ and improve response times by 10-30x for repeated queries.
 """
 
 import os
-from typing import Any, Optional
+from typing import Any
 
 import requests
 from dotenv import load_dotenv
@@ -136,7 +136,7 @@ def _perform_shodan_search(query: str, limit: int = 10) -> list[dict[str, Any]]:
 
 
 @cache_result(ttl=86400)  # Cache for 24 hours
-def _get_shodan_host_info(ip: str) -> Optional[dict[str, Any]]:
+def _get_shodan_host_info(ip: str) -> dict[str, Any] | None:
     """
     Helper function to get host information from Shodan.
 

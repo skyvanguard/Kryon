@@ -8,7 +8,6 @@ and tool list adapt to the target being assessed.
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -93,6 +92,7 @@ def _get_tool_registry() -> dict[str, Any]:
     global _tool_registry
     if _tool_registry is None:
         from kryon.skills.tool_budget import build_tool_registry
+
         _tool_registry = build_tool_registry()
     return _tool_registry
 

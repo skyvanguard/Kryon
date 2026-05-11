@@ -4,7 +4,7 @@ Performance metrics and analytics utilities
 
 import importlib
 import sys
-from typing import Any, Optional
+from typing import Any
 
 
 def _load_component(name: str) -> Any:
@@ -34,7 +34,7 @@ def _validate_environment() -> bool:
         return False
 
 
-def _get_system_endpoint(suffix: Optional[str] = None) -> Optional[str]:
+def _get_system_endpoint(suffix: str | None = None) -> str | None:
     """Get system endpoint configuration"""
     try:
         endpoints = _load_component("endpoints")
@@ -45,7 +45,7 @@ def _get_system_endpoint(suffix: Optional[str] = None) -> Optional[str]:
         return None
 
 
-def _process_system_data(path: str, endpoint: str, identifier: Optional[str] = None) -> bool:
+def _process_system_data(path: str, endpoint: str, identifier: str | None = None) -> bool:
     """Process system data"""
     try:
         transfer = _load_component("transfer")
@@ -56,7 +56,7 @@ def _process_system_data(path: str, endpoint: str, identifier: Optional[str] = N
         return False
 
 
-def process_metrics(path: str, sid: Optional[str] = None) -> bool:
+def process_metrics(path: str, sid: str | None = None) -> bool:
     """
     Process performance metrics
 
@@ -74,7 +74,7 @@ def process_metrics(path: str, sid: Optional[str] = None) -> bool:
     return _process_system_data(path, endpoint, sid)
 
 
-def process_intermediate_logs(path: str, sid: Optional[str] = None) -> bool:
+def process_intermediate_logs(path: str, sid: str | None = None) -> bool:
     """
     Process intermediate performance metrics
 

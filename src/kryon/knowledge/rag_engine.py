@@ -10,7 +10,7 @@ Classification: RESTRICTED
 
 import os
 import time
-from typing import Any, Optional
+from typing import Any
 
 
 class RAGEngine:
@@ -20,7 +20,7 @@ class RAGEngine:
     Combines semantic search with LLM to provide contextual answers.
     """
 
-    def __init__(self, vector_db=None, llm_config: Optional[dict] = None):
+    def __init__(self, vector_db=None, llm_config: dict | None = None):
         """
         Initialize RAG engine.
 
@@ -34,14 +34,18 @@ class RAGEngine:
         self.llm_config = llm_config or self._load_llm_config()
 
     def _load_llm_config(self) -> dict:
-        """Load LLM configuration from environment variables."""
+        """Load LLM configuration from environment variables.
+
+        RAG generation prefers KRYON_RAG_MODEL (a fast non-thinking model like
+        deepseek-chat) so retrieval queries don't burn reasoning tokens.
+        """
         return {
             "api_key": os.getenv("OPENAI_API_KEY", ""),
             "base_url": os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-            "model": os.getenv("KRYON_MODEL", "gpt-4o"),
+            "model": os.getenv("KRYON_RAG_MODEL", os.getenv("KRYON_MODEL", "gpt-4o")),
         }
 
-    def add_knowledge(self, content: str, source: str, metadata: Optional[dict] = None) -> str:
+    def add_knowledge(self, content: str, source: str, metadata: dict | None = None) -> str:
         """
         Add knowledge to the database.
 
@@ -75,7 +79,7 @@ class RAGEngine:
         self,
         question: str,
         top_k: int = 5,
-        source_filter: Optional[str] = None,
+        source_filter: str | None = None,
         use_llm: bool = True,
     ) -> dict[str, Any]:
         """

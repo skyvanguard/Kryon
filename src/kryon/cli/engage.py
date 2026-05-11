@@ -59,8 +59,8 @@ class Finding:
     message: str
     evidence: str = ""
     remediation: str = ""
-    remediation_command: str = ""    # exact shell command for Fase 3
-    target_host: str = ""            # admin@host for SSH exec
+    remediation_command: str = ""  # exact shell command for Fase 3
+    target_host: str = ""  # admin@host for SSH exec
     severity_rank: int = field(default=99)
 
 
@@ -79,20 +79,35 @@ def _run_nmap(target: str, *, timeout_s: int = 600) -> str:
     back to plain subprocess so CI benches don't render Live panels.
     """
     use_live = os.environ.get("KRYON_LIVE_PROGRESS", "").strip().lower() in {
-        "1", "true", "yes", "on",
+        "1",
+        "true",
+        "yes",
+        "on",
     }
-    cmd = f"nmap -sV -T4 --top-ports 100 -oX - {shlex.quote(target)}"
+    # -Pn: skip host discovery. Required when the target firewall
+    # filters ICMP (typical for hardened hosts and PVE behind FortiGate).
+    # Without -Pn, nmap concludes "host is down" and emits no ports even
+    # though TCP services are reachable.
+    # -sT: TCP connect scan. Default -sV picks -sS (raw SYN) which needs
+    # Npcap/raw sockets — unavailable on Windows hosts without admin
+    # install. -sT works as a non-privileged user on every platform.
+    cmd = f"nmap -Pn -sT -sV -T4 --top-ports 100 -oX - {shlex.quote(target)}"
     if use_live:
         try:
             from kryon.repl.ui.live_progress import run_with_progress
+
             r = run_with_progress(cmd, timeout_s=timeout_s)
             return r.stdout
         except Exception as exc:
             logger.warning("live_progress fell back: %s", exc)
     try:
         out = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True,
-            timeout=timeout_s, check=False,
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=timeout_s,
+            check=False,
         )
         return out.stdout
     except subprocess.TimeoutExpired:
@@ -120,14 +135,16 @@ class DiscoveredService:
 def _parse_nmap_xml(xml: str, host: str) -> list[DiscoveredService]:
     out: list[DiscoveredService] = []
     for m in _SERVICE_RE.finditer(xml):
-        out.append(DiscoveredService(
-            host=host,
-            port=int(m.group(1)),
-            state=m.group(2),
-            service=(m.group(3) or "").lower(),
-            product=m.group(4) or "",
-            version=m.group(5) or "",
-        ))
+        out.append(
+            DiscoveredService(
+                host=host,
+                port=int(m.group(1)),
+                state=m.group(2),
+                service=(m.group(3) or "").lower(),
+                product=m.group(4) or "",
+                version=m.group(5) or "",
+            )
+        )
     return out
 
 
@@ -141,59 +158,84 @@ def _check_http(svc: DiscoveredService) -> list[Finding]:
     findings: list[Finding] = []
     try:
         headers = subprocess.run(
-            ["curl", "-sSI", "--max-time", "5",
-             f"http://{svc.host}:{svc.port}/"],
-            capture_output=True, text=True, timeout=10, check=False,
+            ["curl", "-sSI", "--max-time", "5", f"http://{svc.host}:{svc.port}/"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
         ).stdout
     except Exception:
         headers = ""
 
     # CWE-319: HTTP plaintext (no TLS on this port)
     if svc.port in (80, 8080) or svc.port not in (443, 8443):
-        findings.append(Finding(
-            cwe="CWE-319", severity="HIGH", host=f"{svc.host}:{svc.port}",
-            rule_id="http-plaintext",
-            message=f"Servicio HTTP en {svc.host}:{svc.port} sin TLS.",
-            evidence=headers[:400] if headers else f"puerto {svc.port} abierto, servicio http",
-            remediation="Habilitar HTTPS y redirigir HTTP->HTTPS.",
-            severity_rank=_SEV_RANK["HIGH"],
-        ))
+        findings.append(
+            Finding(
+                cwe="CWE-319",
+                severity="HIGH",
+                host=f"{svc.host}:{svc.port}",
+                rule_id="http-plaintext",
+                message=f"Servicio HTTP en {svc.host}:{svc.port} sin TLS.",
+                evidence=headers[:400] if headers else f"puerto {svc.port} abierto, servicio http",
+                remediation="Habilitar HTTPS y redirigir HTTP->HTTPS.",
+                severity_rank=_SEV_RANK["HIGH"],
+            )
+        )
 
     # CWE-200: Server header leaks version
     m = re.search(r"^Server:\s*([^\r\n]+)", headers, re.MULTILINE | re.IGNORECASE)
     if m and re.search(r"/\d", m.group(1)):
-        findings.append(Finding(
-            cwe="CWE-200", severity="MEDIUM", host=f"{svc.host}:{svc.port}",
-            rule_id="http-server-token",
-            message="Header Server expone versión del servidor.",
-            evidence=f"Server: {m.group(1).strip()}",
-            remediation="Configurar server_tokens off (nginx) o ServerTokens Prod (apache).",
-            severity_rank=_SEV_RANK["MEDIUM"],
-        ))
+        findings.append(
+            Finding(
+                cwe="CWE-200",
+                severity="MEDIUM",
+                host=f"{svc.host}:{svc.port}",
+                rule_id="http-server-token",
+                message="Header Server expone versión del servidor.",
+                evidence=f"Server: {m.group(1).strip()}",
+                remediation="Configurar server_tokens off (nginx) o ServerTokens Prod (apache).",
+                severity_rank=_SEV_RANK["MEDIUM"],
+            )
+        )
 
     # CWE-306: /admin accesible sin auth
     try:
         admin_code = subprocess.run(
-            ["curl", "-sS", "-o", "/dev/null", "-w", "%{http_code}",
-             "--max-time", "5", f"http://{svc.host}:{svc.port}/admin"],
-            capture_output=True, text=True, timeout=10, check=False,
+            [
+                "curl",
+                "-sS",
+                "-o",
+                "/dev/null",
+                "-w",
+                "%{http_code}",
+                "--max-time",
+                "5",
+                f"http://{svc.host}:{svc.port}/admin",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
         ).stdout.strip()
     except Exception:
         admin_code = ""
     if admin_code == "200":
-        findings.append(Finding(
-            cwe="CWE-306", severity="HIGH", host=f"{svc.host}:{svc.port}",
-            rule_id="http-admin-open",
-            message="Endpoint /admin accesible sin autenticación.",
-            evidence=f"GET {svc.host}:{svc.port}/admin → 200",
-            remediation="Proteger /admin con autenticación (auth_basic / OAuth).",
-            severity_rank=_SEV_RANK["HIGH"],
-        ))
+        findings.append(
+            Finding(
+                cwe="CWE-306",
+                severity="HIGH",
+                host=f"{svc.host}:{svc.port}",
+                rule_id="http-admin-open",
+                message="Endpoint /admin accesible sin autenticación.",
+                evidence=f"GET {svc.host}:{svc.port}/admin → 200",
+                remediation="Proteger /admin con autenticación (auth_basic / OAuth).",
+                severity_rank=_SEV_RANK["HIGH"],
+            )
+        )
     return findings
 
 
-def _check_ssh(svc: DiscoveredService, ssh_target: str | None,
-               ssh_password: str | None) -> list[Finding]:
+def _check_ssh(svc: DiscoveredService, ssh_target: str | None, ssh_password: str | None) -> list[Finding]:
     """SSH banner grab + (optional) config check via SSH."""
     findings: list[Finding] = []
 
@@ -201,24 +243,28 @@ def _check_ssh(svc: DiscoveredService, ssh_target: str | None,
     # even when recv times out or the peer resets — leaked FDs were real
     # across long engagements.
     import socket
+
     banner = ""
     try:
         with socket.create_connection((svc.host, svc.port), timeout=3) as s:
             raw = s.recv(128).decode(errors="replace").splitlines()
             banner = raw[0] if raw else ""
-    except (OSError, socket.timeout) as exc:
-        logger.debug("ssh banner grab failed on %s:%s: %s",
-                     svc.host, svc.port, exc)
+    except (TimeoutError, OSError) as exc:
+        logger.debug("ssh banner grab failed on %s:%s: %s", svc.host, svc.port, exc)
 
     if banner and not ssh_target:
-        findings.append(Finding(
-            cwe="CWE-200", severity="LOW", host=f"{svc.host}:{svc.port}",
-            rule_id="ssh-banner-visible",
-            message="SSH expone banner con versión del servidor.",
-            evidence=banner,
-            remediation="Reducir verbosidad del banner (no suele ser crítico).",
-            severity_rank=_SEV_RANK["LOW"],
-        ))
+        findings.append(
+            Finding(
+                cwe="CWE-200",
+                severity="LOW",
+                host=f"{svc.host}:{svc.port}",
+                rule_id="ssh-banner-visible",
+                message="SSH expone banner con versión del servidor.",
+                evidence=banner,
+                remediation="Reducir verbosidad del banner (no suele ser crítico).",
+                severity_rank=_SEV_RANK["LOW"],
+            )
+        )
 
     if not ssh_target:
         return findings
@@ -231,9 +277,16 @@ def _check_ssh(svc: DiscoveredService, ssh_target: str | None,
         port = str(svc.port)
 
     def _remote(cmd: str) -> str:
-        base = ["ssh", "-o", "StrictHostKeyChecking=no",
-                "-o", "UserKnownHostsFile=/dev/null",
-                "-p", port, f"{user}@{host}"]
+        base = [
+            "ssh",
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "UserKnownHostsFile=/dev/null",
+            "-p",
+            port,
+            f"{user}@{host}",
+        ]
         # Pass password via env (`sshpass -e`) so it never appears in argv
         # / /proc/<pid>/cmdline. Banks regularly audit running processes;
         # `sshpass -p <password>` is a reliable demo killer.
@@ -242,9 +295,7 @@ def _check_ssh(svc: DiscoveredService, ssh_target: str | None,
             env = {**os.environ, "SSHPASS": ssh_password}
             base = ["sshpass", "-e"] + base
         try:
-            r = subprocess.run(base + [cmd], capture_output=True,
-                               text=True, timeout=15, check=False,
-                               env=env)
+            r = subprocess.run(base + [cmd], capture_output=True, text=True, timeout=15, check=False, env=env)
             return r.stdout
         except Exception:
             return ""
@@ -255,67 +306,80 @@ def _check_ssh(svc: DiscoveredService, ssh_target: str | None,
         return findings
 
     if re.search(r"^\s*PermitRootLogin\s+yes", cfg, re.MULTILINE | re.IGNORECASE):
-        findings.append(Finding(
-            cwe="CWE-521", severity="CRITICAL",
-            host=f"{user}@{host}",
-            rule_id="sshd-permit-root-login",
-            message="sshd permite login de root por SSH.",
-            evidence="PermitRootLogin yes",
-            remediation="Desactivar PermitRootLogin en /etc/ssh/sshd_config.",
-            remediation_command=(
-                "sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' "
-                "/etc/ssh/sshd_config && sudo systemctl reload sshd"
-            ),
-            target_host=f"{user}@{host}",
-            severity_rank=_SEV_RANK["CRITICAL"],
-        ))
+        findings.append(
+            Finding(
+                cwe="CWE-521",
+                severity="CRITICAL",
+                host=f"{user}@{host}",
+                rule_id="sshd-permit-root-login",
+                message="sshd permite login de root por SSH.",
+                evidence="PermitRootLogin yes",
+                remediation="Desactivar PermitRootLogin en /etc/ssh/sshd_config.",
+                remediation_command=(
+                    "sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' "
+                    "/etc/ssh/sshd_config && sudo systemctl reload sshd"
+                ),
+                target_host=f"{user}@{host}",
+                severity_rank=_SEV_RANK["CRITICAL"],
+            )
+        )
     if re.search(r"^\s*PasswordAuthentication\s+yes", cfg, re.MULTILINE | re.IGNORECASE):
-        findings.append(Finding(
-            cwe="CWE-521", severity="HIGH",
-            host=f"{user}@{host}",
-            rule_id="sshd-password-auth",
-            message="sshd permite autenticación por contraseña.",
-            evidence="PasswordAuthentication yes",
-            remediation="Requerir autenticación por clave pública.",
-            remediation_command=(
-                "sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' "
-                "/etc/ssh/sshd_config && sudo systemctl reload sshd"
-            ),
-            target_host=f"{user}@{host}",
-            severity_rank=_SEV_RANK["HIGH"],
-        ))
+        findings.append(
+            Finding(
+                cwe="CWE-521",
+                severity="HIGH",
+                host=f"{user}@{host}",
+                rule_id="sshd-password-auth",
+                message="sshd permite autenticación por contraseña.",
+                evidence="PasswordAuthentication yes",
+                remediation="Requerir autenticación por clave pública.",
+                remediation_command=(
+                    "sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' "
+                    "/etc/ssh/sshd_config && sudo systemctl reload sshd"
+                ),
+                target_host=f"{user}@{host}",
+                severity_rank=_SEV_RANK["HIGH"],
+            )
+        )
     m = re.search(r"^\s*MaxAuthTries\s+(\d+)", cfg, re.MULTILINE | re.IGNORECASE)
     if m and int(m.group(1)) > 4:
-        findings.append(Finding(
-            cwe="CWE-307", severity="MEDIUM",
-            host=f"{user}@{host}",
-            rule_id="sshd-max-auth-tries",
-            message=f"MaxAuthTries {m.group(1)} permite fuerza bruta prolongada.",
-            evidence=f"MaxAuthTries {m.group(1)}",
-            remediation="Bajar a 3 y habilitar fail2ban.",
-            remediation_command=(
-                f"sudo sed -i 's/^MaxAuthTries {m.group(1)}/MaxAuthTries 3/' "
-                "/etc/ssh/sshd_config && sudo systemctl reload sshd"
-            ),
-            target_host=f"{user}@{host}",
-            severity_rank=_SEV_RANK["MEDIUM"],
-        ))
+        findings.append(
+            Finding(
+                cwe="CWE-307",
+                severity="MEDIUM",
+                host=f"{user}@{host}",
+                rule_id="sshd-max-auth-tries",
+                message=f"MaxAuthTries {m.group(1)} permite fuerza bruta prolongada.",
+                evidence=f"MaxAuthTries {m.group(1)}",
+                remediation="Bajar a 3 y habilitar fail2ban.",
+                remediation_command=(
+                    f"sudo sed -i 's/^MaxAuthTries {m.group(1)}/MaxAuthTries 3/' "
+                    "/etc/ssh/sshd_config && sudo systemctl reload sshd"
+                ),
+                target_host=f"{user}@{host}",
+                severity_rank=_SEV_RANK["MEDIUM"],
+            )
+        )
     return findings
 
 
 def _check_mysql(svc: DiscoveredService) -> list[Finding]:
     """MySQL-port open + plaintext (no forced TLS detectable remotely)."""
-    return [Finding(
-        cwe="CWE-319", severity="HIGH", host=f"{svc.host}:{svc.port}",
-        rule_id="mysql-exposed",
-        message=f"MySQL accesible en {svc.host}:{svc.port}.",
-        evidence=f"nmap detectó {svc.product or 'mysql'} {svc.version} en tcp/{svc.port}",
-        remediation=(
-            "Habilitar require_secure_transport=ON, restringir "
-            "bind-address a la red interna, exigir TLS en todos los usuarios."
-        ),
-        severity_rank=_SEV_RANK["HIGH"],
-    )]
+    return [
+        Finding(
+            cwe="CWE-319",
+            severity="HIGH",
+            host=f"{svc.host}:{svc.port}",
+            rule_id="mysql-exposed",
+            message=f"MySQL accesible en {svc.host}:{svc.port}.",
+            evidence=f"nmap detectó {svc.product or 'mysql'} {svc.version} en tcp/{svc.port}",
+            remediation=(
+                "Habilitar require_secure_transport=ON, restringir "
+                "bind-address a la red interna, exigir TLS en todos los usuarios."
+            ),
+            severity_rank=_SEV_RANK["HIGH"],
+        )
+    ]
 
 
 # -----------------------------------------------------------------------------
@@ -369,18 +433,13 @@ def _run_compliance(
     )
 
     all_results = run_all(ctx)
-    all_dicts = [
-        r.to_json_reproducible() if hasattr(r, "to_json_reproducible") else r.__dict__
-        for r in all_results
-    ]
+    all_dicts = [r.to_json_reproducible() if hasattr(r, "to_json_reproducible") else r.__dict__ for r in all_results]
 
     # Bucket results by their registered framework. Each Check carries
     # a `frameworks` attribute listing the regulations it maps to.
     check_frameworks: dict[str, set[str]] = {}
     for check in registered_checks():
-        fws = getattr(check, "frameworks", None) or [
-            getattr(check, "framework", "pci_dss")
-        ]
+        fws = getattr(check, "frameworks", None) or [getattr(check, "framework", "pci_dss")]
         check_frameworks[check.control_id] = {fw.lower() for fw in fws}
 
     wanted = {fw.lower() for fw in frameworks}
@@ -396,14 +455,90 @@ def _run_compliance(
     return {fw: lst for fw, lst in out.items() if lst}
 
 
+# Match any fenced JSON block (array or object). The agent may emit:
+#   1. ```json [ ... ]```            → bare array of findings
+#   2. ```json { "findings": [...] }```  → object with findings key + summary
+#   3. raw JSON without fences
+_AGENT_JSON_FENCE_RE = re.compile(
+    r"```(?:json)?\s*([\[{].*?[\]}])\s*```",
+    re.DOTALL,
+)
+
+
+def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
+    """Extract structured findings from the agent's final output.
+
+    The deepening preamble asks the agent for `{"summary": ..., "findings": [...]}`
+    wrapped in a ```json``` fence. We also accept a bare array of findings,
+    and raw JSON without fences. Items missing required fields are skipped
+    rather than failing the whole engagement.
+    """
+    if not text:
+        return []
+    import json
+
+    candidates: list[str] = []
+    for m in _AGENT_JSON_FENCE_RE.finditer(text):
+        candidates.append(m.group(1))
+    # Fallback: bare JSON object/array starting at the first '[' or '{'
+    if not candidates:
+        i = min(
+            (p for p in (text.find("["), text.find("{")) if p >= 0),
+            default=-1,
+        )
+        if i >= 0:
+            candidates.append(text[i:])
+
+    out: list[Finding] = []
+    for raw in candidates:
+        try:
+            parsed = json.loads(raw)
+        except Exception:
+            continue
+        # Normalise: an object with a `findings` array, OR a bare array.
+        if isinstance(parsed, dict):
+            items = parsed.get("findings", [])
+        elif isinstance(parsed, list):
+            items = parsed
+        else:
+            continue
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            sev = str(item.get("severity", "")).upper()
+            if sev not in _SEV_RANK:
+                continue
+            msg = str(item.get("message") or item.get("finding") or "").strip()
+            if not msg:
+                continue
+            out.append(
+                Finding(
+                    cwe=str(item.get("cwe", "CWE-0")),
+                    severity=sev,
+                    host=str(item.get("host", target_host)),
+                    rule_id=str(item.get("rule_id", "agent-finding")),
+                    message=msg,
+                    evidence=str(item.get("evidence", ""))[:800],
+                    remediation=str(item.get("remediation", "")),
+                    severity_rank=_SEV_RANK[sev],
+                )
+            )
+        if out:
+            break
+    return out
+
+
 def _invoke_agent_deepening(
     console, *, target: str, scope: str, findings: list[Finding]
-) -> list[str]:
+) -> tuple[list[str], list[Finding]]:
     """Spin up the unified Kryon agent for one deep-dive turn.
 
-    Returns a list of text observations the agent produced so we can
-    surface them in the report appendix. Failures are non-fatal — the
-    deterministic Phase 2 output is the authoritative surface; the
+    Returns (observations, new_findings). The agent is asked to emit
+    structured JSON findings; we parse the fenced block and convert
+    each item to a Finding. Failures are non-fatal — deterministic
+    Phase 2 + Phase 2b output is the authoritative surface and the
     agent contributes depth, not correctness.
     """
     try:
@@ -411,35 +546,214 @@ def _invoke_agent_deepening(
         from kryon.sdk.agents.run import Runner
     except Exception as exc:  # pragma: no cover — dependency missing
         console.print(f"  [dim]agent deepening skipped: {exc}[/dim]")
-        return []
+        return [], []
 
     os.environ["KRYON_AGENT_TYPE"] = "kryon"
     try:
         agent = get_agent_by_name("kryon", agent_id="ENGAGE")
     except Exception as exc:  # pragma: no cover — runtime only
         console.print(f"  [yellow]agent load failed: {exc}[/yellow]")
-        return []
+        return [], []
 
     preamble = (
         f"Ya se ejecutó un barrido determinista contra {target} (scope: "
         f"{scope}) y hay {len(findings)} hallazgos. Revisa los servicios "
         "abiertos y confirma o extiende la superficie de riesgo. "
-        "Termina con un resumen ejecutivo."
+        "\n\n"
+        "Al terminar tu investigación, DEVUELVE un objeto JSON con dos "
+        "campos: `summary` (string narrativo corto) y `findings` (array "
+        "de nuevos hallazgos NO repetidos de los deterministas). "
+        "Cada finding tiene: cwe, severity (CRITICAL/HIGH/MEDIUM/LOW), "
+        "host, rule_id (snake_case), message (una línea), evidence "
+        "(extracto de salida real), remediation (una frase). "
+        "Envuelve el array de findings dentro de un bloque ```json … ``` "
+        "para que el orquestador pueda parsearlo."
     )
     summary_lines: list[str] = []
+    new_findings: list[Finding] = []
     try:
         import asyncio
 
+        # Max turns is tunable via KRYON_AGENT_MAX_TURNS so that pilots
+        # against real targets (where the agent needs many SSH-based
+        # checks) can extend it without code changes. Default 4 stays
+        # because the engage demo flow expects a quick deepening, not
+        # a full audit replacement.
+        _agent_max = int(os.environ.get("KRYON_AGENT_MAX_TURNS", "4"))
+
         async def _one_shot() -> str:
-            result = await Runner.run(agent, preamble, max_turns=4)
+            result = await Runner.run(agent, preamble, max_turns=_agent_max)
             return getattr(result, "final_output", "") or ""
 
         text = asyncio.run(_one_shot())
         if text:
             summary_lines.append(text.strip())
+            new_findings = _parse_agent_findings(text, target_host=target)
     except Exception as exc:  # pragma: no cover — runtime only
         console.print(f"  [yellow]agent turn failed: {exc}[/yellow]")
-    return summary_lines
+    return summary_lines, new_findings
+
+
+# -----------------------------------------------------------------------------
+# Phase 2b' — device-family deterministic compliance checks
+# -----------------------------------------------------------------------------
+
+# Mapping: family-name → (import path, control_id prefixes, pretty-name).
+# `control_id_prefixes` is a tuple so families with non-uniform numbering
+# (CIS section_*, where control_ids are "2.2.7", "6.3.3", etc) still get
+# filtered cleanly. Adding a new family is one row + an explicit-import
+# `__init__.py` on the corresponding check package.
+_DEVICE_FAMILIES: list[tuple[str, list[str], tuple[str, ...], str]] = [
+    ("proxmox", ["kryon.compliance.checks.proxmox"], ("PVE-",), "Proxmox VE"),
+    ("fortigate", ["kryon.compliance.checks.fortigate"], ("FGT-",), "FortiGate"),
+    (
+        "linux",
+        [
+            "kryon.compliance.checks.section_2",
+            "kryon.compliance.checks.section_6",
+            "kryon.compliance.checks.section_8",
+            "kryon.compliance.checks.section_10",
+        ],
+        ("2.", "6.", "8.", "10."),  # CIS Linux uses numeric dotted ids
+        "Linux CIS",
+    ),
+    ("windows_ad", ["kryon.compliance.checks.active_directory"], ("AD-",), "Windows AD"),
+    # ("unifi", ["kryon.compliance.checks.unifi"], ("UNF-",), "UniFi"),  # ready when tested
+]
+
+
+def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
+    """Heuristic: classify a target into one or more device families based
+    on banners and canonical management ports. Returns a list of family
+    ids (e.g. ['proxmox', 'linux'] — many real targets match more than
+    one because a Proxmox host IS a Linux server too).
+    """
+    families: list[str] = []
+
+    def _add(fam: str) -> None:
+        if fam not in families:
+            families.append(fam)
+
+    has_ssh = False
+    for s in services:
+        product = (s.product or "").lower()
+        # Proxmox VE
+        if "proxmox" in product or s.port in (8006, 3128):
+            _add("proxmox")
+        # FortiGate
+        if "fortigate" in product or "fortinet" in product or "fortios" in product or s.port in (10443, 8443):
+            _add("fortigate")
+        # Windows AD (LDAP 389, LDAPS 636, Kerberos 88, SMB 445, RPC EPM 135)
+        if s.port in (88, 135, 389, 445, 636, 3268, 3269):
+            _add("windows_ad")
+        # Track SSH presence — Linux CIS checks need SSH access. We only
+        # tag the target as 'linux' when SSH is open AND the banner does
+        # NOT scream "FortiOS" / "Cisco IOS" / "PVE" (those have their
+        # own family above; running generic CIS Linux against them
+        # would emit noisy false positives).
+        if s.port == 22 and s.state == "open":
+            has_ssh = True
+
+    if has_ssh:
+        # Only auto-add 'linux' when there's no Forti / Cisco / similar
+        # appliance signature already in the family list. Proxmox IS
+        # Linux underneath so we DO want CIS Linux checks alongside PVE.
+        appliance_families = {"fortigate"}
+        if not any(f in appliance_families for f in families):
+            _add("linux")
+
+    return families
+
+
+def _run_device_compliance(
+    console,
+    *,
+    family: str,
+    host: str,
+    ssh_target: str | None,
+    ssh_key: str | None,
+) -> list[Finding]:
+    """Run the deterministic checks for a specific device family via the
+    compliance runner. Promotes FAIL/ERROR verdicts to engage Findings.
+
+    `family` must be a key in `_DEVICE_FAMILIES`. Silent skip when the
+    package can't be imported (fresh checkout). Phase 2 deterministic +
+    agent dive remain the fallback surfaces.
+    """
+    family_row = next((row for row in _DEVICE_FAMILIES if row[0] == family), None)
+    if family_row is None:
+        console.print(f"  [dim]unknown device family: {family}[/dim]")
+        return []
+    _, import_paths, prefixes, pretty_name = family_row
+
+    try:
+        import importlib
+
+        for path in import_paths:
+            importlib.import_module(path)  # side-effect registers checks
+        from kryon.compliance.checks.base import CheckContext
+        from kryon.compliance.runner import run_all
+    except Exception as exc:
+        console.print(f"  [dim]{pretty_name} compliance skipped: {exc}[/dim]")
+        return []
+
+    ssh_user = "root"
+    ssh_port = 22
+    target_host = host
+    if ssh_target:
+        user, _, host_port = ssh_target.partition("@")
+        ssh_user = user or "root"
+        host_only, _, port = host_port.partition(":")
+        target_host = host_only or host
+        ssh_port = int(port) if port else 22
+
+    # FortiGate audits typically use a dedicated non-root admin (`admin`,
+    # `audit`, etc); accept whatever the operator passed in --ssh.
+    ctx = CheckContext(
+        host=target_host,
+        ssh_user=ssh_user,
+        ssh_key_path=ssh_key or "",
+        ssh_port=ssh_port,
+        transport="ssh",
+    )
+
+    # Filter results to the family's control_id prefixes so we never
+    # bleed other frameworks (e.g. a prior _run_compliance pass) into
+    # engage's findings table. CIS Linux uses numeric dotted ids
+    # ("2.2.7"), so `prefixes` is a tuple.
+    all_results = run_all(ctx)
+    family_results = [r for r in all_results if any(r.control_id.upper().startswith(p.upper()) for p in prefixes)]
+
+    findings: list[Finding] = []
+    for r in family_results:
+        if r.verdict not in ("FAIL", "ERROR"):
+            continue
+        sev = (r.severity or "MEDIUM").upper()
+        if sev not in _SEV_RANK:
+            sev = "MEDIUM"
+        evidence = (r.evidence_stdout or r.evidence_stderr or "")[:600]
+        findings.append(
+            Finding(
+                cwe="CWE-0",  # device-specific checks don't map 1:1 to CWE
+                severity=sev,
+                host=f"{ssh_user}@{target_host}",
+                rule_id=r.control_id,
+                message=r.control_title or r.control_id,
+                evidence=evidence,
+                remediation=(r.remediation_static or "")[:400],
+                target_host=f"{ssh_user}@{target_host}",
+                severity_rank=_SEV_RANK[sev],
+            )
+        )
+    if findings:
+        # `prefixes[0].rstrip('-')` gives us a nice short tag — "PVE",
+        # "FGT", "2.", "AD" — for the operator banner.
+        short_tag = prefixes[0].rstrip("-").rstrip(".")
+        console.print(
+            f"  [green]{pretty_name} compliance:[/green] {len(findings)} FAIL/ERROR "
+            f"(de {len(family_results)} controles {short_tag})"
+        )
+    return findings
 
 
 # -----------------------------------------------------------------------------
@@ -471,9 +785,7 @@ def run_engage(args: argparse.Namespace) -> int:
     scope = args.scope or target
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
-    engagement_id = args.engagement_id or (
-        f"engagement-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M')}"
-    )
+    engagement_id = args.engagement_id or (f"engagement-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M')}")
 
     # Security hygiene: prefer `SSHPASS` env over --ssh-password argv.
     # Passing the password as a CLI argument to `kryon engage` leaves
@@ -497,10 +809,7 @@ def run_engage(args: argparse.Namespace) -> int:
     open_svcs = [s for s in services if s.state == "open"]
     console.print(f"  [green]{len(open_svcs)}[/green] puertos abiertos en {target}")
     for s in open_svcs[:10]:
-        console.print(
-            f"    {s.port:>5}/{s.state}  {s.service} "
-            f"{s.product or ''} {s.version or ''}"
-        )
+        console.print(f"    {s.port:>5}/{s.state}  {s.service} {s.product or ''} {s.version or ''}")
 
     # --- Phase 2: service checks ------------------------------------------
     _banner(console, "Fase 2 — evaluación por servicio")
@@ -510,8 +819,7 @@ def run_engage(args: argparse.Namespace) -> int:
             findings.extend(_check_http(svc))
         if svc.service == "ssh" or svc.port == 22 or svc.port == 2222:
             findings.extend(_check_ssh(svc, args.ssh, args.ssh_password))
-        if svc.service in ("mysql", "postgresql", "mongodb", "redis") \
-                or svc.port in (3306, 33060, 5432, 27017, 6379):
+        if svc.service in ("mysql", "postgresql", "mongodb", "redis") or svc.port in (3306, 33060, 5432, 27017, 6379):
             findings.extend(_check_mysql(svc))
 
     findings.sort(key=lambda f: f.severity_rank)
@@ -519,11 +827,7 @@ def run_engage(args: argparse.Namespace) -> int:
 
     # --- Phase 2b: compliance sweep (F77.A) -------------------------------
     framework_results: dict[str, list[dict]] = {}
-    frameworks = [
-        fw.strip().lower()
-        for fw in (args.framework or "").split(",")
-        if fw.strip()
-    ]
+    frameworks = [fw.strip().lower() for fw in (args.framework or "").split(",") if fw.strip()]
     if frameworks:
         _banner(console, f"Fase 2b — compliance ({', '.join(frameworks)})")
         try:
@@ -536,22 +840,41 @@ def run_engage(args: argparse.Namespace) -> int:
             )
             for fw, results in framework_results.items():
                 fail = sum(1 for r in results if r.get("verdict") == "FAIL")
-                console.print(
-                    f"  [cyan]{fw}[/cyan]: {len(results)} controls, "
-                    f"[red]{fail} FAIL[/red]"
-                )
+                console.print(f"  [cyan]{fw}[/cyan]: {len(results)} controls, [red]{fail} FAIL[/red]")
         except Exception as exc:
             console.print(f"  [red]compliance runner failed:[/red] {exc}")
 
+    # --- Phase 2b' — device-family deterministic compliance --------------
+    # Auto-detect which device family/families the target belongs to and
+    # invoke the matching `c_<fam>_*` compliance checks. Promotes FAIL /
+    # ERROR verdicts to engagement findings. Currently covers Proxmox VE
+    # and FortiGate; adding a family means editing `_DEVICE_FAMILIES` and
+    # making sure its check package `__init__.py` imports its submodules.
+    detected_families = _detect_device_families(services)
+    for fam in detected_families:
+        _banner(console, f"Fase 2b' — {fam} deterministic checks")
+        fam_findings = _run_device_compliance(
+            console,
+            family=fam,
+            host=target,
+            ssh_target=args.ssh,
+            ssh_key=args.ssh_key,
+        )
+        if fam_findings:
+            findings.extend(fam_findings)
+            findings.sort(key=lambda f: (f.severity_rank, f.host, f.rule_id))
+
     # --- Phase 2c: optional agent deepening (F77.A) -----------------------
     agent_observations: list[str] = []
-    if args.use_agent or os.environ.get("KRYON_ENGAGE_AGENT", "").lower() in {
-        "1", "true", "yes"
-    }:
+    if args.use_agent or os.environ.get("KRYON_ENGAGE_AGENT", "").lower() in {"1", "true", "yes"}:
         _banner(console, "Fase 2c — agente Kryon (deep-dive)")
-        agent_observations = _invoke_agent_deepening(
+        agent_observations, agent_findings = _invoke_agent_deepening(
             console, target=target, scope=scope, findings=findings
         )
+        if agent_findings:
+            findings.extend(agent_findings)
+            findings.sort(key=lambda f: (f.severity_rank, f.host, f.rule_id))
+            console.print(f"  [green]agent findings:[/green] +{len(agent_findings)} estructurados desde el LLM")
         if agent_observations:
             console.print(f"  [green]✓[/green] agente produjo {len(agent_observations)} observaciones")
 
@@ -584,12 +907,18 @@ def run_engage(args: argparse.Namespace) -> int:
         ]
         if actions:
             from kryon.repl.ui.approval import (
-                ApprovalRequest, ApprovalResult, ProposedAction, Severity,
+                ApprovalRequest,
+                ApprovalResult,
+                ProposedAction,
+                Severity,
                 ask_approval,
             )
+
             sev_map = {
-                "critical": Severity.DESTRUCTIVE, "high": Severity.MODIFY,
-                "medium": Severity.MODIFY, "low": Severity.READ,
+                "critical": Severity.DESTRUCTIVE,
+                "high": Severity.MODIFY,
+                "medium": Severity.MODIFY,
+                "low": Severity.READ,
                 "info": Severity.READ,
             }
             req = ApprovalRequest(
@@ -597,7 +926,8 @@ def run_engage(args: argparse.Namespace) -> int:
                 subtitle=f"Engagement: {engagement_id}",
                 actions=[
                     ProposedAction(
-                        command=a["command"], purpose=a["purpose"],
+                        command=a["command"],
+                        purpose=a["purpose"],
                         severity=sev_map.get(a["severity"], Severity.MODIFY),
                         reversible=a["reversible"],
                         target_host=a["target_host"],
@@ -614,16 +944,22 @@ def run_engage(args: argparse.Namespace) -> int:
                 verdict = ApprovalResult.YES
                 console.print("[yellow]⚠ KRYON_AUTO_APPROVE — demo mode[/yellow]")
             else:
-                verdict = ask_approval(req, console=console,
-                                       default=ApprovalResult.NO)
+                verdict = ask_approval(req, console=console, default=ApprovalResult.NO)
 
             if verdict == ApprovalResult.YES:
                 for a in actions:
                     user_host, port = _parse_ssh_arg(a["target_host"])
                     user, _, host = user_host.partition("@")
-                    base = ["ssh", "-o", "StrictHostKeyChecking=no",
-                            "-o", "UserKnownHostsFile=/dev/null",
-                            "-p", port, f"{user}@{host}"]
+                    base = [
+                        "ssh",
+                        "-o",
+                        "StrictHostKeyChecking=no",
+                        "-o",
+                        "UserKnownHostsFile=/dev/null",
+                        "-p",
+                        port,
+                        f"{user}@{host}",
+                    ]
                     # SSHPASS env instead of `-p <password>` — argv stays
                     # clean for anyone watching `ps auxf`.
                     env = None
@@ -633,18 +969,18 @@ def run_engage(args: argparse.Namespace) -> int:
                     console.print(f"  [dim]$[/dim] {a['command'][:90]}")
                     try:
                         r = subprocess.run(
-                            base + [a["command"]], capture_output=True,
-                            text=True, timeout=30, check=False,
+                            base + [a["command"]],
+                            capture_output=True,
+                            text=True,
+                            timeout=30,
+                            check=False,
                             env=env,
                         )
                         if r.returncode == 0:
-                            console.print(f"  [green]✓[/green] applied")
+                            console.print("  [green]✓[/green] applied")
                             applied_findings.append(a["purpose"])
                         else:
-                            console.print(
-                                f"  [red]✗[/red] exit {r.returncode}: "
-                                f"{r.stderr[:120]}"
-                            )
+                            console.print(f"  [red]✗[/red] exit {r.returncode}: {r.stderr[:120]}")
                     except Exception as exc:
                         console.print(f"  [red]✗[/red] {exc}")
             else:
@@ -658,8 +994,7 @@ def run_engage(args: argparse.Namespace) -> int:
         xml2 = _run_nmap(target, timeout_s=args.nmap_timeout)
         services2 = _parse_nmap_xml(xml2, target)
         console.print(
-            f"  [dim]re-scan:[/dim] {sum(1 for s in services2 if s.state == 'open')} "
-            "puertos abiertos tras aplicar"
+            f"  [dim]re-scan:[/dim] {sum(1 for s in services2 if s.state == 'open')} puertos abiertos tras aplicar"
         )
 
     # --- Phase 6: report --------------------------------------------------
@@ -704,6 +1039,7 @@ def run_engage(args: argparse.Namespace) -> int:
     # Always emit the demo_report as a secondary deliverable so the
     # deterministic surface is documented even when compliance ran.
     from kryon.reporting.demo_report import render_demo_report
+
     ctx = {
         "client_name": args.client or "",
         "engagement_id": engagement_id,
@@ -713,7 +1049,9 @@ def run_engage(args: argparse.Namespace) -> int:
         "agent_observations": agent_observations,
     }
     demo_paths = render_demo_report(
-        findings_dict, ctx, output_dir=out_dir,
+        findings_dict,
+        ctx,
+        output_dir=out_dir,
         filename_stem=f"kryon-{engagement_id}",
     )
     paths.update(demo_paths)
@@ -736,34 +1074,29 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
     p.add_argument("target", help="host / IP / CIDR to assess")
     p.add_argument("--scope", help="human-readable scope string for the report")
     p.add_argument("--ssh", help="SSH target as user@host[:port]")
-    p.add_argument("--ssh-password",
-                   help=(
-                       "SSH password (passed to sshpass via SSHPASS env, "
-                       "NOT as argv). Prefer --ssh-key for production."
-                   ))
-    p.add_argument("--out", default="./kryon-reports",
-                   help="output directory for the report")
-    p.add_argument("--client", default="",
-                   help="client name for the report header")
-    p.add_argument("--engagement-id", default="",
-                   help="engagement identifier")
-    p.add_argument("--auditor", default="",
-                   help="auditor name (default: SkyVanguard / Kryon)")
-    p.add_argument("--dry-run-only", action="store_true",
-                   help="skip remediation even if --ssh provided")
-    p.add_argument("--auto-approve", action="store_true",
-                   help="skip approval prompt (lab / demo only — NEVER prod)")
-    p.add_argument("--nmap-timeout", type=int, default=600,
-                   help="nmap wall-clock timeout in seconds (default: 600)")
-    p.add_argument("--framework", default="",
-                   help="comma-separated compliance frameworks to audit "
-                        "(e.g. 'pci_dss,bcp_py,swift_csp'). Produces the "
-                        "multi-framework consolidated PDF.")
-    p.add_argument("--use-agent", action="store_true",
-                   help="invoke the unified Kryon agent after Phase 2 to "
-                        "deepen coverage (KRYON_ENGAGE_AGENT env also works)")
-    p.add_argument("--ssh-key", default="",
-                   help="SSH private key path for compliance runner")
-    p.add_argument("--skip-reaudit", action="store_true",
-                   help="skip the post-remediation re-scan (Phase 5)")
+    p.add_argument(
+        "--ssh-password",
+        help=("SSH password (passed to sshpass via SSHPASS env, NOT as argv). Prefer --ssh-key for production."),
+    )
+    p.add_argument("--out", default="./kryon-reports", help="output directory for the report")
+    p.add_argument("--client", default="", help="client name for the report header")
+    p.add_argument("--engagement-id", default="", help="engagement identifier")
+    p.add_argument("--auditor", default="", help="auditor name (default: SkyVanguard / Kryon)")
+    p.add_argument("--dry-run-only", action="store_true", help="skip remediation even if --ssh provided")
+    p.add_argument("--auto-approve", action="store_true", help="skip approval prompt (lab / demo only — NEVER prod)")
+    p.add_argument("--nmap-timeout", type=int, default=600, help="nmap wall-clock timeout in seconds (default: 600)")
+    p.add_argument(
+        "--framework",
+        default="",
+        help="comma-separated compliance frameworks to audit "
+        "(e.g. 'pci_dss,bcp_py,swift_csp'). Produces the "
+        "multi-framework consolidated PDF.",
+    )
+    p.add_argument(
+        "--use-agent",
+        action="store_true",
+        help="invoke the unified Kryon agent after Phase 2 to deepen coverage (KRYON_ENGAGE_AGENT env also works)",
+    )
+    p.add_argument("--ssh-key", default="", help="SSH private key path for compliance runner")
+    p.add_argument("--skip-reaudit", action="store_true", help="skip the post-remediation re-scan (Phase 5)")
     return p

@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from kryon.sdk.agents import function_tool
 
@@ -33,9 +33,9 @@ class BrowserManager:
     """Manages browser instances and contexts for automation tasks"""
 
     _playwright = None
-    _browser: Optional[Browser] = None
-    _context: Optional[BrowserContext] = None
-    _page: Optional[Page] = None
+    _browser: Browser | None = None
+    _context: BrowserContext | None = None
+    _page: Page | None = None
     _network_logs: list[dict] = []
 
     @classmethod

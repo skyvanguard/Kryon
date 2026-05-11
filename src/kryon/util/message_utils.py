@@ -10,6 +10,14 @@ import os
 import re
 from datetime import datetime
 
+
+def _hide_cost() -> bool:
+    """Hide cost counters when running on local Ollama (always $0).
+    Default: hidden. Set `KRYON_HIDE_COST=0` to show them again."""
+    val = os.environ.get("KRYON_HIDE_COST", "1").strip().lower()
+    return val in ("1", "true", "yes", "on")
+
+
 from rich.box import ROUNDED
 from rich.console import Console, Group
 from rich.markdown import Markdown
@@ -651,7 +659,7 @@ def parse_message_tool_call(message, tool_output=None):
                 # Create a panel with just the output
                 tool_panel = Panel(
                     Group(*panel_content),
-                    border_style="blue",
+                    border_style="cyan",
                     box=ROUNDED,
                     padding=(1, 2),
                     title="[bold]Tool Output[/bold]",  # Changed title to indicate this is just output
@@ -854,41 +862,22 @@ def _create_token_display(
         # Use the last recorded total cost
         total_cost_value = COST_TRACKER.last_total_cost
 
-    # Create display text
+    # F77.D / Fase 5: compact footer. One line, dim cyan, semantic context indicator.
+    # Old: "Current: I:N O:N R:N (cost) | Total:... | Session: $X | Context: X% OK"
+    # New: "I:N O:N · ctx X% OK"  (R: only when > 0; cost only when relevant)
     tokens_text = Text(justify="left")
-    tokens_text.append(" ", style="bold")
+    show_cost = not _hide_cost()
 
-    # Current interaction tokens
-    tokens_text.append("Current: ", style="bold")
-    tokens_text.append(f"I:{interaction_input_tokens} ", style="green")
-    tokens_text.append(f"O:{interaction_output_tokens} ", style="red")
-    tokens_text.append(f"R:{interaction_reasoning_tokens} ", style="yellow")
-    tokens_text.append(f"(${current_cost:.4f}) ", style="bold")
+    tokens_text.append(
+        f"I:{interaction_input_tokens} O:{interaction_output_tokens}",
+        style="dim cyan",
+    )
+    if interaction_reasoning_tokens > 0:
+        tokens_text.append(f" R:{interaction_reasoning_tokens}", style="dim cyan")
+    if show_cost and current_cost > 0:
+        tokens_text.append(f" (${current_cost:.4f})", style="dim")
 
-    # Separator
-    tokens_text.append("| ", style="dim")
-
-    # Total tokens for this agent run
-    tokens_text.append("Total: ", style="bold")
-    tokens_text.append(f"I:{total_input_tokens} ", style="green")
-    tokens_text.append(f"O:{total_output_tokens} ", style="red")
-    tokens_text.append(f"R:{total_reasoning_tokens} ", style="yellow")
-    tokens_text.append(f"(${total_cost_value:.4f}) ", style="bold")
-
-    # Separator
-    tokens_text.append("| ", style="dim")
-
-    # Session total across all agents
-    tokens_text.append("Session: ", style="bold magenta")
-    tokens_text.append(f"${COST_TRACKER.session_total_cost:.4f}", style="bold magenta")
-
-    # Context usage
-    tokens_text.append(" | ", style="dim")
     context_pct = interaction_input_tokens / get_model_input_tokens(model_name) * 100
-    tokens_text.append("Context: ", style="bold")
-    tokens_text.append(f"{context_pct:.1f}% ", style="bold")
-
-    # Context indicator (use ASCII-safe characters for Windows compatibility)
     if context_pct < 50:
         indicator = "OK"
         color_local = "green"
@@ -899,7 +888,10 @@ def _create_token_display(
         indicator = "XX"
         color_local = "red"
 
-    tokens_text.append(f"{indicator}", style=color_local)
+    tokens_text.append(" · ", style="dim")
+    tokens_text.append(f"ctx {context_pct:.0f}%", style="dim cyan")
+    tokens_text.append(" ", style="dim")
+    tokens_text.append(indicator, style=color_local)
 
     return tokens_text
 
@@ -1116,43 +1108,40 @@ def cli_print_agent_messages(
         if parsed_message and not is_rich_content:
             text.append(tokens_text)
 
-    # Create the panel content based on whether we have rich content or not
-    if is_rich_content:
-        # For rich content, create a Group with the header, content, and tokens
-        panel_content = []
-        panel_content.append(text)
-
-        # Add spacing between header and content for better readability
-        panel_content.append(Text("\n"))
-
-        # Add the Group with highlighted content
-        panel_content.append(parsed_message)
-
-        # Add token information at the bottom with proper spacing
-        if tokens_text:
-            panel_content.append(Text("\n"))
-            panel_content.append(tokens_text)
-
-        panel = Panel(
-            Group(*panel_content),
-            border_style="red" if agent_name == "Reasoner Agent" else "blue",
-            box=ROUNDED,
-            padding=(1, 1),  # Increased padding for better appearance
-            title="",
-            title_align="left",
-        )
+    # F77.D / Fase 9: agent narrative renders inline (no Panel envelope).
+    # Reasoner Agent kept its red panel because it's a separate sub-flow
+    # whose output the operator wants visually segregated.
+    if agent_name == "Reasoner Agent":
+        if is_rich_content:
+            panel_content = [text, Text("\n"), parsed_message]
+            if tokens_text:
+                panel_content.extend([Text("\n"), tokens_text])
+            panel = Panel(
+                Group(*panel_content),
+                border_style="red",
+                box=ROUNDED,
+                padding=(1, 1),
+                title="",
+                title_align="left",
+            )
+        else:
+            panel = Panel(
+                text,
+                border_style="red",
+                box=ROUNDED,
+                padding=(0, 1),
+                title="",
+                title_align="left",
+            )
+        console.print(panel)
     else:
-        # For regular text content, use the original panel format
-        panel = Panel(
-            text,
-            border_style="red" if agent_name == "Reasoner Agent" else "blue",
-            box=ROUNDED,
-            padding=(0, 1),
-            title="",
-            title_align="left",
-        )
-    # console.print("\n")
-    console.print(panel)
+        if is_rich_content:
+            panel_content = [text, Text("\n"), parsed_message]
+            if tokens_text:
+                panel_content.extend([Text("\n"), tokens_text])
+            console.print(Group(*panel_content))
+        else:
+            console.print(text)
 
     # If there are tool panels, print them after the main message panel
     # But only in non-streaming mode to avoid duplicates

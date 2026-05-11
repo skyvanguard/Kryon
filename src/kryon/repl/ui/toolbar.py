@@ -57,6 +57,58 @@ def get_terminal_width():
         return 80  # Default width
 
 
+def _get_kryon_state_str(compact: bool = False) -> str:
+    """Build the Kryon-specific runtime block for the toolbar.
+
+    Reads from runtime_state (shared with the REPL loop) + the cached
+    helpers in status_line. All look-ups degrade silently to empty
+    strings — toolbar updater must never raise.
+    """
+    try:
+        from kryon.repl.ui.runtime_state import (
+            get_active_skill_names,
+            get_tool_count,
+        )
+        from kryon.repl.ui.status_line import _cached, _count_drafts, _ollama_healthy
+    except Exception:  # pragma: no cover
+        return ""
+
+    parts: list[str] = []
+
+    # Skills / tools — primary accent (cyan in palette B).
+    try:
+        skills = get_active_skill_names()
+        tool_count = get_tool_count()
+        if compact:
+            label = f"◆ {len(skills)}sk/{tool_count}t"
+        else:
+            label = f"<b>◆ Skills:</b> {len(skills)} ({tool_count} tools)"
+        parts.append(f"<ansicyan>{label}</ansicyan>")
+    except Exception:  # pragma: no cover
+        pass
+
+    # Drafts pendientes — secondary accent (magenta).
+    try:
+        n = _cached("drafts", _count_drafts)
+        if n:
+            text_ = f"📝 {n}" if compact else f"<b>📝 Drafts:</b> {n}"
+            parts.append(f"<ansimagenta>{text_}</ansimagenta>")
+    except Exception:  # pragma: no cover
+        pass
+
+    # Ollama health — green ✓ / red ✗.
+    try:
+        healthy = _cached("ollama", _ollama_healthy)
+        if healthy:
+            parts.append("<ansigreen>ollama ✓</ansigreen>")
+        else:
+            parts.append("<ansired>ollama ✗</ansired>")
+    except Exception:  # pragma: no cover
+        pass
+
+    return " | ".join(parts) if parts else ""
+
+
 def update_toolbar_in_background():
     """Update the toolbar cache in a background thread."""
     try:
@@ -185,10 +237,16 @@ def update_toolbar_in_background():
         # Get terminal width to decide on toolbar format
         terminal_width = get_terminal_width()
 
-        # Build toolbar based on terminal width
+        # Cost-related fields ($Limit, $:) are intentionally REMOVED —
+        # Kryon runs on local models (Ollama), so cost tracking is not
+        # relevant. Replaced with cybersec runtime state via
+        # _get_kryon_state_str().
+        kryon_compact = _get_kryon_state_str(compact=True)
+        kryon_full = _get_kryon_state_str(compact=False)
+        kryon_compact_block = f"{kryon_compact} | " if kryon_compact else ""
+        kryon_full_block = f"{kryon_full} | " if kryon_full else ""
+
         if terminal_width < 120:  # Compact mode
-            # Show only the most critical information
-            # Shorten model name for compact view
             model_name = os.getenv("KRYON_MODEL", "default")
             if len(model_name) > 10:
                 model_name = model_name[:9] + "…"
@@ -196,9 +254,9 @@ def update_toolbar_in_background():
             toolbar_cache["html"] = HTML(
                 f"<{active_env_color}>{active_env_icon}</{active_env_color}> "
                 f"<ansigreen>{model_name}</ansigreen> | "
+                f"{kryon_compact_block}"
                 f"<{auto_compact_color}>AC:{auto_compact_str}</{auto_compact_color}> | "
-                f"<{stream_color}>S:{stream_str}</{stream_color}> | "
-                f"<ansiblue>${os.getenv('KRYON_PRICE_LIMIT', 'inf')}</ansiblue>"
+                f"<{stream_color}>S:{stream_str}</{stream_color}>"
                 f"{active_tool_str} | "
                 f"<ansigray>{current_time}</ansigray>"
             )
@@ -206,10 +264,10 @@ def update_toolbar_in_background():
             toolbar_cache["html"] = HTML(
                 f"<{active_env_color}><b>ENV:</b> {active_env_icon} {active_env_name[:15]}</{active_env_color}> | "
                 f"<ansiyellow><b>Model:</b></ansiyellow> <ansigreen>{os.getenv('KRYON_MODEL', 'default')}</ansigreen> | "
+                f"{kryon_full_block}"
                 f"<ansicyan><b>AutoC:</b></ansicyan> <{auto_compact_color}>{auto_compact_str}</{auto_compact_color}> | "
                 f"<ansicyan><b>Mem:</b></ansicyan> <{memory_color}>{memory_str}</{memory_color}> | "
-                f"<ansicyan><b>Stream:</b></ansicyan> <{stream_color}>{stream_str}</{stream_color}> | "
-                f"<ansiyellow><b>$:</b></ansiyellow> <ansiblue>${os.getenv('KRYON_PRICE_LIMIT', 'inf')}</ansiblue>"
+                f"<ansicyan><b>Stream:</b></ansicyan> <{stream_color}>{stream_str}</{stream_color}>"
                 f"{active_tool_str} | "
                 f"<ansigray>{current_time_with_tz}</ansigray>"
             )
@@ -217,13 +275,13 @@ def update_toolbar_in_background():
             toolbar_cache["html"] = HTML(
                 f"<{active_env_color}><b>ENV:</b> {active_env_icon} {active_env_name}</{active_env_color}> | "
                 f"<ansiyellow><b>Model:</b></ansiyellow> <ansigreen>{os.getenv('KRYON_MODEL', 'default')}</ansigreen> | "
+                f"{kryon_full_block}"
                 f"<ansicyan><b>AutoCompact:</b></ansicyan> <{auto_compact_color}>{auto_compact_str}</{auto_compact_color}> | "
                 f"<ansicyan><b>Memory:</b></ansicyan> <{memory_color}>{memory_str}</{memory_color}> | "
                 f"<ansicyan><b>Stream:</b></ansicyan> <{stream_color}>{stream_str}</{stream_color}> | "
                 f"<ansicyan><b>Parallel:</b></ansicyan> <{parallel_color}>{parallel_count}</{parallel_color}> | "
                 f"<ansicyan><b>Trace:</b></ansicyan> <{trace_color}>{trace_str}</{trace_color}> | "
-                f"<ansiyellow><b>Turns:</b></ansiyellow> <ansiblue>{os.getenv('KRYON_MAX_TURNS', 'inf')}</ansiblue> | "
-                f"<ansiyellow><b>$Limit:</b></ansiyellow> <ansiblue>${os.getenv('KRYON_PRICE_LIMIT', 'inf')}</ansiblue>"
+                f"<ansiyellow><b>Turns:</b></ansiyellow> <ansiblue>{os.getenv('KRYON_MAX_TURNS', 'inf')}</ansiblue>"
                 f"{active_tool_str} | "
                 f"<ansigray>{current_time_with_tz}</ansigray>"
             )

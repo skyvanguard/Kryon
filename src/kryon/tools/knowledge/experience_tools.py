@@ -8,7 +8,7 @@ against similar targets before.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from kryon.sdk.agents import function_tool
 
@@ -16,8 +16,8 @@ from kryon.sdk.agents import function_tool
 @function_tool
 def recall_similar_experiences(
     host_or_profile: str,
-    ports_csv: Optional[str] = None,
-    tech_csv: Optional[str] = None,
+    ports_csv: str | None = None,
+    tech_csv: str | None = None,
     k: int = 3,
 ) -> dict[str, Any]:
     """Recall attack chains from prior engagements against similar targets.

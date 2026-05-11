@@ -23,15 +23,9 @@ def evaluate(pw: PassWhen, *, stdout: str, stderr: str, exit_code: int) -> bool:
     ``True``; callers that want a default-fail can wrap in ``not_``.
     """
     if pw.all_of is not None:
-        return all(
-            evaluate(sub, stdout=stdout, stderr=stderr, exit_code=exit_code)
-            for sub in pw.all_of
-        )
+        return all(evaluate(sub, stdout=stdout, stderr=stderr, exit_code=exit_code) for sub in pw.all_of)
     if pw.any_of is not None:
-        return any(
-            evaluate(sub, stdout=stdout, stderr=stderr, exit_code=exit_code)
-            for sub in pw.any_of
-        )
+        return any(evaluate(sub, stdout=stdout, stderr=stderr, exit_code=exit_code) for sub in pw.any_of)
     if pw.not_ is not None:
         return not evaluate(pw.not_, stdout=stdout, stderr=stderr, exit_code=exit_code)
 
@@ -62,8 +56,6 @@ def evaluate(pw: PassWhen, *, stdout: str, stderr: str, exit_code: int) -> bool:
     if not decided:
         # An empty PassWhen with no combinators and no leaves is a
         # framework authoring bug — refuse rather than silently pass.
-        raise PassWhenError(
-            "pass_when must set at least one predicate or combinator"
-        )
+        raise PassWhenError("pass_when must set at least one predicate or combinator")
 
     return result

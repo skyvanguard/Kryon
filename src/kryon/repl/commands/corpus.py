@@ -14,9 +14,7 @@ Lets you sanity-check retrieval quality WITHOUT launching a full /hunt.
 
 from __future__ import annotations
 
-import os
 from collections import Counter
-from typing import Optional
 
 from rich.console import Console
 from rich.table import Table
@@ -29,6 +27,7 @@ console = Console()
 def _get_collection():
     """Lazy import so REPL startup isn't affected."""
     from kryon.knowledge import cve_corpus
+
     return cve_corpus._get_collection(), cve_corpus
 
 
@@ -49,7 +48,7 @@ class CorpusCommand(Command):
 
     # ------------------------------------------------------------------
 
-    def handle_stats(self, args: Optional[list[str]] = None) -> bool:
+    def handle_stats(self, args: list[str] | None = None) -> bool:
         try:
             coll, cvc = _get_collection()
         except Exception as e:
@@ -116,9 +115,9 @@ class CorpusCommand(Command):
 
     # ------------------------------------------------------------------
 
-    def handle_query(self, args: Optional[list[str]] = None) -> bool:
+    def handle_query(self, args: list[str] | None = None) -> bool:
         if not args:
-            console.print("[yellow]usage: /corpus query \"<code snippet or CWE keyword>\"[/yellow]")
+            console.print('[yellow]usage: /corpus query "<code snippet or CWE keyword>"[/yellow]')
             return False
 
         # Re-join args (they may have been space-split) and strip surrounding quotes
@@ -160,7 +159,7 @@ class CorpusCommand(Command):
 
     # ------------------------------------------------------------------
 
-    def handle_show(self, args: Optional[list[str]] = None) -> bool:
+    def handle_show(self, args: list[str] | None = None) -> bool:
         if not args:
             console.print("[yellow]usage: /corpus show <GHSA-xxxx-... | CVE-YYYY-NNNN>[/yellow]")
             return False
@@ -187,8 +186,7 @@ class CorpusCommand(Command):
             return False
 
         meta = metas[found_idx]
-        console.print(f"\n[bold cyan]{meta.get('ghsa_id', '')}[/bold cyan] "
-                      f"{meta.get('cve_id', '')}")
+        console.print(f"\n[bold cyan]{meta.get('ghsa_id', '')}[/bold cyan] {meta.get('cve_id', '')}")
         for k, v in meta.items():
             console.print(f"  [dim]{k}:[/dim] {v}")
         console.print("\n[bold]Pattern:[/bold]")
@@ -199,7 +197,7 @@ class CorpusCommand(Command):
 
     # ------------------------------------------------------------------
 
-    def handle_cwe(self, args: Optional[list[str]] = None) -> bool:
+    def handle_cwe(self, args: list[str] | None = None) -> bool:
         try:
             coll, _ = _get_collection()
         except Exception as e:
@@ -221,11 +219,11 @@ class CorpusCommand(Command):
         t.add_column("%", justify="right")
         total = sum(counter.values()) or 1
         for cwe, n in counter.most_common():
-            t.add_row(cwe, str(n), f"{n/total*100:.1f}")
+            t.add_row(cwe, str(n), f"{n / total * 100:.1f}")
         console.print(t)
         return True
 
-    def handle_repos(self, args: Optional[list[str]] = None) -> bool:
+    def handle_repos(self, args: list[str] | None = None) -> bool:
         try:
             coll, _ = _get_collection()
         except Exception as e:

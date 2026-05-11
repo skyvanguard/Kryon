@@ -916,7 +916,7 @@ def main() -> None:
     print("by category:")
     for cat, n in sorted(report.get("by_category", {}).items(), key=lambda x: -x[1]):
         print(f"  {cat:<35} {n}")
-    print(f"by difficulty:")
+    print("by difficulty:")
     for d in sorted(report.get("by_difficulty", {}).keys()):
         print(f"  {d} {'*' * d:<6}  {report['by_difficulty'][d]}")
     print(f"saved: {args.out}")

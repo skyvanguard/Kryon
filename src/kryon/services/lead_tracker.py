@@ -45,39 +45,66 @@ class Lead:
 
 # Interesting path names (when 403'd they're high-signal leads)
 _INTERESTING_PATHS = {
-    "admin", "administrator", "wp-admin", "manager", "console",
-    "api", "graphql", "rest", "swagger", "api-docs",
-    "uploads", "files", "upload", "media", "attachments",
-    "config", "configuration", "settings", ".env", "env",
-    "backup", "bak", "old", "dump", "sql",
-    ".git", ".svn", ".hg", ".DS_Store",
-    "private", "internal", "debug", "dev",
-    "phpmyadmin", "pma", "adminer",
-    "error_log", "errors.log", "access.log", "debug.log",
-    "test", "staging", "beta",
-    ".htaccess", ".htpasswd", "robots.txt",
+    "admin",
+    "administrator",
+    "wp-admin",
+    "manager",
+    "console",
+    "api",
+    "graphql",
+    "rest",
+    "swagger",
+    "api-docs",
+    "uploads",
+    "files",
+    "upload",
+    "media",
+    "attachments",
+    "config",
+    "configuration",
+    "settings",
+    ".env",
+    "env",
+    "backup",
+    "bak",
+    "old",
+    "dump",
+    "sql",
+    ".git",
+    ".svn",
+    ".hg",
+    ".DS_Store",
+    "private",
+    "internal",
+    "debug",
+    "dev",
+    "phpmyadmin",
+    "pma",
+    "adminer",
+    "error_log",
+    "errors.log",
+    "access.log",
+    "debug.log",
+    "test",
+    "staging",
+    "beta",
+    ".htaccess",
+    ".htpasswd",
+    "robots.txt",
 }
 
 # HTTP status code from curl -I / -v output
-_HTTP_STATUS_RE = re.compile(
-    r"HTTP/\d\.?\d?\s+(\d{3})\s*(.*?)(?:\r?\n|$)", re.I
-)
+_HTTP_STATUS_RE = re.compile(r"HTTP/\d\.?\d?\s+(\d{3})\s*(.*?)(?:\r?\n|$)", re.I)
 # Full URL + code patterns (e.g. "/admin => 403", "GET /foo 301")
-_PATH_CODE_RE = re.compile(
-    r"(?:GET\s+)?([/\w.\-]+?)\s*(?:=>|\-\-?>|\s+)\s*(200|201|301|302|307|401|403|500|502)\b"
-)
+_PATH_CODE_RE = re.compile(r"(?:GET\s+)?([/\w.\-]+?)\s*(?:=>|\-\-?>|\s+)\s*(200|201|301|302|307|401|403|500|502)\b")
 # Location header (redirect targets)
 _LOCATION_RE = re.compile(r"^Location:\s*(\S+)", re.I | re.M)
 # Server banner
 _SERVER_RE = re.compile(r"^Server:\s*(.+?)\r?$", re.I | re.M)
 _X_POWERED_BY_RE = re.compile(r"^X-Powered-By:\s*(.+?)\r?$", re.I | re.M)
 # Gobuster / dirb / feroxbuster line format: "/path (Status: 403)" or "200 /path"
-_GOBUSTER_LINE_RE = re.compile(
-    r"^(?:/?\S+?)\s+\(Status:\s*(\d{3})\)", re.M
-)
-_GOBUSTER_PATH_RE = re.compile(
-    r"(/\S+?)\s+\(Status:\s*(\d{3})\)", re.M
-)
+_GOBUSTER_LINE_RE = re.compile(r"^(?:/?\S+?)\s+\(Status:\s*(\d{3})\)", re.M)
+_GOBUSTER_PATH_RE = re.compile(r"(/\S+?)\s+\(Status:\s*(\d{3})\)", re.M)
 # Error / stack trace leaks
 _ERROR_LEAK_RE = re.compile(
     r"(Fatal error|Warning:|Notice:|Traceback|Exception in|PHP Warning|at line \d+)",
@@ -188,7 +215,7 @@ class LeadTracker:
             if msg.get("role") != "assistant":
                 continue
             for tc in msg.get("tool_calls") or []:
-                args = ((tc.get("function") or {}).get("arguments") or "")
+                args = (tc.get("function") or {}).get("arguments") or ""
                 if isinstance(args, str):
                     # pull URLs and path fragments
                     for m in re.finditer(r"(?:https?://[^\s\"']+|/[A-Za-z0-9._\-/]+)", args):
@@ -218,53 +245,63 @@ class LeadTracker:
         # 3. Location header (redirect target always worth following)
         for m in _LOCATION_RE.finditer(content):
             target = m.group(1).strip()
-            leads.append(Lead(
-                kind="redirect",
-                target=target,
-                hint="follow redirect with curl -L or GET the destination",
-                source_tool=source_tool,
-            ))
+            leads.append(
+                Lead(
+                    kind="redirect",
+                    target=target,
+                    hint="follow redirect with curl -L or GET the destination",
+                    source_tool=source_tool,
+                )
+            )
 
         # 4. Server / X-Powered-By banners (version fingerprint → CVE lookup)
         for m in _SERVER_RE.finditer(content):
             banner = m.group(1).strip()
             if self._banner_has_version(banner):
-                leads.append(Lead(
-                    kind="banner",
-                    target=banner,
-                    hint="searchsploit / nuclei this version for known CVEs",
-                    source_tool=source_tool,
-                ))
+                leads.append(
+                    Lead(
+                        kind="banner",
+                        target=banner,
+                        hint="searchsploit / nuclei this version for known CVEs",
+                        source_tool=source_tool,
+                    )
+                )
         for m in _X_POWERED_BY_RE.finditer(content):
             banner = m.group(1).strip()
             if self._banner_has_version(banner):
-                leads.append(Lead(
-                    kind="banner",
-                    target=banner,
-                    hint="check known vulns for this stack version",
-                    source_tool=source_tool,
-                ))
+                leads.append(
+                    Lead(
+                        kind="banner",
+                        target=banner,
+                        hint="check known vulns for this stack version",
+                        source_tool=source_tool,
+                    )
+                )
 
         # 5. Hidden file extensions found
         for m in _HIDDEN_EXT_RE.finditer(content):
             path = "/" + m.group(1)
-            leads.append(Lead(
-                kind="hidden_file",
-                target=path,
-                hint="download with curl; inspect for secrets/backup",
-                source_tool=source_tool,
-            ))
+            leads.append(
+                Lead(
+                    kind="hidden_file",
+                    target=path,
+                    hint="download with curl; inspect for secrets/backup",
+                    source_tool=source_tool,
+                )
+            )
 
         # 6. Error / stack trace leak
         if _ERROR_LEAK_RE.search(content):
             # Capture a short snippet to help the model know what to probe
             snippet = _ERROR_LEAK_RE.search(content).group(0)
-            leads.append(Lead(
-                kind="error_leak",
-                target=snippet[:60],
-                hint="induce more errors (bad input) to map backend stack",
-                source_tool=source_tool,
-            ))
+            leads.append(
+                Lead(
+                    kind="error_leak",
+                    target=snippet[:60],
+                    hint="induce more errors (bad input) to map backend stack",
+                    source_tool=source_tool,
+                )
+            )
 
         return leads
 
@@ -273,45 +310,53 @@ class LeadTracker:
         """Turn a (path, status_code) into 0-1 leads depending on significance."""
         # Strip query string for name match
         name = path.rstrip("/").split("/")[-1].lower()
-        is_interesting = name in _INTERESTING_PATHS or any(
-            p in path.lower() for p in _INTERESTING_PATHS
-        )
+        is_interesting = name in _INTERESTING_PATHS or any(p in path.lower() for p in _INTERESTING_PATHS)
 
         if code == 403 and is_interesting:
-            return [Lead(
-                kind="forbidden_path",
-                target=path,
-                hint="file exists — try path traversal, verb tampering, auth bypass",
-                source_tool=source_tool,
-            )]
+            return [
+                Lead(
+                    kind="forbidden_path",
+                    target=path,
+                    hint="file exists — try path traversal, verb tampering, auth bypass",
+                    source_tool=source_tool,
+                )
+            ]
         if code in (301, 302, 307):
-            return [Lead(
-                kind="redirect",
-                target=path,
-                hint="follow redirect; check if auth wall or leaks location",
-                source_tool=source_tool,
-            )]
+            return [
+                Lead(
+                    kind="redirect",
+                    target=path,
+                    hint="follow redirect; check if auth wall or leaks location",
+                    source_tool=source_tool,
+                )
+            ]
         if code == 401:
-            return [Lead(
-                kind="auth_wall",
-                target=path,
-                hint="try default creds, auth bypass, or look for registration",
-                source_tool=source_tool,
-            )]
+            return [
+                Lead(
+                    kind="auth_wall",
+                    target=path,
+                    hint="try default creds, auth bypass, or look for registration",
+                    source_tool=source_tool,
+                )
+            ]
         if code == 500 or code == 502:
-            return [Lead(
-                kind="error_leak",
-                target=path,
-                hint="server crash — try fuzzing this endpoint for more info",
-                source_tool=source_tool,
-            )]
+            return [
+                Lead(
+                    kind="error_leak",
+                    target=path,
+                    hint="server crash — try fuzzing this endpoint for more info",
+                    source_tool=source_tool,
+                )
+            ]
         if code == 200 and is_interesting:
-            return [Lead(
-                kind="accessible_sensitive",
-                target=path,
-                hint="sensitive path is 200 — curl and inspect content",
-                source_tool=source_tool,
-            )]
+            return [
+                Lead(
+                    kind="accessible_sensitive",
+                    target=path,
+                    hint="sensitive path is 200 — curl and inspect content",
+                    source_tool=source_tool,
+                )
+            ]
         return []
 
     @staticmethod

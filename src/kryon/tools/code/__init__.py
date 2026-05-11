@@ -22,10 +22,10 @@ from .git_tools import (
     git_diff_fix,
     git_log_security,
 )
+from .joern_tool import joern_scan
 from .priority import code_priority_score
 from .reader import find_callers, list_functions, read_function
 from .sandbox import run_sandboxed
-from .joern_tool import joern_scan
 from .semgrep_tool import semgrep_scan
 
 __all__ = [

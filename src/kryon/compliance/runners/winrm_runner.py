@@ -112,9 +112,7 @@ def run_winrm_cmd(
         "transport": transport,
         "operation_timeout_sec": max(5, timeout_s),
         "read_timeout_sec": max(10, timeout_s + 5),
-        "server_cert_validation": (
-            "validate" if scheme == "https" else "ignore"
-        ),
+        "server_cert_validation": ("validate" if scheme == "https" else "ignore"),
     }
 
     cmd_str = _format_cmd(cmd)

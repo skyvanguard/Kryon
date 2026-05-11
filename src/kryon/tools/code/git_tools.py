@@ -23,10 +23,18 @@ _SOURCES_ROOT = Path(os.environ.get("KRYON_SOURCES_ROOT", "/workspace/sources"))
 
 # Map extension -> language name (used by code_priority_score and read_function)
 _LANG_BY_EXT = {
-    ".c": "c", ".h": "c",
-    ".cc": "cpp", ".cpp": "cpp", ".cxx": "cpp", ".hpp": "cpp", ".hh": "cpp",
+    ".c": "c",
+    ".h": "c",
+    ".cc": "cpp",
+    ".cpp": "cpp",
+    ".cxx": "cpp",
+    ".hpp": "cpp",
+    ".hh": "cpp",
     ".py": "python",
-    ".js": "javascript", ".mjs": "javascript", ".ts": "typescript", ".tsx": "typescript",
+    ".js": "javascript",
+    ".mjs": "javascript",
+    ".ts": "typescript",
+    ".tsx": "typescript",
     ".go": "go",
     ".rs": "rust",
     ".java": "java",
@@ -123,8 +131,19 @@ def _git_clone_and_index_impl(
     files_total = 0
     loc_total = 0
     # Skip typical vendored/third-party dirs
-    skip_dirs = {".git", "node_modules", "vendor", "third_party", "external",
-                 "__pycache__", ".venv", "venv", "build", "dist", "target"}
+    skip_dirs = {
+        ".git",
+        "node_modules",
+        "vendor",
+        "third_party",
+        "external",
+        "__pycache__",
+        ".venv",
+        "venv",
+        "build",
+        "dist",
+        "target",
+    }
 
     for root, dirs, files in os.walk(target):
         dirs[:] = [d for d in dirs if d not in skip_dirs]
@@ -197,20 +216,25 @@ def _git_log_security_impl(
         if not m:
             continue
         # Cheap file count (numstat would be slower)
-        hits.append({
-            "sha": sha,
-            "date": date,
-            "subject": subject[:200],
-            "pattern": m.group(0),
-        })
+        hits.append(
+            {
+                "sha": sha,
+                "date": date,
+                "subject": subject[:200],
+                "pattern": m.group(0),
+            }
+        )
         if len(hits) >= max_commits:
             break
 
-    return json.dumps({
-        "repo_path": str(rp),
-        "total_matches": len(hits),
-        "hits": hits,
-    }, indent=2)
+    return json.dumps(
+        {
+            "repo_path": str(rp),
+            "total_matches": len(hits),
+            "hits": hits,
+        },
+        indent=2,
+    )
 
 
 def _git_diff_fix_impl(
@@ -224,9 +248,7 @@ def _git_diff_fix_impl(
         return json.dumps({"error": f"not a git repo: {repo_path}"})
 
     # Subject line
-    _, subject, _ = _run(
-        ["git", "log", "-1", "--format=%s", commit], cwd=rp
-    )
+    _, subject, _ = _run(["git", "log", "-1", "--format=%s", commit], cwd=rp)
     subject = subject.strip()
 
     # Full diff vs parent
@@ -269,18 +291,22 @@ def _git_diff_fix_impl(
                     current_file[bucket].append(fname)
 
     flush()
-    return json.dumps({
-        "sha": commit,
-        "subject": subject,
-        "repo_path": str(rp),
-        "files": files[:15],  # cap number of files
-    }, indent=2)
+    return json.dumps(
+        {
+            "sha": commit,
+            "subject": subject,
+            "repo_path": str(rp),
+            "files": files[:15],  # cap number of files
+        },
+        indent=2,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Public tool wrappers — thin shims over the _impl functions so the
 # function_tool decorator doesn't obscure testability.
 # ---------------------------------------------------------------------------
+
 
 @function_tool(strict_mode=False)
 def git_clone_and_index(

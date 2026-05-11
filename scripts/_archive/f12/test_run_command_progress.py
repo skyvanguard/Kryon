@@ -8,13 +8,10 @@ Validates:
 from __future__ import annotations
 
 import asyncio
+import json as _json
 import os
-import sys
 
 from kryon.tools.reconnaissance import run_command as rc_mod
-
-
-import json as _json
 
 
 async def _call(cmd: str) -> str:

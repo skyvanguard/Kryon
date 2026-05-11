@@ -49,7 +49,6 @@ import asyncio
 import json
 import os
 import random
-import sys
 import time
 from pathlib import Path
 
@@ -110,7 +109,10 @@ async def scan_one(runner_type: str, file_path: Path, cwe: int) -> dict:
     `joern-solo` = only JoernHunter — measures marginal contribution.
     """
     from kryon.skills.planner_hunter import (
-        HeuristicHunter, SemgrepHunter, HybridHunter, _reset_hybrid_budget,
+        HeuristicHunter,
+        HybridHunter,
+        SemgrepHunter,
+        _reset_hybrid_budget,
     )
     from kryon.skills.supervisor_tools import HunterJob
 
@@ -656,7 +658,7 @@ async def main():
     runners = [r.strip() for r in args.runners.split(",") if r.strip()]
 
     print("=" * 72)
-    print(f"F5.3 Juliet benchmark")
+    print("F5.3 Juliet benchmark")
     print(f"  CWEs:    {cwes}")
     print(f"  Samples: {args.samples_per_cwe} per CWE")
     print(f"  Runners: {runners}")

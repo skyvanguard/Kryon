@@ -14,12 +14,14 @@ import re
 import time
 from datetime import datetime, timedelta, timezone
 
-from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.checks.active_directory._helpers import (
-    ad_env, check_tool, missing_creds_error, tool_missing_error,
+    ad_env,
+    check_tool,
+    missing_creds_error,
+    tool_missing_error,
 )
+from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
-
 
 # Windows FILETIME epoch (1601-01-01) to Unix conversion constants
 WIN_EPOCH = datetime(1601, 1, 1, tzinfo=timezone.utc)
@@ -45,15 +47,26 @@ class _KrbtgtRotationCheck:
 
         if not (domain and user and pwd and dc):
             return missing_creds_error(
-                self.control_id, self.control_title, self.section,
-                self.severity, self.remediation_static, ctx.host, t0,
+                self.control_id,
+                self.control_title,
+                self.section,
+                self.severity,
+                self.remediation_static,
+                ctx.host,
+                t0,
             )
 
         if not check_tool(ctx, "ldapsearch"):
             return tool_missing_error(
-                self.control_id, self.control_title, self.section,
-                self.severity, self.remediation_static, ctx.host, t0,
-                tool="ldapsearch", install_hint="apt install ldap-utils",
+                self.control_id,
+                self.control_title,
+                self.section,
+                self.severity,
+                self.remediation_static,
+                ctx.host,
+                t0,
+                tool="ldapsearch",
+                install_hint="apt install ldap-utils",
             )
 
         base_dn = ",".join(f"DC={p}" for p in domain.split("."))
@@ -77,8 +90,7 @@ class _KrbtgtRotationCheck:
                 evidence_command=cmd.replace(pwd, "***"),
                 evidence_stdout=out[:1024],
                 evidence_stderr=err[:512],
-                evidence_parsed={"reason": "krbtgt pwdLastSet not returned",
-                                 "rc": rc},
+                evidence_parsed={"reason": "krbtgt pwdLastSet not returned", "rc": rc},
                 remediation_static=self.remediation_static,
                 severity=self.severity,
                 duration_ms=int((time.time() - t0) * 1000),

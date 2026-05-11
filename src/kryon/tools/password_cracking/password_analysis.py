@@ -20,7 +20,7 @@ import re
 import string
 from collections import Counter
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 
 def analyze_password_policy(passwords: list[str]) -> dict[str, Any]:
@@ -673,9 +673,9 @@ def assess_password_strength(password: str) -> dict[str, Any]:
 def compare_wordlists(
     wordlist1: str,
     wordlist2: str,
-    output_unique1: Optional[str] = None,
-    output_unique2: Optional[str] = None,
-    output_common: Optional[str] = None,
+    output_unique1: str | None = None,
+    output_unique2: str | None = None,
+    output_common: str | None = None,
 ) -> dict[str, Any]:
     """
     Compare two wordlists and find unique/common words.

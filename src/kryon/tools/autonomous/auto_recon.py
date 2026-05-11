@@ -20,7 +20,7 @@ import re
 import shlex
 import subprocess
 import time
-from typing import Any, Optional
+from typing import Any
 
 
 def full_auto_enumeration(target_ip: str, deep_scan: bool = False, timeout: int = 1800) -> dict[str, Any]:
@@ -272,7 +272,7 @@ def _detect_services(target_ip: str, ports: list[dict]) -> dict[str, Any]:
     return {"services": services}
 
 
-def _grab_banner(target_ip: str, port: int, service: str) -> Optional[str]:
+def _grab_banner(target_ip: str, port: int, service: str) -> str | None:
     """Attempt to grab service banner."""
     import socket
 

@@ -6,7 +6,7 @@ Utilities for manipulating file timestamps to evade forensic analysis.
 
 import os
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from kryon.sdk.agents import RunContextWrapper, function_tool
 
@@ -15,8 +15,8 @@ from kryon.sdk.agents import RunContextWrapper, function_tool
 async def stomp_file_timestamps(
     ctx: RunContextWrapper,
     file_path: str,
-    access_time: Optional[str] = None,
-    modify_time: Optional[str] = None,
+    access_time: str | None = None,
+    modify_time: str | None = None,
 ) -> str:
     """
     Modify file timestamps to specified values.
