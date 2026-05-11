@@ -1370,8 +1370,7 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
     p.add_argument(
         "--brand-color",
         default="",
-        help='accent color hex for the report cover, e.g. "#0070d2". '
-        "Empty keeps the Kryon default blue.",
+        help='accent color hex for the report cover, e.g. "#0070d2". Empty keeps the Kryon default blue.',
     )
     p.add_argument(
         "--classification",

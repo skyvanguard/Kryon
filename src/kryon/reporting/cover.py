@@ -75,10 +75,10 @@ def _normalise_classification(value: str) -> str:
 def _classification_color(classification: str) -> str:
     """Bank-standard color coding for the classification banner."""
     return {
-        "PUBLIC": "#2e7d32",       # green
-        "INTERNAL": "#1565c0",     # blue
-        "CONFIDENTIAL": "#ef6c00", # orange
-        "RESTRICTED": "#c62828",   # red
+        "PUBLIC": "#2e7d32",  # green
+        "INTERNAL": "#1565c0",  # blue
+        "CONFIDENTIAL": "#ef6c00",  # orange
+        "RESTRICTED": "#c62828",  # red
     }.get(classification, "#1565c0")
 
 
@@ -109,15 +109,11 @@ def render_cover_page(
     accent = accent_color or "#0070d2"
 
     client_logo_html = (
-        f'<img src="{client_logo_src}" alt="{client_name or "client"}" '
-        f'class="kr-cover-client-logo">'
-    ) if client_logo_src else (
-        f'<div class="kr-cover-client-placeholder">{client_name or "Cliente"}</div>'
+        (f'<img src="{client_logo_src}" alt="{client_name or "client"}" class="kr-cover-client-logo">')
+        if client_logo_src
+        else (f'<div class="kr-cover-client-placeholder">{client_name or "Cliente"}</div>')
     )
-    kryon_logo_html = (
-        f'<img src="{kryon_logo_uri}" alt="Kryon" class="kr-cover-kryon-logo">'
-        if kryon_logo_uri else ""
-    )
+    kryon_logo_html = f'<img src="{kryon_logo_uri}" alt="Kryon" class="kr-cover-kryon-logo">' if kryon_logo_uri else ""
 
     return f"""<style>
 @page {{
@@ -240,7 +236,7 @@ def render_signature_block(
     hash_row = ""
     if reproducibility_hash:
         hash_row = (
-            f'<div><strong>Hash de reproducibilidad</strong>'
+            f"<div><strong>Hash de reproducibilidad</strong>"
             f'<code class="kr-sig-hash">{reproducibility_hash}</code></div>'
         )
 

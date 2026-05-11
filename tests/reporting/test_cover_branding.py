@@ -37,10 +37,7 @@ def test_normalise_classification_falls_back_for_unknown():
 def test_classification_color_distinct_per_level():
     """The 4 classifications each have a distinct color so a bank
     reviewer eyeballing the banner can tell them apart."""
-    colors = {
-        _classification_color(c)
-        for c in ("PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED")
-    }
+    colors = {_classification_color(c) for c in ("PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED")}
     assert len(colors) == 4
 
 
