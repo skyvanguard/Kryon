@@ -683,8 +683,7 @@ _PHASE_PREAMBLES: dict[str, str] = {
 }
 
 
-def _phase_preamble(phase_name: str, *, target: str, scope: str,
-                    families: list[str], findings: list[Finding]) -> str:
+def _phase_preamble(phase_name: str, *, target: str, scope: str, families: list[str], findings: list[Finding]) -> str:
     """Render the per-phase LLM preamble. Falls back to a generic
     template if the phase is unknown (e.g., custom phases injected by
     extended adapt_plan rules)."""
@@ -694,9 +693,7 @@ def _phase_preamble(phase_name: str, *, target: str, scope: str,
         "{findings_count}. Investigate and emit structured JSON "
         "findings if you discover anything new.",
     )
-    findings_summary = "; ".join(
-        f"{f.rule_id} ({f.severity})" for f in findings[:5]
-    ) or "none yet"
+    findings_summary = "; ".join(f"{f.rule_id} ({f.severity})" for f in findings[:5]) or "none yet"
     return template.format(
         phase=phase_name,
         target=target,
@@ -758,10 +755,7 @@ def _invoke_orchestrated_engagement(
     plan = planner.adapt_plan_for_families(plan, families)
     plan = planner.adapt_plan(plan, findings)
 
-    console.print(
-        f"  [dim]plan: {len(plan.phases)} phases "
-        f"({', '.join(p.name for p in plan.phases)})[/dim]"
-    )
+    console.print(f"  [dim]plan: {len(plan.phases)} phases ({', '.join(p.name for p in plan.phases)})[/dim]")
 
     summary_lines: list[str] = []
     new_findings: list[Finding] = []
@@ -1341,10 +1335,10 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
         "--orchestrated",
         action="store_true",
         help="F85.F — invoke PentestPlanner multi-phase orchestration instead of "
-             "a single-shot LLM dive. Each detected device family gets a "
-             "dedicated audit phase (proxmox/fortigate/unifi/AD); plan adapts "
-             "between phases based on accumulated findings. KRYON_ORCHESTRATED "
-             "env var also works. Implies --use-agent.",
+        "a single-shot LLM dive. Each detected device family gets a "
+        "dedicated audit phase (proxmox/fortigate/unifi/AD); plan adapts "
+        "between phases based on accumulated findings. KRYON_ORCHESTRATED "
+        "env var also works. Implies --use-agent.",
     )
     p.add_argument("--ssh-key", default="", help="SSH private key path for compliance runner")
     p.add_argument("--skip-reaudit", action="store_true", help="skip the post-remediation re-scan (Phase 5)")
