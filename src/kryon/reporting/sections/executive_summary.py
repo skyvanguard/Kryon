@@ -1,12 +1,35 @@
-"""Executive summary section — non-technical C-level overview."""
+"""Executive summary section — non-technical C-level overview.
+
+F85.G — Now prepends an LLM-narrated 3-paragraph business-impact
+analysis on top of the deterministic counts. The narrative is best-
+effort: any failure (LLM unreachable, malformed output, missing
+KRYON_EXEC_NARRATIVE=true opt-in) falls back to the template-only
+view silently so the PDF still ships.
+
+The LLM section is opt-in via ``KRYON_EXEC_NARRATIVE=true`` env
+because it adds ~$0.005 per report and the report path runs in
+demo/CI contexts where deterministic output is preferred.
+"""
 
 from __future__ import annotations
 
+import os
+
 from kryon.intelligence.models import Finding, Severity
+from kryon.reporting.exec_narrative import (
+    generate_executive_narrative,
+    render_narrative_as_html,
+)
 
 
 def render_executive_summary(findings: list[Finding], client_name: str = "", scope: str = "") -> str:
-    """Generate an executive summary from findings (no LLM, template-based)."""
+    """Generate an executive summary from findings.
+
+    Layout:
+      [LLM narrative — only if KRYON_EXEC_NARRATIVE=true and the call
+       succeeded]
+      Deterministic counts + critical issues list (always)
+    """
     total = len(findings)
     by_sev = _count_by_severity(findings)
     critical = by_sev.get("critical", 0)
@@ -19,9 +42,24 @@ def render_executive_summary(findings: list[Finding], client_name: str = "", sco
     client_str = f" for <strong>{client_name}</strong>" if client_name else ""
     scope_str = f" targeting <code>{scope}</code>" if scope else ""
 
+    # Opt-in LLM narrative. Demos / CI keep the deterministic-only
+    # path because reports are diffed against snapshots.
+    narrative_html = ""
+    if os.environ.get("KRYON_EXEC_NARRATIVE", "").strip().lower() in {"1", "true", "yes"}:
+        try:
+            narrative = generate_executive_narrative(
+                findings,
+                client_name=client_name,
+                scope=scope,
+            )
+            narrative_html = render_narrative_as_html(narrative)
+        except Exception:
+            narrative_html = ""
+
     summary = f"""
     <div class="executive-summary">
         <h2>Executive Summary</h2>
+        {narrative_html}
         <p>The security assessment{client_str}{scope_str} identified
         <strong>{total} findings</strong> across the evaluated attack surface.
         The overall risk level is assessed as <span class="risk-{risk_level.lower()}">{risk_level}</span>.</p>
