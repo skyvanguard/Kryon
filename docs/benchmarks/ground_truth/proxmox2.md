@@ -59,7 +59,23 @@ Suitability for LLM hosting: **NOT suitable**. No CUDA GPU, CPU too old (no AVX-
 - **Impact**: WhatsApp gateway accessible from entire LAN. If misconfigured (default API key, no rate limit), attacker can send WhatsApp messages from a business account. Image version 1.8.2 should be audited against newer releases for known issues.
 - **Remediation**: Bind container to 127.0.0.1 or behind reverse proxy with auth + IP allowlist; verify API key strength.
 
-### HIGH (6)
+### HIGH (8)
+
+#### H-00a — SSH `PasswordAuthentication yes`
+- **File**: `/etc/ssh/sshd_config`
+- **Evidence**: `PasswordAuthentication yes`
+- **CIS**: PVE Benchmark 2.1.2
+- **Impact**: Combined with `PermitRootLogin yes` and no fail2ban, this is a brute-force-able interactive root login over the network. Public-key-only would close it entirely.
+- **Remediation**: `PasswordAuthentication no` after confirming all admins have working pubkey access.
+- **Note**: Discovered by Kryon's autonomous run after the initial manual baseline missed it. Added 2026-05-11.
+
+#### H-00b — SSH `X11Forwarding yes`
+- **File**: `/etc/ssh/sshd_config`
+- **Evidence**: `X11Forwarding yes`
+- **CIS**: PVE Benchmark 2.1 hardening
+- **Impact**: Defense-in-depth gap. X11 forwarding can be abused if a malicious user chains an SSH session through this host to inject keystrokes/screen-grab the operator's X server. Low likelihood on a headless PVE box but trivial to disable.
+- **Remediation**: `X11Forwarding no` in `/etc/ssh/sshd_config`.
+- **Note**: Net-new from Kryon autonomous run. Added 2026-05-11.
 
 #### H-01 — fail2ban not installed
 - `systemctl is-active fail2ban` → unit not loaded
@@ -174,10 +190,13 @@ Total upgradable: 147 packages.
 | Severity | Count |
 |---|---|
 | CRITICAL | 3 |
-| HIGH | 6 |
+| HIGH | 8 |
 | MEDIUM | 7 |
 | LOW/INFO | 5 |
-| **Total** | **21** |
+| **Total** | **23** |
+
+**Changelog**:
+- 2026-05-11: Added H-00a (`PasswordAuthentication yes`) and H-00b (`X11Forwarding yes`) — both surfaced by Kryon's autonomous run with `kryon-14b` local; manual baseline missed them.
 
 ---
 
