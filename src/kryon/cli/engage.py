@@ -81,7 +81,14 @@ def _run_nmap(target: str, *, timeout_s: int = 600) -> str:
     use_live = os.environ.get("KRYON_LIVE_PROGRESS", "").strip().lower() in {
         "1", "true", "yes", "on",
     }
-    cmd = f"nmap -sV -T4 --top-ports 100 -oX - {shlex.quote(target)}"
+    # -Pn: skip host discovery. Required when the target firewall
+    # filters ICMP (typical for hardened hosts and PVE behind FortiGate).
+    # Without -Pn, nmap concludes "host is down" and emits no ports even
+    # though TCP services are reachable.
+    # -sT: TCP connect scan. Default -sV picks -sS (raw SYN) which needs
+    # Npcap/raw sockets — unavailable on Windows hosts without admin
+    # install. -sT works as a non-privileged user on every platform.
+    cmd = f"nmap -Pn -sT -sV -T4 --top-ports 100 -oX - {shlex.quote(target)}"
     if use_live:
         try:
             from kryon.repl.ui.live_progress import run_with_progress
@@ -206,7 +213,7 @@ def _check_ssh(svc: DiscoveredService, ssh_target: str | None,
         with socket.create_connection((svc.host, svc.port), timeout=3) as s:
             raw = s.recv(128).decode(errors="replace").splitlines()
             banner = raw[0] if raw else ""
-    except (OSError, socket.timeout) as exc:
+    except (TimeoutError, OSError) as exc:
         logger.debug("ssh banner grab failed on %s:%s: %s",
                      svc.host, svc.port, exc)
 
@@ -584,7 +591,10 @@ def run_engage(args: argparse.Namespace) -> int:
         ]
         if actions:
             from kryon.repl.ui.approval import (
-                ApprovalRequest, ApprovalResult, ProposedAction, Severity,
+                ApprovalRequest,
+                ApprovalResult,
+                ProposedAction,
+                Severity,
                 ask_approval,
             )
             sev_map = {
@@ -638,7 +648,7 @@ def run_engage(args: argparse.Namespace) -> int:
                             env=env,
                         )
                         if r.returncode == 0:
-                            console.print(f"  [green]✓[/green] applied")
+                            console.print("  [green]✓[/green] applied")
                             applied_findings.append(a["purpose"])
                         else:
                             console.print(
