@@ -3187,9 +3187,7 @@ class OpenAIChatCompletionsModel(Model):
             except (litellm.exceptions.APIConnectionError, litellm.exceptions.Timeout) as e:
                 connection_retry_count += 1
                 if connection_retry_count >= max_connection_retries:
-                    print(
-                        f"\n❌ Connection layer failed after {max_connection_retries} retries: {type(e).__name__}"
-                    )
+                    print(f"\n❌ Connection layer failed after {max_connection_retries} retries: {type(e).__name__}")
                     raise
                 wait = connection_backoffs[connection_retry_count - 1]
                 print(
