@@ -7,6 +7,8 @@ from pathlib import Path
 
 from kryon.intelligence.mitre import MITREMapper
 from kryon.intelligence.models import Finding
+from kryon.reporting.branding import BrandingConfig, apply_branding
+from kryon.reporting.cover import render_cover_page, render_signature_block
 from kryon.reporting.models import ReportConfig, ReportType
 from kryon.reporting.sections.asset_inventory import render_asset_inventory
 from kryon.reporting.sections.compliance import render_compliance_mapping
@@ -70,8 +72,6 @@ class ReportGenerator:
 
             sections.append(render_soc2_report(findings))
 
-        content = "\n".join(sections)
-
         # Report titles
         type_titles = {
             ReportType.EXECUTIVE: "Executive Security Assessment",
@@ -83,6 +83,33 @@ class ReportGenerator:
         title = type_titles.get(config.report_type, "Security Assessment Report")
         subtitle = f"Comprehensive {config.report_type.value} analysis"
 
+        # F85.H — Cover page + signature block. Both are best-effort:
+        # if the client logo / accent color isn't set we render the
+        # cover with placeholders so the deliverable still has page-1
+        # branding identity instead of dropping straight into the
+        # executive summary.
+        accent = config.client_color or "#0070d2"
+        cover_html = render_cover_page(
+            title=title,
+            client_name=config.client_name,
+            client_logo_path=config.client_logo_path or config.logo_path,
+            target_scope=config.target_scope,
+            engagement_id=config.engagement_id,
+            classification=config.classification,
+            date=config.date,
+            auditor=config.auditor,
+            accent_color=accent,
+        )
+        signature_html = render_signature_block(
+            auditor=config.auditor,
+            engagement_id=config.engagement_id,
+            reproducibility_hash=config.reproducibility_hash,
+            date=config.date,
+            accent_color=accent,
+        )
+
+        content = cover_html + "\n" + "\n".join(sections) + "\n" + signature_html
+
         html = self._render_template(
             title=title,
             subtitle=subtitle,
@@ -91,6 +118,19 @@ class ReportGenerator:
             date=config.date,
             content=content,
         )
+
+        # F85.H — Apply legacy header/footer branding on top (CSS vars,
+        # company name banner). The cover page above already lives in
+        # the content body so it doesn't conflict; apply_branding's
+        # ``<body>`` injection lands after the cover.
+        if config.client_color or config.client_logo_path:
+            branding = BrandingConfig(
+                logo_url=config.client_logo_path or "",
+                primary_color=config.client_color or "#00d4ff",
+                company_name=config.client_name or "KRYON Security",
+                footer_text=f"{config.classification} — Distribución restringida",
+            )
+            html = apply_branding(html, branding)
 
         return html
 

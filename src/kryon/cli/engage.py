@@ -1359,4 +1359,24 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
         help="hard cap on USD spent per run (default: 5.0 from KRYON_PRICE_LIMIT). "
         "CostTracker aborts the chat-completions call path when exceeded.",
     )
+    # F85.H — Cover page + branding flags. Empty defaults keep current
+    # demo/CI outputs visually identical (only triggered when set).
+    p.add_argument(
+        "--brand-logo",
+        default="",
+        help="path to client logo (PNG/JPG/SVG) for the report cover. "
+        "Empty falls back to client_name as text placeholder.",
+    )
+    p.add_argument(
+        "--brand-color",
+        default="",
+        help='accent color hex for the report cover, e.g. "#0070d2". '
+        "Empty keeps the Kryon default blue.",
+    )
+    p.add_argument(
+        "--classification",
+        default="INTERNAL",
+        choices=["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"],
+        help="document classification banner shown on the cover and footer.",
+    )
     return p

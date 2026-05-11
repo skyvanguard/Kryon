@@ -28,6 +28,16 @@ class ReportConfig(BaseModel):
     include_compliance: list[str] = []
     format: str = "html"  # html | pdf
     logo_path: str | None = None
+    # F85.H — Cover page + branding fields. ``client_logo_path`` paints
+    # the cover; ``client_color`` recolors the CSS theme; ``classification``
+    # ends up on the cover + footer of every page; ``auditor`` /
+    # ``engagement_id`` populate the signature block.
+    client_logo_path: str | None = None
+    client_color: str = ""  # e.g. "#0070d2"; empty = keep KRYON default
+    classification: str = "INTERNAL"  # PUBLIC | INTERNAL | CONFIDENTIAL | RESTRICTED
+    auditor: str = "SkyVanguard / Kryon"
+    engagement_id: str = ""
+    reproducibility_hash: str = ""
 
 
 class ReportSection(BaseModel):
