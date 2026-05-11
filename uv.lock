@@ -310,18 +310,6 @@ wheels = [
 ]
 
 [[package]]
-name = "branca"
-version = "0.8.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "jinja2" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/32/14/9d409124bda3f4ab7af3802aba07181d1fd56aa96cc4b999faea6a27a0d2/branca-0.8.2.tar.gz", hash = "sha256:e5040f4c286e973658c27de9225c1a5a7356dd0702a7c8d84c0f0dfbde388fe7", size = 27890, upload-time = "2025-10-06T10:28:20.305Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7e/50/fc9680058e63161f2f63165b84c957a0df1415431104c408e8104a3a18ef/branca-0.8.2-py3-none-any.whl", hash = "sha256:2ebaef3983e3312733c1ae2b793b0a8ba3e1c4edeb7598e10328505280cf2f7c", size = 26193, upload-time = "2025-10-06T10:28:19.255Z" },
-]
-
-[[package]]
 name = "brotli"
 version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -938,6 +926,19 @@ toml = [
 ]
 
 [[package]]
+name = "cpgqls-client"
+version = "0.0.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d3/d1/c5092e4e9a7120b6504c7d71633e7044fcce4acb8432b794dfb64f4c4cbe/cpgqls-client-0.0.9.tar.gz", hash = "sha256:16e1009b1774cf88a3dbfb6e3a2ff48376717a218c6004c622fb1489fb7ed1b4", size = 7148, upload-time = "2021-08-27T16:39:20.802Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/42/a0/6a0670675b448aa0d52a04f9e9c77d5138f6392102d8b5b2705e97bdf9fd/cpgqls_client-0.0.9-py2.py3-none-any.whl", hash = "sha256:f4e3f62dc70efd89356c8036782a54ccf591ddd47ed1c053d3f3c17f2ebc656e", size = 7805, upload-time = "2021-08-27T16:39:18.814Z" },
+]
+
+[[package]]
 name = "cryptography"
 version = "46.0.5"
 source = { registry = "https://pypi.org/simple" }
@@ -1121,23 +1122,6 @@ version = "25.12.19"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e8/2d/d2a548598be01649e2d46231d151a6c56d10b964d94043a335ae56ea2d92/flatbuffers-25.12.19-py2.py3-none-any.whl", hash = "sha256:7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4", size = 26661, upload-time = "2025-12-19T23:16:13.622Z" },
-]
-
-[[package]]
-name = "folium"
-version = "0.20.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "branca" },
-    { name = "jinja2" },
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "requests" },
-    { name = "xyzservices" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c7/76/84a1b1b00ce71f9c0c44af7d80f310c02e2e583591fe7d4cb03baecd0d3f/folium-0.20.0.tar.gz", hash = "sha256:a0d78b9d5a36ba7589ca9aedbd433e84e9fcab79cd6ac213adbcff922e454cb9", size = 109932, upload-time = "2025-06-16T20:22:51.803Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b5/a8/5f764f333204db0390362a4356d03a43626997f26818a0e9396f1b3bd8c9/folium-0.20.0-py2.py3-none-any.whl", hash = "sha256:f0bc2a92acde20bca56367aa5c1c376c433f450608d058daebab2fc9bf8198bf", size = 113394, upload-time = "2025-06-16T20:22:50.318Z" },
 ]
 
 [[package]]
@@ -1964,13 +1948,12 @@ wheels = [
 
 [[package]]
 name = "kryon"
-version = "1.1.0"
+version = "2.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "defusedxml" },
     { name = "dnspython" },
     { name = "duckduckgo-search" },
-    { name = "folium" },
     { name = "griffe" },
     { name = "litellm" },
     { name = "mako" },
@@ -1996,6 +1979,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+dataflow = [
+    { name = "cpgqls-client" },
+]
 dev = [
     { name = "coverage" },
     { name = "httpx" },
@@ -2047,11 +2033,11 @@ requires-dist = [
     { name = "bcrypt", marker = "extra == 'server'", specifier = ">=4.0" },
     { name = "chromadb", marker = "extra == 'rag'", specifier = ">=1.2.0" },
     { name = "coverage", marker = "extra == 'dev'", specifier = ">=7.6.12" },
+    { name = "cpgqls-client", marker = "extra == 'dataflow'", specifier = ">=0.0.5" },
     { name = "defusedxml", specifier = ">=0.7.1,<1" },
     { name = "dnspython", specifier = ">=2.4.0,<3" },
     { name = "duckduckgo-search", specifier = ">=7.0,<8" },
     { name = "fastapi", marker = "extra == 'server'", specifier = ">=0.115.0" },
-    { name = "folium", specifier = ">=0.15.0,<1" },
     { name = "graphviz", marker = "extra == 'viz'", specifier = ">=0.17" },
     { name = "griffe", specifier = ">=1.5.6,<2" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27.0" },
@@ -2093,7 +2079,7 @@ requires-dist = [
     { name = "weasyprint", marker = "extra == 'reporting'", specifier = ">=62.0" },
     { name = "websockets", marker = "extra == 'voice'", specifier = ">=15.0,<17" },
 ]
-provides-extras = ["voice", "viz", "tracing", "rag", "server", "tui", "reporting", "orchestration", "dev"]
+provides-extras = ["voice", "viz", "tracing", "rag", "server", "tui", "reporting", "orchestration", "dataflow", "dev"]
 
 [[package]]
 name = "kubernetes"
@@ -6034,15 +6020,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/79/d9/7cfd5a312760ac4dd8bf0184a6ee9e43c33e47f3dadc303032ce012b8fa3/wrapt-1.17.3-cp314-cp314t-win_amd64.whl", hash = "sha256:73d496de46cd2cdbdbcce4ae4bcdb4afb6a11234a1df9c085249d55166b95116", size = 41334, upload-time = "2025-08-12T05:53:14.178Z" },
     { url = "https://files.pythonhosted.org/packages/46/78/10ad9781128ed2f99dbc474f43283b13fea8ba58723e98844367531c18e9/wrapt-1.17.3-cp314-cp314t-win_arm64.whl", hash = "sha256:f38e60678850c42461d4202739f9bf1e3a737c7ad283638251e79cc49effb6b6", size = 38471, upload-time = "2025-08-12T05:52:57.784Z" },
     { url = "https://files.pythonhosted.org/packages/1f/f6/a933bd70f98e9cf3e08167fc5cd7aaaca49147e48411c0bd5ae701bb2194/wrapt-1.17.3-py3-none-any.whl", hash = "sha256:7171ae35d2c33d326ac19dd8facb1e82e5fd04ef8c6c0e394d7af55a55051c22", size = 23591, upload-time = "2025-08-12T05:53:20.674Z" },
-]
-
-[[package]]
-name = "xyzservices"
-version = "2025.11.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ee/0f/022795fc1201e7c29e742a509913badb53ce0b38f64b6db859e2f6339da9/xyzservices-2025.11.0.tar.gz", hash = "sha256:2fc72b49502b25023fd71e8f532fb4beddbbf0aa124d90ea25dba44f545e17ce", size = 1135703, upload-time = "2025-11-22T11:31:51.82Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ef/5c/2c189d18d495dd0fa3f27ccc60762bbc787eed95b9b0147266e72bb76585/xyzservices-2025.11.0-py3-none-any.whl", hash = "sha256:de66a7599a8d6dad63980b77defd1d8f5a5a9cb5fc8774ea1c6e89ca7c2a3d2f", size = 93916, upload-time = "2025-11-22T11:31:50.525Z" },
 ]
 
 [[package]]
