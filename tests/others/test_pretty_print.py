@@ -49,7 +49,7 @@ async def test_pretty_run_result_streaming():
 RunResultStreaming:
 - Current agent: Agent(name="test_agent", ...)
 - Current turn: 1
-- Max turns: inf
+- Max turns: 40
 - Is complete: True
 - Final output (str):
     Hi there
@@ -113,7 +113,7 @@ async def test_pretty_run_result_streaming_structured_output():
 RunResultStreaming:
 - Current agent: Agent(name="test_agent", ...)
 - Current turn: 1
-- Max turns: inf
+- Max turns: 40
 - Is complete: True
 - Final output (Foo):
     {
@@ -191,7 +191,7 @@ async def test_pretty_run_result_streaming_list_structured_output():
 RunResultStreaming:
 - Current agent: Agent(name="test_agent", ...)
 - Current turn: 1
-- Max turns: inf
+- Max turns: 40
 - Is complete: True
 - Final output (list):
     [Foo(bar='Test'), Foo(bar='Test 2')]

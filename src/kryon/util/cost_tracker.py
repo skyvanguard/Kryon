@@ -276,14 +276,17 @@ class CostTracker:
 
 
 def _parse_price_limit() -> float:
-    """Read KRYON_PRICE_LIMIT env. Defaults to inf (no limit)."""
-    raw = os.environ.get("KRYON_PRICE_LIMIT", "inf").strip().lower()
+    """Read KRYON_PRICE_LIMIT env. Defaults to 5 USD per run (matches
+    DEFAULT_PRICE_LIMIT in kryon.sdk.agents.run). Operators can opt out
+    with KRYON_PRICE_LIMIT=inf, raise the cap explicitly, or override
+    per-run via the CLI flag."""
+    raw = os.environ.get("KRYON_PRICE_LIMIT", "5.0").strip().lower()
     if raw in ("inf", "infinity", "none", "", "unlimited"):
         return float("inf")
     try:
         return float(raw)
     except ValueError:
-        return float("inf")
+        return 5.0
 
 
 # Global instance — imported as kryon.util.COST_TRACKER everywhere.

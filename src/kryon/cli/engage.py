@@ -781,6 +781,16 @@ def run_engage(args: argparse.Namespace) -> int:
 
     console = Console()
 
+    # F85.B — Budget hardening: propagate CLI overrides into env so the
+    # CostTracker (which reads KRYON_PRICE_LIMIT lazily) and the SDK
+    # runner (which reads KRYON_MAX_TURNS at import) honor them. Only
+    # write when the operator passed an explicit value — env defaults
+    # remain authoritative otherwise.
+    if args.max_turns is not None:
+        os.environ["KRYON_MAX_TURNS"] = str(args.max_turns)
+    if args.max_cost is not None:
+        os.environ["KRYON_PRICE_LIMIT"] = str(args.max_cost)
+
     target = args.target
     scope = args.scope or target
     out_dir = Path(args.out)
@@ -1099,4 +1109,21 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
     )
     p.add_argument("--ssh-key", default="", help="SSH private key path for compliance runner")
     p.add_argument("--skip-reaudit", action="store_true", help="skip the post-remediation re-scan (Phase 5)")
+    # F85.B — Budget hardening. Both flags are also readable from env
+    # (KRYON_MAX_TURNS, KRYON_PRICE_LIMIT) so containerised runs can be
+    # capped without touching the CLI invocation.
+    p.add_argument(
+        "--max-turns",
+        type=int,
+        default=None,
+        help="hard cap on LLM turns per run (default: 40 from KRYON_MAX_TURNS). "
+        "Prevents a stuck agent from looping until the API key runs out.",
+    )
+    p.add_argument(
+        "--max-cost",
+        type=float,
+        default=None,
+        help="hard cap on USD spent per run (default: 5.0 from KRYON_PRICE_LIMIT). "
+        "CostTracker aborts the chat-completions call path when exceeded.",
+    )
     return p
