@@ -531,7 +531,12 @@ def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
 
 
 def _invoke_agent_deepening(
-    console, *, target: str, scope: str, findings: list[Finding]
+    console,
+    *,
+    target: str,
+    scope: str,
+    findings: list[Finding],
+    families: list[str] | None = None,
 ) -> tuple[list[str], list[Finding]]:
     """Spin up the unified Kryon agent for one deep-dive turn.
 
@@ -540,6 +545,13 @@ def _invoke_agent_deepening(
     each item to a Finding. Failures are non-fatal — deterministic
     Phase 2 + Phase 2b output is the authoritative surface and the
     agent contributes depth, not correctness.
+
+    F85.D — when `families` is supplied (the result of Phase 1 device
+    detection) we hot-swap the agent's skills via
+    ``update_agent_skills(agent, ...)`` so the LLM gets skills matched
+    against the detected target profile instead of the generic ones
+    chosen at agent construction time. Example: detecting a FortiGate
+    swaps recon-scout out for fortigate-audit before Phase 2c runs.
     """
     try:
         from kryon.agents import get_agent_by_name
@@ -554,6 +566,33 @@ def _invoke_agent_deepening(
     except Exception as exc:  # pragma: no cover — runtime only
         console.print(f"  [yellow]agent load failed: {exc}[/yellow]")
         return [], []
+
+    # F85.D — Mid-engagement skill swap. Build a target profile from
+    # the detected families and re-rank skills. Done in a try/except
+    # so that any failure here falls back to whatever skills the agent
+    # was built with — never block the engagement on a swap miss.
+    if families:
+        try:
+            from kryon.skills.loader import SkillLoader
+            from kryon.skills.unified_agent import update_agent_skills
+
+            loader = getattr(agent, "_skill_loader", None) or SkillLoader()
+            # families like "proxmox", "fortigate", "linux", "windows_ad"
+            # come from `_detect_device_families`. We feed them as both
+            # tech hints (so triggers matching `tech: ["proxmox"]` fire)
+            # and as keywords in the user intent string (so triggers
+            # matching `keywords: ["fortigate"]` fire too).
+            profile = {"tech": list(families)}
+            intent = " ".join(families) + " audit"
+            new_skills = loader.match(profile=profile, user_msg=intent)
+            if new_skills:
+                update_agent_skills(agent, new_skills)
+                console.print(
+                    f"  [dim]skills swapped: {[s.name for s in new_skills][:5]} "
+                    f"(families={families})[/dim]"
+                )
+        except Exception as exc:  # pragma: no cover — runtime only
+            console.print(f"  [yellow]skill swap skipped: {exc}[/yellow]")
 
     preamble = (
         f"Ya se ejecutó un barrido determinista contra {target} (scope: "
@@ -868,8 +907,14 @@ def run_engage(args: argparse.Namespace) -> int:
     agent_observations: list[str] = []
     if args.use_agent or os.environ.get("KRYON_ENGAGE_AGENT", "").lower() in {"1", "true", "yes"}:
         _banner(console, "Fase 2c — agente Kryon (deep-dive)")
+        # F85.D — pass detected_families so the agent's skill set gets
+        # re-ranked against the actual target profile before the turn.
         agent_observations, agent_findings = _invoke_agent_deepening(
-            console, target=target, scope=scope, findings=findings
+            console,
+            target=target,
+            scope=scope,
+            findings=findings,
+            families=detected_families,
         )
         if agent_findings:
             findings.extend(agent_findings)
