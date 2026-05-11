@@ -1117,13 +1117,13 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="hard cap on LLM turns per run (default: 40 from KRYON_MAX_TURNS). "
-             "Prevents a stuck agent from looping until the API key runs out.",
+        "Prevents a stuck agent from looping until the API key runs out.",
     )
     p.add_argument(
         "--max-cost",
         type=float,
         default=None,
         help="hard cap on USD spent per run (default: 5.0 from KRYON_PRICE_LIMIT). "
-             "CostTracker aborts the chat-completions call path when exceeded.",
+        "CostTracker aborts the chat-completions call path when exceeded.",
     )
     return p
