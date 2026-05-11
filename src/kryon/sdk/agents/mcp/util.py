@@ -52,13 +52,33 @@ class MCPUtil:
 
     @classmethod
     def to_function_tool(cls, tool: "MCPTool", server: "MCPServer") -> FunctionTool:
-        """Convert an MCP tool to a KRYON function tool."""
-        invoke_func = functools.partial(cls.invoke_mcp_tool, server, tool)
+        """Convert an MCP tool to a KRYON function tool.
+
+        F85.C — Wrap the bare ``invoke_mcp_tool`` callable with the same
+        failure-recovery shield that ``@function_tool`` ships by default
+        (``default_tool_error_function``). Without this, an MCP server
+        going down, a network blip, or a malformed JSON payload raised
+        ``AgentsException`` / ``ModelBehaviorError`` that bubbled all
+        the way to ``Runner.run`` and killed the engagement. With the
+        shield, the error is returned to the LLM as a tool result so it
+        can self-correct on the next turn — matching the behaviour for
+        ``@function_tool``-decorated tools.
+        """
+        from kryon.sdk.agents.tool import default_tool_error_function
+
+        raw_invoke = functools.partial(cls.invoke_mcp_tool, server, tool)
+
+        async def _shielded_invoke(ctx: RunContextWrapper[Any], input_json: str) -> Any:
+            try:
+                return await raw_invoke(ctx, input_json)
+            except Exception as exc:
+                return default_tool_error_function(ctx, exc)
+
         return FunctionTool(
             name=tool.name,
             description=tool.description or "",
             params_json_schema=tool.inputSchema,
-            on_invoke_tool=invoke_func,
+            on_invoke_tool=_shielded_invoke,
             strict_json_schema=False,
         )
 

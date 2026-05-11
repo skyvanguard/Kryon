@@ -3157,9 +3157,22 @@ class OpenAIChatCompletionsModel(Model):
                 filtered_kwargs[key] = value
         kwargs = filtered_kwargs
 
-        # Add retry logic for rate limits
+        # Add retry logic for rate limits + transient HTTP failures.
+        # F85.C — transparent retry at the connection layer with
+        # exponential backoff (1s, 5s, 10s, 18s, 40s) for
+        # ConnectionError / APIConnectionError / TimeoutError. These
+        # are network-fabric blips, not model-logic errors, and the
+        # LLM cannot recover from them through self-correction.
+        # Tool-logic errors continue to flow back to the LLM via the
+        # @function_tool wrapper (default_tool_error_function).
         max_retries = 3
         retry_count = 0
+        # Connection retries are separate from rate-limit retries so a
+        # network blip during a rate-limit recovery doesn't consume the
+        # rate-limit retry budget.
+        max_connection_retries = 5
+        connection_retry_count = 0
+        connection_backoffs = [1, 5, 10, 18, 40]
 
         while retry_count < max_retries:
             try:
@@ -3171,6 +3184,21 @@ class OpenAIChatCompletionsModel(Model):
                     return await self._fetch_response_litellm_openai(
                         kwargs, model_settings, tool_choice, stream, parallel_tool_calls
                     )
+            except (litellm.exceptions.APIConnectionError, litellm.exceptions.Timeout) as e:
+                connection_retry_count += 1
+                if connection_retry_count >= max_connection_retries:
+                    print(
+                        f"\n❌ Connection layer failed after {max_connection_retries} retries: {type(e).__name__}"
+                    )
+                    raise
+                wait = connection_backoffs[connection_retry_count - 1]
+                print(
+                    f"\n🔌 {type(e).__name__} — transient network failure "
+                    f"(attempt {connection_retry_count}/{max_connection_retries}); "
+                    f"waiting {wait}s before retry..."
+                )
+                await asyncio.sleep(wait)
+                continue
             except litellm.exceptions.RateLimitError as e:
                 retry_count += 1
                 if retry_count >= max_retries:

@@ -321,11 +321,23 @@ class GlobalMCPUtil(MCPUtil):
         # Use functools.partial to bind the server config
         invoke_func = functools.partial(invoke_with_fresh_connection, server_config)
 
+        # F85.C — Shield against MCP connection failures + malformed
+        # payloads. Without this, transient errors crashed the run via
+        # _run_impl:552-561; with it, the LLM gets the error string and
+        # self-corrects on the next turn.
+        from kryon.sdk.agents.tool import default_tool_error_function
+
+        async def _shielded_invoke(ctx, input_json):
+            try:
+                return await invoke_func(ctx, input_json)
+            except Exception as exc:
+                return default_tool_error_function(ctx, exc)
+
         return FunctionTool(
             name=tool.name,
             description=tool.description or "",
             params_json_schema=tool.inputSchema,
-            on_invoke_tool=invoke_func,
+            on_invoke_tool=_shielded_invoke,
             strict_json_schema=False,
         )
 
