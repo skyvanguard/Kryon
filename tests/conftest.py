@@ -58,3 +58,20 @@ def disable_real_model_clients(monkeypatch, request):
     monkeypatch.setattr(OpenAIResponsesModel, "stream_response", failing_version)
     monkeypatch.setattr(OpenAIChatCompletionsModel, "get_response", failing_version)
     monkeypatch.setattr(OpenAIChatCompletionsModel, "stream_response", failing_version)
+
+
+@pytest.fixture(autouse=True)
+def relax_stuck_detector(monkeypatch, request):
+    """F85.E — Most SDK tests legitimately loop the same tool call to
+    exercise MaxTurns / handoff / streaming behaviour. The StuckDetector
+    would abort those runs at the 3rd identical triple, masking the
+    real assertion. Relax thresholds to 999 by default; tests that
+    specifically exercise the detector (``tests/sdk/test_stuck_detector.py``)
+    construct their own ``StuckDetector(...)`` with explicit thresholds
+    that bypass this env var.
+    """
+    if request.node.get_closest_marker("strict_stuck_detector"):
+        return
+    monkeypatch.setenv("KRYON_STUCK_ABORT_AT", "999")
+    monkeypatch.setenv("KRYON_STUCK_INTERVENE_AT", "998")
+    monkeypatch.setenv("KRYON_STUCK_WINDOW", "999")

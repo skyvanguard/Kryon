@@ -124,9 +124,7 @@ class StuckDetector:
         abort_at: int = 3,
     ) -> None:
         if abort_at <= intervene_at:
-            raise ValueError(
-                f"abort_at ({abort_at}) must be > intervene_at ({intervene_at})"
-            )
+            raise ValueError(f"abort_at ({abort_at}) must be > intervene_at ({intervene_at})")
         if intervene_at < 2:
             raise ValueError("intervene_at must be >= 2 (1 = first call, no repeat yet)")
         self.window_size = window_size
@@ -154,7 +152,10 @@ class StuckDetector:
         if count >= self.abort_at:
             logger.warning(
                 "StuckDetector: aborting on '%s' (%d/%d identical triples in window of %d)",
-                tool_name, count, self.abort_at, self.window_size,
+                tool_name,
+                count,
+                self.abort_at,
+                self.window_size,
             )
             return StuckAction.abort(tool_name, count, self.window_size)
 
@@ -162,7 +163,10 @@ class StuckDetector:
             self._intervened.add(triple)
             logger.info(
                 "StuckDetector: intervening on '%s' (%d/%d identical triples in window of %d)",
-                tool_name, count, self.intervene_at, self.window_size,
+                tool_name,
+                count,
+                self.intervene_at,
+                self.window_size,
             )
             return StuckAction.intervene(tool_name, count, self.window_size)
 
