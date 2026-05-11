@@ -631,6 +631,176 @@ def _invoke_agent_deepening(
 
 
 # -----------------------------------------------------------------------------
+# Phase 2c' (F85.F) — orchestrated multi-phase engagement
+# -----------------------------------------------------------------------------
+
+
+_PHASE_PREAMBLES: dict[str, str] = {
+    "recon": (
+        "Phase: reconnaissance. The target is {target} (scope: {scope}). "
+        "Phase 1 nmap already ran — current findings: {findings_count}. "
+        "Detected device families: {families}. Use whatweb / nikto / "
+        "nuclei to deepen the service inventory. Report new evidence "
+        "as structured JSON findings (cwe, severity, host, rule_id, "
+        "message, evidence, remediation)."
+    ),
+    "proxmox_audit": (
+        "Phase: Proxmox VE deep-audit. Target {target}. The compliance "
+        "runner already ran the deterministic PVE-* checks; your job "
+        "is to chase non-deterministic risks: pveproxy reverse-proxy "
+        "configuration, root@pam vs root@pve hygiene, qemu agent "
+        "exposure, weak TLS ciphers on 8006, exposed API tokens. "
+        "Emit JSON findings."
+    ),
+    "fortigate_audit": (
+        "Phase: FortiGate deep-audit. Target {target}. The FGT-* "
+        "deterministic checks already ran; chase: SSL-VPN portal "
+        "TLS configuration, web admin idle timeouts, log forwarding "
+        "destinations, license expiry, IPS/AV signature freshness. "
+        "Emit JSON findings."
+    ),
+    "ad_recon": (
+        "Phase: Active Directory enumeration. Target {target}. Run "
+        "ldapsearch / kerberos enumeration / SMB null-session probes "
+        "(NON-EXPLOITATIVE — read-only enumeration only). Report "
+        "domain controllers, trust relationships, weak Kerberos "
+        "encryption, exposed services. Emit JSON findings."
+    ),
+    "vuln_scan": (
+        "Phase: vulnerability assessment. Target {target}. Current "
+        "findings ({findings_count}): {findings_summary}. Cross-check "
+        "with public CVE databases, run nuclei templates against the "
+        "open ports, and propose remediation. Emit JSON findings for "
+        "any NEW vulnerabilities not in the deterministic surface."
+    ),
+    "reporting": (
+        "Phase: reporting. Target {target}. {findings_count} findings "
+        "accumulated. Write a 3-paragraph executive summary in Spanish "
+        "for a non-technical bank manager: (1) critical risks and "
+        "business impact, (2) patterns and tendencies, (3) "
+        "prioritised recommendation. NO new findings — narrative only."
+    ),
+}
+
+
+def _phase_preamble(phase_name: str, *, target: str, scope: str, families: list[str], findings: list[Finding]) -> str:
+    """Render the per-phase LLM preamble. Falls back to a generic
+    template if the phase is unknown (e.g., custom phases injected by
+    extended adapt_plan rules)."""
+    template = _PHASE_PREAMBLES.get(
+        phase_name,
+        "Phase: {phase}. Target {target}. Current findings: "
+        "{findings_count}. Investigate and emit structured JSON "
+        "findings if you discover anything new.",
+    )
+    findings_summary = "; ".join(f"{f.rule_id} ({f.severity})" for f in findings[:5]) or "none yet"
+    return template.format(
+        phase=phase_name,
+        target=target,
+        scope=scope,
+        families=", ".join(families) if families else "none detected",
+        findings_count=len(findings),
+        findings_summary=findings_summary,
+    )
+
+
+def _invoke_orchestrated_engagement(
+    console,
+    *,
+    target: str,
+    scope: str,
+    findings: list[Finding],
+    families: list[str],
+) -> tuple[list[str], list[Finding]]:
+    """F85.F — Orchestrated multi-phase agent invocation.
+
+    Replacement for ``_invoke_agent_deepening`` activated via the
+    ``--orchestrated`` CLI flag. Where the legacy helper invokes a
+    single ``Runner.run(max_turns=4)``, this version:
+
+    1. Builds a ``PentestPlan`` via ``PentestPlanner.generate_plan``.
+    2. Pre-adapts the plan via ``adapt_plan_for_families`` so detected
+       devices (proxmox, fortigate, unifi, windows_ad) get dedicated
+       audit phases injected.
+    3. Walks the plan phase-by-phase. Each phase runs as a separate
+       ``Runner.run`` with a phase-specific preamble and skill set.
+    4. After each phase: re-applies ``adapt_plan(plan, findings)`` so
+       evidence from earlier phases can grow or skip downstream
+       phases (LangChain plan-and-execute pattern).
+    5. Honors KRYON_MAX_TURNS / KRYON_PRICE_LIMIT globally (the
+       StuckDetector + budget hardening from F85.B/E apply per-phase
+       because each phase is a separate ``Runner.run``).
+
+    Failures inside any phase are non-fatal — the failing phase is
+    skipped and the orchestrator continues. Deterministic Phase 2/2b
+    output remains authoritative; the orchestrator only adds depth.
+    """
+    try:
+        from kryon.agents import get_agent_by_name
+        from kryon.sdk.agents.run import Runner
+        from kryon.tools.autonomous.pentest_planner import PentestPlanner, PhaseStatus
+    except Exception as exc:  # pragma: no cover
+        console.print(f"  [dim]orchestrated path skipped: {exc}[/dim]")
+        return [], []
+
+    os.environ["KRYON_AGENT_TYPE"] = "kryon"
+    try:
+        agent = get_agent_by_name("kryon", agent_id="ENGAGE")
+    except Exception as exc:  # pragma: no cover
+        console.print(f"  [yellow]agent load failed: {exc}[/yellow]")
+        return [], []
+
+    planner = PentestPlanner()
+    plan = planner.generate_plan(scope=[target], profile="standard")
+    plan = planner.adapt_plan_for_families(plan, families)
+    plan = planner.adapt_plan(plan, findings)
+
+    console.print(f"  [dim]plan: {len(plan.phases)} phases ({', '.join(p.name for p in plan.phases)})[/dim]")
+
+    summary_lines: list[str] = []
+    new_findings: list[Finding] = []
+
+    import asyncio
+
+    async def _run_phase(phase) -> str:
+        max_turns = int(os.environ.get("KRYON_AGENT_MAX_TURNS", str(phase.max_turns)))
+        preamble = _phase_preamble(
+            phase.name,
+            target=target,
+            scope=scope,
+            families=families,
+            findings=findings + new_findings,
+        )
+        result = await Runner.run(agent, preamble, max_turns=max_turns)
+        return getattr(result, "final_output", "") or ""
+
+    for phase in plan.phases:
+        if phase.status != PhaseStatus.PENDING:
+            console.print(f"  [dim]skipped phase '{phase.name}' (status={phase.status.value})[/dim]")
+            continue
+        phase.status = PhaseStatus.RUNNING
+        phase.findings_before = len(findings) + len(new_findings)
+        try:
+            console.print(f"  [cyan]▸[/cyan] phase: {phase.name}")
+            text = asyncio.run(_run_phase(phase))
+        except Exception as exc:  # pragma: no cover
+            console.print(f"  [yellow]phase '{phase.name}' failed: {exc}[/yellow]")
+            phase.status = PhaseStatus.FAILED
+            continue
+        if text:
+            summary_lines.append(f"[{phase.name}] {text.strip()[:500]}")
+            parsed = _parse_agent_findings(text, target_host=target)
+            new_findings.extend(parsed)
+        phase.status = PhaseStatus.COMPLETED
+        phase.findings_after = len(findings) + len(new_findings)
+        # Re-adapt the plan with the new findings so downstream phases
+        # can react to evidence discovered just now.
+        plan = planner.adapt_plan(plan, findings + new_findings)
+
+    return summary_lines, new_findings
+
+
+# -----------------------------------------------------------------------------
 # Phase 2b' — device-family deterministic compliance checks
 # -----------------------------------------------------------------------------
 
@@ -910,19 +1080,31 @@ def run_engage(args: argparse.Namespace) -> int:
             findings.extend(fam_findings)
             findings.sort(key=lambda f: (f.severity_rank, f.host, f.rule_id))
 
-    # --- Phase 2c: optional agent deepening (F77.A) -----------------------
+    # --- Phase 2c: optional agent deepening (F77.A / F85.D / F85.F) -------
     agent_observations: list[str] = []
-    if args.use_agent or os.environ.get("KRYON_ENGAGE_AGENT", "").lower() in {"1", "true", "yes"}:
-        _banner(console, "Fase 2c — agente Kryon (deep-dive)")
-        # F85.D — pass detected_families so the agent's skill set gets
-        # re-ranked against the actual target profile before the turn.
-        agent_observations, agent_findings = _invoke_agent_deepening(
-            console,
-            target=target,
-            scope=scope,
-            findings=findings,
-            families=detected_families,
-        )
+    orchestrated = args.orchestrated or os.environ.get("KRYON_ORCHESTRATED", "").lower() in {"1", "true", "yes"}
+    if args.use_agent or os.environ.get("KRYON_ENGAGE_AGENT", "").lower() in {"1", "true", "yes"} or orchestrated:
+        if orchestrated:
+            _banner(console, "Fase 2c' — orquestador multi-fase (F85.F)")
+            agent_observations, agent_findings = _invoke_orchestrated_engagement(
+                console,
+                target=target,
+                scope=scope,
+                findings=findings,
+                families=detected_families,
+            )
+        else:
+            _banner(console, "Fase 2c — agente Kryon (deep-dive)")
+            # F85.D — pass detected_families so the agent's skill set
+            # gets re-ranked against the actual target profile before
+            # the LLM turn (mid-engagement skill swap).
+            agent_observations, agent_findings = _invoke_agent_deepening(
+                console,
+                target=target,
+                scope=scope,
+                findings=findings,
+                families=detected_families,
+            )
         if agent_findings:
             findings.extend(agent_findings)
             findings.sort(key=lambda f: (f.severity_rank, f.host, f.rule_id))
@@ -1148,6 +1330,15 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
         "--use-agent",
         action="store_true",
         help="invoke the unified Kryon agent after Phase 2 to deepen coverage (KRYON_ENGAGE_AGENT env also works)",
+    )
+    p.add_argument(
+        "--orchestrated",
+        action="store_true",
+        help="F85.F — invoke PentestPlanner multi-phase orchestration instead of "
+        "a single-shot LLM dive. Each detected device family gets a "
+        "dedicated audit phase (proxmox/fortigate/unifi/AD); plan adapts "
+        "between phases based on accumulated findings. KRYON_ORCHESTRATED "
+        "env var also works. Implies --use-agent.",
     )
     p.add_argument("--ssh-key", default="", help="SSH private key path for compliance runner")
     p.add_argument("--skip-reaudit", action="store_true", help="skip the post-remediation re-scan (Phase 5)")
