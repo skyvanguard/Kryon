@@ -540,38 +540,72 @@ def _invoke_agent_deepening(
 
 
 # -----------------------------------------------------------------------------
-# Phase 2b' — Proxmox-specific deterministic compliance checks
+# Phase 2b' — device-family deterministic compliance checks
 # -----------------------------------------------------------------------------
 
-
-def _is_proxmox_target(services: list[DiscoveredService]) -> bool:
-    """Heuristic: target is a Proxmox VE host if any discovered service
-    advertises a Proxmox product or sits on the canonical PVE web ports."""
-    for s in services:
-        if "proxmox" in (s.product or "").lower():
-            return True
-        if s.port in (8006, 3128):
-            return True
-    return False
+# Mapping: family-name → (detection predicate, import path, control_id prefix,
+# pretty-name for the banner). Adding a new family means importing its package
+# and adding one row here — no other engage-side wiring needed.
+_DEVICE_FAMILIES: list[tuple[str, str, str, str]] = [
+    ("proxmox", "kryon.compliance.checks.proxmox", "PVE-", "Proxmox VE"),
+    ("fortigate", "kryon.compliance.checks.fortigate", "FGT-", "FortiGate"),
+    # ("unifi", "kryon.compliance.checks.unifi", "UNF-", "UniFi"),  # ready when tested
+]
 
 
-def _run_proxmox_compliance(
-    console, *, host: str, ssh_target: str | None, ssh_key: str | None,
-) -> list[Finding]:
-    """Run the 7 PVE-specific deterministic checks via the compliance
-    runner and convert each FAIL/ERROR result to a `Finding` so it
-    lands in the engage report alongside Phase 2 output.
-
-    Skipped silently if the PVE check modules can't be imported (e.g.
-    fresh checkout without `make sync`). Phase 2 + agent dive remain
-    the fallback surfaces.
+def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
+    """Heuristic: classify a target into one or more device families based on
+    banners and canonical management ports. Returns a list of family ids
+    (e.g. ['proxmox']) — same target can legitimately match more than one
+    (rare; an HCI box that's both Proxmox and a Fortinet edge).
     """
+    families: list[str] = []
+    for s in services:
+        product = (s.product or "").lower()
+        if "proxmox" in product or s.port in (8006, 3128):
+            if "proxmox" not in families:
+                families.append("proxmox")
+        if (
+            "fortigate" in product
+            or "fortinet" in product
+            or "fortios" in product
+            # canonical FortiGate management / SSL-VPN ports
+            or s.port in (10443, 8443)
+        ):
+            if "fortigate" not in families:
+                families.append("fortigate")
+    return families
+
+
+def _run_device_compliance(
+    console,
+    *,
+    family: str,
+    host: str,
+    ssh_target: str | None,
+    ssh_key: str | None,
+) -> list[Finding]:
+    """Run the deterministic checks for a specific device family via the
+    compliance runner. Promotes FAIL/ERROR verdicts to engage Findings.
+
+    `family` must be a key in `_DEVICE_FAMILIES`. Silent skip when the
+    package can't be imported (fresh checkout). Phase 2 deterministic +
+    agent dive remain the fallback surfaces.
+    """
+    family_row = next((row for row in _DEVICE_FAMILIES if row[0] == family), None)
+    if family_row is None:
+        console.print(f"  [dim]unknown device family: {family}[/dim]")
+        return []
+    _, import_path, prefix, pretty_name = family_row
+
     try:
-        from kryon.compliance.checks import proxmox as _pve_pkg  # noqa: F401 — registers checks
+        import importlib
+
+        importlib.import_module(import_path)  # registers checks via side effects
         from kryon.compliance.checks.base import CheckContext
         from kryon.compliance.runner import run_all
     except Exception as exc:
-        console.print(f"  [dim]proxmox compliance skipped: {exc}[/dim]")
+        console.print(f"  [dim]{pretty_name} compliance skipped: {exc}[/dim]")
         return []
 
     ssh_user = "root"
@@ -584,6 +618,8 @@ def _run_proxmox_compliance(
         target_host = host_only or host
         ssh_port = int(port) if port else 22
 
+    # FortiGate audits typically use a dedicated non-root admin (`admin`,
+    # `audit`, etc); accept whatever the operator passed in --ssh.
     ctx = CheckContext(
         host=target_host,
         ssh_user=ssh_user,
@@ -592,18 +628,16 @@ def _run_proxmox_compliance(
         transport="ssh",
     )
 
-    # run_all walks every registered check. Filter to PVE control_ids so
-    # an earlier _run_compliance() call (which imports the whole tree)
-    # doesn't bleed unrelated frameworks into the engage findings table.
+    # Filter results to the family's control_id prefix so we never bleed
+    # other frameworks (e.g. a prior _run_compliance pass) into engage's
+    # findings table.
     all_results = run_all(ctx)
-    pve_results = [
-        r for r in all_results
-        if r.control_id.upper().startswith("PVE-")
-        or "pve" in r.control_id.lower()
+    family_results = [
+        r for r in all_results if r.control_id.upper().startswith(prefix.upper())
     ]
 
     findings: list[Finding] = []
-    for r in pve_results:
+    for r in family_results:
         if r.verdict not in ("FAIL", "ERROR"):
             continue
         sev = (r.severity or "MEDIUM").upper()
@@ -611,7 +645,7 @@ def _run_proxmox_compliance(
             sev = "MEDIUM"
         evidence = (r.evidence_stdout or r.evidence_stderr or "")[:600]
         findings.append(Finding(
-            cwe="CWE-0",  # PVE checks don't map 1:1 to CWE; severity carries the weight
+            cwe="CWE-0",  # device-specific checks don't map 1:1 to CWE
             severity=sev,
             host=f"{ssh_user}@{target_host}",
             rule_id=r.control_id,
@@ -623,8 +657,8 @@ def _run_proxmox_compliance(
         ))
     if findings:
         console.print(
-            f"  [green]proxmox-compliance:[/green] {len(findings)} FAIL/ERROR "
-            f"(de {len(pve_results)} controles PVE)"
+            f"  [green]{pretty_name} compliance:[/green] {len(findings)} FAIL/ERROR "
+            f"(de {len(family_results)} controles {prefix.rstrip('-')})"
         )
     return findings
 
@@ -730,23 +764,24 @@ def run_engage(args: argparse.Namespace) -> int:
         except Exception as exc:
             console.print(f"  [red]compliance runner failed:[/red] {exc}")
 
-    # --- Phase 2b' — Proxmox-specific deterministic compliance ----------
-    # When the target advertises Proxmox VE we additionally invoke the 7
-    # `c_pve_*` compliance checks (SSH hardening, firewall, 2FA, API token
-    # hygiene, version currency, etc) and promote their FAIL/ERROR
-    # verdicts to engagement findings. This is enabled by default for any
-    # PVE host because the deterministic Phase 2 alone misses ~70% of
-    # PVE-specific CIS controls.
-    if _is_proxmox_target(services):
-        _banner(console, "Fase 2b' — Proxmox VE deterministic checks")
-        pve_findings = _run_proxmox_compliance(
+    # --- Phase 2b' — device-family deterministic compliance --------------
+    # Auto-detect which device family/families the target belongs to and
+    # invoke the matching `c_<fam>_*` compliance checks. Promotes FAIL /
+    # ERROR verdicts to engagement findings. Currently covers Proxmox VE
+    # and FortiGate; adding a family means editing `_DEVICE_FAMILIES` and
+    # making sure its check package `__init__.py` imports its submodules.
+    detected_families = _detect_device_families(services)
+    for fam in detected_families:
+        _banner(console, f"Fase 2b' — {fam} deterministic checks")
+        fam_findings = _run_device_compliance(
             console,
+            family=fam,
             host=target,
             ssh_target=args.ssh,
             ssh_key=args.ssh_key,
         )
-        if pve_findings:
-            findings.extend(pve_findings)
+        if fam_findings:
+            findings.extend(fam_findings)
             findings.sort(key=lambda f: (f.severity_rank, f.host, f.rule_id))
 
     # --- Phase 2c: optional agent deepening (F77.A) -----------------------
