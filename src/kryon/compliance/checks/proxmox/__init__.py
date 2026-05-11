@@ -14,4 +14,5 @@ from kryon.compliance.checks.proxmox import (  # noqa: F401 — side-effect
     c_pve_3_2_api_token_hygiene,
     c_pve_4_1_firewall_enabled,
     c_pve_5_1_version_currency,
+    c_pve_6_1_cluster_quorum,
 )
