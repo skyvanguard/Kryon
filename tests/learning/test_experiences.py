@@ -173,9 +173,7 @@ def test_recall_finds_added_experience_with_dict_query() -> None:
     from kryon.learning import add_experience, recall_similar
 
     add_experience(_sample_experience(host="alpha.example.com"))
-    results = recall_similar(
-        {"host": "alpha.example.com", "tech": ["wordpress"]}, k=3
-    )
+    results = recall_similar({"host": "alpha.example.com", "tech": ["wordpress"]}, k=3)
     assert len(results) >= 1
     assert results[0]["target_profile"]["host"] == "alpha.example.com"
     # score is normalized to [0, 1]

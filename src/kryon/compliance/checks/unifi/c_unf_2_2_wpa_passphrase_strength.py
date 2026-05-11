@@ -29,12 +29,14 @@ def _classify(passphrase: str) -> tuple[bool, list[str]]:
     reasons: list[str] = []
     if len(passphrase) < _MIN_LENGTH:
         reasons.append(f"length={len(passphrase)} < {_MIN_LENGTH}")
-    classes = sum([
-        any(c.islower() for c in passphrase),
-        any(c.isupper() for c in passphrase),
-        any(c.isdigit() for c in passphrase),
-        any(not c.isalnum() for c in passphrase),
-    ])
+    classes = sum(
+        [
+            any(c.islower() for c in passphrase),
+            any(c.isupper() for c in passphrase),
+            any(c.isdigit() for c in passphrase),
+            any(not c.isalnum() for c in passphrase),
+        ]
+    )
     if classes < 3:
         reasons.append(f"only {classes} char classes used")
     if _COMMON_TAILS.search(passphrase):

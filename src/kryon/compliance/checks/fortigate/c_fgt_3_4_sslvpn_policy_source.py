@@ -22,17 +22,17 @@ class _SslVpnPolicySourceCheck:
     remediation_static = (
         "Replace `set srcaddr all` on SSL VPN policies with scoped objects:\n"
         "  config firewall address\n"
-        "    edit \"sslvpn_pool\"\n"
+        '    edit "sslvpn_pool"\n'
         "      set subnet 10.212.134.0 255.255.255.0\n"
         "    next\n"
         "  end\n"
         "  config firewall policy\n"
         "    edit <id>\n"
-        "      set srcintf \"ssl.root\"\n"
-        "      set srcaddr \"sslvpn_pool\"           # NOT all\n"
-        "      set dstaddr \"corp_internal_subnet\"\n"
-        "      set service \"RDP\" \"HTTPS\"           # NOT ALL\n"
-        "      set groups \"sslvpn_users\"\n"
+        '      set srcintf "ssl.root"\n'
+        '      set srcaddr "sslvpn_pool"           # NOT all\n'
+        '      set dstaddr "corp_internal_subnet"\n'
+        '      set service "RDP" "HTTPS"           # NOT ALL\n'
+        '      set groups "sslvpn_users"\n'
         "    next\n"
         "  end"
     )
@@ -61,32 +61,31 @@ class _SslVpnPolicySourceCheck:
 
         bad_policies: list[dict[str, str]] = []
         sslvpn_policy_count = 0
-        for m in re.finditer(r'edit\s+(\d+)\s*(.*?)\bnext\b', out, re.S):
+        for m in re.finditer(r"edit\s+(\d+)\s*(.*?)\bnext\b", out, re.S):
             pol_id = m.group(1)
             body = m.group(2)
             srcintf = re.search(r'set\s+srcintf\s+"([^"]+)"', body)
             if not srcintf or "ssl.root" not in srcintf.group(1).lower():
                 continue
             sslvpn_policy_count += 1
-            srcaddr = re.search(r'set\s+srcaddr\s+(.+)', body)
-            service = re.search(r'set\s+service\s+(.+)', body)
-            srcaddr_val = (srcaddr.group(1).strip() if srcaddr else "(default-all)")
-            service_val = (service.group(1).strip() if service else "(default-ALL)")
+            srcaddr = re.search(r"set\s+srcaddr\s+(.+)", body)
+            service = re.search(r"set\s+service\s+(.+)", body)
+            srcaddr_val = srcaddr.group(1).strip() if srcaddr else "(default-all)"
+            service_val = service.group(1).strip() if service else "(default-ALL)"
             uses_all_src = '"all"' in srcaddr_val.lower() or srcaddr_val.lower() == "all"
             uses_all_svc = '"all"' in service_val.lower() or service_val.lower() == "all"
             if uses_all_src or uses_all_svc:
-                bad_policies.append({
-                    "policy_id": pol_id,
-                    "srcaddr": srcaddr_val,
-                    "service": service_val,
-                })
+                bad_policies.append(
+                    {
+                        "policy_id": pol_id,
+                        "srcaddr": srcaddr_val,
+                        "service": service_val,
+                    }
+                )
 
         issues: list[str] = []
         for bp in bad_policies:
-            issues.append(
-                f"SSL VPN policy {bp['policy_id']}: "
-                f"srcaddr={bp['srcaddr']}, service={bp['service']}"
-            )
+            issues.append(f"SSL VPN policy {bp['policy_id']}: srcaddr={bp['srcaddr']}, service={bp['service']}")
 
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(

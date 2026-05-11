@@ -19,14 +19,7 @@ try:
 except (ImportError, ModuleNotFoundError):
     pytest.skip("RAG dependencies not installed", allow_module_level=True)
 
-_SEED_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "kryon"
-    / "knowledge"
-    / "seed_data"
-    / "cwe_examples.json"
-)
+_SEED_PATH = Path(__file__).resolve().parents[2] / "src" / "kryon" / "knowledge" / "seed_data" / "cwe_examples.json"
 _CWE_RE = re.compile(r"^CWE-\d{1,4}$")
 _CVE_RE = re.compile(r"^CVE-\d{4}-\d{4,7}$")
 
@@ -75,9 +68,7 @@ def test_content_mentions_declared_cwe_id(entries):
     the text alone can surface the right example."""
     for entry in entries:
         cwe = entry["metadata"]["cwe_id"]
-        assert cwe in entry["content"], (
-            f"{entry['id']}: content does not mention {cwe}"
-        )
+        assert cwe in entry["content"], f"{entry['id']}: content does not mention {cwe}"
 
 
 def test_covers_at_least_ten_distinct_cwes(entries):

@@ -86,9 +86,7 @@ class _LogRetentionCheck:
 
         issues: list[str] = []
         if status == "enable" and max_age < _MIN_RETENTION_DAYS:
-            issues.append(
-                f"maximum-log-age={max_age} < {_MIN_RETENTION_DAYS} days"
-            )
+            issues.append(f"maximum-log-age={max_age} < {_MIN_RETENTION_DAYS} days")
         # If status is disable AND no FAZ → FGT-4.1 will catch it.
 
         verdict = "PASS" if not issues else "FAIL"

@@ -63,9 +63,9 @@ class _SslVpnPortalExposureCheck:
         port = port_match.group(1) if port_match else "10443"  # FortiOS default
 
         # Source interface / source addresses for the SSL VPN listener
-        src_intf = re.findall(r'set\s+source-interface\s+(.+)', out)
-        src_addr = re.findall(r'set\s+source-address\s+(.+)', out)
-        src_addr_neg = re.findall(r'set\s+source-address-negate\s+(\S+)', out)
+        src_intf = re.findall(r"set\s+source-interface\s+(.+)", out)
+        src_addr = re.findall(r"set\s+source-address\s+(.+)", out)
+        src_addr_neg = re.findall(r"set\s+source-address-negate\s+(\S+)", out)
 
         issues: list[str] = []
         if port in _DEFAULT_PORTS:

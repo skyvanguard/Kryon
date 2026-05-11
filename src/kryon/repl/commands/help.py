@@ -3,7 +3,6 @@ Help command for KRYON REPL.
 This module provides commands for displaying help information.
 """
 
-
 try:
     from rich.console import Console
     from rich.panel import Panel

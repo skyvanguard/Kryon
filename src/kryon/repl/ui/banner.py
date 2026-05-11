@@ -193,17 +193,9 @@ def _display_compact_banner(console: Console, version: str, codename: str) -> No
     art is still available via `KRYON_FULL_BANNER=1` for those who like
     the classic look.
     """
-    console.print(
-        f"[bold cyan]KRYON[/bold cyan] "
-        f"[dim cyan]v{version} — {codename}[/dim cyan]"
-    )
-    console.print(
-        "[dim]autonomous cybersecurity agent for financial services · "
-        "all actions logged[/dim]"
-    )
-    console.print(
-        "[dim cyan]/help · /skill list · /agent select · Ctrl+C interrupt · /exit[/dim cyan]"
-    )
+    console.print(f"[bold cyan]KRYON[/bold cyan] [dim cyan]v{version} — {codename}[/dim cyan]")
+    console.print("[dim]autonomous cybersecurity agent for financial services · all actions logged[/dim]")
+    console.print("[dim cyan]/help · /skill list · /agent select · Ctrl+C interrupt · /exit[/dim cyan]")
 
 
 def display_banner(console: Console):
@@ -704,26 +696,15 @@ def display_compact_banner(console: Console) -> None:
 
     # Default = real 3-line compact banner with palette B accents.
     if not _full_banner_enabled():
-        console.print(
-            f"[bold cyan]KRYON[/bold cyan] "
-            f"[dim cyan]v{ctx['version']} — {ctx['codename']}[/dim cyan]"
-        )
-        console.print(
-            "[dim]autonomous cybersecurity agent for financial services · "
-            "all actions logged[/dim]"
-        )
-        console.print(
-            "[dim cyan]/help · /skill list · /agent select · "
-            "Ctrl+C interrupt · /exit[/dim cyan]"
-        )
+        console.print(f"[bold cyan]KRYON[/bold cyan] [dim cyan]v{ctx['version']} — {ctx['codename']}[/dim cyan]")
+        console.print("[dim]autonomous cybersecurity agent for financial services · all actions logged[/dim]")
+        console.print("[dim cyan]/help · /skill list · /agent select · Ctrl+C interrupt · /exit[/dim cyan]")
         return
 
     # Opt-in: legacy panel with the ASCII art logo.
     logo = _pick_logo()
     body = Text.from_markup(
-        f"{logo}\n\n"
-        f"  [bold white]v{ctx['version']}[/bold white]"
-        f" [dim]·[/dim] [cyan]{ctx['agent']}[/cyan]\n"
+        f"{logo}\n\n  [bold white]v{ctx['version']}[/bold white] [dim]·[/dim] [cyan]{ctx['agent']}[/cyan]\n"
     )
     panel = Panel(body, border_style="blue", box=ROUNDED, padding=(0, 2))
     console.print()

@@ -61,8 +61,7 @@ _SUMMARY_LINE_RE = re.compile(r"^SUMMARY:\s*(.+)$", re.M)
 
 def _parse_sanitizer(stderr_text: str) -> dict:
     """Extract crash type / backtrace from combined ASAN+UBSan output."""
-    out = {"crashed": False, "crash_type": "", "address": "", "summary": "",
-           "stack_top": []}
+    out = {"crashed": False, "crash_type": "", "address": "", "summary": "", "stack_top": []}
 
     m = _ASAN_SUMMARY_RE.search(stderr_text)
     if m:
@@ -116,10 +115,12 @@ def _run_sandboxed_impl(
 
     compiler, lang_flags = _detect_compiler(language)
     if not compiler:
-        return json.dumps({
-            "error": f"no compiler found for language={language!r}",
-            "hint": "install clang or gcc in the container",
-        })
+        return json.dumps(
+            {
+                "error": f"no compiler found for language={language!r}",
+                "hint": "install clang or gcc in the container",
+            }
+        )
 
     # Build flags — ASAN + UBSan, with sensible error reporting knobs
     # halt_on_error=1 ensures the first violation aborts; symbolize=1 gives
@@ -127,7 +128,9 @@ def _run_sandboxed_impl(
     asan_options = "halt_on_error=1:symbolize=1:abort_on_error=0:detect_leaks=0"
     ubsan_options = "halt_on_error=1:print_stacktrace=1"
     base_flags = [
-        "-O0", "-g", "-fno-omit-frame-pointer",
+        "-O0",
+        "-g",
+        "-fno-omit-frame-pointer",
         "-fsanitize=address,undefined",
     ]
     extra = extra_compile_flags.split() if extra_compile_flags else []
@@ -140,19 +143,33 @@ def _run_sandboxed_impl(
         src_path.write_text(source_code)
 
         # Compile
-        compile_cmd = [compiler] + lang_flags + base_flags + extra + [
-            str(src_path), "-o", str(bin_path),
-        ]
+        compile_cmd = (
+            [compiler]
+            + lang_flags
+            + base_flags
+            + extra
+            + [
+                str(src_path),
+                "-o",
+                str(bin_path),
+            ]
+        )
         cp = subprocess.run(
-            compile_cmd, capture_output=True, text=True,
-            timeout=compile_timeout, check=False,
+            compile_cmd,
+            capture_output=True,
+            text=True,
+            timeout=compile_timeout,
+            check=False,
         )
         if cp.returncode != 0:
-            return json.dumps({
-                "compiled": False,
-                "compile_cmd": " ".join(compile_cmd),
-                "compile_stderr": cp.stderr[:_MAX_STDERR],
-            }, indent=2)
+            return json.dumps(
+                {
+                    "compiled": False,
+                    "compile_cmd": " ".join(compile_cmd),
+                    "compile_stderr": cp.stderr[:_MAX_STDERR],
+                },
+                indent=2,
+            )
 
         # Run
         env = {**os.environ, "ASAN_OPTIONS": asan_options, "UBSAN_OPTIONS": ubsan_options}
@@ -160,24 +177,32 @@ def _run_sandboxed_impl(
             rp = subprocess.run(
                 [str(bin_path)],
                 input=stdin_bytes if stdin_bytes else None,
-                capture_output=True, text=True,
-                timeout=run_timeout, check=False, env=env,
+                capture_output=True,
+                text=True,
+                timeout=run_timeout,
+                check=False,
+                env=env,
             )
         except subprocess.TimeoutExpired:
-            return json.dumps({
-                "compiled": True,
-                "timeout": True,
-                "run_timeout": run_timeout,
-            }, indent=2)
+            return json.dumps(
+                {
+                    "compiled": True,
+                    "timeout": True,
+                    "run_timeout": run_timeout,
+                },
+                indent=2,
+            )
 
         parsed = _parse_sanitizer(rp.stderr)
-        parsed.update({
-            "compiled": True,
-            "exit_code": rp.returncode,
-            "stdout": rp.stdout[:_MAX_STDOUT],
-            "stderr": rp.stderr[:_MAX_STDERR],
-            "raw": rp.stderr[:_MAX_RAW] if parsed["crashed"] else "",
-        })
+        parsed.update(
+            {
+                "compiled": True,
+                "exit_code": rp.returncode,
+                "stdout": rp.stdout[:_MAX_STDOUT],
+                "stderr": rp.stderr[:_MAX_STDERR],
+                "raw": rp.stderr[:_MAX_RAW] if parsed["crashed"] else "",
+            }
+        )
         return json.dumps(parsed, indent=2)
 
     finally:
@@ -208,6 +233,4 @@ def run_sandboxed(
       compiled, crashed, crash_type, address, summary, stack_top,
       exit_code, stdout, stderr, raw.
     """
-    return _run_sandboxed_impl(
-        source_code, language, stdin_bytes, extra_compile_flags, run_timeout
-    )
+    return _run_sandboxed_impl(source_code, language, stdin_bytes, extra_compile_flags, run_timeout)

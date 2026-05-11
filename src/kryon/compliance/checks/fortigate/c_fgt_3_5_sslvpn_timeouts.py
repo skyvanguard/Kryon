@@ -15,15 +15,13 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-_MAX_IDLE_SEC = 1800       # 30 min
-_MAX_AUTH_SEC = 28800      # 8 h
+_MAX_IDLE_SEC = 1800  # 30 min
+_MAX_AUTH_SEC = 28800  # 8 h
 
 
 class _SslVpnTimeoutsCheck:
     control_id = "FGT-3.5"
-    control_title = (
-        f"SSL VPN idle <= {_MAX_IDLE_SEC // 60} min, auth <= {_MAX_AUTH_SEC // 3600}h"
-    )
+    control_title = f"SSL VPN idle <= {_MAX_IDLE_SEC // 60} min, auth <= {_MAX_AUTH_SEC // 3600}h"
     section = "3"
     severity = "MEDIUM"
     remediation_static = (
@@ -63,8 +61,8 @@ class _SslVpnTimeoutsCheck:
             except (ValueError, AttributeError):
                 return default
 
-        idle = num("idle-timeout", 300)         # FortiOS default 300s
-        auth = num("auth-timeout", 28800)       # FortiOS default 8h
+        idle = num("idle-timeout", 300)  # FortiOS default 300s
+        auth = num("auth-timeout", 28800)  # FortiOS default 8h
 
         issues: list[str] = []
         if idle > _MAX_IDLE_SEC:

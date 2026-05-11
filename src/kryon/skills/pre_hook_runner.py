@@ -117,34 +117,25 @@ def _resolve_python_callable(hook: PreHookSpec) -> Callable[..., Any]:
         file_path.relative_to(repo_root)
     except ValueError as e:
         raise PreHookExecutionError(
-            f"python hook path {file_path} resolves outside the Kryon repo "
-            f"({repo_root}) — refused"
+            f"python hook path {file_path} resolves outside the Kryon repo ({repo_root}) — refused"
         ) from e
 
     if not file_path.is_file():
-        raise PreHookExecutionError(
-            f"python hook file not found: {file_path}"
-        )
+        raise PreHookExecutionError(f"python hook file not found: {file_path}")
 
     mod_name = f"_kryon_pre_hook_{file_path.stem}_{abs(hash(str(file_path)))}"
     spec = importlib.util.spec_from_file_location(mod_name, file_path)
     if spec is None or spec.loader is None:
-        raise PreHookExecutionError(
-            f"could not build import spec for {file_path}"
-        )
+        raise PreHookExecutionError(f"could not build import spec for {file_path}")
     module = importlib.util.module_from_spec(spec)
     try:
         spec.loader.exec_module(module)
     except Exception as e:
-        raise PreHookExecutionError(
-            f"failed to import {file_path}: {type(e).__name__}: {e}"
-        ) from e
+        raise PreHookExecutionError(f"failed to import {file_path}: {type(e).__name__}: {e}") from e
 
     func = getattr(module, func_name, None)
     if not callable(func):
-        raise PreHookExecutionError(
-            f"function {func_name!r} not found or not callable in {file_path}"
-        )
+        raise PreHookExecutionError(f"function {func_name!r} not found or not callable in {file_path}")
     return func
 
 
@@ -171,8 +162,7 @@ async def _invoke_one(
         callable_ = tool_callables.get(hook.tool)
         if callable_ is None:
             raise PreHookExecutionError(
-                f"pre_hook tool {hook.tool!r} not in callable registry "
-                f"(available: {sorted(tool_callables.keys())})"
+                f"pre_hook tool {hook.tool!r} not in callable registry (available: {sorted(tool_callables.keys())})"
             )
         args = _substitute_args(hook.args, ctx)
         if inspect.iscoroutinefunction(callable_):
@@ -184,20 +174,17 @@ async def _invoke_one(
     try:
         result = await asyncio.wait_for(coro, timeout=hook.timeout_s)
     except asyncio.TimeoutError as e:
-        raise PreHookExecutionError(
-            f"pre_hook {label!r} timed out after {hook.timeout_s}s"
-        ) from e
+        raise PreHookExecutionError(f"pre_hook {label!r} timed out after {hook.timeout_s}s") from e
     except PreHookExecutionError:
         raise
     except Exception as e:  # noqa: BLE001
-        raise PreHookExecutionError(
-            f"pre_hook {label!r} raised: {type(e).__name__}: {e}"
-        ) from e
+        raise PreHookExecutionError(f"pre_hook {label!r} raised: {type(e).__name__}: {e}") from e
 
     if not isinstance(result, str):
         # Coerce for downstream consumers. Pretty-encode dicts/lists.
         if isinstance(result, (dict, list)):
             import json
+
             try:
                 result = json.dumps(result, ensure_ascii=False)
             except (TypeError, ValueError):
@@ -238,7 +225,9 @@ async def run_pre_hooks(
             out[hook.inject_as] = result
             logger.debug(
                 "pre_hook ok: %s → %d chars under %r",
-                hook.tool or hook.python, len(result), hook.inject_as,
+                hook.tool or hook.python,
+                len(result),
+                hook.inject_as,
             )
         except PreHookExecutionError as e:
             if hook.required:

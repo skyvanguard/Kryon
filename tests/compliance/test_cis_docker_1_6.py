@@ -14,10 +14,7 @@ try:
 except (ImportError, ModuleNotFoundError):
     pytest.skip("compliance/cis not importable", allow_module_level=True)
 
-_YAML = (
-    Path(__file__).resolve().parents[2]
-    / "src/kryon/compliance/cis/frameworks/cis-docker-1.6.yaml"
-)
+_YAML = Path(__file__).resolve().parents[2] / "src/kryon/compliance/cis/frameworks/cis-docker-1.6.yaml"
 _ID_RE = re.compile(r"^CIS-DKR-\d+(\.\d+){1,3}$")
 
 
@@ -46,15 +43,13 @@ def test_sections_covered(framework):
 
 def test_natural_sort(framework):
     from kryon.compliance.runner import _natural_sort_key
+
     ids = [c.id for c in framework.checks]
     assert ids == sorted(ids, key=_natural_sort_key)
 
 
 def _check_blob(c) -> str:
-    return " ".join(
-        (getattr(c, f) or "").lower()
-        for f in ("title", "rationale", "remediation", "command")
-    )
+    return " ".join((getattr(c, f) or "").lower() for f in ("title", "rationale", "remediation", "command"))
 
 
 def test_daemon_config_checks_present(framework):
@@ -86,7 +81,6 @@ def test_critical_controls_exist(framework):
 def test_docker_commands_used(framework):
     """Most checks should use docker/inspect/info CLI or file-level inspection."""
     docker_cmds = [
-        c for c in framework.checks
-        if "docker " in c.command or "dockerd" in c.command or "daemon.json" in c.command
+        c for c in framework.checks if "docker " in c.command or "dockerd" in c.command or "daemon.json" in c.command
     ]
     assert len(docker_cmds) >= 20, f"expected >=20 docker-based checks, got {len(docker_cmds)}"

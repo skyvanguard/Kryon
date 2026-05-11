@@ -32,7 +32,7 @@ class _AutoBackupCheck:
         t0 = time.time()
         cmd = (
             "mongo --port 27117 ace --quiet --eval "
-            "'var d=db.setting.findOne({key:\"super_auto_backup\"});"
+            '\'var d=db.setting.findOne({key:"super_auto_backup"});'
             "print(JSON.stringify(d || {}))'"
         )
         out, err, rc = run_cmd(ctx, cmd, shell=True, timeout_s=8)
@@ -60,7 +60,7 @@ class _AutoBackupCheck:
         cron_m = re.search(r'"cron"\s*:\s*"([^"]+)"', out)
         retention_m = re.search(r'"max_files"\s*:\s*(\d+)', out)
 
-        status = (status_m.group(1).lower() if status_m else "")
+        status = status_m.group(1).lower() if status_m else ""
         cron = cron_m.group(1) if cron_m else ""
         retention = int(retention_m.group(1)) if retention_m else 0
 

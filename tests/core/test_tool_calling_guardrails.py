@@ -9,6 +9,7 @@ Covers:
 - Fix C: the logging helpers produce the *effective* tool_choice and the
   *wrapped* OpenAI tool format.
 """
+
 from __future__ import annotations
 
 import os
@@ -33,15 +34,13 @@ class TestProsePlanDetector:
     def test_short_message_is_never_flagged(self) -> None:
         # Short refusals / greetings must be preserved regardless of pattern
         assert not _is_prose_plan_contamination("¡Hola!")
-        assert not _is_prose_plan_contamination(
-            "No puedo ayudarte con eso. Crear un virus es ilegal."
-        )
+        assert not _is_prose_plan_contamination("No puedo ayudarte con eso. Crear un virus es ilegal.")
 
     def test_single_pattern_match_does_not_trigger(self) -> None:
         # One pattern alone (e.g. a legit `run_command(...)` mention in a
         # normal answer) shouldn't nuke the message. Need two distinct hits.
         content = (
-            "Para continuar podés usar `run_command(\"ls\")` en la próxima iteración. "
+            'Para continuar podés usar `run_command("ls")` en la próxima iteración. '
             "Así se explora el directorio paso a paso y vemos qué archivos existen. "
             "Esto es solo una explicación contextual, no un plan falso con análisis "
             "ni formato de lista numerada, simplemente texto normal de assistente."
@@ -55,8 +54,8 @@ class TestProsePlanDetector:
             "ANÁLISIS: Repo analizado — dependencias inseguras detectadas en npm audit — "
             "priorizar revisión de paquetes críticos.\n"
             "PLAN (ejecutando #1 ya):\n"
-            "1. `run_command(\"cd obsidian-mind && npm audit\")`\n"
-            "2. `duckduckgo_search(\"obsidian-mind vulnerabilities\")`\n"
+            '1. `run_command("cd obsidian-mind && npm audit")`\n'
+            '2. `duckduckgo_search("obsidian-mind vulnerabilities")`\n'
             "```"
         )
         assert _is_prose_plan_contamination(content)
@@ -65,7 +64,7 @@ class TestProsePlanDetector:
         content = (
             "``` ANÁLISIS: Código sin vulnerabilidades reportadas por ESLint — "
             "priorizar revisión manual de lógica crítica y configuraciones de seguridad. "
-            "Debemos proceder con `run_command(\"cd obsidian-mind && git grep secret\")` "
+            'Debemos proceder con `run_command("cd obsidian-mind && git grep secret")` '
             "en el próximo turno antes de cerrar el análisis de este proyecto.```"
         )
         assert _is_prose_plan_contamination(content)
@@ -81,9 +80,7 @@ class TestProsePlanDetector:
         import kryon.sdk.agents.models.openai_chatcompletions as occ
 
         monkeypatch.setattr(occ, "_PROSE_PLAN_FILTER_ENABLED", False)
-        content = (
-            "```\nANÁLISIS: foo\nPLAN (ejecutando #1 ya):\n1. `run_command(\"x\")`\n```"
-        ) * 2
+        content = ('```\nANÁLISIS: foo\nPLAN (ejecutando #1 ya):\n1. `run_command("x")`\n```') * 2
         assert not occ._is_prose_plan_contamination(content)
 
 
@@ -134,9 +131,9 @@ class TestAddToMessageHistoryGuardrails:
             "priorizar revisión de paquetes npm desactualizados y posible "
             "ejecución de código arbitrario vía prototype pollution.\n"
             "PLAN (ejecutando #1 ya):\n"
-            "1. `run_command(\"cd obsidian-mind && npm audit --json\")`\n"
-            "2. `nuclei_scan(\"https://github.com/example/obsidian-mind\")`\n"
-            "3. `query_knowledge_base(\"obsidian prototype pollution cve\")`\n"
+            '1. `run_command("cd obsidian-mind && npm audit --json")`\n'
+            '2. `nuclei_scan("https://github.com/example/obsidian-mind")`\n'
+            '3. `query_knowledge_base("obsidian prototype pollution cve")`\n'
             "```"
         )
         assert len(poison) >= 200  # precondition: meets min length
@@ -149,9 +146,7 @@ class TestAddToMessageHistoryGuardrails:
         """
         model = _make_model()
         model.message_history = []
-        poison_content = (
-            "```\nANÁLISIS: foo\nPLAN (ejecutando #1 ya):\n1. `run_command(\"x\")`\n```"
-        ) * 2
+        poison_content = ('```\nANÁLISIS: foo\nPLAN (ejecutando #1 ya):\n1. `run_command("x")`\n```') * 2
         msg = {
             "role": "assistant",
             "content": poison_content,
@@ -169,12 +164,8 @@ class TestAddToMessageHistoryGuardrails:
     def test_short_assistant_text_is_preserved(self) -> None:
         model = _make_model()
         model.message_history = []
-        model.add_to_message_history(
-            {"role": "assistant", "content": "¡Hola! ¿En qué te ayudo?"}
-        )
-        model.add_to_message_history(
-            {"role": "assistant", "content": "No puedo ayudarte con eso."}
-        )
+        model.add_to_message_history({"role": "assistant", "content": "¡Hola! ¿En qué te ayudo?"})
+        model.add_to_message_history({"role": "assistant", "content": "No puedo ayudarte con eso."})
         assert len(model.message_history) == 2
 
     def test_real_user_message_resets_per_turn_counter(self) -> None:

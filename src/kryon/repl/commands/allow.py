@@ -8,6 +8,7 @@ Subcommands:
 The allow-list file lives at the nearest repo root (directory with
 `.kryon-allow.yaml` or `.git`) relative to the current working directory.
 """
+
 from __future__ import annotations
 
 import getpass
@@ -55,13 +56,18 @@ class AllowCommand(Command):
 
     def _list(self) -> bool:
         from kryon.services.allow_list import load
+
         root = _find_repo_root()
         al = load(root)
         print(f"Repo root: {root}")
-        print(f"YAML:      {root}/.kryon-allow.yaml "
-              f"({'present' if (root/'.kryon-allow.yaml').is_file() else 'missing'})")
-        print(f"Audit:     {root}/.kryon-allow-audit.jsonl "
-              f"({'present' if (root/'.kryon-allow-audit.jsonl').is_file() else 'missing'})")
+        print(
+            f"YAML:      {root}/.kryon-allow.yaml "
+            f"({'present' if (root / '.kryon-allow.yaml').is_file() else 'missing'})"
+        )
+        print(
+            f"Audit:     {root}/.kryon-allow-audit.jsonl "
+            f"({'present' if (root / '.kryon-allow-audit.jsonl').is_file() else 'missing'})"
+        )
         print(f"Rules:     {len(al.rules)}")
         for i, r in enumerate(al.rules, 1):
             line = f"L{r.line_lo}-{r.line_hi}" if r.line_lo else "any line"
@@ -97,6 +103,7 @@ class AllowCommand(Command):
         except Exception:
             added_by = "unknown"
         from kryon.services.allow_list import add_entry
+
         root = _find_repo_root()
         yaml_path = add_entry(
             root,

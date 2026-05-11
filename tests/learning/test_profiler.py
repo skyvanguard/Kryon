@@ -58,12 +58,7 @@ def test_extracts_open_ports_from_nmap_lines() -> None:
 
 
 def test_dedupes_repeated_ports() -> None:
-    text = (
-        "Nmap scan report for x (1.2.3.4)\n"
-        "22/tcp open ssh\n"
-        "22/tcp open ssh\n"
-        "80/tcp open http\n"
-    )
+    text = "Nmap scan report for x (1.2.3.4)\n22/tcp open ssh\n22/tcp open ssh\n80/tcp open http\n"
     profile = build_profile(user_message=text)
     assert profile["ports"] == [22, 80]
 
@@ -99,13 +94,16 @@ def test_no_tech_signal_returns_empty_list() -> None:
 # ---------- OS guessing ----------
 
 
-@pytest.mark.parametrize("text,expected_os", [
-    ("Linux server with apache/2.4", "linux"),
-    ("ubuntu 22.04 found", "linux"),
-    ("OpenSSH_8.0 detected", "linux"),
-    ("Windows Server 2019 microsoft-iis", "windows"),
-    ("hello world", None),
-])
+@pytest.mark.parametrize(
+    "text,expected_os",
+    [
+        ("Linux server with apache/2.4", "linux"),
+        ("ubuntu 22.04 found", "linux"),
+        ("OpenSSH_8.0 detected", "linux"),
+        ("Windows Server 2019 microsoft-iis", "windows"),
+        ("hello world", None),
+    ],
+)
 def test_os_hint_classifier(text: str, expected_os: str | None) -> None:
     profile = build_profile(user_message=text)
     assert profile["os_hint"] == expected_os

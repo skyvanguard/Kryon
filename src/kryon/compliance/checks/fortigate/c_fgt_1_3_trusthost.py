@@ -79,16 +79,12 @@ class _TrusthostCheck:
         for acct in accounts:
             ths: list[tuple[str, str]] = acct["trusthosts"]  # type: ignore[assignment]
             if not ths:
-                issues.append(
-                    f"admin '{acct['name']}' has no trusthost (any source allowed)"
-                )
+                issues.append(f"admin '{acct['name']}' has no trusthost (any source allowed)")
                 continue
             # Any wildcard entry effectively defeats the others
             for ip, mask in ths:
                 if ip == "0.0.0.0" and mask == "0.0.0.0":
-                    issues.append(
-                        f"admin '{acct['name']}' has trusthost=0.0.0.0/0 (== any)"
-                    )
+                    issues.append(f"admin '{acct['name']}' has trusthost=0.0.0.0/0 (== any)")
                     break
 
         verdict = "PASS" if not issues else "FAIL"
@@ -103,7 +99,8 @@ class _TrusthostCheck:
             evidence_parsed={
                 "admin_count": len(accounts),
                 "accounts_without_trusthost": [
-                    a["name"] for a in accounts
+                    a["name"]
+                    for a in accounts
                     if not a["trusthosts"]  # type: ignore[index]
                 ],
                 "issues": sorted(issues),

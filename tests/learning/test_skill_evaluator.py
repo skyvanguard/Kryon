@@ -156,7 +156,7 @@ def test_passed_with_mixed_outcomes_above_threshold() -> None:
     from kryon.learning.skill_evaluator import evaluate_draft_against_corpus
 
     findings = (
-        [_finding(cwe="CWE-89") for _ in range(4)]    # detectable by nuclei_scan
+        [_finding(cwe="CWE-89") for _ in range(4)]  # detectable by nuclei_scan
         + [_finding(cwe="CWE-1004", title="cookie missing httponly")]  # not in CWE map
     )
     rep = evaluate_draft_against_corpus(
@@ -196,10 +196,7 @@ def test_rejected_when_pass_rate_below_threshold() -> None:
 
     # Two SQL findings (detectable by nuclei_scan) + 3 SSRF findings
     # (CWE-1390) which neither nmap nor nuclei_scan covers in our default map.
-    findings = (
-        [_finding(cwe="CWE-89") for _ in range(2)]
-        + [_finding(cwe="CWE-1390") for _ in range(3)]
-    )
+    findings = [_finding(cwe="CWE-89") for _ in range(2)] + [_finding(cwe="CWE-1390") for _ in range(3)]
     rep = evaluate_draft_against_corpus(
         draft=_draft_with_tools(["nmap", "nuclei_scan"]),
         cluster=_cluster(),
@@ -220,10 +217,9 @@ def test_only_relevant_tech_findings_are_evaluated() -> None:
     """Cluster targets WordPress; sharepoint findings shouldn't count."""
     from kryon.learning.skill_evaluator import evaluate_draft_against_corpus
 
-    findings = (
-        [_finding(cwe="CWE-89", tech="wordpress") for _ in range(3)]
-        + [_finding(cwe="CWE-89", tech="sharepoint") for _ in range(10)]
-    )
+    findings = [_finding(cwe="CWE-89", tech="wordpress") for _ in range(3)] + [
+        _finding(cwe="CWE-89", tech="sharepoint") for _ in range(10)
+    ]
     rep = evaluate_draft_against_corpus(
         draft=_draft_with_tools(["nmap", "nuclei_scan"]),
         cluster=_cluster(tech=["wordpress"]),
@@ -257,10 +253,7 @@ def test_min_pass_rate_can_be_tightened() -> None:
 def test_min_pass_rate_can_be_relaxed() -> None:
     from kryon.learning.skill_evaluator import evaluate_draft_against_corpus
 
-    findings = (
-        [_finding(cwe="CWE-89") for _ in range(2)]
-        + [_finding(cwe="CWE-1390") for _ in range(3)]
-    )
+    findings = [_finding(cwe="CWE-89") for _ in range(2)] + [_finding(cwe="CWE-1390") for _ in range(3)]
     rep = evaluate_draft_against_corpus(
         draft=_draft_with_tools(["nmap", "nuclei_scan"]),
         cluster=_cluster(),
@@ -280,9 +273,7 @@ def test_caller_can_inject_custom_cwe_to_tools_map() -> None:
 
     custom_map = {"CWE-DEMO-1": {"my_internal_scanner"}}
     findings = [
-        {"cwe_id": "CWE-DEMO-1", "tech_fingerprint": "wordpress",
-         "id": f"fnd_{i}", "title": "x"}
-        for i in range(4)
+        {"cwe_id": "CWE-DEMO-1", "tech_fingerprint": "wordpress", "id": f"fnd_{i}", "title": "x"} for i in range(4)
     ]
     rep = evaluate_draft_against_corpus(
         draft=_draft_with_tools(["nmap", "my_internal_scanner"]),

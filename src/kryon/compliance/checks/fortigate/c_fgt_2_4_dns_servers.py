@@ -18,14 +18,20 @@ from kryon.compliance.runner import register_check, run_cmd
 
 # Allowed public DNS that FortiGate uses by design (FortiGuard servers).
 _VENDOR_DNS = {
-    "208.91.112.53", "208.91.112.52",         # FortiGuard
-    "96.45.45.45", "96.45.46.46",             # FortiGuard
+    "208.91.112.53",
+    "208.91.112.52",  # FortiGuard
+    "96.45.45.45",
+    "96.45.46.46",  # FortiGuard
 }
 _ARBITRARY_PUBLIC_DNS = {
-    "8.8.8.8", "8.8.4.4",                      # Google
-    "1.1.1.1", "1.0.0.1",                      # Cloudflare
-    "9.9.9.9", "149.112.112.112",              # Quad9
-    "208.67.222.222", "208.67.220.220",        # OpenDNS
+    "8.8.8.8",
+    "8.8.4.4",  # Google
+    "1.1.1.1",
+    "1.0.0.1",  # Cloudflare
+    "9.9.9.9",
+    "149.112.112.112",  # Quad9
+    "208.67.222.222",
+    "208.67.220.220",  # OpenDNS
 }
 
 

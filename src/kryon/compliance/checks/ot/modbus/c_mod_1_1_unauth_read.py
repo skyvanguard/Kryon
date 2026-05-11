@@ -59,9 +59,7 @@ class _Mod11Check:
                 f"with unit_id=1 — exposed via: {', '.join(modes)}."
             )
             if result.device_identification:
-                ident = ", ".join(
-                    f"{k}={v!r}" for k, v in result.device_identification.items()
-                )
+                ident = ", ".join(f"{k}={v!r}" for k, v in result.device_identification.items())
                 stdout += f" Device: {ident}."
         else:
             verdict = "PASS"

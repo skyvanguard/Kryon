@@ -314,7 +314,12 @@ class SessionMemory:
         port_numbers = set(self._ports.keys()) if self._ports else set()
 
         # Email services open → check SPF/DKIM/DMARC
-        if any(p in port_numbers for p in [110, 143, 993, 995, 25, 465, 587]) or "pop3" in all_services or "imap" in all_services or "smtp" in all_services:
+        if (
+            any(p in port_numbers for p in [110, 143, 993, 995, 25, 465, 587])
+            or "pop3" in all_services
+            or "imap" in all_services
+            or "smtp" in all_services
+        ):
             recs.append("Configure SPF, DKIM and DMARC records for email security")
 
         # Apache/nginx without version hiding

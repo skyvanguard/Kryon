@@ -34,10 +34,14 @@ class _C228Check:
     def run(self, ctx: CheckContext) -> CheckResult:
         t0 = time.time()
         f2b_out, f2b_err, _ = run_cmd(
-            ctx, ["systemctl", "is-active", "fail2ban"], timeout_s=5,
+            ctx,
+            ["systemctl", "is-active", "fail2ban"],
+            timeout_s=5,
         )
         sg_out, sg_err, _ = run_cmd(
-            ctx, ["systemctl", "is-active", "sshguard"], timeout_s=5,
+            ctx,
+            ["systemctl", "is-active", "sshguard"],
+            timeout_s=5,
         )
         f2b_state = (f2b_out or "").strip().lower()
         sg_state = (sg_out or "").strip().lower()

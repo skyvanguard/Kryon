@@ -72,9 +72,7 @@ class _SyslogUpstreamCheck:
 
         issues: list[str] = []
         if syslogd_status == "disable" and faz_status == "disable":
-            issues.append(
-                "neither syslog nor FortiAnalyzer is enabled — logs only local"
-            )
+            issues.append("neither syslog nor FortiAnalyzer is enabled — logs only local")
 
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(

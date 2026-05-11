@@ -144,7 +144,8 @@ def run_auto_pipeline(
         except Exception as e:  # noqa: BLE001
             logger.warning(
                 "auto_pipeline: synth failed for cluster %s: %s",
-                cluster.cluster_id, e,
+                cluster.cluster_id,
+                e,
             )
             continue
         synthesized += 1
@@ -162,7 +163,9 @@ def run_auto_pipeline(
             md_path, json_path = _write_outputs(draft, report, drafts_root)
         except Exception as e:  # noqa: BLE001
             logger.warning(
-                "auto_pipeline: write failed for %s: %s", draft.name, e,
+                "auto_pipeline: write failed for %s: %s",
+                draft.name,
+                e,
             )
             continue
         paths.extend([str(md_path), str(json_path)])

@@ -76,10 +76,7 @@ class _S7_21Check:
 
         if not result.reachable or not result.s7_session_established:
             verdict = "N/A"
-            stdout = (
-                f"Cannot evaluate firmware currency — S7 session not "
-                f"established on {ctx.host}:102."
-            )
+            stdout = f"Cannot evaluate firmware currency — S7 session not established on {ctx.host}:102."
             parsed = {"reachable": result.reachable}
             return CheckResult(
                 control_id=self.control_id,

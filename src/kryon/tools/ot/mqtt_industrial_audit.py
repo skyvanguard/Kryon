@@ -53,8 +53,8 @@ class MqttProbeResult:
     port: int
     reachable: bool
     anonymous_connect_accepted: bool
-    sys_topic_readable: bool         # $SYS/# subscription got data
-    broker_banner: str = ""          # populated when $SYS leaks ver/info
+    sys_topic_readable: bool  # $SYS/# subscription got data
+    broker_banner: str = ""  # populated when $SYS leaks ver/info
     connack_return_code: int | None = None
     error: str = ""
 
@@ -97,7 +97,7 @@ def _decode_remaining_length(data: bytes, start: int = 1) -> tuple[int, int]:
         if not byte & 0x80:
             break
         multiplier *= 128
-        if multiplier > 128 ** 3:
+        if multiplier > 128**3:
             raise ValueError("var-int too long")
     return length, cursor
 
@@ -108,15 +108,12 @@ def _decode_remaining_length(data: bytes, start: int = 1) -> tuple[int, int]:
 def _build_connect(client_id: str = "kryon-bench") -> bytes:
     """Anonymous CONNECT (no username / password) for MQTT v3.1.1."""
     proto_name = b"MQTT"
-    proto_level = 0x04                # MQTT 3.1.1
-    flags = 0x02                      # clean session, no will, no auth
+    proto_level = 0x04  # MQTT 3.1.1
+    flags = 0x02  # clean session, no will, no auth
     keepalive = 60
     cid_bytes = client_id.encode("utf-8")
 
-    var_header = (
-        struct.pack(">H", len(proto_name)) + proto_name
-        + struct.pack(">BBH", proto_level, flags, keepalive)
-    )
+    var_header = struct.pack(">H", len(proto_name)) + proto_name + struct.pack(">BBH", proto_level, flags, keepalive)
     payload = struct.pack(">H", len(cid_bytes)) + cid_bytes
     body = var_header + payload
 
@@ -128,8 +125,7 @@ def _build_subscribe(packet_id: int, topic: str) -> bytes:
     """SUBSCRIBE packet for a single topic at QoS 0."""
     topic_bytes = topic.encode("utf-8")
     payload = (
-        struct.pack(">H", len(topic_bytes)) + topic_bytes
-        + bytes([0x00])  # QoS 0
+        struct.pack(">H", len(topic_bytes)) + topic_bytes + bytes([0x00])  # QoS 0
     )
     var_header = struct.pack(">H", packet_id)
     body = var_header + payload
@@ -173,14 +169,14 @@ def _parse_publish_topic_payload(data: bytes) -> tuple[str, bytes] | None:
         return None
     if body_start + rem_len > len(data):
         return None
-    body = data[body_start:body_start + rem_len]
+    body = data[body_start : body_start + rem_len]
     if len(body) < 2:
         return None
     topic_len = struct.unpack(">H", body[:2])[0]
     if 2 + topic_len > len(body):
         return None
-    topic = body[2:2 + topic_len].decode("utf-8", errors="replace")
-    payload = body[2 + topic_len:]
+    topic = body[2 : 2 + topic_len].decode("utf-8", errors="replace")
+    payload = body[2 + topic_len :]
     return topic, payload
 
 

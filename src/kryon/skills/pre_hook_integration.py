@@ -36,9 +36,7 @@ logger = logging.getLogger(__name__)
 # Quick host detector for the user input — picks up an IPv4 / hostname so
 # that prompts like "auditá el fortigate 192.168.1.1" automatically bind
 # `ctx.host` without the operator having to set KRYON_TARGET_HOST.
-_HOST_RE = re.compile(
-    r"\b((?:\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9][\w\-.]*\.[a-zA-Z]{2,})\b"
-)
+_HOST_RE = re.compile(r"\b((?:\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9][\w\-.]*\.[a-zA-Z]{2,})\b")
 
 
 def build_tool_callables_from_agent(agent: Any) -> dict[str, ToolCallable]:
@@ -91,7 +89,7 @@ def collect_active_pre_hooks(agent: Any) -> list[PreHookSpec]:
     skills = getattr(agent, "_active_skills", None) or []
     flat: list[PreHookSpec] = []
     for skill in skills:
-        for hook in (getattr(skill, "pre_hooks", None) or ()):
+        for hook in getattr(skill, "pre_hooks", None) or ():
             flat.append(hook)
     return flat
 
@@ -178,20 +176,19 @@ async def maybe_run_pre_hooks(
                 pass
         # Surface the failure to the LLM as authoritative context so it
         # tells the user instead of silently proceeding without findings.
-        return format_findings_block({
-            "_pre_hook_error": f"Required pre-hook failed: {e}. "
-            "Tell the user what failed and stop — do NOT re-run the tool."
-        })
+        return format_findings_block(
+            {
+                "_pre_hook_error": f"Required pre-hook failed: {e}. "
+                "Tell the user what failed and stop — do NOT re-run the tool."
+            }
+        )
 
     # Per-finding success line for the user.
     if console is not None:
         for inject_as, payload in findings.items():
             size = len(payload) if isinstance(payload, str) else 0
             try:
-                console.print(
-                    f"  [green]✓[/green] [dim]{inject_as}[/dim] "
-                    f"[dim]({size} chars)[/dim]"
-                )
+                console.print(f"  [green]✓[/green] [dim]{inject_as}[/dim] [dim]({size} chars)[/dim]")
             except Exception:
                 pass
 

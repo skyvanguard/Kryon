@@ -24,9 +24,7 @@ def test_loader_finds_playbooks(loader: SkillLoader) -> None:
     loud if a playbook subdir silently disappears.
     """
     skills = loader.scan()
-    assert len(skills) >= 60, (
-        f"Expected ≥60 skills, got {len(skills)}. A playbook dir may be missing."
-    )
+    assert len(skills) >= 60, f"Expected ≥60 skills, got {len(skills)}. A playbook dir may be missing."
 
 
 def test_match_returns_empty_on_noise(loader: SkillLoader) -> None:
@@ -44,13 +42,12 @@ def test_match_returns_empty_on_noise(loader: SkillLoader) -> None:
 
 
 def test_match_web_intent(loader: SkillLoader) -> None:
-    """"audita juice shop" should surface a web-pentest-class skill."""
+    """ "audita juice shop" should surface a web-pentest-class skill."""
     skills = loader.match(user_msg="audita juice shop OWASP")
     names = [s.name for s in skills]
-    assert any(
-        "web" in n.lower() or "pentest" in n.lower() or "owasp" in n.lower()
-        for n in names
-    ), f"no web/pentest skill surfaced: {names}"
+    assert any("web" in n.lower() or "pentest" in n.lower() or "owasp" in n.lower() for n in names), (
+        f"no web/pentest skill surfaced: {names}"
+    )
 
 
 # ---------- F77.E — whole-word keyword matching ----------
@@ -61,45 +58,35 @@ def test_short_keyword_does_not_match_inside_word(loader: SkillLoader) -> None:
     "segurid**ad**" via substring. Now whole-word — must NOT match."""
     skills = loader.match(user_msg="análisis de seguridad de la web")
     names = [s.name for s in skills]
-    assert "active-directory-recon" not in names, (
-        f"'ad' keyword matched 'seguridad' (substring bug): {names}"
-    )
+    assert "active-directory-recon" not in names, f"'ad' keyword matched 'seguridad' (substring bug): {names}"
 
 
 def test_short_keyword_still_matches_as_whole_word(loader: SkillLoader) -> None:
     """The whole-word fix must NOT break legitimate short-keyword matches."""
     skills = loader.match(user_msg="enumerate ad domain controllers")
     names = [s.name for s in skills]
-    assert "active-directory-recon" in names, (
-        f"'ad' as whole word should still match: {names}"
-    )
+    assert "active-directory-recon" in names, f"'ad' as whole word should still match: {names}"
 
 
 def test_natural_spanish_web_prompt_loads_web_pentest(loader: SkillLoader) -> None:
     """Operator types a natural Spanish prompt — web-pentest must surface."""
     skills = loader.match(user_msg="quiero un análisis de seguridad de la web: example.com")
     names = [s.name for s in skills]
-    assert "web-pentest" in names, (
-        f"natural Spanish web-security prompt didn't surface web-pentest: {names}"
-    )
+    assert "web-pentest" in names, f"natural Spanish web-security prompt didn't surface web-pentest: {names}"
 
 
 def test_fix_keyword_does_not_match_prefix_or_suffix(loader: SkillLoader) -> None:
     """`fix` keyword (safe-modification) must not eat 'pre**fix**' / 'su**ffix**'."""
     skills = loader.match(user_msg="prefix this path with /api and add a suffix")
     names = [s.name for s in skills]
-    assert "safe-modification" not in names, (
-        f"'fix' keyword matched prefix/suffix (substring bug): {names}"
-    )
+    assert "safe-modification" not in names, f"'fix' keyword matched prefix/suffix (substring bug): {names}"
 
 
 def test_unicode_accented_keyword_matches(loader: SkillLoader) -> None:
     """`análisis` (with acute) must match in real Spanish text."""
     skills = loader.match(user_msg="hagamos un análisis del host")
     names = [s.name for s in skills]
-    assert "recon-scout" in names, (
-        f"accented Spanish keyword should match: {names}"
-    )
+    assert "recon-scout" in names, f"accented Spanish keyword should match: {names}"
 
 
 def test_substring_within_unicode_word_does_not_match(loader: SkillLoader) -> None:

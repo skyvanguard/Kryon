@@ -27,9 +27,16 @@ from kryon.skills.validator_agent import Finding
 # suite and most C/C++ OSS use .c / .cpp / .h / .hpp; Python / JS are
 # handled by separate experts in the web pipeline.
 _SOURCE_SUFFIXES: tuple[str, ...] = (
-    ".c", ".cc", ".cpp", ".cxx",
-    ".h", ".hh", ".hpp", ".hxx",
-    ".m", ".mm",  # Objective-C
+    ".c",
+    ".cc",
+    ".cpp",
+    ".cxx",
+    ".h",
+    ".hh",
+    ".hpp",
+    ".hxx",
+    ".m",
+    ".mm",  # Objective-C
 )
 
 
@@ -116,17 +123,19 @@ class SourceExpert:
                     for m in rx.finditer(text):
                         fn_hint = _function_containing(text, m.start())
                         line_no = text.count("\n", 0, m.start()) + 1
-                        findings.append(Finding(
-                            file_path=str(path),
-                            function_name=fn_hint or "",
-                            crash_type="",
-                            cwe=cwe,
-                            poc_source="",  # hunter / validator may fill
-                            repo_path=str(root),
-                            line_range=f"{line_no}-{line_no}",
-                            severity=self._severity_hint(cwe, confidence),
-                            language=_language_for(path),
-                        ))
+                        findings.append(
+                            Finding(
+                                file_path=str(path),
+                                function_name=fn_hint or "",
+                                crash_type="",
+                                cwe=cwe,
+                                poc_source="",  # hunter / validator may fill
+                                repo_path=str(root),
+                                line_range=f"{line_no}-{line_no}",
+                                severity=self._severity_hint(cwe, confidence),
+                                language=_language_for(path),
+                            )
+                        )
                         # At most one finding per (file, cwe, line): we
                         # want to surface diverse sites, not 20 hits on
                         # the same unsafe call.
@@ -158,7 +167,7 @@ class SourceExpert:
             cwe = entry.get("cwe", "")
             if cwe not in family:
                 continue
-            for det in (entry.get("detection") or []):
+            for det in entry.get("detection") or []:
                 if not isinstance(det, dict):
                     continue
                 raw = det.get("regex")
@@ -168,12 +177,14 @@ class SourceExpert:
                     rx = re.compile(raw)
                 except re.error:
                     continue
-                out.append((
-                    rx,
-                    cwe,
-                    det.get("confidence", "medium"),
-                    det.get("rule_id", ""),
-                ))
+                out.append(
+                    (
+                        rx,
+                        cwe,
+                        det.get("confidence", "medium"),
+                        det.get("rule_id", ""),
+                    )
+                )
         return out
 
     def _severity_hint(self, cwe: str, confidence: str) -> str:
@@ -189,9 +200,9 @@ class SourceExpert:
             "CWE-190": "MEDIUM",
             "CWE-191": "MEDIUM",
             "CWE-369": "LOW",
-            "CWE-78":  "HIGH",
-            "CWE-89":  "HIGH",
-            "CWE-94":  "CRITICAL",
+            "CWE-78": "HIGH",
+            "CWE-89": "HIGH",
+            "CWE-94": "CRITICAL",
             "CWE-134": "MEDIUM",
         }.get(cwe, "MEDIUM")
         if confidence == "low":

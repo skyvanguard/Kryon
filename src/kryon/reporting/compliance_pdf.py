@@ -99,10 +99,10 @@ def _summary_table(results: list[dict]) -> str:
         rows.append(
             "<tr>"
             f"<td><code>{_esc(r['control_id'])}</code></td>"
-            f"<td>{_esc(r.get('control_title',''))}</td>"
-            f"<td>{_esc(r.get('section',''))}</td>"
+            f"<td>{_esc(r.get('control_title', ''))}</td>"
+            f"<td>{_esc(r.get('section', ''))}</td>"
             f"<td>{_verdict_badge(r['verdict'])}</td>"
-            f"<td>{_esc(r.get('severity',''))}</td>"
+            f"<td>{_esc(r.get('severity', ''))}</td>"
             "</tr>"
         )
     return (
@@ -124,18 +124,12 @@ def _finding_card(r: dict, narrative: dict | None) -> str:
     ctx_prose = (narrative or {}).get("context_prose") or ""
     rem_prose = (narrative or {}).get("remediation_prose") or ""
     ctx_block = (
-        '<div class="llm-block">'
-        '<span class="llm-watermark">LLM Narrativa</span>'
-        f"{_esc(ctx_prose)}"
-        "</div>"
+        f'<div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>{_esc(ctx_prose)}</div>'
         if ctx_prose.strip()
         else ""
     )
     rem_block = (
-        '<div class="llm-block">'
-        '<span class="llm-watermark">LLM Narrativa</span>'
-        f"{_esc(rem_prose)}"
-        "</div>"
+        f'<div class="llm-block"><span class="llm-watermark">LLM Narrativa</span>{_esc(rem_prose)}</div>'
         if rem_prose.strip()
         else ""
     )
@@ -148,10 +142,10 @@ def _finding_card(r: dict, narrative: dict | None) -> str:
     return f"""
     <div class="finding-card {css_class}">
       <div class="finding-head">
-        <span class="finding-title">PCI {r['control_id']} — {_esc(r.get('control_title',''))}</span>
+        <span class="finding-title">PCI {r["control_id"]} — {_esc(r.get("control_title", ""))}</span>
         {_verdict_badge(verdict)}
       </div>
-      <div class="finding-meta">Sección {r['section']} · Severidad {r.get('severity','')} · Host {host}</div>
+      <div class="finding-meta">Sección {r["section"]} · Severidad {r.get("severity", "")} · Host {host}</div>
 
       <div class="section-block">
         <span class="section-label">Evidencia determinística</span>
@@ -164,29 +158,29 @@ def _finding_card(r: dict, narrative: dict | None) -> str:
 
       <div class="section-block">
         <span class="section-label">Remediación determinística (texto de la regla)</span>
-        <div class="det-block">{_esc(r.get('remediation_static',''))}</div>
+        <div class="det-block">{_esc(r.get("remediation_static", ""))}</div>
       </div>
 
-      {f'<div class="section-block"><span class="section-label">Contexto (LLM)</span>{ctx_block}</div>' if ctx_block else ''}
-      {f'<div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span>{rem_block}</div>' if rem_block else ''}
+      {f'<div class="section-block"><span class="section-label">Contexto (LLM)</span>{ctx_block}</div>' if ctx_block else ""}
+      {f'<div class="section-block"><span class="section-label">Detalle de remediación (LLM)</span>{rem_block}</div>' if rem_block else ""}
     </div>
     """
 
 
 def _appendix_evidence(r: dict) -> str:
     return f"""
-    <h3>PCI {_esc(r['control_id'])} — {_esc(r.get('control_title',''))}</h3>
+    <h3>PCI {_esc(r["control_id"])} — {_esc(r.get("control_title", ""))}</h3>
     <div class="section-block">
       <span class="section-label">Comando</span>
-      <pre class="evidence">{_esc(r.get('evidence_command',''))}</pre>
+      <pre class="evidence">{_esc(r.get("evidence_command", ""))}</pre>
     </div>
     <div class="section-block">
       <span class="section-label">stdout (raw)</span>
-      <pre class="evidence">{_esc(r.get('evidence_stdout',''))}</pre>
+      <pre class="evidence">{_esc(r.get("evidence_stdout", ""))}</pre>
     </div>
     <div class="section-block">
       <span class="section-label">stderr (raw)</span>
-      <pre class="evidence">{_esc(r.get('evidence_stderr','') or '(vacío)')}</pre>
+      <pre class="evidence">{_esc(r.get("evidence_stderr", "") or "(vacío)")}</pre>
     </div>
     """
 
@@ -271,10 +265,7 @@ def render_html(
     """
     audit_date = audit_date or datetime.now()
     narratives = narratives or {}
-    counts = {
-        v: sum(1 for r in results if r["verdict"] == v)
-        for v in ("PASS", "FAIL", "N/A", "ERROR")
-    }
+    counts = {v: sum(1 for r in results if r["verdict"] == v) for v in ("PASS", "FAIL", "N/A", "ERROR")}
     total = len(results)
     cards = "\n".join(_finding_card(r, narratives.get(r["control_id"])) for r in _sort_results(results))
     appendix = "\n".join(_appendix_evidence(r) for r in _sort_results(results))
@@ -284,14 +275,11 @@ def render_html(
     fw = _FRAMEWORK_INFO.get(fw_key, _FRAMEWORK_INFO["all"])
     risk_label, risk_color = _risk_level(counts)
 
-    client_line_es = (
-        f"Cliente: <strong>{_esc(client_name)}</strong> · "
-        if client_name else ""
-    )
+    client_line_es = f"Cliente: <strong>{_esc(client_name)}</strong> · " if client_name else ""
 
     return f"""<!doctype html>
 <html lang="es"><head><meta charset="utf-8">
-<title>{_esc(fw['title_es'])} — {_esc(host)} — {audit_date.strftime('%Y-%m-%d')}</title>
+<title>{_esc(fw["title_es"])} — {_esc(host)} — {audit_date.strftime("%Y-%m-%d")}</title>
 <style>{css}
 .risk-banner {{
   display:inline-block; padding:4pt 10pt; border-radius:4pt;
@@ -308,11 +296,11 @@ def render_html(
 </style>
 </head><body>
 
-<h1>{fw['title_es']}</h1>
+<h1>{fw["title_es"]}</h1>
 <div class="cover-meta">
   {client_line_es}Host: <strong>{_esc(host)}</strong> ·
-  Fecha / Date: {audit_date.strftime('%Y-%m-%d %H:%M')} ·
-  Alcance: {fw['scope_es']}
+  Fecha / Date: {audit_date.strftime("%Y-%m-%d %H:%M")} ·
+  Alcance: {fw["scope_es"]}
 </div>
 <div class="cover-meta">
   Riesgo agregado / Overall risk:
@@ -333,20 +321,20 @@ def render_html(
 
 <h2>Resumen ejecutivo</h2>
 <p>Se ejecutaron <strong>{total}</strong> controles sobre el host.
-Resultados: <strong style="color:{_VERDICT_COLOR['FAIL']}">{counts['FAIL']} FAIL</strong>,
-<strong style="color:{_VERDICT_COLOR['PASS']}">{counts['PASS']} PASS</strong>,
-{counts['N/A']} N/A, {counts['ERROR']} ERROR.
+Resultados: <strong style="color:{_VERDICT_COLOR["FAIL"]}">{counts["FAIL"]} FAIL</strong>,
+<strong style="color:{_VERDICT_COLOR["PASS"]}">{counts["PASS"]} PASS</strong>,
+{counts["N/A"]} N/A, {counts["ERROR"]} ERROR.
 Nivel de riesgo agregado: <strong style="color:{risk_color}">{risk_label}</strong>.</p>
 
 <div class="bilingual-block">
   <span class="en-label">EN</span>
   <strong>Executive summary.</strong>
   {total} controls executed on the host. Results:
-  <strong style="color:{_VERDICT_COLOR['FAIL']}">{counts['FAIL']} FAIL</strong>,
-  <strong style="color:{_VERDICT_COLOR['PASS']}">{counts['PASS']} PASS</strong>,
-  {counts['N/A']} N/A, {counts['ERROR']} ERROR. Overall risk:
+  <strong style="color:{_VERDICT_COLOR["FAIL"]}">{counts["FAIL"]} FAIL</strong>,
+  <strong style="color:{_VERDICT_COLOR["PASS"]}">{counts["PASS"]} PASS</strong>,
+  {counts["N/A"]} N/A, {counts["ERROR"]} ERROR. Overall risk:
   <strong style="color:{risk_color}">{risk_label}</strong>.
-  Framework: {fw['title_en']}. Scope: {fw['scope_en']}.
+  Framework: {fw["title_en"]}. Scope: {fw["scope_en"]}.
 </div>
 
 {_summary_table(results)}

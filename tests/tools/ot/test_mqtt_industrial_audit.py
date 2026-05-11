@@ -44,8 +44,11 @@ class _MockSocket:
         self._sends_seen = 0
         self._drain_after = drain_after  # raise socket.timeout after N sends
 
-    def settimeout(self, _t: float) -> None: pass
-    def connect(self, _addr: tuple[str, int]) -> None: pass
+    def settimeout(self, _t: float) -> None:
+        pass
+
+    def connect(self, _addr: tuple[str, int]) -> None:
+        pass
 
     def sendall(self, _data: bytes) -> None:
         self._sends_seen += 1
@@ -56,18 +59,20 @@ class _MockSocket:
 
     def recv(self, n: int) -> bytes:
         # If the drain semaphore is set and we've passed it, simulate timeout.
-        if (self._drain_after is not None
-                and self._sends_seen >= self._drain_after
-                and not self._buffer):
+        if self._drain_after is not None and self._sends_seen >= self._drain_after and not self._buffer:
             raise TimeoutError("simulated drain timeout")
         chunk = self._buffer[:n]
         self._buffer = self._buffer[n:]
         return chunk
 
-    def close(self) -> None: pass
+    def close(self) -> None:
+        pass
 
-    def __enter__(self) -> _MockSocket: return self
-    def __exit__(self, *exc: object) -> None: self.close()
+    def __enter__(self) -> _MockSocket:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
 
 
 @pytest.fixture
@@ -76,6 +81,7 @@ def patch_socket(monkeypatch: pytest.MonkeyPatch):
         mock = _MockSocket(replies, drain_after=drain_after)
         monkeypatch.setattr(socket, "socket", lambda *a, **k: mock)
         return mock
+
     return _install
 
 
@@ -84,16 +90,26 @@ def patch_socket(monkeypatch: pytest.MonkeyPatch):
 
 class TestReachability:
     def test_unreachable_returns_error(
-        self, monkeypatch: pytest.MonkeyPatch,
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from kryon.tools.ot.mqtt_industrial_audit import mqtt_industrial_audit
 
         class _Refused:
-            def __enter__(self): return self
-            def __exit__(self, *a): pass
-            def settimeout(self, _t): pass
-            def connect(self, _a): raise OSError("refused")
-            def close(self): pass
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+            def settimeout(self, _t):
+                pass
+
+            def connect(self, _a):
+                raise OSError("refused")
+
+            def close(self):
+                pass
 
         monkeypatch.setattr(socket, "socket", lambda *a, **k: _Refused())
         r = mqtt_industrial_audit("10.255.255.255")
@@ -183,7 +199,8 @@ class TestSysTopic:
         assert r.sys_topic_readable is False
 
     def test_sys_topic_with_non_version_topic_still_marks_readable(
-        self, patch_socket,
+        self,
+        patch_socket,
     ) -> None:
         """Any $SYS PUBLISH counts — version is a bonus banner field."""
         from kryon.tools.ot.mqtt_industrial_audit import mqtt_industrial_audit
@@ -198,7 +215,8 @@ class TestSysTopic:
         assert "uptime" in r.broker_banner
 
     def test_non_sys_publish_does_not_mark_sys_readable(
-        self, patch_socket,
+        self,
+        patch_socket,
     ) -> None:
         from kryon.tools.ot.mqtt_industrial_audit import mqtt_industrial_audit
 

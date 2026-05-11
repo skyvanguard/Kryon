@@ -40,7 +40,8 @@ def _read_holding_response_ok(transaction_id: int, unit_id: int) -> bytes:
 
 
 def _device_id_response(
-    transaction_id: int, unit_id: int,
+    transaction_id: int,
+    unit_id: int,
     vendor: bytes = b"Schneider Electric",
     product: bytes = b"Modicon M340",
     revision: bytes = b"v3.10",
@@ -124,15 +125,23 @@ def patch_socket(monkeypatch: pytest.MonkeyPatch):
 
 class TestReachability:
     def test_unreachable_host_returns_error_result(
-        self, monkeypatch: pytest.MonkeyPatch,
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from kryon.tools.ot.modbus_scan import modbus_scan
 
         class _ConnRefused:
-            def __enter__(self): return self
-            def __exit__(self, *a): return None
-            def settimeout(self, _t): pass
-            def connect(self, _a): raise OSError("Connection refused")
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return None
+
+            def settimeout(self, _t):
+                pass
+
+            def connect(self, _a):
+                raise OSError("Connection refused")
 
         monkeypatch.setattr(socket, "socket", lambda *a, **k: _ConnRefused())
 
@@ -142,15 +151,23 @@ class TestReachability:
         assert r.has_unauth_exposure is False
 
     def test_timeout_treated_as_unreachable(
-        self, monkeypatch: pytest.MonkeyPatch,
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from kryon.tools.ot.modbus_scan import modbus_scan
 
         class _Timeout:
-            def __enter__(self): return self
-            def __exit__(self, *a): return None
-            def settimeout(self, _t): pass
-            def connect(self, _a): raise TimeoutError("slow")
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return None
+
+            def settimeout(self, _t):
+                pass
+
+            def connect(self, _a):
+                raise TimeoutError("slow")
 
         monkeypatch.setattr(socket, "socket", lambda *a, **k: _Timeout())
 

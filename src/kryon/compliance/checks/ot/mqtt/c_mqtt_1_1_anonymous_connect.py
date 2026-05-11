@@ -54,10 +54,7 @@ class _Mqtt_11Check:
             )
         elif result.anonymous_connect_accepted:
             verdict = "FAIL"
-            stdout = (
-                f"MQTT broker at {ctx.host}:1883 accepted anonymous "
-                f"CONNECT (return_code=0)."
-            )
+            stdout = f"MQTT broker at {ctx.host}:1883 accepted anonymous CONNECT (return_code=0)."
             if result.broker_banner:
                 stdout += f" Broker banner: {result.broker_banner!r}."
         else:

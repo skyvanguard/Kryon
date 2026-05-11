@@ -153,6 +153,7 @@ if (
 _USER_AGENT = f"Agents/Python {__version__}"
 _HEADERS = {"User-Agent": _USER_AGENT}
 
+
 # --- Reasoning-content helpers -----------------------------------------------
 # Different reasoning providers expose chain-of-thought under different field
 # names: DeepSeek uses `reasoning_content`, Groq (Qwen3 / GPT-OSS) uses
@@ -221,7 +222,10 @@ _PROSE_PLAN_PATTERNS = (
     re.compile(r"```\s*\n?\s*AN[ÁA]LISIS\b", re.IGNORECASE),
     re.compile(r"\bPLAN\s*\(\s*ejecutando\s*#", re.IGNORECASE),
     re.compile(r"^\s*\d+\.\s*`[a-z_]+\s*\(", re.MULTILINE),
-    re.compile(r"`(?:run_command|nuclei_scan|nmap_scan|query_knowledge_base|whatweb_scan|gobuster_scan|recall_similar_experiences|add_to_memory_semantic|duckduckgo_search|wpscan)\s*\(", re.IGNORECASE),
+    re.compile(
+        r"`(?:run_command|nuclei_scan|nmap_scan|query_knowledge_base|whatweb_scan|gobuster_scan|recall_similar_experiences|add_to_memory_semantic|duckduckgo_search|wpscan)\s*\(",
+        re.IGNORECASE,
+    ),
 )
 # Minimum content length to consider a message for prose-plan filtering.
 # Short messages ("¡Hola!", refusals) must NEVER be filtered.
@@ -252,6 +256,7 @@ def _should_reset_counter_for_user(content: Any) -> bool:
         return False
     stripped = content.lstrip()
     return not any(stripped.startswith(p) for p in _SYNTHETIC_USER_PREFIXES)
+
 
 # Global registry to track active model instances
 # This allows us to access instance-based histories for commands like /history
@@ -1755,11 +1760,7 @@ class OpenAIChatCompletionsModel(Model):
                             and delta["reasoning_content"] is not None
                         ):
                             reasoning_content = delta["reasoning_content"]
-                        elif (
-                            isinstance(delta, dict)
-                            and "reasoning" in delta
-                            and delta["reasoning"] is not None
-                        ):
+                        elif isinstance(delta, dict) and "reasoning" in delta and delta["reasoning"] is not None:
                             reasoning_content = delta["reasoning"]
 
                         # Also check for thinking_blocks structure (Claude 4 format)
@@ -2122,10 +2123,7 @@ class OpenAIChatCompletionsModel(Model):
                                 # request can pass it back per provider spec.
                                 # Only DeepSeek accepts this on input —
                                 # Groq returns 400 if we send it back.
-                                if (
-                                    accumulated_reasoning_content
-                                    and _preserves_reasoning_in_history(str(self.model))
-                                ):
+                                if accumulated_reasoning_content and _preserves_reasoning_in_history(str(self.model)):
                                     tool_call_msg["reasoning_content"] = accumulated_reasoning_content
                                 # Only add if not already in streamed_tool_calls
                                 if tool_call_msg not in streamed_tool_calls:
@@ -3041,10 +3039,7 @@ class OpenAIChatCompletionsModel(Model):
                     kwargs.pop("parallel_tool_calls", None)
                 if not converted_tools:
                     kwargs.pop("tool_choice", None)
-            elif (
-                "groq.com" in os.getenv("OPENAI_BASE_URL", "").lower()
-                or provider in ("qwen", "openai", "meta-llama")
-            ):
+            elif "groq.com" in os.getenv("OPENAI_BASE_URL", "").lower() or provider in ("qwen", "openai", "meta-llama"):
                 # Groq with provider-routed names (qwen/qwen3-32b,
                 # openai/gpt-oss-120b, meta-llama/llama-4-scout). Same
                 # scrubbing as bare-name Groq below — kept inline for
@@ -3059,9 +3054,7 @@ class OpenAIChatCompletionsModel(Model):
                 # CRITICAL: Groq reasoning models (qwen3, gpt-oss, qwq)
                 # require reasoning_format=parsed when tools are present.
                 # Default raw + tools = HTTP 400 from Groq.
-                _has_reasoning = (
-                    "qwen3" in model_str or "gpt-oss" in model_str or "qwq" in model_str
-                )
+                _has_reasoning = "qwen3" in model_str or "gpt-oss" in model_str or "qwq" in model_str
                 if _has_reasoning and converted_tools:
                     kwargs.setdefault("extra_body", {})
                     kwargs["extra_body"].setdefault("reasoning_format", "parsed")
@@ -3118,10 +3111,7 @@ class OpenAIChatCompletionsModel(Model):
                 # to activate reasoning (the legacy `deepseek-reasoner`
                 # alias activates it implicitly). Skipped for deepseek-chat
                 # which is the non-thinking variant.
-                if (
-                    ("v4-pro" in model_str or "v4-flash" in model_str)
-                    and "deepseek-chat" not in model_str
-                ):
+                if ("v4-pro" in model_str or "v4-flash" in model_str) and "deepseek-chat" not in model_str:
                     kwargs.setdefault("extra_body", {})
                     kwargs["extra_body"].setdefault("thinking", {"type": "enabled"})
             elif "groq.com" in os.getenv("OPENAI_BASE_URL", "").lower():
@@ -3135,9 +3125,7 @@ class OpenAIChatCompletionsModel(Model):
                     kwargs.pop("parallel_tool_calls", None)
                 if not converted_tools:
                     kwargs.pop("tool_choice", None)
-                _has_reasoning = (
-                    "qwen3" in model_str or "gpt-oss" in model_str or "qwq" in model_str
-                )
+                _has_reasoning = "qwen3" in model_str or "gpt-oss" in model_str or "qwq" in model_str
                 if _has_reasoning and converted_tools:
                     kwargs.setdefault("extra_body", {})
                     kwargs["extra_body"].setdefault("reasoning_format", "parsed")
@@ -4474,12 +4462,10 @@ class _Converter:
                 # tool re-emits its "▸" line N times.
                 _tool_name_for_invocation = func_call.get("name", "")
                 _call_id_for_invocation = func_call.get("call_id", "")
-                if (
-                    _tool_name_for_invocation
-                    and _tool_name_for_invocation != "execute_code"
-                ):
+                if _tool_name_for_invocation and _tool_name_for_invocation != "execute_code":
                     try:
                         from kryon.util.streaming import _dedup_render_check
+
                         if not _dedup_render_check("invocation", _call_id_for_invocation):
                             from rich.console import Console
 
@@ -4487,6 +4473,7 @@ class _Converter:
                                 render_tool_invocation,
                                 summarize_args,
                             )
+
                             _args_for_invocation = func_call.get("arguments", "")
                             if isinstance(_args_for_invocation, str):
                                 try:
@@ -4494,7 +4481,8 @@ class _Converter:
                                 except (json.JSONDecodeError, ValueError):
                                     _args_for_invocation = {}
                             _summary = summarize_args(
-                                _tool_name_for_invocation, _args_for_invocation,
+                                _tool_name_for_invocation,
+                                _args_for_invocation,
                             )
                             render_tool_invocation(
                                 tool_name=_tool_name_for_invocation,

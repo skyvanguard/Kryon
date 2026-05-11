@@ -127,9 +127,7 @@ class HunterPool:
     async def spawn(self, job: HunterJob) -> str:
         """Register a new hunter; it runs as soon as a slot frees."""
         if self.runner is None:
-            raise RuntimeError(
-                "HunterPool has no runner. Call set_runner() or pass one to __init__."
-            )
+            raise RuntimeError("HunterPool has no runner. Call set_runner() or pass one to __init__.")
         if not job.hunter_id:
             job.hunter_id = f"h_{uuid.uuid4().hex[:10]}"
         self._jobs[job.hunter_id] = job
@@ -143,14 +141,14 @@ class HunterPool:
             job.status = "running"
             job.started_at = time.time()
             try:
-                findings = await asyncio.wait_for(
-                    self.runner(job), timeout=self.default_timeout_s
-                )
+                findings = await asyncio.wait_for(self.runner(job), timeout=self.default_timeout_s)
                 job.findings = findings or []
                 job.status = "finished"
                 logger.info(
                     "hunter %s FINISHED: %d findings in %.1fs",
-                    job.hunter_id, len(job.findings), job.duration_s(),
+                    job.hunter_id,
+                    len(job.findings),
+                    job.duration_s(),
                 )
             except asyncio.CancelledError:
                 job.status = "terminated"
@@ -343,12 +341,14 @@ def spawn_hunter(
         # no event loop → run sync
         asyncio.run(pool.spawn(job))
 
-    return json.dumps({
-        "hunter_id": job.hunter_id,
-        "file": file_path,
-        "pool_active": len(pool.list_active()),
-        "pool_max": pool.max_active,
-    })
+    return json.dumps(
+        {
+            "hunter_id": job.hunter_id,
+            "file": file_path,
+            "pool_active": len(pool.list_active()),
+            "pool_max": pool.max_active,
+        }
+    )
 
 
 @function_tool(strict_mode=False)
@@ -370,11 +370,13 @@ def terminate_hunter(hunter_id: str, reason: str = "") -> str:
         terminated = asyncio.run(pool.terminate(hunter_id, reason))
 
     job = pool.get(hunter_id)
-    return json.dumps({
-        "hunter_id": hunter_id,
-        "terminated": terminated,
-        "status": job.status if job else "unknown",
-    })
+    return json.dumps(
+        {
+            "hunter_id": hunter_id,
+            "terminated": terminated,
+            "status": job.status if job else "unknown",
+        }
+    )
 
 
 @function_tool(strict_mode=False)
@@ -429,8 +431,11 @@ def read_supervisor_todo() -> str:
 def list_hunters() -> str:
     """Return a summary of all hunters (pending, running, finished, failed)."""
     pool = get_pool()
-    return json.dumps({
-        "pool_max": pool.max_active,
-        "active": len(pool.list_active()),
-        "hunters": [j.summary() for j in pool.list_all()],
-    }, indent=2)
+    return json.dumps(
+        {
+            "pool_max": pool.max_active,
+            "active": len(pool.list_active()),
+            "hunters": [j.summary() for j in pool.list_all()],
+        },
+        indent=2,
+    )

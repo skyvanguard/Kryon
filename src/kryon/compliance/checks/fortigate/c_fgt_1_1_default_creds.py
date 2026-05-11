@@ -81,15 +81,12 @@ class _DefaultCredsCheck:
         for acct in accounts:
             if not acct["password_line"]:
                 issues.append(
-                    f"admin '{acct['name']}' has no `set password` directive "
-                    "(possible empty / vendor-default password)"
+                    f"admin '{acct['name']}' has no `set password` directive (possible empty / vendor-default password)"
                 )
                 continue
             for marker in _KNOWN_DEFAULT_HASHES:
                 if marker in acct["password_line"] and len(acct["password_line"]) < 30:
-                    issues.append(
-                        f"admin '{acct['name']}' uses suspected default-password marker"
-                    )
+                    issues.append(f"admin '{acct['name']}' uses suspected default-password marker")
                     break
 
         verdict = "PASS" if not issues else "FAIL"

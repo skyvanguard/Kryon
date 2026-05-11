@@ -27,6 +27,7 @@ console = Console()
 def _get_collection():
     """Lazy import so REPL startup isn't affected."""
     from kryon.knowledge import cve_corpus
+
     return cve_corpus._get_collection(), cve_corpus
 
 
@@ -116,7 +117,7 @@ class CorpusCommand(Command):
 
     def handle_query(self, args: list[str] | None = None) -> bool:
         if not args:
-            console.print("[yellow]usage: /corpus query \"<code snippet or CWE keyword>\"[/yellow]")
+            console.print('[yellow]usage: /corpus query "<code snippet or CWE keyword>"[/yellow]')
             return False
 
         # Re-join args (they may have been space-split) and strip surrounding quotes
@@ -185,8 +186,7 @@ class CorpusCommand(Command):
             return False
 
         meta = metas[found_idx]
-        console.print(f"\n[bold cyan]{meta.get('ghsa_id', '')}[/bold cyan] "
-                      f"{meta.get('cve_id', '')}")
+        console.print(f"\n[bold cyan]{meta.get('ghsa_id', '')}[/bold cyan] {meta.get('cve_id', '')}")
         for k, v in meta.items():
             console.print(f"  [dim]{k}:[/dim] {v}")
         console.print("\n[bold]Pattern:[/bold]")
@@ -219,7 +219,7 @@ class CorpusCommand(Command):
         t.add_column("%", justify="right")
         total = sum(counter.values()) or 1
         for cwe, n in counter.most_common():
-            t.add_row(cwe, str(n), f"{n/total*100:.1f}")
+            t.add_row(cwe, str(n), f"{n / total * 100:.1f}")
         console.print(t)
         return True
 

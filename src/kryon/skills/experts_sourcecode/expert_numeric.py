@@ -83,21 +83,23 @@ class NumericExpert(SourceExpert):
                     line_no = text.count("\n", 0, m.start()) + 1
                     # Lookup 10 preceding lines for an upper-bound guard.
                     start = max(0, line_no - 11)
-                    context = "\n".join(lines[start:line_no - 1])
+                    context = "\n".join(lines[start : line_no - 1])
                     if _BOUND_MARKERS.search(context):
                         guarded += 1
                         continue
-                    findings.append(Finding(
-                        file_path=str(path),
-                        function_name=_function_containing(text, m.start()) or "",
-                        crash_type="",
-                        cwe=cwe,
-                        poc_source="",
-                        repo_path=str(root),
-                        line_range=f"{line_no}-{line_no}",
-                        severity=self._severity_hint(cwe, confidence),
-                        language=_language_for(path),
-                    ))
+                    findings.append(
+                        Finding(
+                            file_path=str(path),
+                            function_name=_function_containing(text, m.start()) or "",
+                            crash_type="",
+                            cwe=cwe,
+                            poc_source="",
+                            repo_path=str(root),
+                            line_range=f"{line_no}-{line_no}",
+                            severity=self._severity_hint(cwe, confidence),
+                            language=_language_for(path),
+                        )
+                    )
                     break  # at most one finding per (file, regex)
 
         if guarded:

@@ -91,6 +91,7 @@ class TestConfidenceLabel:
 async def test_drops_results_below_min_score(monkeypatch):
     """Telesquare-style hits with very negative score must be discarded."""
     import kryon.knowledge as knowledge_pkg
+
     monkeypatch.setattr(
         knowledge_pkg,
         "query_knowledge",
@@ -119,6 +120,7 @@ async def test_drops_results_below_min_score(monkeypatch):
 async def test_drops_results_with_tech_mismatch(monkeypatch):
     """An above-threshold score is not enough — the tech name must appear."""
     import kryon.knowledge as knowledge_pkg
+
     monkeypatch.setattr(
         knowledge_pkg,
         "query_knowledge",
@@ -146,6 +148,7 @@ async def test_drops_results_with_tech_mismatch(monkeypatch):
 async def test_keeps_genuine_hits(monkeypatch):
     """Real Apache CVE with plausible relevance score must pass through."""
     import kryon.knowledge as knowledge_pkg
+
     monkeypatch.setattr(
         knowledge_pkg,
         "query_knowledge",
@@ -178,6 +181,7 @@ async def test_keeps_genuine_hits(monkeypatch):
 async def test_marks_medium_confidence_in_grey_zone(monkeypatch):
     """Borderline scores are kept but flagged as medium confidence."""
     import kryon.knowledge as knowledge_pkg
+
     monkeypatch.setattr(
         knowledge_pkg,
         "query_knowledge",
@@ -203,6 +207,7 @@ async def test_marks_medium_confidence_in_grey_zone(monkeypatch):
 @pytest.mark.asyncio
 async def test_severity_min_is_still_honoured(monkeypatch):
     import kryon.knowledge as knowledge_pkg
+
     monkeypatch.setattr(
         knowledge_pkg,
         "query_knowledge",
@@ -237,6 +242,7 @@ async def test_severity_min_is_still_honoured(monkeypatch):
 @pytest.mark.asyncio
 async def test_can_disable_tech_match_when_caller_knows_better(monkeypatch):
     import kryon.knowledge as knowledge_pkg
+
     monkeypatch.setattr(
         knowledge_pkg,
         "query_knowledge",

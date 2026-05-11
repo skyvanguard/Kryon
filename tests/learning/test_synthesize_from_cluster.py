@@ -54,9 +54,7 @@ def test_returns_skill_draft_with_deterministic_body() -> None:
 def test_frontmatter_required_tools_match_chain() -> None:
     from kryon.learning.skill_synthesizer import synthesize_from_cluster
 
-    draft = synthesize_from_cluster(
-        _cluster(chain=("recon", "exploit", "exfil"))
-    )
+    draft = synthesize_from_cluster(_cluster(chain=("recon", "exploit", "exfil")))
     assert set(draft.frontmatter["required_tools"]) == {"recon", "exploit", "exfil"}
 
 
@@ -78,9 +76,7 @@ def test_frontmatter_priority_is_drafts_tier() -> None:
 def test_provenance_includes_cluster_id_and_members() -> None:
     from kryon.learning.skill_synthesizer import synthesize_from_cluster
 
-    draft = synthesize_from_cluster(
-        _cluster(cid="cluster_xyz", member_ids=("a", "b", "c", "d"))
-    )
+    draft = synthesize_from_cluster(_cluster(cid="cluster_xyz", member_ids=("a", "b", "c", "d")))
     prov = draft.frontmatter["_provenance"]
     assert prov["cluster_id"] == "cluster_xyz"
     assert set(prov["member_experience_ids"]) == {"a", "b", "c", "d"}
@@ -96,10 +92,7 @@ def test_uses_llm_body_when_caller_returns_clean_output() -> None:
     from kryon.learning.skill_synthesizer import synthesize_from_cluster
 
     def fake_llm(prompt: str) -> str:
-        return (
-            "## Discovery\n\nUse `nmap` first, then chain `whatweb` and `nuclei_scan`.\n"
-            "Always respect rate limits."
-        )
+        return "## Discovery\n\nUse `nmap` first, then chain `whatweb` and `nuclei_scan`.\nAlways respect rate limits."
 
     draft = synthesize_from_cluster(_cluster(), llm_caller=fake_llm)
     assert "Always respect rate limits" in draft.body
@@ -134,10 +127,7 @@ def test_rejects_llm_body_that_invents_unknown_tools() -> None:
     from kryon.learning.skill_synthesizer import synthesize_from_cluster
 
     def hallucinator(prompt: str) -> str:
-        return (
-            "Use `nmap` first, then `MAGIC_HACKER_3000` to root the box. "
-            "Finally `whatweb` for fingerprint."
-        )
+        return "Use `nmap` first, then `MAGIC_HACKER_3000` to root the box. Finally `whatweb` for fingerprint."
 
     draft = synthesize_from_cluster(
         _cluster(chain=("nmap", "whatweb")),

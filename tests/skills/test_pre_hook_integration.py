@@ -124,8 +124,14 @@ def test_ctx_env_takes_precedence_over_detection(monkeypatch: pytest.MonkeyPatch
 
 
 def test_ctx_empty_when_nothing_to_detect(monkeypatch: pytest.MonkeyPatch) -> None:
-    for k in ("KRYON_TARGET_HOST", "KRYON_SSH_USER", "KRYON_SSH_KEY",
-              "KRYON_SSH_PORT", "KRYON_CLIENT_NAME", "KRYON_SESSION_ID"):
+    for k in (
+        "KRYON_TARGET_HOST",
+        "KRYON_SSH_USER",
+        "KRYON_SSH_KEY",
+        "KRYON_SSH_PORT",
+        "KRYON_CLIENT_NAME",
+        "KRYON_SESSION_ID",
+    ):
         monkeypatch.delenv(k, raising=False)
     ctx = build_turn_ctx(user_input="hola")
     assert ctx["host"] == ""
@@ -162,8 +168,8 @@ def test_format_pretty_prints_json_payload() -> None:
     block = format_findings_block(findings)
     assert "## Pre-hook deterministic context" in block
     assert "### compliance" in block
-    assert '"PASS": 5' in block          # pretty-printed JSON
-    assert "do NOT re-run" in block       # authoritative warning to LLM
+    assert '"PASS": 5' in block  # pretty-printed JSON
+    assert "do NOT re-run" in block  # authoritative warning to LLM
 
 
 def test_format_falls_back_for_non_json() -> None:
@@ -195,11 +201,15 @@ async def test_maybe_run_invokes_hook_and_returns_block(
         captured_kwargs.update(kwargs)
         return json.dumps({"verdicts": {"PASS": 3, "FAIL": 18}, "hash": "abc"})
 
-    hooks = parse_pre_hooks([{
-        "tool": "run_compliance_audit",
-        "args": {"framework": "fortigate", "host": "{ctx.host}", "ssh_user": "{ctx.ssh_user}"},
-        "inject_as": "compliance",
-    }])
+    hooks = parse_pre_hooks(
+        [
+            {
+                "tool": "run_compliance_audit",
+                "args": {"framework": "fortigate", "host": "{ctx.host}", "ssh_user": "{ctx.ssh_user}"},
+                "inject_as": "compliance",
+            }
+        ]
+    )
     agent = _FakeAgent(
         tools=[_FakeTool("run_compliance_audit", compliance_audit)],
         skills=[_FakeSkill("fortigate-audit", hooks)],
@@ -209,7 +219,9 @@ async def test_maybe_run_invokes_hook_and_returns_block(
 
     # Tool received substituted args
     assert captured_kwargs == {
-        "framework": "fortigate", "host": "192.168.1.1", "ssh_user": "auditor",
+        "framework": "fortigate",
+        "host": "192.168.1.1",
+        "ssh_user": "auditor",
     }
     # Output is a markdown block with the findings
     assert "### compliance" in out
@@ -224,11 +236,15 @@ async def test_maybe_run_required_failure_returns_error_block(
     """When a required hook can't find its tool, return a clear error
     block instead of crashing the turn — the LLM will tell the user."""
 
-    hooks = parse_pre_hooks([{
-        "tool": "missing_tool",  # not in callable registry
-        "required": True,
-        "inject_as": "x",
-    }])
+    hooks = parse_pre_hooks(
+        [
+            {
+                "tool": "missing_tool",  # not in callable registry
+                "required": True,
+                "inject_as": "x",
+            }
+        ]
+    )
     agent = _FakeAgent(tools=[], skills=[_FakeSkill("s", hooks)])
 
     out = await maybe_run_pre_hooks(agent, user_input="x", console=None)
@@ -245,9 +261,7 @@ async def test_maybe_run_with_console_does_not_crash() -> None:
         return json.dumps({"ok": True})
 
     hooks = parse_pre_hooks([{"tool": "t", "inject_as": "result"}])
-    agent = _FakeAgent(
-        tools=[_FakeTool("t", t)], skills=[_FakeSkill("s", hooks)]
-    )
+    agent = _FakeAgent(tools=[_FakeTool("t", t)], skills=[_FakeSkill("s", hooks)])
 
     # If console.print throws, the call is wrapped in try/except → no crash.
     out = await maybe_run_pre_hooks(agent, user_input="x", console=Console())

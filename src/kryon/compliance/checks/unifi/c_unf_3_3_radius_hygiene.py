@@ -48,10 +48,7 @@ class _RadiusHygieneCheck:
         out_a, err_a, rc_a = run_cmd(ctx, cmd_a, shell=True, timeout_s=8)
         out_b, err_b, rc_b = run_cmd(ctx, cmd_b, shell=True, timeout_s=10)
 
-        eap_ssids = [
-            ls for ls in out_a.splitlines()
-            if ls.strip().startswith("{")
-        ]
+        eap_ssids = [ls for ls in out_a.splitlines() if ls.strip().startswith("{")]
         if not eap_ssids:
             return CheckResult(
                 control_id=self.control_id,
@@ -105,10 +102,7 @@ class _RadiusHygieneCheck:
             if any(0 < length < _MIN_SECRET_LEN for length in secret_lengths):
                 weak.append(name_m.group(1))
 
-        issues = [
-            f"RADIUS profile '{n}' has a shared secret < {_MIN_SECRET_LEN} chars"
-            for n in sorted(set(weak))
-        ]
+        issues = [f"RADIUS profile '{n}' has a shared secret < {_MIN_SECRET_LEN} chars" for n in sorted(set(weak))]
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(
             control_id=self.control_id,

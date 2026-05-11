@@ -59,6 +59,7 @@ def _reset_render_dedup() -> None:
     if hasattr(_dedup_render_check, "_seen"):
         _dedup_render_check._seen.clear()
 
+
 from rich.box import ROUNDED
 from rich.console import Console, Group
 from rich.live import Live
@@ -396,7 +397,8 @@ def _create_token_display(
     show_cost = not _hide_cost()
 
     tokens_text.append(
-        f"I:{interaction_input_tokens} O:{interaction_output_tokens}", style="dim cyan",
+        f"I:{interaction_input_tokens} O:{interaction_output_tokens}",
+        style="dim cyan",
     )
     if interaction_reasoning_tokens > 0:
         tokens_text.append(f" R:{interaction_reasoning_tokens}", style="dim cyan")
@@ -811,17 +813,16 @@ def cli_print_tool_output(
     # walks the full history every turn and re-fires this callback for
     # already-completed tools. Without dedup the same `✓ Ns · summary`
     # prints once per remaining turn (visible bug in screenshot).
-    if (
-        not streaming
-        and tool_name
-        and tool_name != "execute_code"
-        and output
-    ):
+    if not streaming and tool_name and tool_name != "execute_code" and output:
         if _dedup_render_check("completion", call_id):
             return
         try:
             _render_simple_tool_completion(
-                tool_name, args, output, execution_info, token_info,
+                tool_name,
+                args,
+                output,
+                execution_info,
+                token_info,
             )
             return
         except Exception:
@@ -1415,9 +1416,7 @@ def update_agent_streaming_content(context, text_delta, token_stats=None):
             context["footer"] = footer_stats
 
         # F77.D / Fase 4: agent narrative renders inline (no Panel envelope).
-        updated_panel = Text.assemble(
-            context["header"], context["content"], context["footer"]
-        )
+        updated_panel = Text.assemble(context["header"], context["content"], context["footer"])
 
         if not context.get("is_started", False):
             try:
@@ -1743,6 +1742,7 @@ def start_tool_streaming(tool_name, args, call_id=None, token_info=None):
                 render_tool_invocation,
                 summarize_args,
             )
+
             local_console = Console()
             args_summary = summarize_args(tool_name, args)
             render_tool_invocation(
@@ -1911,11 +1911,7 @@ def _render_simple_tool_completion(tool_name, args, output, execution_info, toke
     # Duration: prefer execution_info["tool_time"], fall back to total
     duration_s = 0.0
     if execution_info:
-        duration_s = float(
-            execution_info.get("tool_time")
-            or execution_info.get("total_time")
-            or 0.0
-        )
+        duration_s = float(execution_info.get("tool_time") or execution_info.get("total_time") or 0.0)
 
     status_str = (execution_info or {}).get("status", "completed")
     if status_str in ("completed", "ok", "success"):

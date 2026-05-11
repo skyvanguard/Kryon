@@ -312,9 +312,7 @@ def detect_claude_thinking_in_stream(model_name):
     # GPT-OSS (with separate `reasoning` field). Exclude the smaller
     # gpt-oss-safeguard which is policy-only and not a general agent.
     has_groq_reasoning = (
-        "qwen3" in model_str
-        or "qwq" in model_str
-        or ("gpt-oss" in model_str and "safeguard" not in model_str)
+        "qwen3" in model_str or "qwq" in model_str or ("gpt-oss" in model_str and "safeguard" not in model_str)
     )
 
     return has_claude_reasoning or has_deepseek_reasoning or has_groq_reasoning

@@ -14,7 +14,9 @@ from typing import Any, Iterable
 _URL_RE = re.compile(r"(?:https?://)?(?P<host>[a-z0-9._-]+\.[a-z]{2,})(?::(?P<port>\d+))?", re.IGNORECASE)
 _IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _NMAP_HOST_LINE_RE = re.compile(r"Nmap scan report for\s+(?P<host>\S+)(?:\s+\((?P<ip>[0-9.]+)\))?")
-_NMAP_PORT_LINE_RE = re.compile(r"^(?P<port>\d+)/tcp\s+(?P<state>\w+)\s+(?P<service>\S+)(?:\s+(?P<version>.*))?", re.MULTILINE)
+_NMAP_PORT_LINE_RE = re.compile(
+    r"^(?P<port>\d+)/tcp\s+(?P<state>\w+)\s+(?P<service>\S+)(?:\s+(?P<version>.*))?", re.MULTILINE
+)
 _HTTP_TITLE_RE = re.compile(r"http-title:\s*(?P<title>.+)")
 _HTTP_SERVER_RE = re.compile(r"http-server-header:\s*(?P<server>[^\n]+)", re.IGNORECASE)
 

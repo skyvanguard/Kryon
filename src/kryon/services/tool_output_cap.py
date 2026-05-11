@@ -60,8 +60,4 @@ def cap_tool_output(content: str, tool_name: str = "tool") -> str:
     head = content[:_HEAD_CHARS]
     tail = content[-_TAIL_CHARS:] if _TAIL_CHARS else ""
 
-    return (
-        f"{head}\n\n"
-        f"[... {total} chars total — {saved_msg} ...]\n\n"
-        f"{tail}"
-    )
+    return f"{head}\n\n[... {total} chars total — {saved_msg} ...]\n\n{tail}"

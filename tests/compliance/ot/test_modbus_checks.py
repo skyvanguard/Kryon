@@ -37,11 +37,17 @@ class TestMod11UnauthRead:
     def test_pass_when_unreachable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from kryon.compliance.checks.ot.modbus.c_mod_1_1_unauth_read import CHECK
 
-        _stub_scan_result(monkeypatch, ModbusScanResult(
-            host="10.0.0.5", port=502, reachable=False,
-            unauth_read_coils=False, unauth_read_holding=False,
-            error="tcp_connect_failed",
-        ))
+        _stub_scan_result(
+            monkeypatch,
+            ModbusScanResult(
+                host="10.0.0.5",
+                port=502,
+                reachable=False,
+                unauth_read_coils=False,
+                unauth_read_holding=False,
+                error="tcp_connect_failed",
+            ),
+        )
         result = CHECK.run(CheckContext(host="10.0.0.5"))
         assert result.verdict == "PASS"
         assert "unreachable" in result.evidence_stdout
@@ -49,11 +55,17 @@ class TestMod11UnauthRead:
     def test_fail_when_coils_read_succeeds(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from kryon.compliance.checks.ot.modbus.c_mod_1_1_unauth_read import CHECK
 
-        _stub_scan_result(monkeypatch, ModbusScanResult(
-            host="10.0.0.5", port=502, reachable=True,
-            unauth_read_coils=True, unauth_read_holding=False,
-            response_unit_ids=(1,),
-        ))
+        _stub_scan_result(
+            monkeypatch,
+            ModbusScanResult(
+                host="10.0.0.5",
+                port=502,
+                reachable=True,
+                unauth_read_coils=True,
+                unauth_read_holding=False,
+                response_unit_ids=(1,),
+            ),
+        )
         result = CHECK.run(CheckContext(host="10.0.0.5"))
         assert result.verdict == "FAIL"
         assert "Read Coils" in result.evidence_stdout
@@ -62,11 +74,17 @@ class TestMod11UnauthRead:
     def test_fail_when_both_reads_succeed(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from kryon.compliance.checks.ot.modbus.c_mod_1_1_unauth_read import CHECK
 
-        _stub_scan_result(monkeypatch, ModbusScanResult(
-            host="10.0.0.5", port=502, reachable=True,
-            unauth_read_coils=True, unauth_read_holding=True,
-            device_identification={"vendor": "Schneider", "product_code": "M340"},
-        ))
+        _stub_scan_result(
+            monkeypatch,
+            ModbusScanResult(
+                host="10.0.0.5",
+                port=502,
+                reachable=True,
+                unauth_read_coils=True,
+                unauth_read_holding=True,
+                device_identification={"vendor": "Schneider", "product_code": "M340"},
+            ),
+        )
         result = CHECK.run(CheckContext(host="10.0.0.5"))
         assert result.verdict == "FAIL"
         assert "Read Coils" in result.evidence_stdout
@@ -78,10 +96,16 @@ class TestMod11UnauthRead:
     def test_pass_when_reads_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from kryon.compliance.checks.ot.modbus.c_mod_1_1_unauth_read import CHECK
 
-        _stub_scan_result(monkeypatch, ModbusScanResult(
-            host="10.0.0.5", port=502, reachable=True,
-            unauth_read_coils=False, unauth_read_holding=False,
-        ))
+        _stub_scan_result(
+            monkeypatch,
+            ModbusScanResult(
+                host="10.0.0.5",
+                port=502,
+                reachable=True,
+                unauth_read_coils=False,
+                unauth_read_holding=False,
+            ),
+        )
         result = CHECK.run(CheckContext(host="10.0.0.5"))
         assert result.verdict == "PASS"
 
@@ -98,10 +122,16 @@ class TestMod12DeviceID:
     def test_pass_when_unreachable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from kryon.compliance.checks.ot.modbus.c_mod_1_2_device_identification import CHECK
 
-        _stub_scan_result(monkeypatch, ModbusScanResult(
-            host="10.0.0.5", port=502, reachable=False,
-            unauth_read_coils=False, unauth_read_holding=False,
-        ))
+        _stub_scan_result(
+            monkeypatch,
+            ModbusScanResult(
+                host="10.0.0.5",
+                port=502,
+                reachable=False,
+                unauth_read_coils=False,
+                unauth_read_holding=False,
+            ),
+        )
         assert CHECK.run(CheckContext(host="10.0.0.5")).verdict == "PASS"
 
     def test_pass_when_no_identity_returned(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -109,25 +139,37 @@ class TestMod12DeviceID:
         is fine; the device kept its mouth shut, that's the desired posture."""
         from kryon.compliance.checks.ot.modbus.c_mod_1_2_device_identification import CHECK
 
-        _stub_scan_result(monkeypatch, ModbusScanResult(
-            host="10.0.0.5", port=502, reachable=True,
-            unauth_read_coils=False, unauth_read_holding=False,
-            device_identification={},
-        ))
+        _stub_scan_result(
+            monkeypatch,
+            ModbusScanResult(
+                host="10.0.0.5",
+                port=502,
+                reachable=True,
+                unauth_read_coils=False,
+                unauth_read_holding=False,
+                device_identification={},
+            ),
+        )
         assert CHECK.run(CheckContext(host="10.0.0.5")).verdict == "PASS"
 
     def test_fail_when_identity_disclosed(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from kryon.compliance.checks.ot.modbus.c_mod_1_2_device_identification import CHECK
 
-        _stub_scan_result(monkeypatch, ModbusScanResult(
-            host="10.0.0.5", port=502, reachable=True,
-            unauth_read_coils=False, unauth_read_holding=False,
-            device_identification={
-                "vendor": "Schneider Electric",
-                "product_code": "Modicon M340",
-                "revision": "v3.10",
-            },
-        ))
+        _stub_scan_result(
+            monkeypatch,
+            ModbusScanResult(
+                host="10.0.0.5",
+                port=502,
+                reachable=True,
+                unauth_read_coils=False,
+                unauth_read_holding=False,
+                device_identification={
+                    "vendor": "Schneider Electric",
+                    "product_code": "Modicon M340",
+                    "revision": "v3.10",
+                },
+            ),
+        )
         result = CHECK.run(CheckContext(host="10.0.0.5"))
         assert result.verdict == "FAIL"
         assert "Schneider" in result.evidence_stdout

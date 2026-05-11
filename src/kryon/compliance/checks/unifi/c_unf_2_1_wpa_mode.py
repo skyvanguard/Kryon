@@ -74,10 +74,15 @@ class _WpaModeCheck:
             enc = (re.search(r'"wpa_enc"\s*:\s*"([^"]+)"', ls) or _N).group(1)
             enabled = re.search(r'"enabled"\s*:\s*(\w+)', ls)
             is_enabled = (enabled and enabled.group(1).lower() == "true") or enabled is None
-            ssids.append({
-                "name": name, "security": sec, "wpa_mode": wpa,
-                "wpa_enc": enc, "enabled": is_enabled,
-            })
+            ssids.append(
+                {
+                    "name": name,
+                    "security": sec,
+                    "wpa_mode": wpa,
+                    "wpa_enc": enc,
+                    "enabled": is_enabled,
+                }
+            )
             if not is_enabled:
                 continue
             bad_reasons = []

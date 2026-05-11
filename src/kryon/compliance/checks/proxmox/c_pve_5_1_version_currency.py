@@ -38,10 +38,7 @@ class _VersionCurrencyCheck:
     def run(self, ctx: CheckContext) -> CheckResult:
         t0 = time.time()
         ver_cmd = "pveversion --verbose 2>&1 | head -5"
-        apt_cmd = (
-            "apt-get -s -o Debug::NoLocking=true upgrade 2>/dev/null "
-            "| grep -c '^Inst ' || echo 0"
-        )
+        apt_cmd = "apt-get -s -o Debug::NoLocking=true upgrade 2>/dev/null | grep -c '^Inst ' || echo 0"
         v_out, v_err, v_rc = run_cmd(ctx, ver_cmd, shell=True, timeout_s=8)
         a_out, a_err, _ = run_cmd(ctx, apt_cmd, shell=True, timeout_s=30)
 

@@ -256,8 +256,7 @@ def _get_injection_detector_agent():
             # produces silent 401s on every guardrail call. Use a sentinel
             # that makes the failure self-diagnosing in logs.
             _is_ollama_endpoint = bool(
-                _openai_base_url
-                and ("ollama" in _openai_base_url or "11434" in _openai_base_url)
+                _openai_base_url and ("ollama" in _openai_base_url or "11434" in _openai_base_url)
             )
             if _openai_base_url and not _openai_api_key:
                 if _is_ollama_endpoint:
@@ -265,6 +264,7 @@ def _get_injection_detector_agent():
                 else:
                     _openai_api_key = "MISSING-OPENAI-API-KEY"
                     import logging as _gr_logging
+
                     _gr_logging.getLogger(__name__).error(
                         "OPENAI_API_KEY is not set for non-Ollama endpoint %s. "
                         "Injection guardrail calls will fail with 401.",

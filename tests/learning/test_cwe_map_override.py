@@ -18,10 +18,11 @@ import pytest
 
 
 def test_load_returns_default_when_no_file_anywhere(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))            # POSIX
-    monkeypatch.setenv("USERPROFILE", str(tmp_path))     # Windows
+    monkeypatch.setenv("HOME", str(tmp_path))  # POSIX
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # Windows
     monkeypatch.delenv("KRYON_CWE_MAP", raising=False)
 
     from kryon.learning.skill_evaluator import (
@@ -47,7 +48,8 @@ def test_load_uses_explicit_path_when_provided(tmp_path: Path) -> None:
 
 
 def test_load_uses_env_var_when_no_explicit_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     p = tmp_path / "env_path.yaml"
     p.write_text("CWE-7777:\n  - banking_internal_scanner\n", encoding="utf-8")
@@ -61,7 +63,8 @@ def test_load_uses_env_var_when_no_explicit_path(
 
 
 def test_load_uses_home_default_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Default path: <home>/.kryon/cwe_map.yaml"""
     monkeypatch.delenv("KRYON_CWE_MAP", raising=False)
@@ -71,7 +74,8 @@ def test_load_uses_home_default_path(
     kryon_dir = tmp_path / ".kryon"
     kryon_dir.mkdir()
     (kryon_dir / "cwe_map.yaml").write_text(
-        "CWE-DEMO-1:\n  - example_tool\n", encoding="utf-8",
+        "CWE-DEMO-1:\n  - example_tool\n",
+        encoding="utf-8",
     )
 
     from kryon.learning.skill_evaluator import load_cwe_map_override
@@ -81,7 +85,8 @@ def test_load_uses_home_default_path(
 
 
 def test_explicit_path_takes_precedence_over_env(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     env_path = tmp_path / "env.yaml"
     env_path.write_text("CWE-ENV:\n  - env_tool\n", encoding="utf-8")
@@ -180,8 +185,7 @@ def test_yaml_value_must_be_list(tmp_path: Path) -> None:
     """A CWE entry whose value isn't a list is silently skipped (default kept)."""
     p = tmp_path / "bad_entry.yaml"
     p.write_text(
-        "CWE-89: not_a_list\n"
-        "CWE-9999:\n  - good_tool\n",
+        "CWE-89: not_a_list\nCWE-9999:\n  - good_tool\n",
         encoding="utf-8",
     )
 
@@ -215,7 +219,8 @@ def test_empty_yaml_returns_default(tmp_path: Path) -> None:
 
 
 def test_evaluator_auto_loads_override_when_no_explicit_map(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """When the caller passes cwe_to_tools=None, the evaluator looks
     for an override file. Custom tools listed there satisfy detection."""
@@ -249,20 +254,20 @@ def test_evaluator_auto_loads_override_when_no_explicit_map(
         sample_size=3,
         avg_outcome_score=1.0,
     )
-    findings = [
-        {"id": f"f{i}", "cwe_id": "CWE-CUSTOM-1", "tech_fingerprint": "banking"}
-        for i in range(4)
-    ]
+    findings = [{"id": f"f{i}", "cwe_id": "CWE-CUSTOM-1", "tech_fingerprint": "banking"} for i in range(4)]
 
     rep = evaluate_draft_against_corpus(
-        draft=draft, cluster=cluster, findings=findings,
+        draft=draft,
+        cluster=cluster,
+        findings=findings,
         min_findings_evaluated=3,
     )
     assert rep.eval_status == "passed"
 
 
 def test_explicit_cwe_to_tools_arg_skips_file_override(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """If caller passes cwe_to_tools=, file is NOT consulted (explicit wins)."""
     p = tmp_path / "should_not_load.yaml"
@@ -295,14 +300,13 @@ def test_explicit_cwe_to_tools_arg_skips_file_override(
         sample_size=3,
         avg_outcome_score=1.0,
     )
-    findings = [
-        {"id": f"f{i}", "cwe_id": "CWE-XYZ", "tech_fingerprint": "x"}
-        for i in range(4)
-    ]
+    findings = [{"id": f"f{i}", "cwe_id": "CWE-XYZ", "tech_fingerprint": "x"} for i in range(4)]
 
     # Explicit map ONLY — file should not be consulted.
     rep = evaluate_draft_against_corpus(
-        draft=draft, cluster=cluster, findings=findings,
+        draft=draft,
+        cluster=cluster,
+        findings=findings,
         cwe_to_tools={"CWE-XYZ": {"explicit_tool"}},
         min_findings_evaluated=3,
     )

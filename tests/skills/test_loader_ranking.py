@@ -25,7 +25,8 @@ def skill_dir(tmp_path: Path) -> Path:
     base = tmp_path / "playbooks"
     base.mkdir()
 
-    (base / "winner.md").write_text(textwrap.dedent("""\
+    (base / "winner.md").write_text(
+        textwrap.dedent("""\
         ---
         name: winner-skill
         description: x
@@ -37,9 +38,12 @@ def skill_dir(tmp_path: Path) -> Path:
         required_tools: []
         ---
         body
-    """), encoding="utf-8")
+    """),
+        encoding="utf-8",
+    )
 
-    (base / "loser.md").write_text(textwrap.dedent("""\
+    (base / "loser.md").write_text(
+        textwrap.dedent("""\
         ---
         name: loser-skill
         description: x
@@ -51,9 +55,12 @@ def skill_dir(tmp_path: Path) -> Path:
         required_tools: []
         ---
         body
-    """), encoding="utf-8")
+    """),
+        encoding="utf-8",
+    )
 
-    (base / "high_prio.md").write_text(textwrap.dedent("""\
+    (base / "high_prio.md").write_text(
+        textwrap.dedent("""\
         ---
         name: high-prio
         description: x
@@ -65,7 +72,9 @@ def skill_dir(tmp_path: Path) -> Path:
         required_tools: []
         ---
         body
-    """), encoding="utf-8")
+    """),
+        encoding="utf-8",
+    )
     return base
 
 
@@ -107,7 +116,9 @@ def test_priority_ranking_does_not_consult_experience_store(
         raise RuntimeError("must not be called in priority mode")
 
     matched = loader.match(
-        user_msg="wifi", ranking="priority", experience_loader=explosive_loader,
+        user_msg="wifi",
+        ranking="priority",
+        experience_loader=explosive_loader,
     )
     assert calls == []
     assert matched  # still returns skills
@@ -122,10 +133,7 @@ def test_hybrid_ranking_breaks_ties_within_priority_tier(
     """winner-skill has 10/10 wins, loser-skill has 0/10. Both priority 30.
     Hybrid mode should put winner-skill above loser-skill."""
     loader = SkillLoader(skill_dirs=[skill_dir])
-    exps = (
-        [_experience("winner-skill", "success")] * 12
-        + [_experience("loser-skill", "fail")] * 12
-    )
+    exps = [_experience("winner-skill", "success")] * 12 + [_experience("loser-skill", "fail")] * 12
     matched = loader.match(
         user_msg="wifi audit",
         ranking="hybrid",
@@ -155,9 +163,7 @@ def test_hybrid_never_promotes_low_priority_above_high(skill_dir: Path) -> None:
         experience_loader=lambda: exps,
     )
     names = [s.name for s in matched]
-    assert names[0] == "high-prio", (
-        f"priority-10 must always come first in hybrid; got {names}"
-    )
+    assert names[0] == "high-prio", f"priority-10 must always come first in hybrid; got {names}"
 
 
 def test_hybrid_with_no_experiences_degrades_to_priority(skill_dir: Path) -> None:
@@ -198,7 +204,8 @@ def test_hybrid_with_low_confidence_skills_uses_priority_within_tier(
 
 
 def test_env_var_enables_hybrid_mode(
-    skill_dir: Path, monkeypatch: pytest.MonkeyPatch,
+    skill_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """When ranking is not passed and KRYON_SKILL_RANKING=hybrid, hybrid
     mode kicks in automatically."""
@@ -216,7 +223,8 @@ def test_env_var_enables_hybrid_mode(
 
 
 def test_env_var_invalid_value_falls_back_to_priority(
-    skill_dir: Path, monkeypatch: pytest.MonkeyPatch,
+    skill_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Typos in env var must NOT raise; default to safe priority mode."""
     monkeypatch.setenv("KRYON_SKILL_RANKING", "garbage-value")
@@ -228,7 +236,8 @@ def test_env_var_invalid_value_falls_back_to_priority(
 
 
 def test_explicit_ranking_overrides_env_var(
-    skill_dir: Path, monkeypatch: pytest.MonkeyPatch,
+    skill_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("KRYON_SKILL_RANKING", "hybrid")
     loader = SkillLoader(skill_dirs=[skill_dir])

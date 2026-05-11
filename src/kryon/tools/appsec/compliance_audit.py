@@ -26,20 +26,20 @@ from kryon.sdk.agents import function_tool
 # "all" keeps every check. Reserved keys here stay aligned with the CLI
 # wrapper scripts/kryon-audit.sh.
 _FRAMEWORK_PREFIX = {
-    "pci-dss": ("2.", "6.", "8.", "10."),    # F15.1 numeric PCI sections
-    "pci":     ("2.", "6.", "8.", "10."),
-    "proxmox": ("PVE-",),                     # F23
-    "pve":     ("PVE-",),
-    "ad":      ("AD-",),                      # F24
+    "pci-dss": ("2.", "6.", "8.", "10."),  # F15.1 numeric PCI sections
+    "pci": ("2.", "6.", "8.", "10."),
+    "proxmox": ("PVE-",),  # F23
+    "pve": ("PVE-",),
+    "ad": ("AD-",),  # F24
     "active-directory": ("AD-",),
-    "fortigate": ("FGT-",),                   # F78 FortiOS hardening
-    "fgt":      ("FGT-",),
+    "fortigate": ("FGT-",),  # F78 FortiOS hardening
+    "fgt": ("FGT-",),
     "fortinet": ("FGT-",),
-    "fortios":  ("FGT-",),
-    "unifi":    ("UNF-",),                    # F79 Unifi / Ubiquiti
-    "ubnt":     ("UNF-",),
+    "fortios": ("FGT-",),
+    "unifi": ("UNF-",),  # F79 Unifi / Ubiquiti
+    "ubnt": ("UNF-",),
     "ubiquiti": ("UNF-",),
-    "all":     (),
+    "all": (),
 }
 
 
@@ -100,10 +100,12 @@ def run_compliance_audit(
     }
     fw_key = fw_alias.get((framework or "pci-dss").lower())
     if fw_key is None:
-        return json.dumps({
-            "error": f"unknown framework {framework!r}",
-            "available": sorted(fw_alias.keys()),
-        })
+        return json.dumps(
+            {
+                "error": f"unknown framework {framework!r}",
+                "available": sorted(fw_alias.keys()),
+            }
+        )
     prefixes = _FRAMEWORK_PREFIX.get(fw_key, ())
 
     try:
@@ -134,28 +136,33 @@ def run_compliance_audit(
     findings: list[dict[str, Any]] = []
     for r in results:
         summary[r.verdict] = summary.get(r.verdict, 0) + 1
-        findings.append({
-            "control_id": r.control_id,
-            "control_title": r.control_title,
-            "section": r.section,
-            "verdict": r.verdict,
-            "severity": r.severity,
-            "evidence_command": r.evidence_command,
-            "evidence_parsed": r.evidence_parsed,
-            "remediation_static": r.remediation_static,
-        })
+        findings.append(
+            {
+                "control_id": r.control_id,
+                "control_title": r.control_title,
+                "section": r.section,
+                "verdict": r.verdict,
+                "severity": r.severity,
+                "evidence_command": r.evidence_command,
+                "evidence_parsed": r.evidence_parsed,
+                "remediation_static": r.remediation_static,
+            }
+        )
 
-    return json.dumps({
-        "framework": framework,
-        "host": host or "localhost",
-        "repro_hash": hash_,
-        "summary": summary,
-        "findings": findings,
-        "next_step_hint": (
-            "If the user wants a PDF report, suggest running "
-            "`generate_compliance_pdf` next (auto-narrates context + remediation)."
-        ),
-    }, ensure_ascii=False)
+    return json.dumps(
+        {
+            "framework": framework,
+            "host": host or "localhost",
+            "repro_hash": hash_,
+            "summary": summary,
+            "findings": findings,
+            "next_step_hint": (
+                "If the user wants a PDF report, suggest running "
+                "`generate_compliance_pdf` next (auto-narrates context + remediation)."
+            ),
+        },
+        ensure_ascii=False,
+    )
 
 
 def _default_out_path(framework: str, host: str) -> str:
@@ -214,16 +221,18 @@ def _run_compliance_pdf(
     fw_key = (framework or "all").lower()
     prefixes = _FRAMEWORK_PREFIX.get(fw_key)
     if prefixes is None:
-        return json.dumps({
-            "error": f"unknown framework {framework!r}. "
-                     f"Use one of: {sorted(_FRAMEWORK_PREFIX.keys())}",
-        })
+        return json.dumps(
+            {
+                "error": f"unknown framework {framework!r}. Use one of: {sorted(_FRAMEWORK_PREFIX.keys())}",
+            }
+        )
 
     if not out_path:
         out_path = _default_out_path(fw_key, host or "localhost")
 
     # Env-var fallbacks so the CLI wrapper can pass creds via `docker exec -e`
     import os
+
     effective_ssh_user = ssh_user or os.environ.get("KRYON_SSH_USER", "").strip()
     effective_ssh_key = ssh_key_path or os.environ.get("KRYON_SSH_KEY", "").strip()
     try:
@@ -247,10 +256,12 @@ def _run_compliance_pdf(
         results = all_results
 
     if not results:
-        return json.dumps({
-            "error": f"no checks matched framework={framework!r}",
-            "registered": len(all_results),
-        })
+        return json.dumps(
+            {
+                "error": f"no checks matched framework={framework!r}",
+                "registered": len(all_results),
+            }
+        )
 
     repro_h = reproducibility_hash(results)
 
@@ -275,11 +286,13 @@ def _run_compliance_pdf(
     if not skip_llm_narrative:
         try:
             from kryon.reporting.compliance_narrator import narrate_all
+
             narratives = narrate_all(results_dicts)
         except Exception:
             narratives = {}
 
     import os
+
     effective_client = client_name or os.environ.get("KRYON_CLIENT_NAME", "").strip()
 
     out = Path(out_path)
@@ -302,16 +315,19 @@ def _run_compliance_pdf(
     for r in results:
         verdict_counts[r.verdict] = verdict_counts.get(r.verdict, 0) + 1
 
-    return json.dumps({
-        "host": host or "localhost",
-        "framework": fw_key,
-        "checks_run": len(results),
-        "verdict_counts": verdict_counts,
-        "repro_hash": repro_h,
-        "pdf_path": pdf_path,
-        "html_path": str(out.with_suffix(".html")),
-        "narrated": bool(narratives),
-    }, ensure_ascii=False)
+    return json.dumps(
+        {
+            "host": host or "localhost",
+            "framework": fw_key,
+            "checks_run": len(results),
+            "verdict_counts": verdict_counts,
+            "repro_hash": repro_h,
+            "pdf_path": pdf_path,
+            "html_path": str(out.with_suffix(".html")),
+            "narrated": bool(narratives),
+        },
+        ensure_ascii=False,
+    )
 
 
 @function_tool(strict_mode=False)

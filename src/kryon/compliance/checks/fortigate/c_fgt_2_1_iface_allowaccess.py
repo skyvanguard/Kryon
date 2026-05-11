@@ -75,16 +75,15 @@ class _IfaceAllowaccessCheck:
             tokens = set(aa_match.group(1).strip().split())
             insecure_present = tokens & _INSECURE
             if insecure_present:
-                bad_ifaces.append({
-                    "name": name,
-                    "allowaccess": aa_match.group(1).strip(),
-                    "insecure": " ".join(sorted(insecure_present)),
-                })
+                bad_ifaces.append(
+                    {
+                        "name": name,
+                        "allowaccess": aa_match.group(1).strip(),
+                        "insecure": " ".join(sorted(insecure_present)),
+                    }
+                )
 
-        issues = [
-            f"interface '{i['name']}' allowaccess includes {i['insecure']}"
-            for i in bad_ifaces
-        ]
+        issues = [f"interface '{i['name']}' allowaccess includes {i['insecure']}" for i in bad_ifaces]
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(
             control_id=self.control_id,

@@ -31,6 +31,7 @@ from kryon.sdk.agents import function_tool
 
 try:
     import requests  # type: ignore
+
     _REQUESTS_OK = True
 except ImportError:
     _REQUESTS_OK = False
@@ -59,6 +60,7 @@ def _fallback_session():
     """Lazy import the F50 HttpSession to avoid a hard dep at module load."""
     try:
         from kryon.webexploit.proxy import HttpSession  # type: ignore
+
         return HttpSession()
     except Exception:
         return None
@@ -114,17 +116,12 @@ def burp_send_to_repeater(
                 timeout=timeout_s,
             )
             body_snippet = r.text[:4096]
-            return (
-                f"[burp-pro] status={r.status_code} bytes={len(r.text)}\n"
-                + body_snippet
-            )
+            return f"[burp-pro] status={r.status_code} bytes={len(r.text)}\n" + body_snippet
         except Exception as exc:  # noqa: BLE001
             # Fall through to mitm fallback rather than returning hard error.
             fallback_reason = f"burp api error: {exc}"
     else:
-        fallback_reason = (
-            "burp not available (set BURP_API_KEY and enable Suite REST API)"
-        )
+        fallback_reason = "burp not available (set BURP_API_KEY and enable Suite REST API)"
 
     # Fallback: use embedded mitmproxy session.
     session = _fallback_session()
@@ -142,9 +139,7 @@ def burp_send_to_repeater(
         status = getattr(flow.response, "status_code", 0)
         body_bytes = getattr(flow.response, "body", "") or ""
         return (
-            f"[mitm-fallback] status={status} "
-            f"bytes={len(body_bytes)}  ({fallback_reason})\n"
-            + str(body_bytes)[:4096]
+            f"[mitm-fallback] status={status} bytes={len(body_bytes)}  ({fallback_reason})\n" + str(body_bytes)[:4096]
         )
     except Exception as exc:  # noqa: BLE001
         return f"error: both burp and mitm failed: {exc}"[:512]
@@ -238,8 +233,7 @@ def burp_proxy_history(
             if filter_contains and filter_contains not in url:
                 continue
             lines.append(
-                f"  {entry.get('method', ''):6s} {url} -> "
-                f"{entry.get('status', 0)}  {entry.get('response_size', 0)}B"
+                f"  {entry.get('method', ''):6s} {url} -> {entry.get('status', 0)}  {entry.get('response_size', 0)}B"
             )
         return "\n".join(lines)
 
@@ -249,21 +243,15 @@ def burp_proxy_history(
         return "error: burp unavailable and mitmproxy fallback not loaded"
     try:
         flows = getattr(session, "history", [])
-        lines = [
-            f"[mitm-fallback] history ({len(flows)} flows, "
-            f"filter={filter_contains!r}):"
-        ]
+        lines = [f"[mitm-fallback] history ({len(flows)} flows, filter={filter_contains!r}):"]
         kept = 0
-        for f in flows[-limit * 3:]:  # scan a window, keep <= limit matches
+        for f in flows[-limit * 3 :]:  # scan a window, keep <= limit matches
             req_url = getattr(f.request, "url", "")
             if filter_contains and filter_contains not in req_url:
                 continue
             status = getattr(f.response, "status_code", 0)
             size = len(getattr(f.response, "body", "") or "")
-            lines.append(
-                f"  {getattr(f.request, 'method', ''):6s} {req_url} -> "
-                f"{status}  {size}B"
-            )
+            lines.append(f"  {getattr(f.request, 'method', ''):6s} {req_url} -> {status}  {size}B")
             kept += 1
             if kept >= limit:
                 break

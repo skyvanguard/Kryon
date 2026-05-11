@@ -35,9 +35,7 @@ def _experience(
             "host": f"{eid}.example.com",
             "ports": [80, 443],
         },
-        "chain": [
-            {"tool": t, "args": "", "status": "ok", "output": ""} for t in tools
-        ],
+        "chain": [{"tool": t, "args": "", "status": "ok", "output": ""} for t in tools],
         "outcome_signals": {"shell_gained": outcome == "success"},
         "duration_s": 60,
         "created_at": "2026-04-28T17:00:00+00:00",
@@ -144,10 +142,7 @@ def test_detect_filters_failed_outcomes() -> None:
     """`fail` and `recon-only` engagements never seed a cluster."""
     from kryon.learning.pattern_detector import detect_recurrent_chains
 
-    exps = [
-        _experience(eid=f"e{i}", tools=["nmap", "whatweb", "nuclei"], outcome="fail")
-        for i in range(5)
-    ]
+    exps = [_experience(eid=f"e{i}", tools=["nmap", "whatweb", "nuclei"], outcome="fail") for i in range(5)]
     assert detect_recurrent_chains(exps, min_repetitions=3) == []
 
 
@@ -258,7 +253,9 @@ def test_representative_chain_uses_most_common() -> None:
         _experience(eid="e3", tools=["nmap", "whatweb", "gobuster"]),  # variant
     ]
     clusters = detect_recurrent_chains(
-        exps, min_repetitions=3, similarity_threshold=0.4,
+        exps,
+        min_repetitions=3,
+        similarity_threshold=0.4,
     )
     assert len(clusters) == 1
     # Modal chain wins.

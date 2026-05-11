@@ -75,6 +75,7 @@ def run_cmd(
     transport = getattr(ctx, "transport", "ssh") or "ssh"
     if transport == "winrm":
         from kryon.compliance.runners.winrm_runner import run_winrm_cmd
+
         return run_winrm_cmd(ctx, cmd, timeout_s=timeout_s)
 
     if ctx.host not in ("", "localhost", "127.0.0.1"):
@@ -88,13 +89,20 @@ def run_cmd(
         # itself we still pass explicitly via -i.
         ssh_cmd = [
             "ssh",
-            "-F", "/dev/null",
-            "-o", "BatchMode=yes",
-            "-o", "ConnectTimeout=5",
-            "-o", "StrictHostKeyChecking=accept-new",
-            "-o", "UserKnownHostsFile=/tmp/kryon_known_hosts",
-            "-o", "IdentitiesOnly=yes",
-            "-p", str(ctx.ssh_port),
+            "-F",
+            "/dev/null",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=5",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "UserKnownHostsFile=/tmp/kryon_known_hosts",
+            "-o",
+            "IdentitiesOnly=yes",
+            "-p",
+            str(ctx.ssh_port),
         ]
         if ctx.ssh_key_path:
             ssh_cmd += ["-i", ctx.ssh_key_path]
@@ -177,8 +185,7 @@ def _cli() -> int:
     ap.add_argument("--ssh-port", type=int, default=22)
     ap.add_argument("--deep-evidence", action="store_true")
     ap.add_argument("--out", default="compliance-report.json")
-    ap.add_argument("--repro-check", type=int, default=0,
-                    help="Run N consecutive times and compare hashes.")
+    ap.add_argument("--repro-check", type=int, default=0, help="Run N consecutive times and compare hashes.")
     args = ap.parse_args()
 
     # Import side-effect: register all section check modules.
@@ -197,7 +204,7 @@ def _cli() -> int:
         for i in range(args.repro_check):
             results = run_all(ctx)
             h = reproducibility_hash(results)
-            print(f"run {i+1}/{args.repro_check}  hash={h}")
+            print(f"run {i + 1}/{args.repro_check}  hash={h}")
             hashes.append(h)
         ok = len(set(hashes)) == 1
         print(f"reproducibility: {'PASS' if ok else 'FAIL'} — {len(set(hashes))} distinct hash(es)")
@@ -208,14 +215,8 @@ def _cli() -> int:
     summary = {
         "host": args.host,
         "repro_hash": h,
-        "checks": [
-            {**r.to_json_reproducible(), "duration_ms": r.duration_ms, "run_id": r.run_id}
-            for r in results
-        ],
-        "summary": {
-            v: sum(1 for r in results if r.verdict == v)
-            for v in ("PASS", "FAIL", "N/A", "ERROR")
-        },
+        "checks": [{**r.to_json_reproducible(), "duration_ms": r.duration_ms, "run_id": r.run_id} for r in results],
+        "summary": {v: sum(1 for r in results if r.verdict == v) for v in ("PASS", "FAIL", "N/A", "ERROR")},
     }
     Path(args.out).write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"wrote {args.out}  hash={h}")
@@ -310,6 +311,7 @@ def _import_all_checks() -> None:
         "kryon.compliance.checks.unifi.c_unf_4_2_ap_firmware_currency",
     ]
     import importlib
+
     for m in modules:
         try:
             importlib.import_module(m)
@@ -327,12 +329,7 @@ def _import_all_checks() -> None:
 
         from kryon.compliance.cis import register_framework
 
-        yaml_path = (
-            Path(__file__).resolve().parent
-            / "cis"
-            / "frameworks"
-            / "pci-dss-4.0.yaml"
-        )
+        yaml_path = Path(__file__).resolve().parent / "cis" / "frameworks" / "pci-dss-4.0.yaml"
         if yaml_path.exists():
             register_framework(yaml_path)
     except Exception:
@@ -347,4 +344,5 @@ if __name__ == "__main__":
     # load runner AGAIN as a non-main module with its own _REGISTERED_CHECKS.
     # Dispatch to the non-main module's CLI so state is consistent.
     from kryon.compliance import runner as _r
+
     sys.exit(_r._cli())

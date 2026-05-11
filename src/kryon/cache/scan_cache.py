@@ -165,9 +165,7 @@ class ScanCache:
 
         return None
 
-    def get_scan_metadata(
-        self, tool: str, target: str, params: dict[str, Any] | None = None
-    ) -> dict[str, Any] | None:
+    def get_scan_metadata(self, tool: str, target: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
         """
         Get scan metadata (timestamp, params, etc.).
 

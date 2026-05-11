@@ -95,8 +95,7 @@ def score_relevance(draft: Any) -> tuple[float, list[str]]:
             score -= penalty
             preview = ", ".join(missing[:3])
             reasons.append(
-                f"relevance: required_tools not referenced in body: "
-                f"{preview}{' …' if len(missing) > 3 else ''}",
+                f"relevance: required_tools not referenced in body: {preview}{' …' if len(missing) > 3 else ''}",
             )
 
     if not _PLAYBOOK_SECTION_PATTERN.search(body):
@@ -144,8 +143,7 @@ def score_naturalness(draft: Any) -> tuple[float, list[str]]:
         if density > _MAX_PLACEHOLDER_DENSITY:
             score -= 0.30
             reasons.append(
-                f"naturalness: high placeholder density "
-                f"({len(placeholders)} markers in {n} chars)",
+                f"naturalness: high placeholder density ({len(placeholders)} markers in {n} chars)",
             )
 
     nonblank = [ln.strip() for ln in body.split("\n") if ln.strip()]
@@ -156,8 +154,7 @@ def score_naturalness(draft: Any) -> tuple[float, list[str]]:
         if ratio > _MAX_DUP_LINE_RATIO:
             score -= 0.25
             reasons.append(
-                f"naturalness: {dup_extra} duplicate lines "
-                f"({ratio * 100:.0f}% — likely generative loop)",
+                f"naturalness: {dup_extra} duplicate lines ({ratio * 100:.0f}% — likely generative loop)",
             )
 
     empty_code = len(_EMPTY_CODE_BLOCK_PATTERN.findall(body))

@@ -176,6 +176,7 @@ class TriageDecision:
 def _snippet(file_path: str, line: int, ctx: int = 8) -> str:
     try:
         from pathlib import Path
+
         lines = Path(file_path).read_text(errors="replace").splitlines()
     except OSError:
         return ""
@@ -186,7 +187,7 @@ def _snippet(file_path: str, line: int, ctx: int = 8) -> str:
     out = []
     for i in range(lo, hi):
         marker = ">" if i == line - 1 else " "
-        out.append(f"{marker}{i+1:>5}: {lines[i][:120]}")
+        out.append(f"{marker}{i + 1:>5}: {lines[i][:120]}")
     return "\n".join(out)
 
 
@@ -233,7 +234,7 @@ class TriageAnnotator:
         import time
 
         file_path = finding.get("file_path", "")
-        line_raw = (finding.get("line_range") or "0-0")
+        line_raw = finding.get("line_range") or "0-0"
         line_raw = str(line_raw).lstrip("~")
         try:
             line = int(line_raw.split("-", 1)[0])
@@ -265,29 +266,33 @@ class TriageAnnotator:
             base = self.endpoint
             if base.endswith("/v1"):
                 base = base[:-3]
-            body = json.dumps({
-                "model": self.model,
-                "messages": [{"role": "user", "content": prompt}],
-                "think": False,
-                "stream": False,
-                "options": {
-                    "temperature": 0.1,
-                    "num_predict": self.max_tokens,
-                },
-            }).encode()
+            body = json.dumps(
+                {
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "think": False,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.1,
+                        "num_predict": self.max_tokens,
+                    },
+                }
+            ).encode()
             req = urllib.request.Request(
                 f"{base}/api/chat",
                 data=body,
                 headers={"Content-Type": "application/json"},
             )
         else:
-            body = json.dumps({
-                "model": self.model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.1,
-                "max_tokens": self.max_tokens,
-                "stream": False,
-            }).encode()
+            body = json.dumps(
+                {
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.1,
+                    "max_tokens": self.max_tokens,
+                    "stream": False,
+                }
+            ).encode()
             req = urllib.request.Request(
                 f"{self.endpoint}/chat/completions",
                 data=body,
@@ -323,10 +328,4 @@ def filter_suppress_high(findings: list[dict]) -> list[dict]:
     """Opt-in filter: drops only SUPPRESS-high verdicts. Keeps SUPPRESS-low
     and SUPPRESS-medium because the LLM was unsure. Triggered by
     `--triage-filter` / `KRYON_TRIAGE_FILTER=true`."""
-    return [
-        f for f in findings
-        if not (
-            f.get("triage_verdict") == "SUPPRESS"
-            and f.get("triage_confidence") == "high"
-        )
-    ]
+    return [f for f in findings if not (f.get("triage_verdict") == "SUPPRESS" and f.get("triage_confidence") == "high")]

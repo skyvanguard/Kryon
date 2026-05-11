@@ -121,20 +121,14 @@ def test_allowed_template_vars_is_frozen_set() -> None:
 
 
 def test_template_in_args_passes_validation_when_whitelisted() -> None:
-    raw = [
-        {"tool": "run_compliance_audit",
-         "args": {"host": "{ctx.host}", "ssh_user": "{ctx.ssh_user}"}}
-    ]
+    raw = [{"tool": "run_compliance_audit", "args": {"host": "{ctx.host}", "ssh_user": "{ctx.ssh_user}"}}]
     # Should not raise
     hooks = parse_pre_hooks(raw)
     assert hooks[0].args["host"] == "{ctx.host}"
 
 
 def test_template_in_args_rejects_unknown_var() -> None:
-    raw = [
-        {"tool": "run_compliance_audit",
-         "args": {"host": "{ctx.evil_thing}"}}
-    ]
+    raw = [{"tool": "run_compliance_audit", "args": {"host": "{ctx.evil_thing}"}}]
     with pytest.raises(PreHookSchemaError, match="unknown template variable"):
         parse_pre_hooks(raw)
 
@@ -204,10 +198,10 @@ def test_invalid_python_path_raises() -> None:
     """Python escape hatch path must be `./<file>.py:<callable>`."""
     bad_paths = [
         "no_colon.py",
-        "/etc/passwd:run",          # absolute path — not allowed
-        "../../../escape.py:run",   # path traversal
-        ":run",                      # empty file
-        "./file.py:",                # empty callable
+        "/etc/passwd:run",  # absolute path — not allowed
+        "../../../escape.py:run",  # path traversal
+        ":run",  # empty file
+        "./file.py:",  # empty callable
     ]
     for p in bad_paths:
         raw = [{"python": p}]

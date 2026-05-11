@@ -33,7 +33,7 @@ def set_active_agent(agent: Any) -> None:
     skill_names: list[str] = []
     tool_count = 0
     try:
-        for s in (getattr(agent, "_active_skills", None) or []):
+        for s in getattr(agent, "_active_skills", None) or []:
             name = getattr(s, "name", None)
             if name:
                 skill_names.append(str(name))

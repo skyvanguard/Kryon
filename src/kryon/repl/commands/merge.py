@@ -5,7 +5,6 @@ Provides a shortcut to merge agent message histories without
 typing the full /parallel merge command.
 """
 
-
 from rich.console import Console
 
 from kryon.repl.commands.base import Command, register_command

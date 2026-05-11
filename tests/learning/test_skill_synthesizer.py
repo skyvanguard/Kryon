@@ -33,7 +33,9 @@ def _experience(
             "tech": tech if tech is not None else ["wordpress", "nginx"],
             "os_hint": "linux",
         },
-        "chain": chain if chain is not None else [
+        "chain": chain
+        if chain is not None
+        else [
             {"tool": "nmap", "args": "-sV", "status": "ok", "output": "open: 80,443"},
             {"tool": "whatweb", "args": "https://x", "status": "ok", "output": "wp"},
             {"tool": "nuclei_scan", "args": "x", "status": "ok", "output": "1 finding"},
@@ -158,9 +160,12 @@ def test_frontmatter_includes_provenance() -> None:
 def test_frontmatter_triggers_use_profile_tech_and_ports() -> None:
     from kryon.learning.skill_synthesizer import synthesize_draft
 
-    draft = synthesize_draft(_experience(
-        tech=["wordpress", "php"], ports=[80, 443, 8080],
-    ))
+    draft = synthesize_draft(
+        _experience(
+            tech=["wordpress", "php"],
+            ports=[80, 443, 8080],
+        )
+    )
     assert draft is not None
     triggers = draft.frontmatter["triggers"]
     assert set(triggers["tech"]) == {"wordpress", "php"}
@@ -183,10 +188,14 @@ def test_frontmatter_required_tools_subset_of_chain() -> None:
     """The draft only requires tools that actually appeared in the chain."""
     from kryon.learning.skill_synthesizer import synthesize_draft
 
-    draft = synthesize_draft(_experience(chain=[
-        {"tool": "nmap", "args": "", "status": "ok", "output": ""},
-        {"tool": "nuclei_scan", "args": "", "status": "ok", "output": ""},
-    ]))
+    draft = synthesize_draft(
+        _experience(
+            chain=[
+                {"tool": "nmap", "args": "", "status": "ok", "output": ""},
+                {"tool": "nuclei_scan", "args": "", "status": "ok", "output": ""},
+            ]
+        )
+    )
     assert draft is not None
     required = set(draft.frontmatter["required_tools"])
     assert {"nmap", "nuclei_scan"} <= required

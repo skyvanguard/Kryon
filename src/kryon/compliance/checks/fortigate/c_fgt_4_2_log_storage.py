@@ -55,7 +55,7 @@ class _LogStorageCheck:
         memory_used_match = re.search(r"memory used\s*:\s*(\d+)", out, re.I)
         memory_total_match = re.search(r"total memory\s*:\s*(\d+)", out, re.I)
 
-        conserve = (conserve_match.group(1).lower() if conserve_match else "unknown")
+        conserve = conserve_match.group(1).lower() if conserve_match else "unknown"
         used = int(memory_used_match.group(1)) if memory_used_match else 0
         total = int(memory_total_match.group(1)) if memory_total_match else 0
         pct = round((used / total) * 100, 1) if total else 0.0

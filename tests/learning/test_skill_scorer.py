@@ -161,13 +161,9 @@ def test_score_skills_attributes_to_every_skill_in_agent_path() -> None:
     from kryon.learning.skill_scorer import score_skills
 
     exps = [
-        _experience(
-            agent_path=["fortigate-audit", "recon-scout"], outcome="success"
-        ),
+        _experience(agent_path=["fortigate-audit", "recon-scout"], outcome="success"),
     ]
-    out = score_skills(
-        experiences=exps, skill_names=["fortigate-audit", "recon-scout"]
-    )
+    out = score_skills(experiences=exps, skill_names=["fortigate-audit", "recon-scout"])
     assert out["fortigate-audit"].sample_size == 1
     assert out["recon-scout"].sample_size == 1
 
@@ -181,7 +177,7 @@ def test_score_skills_win_rate_treats_partial_as_half() -> None:
     exps = [
         _experience(agent_path=["x"], outcome="success"),  # 1.0
         _experience(agent_path=["x"], outcome="partial"),  # 0.5
-        _experience(agent_path=["x"], outcome="fail"),     # 0.0
+        _experience(agent_path=["x"], outcome="fail"),  # 0.0
     ]
     out = score_skills(experiences=exps, skill_names=["x"])
     # (1.0 + 0.5 + 0.0) / 3 = 0.5
@@ -262,16 +258,25 @@ def test_rank_skills_hybrid_uses_priority_as_primary_sort() -> None:
     ]
     scores = {
         "low-prio": SkillScore(
-            skill_name="low-prio", sample_size=20, win_rate=0.95,
-            confidence_lower=0.85, is_low_confidence=False,
+            skill_name="low-prio",
+            sample_size=20,
+            win_rate=0.95,
+            confidence_lower=0.85,
+            is_low_confidence=False,
         ),
         "high-prio-bad": SkillScore(
-            skill_name="high-prio-bad", sample_size=20, win_rate=0.10,
-            confidence_lower=0.05, is_low_confidence=False,
+            skill_name="high-prio-bad",
+            sample_size=20,
+            win_rate=0.10,
+            confidence_lower=0.05,
+            is_low_confidence=False,
         ),
         "high-prio-good": SkillScore(
-            skill_name="high-prio-good", sample_size=20, win_rate=0.90,
-            confidence_lower=0.78, is_low_confidence=False,
+            skill_name="high-prio-good",
+            sample_size=20,
+            win_rate=0.90,
+            confidence_lower=0.78,
+            is_low_confidence=False,
         ),
     }
     ranked = rank_skills_hybrid(skills, scores)
@@ -294,12 +299,18 @@ def test_rank_skills_score_mode_ignores_priority() -> None:
     skills = [("low-prio-good", 30), ("high-prio-bad", 10)]
     scores = {
         "low-prio-good": SkillScore(
-            skill_name="low-prio-good", sample_size=20, win_rate=0.95,
-            confidence_lower=0.85, is_low_confidence=False,
+            skill_name="low-prio-good",
+            sample_size=20,
+            win_rate=0.95,
+            confidence_lower=0.85,
+            is_low_confidence=False,
         ),
         "high-prio-bad": SkillScore(
-            skill_name="high-prio-bad", sample_size=20, win_rate=0.10,
-            confidence_lower=0.05, is_low_confidence=False,
+            skill_name="high-prio-bad",
+            sample_size=20,
+            win_rate=0.10,
+            confidence_lower=0.05,
+            is_low_confidence=False,
         ),
     }
     ranked = rank_skills_score_only(skills, scores)
@@ -318,12 +329,18 @@ def test_rank_skills_low_confidence_falls_back_to_priority_within_tier() -> None
     skills = [("rookie", 20), ("veteran", 20)]
     scores = {
         "rookie": SkillScore(
-            skill_name="rookie", sample_size=2, win_rate=1.0,
-            confidence_lower=0.20, is_low_confidence=True,
+            skill_name="rookie",
+            sample_size=2,
+            win_rate=1.0,
+            confidence_lower=0.20,
+            is_low_confidence=True,
         ),
         "veteran": SkillScore(
-            skill_name="veteran", sample_size=50, win_rate=0.80,
-            confidence_lower=0.70, is_low_confidence=False,
+            skill_name="veteran",
+            sample_size=50,
+            win_rate=0.80,
+            confidence_lower=0.70,
+            is_low_confidence=False,
         ),
     }
     ranked = rank_skills_hybrid(skills, scores)

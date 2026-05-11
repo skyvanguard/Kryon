@@ -271,9 +271,7 @@ class CostTracker:
         if provided_cost is not None:
             self.current_agent_total_cost = float(provided_cost)
         else:
-            self.current_agent_total_cost = calculate_model_cost(
-                model, total_input_tokens, total_output_tokens
-            )
+            self.current_agent_total_cost = calculate_model_cost(model, total_input_tokens, total_output_tokens)
         return self.current_agent_total_cost
 
 

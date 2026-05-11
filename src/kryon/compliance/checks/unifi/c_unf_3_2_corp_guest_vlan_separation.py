@@ -79,7 +79,9 @@ class _CorpGuestVlanSeparationCheck:
             if not ls.startswith("{"):
                 continue
             name_m = re.search(r'"name"\s*:\s*"([^"]+)"', ls)
-            netid_m = re.search(r'"networkconf_id"\s*:\s*ObjectId\("([^"]+)"\)', ls) or re.search(r'"networkconf_id"\s*:\s*"([^"]+)"', ls)
+            netid_m = re.search(r'"networkconf_id"\s*:\s*ObjectId\("([^"]+)"\)', ls) or re.search(
+                r'"networkconf_id"\s*:\s*"([^"]+)"', ls
+            )
             guest_m = re.search(r'"is_guest"\s*:\s*(\w+)', ls)
             if not name_m or not netid_m:
                 continue
@@ -93,9 +95,7 @@ class _CorpGuestVlanSeparationCheck:
 
         issues: list[str] = []
         if overlapping:
-            issues.append(
-                f"VLAN(s) {sorted(overlapping)} carry BOTH guest and corporate SSIDs"
-            )
+            issues.append(f"VLAN(s) {sorted(overlapping)} carry BOTH guest and corporate SSIDs")
 
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(

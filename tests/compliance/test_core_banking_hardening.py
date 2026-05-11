@@ -19,10 +19,7 @@ try:
 except (ImportError, ModuleNotFoundError):
     pytest.skip("compliance/cis not importable", allow_module_level=True)
 
-_YAML = (
-    Path(__file__).resolve().parents[2]
-    / "src/kryon/compliance/cis/frameworks/core-banking-hardening.yaml"
-)
+_YAML = Path(__file__).resolve().parents[2] / "src/kryon/compliance/cis/frameworks/core-banking-hardening.yaml"
 _ID_RE = re.compile(r"^CBH-\d+(\.\d+){1,2}$")
 
 
@@ -59,10 +56,7 @@ def test_each_section_has_checks(framework):
 
 
 def _blob(c) -> str:
-    return " ".join(
-        (getattr(c, f) or "").lower()
-        for f in ("title", "rationale", "remediation", "command")
-    )
+    return " ".join((getattr(c, f) or "").lower() for f in ("title", "rationale", "remediation", "command"))
 
 
 def test_t24_checks_present(framework):

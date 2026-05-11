@@ -13,6 +13,7 @@ Public API:
         normalize_cwe, cwes_match,
     )
 """
+
 from .loader import (
     cwes_match,
     get_pattern,

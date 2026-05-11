@@ -30,8 +30,11 @@ class _MockSocket:
         self._buffer = b""
         self.closed = False
 
-    def settimeout(self, _t: float) -> None: pass
-    def connect(self, _addr: tuple[str, int]) -> None: pass
+    def settimeout(self, _t: float) -> None:
+        pass
+
+    def connect(self, _addr: tuple[str, int]) -> None:
+        pass
 
     def sendall(self, _data: bytes) -> None:
         try:
@@ -47,8 +50,11 @@ class _MockSocket:
     def close(self) -> None:
         self.closed = True
 
-    def __enter__(self) -> _MockSocket: return self
-    def __exit__(self, *exc: object) -> None: self.close()
+    def __enter__(self) -> _MockSocket:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
 
 
 @pytest.fixture
@@ -57,6 +63,7 @@ def patch_socket(monkeypatch: pytest.MonkeyPatch):
         mock = _MockSocket(replies)
         monkeypatch.setattr(socket, "socket", lambda *a, **k: mock)
         return mock
+
     return _install
 
 
@@ -65,16 +72,26 @@ def patch_socket(monkeypatch: pytest.MonkeyPatch):
 
 class TestReachability:
     def test_unreachable_host_returns_error(
-        self, monkeypatch: pytest.MonkeyPatch,
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from kryon.tools.ot.iec104_probe import iec104_probe
 
         class _Refused:
-            def __enter__(self): return self
-            def __exit__(self, *a): pass
-            def settimeout(self, _t): pass
-            def connect(self, _a): raise OSError("refused")
-            def close(self): pass
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+            def settimeout(self, _t):
+                pass
+
+            def connect(self, _a):
+                raise OSError("refused")
+
+            def close(self):
+                pass
 
         monkeypatch.setattr(socket, "socket", lambda *a, **k: _Refused())
         r = iec104_probe("10.255.255.255")
@@ -152,7 +169,8 @@ class TestTestFr:
         assert r.testfr_confirmed is False  # not attempted
 
     def test_testfr_failure_does_not_undo_startdt_finding(
-        self, patch_socket,
+        self,
+        patch_socket,
     ) -> None:
         """STARTDT was confirmed; TESTFR may fail (network glitch, slow
         firewall) — that doesn't cancel the unauth-exposure finding."""

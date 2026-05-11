@@ -211,6 +211,7 @@ def rank_skills_hybrid(
     speculative learned skill (priority 50), no matter how good the
     learned one looks.
     """
+
     def sort_key(item: tuple[str, int]) -> tuple[int, float]:
         name, priority = item
         score_val = _ranking_score(scores.get(name, SkillScore(skill_name=name)))
@@ -229,6 +230,7 @@ def rank_skills_score_only(
     Reserved for experimentation. NOT used by the loader's `hybrid`
     mode — that one keeps priority as the primary sort.
     """
+
     def sort_key(item: tuple[str, int]) -> tuple[float, int]:
         name, priority = item
         score_val = _ranking_score(scores.get(name, SkillScore(skill_name=name)))

@@ -148,15 +148,17 @@ def test_helpers_produce_strings_that_render_in_rich_console() -> None:
 
     buf = StringIO()
     c = Console(file=buf, force_terminal=False, width=120)
-    line = " ".join([
-        accent("◆ skills:"),
-        "fortigate-audit",
-        dim("(14 tools)"),
-        ok("ollama ✓"),
-        warn("2 drafts"),
-        err("1 failure"),
-        severity("CRITICAL", "CRITICAL"),
-    ])
+    line = " ".join(
+        [
+            accent("◆ skills:"),
+            "fortigate-audit",
+            dim("(14 tools)"),
+            ok("ollama ✓"),
+            warn("2 drafts"),
+            err("1 failure"),
+            severity("CRITICAL", "CRITICAL"),
+        ]
+    )
     c.print(line)
     text = buf.getvalue()
     # Rich strips tags when rendering to plain stream — just ensure

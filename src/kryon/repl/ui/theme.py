@@ -54,9 +54,9 @@ TEXT_DIM = "dim"
 # Status palette
 # ---------------------------------------------------------------------------
 
-STATUS_OK = "green"          # healthy / connected / passed
-STATUS_WARN = "yellow"       # degraded / pending / soft warning
-STATUS_ERR = "red"           # down / failed / hard error
+STATUS_OK = "green"  # healthy / connected / passed
+STATUS_WARN = "yellow"  # degraded / pending / soft warning
+STATUS_ERR = "red"  # down / failed / hard error
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +64,7 @@ STATUS_ERR = "red"           # down / failed / hard error
 # ---------------------------------------------------------------------------
 
 SEVERITY_CRITICAL = "bold red"
-SEVERITY_HIGH = "orange3"        # darker-than-yellow, lighter-than-red
+SEVERITY_HIGH = "orange3"  # darker-than-yellow, lighter-than-red
 SEVERITY_MEDIUM = "yellow"
 SEVERITY_LOW = "blue"
 SEVERITY_INFO = "cyan"

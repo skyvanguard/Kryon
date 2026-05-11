@@ -26,7 +26,11 @@ _KNOWN_CVES = [
         "cve": "CVE-2022-42475",
         "title": "SSL VPN heap overflow → unauth RCE",
         "fixed_in": [
-            (7, 2, 3), (7, 0, 9), (6, 4, 11), (6, 2, 13), (6, 0, 16),
+            (7, 2, 3),
+            (7, 0, 9),
+            (6, 4, 11),
+            (6, 2, 13),
+            (6, 0, 16),
         ],
         "exploit": "public, mass-exploited",
     },
@@ -34,7 +38,11 @@ _KNOWN_CVES = [
         "cve": "CVE-2023-27997",
         "title": "SSL VPN heap overflow → unauth RCE (XORtigate)",
         "fixed_in": [
-            (7, 2, 5), (7, 0, 12), (6, 4, 13), (6, 2, 15), (6, 0, 17),
+            (7, 2, 5),
+            (7, 0, 12),
+            (6, 4, 13),
+            (6, 2, 15),
+            (6, 0, 17),
         ],
         "exploit": "public",
     },
@@ -42,7 +50,11 @@ _KNOWN_CVES = [
         "cve": "CVE-2024-21762",
         "title": "SSL VPN out-of-bounds write → unauth RCE",
         "fixed_in": [
-            (7, 4, 3), (7, 2, 7), (7, 0, 14), (6, 4, 15), (6, 2, 16),
+            (7, 4, 3),
+            (7, 2, 7),
+            (7, 0, 14),
+            (6, 4, 15),
+            (6, 2, 16),
         ],
         "exploit": "public, KEV",
     },
@@ -50,7 +62,10 @@ _KNOWN_CVES = [
         "cve": "CVE-2024-23113",
         "title": "fgfmd format string → RCE",
         "fixed_in": [
-            (7, 4, 3), (7, 2, 7), (7, 0, 14), (6, 4, 15),
+            (7, 4, 3),
+            (7, 2, 7),
+            (7, 0, 14),
+            (6, 4, 15),
         ],
         "exploit": "public, KEV",
     },
@@ -131,16 +146,15 @@ class _KnownCveExposureCheck:
         exposed: list[dict[str, str]] = []
         for cve in _KNOWN_CVES:
             if not _is_patched(running, cve["fixed_in"]):
-                exposed.append({
-                    "cve": cve["cve"],
-                    "title": cve["title"],
-                    "exploit": cve["exploit"],
-                })
+                exposed.append(
+                    {
+                        "cve": cve["cve"],
+                        "title": cve["title"],
+                        "exploit": cve["exploit"],
+                    }
+                )
 
-        issues = [
-            f"{e['cve']} ({e['title']}) — exploit status: {e['exploit']}"
-            for e in exposed
-        ]
+        issues = [f"{e['cve']} ({e['title']}) — exploit status: {e['exploit']}" for e in exposed]
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(
             control_id=self.control_id,

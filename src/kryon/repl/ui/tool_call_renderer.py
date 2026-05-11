@@ -42,20 +42,20 @@ MAX_ARGS_SUMMARY_CHARS = 100
 # showing alone in the invocation line). Any tool not listed falls
 # back to a generic key=value summary.
 _PRIMARY_ARG: dict[str, str] = {
-    "run_command":      "command",
-    "execute_code":     "code",
-    "nmap":             "target",
-    "whatweb_scan":     "target",
-    "nuclei_scan":      "target",
+    "run_command": "command",
+    "execute_code": "code",
+    "nmap": "target",
+    "whatweb_scan": "target",
+    "nuclei_scan": "target",
     "feroxbuster_scan": "target",
-    "sqlmap_scan":      "target",
-    "http_fetch":       "url",
-    "curl":             "url",
+    "sqlmap_scan": "target",
+    "http_fetch": "url",
+    "curl": "url",
     "search_vulnerabilities": "query",
-    "duckduckgo_search":      "query",
+    "duckduckgo_search": "query",
     "recall_similar_experiences": "host_or_profile",
-    "add_to_memory_semantic":     "texts",
-    "query_knowledge_base":       "query",
+    "add_to_memory_semantic": "texts",
+    "query_knowledge_base": "query",
 }
 
 
@@ -95,10 +95,7 @@ def summarize_args(tool_name: str, args: Any) -> str:
     if primary_key and primary_key in args:
         value = args[primary_key]
         # Drop boring kwargs from suffix; only show extras meaningful to user.
-        extras = {
-            k: v for k, v in args.items()
-            if k != primary_key and v not in (None, False, "", 0)
-        }
+        extras = {k: v for k, v in args.items() if k != primary_key and v not in (None, False, "", 0)}
         if extras:
             extras_str = " · ".join(f"{k}={v}" for k, v in extras.items())
             return f"{value}  ({extras_str})"

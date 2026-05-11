@@ -14,10 +14,7 @@ try:
 except (ImportError, ModuleNotFoundError):
     pytest.skip("compliance/cis not importable", allow_module_level=True)
 
-_YAML = (
-    Path(__file__).resolve().parents[2]
-    / "src/kryon/compliance/cis/frameworks/atm-security-bcp-2024.yaml"
-)
+_YAML = Path(__file__).resolve().parents[2] / "src/kryon/compliance/cis/frameworks/atm-security-bcp-2024.yaml"
 _ID_RE = re.compile(r"^ATM-\d+(\.\d+){1,2}$")
 
 
@@ -45,10 +42,7 @@ def test_four_sections_covered(framework):
 
 
 def _blob(c) -> str:
-    return " ".join(
-        (getattr(c, f) or "").lower()
-        for f in ("title", "rationale", "remediation", "command")
-    )
+    return " ".join((getattr(c, f) or "").lower() for f in ("title", "rationale", "remediation", "command"))
 
 
 def test_physical_section_covers_antiskim_and_pts(framework):
@@ -90,7 +84,11 @@ def test_bcp_2024_reference_present(framework):
 def test_windows_specific_commands(framework):
     """ATM hosts are Windows — commands must use reg/wmic/powershell, not bash."""
     win_cmds = [
-        c for c in framework.checks
-        if any(t in c.command for t in ("reg query", "wmic", "powershell", "sc query", "sc config", "ipconfig", "manage-bde", "w32tm"))
+        c
+        for c in framework.checks
+        if any(
+            t in c.command
+            for t in ("reg query", "wmic", "powershell", "sc query", "sc config", "ipconfig", "manage-bde", "w32tm")
+        )
     ]
     assert len(win_cmds) >= 15, f"only {len(win_cmds)} Windows-native commands"

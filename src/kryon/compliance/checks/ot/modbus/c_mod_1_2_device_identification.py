@@ -59,9 +59,7 @@ class _Mod12Check:
             )
         else:
             verdict = "FAIL"
-            ident = ", ".join(
-                f"{k}={v!r}" for k, v in result.device_identification.items()
-            )
+            ident = ", ".join(f"{k}={v!r}" for k, v in result.device_identification.items())
             stdout = (
                 f"Device on {ctx.host}:502 disclosed identity to anonymous "
                 f"MEI 0x0E probe: {ident}. This is fingerprintable from any "

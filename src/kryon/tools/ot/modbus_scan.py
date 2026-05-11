@@ -54,11 +54,11 @@ class ModbusScanResult:
     host: str
     port: int
     reachable: bool
-    unauth_read_coils: bool          # 0x01 succeeded without auth
-    unauth_read_holding: bool        # 0x03 succeeded without auth
+    unauth_read_coils: bool  # 0x01 succeeded without auth
+    unauth_read_holding: bool  # 0x03 succeeded without auth
     device_identification: dict[str, str] = field(default_factory=dict)
     response_unit_ids: tuple[int, ...] = field(default_factory=tuple)
-    write_attempt: bool = False      # True only when caller opted in
+    write_attempt: bool = False  # True only when caller opted in
     write_succeeded: bool | None = None  # None when not attempted
     error: str = ""
 
@@ -186,7 +186,7 @@ def _probe_device_identification(host: str, port: int, unit_id: int) -> dict[str
         cursor += 2
         if cursor + obj_len > len(resp):
             break
-        obj_value = resp[cursor:cursor + obj_len].decode("ascii", errors="replace")
+        obj_value = resp[cursor : cursor + obj_len].decode("ascii", errors="replace")
         out[object_names.get(obj_id, f"object_{obj_id}")] = obj_value
         cursor += obj_len
     return out
@@ -244,10 +244,7 @@ def modbus_scan(
         req = _build_request(transaction_id=0x0004, unit_id=unit_id, pdu=pdu)
         try:
             resp = _send_recv(host, port, req)
-            write_ok = (
-                len(resp) >= 8
-                and resp[7] == 0x05
-            )
+            write_ok = len(resp) >= 8 and resp[7] == 0x05
         except (TimeoutError, OSError):
             write_ok = False
 

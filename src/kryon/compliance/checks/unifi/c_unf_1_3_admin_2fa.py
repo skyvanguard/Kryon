@@ -63,19 +63,20 @@ class _Unifi2faCheck:
             two_factor_m = re.search(r'"two_factor_auth"\s*:\s*(\w+)', ls)
             mfa_obj_m = re.search(r'"mfa"\s*:\s*\{[^}]+"enabled"\s*:\s*(\w+)', ls)
             name = name_m.group(1) if name_m else ""
-            mfa_on = any([
-                (super_mfa_m and super_mfa_m.group(1).lower() == "true"),
-                (two_factor_m and two_factor_m.group(1).lower() == "true"),
-                (mfa_obj_m and mfa_obj_m.group(1).lower() == "true"),
-            ])
+            mfa_on = any(
+                [
+                    (super_mfa_m and super_mfa_m.group(1).lower() == "true"),
+                    (two_factor_m and two_factor_m.group(1).lower() == "true"),
+                    (mfa_obj_m and mfa_obj_m.group(1).lower() == "true"),
+                ]
+            )
             admins.append({"name": name, "mfa_enabled": mfa_on})
 
         without_mfa = [a["name"] for a in admins if not a["mfa_enabled"]]
         issues: list[str] = []
         if admins and without_mfa:
             issues.append(
-                f"{len(without_mfa)}/{len(admins)} admins without 2FA: "
-                f"{', '.join(sorted(str(n) for n in without_mfa))}"
+                f"{len(without_mfa)}/{len(admins)} admins without 2FA: {', '.join(sorted(str(n) for n in without_mfa))}"
             )
 
         verdict = "PASS" if not issues else "FAIL"

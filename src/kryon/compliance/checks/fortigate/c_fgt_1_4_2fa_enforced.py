@@ -73,11 +73,13 @@ class _TwoFactorCheck:
             body = m.group(2)
             tf_match = _TWO_FACTOR_RE.search(body)
             prof_match = _PROFILE_RE.search(body)
-            accounts.append({
-                "name": name,
-                "two_factor": (tf_match.group(1).lower() if tf_match else "disable"),
-                "accprofile": (prof_match.group(1) if prof_match else ""),
-            })
+            accounts.append(
+                {
+                    "name": name,
+                    "two_factor": (tf_match.group(1).lower() if tf_match else "disable"),
+                    "accprofile": (prof_match.group(1) if prof_match else ""),
+                }
+            )
 
         # Only super_admin accprofile matters for the CRITICAL gate. Lower-
         # priv profiles are flagged as HIGH effectively (still in issues).
@@ -86,14 +88,9 @@ class _TwoFactorCheck:
             tf = a["two_factor"]
             if tf in ("", "disable"):
                 if a["accprofile"] in ("super_admin", "prof_admin", ""):
-                    issues.append(
-                        f"admin '{a['name']}' (profile={a['accprofile'] or 'default'}) "
-                        "has 2FA disabled"
-                    )
+                    issues.append(f"admin '{a['name']}' (profile={a['accprofile'] or 'default'}) has 2FA disabled")
                 else:
-                    issues.append(
-                        f"admin '{a['name']}' (profile={a['accprofile']}) lacks 2FA"
-                    )
+                    issues.append(f"admin '{a['name']}' (profile={a['accprofile']}) lacks 2FA")
 
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(
@@ -106,10 +103,7 @@ class _TwoFactorCheck:
             evidence_stderr=err[:512],
             evidence_parsed={
                 "admin_count": len(accounts),
-                "admins_without_2fa": [
-                    a["name"] for a in accounts
-                    if a["two_factor"] in ("", "disable")
-                ],
+                "admins_without_2fa": [a["name"] for a in accounts if a["two_factor"] in ("", "disable")],
                 "issues": sorted(issues),
             },
             remediation_static=self.remediation_static,

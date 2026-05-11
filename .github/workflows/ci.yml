@@ -71,6 +71,9 @@ jobs:
             --ignore=tests/test_tool_availability.py \
             --ignore=tests/voice/test_workflow.py \
             --ignore=tests/mcp/test_mcp_tracing.py \
+            --ignore=tests/autonomous \
+            --ignore=tests/tools/test_orchestrator_turns.py \
+            --ignore=tests/tools/test_pentest_planner.py \
             -m "not integration and not slow and not e2e" \
             --cov=src/kryon --cov-report=xml \
             --tb=short

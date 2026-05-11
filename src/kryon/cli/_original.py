@@ -263,11 +263,13 @@ if not sys.warnoptions:
 # These are cosmetic — subprocess cleanup after asyncio.run() destroys the loop
 _original_del = getattr(asyncio.base_subprocess.BaseSubprocessTransport, "__del__", None)
 if _original_del:
+
     def _quiet_del(self):
         try:
             _original_del(self)
         except RuntimeError:
             pass
+
     asyncio.base_subprocess.BaseSubprocessTransport.__del__ = _quiet_del
     warnings.simplefilter("ignore", ResourceWarning)  # Also ignore ResourceWarnings
 
@@ -725,6 +727,7 @@ def run_kryon_cli(
                     # active skills + tool count for this turn.
                     try:
                         from kryon.repl.ui.runtime_state import set_active_agent
+
                         set_active_agent(agent)
                     except Exception:  # pragma: no cover
                         pass
@@ -735,12 +738,12 @@ def run_kryon_cli(
                     # never block input.
                     try:
                         from kryon.repl.ui.status_line import render_status_line
+
                         render_status_line(agent, console)
                     except Exception as _sl_err:  # pragma: no cover
                         import logging as _sl_logging
-                        _sl_logging.getLogger(__name__).debug(
-                            "status_line render failed: %s", _sl_err
-                        )
+
+                        _sl_logging.getLogger(__name__).debug("status_line render failed: %s", _sl_err)
 
                     # Get user input with command completion and history
                     user_input = get_user_input(
@@ -790,17 +793,13 @@ def run_kryon_cli(
                         # re-routed to a different skill set this turn.
                         try:
                             new_names = ", ".join(s.name for s in new_skills)
-                            console.print(
-                                f"[dim cyan]◆ skills updated →[/dim cyan] {new_names}"
-                            )
+                            console.print(f"[dim cyan]◆ skills updated →[/dim cyan] {new_names}")
                         except Exception:
                             pass
             except Exception as _skill_swap_err:  # pragma: no cover — safety net
                 import logging
 
-                logging.getLogger(__name__).debug(
-                    "Skill hot-swap skipped: %s", _skill_swap_err
-                )
+                logging.getLogger(__name__).debug("Skill hot-swap skipped: %s", _skill_swap_err)
 
             # In parallel mode, all configured agents will run automatically
             # No agent selection menu - just run all agents
@@ -1505,9 +1504,7 @@ def run_kryon_cli(
             try:
                 from kryon.skills.pre_hook_integration import maybe_run_pre_hooks
 
-                pre_hook_suffix = asyncio.run(
-                    maybe_run_pre_hooks(agent, user_input, console)
-                )
+                pre_hook_suffix = asyncio.run(maybe_run_pre_hooks(agent, user_input, console))
                 if pre_hook_suffix:
                     if isinstance(conversation_input, str):
                         conversation_input = conversation_input + pre_hook_suffix
@@ -1518,9 +1515,7 @@ def run_kryon_cli(
             except Exception as _ph_err:  # pragma: no cover — safety net
                 import logging as _ph_logging
 
-                _ph_logging.getLogger(__name__).warning(
-                    "pre-hook integration error: %s", _ph_err
-                )
+                _ph_logging.getLogger(__name__).warning("pre-hook integration error: %s", _ph_err)
 
             # Process the conversation with the agent - with parallel execution if enabled
             if parallel_count > 1:
@@ -1914,9 +1909,7 @@ def run_kryon_cli(
                     # streamed it inline during the turn. The legacy duplicate panel
                     # ("╭─ Kryon ─╮" wrapping the same Markdown) was removed.
                     if response and hasattr(response, "final_output") and response.final_output:
-                        agent.model.add_to_message_history(
-                            {"role": "assistant", "content": str(response.final_output)}
-                        )
+                        agent.model.add_to_message_history({"role": "assistant", "content": str(response.final_output)})
 
                     # En modo no-streaming, procesamos SOLO los tool outputs de response.new_items
                     # Los tool calls (assistant messages) ya se añaden correctamente en openai_chatcompletions.py
@@ -2193,6 +2186,7 @@ def main():
 
     # --- engage subcommand (F12.7) — end-to-end demo orchestrator ---
     from kryon.cli.engage import add_engage_subparser
+
     add_engage_subparser(subparsers)
 
     # --- default (REPL) arguments ---
@@ -2268,6 +2262,7 @@ def main():
     # --- Handle report subcommand ---
     if args.command == "engage":
         from kryon.cli.engage import run_engage
+
         sys.exit(run_engage(args))
 
     if args.command == "report":

@@ -167,7 +167,7 @@ def _parse_skill_file(path: Path) -> Skill | None:
 
     fm_text = m.group(1)
     fm = _parse_yaml_simple(fm_text)
-    body = text[m.end():].strip()
+    body = text[m.end() :].strip()
 
     # Pre-hooks support: opt-in. If the skill declares `pre_hooks:`, we
     # need a YAML parser that handles list-of-dicts (the simple parser
@@ -193,18 +193,20 @@ def _parse_skill_file(path: Path) -> Skill | None:
             except PreHookSchemaError as schema_err:
                 logger.warning(
                     "pre_hooks schema error in %s: %s — skipping skill",
-                    path, schema_err,
+                    path,
+                    schema_err,
                 )
                 return None
         except ImportError:
             logger.warning(
-                "skill %s declares pre_hooks but PyYAML is not installed — "
-                "skill will load WITHOUT pre_hooks", path,
+                "skill %s declares pre_hooks but PyYAML is not installed — skill will load WITHOUT pre_hooks",
+                path,
             )
         except Exception as e:  # noqa: BLE001
             logger.warning(
-                "Failed to parse pre_hooks in %s: %s — skill will load "
-                "WITHOUT pre_hooks", path, e,
+                "Failed to parse pre_hooks in %s: %s — skill will load WITHOUT pre_hooks",
+                path,
+                e,
             )
 
     triggers = fm.get("triggers", {})
@@ -254,10 +256,7 @@ class SkillLoader:
             # Recursive scan so subdirectories (e.g. imported/) are picked up
             for md_file in sorted(d.rglob("*.md")):
                 # Honour underscore/dot-prefixed parent dirs as "ignored".
-                if any(
-                    part.startswith(("_", "."))
-                    for part in md_file.relative_to(d).parts[:-1]
-                ):
+                if any(part.startswith(("_", ".")) for part in md_file.relative_to(d).parts[:-1]):
                     continue
                 mtime = md_file.stat().st_mtime
                 cached = self._cache.get(md_file)
@@ -335,7 +334,9 @@ class SkillLoader:
         # Apply ranking (priority by default; hybrid/score consult experiences).
         effective_ranking = self._resolve_ranking_mode(ranking)
         scored, scores_by_name = self._apply_ranking_with_scores(
-            scored, effective_ranking, experience_loader,
+            scored,
+            effective_ranking,
+            experience_loader,
         )
 
         # Accumulate until budget
@@ -356,11 +357,7 @@ class SkillLoader:
                 {
                     "name": s.name,
                     "priority": prio,
-                    "score": (
-                        scores_by_name[s.name]
-                        if scores_by_name and s.name in scores_by_name
-                        else None
-                    ),
+                    "score": (scores_by_name[s.name] if scores_by_name and s.name in scores_by_name else None),
                 }
                 for prio, s in scored
             ]
@@ -410,9 +407,7 @@ class SkillLoader:
             skill_names = [s.name for _, s in scored]
             scores = score_skills(experiences=experiences, skill_names=skill_names)
             pairs = [(s.name, prio) for prio, s in scored]
-            ranker = (
-                rank_skills_hybrid if ranking == "hybrid" else rank_skills_score_only
-            )
+            ranker = rank_skills_hybrid if ranking == "hybrid" else rank_skills_score_only
             ranked_pairs = ranker(pairs, scores)
             by_name = {s.name: (prio, s) for prio, s in scored}
             ordered = [by_name[name] for name, _ in ranked_pairs]

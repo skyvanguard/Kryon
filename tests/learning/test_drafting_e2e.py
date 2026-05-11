@@ -21,9 +21,7 @@ import pytest
 
 
 @pytest.fixture
-def isolated_dirs(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> dict[str, Path]:
+def isolated_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Path]:
     """Override drafts dir + playbooks dir so promotion writes to tmp."""
     drafts = tmp_path / "drafts"
     playbooks = tmp_path / "playbooks"

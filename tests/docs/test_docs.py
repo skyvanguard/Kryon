@@ -48,7 +48,7 @@ class TestDocLinks:
         for md_file in docs_dir.rglob("*.md"):
             content = md_file.read_text(encoding="utf-8")
             # Find relative markdown links like [text](path.md)
-            links = re.findall(r'\[.*?\]\((?!http)(.*?\.md)\)', content)
+            links = re.findall(r"\[.*?\]\((?!http)(.*?\.md)\)", content)
             for link in links:
                 target = (md_file.parent / link).resolve()
                 if not target.exists():

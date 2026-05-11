@@ -147,12 +147,18 @@ def test_recall_by_url_shape_clusters_similar_paths() -> None:
     )
 
     # Two findings on different bank hosts, same shape.
-    add_finding(_sample_finding(
-        url="https://bcp.com.py/api/account/100", host="bcp.com.py",
-    ))
-    add_finding(_sample_finding(
-        url="https://citibank.com/api/account/200", host="citibank.com",
-    ))
+    add_finding(
+        _sample_finding(
+            url="https://bcp.com.py/api/account/100",
+            host="bcp.com.py",
+        )
+    )
+    add_finding(
+        _sample_finding(
+            url="https://citibank.com/api/account/200",
+            host="citibank.com",
+        )
+    )
 
     shape = url_shape("https://other.com/api/account/999")
     results = recall_by_url_shape(shape, k=5)

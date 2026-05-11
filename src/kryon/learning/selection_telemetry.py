@@ -57,6 +57,7 @@ def _kryon_version() -> str:
     """Best-effort version detection. Falls back to 'unknown'."""
     try:
         from importlib.metadata import version as _v
+
         return _v("kryon")
     except Exception:
         return "unknown"

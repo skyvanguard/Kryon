@@ -98,6 +98,7 @@ _VERBS = [
 # Color math
 # ---------------------------------------------------------------------------
 
+
 def _lerp_rgb(
     c1: tuple[int, int, int],
     c2: tuple[int, int, int],

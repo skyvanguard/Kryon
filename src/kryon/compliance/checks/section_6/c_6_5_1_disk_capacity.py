@@ -115,10 +115,7 @@ class _C651Check:
             evidence_stdout=(df_out + "\n---\n" + free_out)[:4096],
             evidence_stderr=(df_err + "\n" + free_err)[:1024],
             evidence_parsed={
-                "filesystems_over_threshold": [
-                    {"source": s, "used_pct": p, "mount": m}
-                    for s, p, m in over_disk
-                ],
+                "filesystems_over_threshold": [{"source": s, "used_pct": p, "mount": m} for s, p, m in over_disk],
                 "disk_threshold_pct": _DISK_THRESHOLD,
                 "swap_used_pct": swap_used_pct,
                 "swap_threshold_pct": _SWAP_THRESHOLD,

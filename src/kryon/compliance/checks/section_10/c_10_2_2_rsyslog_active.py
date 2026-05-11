@@ -43,7 +43,9 @@ class _C1022Check:
         combined_stderr = []
         for unit in _CANDIDATES:
             out, err, _ = run_cmd(
-                ctx, ["systemctl", "is-active", unit], timeout_s=5,
+                ctx,
+                ["systemctl", "is-active", unit],
+                timeout_s=5,
             )
             state = (out or "").strip().lower()
             states[unit] = state
@@ -59,9 +61,7 @@ class _C1022Check:
             control_title=self.control_title,
             section=self.section,
             verdict=verdict,
-            evidence_command="; ".join(
-                f"systemctl is-active {u}" for u in _CANDIDATES
-            ),
+            evidence_command="; ".join(f"systemctl is-active {u}" for u in _CANDIDATES),
             evidence_stdout="\n".join(combined_stdout)[:4096],
             evidence_stderr="\n".join(combined_stderr)[:1024],
             evidence_parsed={

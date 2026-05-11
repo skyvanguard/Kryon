@@ -40,9 +40,7 @@ class ExperiencesCommand(Command):
         )
         self.add_subcommand("list", "List the most recent experiences", self.handle_list)
         self.add_subcommand("show", "Show one experience in full", self.handle_show)
-        self.add_subcommand(
-            "search", "Similarity search over experiences (free text)", self.handle_search
-        )
+        self.add_subcommand("search", "Similarity search over experiences (free text)", self.handle_search)
         self.add_subcommand("delete", "Delete one experience by id", self.handle_delete)
         self.add_subcommand(
             "close",
@@ -149,9 +147,7 @@ class ExperiencesCommand(Command):
             indent=2,
             ensure_ascii=False,
         )
-        console.print(
-            Panel(body, title=f"Experience {exp.get('id')}", border_style="cyan")
-        )
+        console.print(Panel(body, title=f"Experience {exp.get('id')}", border_style="cyan"))
         return True
 
     def handle_search(self, args: list[str] | None = None) -> bool:
@@ -224,9 +220,7 @@ class ExperiencesCommand(Command):
 
         histories = get_all_agent_histories() or {}
         if not histories:
-            console.print(
-                "[yellow]No active agent histories. Nothing to close.[/yellow]"
-            )
+            console.print("[yellow]No active agent histories. Nothing to close.[/yellow]")
             return True
 
         # Flatten all histories into a single message stream, keep the

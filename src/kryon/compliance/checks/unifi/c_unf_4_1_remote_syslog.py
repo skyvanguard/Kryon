@@ -25,15 +25,15 @@ class _RemoteSyslogCheck:
         "  - Port: 514 (or 6514 for TLS)\n"
         "  - Protocol: TCP if SIEM supports it (UDP loses messages on burst)\n"
         "Or via mongo (one-shot):\n"
-        "  db.setting.update({key:\"super_remote_syslog\"},\n"
-        "                    {$set: {value: {server: \"siem.corp\", port: 514}}})"
+        '  db.setting.update({key:"super_remote_syslog"},\n'
+        '                    {$set: {value: {server: "siem.corp", port: 514}}})'
     )
 
     def run(self, ctx: CheckContext) -> CheckResult:
         t0 = time.time()
         cmd = (
             "mongo --port 27117 ace --quiet --eval "
-            "'var d=db.setting.findOne({key:\"super_remote_syslog\"});"
+            '\'var d=db.setting.findOne({key:"super_remote_syslog"});'
             "print(JSON.stringify(d || {}))'"
         )
         out, err, rc = run_cmd(ctx, cmd, shell=True, timeout_s=8)
@@ -68,9 +68,7 @@ class _RemoteSyslogCheck:
         if is_empty or not server:
             issues.append("remote-syslog setting absent (logs only on controller)")
         elif not enabled:
-            issues.append(
-                f"remote-syslog configured (server={server}) but enabled=false"
-            )
+            issues.append(f"remote-syslog configured (server={server}) but enabled=false")
 
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(

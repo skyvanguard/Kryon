@@ -69,6 +69,7 @@ def test_new_turn_resets_step_counter() -> None:
     assert s2 == 1
     # And the previous step is gone.
     from kryon.repl.ui.tool_output_buffer import get
+
     assert get(s1) is None or get(s1)["tool_name"] == "b"  # either gone or replaced
 
 
@@ -126,6 +127,7 @@ def test_buffer_caps_max_steps_per_turn() -> None:
     # that the buffer didn't grow unbounded — total live entries
     # should stay near MAX_STEPS_PER_TURN.
     from kryon.repl.ui.tool_output_buffer import live_count
+
     assert live_count() <= MAX_STEPS_PER_TURN
 
 
@@ -154,6 +156,7 @@ def test_concurrent_record_and_get_does_not_crash() -> None:
     t1.start()
     t2.start()
     import time
+
     time.sleep(0.05)
     stop.set()
     t1.join(timeout=1)

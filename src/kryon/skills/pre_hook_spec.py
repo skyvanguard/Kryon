@@ -31,15 +31,17 @@ from typing import Any
 
 # Whitelist of variables that may appear as `{ctx.X}` in pre-hook args.
 # Keep this small. Adding entries is fine; removing breaks contracts.
-ALLOWED_TEMPLATE_VARS: frozenset[str] = frozenset({
-    "ctx.host",
-    "ctx.ssh_user",
-    "ctx.ssh_key_path",
-    "ctx.ssh_port",
-    "ctx.target",
-    "ctx.session_id",
-    "ctx.client_name",
-})
+ALLOWED_TEMPLATE_VARS: frozenset[str] = frozenset(
+    {
+        "ctx.host",
+        "ctx.ssh_user",
+        "ctx.ssh_key_path",
+        "ctx.ssh_port",
+        "ctx.target",
+        "ctx.session_id",
+        "ctx.client_name",
+    }
+)
 
 # Match exactly `{ctx.identifier}` and nothing more. The identifier is
 # constrained to letters/digits/underscores/dot — no operators, no
@@ -51,9 +53,16 @@ _TEMPLATE_RE = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*
 _PYTHON_PATH_RE = re.compile(r"^\./[A-Za-z0-9_\-./]+\.py:[A-Za-z_][A-Za-z0-9_]*$")
 
 # Allowed top-level keys in a hook dict. Strict schema — typos surface loudly.
-_ALLOWED_KEYS: frozenset[str] = frozenset({
-    "tool", "python", "args", "inject_as", "required", "timeout_s",
-})
+_ALLOWED_KEYS: frozenset[str] = frozenset(
+    {
+        "tool",
+        "python",
+        "args",
+        "inject_as",
+        "required",
+        "timeout_s",
+    }
+)
 
 
 class PreHookSchemaError(ValueError):
@@ -79,11 +88,17 @@ class PreHookSpec:
     def __hash__(self) -> int:
         # dict isn't hashable; tuple-of-items keeps the spec hashable
         # (needed for caching / dedupe across hot-swaps).
-        return hash((
-            self.tool, self.python, self.inject_as, self.required, self.timeout_s,
-            self.source_dir,
-            tuple(sorted(self.args.items())) if self.args else (),
-        ))
+        return hash(
+            (
+                self.tool,
+                self.python,
+                self.inject_as,
+                self.required,
+                self.timeout_s,
+                self.source_dir,
+                tuple(sorted(self.args.items())) if self.args else (),
+            )
+        )
 
 
 def _validate_template_string(value: str) -> None:
@@ -97,8 +112,7 @@ def _validate_template_string(value: str) -> None:
     for var in valid_placeholders:
         if var not in ALLOWED_TEMPLATE_VARS:
             raise PreHookSchemaError(
-                f"unknown template variable {{{var}}} (allowed: "
-                f"{', '.join(sorted(ALLOWED_TEMPLATE_VARS))})"
+                f"unknown template variable {{{var}}} (allowed: {', '.join(sorted(ALLOWED_TEMPLATE_VARS))})"
             )
 
     # Reject any other brace usage. Strip out the valid placeholders and
@@ -114,9 +128,7 @@ def _validate_template_string(value: str) -> None:
 def _validate_args(args: Any) -> dict[str, Any]:
     """Args must be a dict; string values are scanned for templates."""
     if not isinstance(args, dict):
-        raise PreHookSchemaError(
-            f"args must be a dict, got {type(args).__name__}"
-        )
+        raise PreHookSchemaError(f"args must be a dict, got {type(args).__name__}")
     for key, value in args.items():
         if isinstance(value, str):
             _validate_template_string(value)
@@ -126,27 +138,19 @@ def _validate_args(args: Any) -> dict[str, Any]:
 def _validate_python_path(path: str) -> None:
     if not _PYTHON_PATH_RE.match(path):
         raise PreHookSchemaError(
-            f"invalid python hook path {path!r} — must match "
-            "`./<relative_file>.py:<callable>` with no path traversal"
+            f"invalid python hook path {path!r} — must match `./<relative_file>.py:<callable>` with no path traversal"
         )
     if ".." in path:
-        raise PreHookSchemaError(
-            f"python hook path {path!r} contains path traversal"
-        )
+        raise PreHookSchemaError(f"python hook path {path!r} contains path traversal")
 
 
 def _parse_one(raw: dict[str, Any]) -> PreHookSpec:
     if not isinstance(raw, dict):
-        raise PreHookSchemaError(
-            f"each hook must be a dict, got {type(raw).__name__}"
-        )
+        raise PreHookSchemaError(f"each hook must be a dict, got {type(raw).__name__}")
 
     unknown = set(raw.keys()) - _ALLOWED_KEYS
     if unknown:
-        raise PreHookSchemaError(
-            f"unknown field(s) in hook: {sorted(unknown)} "
-            f"(allowed: {sorted(_ALLOWED_KEYS)})"
-        )
+        raise PreHookSchemaError(f"unknown field(s) in hook: {sorted(unknown)} (allowed: {sorted(_ALLOWED_KEYS)})")
 
     tool_raw = raw.get("tool")
     python_raw = raw.get("python")
@@ -161,13 +165,9 @@ def _parse_one(raw: dict[str, Any]) -> PreHookSpec:
     python = (python_raw or "").strip()
 
     if tool and python:
-        raise PreHookSchemaError(
-            "`tool` and `python` are mutually exclusive — pick one"
-        )
+        raise PreHookSchemaError("`tool` and `python` are mutually exclusive — pick one")
     if not tool and not python:
-        raise PreHookSchemaError(
-            "hook must specify either 'tool' or 'python'"
-        )
+        raise PreHookSchemaError("hook must specify either 'tool' or 'python'")
 
     if python:
         _validate_python_path(python)
@@ -176,9 +176,7 @@ def _parse_one(raw: dict[str, Any]) -> PreHookSpec:
 
     inject_as = raw.get("inject_as")
     if inject_as is not None and not isinstance(inject_as, str):
-        raise PreHookSchemaError(
-            f"inject_as must be a string, got {type(inject_as).__name__}"
-        )
+        raise PreHookSchemaError(f"inject_as must be a string, got {type(inject_as).__name__}")
     if not inject_as:
         # Default: the tool name (or python target's callable).
         if tool:
@@ -188,20 +186,14 @@ def _parse_one(raw: dict[str, Any]) -> PreHookSpec:
 
     required = raw.get("required", True)
     if not isinstance(required, bool):
-        raise PreHookSchemaError(
-            f"required must be bool, got {type(required).__name__}"
-        )
+        raise PreHookSchemaError(f"required must be bool, got {type(required).__name__}")
 
     timeout_s = raw.get("timeout_s", 30)
     if not isinstance(timeout_s, int) or isinstance(timeout_s, bool):
         # bool is a subclass of int — exclude it explicitly.
-        raise PreHookSchemaError(
-            f"timeout_s must be an int, got {type(timeout_s).__name__}"
-        )
+        raise PreHookSchemaError(f"timeout_s must be an int, got {type(timeout_s).__name__}")
     if timeout_s <= 0:
-        raise PreHookSchemaError(
-            f"timeout_s must be positive, got {timeout_s}"
-        )
+        raise PreHookSchemaError(f"timeout_s must be positive, got {timeout_s}")
 
     return PreHookSpec(
         tool=tool,
@@ -238,9 +230,7 @@ def parse_pre_hooks(
     if not raw:
         return ()
     if not isinstance(raw, list):
-        raise PreHookSchemaError(
-            f"pre_hooks must be a list, got {type(raw).__name__}"
-        )
+        raise PreHookSchemaError(f"pre_hooks must be a list, got {type(raw).__name__}")
 
     parsed: list[PreHookSpec] = []
     seen_inject_as: set[str] = set()
@@ -252,8 +242,7 @@ def parse_pre_hooks(
 
         if hook.inject_as in seen_inject_as:
             raise PreHookSchemaError(
-                f"duplicate inject_as {hook.inject_as!r} at hook[{idx}] — "
-                "each hook must inject under a unique key"
+                f"duplicate inject_as {hook.inject_as!r} at hook[{idx}] — each hook must inject under a unique key"
             )
         seen_inject_as.add(hook.inject_as)
 
@@ -261,6 +250,7 @@ def parse_pre_hooks(
         # frozen (no mutation).
         if source_dir:
             from dataclasses import replace
+
             hook = replace(hook, source_dir=source_dir)
 
         parsed.append(hook)

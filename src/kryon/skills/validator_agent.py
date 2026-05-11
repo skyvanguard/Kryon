@@ -64,14 +64,14 @@ class Finding:
 
     file_path: str
     function_name: str
-    crash_type: str            # claimed
-    cwe: str                   # claimed
-    poc_source: str            # full C/C++ harness
+    crash_type: str  # claimed
+    cwe: str  # claimed
+    poc_source: str  # full C/C++ harness
     trigger_input: str = ""
     repo_path: str = ""
     line_range: str = ""
     stack_top: list[str] = field(default_factory=list)
-    severity: str = ""         # claimed
+    severity: str = ""  # claimed
     language: str = "c"
 
     @classmethod
@@ -95,7 +95,7 @@ class Finding:
 class Verdict:
     """What the validator returns."""
 
-    verdict: str                 # "CONFIRMED" or "REJECTED"
+    verdict: str  # "CONFIRMED" or "REJECTED"
     phase_failed: str | None = None
     reason: str = ""
     cwe_actual: str = ""
@@ -111,21 +111,24 @@ class Verdict:
     taint_path_notes: str = ""
 
     def to_json(self) -> str:
-        return json.dumps({
-            "verdict": self.verdict,
-            "phase_failed": self.phase_failed,
-            "reason": self.reason,
-            "cwe_actual": self.cwe_actual,
-            "cwe_claimed": self.cwe_claimed,
-            "severity_actual": self.severity_actual,
-            "severity_claimed": self.severity_claimed,
-            "classification_notes": self.classification_notes,
-            "reproduced_crash_type": self.reproduced_crash_type,
-            "reproduced_stack_top": self.reproduced_stack_top,
-            "exposure_reachable_from_api": self.exposure_reachable_from_api,
-            "taint_path_status": self.taint_path_status,
-            "taint_path_notes": self.taint_path_notes,
-        }, indent=2)
+        return json.dumps(
+            {
+                "verdict": self.verdict,
+                "phase_failed": self.phase_failed,
+                "reason": self.reason,
+                "cwe_actual": self.cwe_actual,
+                "cwe_claimed": self.cwe_claimed,
+                "severity_actual": self.severity_actual,
+                "severity_claimed": self.severity_claimed,
+                "classification_notes": self.classification_notes,
+                "reproduced_crash_type": self.reproduced_crash_type,
+                "reproduced_stack_top": self.reproduced_stack_top,
+                "exposure_reachable_from_api": self.exposure_reachable_from_api,
+                "taint_path_status": self.taint_path_status,
+                "taint_path_notes": self.taint_path_notes,
+            },
+            indent=2,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +137,7 @@ class Verdict:
 
 
 _CRASH_TO_CWE: dict[str, str] = {
-    "heap-buffer-overflow": "CWE-787",   # write (worst case default)
+    "heap-buffer-overflow": "CWE-787",  # write (worst case default)
     "heap-use-after-free": "CWE-416",
     "use-after-free": "CWE-416",
     "stack-buffer-overflow": "CWE-121",
@@ -143,7 +146,7 @@ _CRASH_TO_CWE: dict[str, str] = {
     "global-buffer-overflow": "CWE-787",
     "double-free": "CWE-415",
     "alloc-dealloc-mismatch": "CWE-762",
-    "undefined-behavior": "CWE-190",     # most commonly int overflow in practice
+    "undefined-behavior": "CWE-190",  # most commonly int overflow in practice
     "null-deref": "CWE-476",
     "SEGV": "CWE-476",
     "intra-object-overflow": "CWE-787",
@@ -199,9 +202,7 @@ class ValidatorAgent:
         use_llm_for_phase3: bool = False,
     ):
         self.model = model or os.environ.get("KRYON_VALIDATOR_MODEL", "")
-        self.use_llm_for_phase3 = use_llm_for_phase3 and os.environ.get(
-            "KRYON_DUAL_MODEL", "false"
-        ).lower() == "true"
+        self.use_llm_for_phase3 = use_llm_for_phase3 and os.environ.get("KRYON_DUAL_MODEL", "false").lower() == "true"
 
     # ----- Phase 1: relevance -----
 
@@ -217,9 +218,7 @@ class ValidatorAgent:
 
         read_result = json.loads(_read_function_impl(f.file_path, f.function_name))
         if "error" in read_result:
-            return False, (
-                f"function '{f.function_name}' not found in {f.file_path}"
-            )
+            return False, (f"function '{f.function_name}' not found in {f.file_path}")
 
         # 1b. Does the PoC at least MENTION the target function? This is a
         # weak check (macros, inlining, wrapper names can legitimately hide
@@ -267,8 +266,8 @@ class ValidatorAgent:
     # through as "not-checked" — we never block on an unsupported CWE.
     _CWE_TO_JOERN_KEY: dict[str, str] = {
         "CWE-121": "121",
-        "CWE-122": "121",   # treat generic heap-overflow as 121-style
-        "CWE-787": "121",   # out-of-bounds write — indirect index access
+        "CWE-122": "121",  # treat generic heap-overflow as 121-style
+        "CWE-787": "121",  # out-of-bounds write — indirect index access
         "CWE-190": "190",
         "CWE-191": "190",
     }
@@ -321,26 +320,21 @@ class ValidatorAgent:
         target_fn = f.function_name
         target_file_basename = Path(f.file_path).name
         for hit in findings:
-            hit_file = (hit.get("file") or hit.get("sink_file") or "")
-            hit_fn = (hit.get("function") or hit.get("sink_function") or "")
+            hit_file = hit.get("file") or hit.get("sink_file") or ""
+            hit_fn = hit.get("function") or hit.get("sink_function") or ""
             # Match basenames to side-step container/host path differences.
-            same_file = (
-                hit_file == f.file_path
-                or Path(hit_file).name == target_file_basename
-            )
+            same_file = hit_file == f.file_path or Path(hit_file).name == target_file_basename
             same_fn = (not target_fn) or (hit_fn == target_fn)
             if same_file and same_fn:
                 path_len = len(hit.get("path") or [])
                 return (
                     "confirmed",
-                    f"joern taint path through {hit_fn or target_fn} "
-                    f"(length={path_len})",
+                    f"joern taint path through {hit_fn or target_fn} (length={path_len})",
                 )
 
         return (
             "absent",
-            f"joern has {len(findings)} path(s) but none reach "
-            f"{target_fn} in {target_file_basename}",
+            f"joern has {len(findings)} path(s) but none reach {target_fn} in {target_file_basename}",
         )
 
     # ----- Phase 3: classification -----
@@ -356,7 +350,10 @@ class ValidatorAgent:
         cwe_actual = crash_to_cwe(actual_crash)
         if not cwe_actual:
             return (
-                "", "", "", None,
+                "",
+                "",
+                "",
+                None,
                 f"unknown crash type for CWE mapping: {actual_crash!r}",
             )
 
@@ -365,9 +362,7 @@ class ValidatorAgent:
         classification_notes_parts: list[str] = []
         if f.repo_path and Path(f.repo_path).is_dir():
             try:
-                callers_raw = _find_callers_impl(
-                    f.repo_path, f.function_name, max_hits=10
-                )
+                callers_raw = _find_callers_impl(f.repo_path, f.function_name, max_hits=10)
                 callers = json.loads(callers_raw)
                 total = callers.get("total_callers", 0)
                 # "public API exposure" = at least one caller outside /test/
@@ -383,8 +378,7 @@ class ValidatorAgent:
                     break
                 reachable = public_hit if total > 0 else False
                 classification_notes_parts.append(
-                    f"find_callers: {total} sites, "
-                    f"reachable={'yes' if reachable else 'no'}"
+                    f"find_callers: {total} sites, reachable={'yes' if reachable else 'no'}"
                 )
             except Exception as e:
                 classification_notes_parts.append(f"reachability check failed: {e}")
@@ -393,13 +387,9 @@ class ValidatorAgent:
 
         # Note any mismatch with claimed values
         if f.cwe and f.cwe != cwe_actual:
-            classification_notes_parts.append(
-                f"CWE corrected from claimed {f.cwe} to {cwe_actual}"
-            )
+            classification_notes_parts.append(f"CWE corrected from claimed {f.cwe} to {cwe_actual}")
         if f.severity and f.severity.upper() != severity_actual:
-            classification_notes_parts.append(
-                f"severity {severity_actual} (hunter claimed {f.severity})"
-            )
+            classification_notes_parts.append(f"severity {severity_actual} (hunter claimed {f.severity})")
 
         return (
             cwe_actual,

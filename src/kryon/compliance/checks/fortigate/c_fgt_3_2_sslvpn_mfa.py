@@ -36,14 +36,14 @@ class _SslVpnMfaCheck:
         "    next\n"
         "  end\n"
         "  config user group\n"
-        "    edit \"sslvpn_users\"\n"
+        '    edit "sslvpn_users"\n'
         "      set member <user1> <user2>\n"
         "    next\n"
         "  end\n"
         "  config vpn ssl settings\n"
         "    config authentication-rule\n"
         "      edit 1\n"
-        "        set groups \"sslvpn_users\"\n"
+        '        set groups "sslvpn_users"\n'
         "      next\n"
         "    end\n"
         "  end\n"
@@ -106,20 +106,15 @@ class _SslVpnMfaCheck:
         issues: list[str] = []
         # If there are local users at all and none have 2FA → FAIL
         if users_total > 0 and users_with_2fa == 0:
-            issues.append(
-                f"all {users_total} local users lack 2FA (sslvpn likely without MFA)"
-            )
+            issues.append(f"all {users_total} local users lack 2FA (sslvpn likely without MFA)")
         # If majority lack 2FA → still FAIL (banking standard)
         elif users_total > 0 and users_with_2fa < users_total:
-            issues.append(
-                f"{users_total - users_with_2fa}/{users_total} local users lack 2FA"
-            )
+            issues.append(f"{users_total - users_with_2fa}/{users_total} local users lack 2FA")
         # No bound groups means SSL VPN auth scheme might rely on default
         # (any local user) → flag as informational HIGH
         if not bound_groups:
             issues.append(
-                "SSL VPN settings reference no authentication-rule groups "
-                "(default any-user policy may apply)"
+                "SSL VPN settings reference no authentication-rule groups (default any-user policy may apply)"
             )
 
         verdict = "PASS" if not issues else "FAIL"

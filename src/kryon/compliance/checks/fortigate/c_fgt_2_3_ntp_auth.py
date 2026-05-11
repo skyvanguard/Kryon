@@ -61,7 +61,7 @@ class _NtpAuthCheck:
         top_auth = re.search(r"^\s*set\s+authentication\s+(\S+)", out, re.M)
         # Per-server authentication
         server_auths: list[bool] = []
-        for m in re.finditer(r'edit\s+\d+\s*(.*?)\bnext\b', out, re.S):
+        for m in re.finditer(r"edit\s+\d+\s*(.*?)\bnext\b", out, re.S):
             body = m.group(1)
             auth = re.search(r"set\s+authentication\s+(\S+)", body)
             server_auths.append(bool(auth and auth.group(1).lower() == "enable"))
@@ -70,9 +70,7 @@ class _NtpAuthCheck:
         if top_auth and top_auth.group(1).lower() != "enable":
             issues.append("global NTP authentication is disabled")
         if server_auths and not all(server_auths):
-            issues.append(
-                f"{server_auths.count(False)}/{len(server_auths)} NTP servers without authentication"
-            )
+            issues.append(f"{server_auths.count(False)}/{len(server_auths)} NTP servers without authentication")
         if not top_auth and not server_auths:
             # Default custom block missing, FortiGuard NTP in use → no auth at all
             issues.append("NTP authentication directive not present (default-disabled)")

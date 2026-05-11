@@ -95,9 +95,13 @@ class HuntCommand(Command):
 
     def handle(self, args: list[str] | None = None) -> bool:
         # If first arg is a URL (http...) or path, treat as positional launch
-        if args and not args[0].startswith("/") and (
-            args[0].startswith(("http://", "https://", "git@", "/"))
-            or args[0] in ("status", "stop", "report", "last")
+        if (
+            args
+            and not args[0].startswith("/")
+            and (
+                args[0].startswith(("http://", "https://", "git@", "/"))
+                or args[0] in ("status", "stop", "report", "last")
+            )
         ):
             if args[0] in self.subcommands:
                 return super().handle(args)
@@ -125,8 +129,7 @@ class HuntCommand(Command):
         repo_url = positional[0]
         runner_type = flags.get("runner", "heuristic").lower()
         if runner_type not in {"heuristic", "llm", "semgrep", "hybrid"}:
-            console.print(f"[red]unknown runner: {runner_type!r} "
-                          "(use heuristic|llm|semgrep|hybrid)[/red]")
+            console.print(f"[red]unknown runner: {runner_type!r} (use heuristic|llm|semgrep|hybrid)[/red]")
             return False
 
         try:

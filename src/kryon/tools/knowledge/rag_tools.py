@@ -164,9 +164,7 @@ def search_vulnerabilities(
             cve_id = metadata.get("cve_id", "Unknown")
 
             if score < min_score:
-                discarded.append(
-                    {"cve_id": cve_id, "reason": f"low_relevance: score {score:.2f} < {min_score:.2f}"}
-                )
+                discarded.append({"cve_id": cve_id, "reason": f"low_relevance: score {score:.2f} < {min_score:.2f}"})
                 continue
 
             if require_tech_match and not _tech_match(

@@ -72,13 +72,15 @@ def narrate(check_result_dict: dict, *, timeout_s: int = _DEFAULT_TIMEOUT_S) -> 
         remediation_static=check_result_dict.get("remediation_static", "")[:800],
     )
 
-    body = json.dumps({
-        "model": _DEFAULT_MODEL,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0,
-        "top_p": 1,
-        "max_tokens": 500,
-    }).encode()
+    body = json.dumps(
+        {
+            "model": _DEFAULT_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0,
+            "top_p": 1,
+            "max_tokens": 500,
+        }
+    ).encode()
     # Pick auth token by endpoint flavour: Ollama accepts any string
     # (including the literal "ollama"); external OpenAI-compat APIs
     # need the real OPENAI_API_KEY.

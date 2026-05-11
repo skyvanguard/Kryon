@@ -99,8 +99,7 @@ def _combined_similarity(exp_a: dict, exp_b: dict) -> float:
         exp_b.get("target_profile") or {},
     )
     # If both profiles are completely empty (rare), fall back to chain only.
-    if not (exp_a.get("target_profile") or {}).get("tech") and \
-       not (exp_b.get("target_profile") or {}).get("tech"):
+    if not (exp_a.get("target_profile") or {}).get("tech") and not (exp_b.get("target_profile") or {}).get("tech"):
         return cs
     return 0.7 * cs + 0.3 * ps
 
@@ -144,10 +143,7 @@ def _qualifies(exp: dict) -> bool:
 
 def _modal_chain(experiences: list[dict]) -> tuple[str, ...]:
     """The most common exact tool sequence among cluster members."""
-    sequences = [
-        tuple(s.get("tool", "") for s in (exp.get("chain") or []))
-        for exp in experiences
-    ]
+    sequences = [tuple(s.get("tool", "") for s in (exp.get("chain") or [])) for exp in experiences]
     counts = Counter(sequences)
     if not counts:
         return ()

@@ -24,7 +24,8 @@ from kryon.compliance.runner import register_check, run_cmd
 
 _PKG_OK_RE = re.compile(r"^ii\s+unattended-upgrades\s", re.MULTILINE)
 _PERIODIC_RE = re.compile(
-    r'APT::Periodic::Unattended-Upgrade\s+"1"', re.IGNORECASE,
+    r'APT::Periodic::Unattended-Upgrade\s+"1"',
+    re.IGNORECASE,
 )
 
 
@@ -36,16 +37,20 @@ class _C634Check:
     remediation_static = (
         "apt-get install -y unattended-upgrades && "
         "dpkg-reconfigure -plow unattended-upgrades. Verify /etc/apt/apt."
-        "conf.d/20auto-upgrades has APT::Periodic::Unattended-Upgrade \"1\"."
+        'conf.d/20auto-upgrades has APT::Periodic::Unattended-Upgrade "1".'
     )
 
     def run(self, ctx: CheckContext) -> CheckResult:
         t0 = time.time()
         pkg_out, pkg_err, _ = run_cmd(
-            ctx, ["dpkg", "-l", "unattended-upgrades"], timeout_s=5,
+            ctx,
+            ["dpkg", "-l", "unattended-upgrades"],
+            timeout_s=5,
         )
         cfg_out, cfg_err, cfg_rc = run_cmd(
-            ctx, ["cat", "/etc/apt/apt.conf.d/20auto-upgrades"], timeout_s=5,
+            ctx,
+            ["cat", "/etc/apt/apt.conf.d/20auto-upgrades"],
+            timeout_s=5,
         )
 
         pkg_installed = bool(_PKG_OK_RE.search(pkg_out or ""))
@@ -55,9 +60,7 @@ class _C634Check:
         if not pkg_installed:
             issues.append("unattended-upgrades package not installed")
         if not periodic_on:
-            issues.append(
-                "APT::Periodic::Unattended-Upgrade != \"1\" in 20auto-upgrades"
-            )
+            issues.append('APT::Periodic::Unattended-Upgrade != "1" in 20auto-upgrades')
 
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(
@@ -65,10 +68,7 @@ class _C634Check:
             control_title=self.control_title,
             section=self.section,
             verdict=verdict,
-            evidence_command=(
-                "dpkg -l unattended-upgrades; "
-                "cat /etc/apt/apt.conf.d/20auto-upgrades"
-            ),
+            evidence_command=("dpkg -l unattended-upgrades; cat /etc/apt/apt.conf.d/20auto-upgrades"),
             evidence_stdout=(pkg_out + "\n---\n" + cfg_out)[:4096],
             evidence_stderr=(pkg_err + "\n" + cfg_err)[:1024],
             evidence_parsed={

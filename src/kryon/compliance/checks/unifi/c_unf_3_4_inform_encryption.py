@@ -25,7 +25,7 @@ class _InformEncryptionCheck:
         "Re-provision affected APs:\n"
         "  Devices → <AP> → Manage → Provision\n"
         "If the inform_authkey is empty in mongo, run:\n"
-        "  mongo ... db.setting.update({key:\"mgmt\"}, {$set: {x_inform_authkey: \"<NEW>\"}})\n"
+        '  mongo ... db.setting.update({key:"mgmt"}, {$set: {x_inform_authkey: "<NEW>"}})\n'
         "Then force AP reconnect:\n"
         "  ssh ubnt@<AP> set-inform http://<controller>:8080/inform\n"
         "Confirm with `info` on the AP CLI: Status: Connected (encrypted)."
@@ -75,10 +75,7 @@ class _InformEncryptionCheck:
             if not authkey and not cfgver:
                 unencrypted.append(name_m.group(1))
 
-        issues = [
-            f"AP '{n}' inform channel unencrypted (no authkey / cfgversion)"
-            for n in sorted(set(unencrypted))
-        ]
+        issues = [f"AP '{n}' inform channel unencrypted (no authkey / cfgversion)" for n in sorted(set(unencrypted))]
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(
             control_id=self.control_id,

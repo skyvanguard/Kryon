@@ -100,8 +100,7 @@ def _normalise_severity(raw: str) -> str:
     s = (raw or "").upper().strip()
     if s in _SEVERITY_RANK:
         return s
-    alias = {"CRIT": "CRITICAL", "ERROR": "HIGH", "WARN": "MEDIUM",
-             "WARNING": "MEDIUM", "NONE": "INFO"}
+    alias = {"CRIT": "CRITICAL", "ERROR": "HIGH", "WARN": "MEDIUM", "WARNING": "MEDIUM", "NONE": "INFO"}
     return alias.get(s, "INFO")
 
 
@@ -123,9 +122,7 @@ def _sorted_findings(findings: list[dict]) -> list[dict]:
     )
 
 
-def _build_executive_summary(
-    findings: list[dict], context: dict, counts: dict[str, int]
-) -> str:
+def _build_executive_summary(findings: list[dict], context: dict, counts: dict[str, int]) -> str:
     """Plain-text summary, deterministic — no LLM needed for the demo PDF."""
     total = len(findings)
     critical = counts.get("CRITICAL", 0)
@@ -139,14 +136,14 @@ def _build_executive_summary(
     )
     if critical:
         lines.append(
-            f"<strong class=\"sev critical\" style=\"padding:2px 8px;\">"
+            f'<strong class="sev critical" style="padding:2px 8px;">'
             f"{critical} CRITICAL</strong> requieren remediación inmediata "
             f"(impacto potencial: exposición de servicios, credenciales "
             f"débiles, o configuración que habilita escalación)."
         )
     if high:
         lines.append(
-            f"<strong class=\"sev high\" style=\"padding:2px 8px;\">"
+            f'<strong class="sev high" style="padding:2px 8px;">'
             f"{high} HIGH</strong> deben resolverse en la ventana de "
             f"remediación estándar del cliente."
         )
@@ -176,17 +173,17 @@ def _finding_card_html(finding: dict) -> str:
     remediation = _html.escape(finding.get("remediation", ""))
 
     meta_parts: list[str] = []
-    if cwe: meta_parts.append(cwe)
-    if host: meta_parts.append(host)
-    if rule: meta_parts.append(f"rule: {rule}")
+    if cwe:
+        meta_parts.append(cwe)
+    if host:
+        meta_parts.append(host)
+    if rule:
+        meta_parts.append(f"rule: {rule}")
     meta = " · ".join(meta_parts)
 
-    evidence_html = (
-        f"<pre class=\"evidence\">{evidence}</pre>" if evidence else ""
-    )
+    evidence_html = f'<pre class="evidence">{evidence}</pre>' if evidence else ""
     remediation_html = (
-        f"<div class=\"remediation\"><strong>Remediación:</strong> "
-        f"{remediation}</div>" if remediation else ""
+        f'<div class="remediation"><strong>Remediación:</strong> {remediation}</div>' if remediation else ""
     )
     return f"""
     <div class="finding-card {cls}">
@@ -202,14 +199,9 @@ def _kpi_row_html(counts: dict[str, int], total: int) -> str:
     cells = [("Total", total)]
     for sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"):
         cells.append((sev, counts.get(sev, 0)))
-    html = "<div class=\"kpi-row\">"
+    html = '<div class="kpi-row">'
     for label, value in cells:
-        html += (
-            f"<div class=\"kpi\">"
-            f"<div class=\"label\">{label}</div>"
-            f"<div class=\"value\">{value}</div>"
-            f"</div>"
-        )
+        html += f'<div class="kpi"><div class="label">{label}</div><div class="value">{value}</div></div>'
     html += "</div>"
     return html
 
@@ -221,9 +213,7 @@ def render_html(findings: list[dict], context: dict) -> str:
     ctx.setdefault("engagement_id", "")
     ctx.setdefault("target_scope", "")
     ctx.setdefault("auditor", "SkyVanguard / Kryon")
-    ctx.setdefault(
-        "date", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    )
+    ctx.setdefault("date", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"))
 
     findings_sorted = _sorted_findings(findings)
     counts = _severity_counts(findings_sorted)
@@ -238,7 +228,7 @@ def render_html(findings: list[dict], context: dict) -> str:
         rows.append(
             f"<tr>"
             f"<td>{i}</td>"
-            f"<td><span class=\"sev {cls}\">{sev}</span></td>"
+            f'<td><span class="sev {cls}">{sev}</span></td>'
             f"<td>{_html.escape(f.get('cwe', ''))}</td>"
             f"<td>{_html.escape(f.get('host', ''))}</td>"
             f"<td>{_html.escape(f.get('rule_id', ''))}</td>"
@@ -246,8 +236,7 @@ def render_html(findings: list[dict], context: dict) -> str:
             f"</tr>"
         )
     table_html = "".join(rows) or (
-        "<tr><td colspan=\"6\" style=\"text-align:center;color:#718096;\">"
-        "Sin hallazgos</td></tr>"
+        '<tr><td colspan="6" style="text-align:center;color:#718096;">Sin hallazgos</td></tr>'
     )
 
     # Finding cards (detailed)
@@ -255,15 +244,15 @@ def render_html(findings: list[dict], context: dict) -> str:
 
     return f"""<!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
-<title>Kryon — Reporte de evaluación {_html.escape(ctx['engagement_id'])}</title>
+<title>Kryon — Reporte de evaluación {_html.escape(ctx["engagement_id"])}</title>
 <style>{_EXECUTIVE_CSS}</style></head><body>
 <div class="header">
   <h1>Reporte de evaluación de seguridad</h1>
-  <div class="sub">Cliente: <strong>{_html.escape(ctx['client_name']) or '—'}</strong>
-    · Alcance: <code>{_html.escape(ctx['target_scope']) or '—'}</code></div>
-  <div class="meta">Engagement: {_html.escape(ctx['engagement_id']) or '—'}
-    · Generado: {_html.escape(ctx['date'])}
-    · Auditor: {_html.escape(ctx['auditor'])}</div>
+  <div class="sub">Cliente: <strong>{_html.escape(ctx["client_name"]) or "—"}</strong>
+    · Alcance: <code>{_html.escape(ctx["target_scope"]) or "—"}</code></div>
+  <div class="meta">Engagement: {_html.escape(ctx["engagement_id"]) or "—"}
+    · Generado: {_html.escape(ctx["date"])}
+    · Auditor: {_html.escape(ctx["auditor"])}</div>
 </div>
 
 <h2>Resumen ejecutivo</h2>
@@ -307,11 +296,7 @@ def render_demo_report(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     context = context or {}
-    stem = (
-        filename_stem
-        or f"kryon-{context.get('engagement_id', 'report')}"
-        or "kryon-report"
-    ).replace(" ", "-")
+    stem = (filename_stem or f"kryon-{context.get('engagement_id', 'report')}" or "kryon-report").replace(" ", "-")
 
     html_doc = render_html(findings, context)
     paths: dict[str, Path] = {}
@@ -325,9 +310,7 @@ def render_demo_report(
         try:
             from weasyprint import HTML  # type: ignore
         except ImportError:
-            paths["pdf_error"] = Path(
-                "install the 'reporting' extra: pip install 'kryon[reporting]'"
-            )
+            paths["pdf_error"] = Path("install the 'reporting' extra: pip install 'kryon[reporting]'")
         else:
             pdf_path = out_dir / f"{stem}.pdf"
             HTML(string=html_doc).write_pdf(str(pdf_path))

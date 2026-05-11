@@ -51,6 +51,7 @@ def isolated_drafts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 @pytest.fixture
 def stub_list_experiences(monkeypatch: pytest.MonkeyPatch):
     """Replace `kryon.learning.list_experiences` with a stub."""
+
     def _stub(experiences: list[dict]):
         from kryon.learning import experiences as exp_mod
 
@@ -63,9 +64,13 @@ def stub_list_experiences(monkeypatch: pytest.MonkeyPatch):
         # Also patch the alias that `from kryon.learning import list_experiences`
         # resolves to.
         from kryon import learning as learning_mod
+
         monkeypatch.setattr(
-            learning_mod, "list_experiences", fake_list_experiences,
+            learning_mod,
+            "list_experiences",
+            fake_list_experiences,
         )
+
     return _stub
 
 
@@ -73,7 +78,8 @@ def stub_list_experiences(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_auto_detect_passed_flow_writes_files(
-    isolated_drafts: Path, stub_list_experiences,
+    isolated_drafts: Path,
+    stub_list_experiences,
 ) -> None:
     """3 similar engagements + matching findings → 1 passed draft on disk."""
     from kryon.repl.commands.skill import SkillCommand
@@ -107,7 +113,8 @@ def test_auto_detect_passed_flow_writes_files(
 
 
 def test_auto_detect_skipped_flow_writes_to_rejected(
-    isolated_drafts: Path, stub_list_experiences,
+    isolated_drafts: Path,
+    stub_list_experiences,
 ) -> None:
     """Cluster found but no findings corpus → eval skipped → goes to _rejected/."""
     from kryon.repl.commands.skill import SkillCommand
@@ -129,7 +136,8 @@ def test_auto_detect_skipped_flow_writes_to_rejected(
 
 
 def test_auto_status_after_detect_lists_outputs(
-    isolated_drafts: Path, stub_list_experiences,
+    isolated_drafts: Path,
+    stub_list_experiences,
 ) -> None:
     """Run detect, then status — should not raise and the dirs exist."""
     from kryon.repl.commands.skill import SkillCommand
@@ -168,7 +176,8 @@ def test_auto_no_args_defaults_to_status(isolated_drafts: Path) -> None:
 
 
 def test_passed_auto_draft_can_be_loaded_via_skill_loader(
-    isolated_drafts: Path, stub_list_experiences,
+    isolated_drafts: Path,
+    stub_list_experiences,
 ) -> None:
     """A draft from /skill auto detect is parseable by SkillLoader so the
     operator can later promote + reload it."""

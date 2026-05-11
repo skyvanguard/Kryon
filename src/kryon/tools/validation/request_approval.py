@@ -33,12 +33,20 @@ logger = logging.getLogger(__name__)
 
 
 _SEV_ALIAS = {
-    "crit": "destructive", "critical": "destructive",
-    "destructive": "destructive", "destroy": "destructive",
-    "high": "modify", "modify": "modify", "write": "modify",
-    "mod": "modify", "medium": "modify",
-    "read": "read", "ro": "read", "info": "read",
-    "neutral": "neutral", "low": "neutral",
+    "crit": "destructive",
+    "critical": "destructive",
+    "destructive": "destructive",
+    "destroy": "destructive",
+    "high": "modify",
+    "modify": "modify",
+    "write": "modify",
+    "mod": "modify",
+    "medium": "modify",
+    "read": "read",
+    "ro": "read",
+    "info": "read",
+    "neutral": "neutral",
+    "low": "neutral",
 }
 
 
@@ -48,7 +56,10 @@ def _normalise_severity(raw: str) -> str:
 
 def _is_auto_approve() -> bool:
     return os.environ.get("KRYON_AUTO_APPROVE", "").strip().lower() in {
-        "1", "true", "yes", "on",
+        "1",
+        "true",
+        "yes",
+        "on",
     }
 
 
@@ -114,12 +125,16 @@ def request_approval(
     if _is_auto_approve():
         logger.warning(
             "KRYON_AUTO_APPROVE bypass engaged for %d actions (%s)",
-            n, title,
+            n,
+            title,
         )
-        return json.dumps({
-            "verdict": "yes", "reason": "KRYON_AUTO_APPROVE=true (demo mode)",
-            "n_actions": n,
-        })
+        return json.dumps(
+            {
+                "verdict": "yes",
+                "reason": "KRYON_AUTO_APPROVE=true (demo mode)",
+                "n_actions": n,
+            }
+        )
 
     try:
         from kryon.repl.ui.approval import (
@@ -144,14 +159,16 @@ def request_approval(
     for a in actions or []:
         if not isinstance(a, dict) or not a.get("command"):
             continue
-        built.append(ProposedAction(
-            command=str(a.get("command", "")),
-            purpose=str(a.get("purpose", "")),
-            severity=severity_map[_normalise_severity(str(a.get("severity", "modify")))],
-            reversible=bool(a.get("reversible", False)),
-            backup_path=a.get("backup_path") or None,
-            target_host=str(a.get("target_host", "")),
-        ))
+        built.append(
+            ProposedAction(
+                command=str(a.get("command", "")),
+                purpose=str(a.get("purpose", "")),
+                severity=severity_map[_normalise_severity(str(a.get("severity", "modify")))],
+                reversible=bool(a.get("reversible", False)),
+                backup_path=a.get("backup_path") or None,
+                target_host=str(a.get("target_host", "")),
+            )
+        )
 
     if not built:
         return _format_decline("no actions supplied")
@@ -170,8 +187,10 @@ def request_approval(
         logger.exception("approval UI raised")
         return _format_decline(f"UI error: {exc}")
 
-    return json.dumps({
-        "verdict": result.value,
-        "reason": "",
-        "n_actions": n,
-    })
+    return json.dumps(
+        {
+            "verdict": result.value,
+            "reason": "",
+            "n_actions": n,
+        }
+    )

@@ -14,10 +14,7 @@ try:
 except (ImportError, ModuleNotFoundError):
     pytest.skip("compliance/cis not importable", allow_module_level=True)
 
-_YAML = (
-    Path(__file__).resolve().parents[2]
-    / "src/kryon/compliance/cis/frameworks/cis-windows-server-2022-l1.yaml"
-)
+_YAML = Path(__file__).resolve().parents[2] / "src/kryon/compliance/cis/frameworks/cis-windows-server-2022-l1.yaml"
 _ID_RE = re.compile(r"^CIS-WIN-\d+(\.\d+){1,3}$")
 
 
@@ -48,15 +45,13 @@ def test_expected_sections_present(framework):
 
 def test_natural_sort(framework):
     from kryon.compliance.runner import _natural_sort_key
+
     ids = [c.id for c in framework.checks]
     assert ids == sorted(ids, key=_natural_sort_key)
 
 
 def _blob(c) -> str:
-    return " ".join(
-        (getattr(c, f) or "").lower()
-        for f in ("title", "rationale", "remediation", "command")
-    )
+    return " ".join((getattr(c, f) or "").lower() for f in ("title", "rationale", "remediation", "command"))
 
 
 def test_critical_controls_present(framework):
@@ -78,10 +73,7 @@ def test_windows_native_commands(framework):
         "wmic",
         "secedit",
     )
-    win_cmds = [
-        c for c in framework.checks
-        if any(t in c.command for t in win_tokens)
-    ]
+    win_cmds = [c for c in framework.checks if any(t in c.command for t in win_tokens)]
     assert len(win_cmds) >= 50, f"only {len(win_cmds)} Windows-native commands"
 
 

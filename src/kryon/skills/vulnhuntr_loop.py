@@ -63,20 +63,20 @@ logger = logging.getLogger(__name__)
 # or dump into a pointer argument — we match both shapes.
 _SOURCES: tuple[tuple[str, re.Pattern], ...] = (
     # LHS form: `ssize_t n = read(fd, buf, sz);` — group(1) is LHS.
-    ("read_lhs",    re.compile(r"(\w+)\s*=\s*read\s*\(")),
-    ("recv_lhs",    re.compile(r"(\w+)\s*=\s*recv\s*\(")),
-    ("getenv_lhs",  re.compile(r"(\w+)\s*=\s*getenv\s*\(")),
+    ("read_lhs", re.compile(r"(\w+)\s*=\s*read\s*\(")),
+    ("recv_lhs", re.compile(r"(\w+)\s*=\s*recv\s*\(")),
+    ("getenv_lhs", re.compile(r"(\w+)\s*=\s*getenv\s*\(")),
     # By-ref form: `read(fd, &n, ...);` — taint the &-referenced arg.
     # Catches `read(fd, &n, ...)`, `recv(fd, &n, ...)`, `fread(&n, ...)`.
-    ("read_byref",  re.compile(r"read\s*\([^,]+,\s*&?(\w+)")),
-    ("recv_byref",  re.compile(r"recv\s*\([^,]+,\s*&?(\w+)")),
-    ("fread",       re.compile(r"fread\s*\(\s*&?(\w+)")),
+    ("read_byref", re.compile(r"read\s*\([^,]+,\s*&?(\w+)")),
+    ("recv_byref", re.compile(r"recv\s*\([^,]+,\s*&?(\w+)")),
+    ("fread", re.compile(r"fread\s*\(\s*&?(\w+)")),
     # Line readers: buf is tainted with user input.
-    ("fgets",       re.compile(r"fgets\s*\(\s*(\w+)")),
-    ("gets",        re.compile(r"gets\s*\(\s*(\w+)")),
+    ("fgets", re.compile(r"fgets\s*\(\s*(\w+)")),
+    ("gets", re.compile(r"gets\s*\(\s*(\w+)")),
     # scanf family — first variadic arg is tainted.
-    ("scanf",       re.compile(r"scanf\s*\(\s*\"[^\"]*\"\s*,\s*&?(\w+)")),
-    ("fscanf",      re.compile(r"fscanf\s*\([^,]+,\s*\"[^\"]*\"\s*,\s*&?(\w+)")),
+    ("scanf", re.compile(r"scanf\s*\(\s*\"[^\"]*\"\s*,\s*&?(\w+)")),
+    ("fscanf", re.compile(r"fscanf\s*\([^,]+,\s*\"[^\"]*\"\s*,\s*&?(\w+)")),
     # argv special: group(1) captures the variable receiving argv[i].
     # Also handle a naked argv[i] in an expression — var = 'argv'.
     ("argv_assign", re.compile(r"(\w+)\s*=\s*argv\s*\[")),
@@ -89,26 +89,16 @@ _SOURCES: tuple[tuple[str, re.Pattern], ...] = (
 # CWE and a base confidence score.
 _SINK_TEMPLATES: tuple[tuple[str, str, str, int], ...] = (
     # (sink_name, cwe, regex_template, base_confidence)
-    ("memcpy",   "CWE-787",
-     r"memcpy\s*\([^,]+,\s*[^,]+,\s*[^)]*\b{var}\b",       9),
-    ("memmove",  "CWE-787",
-     r"memmove\s*\([^,]+,\s*[^,]+,\s*[^)]*\b{var}\b",      9),
-    ("strcpy",   "CWE-787",
-     r"strcpy\s*\([^,]+,\s*[^)]*\b{var}\b",                9),
-    ("strncpy",  "CWE-787",
-     r"strncpy\s*\([^,]+,\s*[^,]+,\s*[^)]*\b{var}\b",      7),
-    ("sprintf",  "CWE-787",
-     r"sprintf\s*\([^,]+,\s*[^)]*\b{var}\b",               8),
-    ("system",   "CWE-78",
-     r"system\s*\([^)]*\b{var}\b",                         9),
-    ("popen",    "CWE-78",
-     r"popen\s*\([^)]*\b{var}\b",                          9),
-    ("execvp",   "CWE-78",
-     r"execvp?\s*\([^)]*\b{var}\b",                        9),
-    ("printf",   "CWE-134",
-     r"printf\s*\(\s*\b{var}\b",                           8),  # first-arg only
-    ("gets",     "CWE-787",
-     r"gets\s*\(\s*\b{var}\b",                             9),
+    ("memcpy", "CWE-787", r"memcpy\s*\([^,]+,\s*[^,]+,\s*[^)]*\b{var}\b", 9),
+    ("memmove", "CWE-787", r"memmove\s*\([^,]+,\s*[^,]+,\s*[^)]*\b{var}\b", 9),
+    ("strcpy", "CWE-787", r"strcpy\s*\([^,]+,\s*[^)]*\b{var}\b", 9),
+    ("strncpy", "CWE-787", r"strncpy\s*\([^,]+,\s*[^,]+,\s*[^)]*\b{var}\b", 7),
+    ("sprintf", "CWE-787", r"sprintf\s*\([^,]+,\s*[^)]*\b{var}\b", 8),
+    ("system", "CWE-78", r"system\s*\([^)]*\b{var}\b", 9),
+    ("popen", "CWE-78", r"popen\s*\([^)]*\b{var}\b", 9),
+    ("execvp", "CWE-78", r"execvp?\s*\([^)]*\b{var}\b", 9),
+    ("printf", "CWE-134", r"printf\s*\(\s*\b{var}\b", 8),  # first-arg only
+    ("gets", "CWE-787", r"gets\s*\(\s*\b{var}\b", 9),
 )
 
 
@@ -125,8 +115,7 @@ _GUARD_MARKERS = re.compile(
 # Files we don't bother scanning. Tests are out: a PoC of a "bug" in a
 # test harness is not a zero-day. Third-party vendored code is its own
 # engagement.
-_SKIP_DIRS = {".git", "node_modules", "build", "dist", "third_party",
-              "__pycache__", "test", "tests", "vendor"}
+_SKIP_DIRS = {".git", "node_modules", "build", "dist", "third_party", "__pycache__", "test", "tests", "vendor"}
 _SUFFIXES = (".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp")
 
 
@@ -148,8 +137,8 @@ class TaintPath:
     source_line: int
     sink_line: int
     guard_present: bool
-    confidence: int   # 0-9
-    depth: int        # 0 = same function, 1+ = via callees
+    confidence: int  # 0-9
+    depth: int  # 0 = same function, 1+ = via callees
     notes: list[str] = field(default_factory=list)
 
 
@@ -227,17 +216,19 @@ def run_vulnhuntr(
     for tp in best.values():
         if tp.confidence < confidence_min:
             continue
-        findings.append(Finding(
-            file_path=tp.file_path,
-            function_name=tp.function_name,
-            crash_type="",
-            cwe=tp.sink_cwe,
-            poc_source="",
-            repo_path=repo_path,
-            line_range=f"{tp.sink_line}-{tp.sink_line}",
-            severity=_severity_for_confidence(tp.confidence),
-            language=_language_of(tp.file_path),
-        ))
+        findings.append(
+            Finding(
+                file_path=tp.file_path,
+                function_name=tp.function_name,
+                crash_type="",
+                cwe=tp.sink_cwe,
+                poc_source="",
+                repo_path=repo_path,
+                line_range=f"{tp.sink_line}-{tp.sink_line}",
+                severity=_severity_for_confidence(tp.confidence),
+                language=_language_of(tp.file_path),
+            )
+        )
 
     findings.sort(key=lambda f: (_lang_weight(f.cwe), f.file_path, f.function_name))
     return findings
@@ -293,22 +284,24 @@ def _analyse_function(
                 sink_line_abs = function_start_line + sink_line_in_body - 1
                 # Check for upper-bound guard in the preceding ≤10 lines.
                 pre_start = max(0, m.start() - 500)
-                window = body[pre_start:m.start()]
+                window = body[pre_start : m.start()]
                 guard = bool(_GUARD_MARKERS.search(window))
                 confidence = max(0, conf - (2 if guard else 0) - depth)
-                out.append(TaintPath(
-                    source_name=source_name,
-                    tainted_var=var,
-                    sink_name=sink_name,
-                    sink_cwe=cwe,
-                    file_path=file_path,
-                    function_name=function_name,
-                    source_line=source_line,
-                    sink_line=sink_line_abs,
-                    guard_present=guard,
-                    confidence=confidence,
-                    depth=depth,
-                ))
+                out.append(
+                    TaintPath(
+                        source_name=source_name,
+                        tainted_var=var,
+                        sink_name=sink_name,
+                        sink_cwe=cwe,
+                        file_path=file_path,
+                        function_name=function_name,
+                        source_line=source_line,
+                        sink_line=sink_line_abs,
+                        guard_present=guard,
+                        confidence=confidence,
+                        depth=depth,
+                    )
+                )
 
     # 3. Recurse: find function calls that take the tainted var as arg.
     if depth >= max_depth:
@@ -316,14 +309,23 @@ def _analyse_function(
 
     # Pattern: `callee(... var ...)`. We accept the var in any arg slot.
     for var, source_name, source_line in tainted:
-        callee_rx = re.compile(
-            rf"([A-Za-z_]\w+)\s*\([^()]*\b{re.escape(var)}\b[^()]*\)"
-        )
+        callee_rx = re.compile(rf"([A-Za-z_]\w+)\s*\([^()]*\b{re.escape(var)}\b[^()]*\)")
         for m in callee_rx.finditer(body):
             callee = m.group(1)
-            if callee in {"if", "for", "while", "switch", "return",
-                          "sizeof", "printf", "memcpy", "strcpy",
-                          "system", "popen", "execvp"}:
+            if callee in {
+                "if",
+                "for",
+                "while",
+                "switch",
+                "return",
+                "sizeof",
+                "printf",
+                "memcpy",
+                "strcpy",
+                "system",
+                "popen",
+                "execvp",
+            }:
                 continue
             key = (file_path, callee)
             if key in visited:

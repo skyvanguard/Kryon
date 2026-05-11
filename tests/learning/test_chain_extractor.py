@@ -21,10 +21,12 @@ def _openai_history(tool_name: str, args: str, result: str) -> list[dict]:
         {
             "role": "assistant",
             "content": "",
-            "tool_calls": [{
-                "id": "call_001",
-                "function": {"name": tool_name, "arguments": args},
-            }],
+            "tool_calls": [
+                {
+                    "id": "call_001",
+                    "function": {"name": tool_name, "arguments": args},
+                }
+            ],
         },
         {"role": "tool", "tool_call_id": "call_001", "content": result},
     ]
@@ -74,10 +76,7 @@ def test_responses_api_error_output() -> None:
 
 
 def test_mixed_openai_and_responses_shapes_both_captured() -> None:
-    history = (
-        _openai_history("nmap", "{}", "open: 80")
-        + _responses_history("nuclei", "{}", "0 findings")
-    )
+    history = _openai_history("nmap", "{}", "open: 80") + _responses_history("nuclei", "{}", "0 findings")
     out = extract_chain_from_history(history)
     tools = [step["tool"] for step in out["chain"]]
     assert tools == ["nmap", "nuclei"]
@@ -90,10 +89,12 @@ def test_tool_call_without_output_marked_no_output() -> None:
     history = [
         {
             "role": "assistant",
-            "tool_calls": [{
-                "id": "call_x",
-                "function": {"name": "long_running", "arguments": "{}"},
-            }],
+            "tool_calls": [
+                {
+                    "id": "call_x",
+                    "function": {"name": "long_running", "arguments": "{}"},
+                }
+            ],
         },
         # no matching tool result message — call was interrupted
     ]
@@ -116,7 +117,8 @@ def test_orphan_tool_output_without_call_recorded() -> None:
 
 def test_outcome_success_when_shell_signal_present() -> None:
     history = _openai_history(
-        "exploit", "{}",
+        "exploit",
+        "{}",
         "got shell\nuid=0(root) gid=0(root)\n",
     )
     out = extract_chain_from_history(history)
@@ -133,7 +135,8 @@ def test_outcome_success_when_flag_signal_present() -> None:
 
 def test_outcome_partial_with_cve_and_directories() -> None:
     history = _openai_history(
-        "scan", "{}",
+        "scan",
+        "{}",
         "CVE-2023-12345 found in stack\nfound 5 directories\n",
     )
     out = extract_chain_from_history(history)
@@ -160,7 +163,8 @@ def test_outcome_fail_when_chain_is_empty() -> None:
 
 def test_cves_are_deduped_and_sorted() -> None:
     history = _openai_history(
-        "scan", "{}",
+        "scan",
+        "{}",
         "CVE-2023-1234\nCVE-2024-5678\nCVE-2023-1234 mentioned again\n",
     )
     out = extract_chain_from_history(history)
@@ -169,11 +173,7 @@ def test_cves_are_deduped_and_sorted() -> None:
 
 
 def test_directories_count_falls_back_to_status_2xx_lines() -> None:
-    text = (
-        "/admin            (Status: 200)\n"
-        "/login            (Status: 200)\n"
-        "/api              (Status: 204)\n"
-    )
+    text = "/admin            (Status: 200)\n/login            (Status: 200)\n/api              (Status: 204)\n"
     history = _openai_history("gobuster", "{}", text)
     out = extract_chain_from_history(history)
     assert out["outcome_signals"]["directories_found"] >= 3
@@ -184,7 +184,8 @@ def test_directories_count_falls_back_to_status_2xx_lines() -> None:
 
 def test_summary_includes_target_and_chain_and_outcome() -> None:
     history = _openai_history(
-        "nmap", "{}",
+        "nmap",
+        "{}",
         "Nmap scan report for victim.local (10.0.0.1)\n80/tcp open http\n",
     )
     out = extract_chain_from_history(history)
@@ -195,20 +196,21 @@ def test_summary_includes_target_and_chain_and_outcome() -> None:
 
 
 def test_summary_dedupes_consecutive_same_tool() -> None:
-    history = (
-        _openai_history("nmap", "1", "open")
-        + _openai_history("nmap", "2", "open")
-    )
+    history = _openai_history("nmap", "1", "open") + _openai_history("nmap", "2", "open")
     # Build a single history ourselves to avoid call_id collision
     h: list[dict] = []
     for i, payload in enumerate(("first", "second")):
-        h.append({
-            "role": "assistant",
-            "tool_calls": [{
-                "id": f"c_{i}",
-                "function": {"name": "nmap", "arguments": "{}"},
-            }],
-        })
+        h.append(
+            {
+                "role": "assistant",
+                "tool_calls": [
+                    {
+                        "id": f"c_{i}",
+                        "function": {"name": "nmap", "arguments": "{}"},
+                    }
+                ],
+            }
+        )
         h.append({"role": "tool", "tool_call_id": f"c_{i}", "content": payload})
     out = extract_chain_from_history(h)
     # Two nmap calls but summary collapses consecutive duplicates.

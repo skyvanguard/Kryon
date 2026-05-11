@@ -41,9 +41,15 @@ class _SmbSigningCheck:
 
         if not check_tool(ctx, "nmap"):
             return tool_missing_error(
-                self.control_id, self.control_title, self.section,
-                self.severity, self.remediation_static, ctx.host, t0,
-                tool="nmap", install_hint="apt install nmap",
+                self.control_id,
+                self.control_title,
+                self.section,
+                self.severity,
+                self.remediation_static,
+                ctx.host,
+                t0,
+                tool="nmap",
+                install_hint="apt install nmap",
             )
 
         cmd = f"nmap -Pn -p 445 --script smb2-security-mode {dc} 2>&1 | tail -30"

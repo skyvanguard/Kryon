@@ -75,9 +75,7 @@ _NULL_CHECK_TEMPLATES: tuple[str, ...] = (
 
 # Variable-name extraction from the line flagged. We look for the last
 # identifier preceding ``->`` or ``[`` or ``*`` dereference.
-_VAR_NEAR_DEREF_RE = re.compile(
-    r"\b([A-Za-z_][A-Za-z_0-9]*)\s*(?:->|\[|\.\s*[A-Za-z_])"
-)
+_VAR_NEAR_DEREF_RE = re.compile(r"\b([A-Za-z_][A-Za-z_0-9]*)\s*(?:->|\[|\.\s*[A-Za-z_])")
 
 
 @dataclass(frozen=True)
@@ -161,7 +159,7 @@ class ContextFilter:
         flagged_line = lines[line - 1] if line - 1 < len(lines) else ""
         var = _extract_dereffed_var(flagged_line)
         if var:
-            preceding = "\n".join(lines[lo:line - 1])
+            preceding = "\n".join(lines[lo : line - 1])
             if _has_null_check(preceding, var):
                 return ContextVerdict(True, "null_check", line - 1 - lo)
 

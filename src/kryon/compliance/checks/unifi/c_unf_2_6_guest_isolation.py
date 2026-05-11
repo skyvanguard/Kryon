@@ -92,9 +92,7 @@ class _GuestIsolationCheck:
                 run_id="",
             )
 
-        issues = [
-            f"guest SSID '{n}' has L2 isolation OFF" for n in sorted(set(no_isolation))
-        ]
+        issues = [f"guest SSID '{n}' has L2 isolation OFF" for n in sorted(set(no_isolation))]
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(
             control_id=self.control_id,

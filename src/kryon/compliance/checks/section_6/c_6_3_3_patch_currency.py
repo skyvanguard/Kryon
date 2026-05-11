@@ -33,6 +33,7 @@ def _parse_last_upgrade_days(dpkg_log_output: str) -> int | None:
     Input: `grep -h ' upgrade ' /var/log/dpkg.log*`-style output (head lines: 'YYYY-MM-DD HH:MM:SS upgrade pkg ...')
     """
     from datetime import datetime
+
     latest: datetime | None = None
     for line in dpkg_log_output.splitlines():
         m = re.match(r"(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) upgrade ", line)
@@ -88,13 +89,15 @@ class _C633Check:
             )
 
         upg_out, upg_err, rc_upg = run_cmd(
-            ctx, ["sh", "-c", "apt list --upgradable 2>/dev/null"], timeout_s=20,
+            ctx,
+            ["sh", "-c", "apt list --upgradable 2>/dev/null"],
+            timeout_s=20,
         )
         sec_count = _count_security_upgradable(upg_out)
 
         dpkg_out, _, _ = run_cmd(
-            ctx, ["sh", "-c",
-                  "grep -h ' upgrade ' /var/log/dpkg.log* 2>/dev/null | tail -500"],
+            ctx,
+            ["sh", "-c", "grep -h ' upgrade ' /var/log/dpkg.log* 2>/dev/null | tail -500"],
             timeout_s=5,
         )
         age_days = _parse_last_upgrade_days(dpkg_out)

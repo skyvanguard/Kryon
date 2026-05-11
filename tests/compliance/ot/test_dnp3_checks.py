@@ -27,21 +27,31 @@ class TestDnp311UnauthRead:
     def test_pass_when_unreachable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from kryon.compliance.checks.ot.dnp3.c_dnp3_1_1_unauth_read import CHECK
 
-        _stub_probe(monkeypatch, DNP3ProbeResult(
-            host="10.0.0.5", port=20000, reachable=False,
-            responds_to_dnp3=False,
-            error="tcp_connect_failed",
-        ))
+        _stub_probe(
+            monkeypatch,
+            DNP3ProbeResult(
+                host="10.0.0.5",
+                port=20000,
+                reachable=False,
+                responds_to_dnp3=False,
+                error="tcp_connect_failed",
+            ),
+        )
         result = CHECK.run(CheckContext(host="10.0.0.5"))
         assert result.verdict == "PASS"
 
     def test_na_when_port_open_but_not_dnp3(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from kryon.compliance.checks.ot.dnp3.c_dnp3_1_1_unauth_read import CHECK
 
-        _stub_probe(monkeypatch, DNP3ProbeResult(
-            host="10.0.0.5", port=20000, reachable=True,
-            responds_to_dnp3=False,
-        ))
+        _stub_probe(
+            monkeypatch,
+            DNP3ProbeResult(
+                host="10.0.0.5",
+                port=20000,
+                reachable=True,
+                responds_to_dnp3=False,
+            ),
+        )
         result = CHECK.run(CheckContext(host="10.0.0.5"))
         assert result.verdict == "N/A"
         assert "DNP3 framing" in result.evidence_stdout
@@ -49,43 +59,59 @@ class TestDnp311UnauthRead:
     def test_fail_when_unauth_read_succeeds(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from kryon.compliance.checks.ot.dnp3.c_dnp3_1_1_unauth_read import CHECK
 
-        _stub_probe(monkeypatch, DNP3ProbeResult(
-            host="10.0.0.5", port=20000, reachable=True,
-            responds_to_dnp3=True,
-            outstation_address=4,
-            secure_auth_v5_active=False,
-        ))
+        _stub_probe(
+            monkeypatch,
+            DNP3ProbeResult(
+                host="10.0.0.5",
+                port=20000,
+                reachable=True,
+                responds_to_dnp3=True,
+                outstation_address=4,
+                secure_auth_v5_active=False,
+            ),
+        )
         result = CHECK.run(CheckContext(host="10.0.0.5"))
         assert result.verdict == "FAIL"
         assert "address 4" in result.evidence_stdout
         assert "without SAv5" in result.evidence_stdout
 
     def test_fail_includes_restart_warning_when_iin_set(
-        self, monkeypatch: pytest.MonkeyPatch,
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """device_restart bit is critical context — recently rebooted
         outstations may have lost SAv5 session state. Mention in verdict."""
         from kryon.compliance.checks.ot.dnp3.c_dnp3_1_1_unauth_read import CHECK
 
-        _stub_probe(monkeypatch, DNP3ProbeResult(
-            host="10.0.0.5", port=20000, reachable=True,
-            responds_to_dnp3=True,
-            outstation_address=4,
-            secure_auth_v5_active=False,
-            iin_bits={"device_restart": True},
-        ))
+        _stub_probe(
+            monkeypatch,
+            DNP3ProbeResult(
+                host="10.0.0.5",
+                port=20000,
+                reachable=True,
+                responds_to_dnp3=True,
+                outstation_address=4,
+                secure_auth_v5_active=False,
+                iin_bits={"device_restart": True},
+            ),
+        )
         result = CHECK.run(CheckContext(host="10.0.0.5"))
         assert "DEVICE_RESTART" in result.evidence_stdout
 
     def test_pass_when_sav5_challenges(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from kryon.compliance.checks.ot.dnp3.c_dnp3_1_1_unauth_read import CHECK
 
-        _stub_probe(monkeypatch, DNP3ProbeResult(
-            host="10.0.0.5", port=20000, reachable=True,
-            responds_to_dnp3=True,
-            outstation_address=4,
-            secure_auth_v5_active=True,
-        ))
+        _stub_probe(
+            monkeypatch,
+            DNP3ProbeResult(
+                host="10.0.0.5",
+                port=20000,
+                reachable=True,
+                responds_to_dnp3=True,
+                outstation_address=4,
+                secure_auth_v5_active=True,
+            ),
+        )
         result = CHECK.run(CheckContext(host="10.0.0.5"))
         assert result.verdict == "PASS"
         assert "SAv5" in result.evidence_stdout
@@ -101,70 +127,101 @@ class TestDnp311UnauthRead:
 
 class TestDnp321DeviceHealth:
     def test_na_when_outstation_unreachable(
-        self, monkeypatch: pytest.MonkeyPatch,
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from kryon.compliance.checks.ot.dnp3.c_dnp3_2_1_device_health import CHECK
 
-        _stub_probe(monkeypatch, DNP3ProbeResult(
-            host="10.0.0.5", port=20000, reachable=False,
-            responds_to_dnp3=False,
-        ))
+        _stub_probe(
+            monkeypatch,
+            DNP3ProbeResult(
+                host="10.0.0.5",
+                port=20000,
+                reachable=False,
+                responds_to_dnp3=False,
+            ),
+        )
         result = CHECK.run(CheckContext(host="10.0.0.5"))
         assert result.verdict == "N/A"
 
     def test_pass_when_no_trouble_flags(
-        self, monkeypatch: pytest.MonkeyPatch,
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from kryon.compliance.checks.ot.dnp3.c_dnp3_2_1_device_health import CHECK
 
-        _stub_probe(monkeypatch, DNP3ProbeResult(
-            host="10.0.0.5", port=20000, reachable=True,
-            responds_to_dnp3=True,
-            iin_bits={
-                "device_restart": False, "device_trouble": False,
-                "config_corrupt": False, "buffer_overflow": False,
-            },
-        ))
+        _stub_probe(
+            monkeypatch,
+            DNP3ProbeResult(
+                host="10.0.0.5",
+                port=20000,
+                reachable=True,
+                responds_to_dnp3=True,
+                iin_bits={
+                    "device_restart": False,
+                    "device_trouble": False,
+                    "config_corrupt": False,
+                    "buffer_overflow": False,
+                },
+            ),
+        )
         result = CHECK.run(CheckContext(host="10.0.0.5"))
         assert result.verdict == "PASS"
 
     def test_fail_when_device_trouble_flag_set(
-        self, monkeypatch: pytest.MonkeyPatch,
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from kryon.compliance.checks.ot.dnp3.c_dnp3_2_1_device_health import CHECK
 
-        _stub_probe(monkeypatch, DNP3ProbeResult(
-            host="10.0.0.5", port=20000, reachable=True,
-            responds_to_dnp3=True,
-            iin_bits={
-                "device_restart": False, "device_trouble": True,
-                "config_corrupt": False, "buffer_overflow": False,
-            },
-        ))
+        _stub_probe(
+            monkeypatch,
+            DNP3ProbeResult(
+                host="10.0.0.5",
+                port=20000,
+                reachable=True,
+                responds_to_dnp3=True,
+                iin_bits={
+                    "device_restart": False,
+                    "device_trouble": True,
+                    "config_corrupt": False,
+                    "buffer_overflow": False,
+                },
+            ),
+        )
         result = CHECK.run(CheckContext(host="10.0.0.5"))
         assert result.verdict == "FAIL"
         assert "device_trouble" in result.evidence_stdout
 
     def test_fail_when_multiple_trouble_flags(
-        self, monkeypatch: pytest.MonkeyPatch,
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from kryon.compliance.checks.ot.dnp3.c_dnp3_2_1_device_health import CHECK
 
-        _stub_probe(monkeypatch, DNP3ProbeResult(
-            host="10.0.0.5", port=20000, reachable=True,
-            responds_to_dnp3=True,
-            iin_bits={
-                "device_restart": True, "device_trouble": False,
-                "config_corrupt": True, "buffer_overflow": False,
-            },
-        ))
+        _stub_probe(
+            monkeypatch,
+            DNP3ProbeResult(
+                host="10.0.0.5",
+                port=20000,
+                reachable=True,
+                responds_to_dnp3=True,
+                iin_bits={
+                    "device_restart": True,
+                    "device_trouble": False,
+                    "config_corrupt": True,
+                    "buffer_overflow": False,
+                },
+            ),
+        )
         result = CHECK.run(CheckContext(host="10.0.0.5"))
         assert result.verdict == "FAIL"
         # Both flags should appear in the evidence so the SOC sees both.
         assert "device_restart" in result.evidence_stdout
         assert "config_corrupt" in result.evidence_stdout
         assert result.evidence_parsed["trouble_flags_set"] == [
-            "device_restart", "config_corrupt",
+            "device_restart",
+            "config_corrupt",
         ]
 
 

@@ -82,10 +82,7 @@ def test_below_threshold_experiences_yield_zero_clusters(drafts_dir: Path) -> No
 def test_passed_draft_lands_in_auto_dir(drafts_dir: Path) -> None:
     from kryon.learning.auto_pipeline import run_auto_pipeline
 
-    exps = [
-        _experience(f"e{i}", ["nmap", "nuclei_scan"], ["wordpress"])
-        for i in range(3)
-    ]
+    exps = [_experience(f"e{i}", ["nmap", "nuclei_scan"], ["wordpress"]) for i in range(3)]
     findings = [_finding("CWE-89", tech="wordpress") for _ in range(5)]
     result = run_auto_pipeline(
         experience_loader=lambda: exps,
@@ -104,10 +101,7 @@ def test_passed_draft_loads_via_skill_loader(drafts_dir: Path) -> None:
     from kryon.learning.auto_pipeline import run_auto_pipeline
     from kryon.skills.loader import _parse_skill_file
 
-    exps = [
-        _experience(f"e{i}", ["nmap", "nuclei_scan"], ["wordpress"])
-        for i in range(3)
-    ]
+    exps = [_experience(f"e{i}", ["nmap", "nuclei_scan"], ["wordpress"]) for i in range(3)]
     findings = [_finding("CWE-89") for _ in range(5)]
     run_auto_pipeline(
         experience_loader=lambda: exps,
@@ -177,10 +171,9 @@ def test_multiple_clusters_each_get_own_draft(drafts_dir: Path) -> None:
 
     wp = [_experience(f"wp{i}", ["nmap", "wpscan"], ["wordpress"]) for i in range(3)]
     ssh = [_experience(f"ssh{i}", ["nmap", "hydra"], ["openssh"]) for i in range(3)]
-    findings = (
-        [_finding("CWE-200", tech="wordpress") for _ in range(5)]
-        + [_finding("CWE-287", tech="openssh") for _ in range(5)]
-    )
+    findings = [_finding("CWE-200", tech="wordpress") for _ in range(5)] + [
+        _finding("CWE-287", tech="openssh") for _ in range(5)
+    ]
     result = run_auto_pipeline(
         experience_loader=lambda: wp + ssh,
         findings_loader=lambda: findings,
@@ -200,10 +193,12 @@ def test_running_twice_does_not_duplicate(drafts_dir: Path) -> None:
     findings = [_finding("CWE-89") for _ in range(5)]
 
     run_auto_pipeline(
-        experience_loader=lambda: exps, findings_loader=lambda: findings,
+        experience_loader=lambda: exps,
+        findings_loader=lambda: findings,
     )
     run_auto_pipeline(
-        experience_loader=lambda: exps, findings_loader=lambda: findings,
+        experience_loader=lambda: exps,
+        findings_loader=lambda: findings,
     )
 
     md_files = list((drafts_dir / "_auto").glob("*.md"))
@@ -255,8 +250,7 @@ def test_custom_min_pass_rate_propagates_to_evaluator(drafts_dir: Path) -> None:
     # 3/4 = 0.75 detection — would pass at 0.7 default but not at 0.95.
     exps = [_experience(f"e{i}", ["nmap", "nuclei_scan"], ["wordpress"]) for i in range(3)]
     findings = (
-        [_finding("CWE-89") for _ in range(3)]
-        + [_finding("CWE-1390")]  # AD weak auth, not detected by web chain
+        [_finding("CWE-89") for _ in range(3)] + [_finding("CWE-1390")]  # AD weak auth, not detected by web chain
     )
     result = run_auto_pipeline(
         experience_loader=lambda: exps,

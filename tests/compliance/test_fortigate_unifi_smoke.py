@@ -38,32 +38,61 @@ def _ids_with_prefix(prefix: str) -> list[str]:
 
 # ---------- registration ----------
 
+
 def test_fortigate_all_21_checks_registered() -> None:
     fgt_ids = _ids_with_prefix("FGT-")
     expected = {
-        "FGT-1.1", "FGT-1.2", "FGT-1.3", "FGT-1.4", "FGT-1.5", "FGT-1.6",
-        "FGT-2.1", "FGT-2.2", "FGT-2.3", "FGT-2.4",
-        "FGT-3.1", "FGT-3.2", "FGT-3.3", "FGT-3.4", "FGT-3.5",
-        "FGT-4.1", "FGT-4.2", "FGT-4.3",
-        "FGT-5.1", "FGT-5.2", "FGT-5.3",
+        "FGT-1.1",
+        "FGT-1.2",
+        "FGT-1.3",
+        "FGT-1.4",
+        "FGT-1.5",
+        "FGT-1.6",
+        "FGT-2.1",
+        "FGT-2.2",
+        "FGT-2.3",
+        "FGT-2.4",
+        "FGT-3.1",
+        "FGT-3.2",
+        "FGT-3.3",
+        "FGT-3.4",
+        "FGT-3.5",
+        "FGT-4.1",
+        "FGT-4.2",
+        "FGT-4.3",
+        "FGT-5.1",
+        "FGT-5.2",
+        "FGT-5.3",
     }
     assert set(fgt_ids) == expected, (
-        f"missing/extra FortiGate checks: "
-        f"missing={expected - set(fgt_ids)}, extra={set(fgt_ids) - expected}"
+        f"missing/extra FortiGate checks: missing={expected - set(fgt_ids)}, extra={set(fgt_ids) - expected}"
     )
 
 
 def test_unifi_all_18_checks_registered() -> None:
     unf_ids = _ids_with_prefix("UNF-")
     expected = {
-        "UNF-1.1", "UNF-1.2", "UNF-1.3", "UNF-1.4", "UNF-1.5",
-        "UNF-2.1", "UNF-2.2", "UNF-2.3", "UNF-2.4", "UNF-2.5", "UNF-2.6", "UNF-2.7",
-        "UNF-3.1", "UNF-3.2", "UNF-3.3", "UNF-3.4",
-        "UNF-4.1", "UNF-4.2",
+        "UNF-1.1",
+        "UNF-1.2",
+        "UNF-1.3",
+        "UNF-1.4",
+        "UNF-1.5",
+        "UNF-2.1",
+        "UNF-2.2",
+        "UNF-2.3",
+        "UNF-2.4",
+        "UNF-2.5",
+        "UNF-2.6",
+        "UNF-2.7",
+        "UNF-3.1",
+        "UNF-3.2",
+        "UNF-3.3",
+        "UNF-3.4",
+        "UNF-4.1",
+        "UNF-4.2",
     }
     assert set(unf_ids) == expected, (
-        f"missing/extra Unifi checks: "
-        f"missing={expected - set(unf_ids)}, extra={set(unf_ids) - expected}"
+        f"missing/extra Unifi checks: missing={expected - set(unf_ids)}, extra={set(unf_ids) - expected}"
     )
 
 
@@ -74,13 +103,12 @@ def test_check_metadata_complete() -> None:
             continue
         assert c.control_title, f"{c.control_id} missing title"
         assert c.section, f"{c.control_id} missing section"
-        assert c.severity in {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}, (
-            f"{c.control_id} severity={c.severity}"
-        )
+        assert c.severity in {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}, f"{c.control_id} severity={c.severity}"
         assert c.remediation_static, f"{c.control_id} missing remediation"
 
 
 # ---------- reproducibility ----------
+
 
 def test_reproducibility_hash_stable_localhost() -> None:
     """Running twice against the same (offline) target must yield byte-identical
@@ -101,9 +129,11 @@ def test_reproducibility_hash_stable_localhost() -> None:
 
 # ---------- framework prefix filter ----------
 
+
 def test_framework_prefix_fortigate_filters_correctly() -> None:
     """The agent tool's `framework='fortigate'` must select only FGT-* IDs."""
     from kryon.tools.appsec.compliance_audit import _FRAMEWORK_PREFIX
+
     prefixes = _FRAMEWORK_PREFIX["fortigate"]
     assert prefixes == ("FGT-",)
     # All aliases map to the same prefix
@@ -113,6 +143,7 @@ def test_framework_prefix_fortigate_filters_correctly() -> None:
 
 def test_framework_prefix_unifi_filters_correctly() -> None:
     from kryon.tools.appsec.compliance_audit import _FRAMEWORK_PREFIX
+
     prefixes = _FRAMEWORK_PREFIX["unifi"]
     assert prefixes == ("UNF-",)
     for alias in ("ubnt", "ubiquiti"):
@@ -120,6 +151,7 @@ def test_framework_prefix_unifi_filters_correctly() -> None:
 
 
 # ---------- parser fixtures (verdict correctness on canned input) ----------
+
 
 class _FixedCmdContext(CheckContext):
     """A CheckContext subclass would be hashable but frozen; instead we monkey
@@ -211,13 +243,12 @@ def test_unf_1_3_admin_2fa_passes_when_all_admins_have_mfa(monkeypatch: pytest.M
     monkeypatch.setattr(mod, "run_cmd", fake_run_cmd)
 
     result = mod.CHECK.run(CheckContext(host="x"))
-    assert result.verdict == "PASS", (
-        f"expected PASS, got {result.verdict}: {result.evidence_parsed}"
-    )
+    assert result.verdict == "PASS", f"expected PASS, got {result.verdict}: {result.evidence_parsed}"
     assert result.evidence_parsed["admins_without_mfa"] == []
 
 
 # ---------- agent tool wrapper ----------
+
 
 def test_run_compliance_audit_with_fortigate_framework_returns_only_fgt() -> None:
     """The @function_tool wrapper, when called with framework='fortigate',
@@ -236,6 +267,7 @@ def test_run_compliance_audit_with_fortigate_framework_returns_only_fgt() -> Non
         # The simplest stable surface is to import the underlying logic directly.
         from kryon.compliance.checks.base import CheckContext as _Ctx
         from kryon.compliance.runner import _import_all_checks, reproducibility_hash, run_all
+
         _import_all_checks()
         all_results = run_all(_Ctx(host="localhost"))
         fgt = [r for r in all_results if r.control_id.startswith("FGT-")]

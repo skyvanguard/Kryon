@@ -60,10 +60,7 @@ class _AdminIdleTimeoutCheck:
 
         issues: list[str] = []
         if timeout_min > _MAX_TIMEOUT_MINUTES:
-            issues.append(
-                f"admintimeout={timeout_min} > {_MAX_TIMEOUT_MINUTES} min "
-                "(PCI-DSS 8.1.8 ceiling)"
-            )
+            issues.append(f"admintimeout={timeout_min} > {_MAX_TIMEOUT_MINUTES} min (PCI-DSS 8.1.8 ceiling)")
 
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(

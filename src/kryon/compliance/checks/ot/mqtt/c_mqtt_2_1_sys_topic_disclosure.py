@@ -50,10 +50,7 @@ class _Mqtt_21Check:
             )
         elif result.sys_topic_readable:
             verdict = "FAIL"
-            stdout = (
-                f"MQTT broker at {ctx.host}:1883 disclosed $SYS topic "
-                f"data to anonymous SUBSCRIBE."
-            )
+            stdout = f"MQTT broker at {ctx.host}:1883 disclosed $SYS topic data to anonymous SUBSCRIBE."
             if result.broker_banner:
                 stdout += f" Sample: {result.broker_banner!r}."
         else:

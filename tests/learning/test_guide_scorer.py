@@ -183,9 +183,7 @@ class TestScoreDraft:
         result = score_draft(d)
         assert result.relevance == pytest.approx(0.70)
         assert result.naturalness == 1.0
-        expected = (
-            GUIDE_RELEVANCE_WEIGHT * 0.70 + GUIDE_NATURALNESS_WEIGHT * 1.0
-        )
+        expected = GUIDE_RELEVANCE_WEIGHT * 0.70 + GUIDE_NATURALNESS_WEIGHT * 1.0
         assert result.combined == pytest.approx(expected)
 
     def test_empty_draft_fails_gate(self) -> None:
@@ -197,10 +195,12 @@ class TestScoreDraft:
         """A draft that's a generative loop (repeated nonsense + no
         section + missing tools) must NOT pass."""
         body = "TODO TODO TODO\n" * 30  # 30 × dup + heavy placeholders
-        result = score_draft(_FakeDraft(
-            body=body,
-            frontmatter={"required_tools": ["nmap"]},
-        ))
+        result = score_draft(
+            _FakeDraft(
+                body=body,
+                frontmatter={"required_tools": ["nmap"]},
+            )
+        )
         assert result.combined < GUIDE_DEFAULT_THRESHOLD
         assert not result.passes()
         # Reasons should cite multiple symptoms, not just one.

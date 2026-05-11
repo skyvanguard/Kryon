@@ -37,10 +37,12 @@ logger = logging.getLogger(__name__)
 
 # -- Collection config -------------------------------------------------------
 
-_CORPUS_DIR = Path(os.environ.get(
-    "KRYON_CVE_CORPUS_DIR",
-    "/workspace/.kryon_cve_corpus",
-))
+_CORPUS_DIR = Path(
+    os.environ.get(
+        "KRYON_CVE_CORPUS_DIR",
+        "/workspace/.kryon_cve_corpus",
+    )
+)
 _COLLECTION_NAME = "kryon_cve_diffs"
 
 
@@ -54,6 +56,7 @@ _embedder = None
 def _build_embedder():
     """Ollama-backed embedding function, reused across calls."""
     import os as _os
+
     embed_url = _os.environ.get("KRYON_EMBEDDING_BASE_URL")
     embed_model = _os.environ.get("KRYON_EMBEDDING_MODEL", "nomic-embed-text")
     if not embed_url:
@@ -135,17 +138,15 @@ def _entry_id(entry: dict) -> str:
 def _entry_metadata(entry: dict) -> dict:
     """Produce a ChromaDB-safe metadata dict (primitives only, no lists)."""
     return {
-        "ghsa_id":   entry.get("ghsa_id", "")[:200],
-        "cve_id":    entry.get("cve_id", "")[:40],
-        "cwe_ids":   ",".join(entry.get("cwe_ids") or [])[:200],
-        "severity":  entry.get("severity", "")[:20],
+        "ghsa_id": entry.get("ghsa_id", "")[:200],
+        "cve_id": entry.get("cve_id", "")[:40],
+        "cwe_ids": ",".join(entry.get("cwe_ids") or [])[:200],
+        "severity": entry.get("severity", "")[:20],
         "ecosystem": entry.get("ecosystem", "")[:40],
-        "package":   entry.get("package", "")[:100],
-        "repo":      entry.get("repo", "")[:200],
+        "package": entry.get("package", "")[:100],
+        "repo": entry.get("repo", "")[:200],
         "commit_sha": entry.get("commit_sha", "")[:40],
-        "files_changed": ",".join(
-            f.get("path", "") for f in (entry.get("files") or [])
-        )[:500],
+        "files_changed": ",".join(f.get("path", "") for f in (entry.get("files") or []))[:500],
     }
 
 
@@ -226,6 +227,7 @@ def ingest_jsonl(path: str, *, batch_size: int = 64) -> int:
                     yield json.loads(line)
                 except json.JSONDecodeError:
                     logger.debug("skip malformed line")
+
     return ingest_entries(_iter(), batch_size=batch_size)
 
 
@@ -288,18 +290,20 @@ def _query_similar(code_snippet: str, top_k: int = 5) -> list[dict]:
     dists = (res.get("distances") or [[]])[0]
     for i, doc, meta, dist in zip(ids, docs, metas, dists):
         similarity = max(0.0, 1.0 - float(dist)) if dist is not None else None
-        out.append({
-            "id": i,
-            "cve_id": meta.get("cve_id", ""),
-            "ghsa_id": meta.get("ghsa_id", ""),
-            "cwe_ids": meta.get("cwe_ids", ""),
-            "severity": meta.get("severity", ""),
-            "repo": meta.get("repo", ""),
-            "commit_sha": meta.get("commit_sha", "")[:10],
-            "files_changed": meta.get("files_changed", ""),
-            "similarity": similarity,
-            "pattern_excerpt": doc[:1500],
-        })
+        out.append(
+            {
+                "id": i,
+                "cve_id": meta.get("cve_id", ""),
+                "ghsa_id": meta.get("ghsa_id", ""),
+                "cwe_ids": meta.get("cwe_ids", ""),
+                "severity": meta.get("severity", ""),
+                "repo": meta.get("repo", ""),
+                "commit_sha": meta.get("commit_sha", "")[:10],
+                "files_changed": meta.get("files_changed", ""),
+                "similarity": similarity,
+                "pattern_excerpt": doc[:1500],
+            }
+        )
     return out
 
 
@@ -323,7 +327,10 @@ def recall_similar_code_pattern(
       commit_sha, similarity, pattern_excerpt}]}.
     """
     matches = _query_similar(code_snippet, top_k=max(1, min(int(top_k or 5), 20)))
-    return json.dumps({
-        "count": len(matches),
-        "matches": matches,
-    }, indent=2)
+    return json.dumps(
+        {
+            "count": len(matches),
+            "matches": matches,
+        },
+        indent=2,
+    )

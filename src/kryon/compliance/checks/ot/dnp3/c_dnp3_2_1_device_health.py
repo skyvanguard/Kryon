@@ -64,10 +64,7 @@ class _Dnp3_21Check:
             )
             triggered: list[str] = []
         else:
-            triggered = [
-                flag for flag in _TROUBLE_FLAGS
-                if result.iin_bits.get(flag, False)
-            ]
+            triggered = [flag for flag in _TROUBLE_FLAGS if result.iin_bits.get(flag, False)]
             if triggered:
                 verdict = "FAIL"
                 stdout = (
@@ -78,10 +75,7 @@ class _Dnp3_21Check:
                 )
             else:
                 verdict = "PASS"
-                stdout = (
-                    f"DNP3 outstation at {ctx.host}:20000 reports no "
-                    "trouble IIN flags."
-                )
+                stdout = f"DNP3 outstation at {ctx.host}:20000 reports no trouble IIN flags."
 
         return CheckResult(
             control_id=self.control_id,

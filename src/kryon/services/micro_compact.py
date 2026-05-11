@@ -290,15 +290,20 @@ def compact_hunter_session(
     # Inject the discarded-hypothesis roll-up so the supervisor knows
     # that hunter explored and rejected N paths (useful for learning loop).
     if discarded_count:
-        kept.append({
-            "role": "assistant",
-            "content": f"[compacted: {discarded_count} discarded hypotheses during hunt]",
-        })
+        kept.append(
+            {
+                "role": "assistant",
+                "content": f"[compacted: {discarded_count} discarded hypotheses during hunt]",
+            }
+        )
 
     logger.info(
         "hunter-compact: %d -> %d messages, %d tool outputs stubbed, "
         "%d chars dropped, %d discarded hypotheses rolled up",
-        len(messages), len(kept), dropped_tool_outputs,
-        dropped_chars, discarded_count,
+        len(messages),
+        len(kept),
+        dropped_tool_outputs,
+        dropped_chars,
+        discarded_count,
     )
     return kept

@@ -23,7 +23,7 @@ class _WpsDisabledCheck:
         "For each affected SSID:\n"
         "  Settings → WiFi → <SSID> → Advanced → WPS → Disable\n"
         "Or via mongo (one-shot):\n"
-        '  db.wlanconf.update({}, {$set: {wps: false}}, {multi: true})\n'
+        "  db.wlanconf.update({}, {$set: {wps: false}}, {multi: true})\n"
         "Then `force-provision` the impacted APs from the Unifi UI."
     )
 

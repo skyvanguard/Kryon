@@ -49,5 +49,5 @@ class FortiGateContext:
     admin_https_port: int = 443
     sslvpn_port: int = 10443
     has_vdoms: bool = False
-    expected_min_fortios_major: int = 7    # Anything < 7.0 → flagged on FGT-5.1
+    expected_min_fortios_major: int = 7  # Anything < 7.0 → flagged on FGT-5.1
     expected_min_fortios_minor: int = 0

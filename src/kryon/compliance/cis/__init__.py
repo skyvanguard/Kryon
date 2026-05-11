@@ -49,10 +49,7 @@ def register_all_frameworks(
 
 def available_frameworks(include_samples: bool = False) -> list[Path]:
     """Return the list of framework YAML paths shipped with Kryon."""
-    return [
-        p for p in sorted(_FRAMEWORKS_DIR.glob("*.yaml"))
-        if include_samples or not p.name.startswith("_")
-    ]
+    return [p for p in sorted(_FRAMEWORKS_DIR.glob("*.yaml")) if include_samples or not p.name.startswith("_")]
 
 
 __all__ = [

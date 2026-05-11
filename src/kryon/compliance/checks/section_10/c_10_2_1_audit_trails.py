@@ -44,14 +44,15 @@ class _C1021Check:
         t0 = time.time()
 
         active_out, active_err, active_rc = run_cmd(
-            ctx, ["systemctl", "is-active", "auditd"], timeout_s=4,
+            ctx,
+            ["systemctl", "is-active", "auditd"],
+            timeout_s=4,
         )
         auditd_active = active_out.strip() == "active"
 
         rules_out, rules_err, rules_rc = run_cmd(
-            ctx, ["sh", "-c",
-                  "cat /etc/audit/rules.d/*.rules 2>/dev/null; "
-                  "cat /etc/audit/audit.rules 2>/dev/null"],
+            ctx,
+            ["sh", "-c", "cat /etc/audit/rules.d/*.rules 2>/dev/null; cat /etc/audit/audit.rules 2>/dev/null"],
             timeout_s=5,
         )
 
@@ -105,16 +106,14 @@ class _C1021Check:
             verdict=verdict,
             evidence_command="systemctl is-active auditd ; cat /etc/audit/rules.d/*.rules /etc/audit/audit.rules",
             evidence_stdout=(
-                f"=== auditd service ===\n{active_out}\n"
-                f"=== audit rules (first 3KB) ===\n{rules_out[:3000]}"
+                f"=== auditd service ===\n{active_out}\n=== audit rules (first 3KB) ===\n{rules_out[:3000]}"
             )[:4096],
             evidence_stderr=(active_err + "\n" + rules_err)[:1024],
             evidence_parsed={
                 "auditd_active": auditd_active,
-                "required_watches_present": sorted([
-                    p.replace(r"\s+", " ") for p in _REQUIRED_WATCHES
-                    if re.search(p, rules_out)
-                ]),
+                "required_watches_present": sorted(
+                    [p.replace(r"\s+", " ") for p in _REQUIRED_WATCHES if re.search(p, rules_out)]
+                ),
                 "required_watches_missing": sorted(missing_watches),
                 "execve_rule_present": execve_present,
                 "issues": sorted(issues),

@@ -38,7 +38,13 @@ def _build_read_response(
     length = 5 + len(user_data)
     control = 0x44  # response from outstation
     dl_no_crc = struct.pack(
-        "<BBBBHH", 0x05, 0x64, length, control, destination, source,
+        "<BBBBHH",
+        0x05,
+        0x64,
+        length,
+        control,
+        destination,
+        source,
     )
     dl_crc = _crc16_dnp(dl_no_crc)
     dl = dl_no_crc + struct.pack("<H", dl_crc)
@@ -55,8 +61,12 @@ class _MockSocket:
         self._replies: Iterator[bytes] = iter(replies)
         self._buffer = b""
 
-    def settimeout(self, _t: float) -> None: pass
-    def connect(self, _addr: tuple[str, int]) -> None: pass
+    def settimeout(self, _t: float) -> None:
+        pass
+
+    def connect(self, _addr: tuple[str, int]) -> None:
+        pass
+
     def sendall(self, _data: bytes) -> None:
         try:
             self._buffer = next(self._replies)
@@ -68,8 +78,11 @@ class _MockSocket:
         self._buffer = self._buffer[n:]
         return chunk
 
-    def __enter__(self) -> _MockSocket: return self
-    def __exit__(self, *exc: object) -> None: return None
+    def __enter__(self) -> _MockSocket:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        return None
 
 
 @pytest.fixture
@@ -78,6 +91,7 @@ def patch_socket(monkeypatch: pytest.MonkeyPatch):
         mock = _MockSocket(replies)
         monkeypatch.setattr(socket, "socket", lambda *a, **k: mock)
         return mock
+
     return _install
 
 
@@ -86,15 +100,23 @@ def patch_socket(monkeypatch: pytest.MonkeyPatch):
 
 class TestReachability:
     def test_unreachable_host_returns_error(
-        self, monkeypatch: pytest.MonkeyPatch,
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from kryon.tools.ot.dnp3_probe import dnp3_probe
 
         class _Refused:
-            def __enter__(self): return self
-            def __exit__(self, *a): pass
-            def settimeout(self, _t): pass
-            def connect(self, _a): raise OSError("Connection refused")
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+            def settimeout(self, _t):
+                pass
+
+            def connect(self, _a):
+                raise OSError("Connection refused")
 
         monkeypatch.setattr(socket, "socket", lambda *a, **k: _Refused())
 

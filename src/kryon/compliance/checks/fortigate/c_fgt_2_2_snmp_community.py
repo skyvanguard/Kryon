@@ -28,7 +28,7 @@ class _SnmpCommunityCheck:
         "  end\n"
         "If SNMP is required, prefer v3:\n"
         "  config system snmp user\n"
-        "    edit \"monitor\"\n"
+        '    edit "monitor"\n'
         "      set security-level auth-priv\n"
         "      set auth-proto sha256\n"
         "      set auth-pwd <STRONG>\n"
@@ -86,7 +86,7 @@ class _SnmpCommunityCheck:
 
         issues: list[str] = []
         community_names: list[str] = []
-        for m in re.finditer(r'edit\s+\d+\s*(.*?)\bnext\b', out, re.S):
+        for m in re.finditer(r"edit\s+\d+\s*(.*?)\bnext\b", out, re.S):
             body = m.group(1)
             name_match = re.search(r'set\s+name\s+"([^"]*)"', body)
             status_match = re.search(r"set\s+status\s+(\S+)", body)

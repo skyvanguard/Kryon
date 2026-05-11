@@ -22,9 +22,7 @@ import time
 from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
-_PUBLIC_BIND_PATTERN = re.compile(
-    r"\b(0\.0\.0\.0|::|\*):(?:8443|8080|8843|8880)\b"
-)
+_PUBLIC_BIND_PATTERN = re.compile(r"\b(0\.0\.0\.0|::|\*):(?:8443|8080|8843|8880)\b")
 
 
 class _ControllerInternetExposureCheck:
@@ -88,9 +86,7 @@ class _ControllerInternetExposureCheck:
 
         issues: list[str] = []
         if public_binds:
-            issues.append(
-                f"controller HTTPS bound to public-style address(es): {sorted(set(public_binds))}"
-            )
+            issues.append(f"controller HTTPS bound to public-style address(es): {sorted(set(public_binds))}")
 
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(

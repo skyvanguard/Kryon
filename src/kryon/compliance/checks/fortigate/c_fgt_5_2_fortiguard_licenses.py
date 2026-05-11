@@ -64,10 +64,7 @@ class _FortiGuardLicensesCheck:
                     statuses.setdefault(feat, ls)
 
         # Cross-check expiry directly from license fields when present.
-        expiry_lines = [
-            ls for ls in out.splitlines()
-            if any(k in ls.lower() for k in ("expir", "license"))
-        ]
+        expiry_lines = [ls for ls in out.splitlines() if any(k in ls.lower() for k in ("expir", "license"))]
         expired_features: list[str] = []
         for feat in _REQUIRED_FEATURES:
             if feat in statuses:
@@ -78,10 +75,7 @@ class _FortiGuardLicensesCheck:
 
         issues: list[str] = []
         if expired_features:
-            issues.append(
-                f"FortiGuard subscription expired/missing for: "
-                f"{', '.join(sorted(expired_features))}"
-            )
+            issues.append(f"FortiGuard subscription expired/missing for: {', '.join(sorted(expired_features))}")
 
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(

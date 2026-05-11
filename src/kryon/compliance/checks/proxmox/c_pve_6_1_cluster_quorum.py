@@ -23,7 +23,8 @@ from kryon.compliance.checks.base import CheckContext, CheckResult
 from kryon.compliance.runner import register_check, run_cmd
 
 _NODE_LINE_RE = re.compile(
-    r"^\s*\d+\s+\d+\s+(\S+)", re.MULTILINE,
+    r"^\s*\d+\s+\d+\s+(\S+)",
+    re.MULTILINE,
 )
 _QDEVICE_LINE_RE = re.compile(r"qdevice", re.IGNORECASE)
 
@@ -44,10 +45,14 @@ class _PVE61Check:
     def run(self, ctx: CheckContext) -> CheckResult:
         t0 = time.time()
         nodes_out, nodes_err, nodes_rc = run_cmd(
-            ctx, ["pvecm", "nodes"], timeout_s=8,
+            ctx,
+            ["pvecm", "nodes"],
+            timeout_s=8,
         )
         status_out, status_err, _ = run_cmd(
-            ctx, ["pvecm", "status"], timeout_s=8,
+            ctx,
+            ["pvecm", "status"],
+            timeout_s=8,
         )
 
         if nodes_rc != 0:

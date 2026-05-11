@@ -68,9 +68,7 @@ class _AdminHttpsOnlyCheck:
         # HTTP listener should be off OR redirected. Default 80 with redirect
         # on is acceptable; 80 with redirect off is bad.
         if admin_port and admin_port != "0" and redirect == "disable":
-            issues.append(
-                f"admin-port={admin_port} active without HTTPS redirect"
-            )
+            issues.append(f"admin-port={admin_port} active without HTTPS redirect")
         # admin-sport must be HTTPS — anything other than common HTTPS ports
         # on default config is suspicious; we only flag the missing case.
         if not admin_sport:

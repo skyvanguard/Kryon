@@ -30,9 +30,7 @@ def _parse_version(raw: str) -> tuple[int, int, int] | None:
 
 class _ApFirmwareCurrencyCheck:
     control_id = "UNF-4.2"
-    control_title = (
-        f"AP firmware not more than {_MAX_MINOR_BEHIND} minor revisions behind"
-    )
+    control_title = f"AP firmware not more than {_MAX_MINOR_BEHIND} minor revisions behind"
     section = "4"
     severity = "MEDIUM"
     remediation_static = (
@@ -95,16 +93,17 @@ class _ApFirmwareCurrencyCheck:
             else:
                 minor_delta = (target[0] - running[0]) * 100 + (target[1] - running[1])
             if upgradable and minor_delta > _MAX_MINOR_BEHIND:
-                outdated.append({
-                    "name": name_m.group(1),
-                    "running": ver_m.group(1),
-                    "target": target_m.group(1) if target_m else "",
-                    "minor_delta": minor_delta,
-                })
+                outdated.append(
+                    {
+                        "name": name_m.group(1),
+                        "running": ver_m.group(1),
+                        "target": target_m.group(1) if target_m else "",
+                        "minor_delta": minor_delta,
+                    }
+                )
 
         issues = [
-            f"AP '{o['name']}' on {o['running']} (target {o['target']}, "
-            f"{o['minor_delta']} minors behind)"
+            f"AP '{o['name']}' on {o['running']} (target {o['target']}, {o['minor_delta']} minors behind)"
             for o in outdated
         ]
         verdict = "PASS" if not issues else "FAIL"

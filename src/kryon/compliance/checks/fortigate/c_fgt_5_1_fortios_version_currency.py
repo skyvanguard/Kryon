@@ -100,9 +100,7 @@ class _FortiosVersionCurrencyCheck:
         below_floor = (major, minor) < (min_major, min_minor)
         issues: list[str] = []
         if below_floor:
-            issues.append(
-                f"FortiOS {major}.{minor}.{patch} < supported floor {min_major}.{min_minor}.x"
-            )
+            issues.append(f"FortiOS {major}.{minor}.{patch} < supported floor {min_major}.{min_minor}.x")
 
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(

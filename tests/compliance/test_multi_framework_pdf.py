@@ -96,6 +96,7 @@ def test_compute_repro_hash_changes_on_verdict_flip(sample_results):
     """Flipping a verdict must change the hash."""
     h1 = mf.compute_repro_hash(sample_results)
     import copy
+
     modified = copy.deepcopy(sample_results)
     modified["pci-dss-4.0"][0]["verdict"] = "PASS"
     assert h1 != mf.compute_repro_hash(modified)
@@ -179,6 +180,7 @@ def test_single_framework_still_renders(sample_results):
 def test_framework_meta_covers_all_registered_frameworks():
     """FRAMEWORK_META must have entries for every registered YAML framework."""
     from kryon.compliance.cis import available_frameworks
+
     for p in available_frameworks():
         fw_id = p.stem
         assert fw_id in mf.FRAMEWORK_META, f"missing FRAMEWORK_META for {fw_id}"

@@ -62,9 +62,9 @@ class IEC104ProbeResult:
     host: str
     port: int
     reachable: bool
-    responds_to_iec104: bool       # any valid 0x68 frame received
-    startdt_confirmed: bool        # session control activation succeeded
-    testfr_confirmed: bool         # link alive ack received
+    responds_to_iec104: bool  # any valid 0x68 frame received
+    startdt_confirmed: bool  # session control activation succeeded
+    testfr_confirmed: bool  # link alive ack received
     error: str = ""
 
     @property

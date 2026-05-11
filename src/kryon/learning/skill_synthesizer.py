@@ -156,9 +156,7 @@ def _build_body(
         args = (step.get("args") or "").strip()
         status = step.get("status") or "ok"
         args_blurb = f" args=`{args[:80]}`" if args and args != "{}" else ""
-        phase_lines.append(
-            f"{idx}. **{tool}**{args_blurb} — {status}"
-        )
+        phase_lines.append(f"{idx}. **{tool}**{args_blurb} — {status}")
 
     signal_lines: list[str] = []
     if signals.get("shell_gained"):
@@ -289,9 +287,7 @@ _TOOLLIKE_BACKTICK_RE = re.compile(r"`([a-z][a-z0-9_]{2,})`")
 _TOOLLIKE_UNDERSCORE_RE = re.compile(r"\b([a-z][a-z0-9]*_[a-z0-9_]+)\b")
 
 
-def _derive_cluster_name(
-    cluster: Any, existing_names: set[str]
-) -> str:
+def _derive_cluster_name(cluster: Any, existing_names: set[str]) -> str:
     """Build a unique kebab-case name for a cluster-derived draft.
 
     Pattern: `<primary_tech>-<cid_suffix>-auto-NNN`. The cid_suffix
@@ -412,8 +408,7 @@ def synthesize_from_cluster(
     }
 
     description = (
-        f"Auto-synthesized from {cluster.sample_size} similar engagements "
-        f"(avg outcome {cluster.avg_outcome_score:.2f})"
+        f"Auto-synthesized from {cluster.sample_size} similar engagements (avg outcome {cluster.avg_outcome_score:.2f})"
     )[:200]
 
     frontmatter = {
@@ -454,8 +449,8 @@ def _build_cluster_body_deterministic(cluster: Any) -> str:
 
 ## Target class
 
-This pattern matches **{', '.join(tech) if tech else 'general targets'}**.
-Sample hosts (from cluster members): {', '.join(sample_hosts[:3]) or '(redacted)'}.
+This pattern matches **{", ".join(tech) if tech else "general targets"}**.
+Sample hosts (from cluster members): {", ".join(sample_hosts[:3]) or "(redacted)"}.
 
 ## Recommended phases
 

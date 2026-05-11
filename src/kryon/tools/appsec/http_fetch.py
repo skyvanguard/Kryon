@@ -22,15 +22,14 @@ from kryon.sdk.agents import function_tool
 
 try:
     import requests  # type: ignore
+
     _REQUESTS_OK = True
 except ImportError:
     _REQUESTS_OK = False
 
 
 _DEFAULT_UA = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/120.0.0.0 Safari/537.36"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
 
 _DEFAULT_HEADERS = {
@@ -77,10 +76,7 @@ def http_fetch(
         On any transport error returns an ``error`` line + diagnostic.
     """
     if not _REQUESTS_OK:
-        return (
-            "error: requests library not installed. "
-            "Install with: pip install requests"
-        )
+        return "error: requests library not installed. Install with: pip install requests"
 
     try:
         extra_headers: dict[str, str] = {}
@@ -134,9 +130,15 @@ def http_fetch(
 
     # Prefer structured headers the LLM actually uses.
     interesting = (
-        "content-type", "set-cookie", "location", "server",
-        "x-frame-options", "content-security-policy",
-        "x-powered-by", "www-authenticate", "access-control-allow-origin",
+        "content-type",
+        "set-cookie",
+        "location",
+        "server",
+        "x-frame-options",
+        "content-security-policy",
+        "x-powered-by",
+        "www-authenticate",
+        "access-control-allow-origin",
     )
     hdr_out = []
     for k, v in resp.headers.items():

@@ -37,7 +37,14 @@ def _s7_setup_ack() -> bytes:
     the 9-byte check."""
     s7_pdu = struct.pack(
         ">BBHHHHBB",
-        0x32, 0x03, 0x0000, 0x0000, 0x0008, 0x0000, 0x00, 0x00,
+        0x32,
+        0x03,
+        0x0000,
+        0x0000,
+        0x0008,
+        0x0000,
+        0x00,
+        0x00,
     )
     cotp = struct.pack(">BBB", 0x02, 0xF0, 0x80) + s7_pdu
     return _tpkt(cotp)
@@ -57,7 +64,12 @@ def _szl_response(*ascii_strings: bytes) -> bytes:
     Sprint 2) would fully parse SZL records."""
     s7_pdu = struct.pack(
         ">BBHHHH",
-        0x32, 0x07, 0x0000, 0x0001, 0x000C, 0x0040,
+        0x32,
+        0x07,
+        0x0000,
+        0x0001,
+        0x000C,
+        0x0040,
     )
     s7_pdu += b"\x00" * 20  # pad — parser scans from offset 20
     for s in ascii_strings:
@@ -75,8 +87,11 @@ class _MockSocket:
         self._buffer = b""
         self.closed = False
 
-    def settimeout(self, _t: float) -> None: pass
-    def connect(self, _addr: tuple[str, int]) -> None: pass
+    def settimeout(self, _t: float) -> None:
+        pass
+
+    def connect(self, _addr: tuple[str, int]) -> None:
+        pass
 
     def sendall(self, _data: bytes) -> None:
         try:
@@ -92,8 +107,11 @@ class _MockSocket:
     def close(self) -> None:
         self.closed = True
 
-    def __enter__(self) -> _MockSocket: return self
-    def __exit__(self, *exc: object) -> None: self.close()
+    def __enter__(self) -> _MockSocket:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
 
 
 @pytest.fixture
@@ -102,6 +120,7 @@ def patch_socket(monkeypatch: pytest.MonkeyPatch):
         mock = _MockSocket(replies)
         monkeypatch.setattr(socket, "socket", lambda *a, **k: mock)
         return mock
+
     return _install
 
 
@@ -110,16 +129,26 @@ def patch_socket(monkeypatch: pytest.MonkeyPatch):
 
 class TestReachability:
     def test_unreachable_host_returns_error(
-        self, monkeypatch: pytest.MonkeyPatch,
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from kryon.tools.ot.s7_enum import s7_enum
 
         class _Refused:
-            def __enter__(self): return self
-            def __exit__(self, *a): pass
-            def settimeout(self, _t): pass
-            def connect(self, _a): raise OSError("refused")
-            def close(self): pass
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+            def settimeout(self, _t):
+                pass
+
+            def connect(self, _a):
+                raise OSError("refused")
+
+            def close(self):
+                pass
 
         monkeypatch.setattr(socket, "socket", lambda *a, **k: _Refused())
         r = s7_enum("10.255.255.255")
@@ -216,9 +245,7 @@ class TestS7Session:
         r = s7_enum("10.0.0.5")
         assert "order_code" not in r.module_identification
         # But the raw run was captured for the auditor to review.
-        assert any(
-            v == "genericstring" for v in r.module_identification.values()
-        )
+        assert any(v == "genericstring" for v in r.module_identification.values())
 
 
 # ---------- Frame builders ----------

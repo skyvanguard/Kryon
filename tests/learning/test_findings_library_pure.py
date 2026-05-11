@@ -51,8 +51,7 @@ def test_url_shape_short_hex_left_alone() -> None:
 
 def test_url_shape_normalizes_mixed_alnum_with_long_numeric_run() -> None:
     """Common LATAM banking shape: acct_12345 → acct_<n>."""
-    assert url_shape("https://bank.com/cuentas/acct_98765/detalle") == \
-        "/cuentas/acct_<n>/detalle"
+    assert url_shape("https://bank.com/cuentas/acct_98765/detalle") == "/cuentas/acct_<n>/detalle"
 
 
 def test_url_shape_keeps_short_numeric_in_versions() -> None:
@@ -65,8 +64,7 @@ def test_url_shape_keeps_short_numeric_in_versions() -> None:
 
 
 def test_url_shape_masks_query_param_values() -> None:
-    assert url_shape("https://shop.com/search?q=test&page=2") == \
-        "/search?q=<n>&page=<n>"
+    assert url_shape("https://shop.com/search?q=test&page=2") == "/search?q=<n>&page=<n>"
 
 
 def test_url_shape_handles_query_param_without_value() -> None:

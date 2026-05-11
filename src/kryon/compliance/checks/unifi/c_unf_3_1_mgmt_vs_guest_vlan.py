@@ -86,13 +86,10 @@ class _MgmtVsGuestVlanCheck:
         for g in guest_nets:
             if not g["vlan_enabled"]:
                 issues.append(
-                    f"guest network '{g['name']}' has VLAN tagging disabled "
-                    "— shares broadcast domain with management"
+                    f"guest network '{g['name']}' has VLAN tagging disabled — shares broadcast domain with management"
                 )
             elif g["vlan"] in mgmt_vlans:
-                issues.append(
-                    f"guest network '{g['name']}' uses VLAN {g['vlan']} which is also a management VLAN"
-                )
+                issues.append(f"guest network '{g['name']}' uses VLAN {g['vlan']} which is also a management VLAN")
 
         if not guest_nets:
             return CheckResult(

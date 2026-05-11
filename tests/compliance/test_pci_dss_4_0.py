@@ -20,20 +20,19 @@ except (ImportError, ModuleNotFoundError):
 
 
 _YAML_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "kryon"
-    / "compliance"
-    / "cis"
-    / "frameworks"
-    / "pci-dss-4.0.yaml"
+    Path(__file__).resolve().parents[2] / "src" / "kryon" / "compliance" / "cis" / "frameworks" / "pci-dss-4.0.yaml"
 )
 
 # PCI-DSS 4.0 ids: "1.4.3", "10.2.1.2", "8.3.1" — up to 4 numeric levels.
 _PCI_ID_RE = re.compile(r"^\d+(\.\d+){1,3}$")
 _EXPECTED_REQS = {"1", "2", "3", "8", "10", "11"}
 _EXISTING_HAND_WRITTEN_IDS = {
-    "2.2.2", "2.2.7", "6.3.3", "6.4.1", "8.3.6", "10.2.1",
+    "2.2.2",
+    "2.2.7",
+    "6.3.3",
+    "6.4.1",
+    "8.3.6",
+    "10.2.1",
 }
 _MIN_CHECKS = 25
 
@@ -66,19 +65,14 @@ def test_does_not_duplicate_hand_written_checks(framework):
     the YAML version silently unreachable."""
     yaml_ids = {c.id for c in framework.checks}
     overlap = yaml_ids & _EXISTING_HAND_WRITTEN_IDS
-    assert not overlap, (
-        f"YAML duplicates hand-written ids: {overlap}. "
-        f"Hand-written wins — YAML check becomes dead."
-    )
+    assert not overlap, f"YAML duplicates hand-written ids: {overlap}. Hand-written wins — YAML check becomes dead."
 
 
 def test_ids_in_natural_order(framework):
     from kryon.compliance.runner import _natural_sort_key
 
     ids = [c.id for c in framework.checks]
-    assert ids == sorted(ids, key=_natural_sort_key), (
-        "YAML should list PCI ids in natural (numeric) order"
-    )
+    assert ids == sorted(ids, key=_natural_sort_key), "YAML should list PCI ids in natural (numeric) order"
 
 
 def test_covers_all_expected_requirements(framework):
@@ -141,7 +135,4 @@ def test_runner_pci_baseline_covers_4_2_1_and_5_2_1_and_8_4_2() -> None:
     _import_all_checks()
     by_id = {c.control_id: c for c in registered_checks()}
     for required in ("4.2.1", "5.2.1", "8.4.2"):
-        assert required in by_id, (
-            f"PCI control {required} missing from registry — "
-            f"the 6→40 upgrade pipeline regressed."
-        )
+        assert required in by_id, f"PCI control {required} missing from registry — the 6→40 upgrade pipeline regressed."

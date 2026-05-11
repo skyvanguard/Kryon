@@ -71,9 +71,7 @@ class StreamingRAGEngine:
             "model": os.getenv("KRYON_RAG_MODEL", os.getenv("KRYON_MODEL", "gpt-4o")),
         }
 
-    async def query_stream(
-        self, question: str, top_k: int = 5, source_filter: str | None = None
-    ) -> AsyncIterator[str]:
+    async def query_stream(self, question: str, top_k: int = 5, source_filter: str | None = None) -> AsyncIterator[str]:
         """
         Query with streaming LLM response.
 
@@ -269,9 +267,7 @@ def get_streaming_rag_engine() -> StreamingRAGEngine:
 
 
 # Convenience function
-async def query_knowledge_stream(
-    question: str, top_k: int = 5, source_filter: str | None = None
-) -> AsyncIterator[str]:
+async def query_knowledge_stream(question: str, top_k: int = 5, source_filter: str | None = None) -> AsyncIterator[str]:
     """
     Query knowledge base with streaming response.
 

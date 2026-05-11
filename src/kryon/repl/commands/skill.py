@@ -82,7 +82,7 @@ def _strip_original_frontmatter(content: str) -> tuple[dict, str]:
     match = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
     if not match:
         return {}, content
-    body = content[match.end():]
+    body = content[match.end() :]
 
     fm: dict = {}
     for line in match.group(1).split("\n"):
@@ -197,7 +197,7 @@ class SkillCommand(Command):
 
         matches = []
         for s in upstream:
-            text = f"{s['name']} {s.get('description','')}".lower()
+            text = f"{s['name']} {s.get('description', '')}".lower()
             if query in text:
                 matches.append(s)
 
@@ -485,8 +485,7 @@ class SkillCommand(Command):
             )
         console.print(table)
         console.print(
-            "[dim]· = low-confidence (sample < 10). "
-            "Hybrid ranking respects priority first, score within tier.[/dim]"
+            "[dim]· = low-confidence (sample < 10). Hybrid ranking respects priority first, score within tier.[/dim]"
         )
         return True
 
@@ -496,14 +495,12 @@ class SkillCommand(Command):
 
     def handle_auto(self, args: list[str] | None = None) -> bool:
         """Dispatch /skill auto <detect|status>."""
-        sub = (args[0].lower() if args else "status")
+        sub = args[0].lower() if args else "status"
         if sub == "detect":
             return self._auto_detect()
         if sub == "status":
             return self._auto_status()
-        console.print(
-            "[red]Usage: /skill auto detect | /skill auto status[/red]"
-        )
+        console.print("[red]Usage: /skill auto detect | /skill auto status[/red]")
         return False
 
     def _auto_detect(self) -> bool:
@@ -521,6 +518,7 @@ class SkillCommand(Command):
                 from kryon.learning.findings_library import (
                     list as fnd_list,  # type: ignore[attr-defined]
                 )
+
                 return fnd_list()
             except Exception:
                 return []
@@ -590,18 +588,11 @@ class SkillCommand(Command):
                 table.add_row(
                     md.stem,
                     report.get("eval_status", "?"),
-                    (
-                        f"{report.get('pass_rate', 0) * 100:.0f}%"
-                        if report.get("pass_rate") is not None
-                        else "—"
-                    ),
+                    (f"{report.get('pass_rate', 0) * 100:.0f}%" if report.get("pass_rate") is not None else "—"),
                     (report.get("reason", "")[:80] or "—"),
                 )
             console.print(table)
-        console.print(
-            "[dim]Promote a passed draft with /skill promote <name> "
-            "after manual review.[/dim]"
-        )
+        console.print("[dim]Promote a passed draft with /skill promote <name> after manual review.[/dim]")
         return True
 
     @staticmethod

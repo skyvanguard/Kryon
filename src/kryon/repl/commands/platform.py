@@ -3,7 +3,6 @@ Platform command for KRYON REPL.
 This module provides commands for interacting with platform-specific features.
 """
 
-
 from rich.console import Console  # pylint: disable=import-error
 from rich.panel import Panel  # pylint: disable=import-error
 

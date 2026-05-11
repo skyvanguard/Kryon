@@ -20,9 +20,18 @@ from kryon.compliance.runner import register_check, run_cmd
 
 # Best-effort list of WPA3-capable Ubiquiti AP model strings.
 _WPA3_CAPABLE_MODELS = {
-    "U6-Lite", "U6-LR", "U6-Pro", "U6-Mesh", "U6-Enterprise",
-    "U6-IW", "U6-Plus", "U6+", "U6 IW",
-    "U7-Pro", "U7", "UWP-700",
+    "U6-Lite",
+    "U6-LR",
+    "U6-Pro",
+    "U6-Mesh",
+    "U6-Enterprise",
+    "U6-IW",
+    "U6-Plus",
+    "U6+",
+    "U6 IW",
+    "U7-Pro",
+    "U7",
+    "UWP-700",
 }
 
 
@@ -132,9 +141,7 @@ class _Wpa3AvailableCheck:
 
         issues: list[str] = []
         if wpa2_only_corp_ssids:
-            issues.append(
-                f"{len(wpa2_only_corp_ssids)} corporate SSID(s) on WPA2-only despite WPA3-capable APs"
-            )
+            issues.append(f"{len(wpa2_only_corp_ssids)} corporate SSID(s) on WPA2-only despite WPA3-capable APs")
 
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(

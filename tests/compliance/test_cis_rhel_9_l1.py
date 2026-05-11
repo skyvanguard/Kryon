@@ -14,10 +14,7 @@ try:
 except (ImportError, ModuleNotFoundError):
     pytest.skip("compliance/cis not importable", allow_module_level=True)
 
-_YAML = (
-    Path(__file__).resolve().parents[2]
-    / "src/kryon/compliance/cis/frameworks/cis-rhel-9-l1.yaml"
-)
+_YAML = Path(__file__).resolve().parents[2] / "src/kryon/compliance/cis/frameworks/cis-rhel-9-l1.yaml"
 _ID_RE = re.compile(r"^CIS-RHEL-\d+(\.\d+){1,3}$")
 
 
@@ -46,6 +43,7 @@ def test_sections_covered(framework):
 
 def test_natural_sort(framework):
     from kryon.compliance.runner import _natural_sort_key
+
     ids = [c.id for c in framework.checks]
     assert ids == sorted(ids, key=_natural_sort_key)
 

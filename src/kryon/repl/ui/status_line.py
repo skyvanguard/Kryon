@@ -61,6 +61,7 @@ def _count_drafts() -> int:
     """Return number of pending drafts in ~/.kryon/drafts/."""
     try:
         from kryon.learning.draft_writer import list_existing_names
+
         return len(list_existing_names())
     except Exception:  # noqa: BLE001
         return 0
@@ -71,10 +72,12 @@ def _ollama_healthy() -> bool:
     import os
 
     base = os.environ.get("OLLAMA_HOST") or os.environ.get(
-        "KRYON_EMBEDDING_BASE_URL", "http://localhost:11434",
+        "KRYON_EMBEDDING_BASE_URL",
+        "http://localhost:11434",
     )
     try:
         import requests
+
         r = requests.get(f"{base.rstrip('/')}/api/tags", timeout=0.5)
         return r.status_code == 200
     except Exception:  # noqa: BLE001
@@ -85,6 +88,7 @@ def _last_experience_id() -> str | None:
     """Return the id of the most recent experience, or None."""
     try:
         from kryon.learning import list_experiences
+
         rows = list_experiences(limit=1)
         if rows:
             return rows[0].get("id")
@@ -164,6 +168,7 @@ def render_status_line(agent: Any, console: Any) -> None:
     # the terminal width, no need to compute it ourselves.
     try:
         from rich.rule import Rule
+
         console.print(Rule(style="dim cyan"))
     except Exception:  # pragma: no cover
         pass

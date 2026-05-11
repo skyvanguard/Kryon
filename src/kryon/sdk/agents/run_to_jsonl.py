@@ -237,7 +237,8 @@ class DataRecorder:  # pylint: disable=too-few-public-methods
                         "tool_calls": [
                             # Handle both Pydantic (openai SDK) and SimpleNamespace
                             # (some Ollama-adapted models e.g. Qwen3-Coder) tool_call objects.
-                            t.model_dump() if hasattr(t, "model_dump")
+                            t.model_dump()
+                            if hasattr(t, "model_dump")
                             else (t.__dict__ if hasattr(t, "__dict__") else dict(t))
                             for t in (msg.choices[0].message.tool_calls or [])
                         ]

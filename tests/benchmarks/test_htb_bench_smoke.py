@@ -44,11 +44,7 @@ class TestParseChain:
     def test_ignores_non_invocation_lines(self) -> None:
         from scripts.htb_bench.runner import parse_chain
 
-        transcript = (
-            "Some narrative text mentioning ▸ as a literal arrow\n"
-            "  → also not an invocation\n"
-            "▸ nmap  target\n"
-        )
+        transcript = "Some narrative text mentioning ▸ as a literal arrow\n  → also not an invocation\n▸ nmap  target\n"
         # Only the line starting with whitespace+▸+tool_name counts.
         assert parse_chain(transcript) == ("nmap",)
 
@@ -106,10 +102,13 @@ class TestChainMatch:
     def test_order_independent(self) -> None:
         from scripts.htb_bench.runner import chain_match
 
-        assert chain_match(
-            ("run_command", "sqlmap_scan", "nmap"),
-            ["nmap", "sqlmap_scan"],
-        ) == 1.0
+        assert (
+            chain_match(
+                ("run_command", "sqlmap_scan", "nmap"),
+                ["nmap", "sqlmap_scan"],
+            )
+            == 1.0
+        )
 
 
 # ---------- Walkthrough loader ----------
@@ -139,8 +138,7 @@ class TestLoadWalkthrough:
 
 
 class TestAggregate:
-    def _result(self, slug: str, pwn: bool, score: float = 0.0, time: float | None = None,
-                error: str | None = None):
+    def _result(self, slug: str, pwn: bool, score: float = 0.0, time: float | None = None, error: str | None = None):
         from scripts.htb_bench.runner import RunResult
 
         return RunResult(
@@ -216,32 +214,37 @@ class TestAggregate:
 
 class TestRunnerDryRun:
     def test_dry_run_flow_pwn_path(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """KRYON_BENCH_DRY_RUN=1 + injected fixture → full RunResult."""
         from scripts.htb_bench.runner import run_target
 
         # Stub a walkthrough that points at a URL (no spawn needed).
         wt_path = tmp_path / "stub.json"
-        wt_path.write_text(json.dumps({
-            "slug": "stub-pwn",
-            "title": "Stub",
-            "source": {"type": "url", "ref": "http://stub.local"},
-            "expected_chain": [
-                {"tool": "sqlmap_scan", "rationale": "x", "required": True},
-                {"tool": "run_command", "rationale": "y", "required": True},
-            ],
-            "flag_pattern": [r"FLAG\{pwn\}"],
-            "wall_budget_seconds": 5,
-        }), encoding="utf-8")
+        wt_path.write_text(
+            json.dumps(
+                {
+                    "slug": "stub-pwn",
+                    "title": "Stub",
+                    "source": {"type": "url", "ref": "http://stub.local"},
+                    "expected_chain": [
+                        {"tool": "sqlmap_scan", "rationale": "x", "required": True},
+                        {"tool": "run_command", "rationale": "y", "required": True},
+                    ],
+                    "flag_pattern": [r"FLAG\{pwn\}"],
+                    "wall_budget_seconds": 5,
+                }
+            ),
+            encoding="utf-8",
+        )
 
         # Inject a fake transcript that has both required tools + the flag.
         monkeypatch.setenv("KRYON_BENCH_DRY_RUN", "1")
         monkeypatch.setenv(
             "KRYON_BENCH_FIXTURE_TRANSCRIPT",
-            "▸ sqlmap_scan  http://stub.local/?id=1\n"
-            "▸ run_command  echo done\n"
-            "found FLAG{pwn} in response\n",
+            "▸ sqlmap_scan  http://stub.local/?id=1\n▸ run_command  echo done\nfound FLAG{pwn} in response\n",
         )
 
         result = run_target(wt_path)
@@ -254,21 +257,28 @@ class TestRunnerDryRun:
         assert result.error is None
 
     def test_dry_run_no_flag_yields_no_pwn(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from scripts.htb_bench.runner import run_target
 
         wt_path = tmp_path / "stub.json"
-        wt_path.write_text(json.dumps({
-            "slug": "stub-fail",
-            "title": "Stub",
-            "source": {"type": "url", "ref": "http://stub.local"},
-            "expected_chain": [
-                {"tool": "sqlmap_scan", "rationale": "x", "required": True},
-            ],
-            "flag_pattern": [r"FLAG\{never\}"],
-            "wall_budget_seconds": 5,
-        }), encoding="utf-8")
+        wt_path.write_text(
+            json.dumps(
+                {
+                    "slug": "stub-fail",
+                    "title": "Stub",
+                    "source": {"type": "url", "ref": "http://stub.local"},
+                    "expected_chain": [
+                        {"tool": "sqlmap_scan", "rationale": "x", "required": True},
+                    ],
+                    "flag_pattern": [r"FLAG\{never\}"],
+                    "wall_budget_seconds": 5,
+                }
+            ),
+            encoding="utf-8",
+        )
 
         monkeypatch.setenv("KRYON_BENCH_DRY_RUN", "1")
         monkeypatch.setenv(
@@ -327,7 +337,8 @@ class TestPlatformResolution:
             assert ready, f"platform {plat!r} has no ready walkthrough"
 
     def test_select_targets_all_platforms_returns_tuples(
-        self, monkeypatch: pytest.MonkeyPatch,
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """`--platform all --status ready` must yield (slug, platform)
         tuples covering both labsets."""
@@ -336,7 +347,10 @@ class TestPlatformResolution:
         from scripts.htb_bench.cli import _select_targets
 
         args = argparse.Namespace(
-            target=None, all=True, platform="all", status="ready",
+            target=None,
+            all=True,
+            platform="all",
+            status="ready",
         )
         pairs = _select_targets(args)
         platforms_seen = {plat for _, plat in pairs}
@@ -370,8 +384,7 @@ class TestTryHackMeWalkthroughs:
 
 
 class TestReporter:
-    def _payload(self, *, pwned: int = 1, total: int = 2,
-                 platforms: list[str] | None = None) -> dict:
+    def _payload(self, *, pwned: int = 1, total: int = 2, platforms: list[str] | None = None) -> dict:
         """Build a minimal payload matching what cli.main() writes."""
         results = [
             {
@@ -396,7 +409,9 @@ class TestReporter:
                 "pwn_rate": pwned / total if total else 0.0,
                 "mean_chain_match": 1.0 if pwned else 0.0,
                 "median_time_to_pwn_seconds": 12.0 if pwned else None,
-                "by_category": {"sqli": {"total": float(total), "pwned": float(pwned), "pwn_rate": pwned / total if total else 0.0}},
+                "by_category": {
+                    "sqli": {"total": float(total), "pwned": float(pwned), "pwn_rate": pwned / total if total else 0.0}
+                },
                 "errors": 0,
                 "error_breakdown": {},
             },

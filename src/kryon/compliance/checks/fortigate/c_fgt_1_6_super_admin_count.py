@@ -25,7 +25,7 @@ class _SuperAdminCountCheck:
     remediation_static = (
         "Replace casual super-admins with role-scoped accprofiles:\n"
         "  config system accprofile\n"
-        "    edit \"netops_readonly\"\n"
+        '    edit "netops_readonly"\n'
         "      set scope vdom\n"
         "      set sysgrp read\n"
         "      set fwgrp read\n"
@@ -35,7 +35,7 @@ class _SuperAdminCountCheck:
         "Then reassign:\n"
         "  config system admin\n"
         "    edit <user>\n"
-        "      set accprofile \"netops_readonly\"\n"
+        '      set accprofile "netops_readonly"\n'
         "    next\n"
         "  end\n"
         "Keep super_admin to the break-glass account + on-call backup only."
@@ -82,9 +82,7 @@ class _SuperAdminCountCheck:
 
         issues: list[str] = []
         if len(super_admins) > _MAX_SUPER_ADMINS:
-            issues.append(
-                f"{len(super_admins)} super_admin accounts > {_MAX_SUPER_ADMINS} threshold"
-            )
+            issues.append(f"{len(super_admins)} super_admin accounts > {_MAX_SUPER_ADMINS} threshold")
 
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(

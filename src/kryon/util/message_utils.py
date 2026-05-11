@@ -17,6 +17,7 @@ def _hide_cost() -> bool:
     val = os.environ.get("KRYON_HIDE_COST", "1").strip().lower()
     return val in ("1", "true", "yes", "on")
 
+
 from rich.box import ROUNDED
 from rich.console import Console, Group
 from rich.markdown import Markdown
@@ -868,7 +869,8 @@ def _create_token_display(
     show_cost = not _hide_cost()
 
     tokens_text.append(
-        f"I:{interaction_input_tokens} O:{interaction_output_tokens}", style="dim cyan",
+        f"I:{interaction_input_tokens} O:{interaction_output_tokens}",
+        style="dim cyan",
     )
     if interaction_reasoning_tokens > 0:
         tokens_text.append(f" R:{interaction_reasoning_tokens}", style="dim cyan")

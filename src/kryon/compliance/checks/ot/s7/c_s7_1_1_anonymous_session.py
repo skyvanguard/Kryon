@@ -49,24 +49,18 @@ class _S7_11Check:
             stdout = f"port 102 unreachable on {ctx.host}: {result.error}"
         elif result.s7_session_established:
             verdict = "FAIL"
-            stdout = (
-                f"S7Comm session established without authentication on "
-                f"{ctx.host}:102."
-            )
+            stdout = f"S7Comm session established without authentication on {ctx.host}:102."
             if result.module_identification:
                 ident_pieces = []
                 for key in ("order_code", "firmware"):
                     if key in result.module_identification:
-                        ident_pieces.append(
-                            f"{key}={result.module_identification[key]!r}"
-                        )
+                        ident_pieces.append(f"{key}={result.module_identification[key]!r}")
                 if ident_pieces:
                     stdout += " Device: " + ", ".join(ident_pieces) + "."
         elif result.cotp_connected:
             verdict = "PASS"
             stdout = (
-                f"COTP connection accepted but S7 setup rejected on "
-                f"{ctx.host}:102 — likely access protection enabled."
+                f"COTP connection accepted but S7 setup rejected on {ctx.host}:102 — likely access protection enabled."
             )
         else:
             verdict = "N/A"

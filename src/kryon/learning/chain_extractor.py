@@ -108,9 +108,7 @@ def _extract_tool_calls(history: Iterable[Any]) -> list[dict[str, Any]]:
                 chain.append(call)
                 pending.pop(tc_id, None)
             else:
-                chain.append(
-                    {"tool": "unknown", "args": "", "status": "orphan-output", "output": out[:2000]}
-                )
+                chain.append({"tool": "unknown", "args": "", "status": "orphan-output", "output": out[:2000]})
 
         # Responses-API style items: function_call / function_call_output
         item_type = msg.get("type")
@@ -177,7 +175,11 @@ def _classify_outcome(text: str, chain: list[dict[str, Any]]) -> tuple[str, dict
     # Outcome classification
     if signals["shell_gained"] or signals["flag_found"]:
         outcome = "success"
-    elif chain and any(c.get("status") == "ok" for c in chain) and (signals["cve_confirmed"] or signals["directories_found"] >= 3):
+    elif (
+        chain
+        and any(c.get("status") == "ok" for c in chain)
+        and (signals["cve_confirmed"] or signals["directories_found"] >= 3)
+    ):
         outcome = "partial"
     elif chain:
         outcome = "recon-only"
@@ -237,7 +239,9 @@ def extract_chain_from_history(
         stats_bits.append("flag")
     stats_str = f" [{', '.join(stats_bits)}]" if stats_bits else ""
 
-    summary = f"{target_host}: {chain_str} [{outcome}{stats_str}]" if target_host else f"{chain_str} [{outcome}{stats_str}]"
+    summary = (
+        f"{target_host}: {chain_str} [{outcome}{stats_str}]" if target_host else f"{chain_str} [{outcome}{stats_str}]"
+    )
 
     return {
         "chain": chain,

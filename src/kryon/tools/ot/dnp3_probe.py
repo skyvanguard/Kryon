@@ -54,7 +54,7 @@ class DNP3ProbeResult:
     host: str
     port: int
     reachable: bool
-    responds_to_dnp3: bool          # device replied with valid DNP3 framing
+    responds_to_dnp3: bool  # device replied with valid DNP3 framing
     iin_bits: dict[str, bool] = field(default_factory=dict)  # device flags
     outstation_address: int | None = None
     secure_auth_v5_active: bool | None = None  # None if undetermined
@@ -123,7 +123,13 @@ def _build_read_class0_frame(
     control = 0xC4
 
     dl_header_no_crc = struct.pack(
-        "<BBBBHH", 0x05, 0x64, length, control, destination, source,
+        "<BBBBHH",
+        0x05,
+        0x64,
+        length,
+        control,
+        destination,
+        source,
     )
     dl_crc = _dnp3_crc(dl_header_no_crc)
     dl_frame = dl_header_no_crc + struct.pack("<H", dl_crc)
@@ -153,20 +159,20 @@ def _parse_iin(response: bytes) -> dict[str, bool] | None:
     iin1 = response[13]
     iin2 = response[14]
     return {
-        "broadcast":          bool(iin1 & 0x01),
-        "class_1_events":     bool(iin1 & 0x02),
-        "class_2_events":     bool(iin1 & 0x04),
-        "class_3_events":     bool(iin1 & 0x08),
-        "need_time":          bool(iin1 & 0x10),
-        "local_control":      bool(iin1 & 0x20),
-        "device_trouble":     bool(iin1 & 0x40),
-        "device_restart":     bool(iin1 & 0x80),
-        "no_func_code_supp":  bool(iin2 & 0x01),
-        "object_unknown":     bool(iin2 & 0x02),
-        "parameter_error":    bool(iin2 & 0x04),
-        "buffer_overflow":    bool(iin2 & 0x08),
+        "broadcast": bool(iin1 & 0x01),
+        "class_1_events": bool(iin1 & 0x02),
+        "class_2_events": bool(iin1 & 0x04),
+        "class_3_events": bool(iin1 & 0x08),
+        "need_time": bool(iin1 & 0x10),
+        "local_control": bool(iin1 & 0x20),
+        "device_trouble": bool(iin1 & 0x40),
+        "device_restart": bool(iin1 & 0x80),
+        "no_func_code_supp": bool(iin2 & 0x01),
+        "object_unknown": bool(iin2 & 0x02),
+        "parameter_error": bool(iin2 & 0x04),
+        "buffer_overflow": bool(iin2 & 0x08),
         "operation_already_executing": bool(iin2 & 0x10),
-        "config_corrupt":     bool(iin2 & 0x20),
+        "config_corrupt": bool(iin2 & 0x20),
     }
 
 

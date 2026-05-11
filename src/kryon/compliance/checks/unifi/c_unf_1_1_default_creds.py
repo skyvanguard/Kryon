@@ -60,9 +60,7 @@ class _UnifiDefaultCredsCheck:
                 evidence_command=cmd,
                 evidence_stdout=out[:512],
                 evidence_stderr=err[:512],
-                evidence_parsed={
-                    "reason": "could not query mongo (controller offline / no SSH)"
-                },
+                evidence_parsed={"reason": "could not query mongo (controller offline / no SSH)"},
                 remediation_static=self.remediation_static,
                 severity=self.severity,
                 duration_ms=int((time.time() - t0) * 1000),
@@ -89,10 +87,7 @@ class _UnifiDefaultCredsCheck:
             if pwd and _SHA1_HEX.match(pwd):
                 suspect_admins.append(f"{name} (legacy SHA1 hash)")
 
-        issues = [
-            f"admin '{n}' matches default-name / weak-hash heuristic"
-            for n in sorted(set(suspect_admins))
-        ]
+        issues = [f"admin '{n}' matches default-name / weak-hash heuristic" for n in sorted(set(suspect_admins))]
         verdict = "PASS" if not issues else "FAIL"
         return CheckResult(
             control_id=self.control_id,

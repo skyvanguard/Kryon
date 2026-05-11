@@ -57,6 +57,7 @@ class SuppressionRule:
 @dataclass
 class AllowList:
     """Loaded allow-list + its source path + audit log path."""
+
     rules: list[SuppressionRule] = field(default_factory=list)
     repo_root: Path = field(default_factory=lambda: Path("."))
     audit_path: Path = field(default_factory=lambda: Path("."))
@@ -75,9 +76,7 @@ class AllowList:
             return False
         return True
 
-    def match(
-        self, file_path: str, rule_id: str, line: int = 0
-    ) -> SuppressionRule | None:
+    def match(self, file_path: str, rule_id: str, line: int = 0) -> SuppressionRule | None:
         """Return the first matching rule, or None."""
         for r in self.rules:
             if self._match(r, file_path, rule_id, line):
@@ -92,12 +91,7 @@ class AllowList:
         hits: list[dict] = []
         for f in findings:
             fp = f.get("file_path", "")
-            rule_id = (
-                f.get("_semgrep_rule_id")
-                or f.get("_pattern")
-                or f.get("_joern_rule_id")
-                or ""
-            )
+            rule_id = f.get("_semgrep_rule_id") or f.get("_pattern") or f.get("_joern_rule_id") or ""
             line = _parse_line(f.get("line_range") or "0")
             m = self.match(fp, rule_id, line)
             if m is not None:
@@ -107,16 +101,18 @@ class AllowList:
                     "reason": m.reason,
                     "added_by": m.added_by,
                 }
-                hits.append({
-                    "ts": int(time.time()),
-                    "file": fp,
-                    "rule_id": rule_id,
-                    "line": line,
-                    "cwe": f.get("cwe", ""),
-                    "matched_glob": m.file_glob,
-                    "matched_rule_id": m.rule_id,
-                    "reason": m.reason,
-                })
+                hits.append(
+                    {
+                        "ts": int(time.time()),
+                        "file": fp,
+                        "rule_id": rule_id,
+                        "line": line,
+                        "cwe": f.get("cwe", ""),
+                        "matched_glob": m.file_glob,
+                        "matched_rule_id": m.rule_id,
+                        "reason": m.reason,
+                    }
+                )
             out.append(f)
         if hits:
             _append_audit(self.audit_path, hits)
@@ -186,11 +182,12 @@ def load(repo_root: str | Path) -> AllowList:
     if yaml_path.is_file():
         try:
             import yaml  # PyYAML — already a transitive dep via semgrep
+
             doc = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
         except Exception as exc:
             logger.warning("allow-list YAML parse failed at %s: %s", yaml_path, exc)
             doc = {}
-        for entry in (doc.get("suppressions") or []):
+        for entry in doc.get("suppressions") or []:
             if not isinstance(entry, dict):
                 continue
             rule = _parse_entry(entry)

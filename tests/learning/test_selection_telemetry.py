@@ -97,7 +97,8 @@ def test_user_msg_is_hashed_by_default(log_dir: Path) -> None:
 
 
 def test_plaintext_mode_includes_message_text(
-    log_dir: Path, monkeypatch: pytest.MonkeyPatch,
+    log_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Operator can opt in to plaintext logging for full auditability —
     only when explicitly enabled."""
@@ -120,7 +121,8 @@ def test_plaintext_mode_includes_message_text(
 
 
 def test_disable_flag_skips_writes(
-    log_dir: Path, monkeypatch: pytest.MonkeyPatch,
+    log_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("KRYON_SELECTION_LOG_DISABLE", "1")
     from kryon.learning.selection_telemetry import log_selection
@@ -178,8 +180,10 @@ def test_read_recent_returns_newest_first(log_dir: Path) -> None:
 
     for i in range(3):
         log_selection(
-            user_msg=f"msg-{i}", ranking_mode="priority",
-            candidates=[], selected=[f"skill-{i}"],
+            user_msg=f"msg-{i}",
+            ranking_mode="priority",
+            candidates=[],
+            selected=[f"skill-{i}"],
         )
 
     rows = read_recent(limit=2)

@@ -89,6 +89,7 @@ def test_truncates_long_skill_lists_with_overflow_marker() -> None:
 
 def test_handles_agent_with_no_skills_attr() -> None:
     """Bare agent (no _active_skills) renders a 'no skills' indicator."""
+
     class _Bare:
         pass
 
@@ -187,7 +188,9 @@ def test_last_experience_shown_when_present(monkeypatch: pytest.MonkeyPatch) -> 
     from kryon.repl.ui import status_line
 
     monkeypatch.setattr(
-        status_line, "_last_experience_id", lambda: "eng_a3f9b2c1d4e5",
+        status_line,
+        "_last_experience_id",
+        lambda: "eng_a3f9b2c1d4e5",
     )
     agent = _FakeAgent(skills=[_FakeSkill("x")], tools=[])
     out = _render(agent)

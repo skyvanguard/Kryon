@@ -109,8 +109,7 @@ class _TfaEnforcedCheck:
             verdict=verdict,
             evidence_command=f"{domains_cmd} ; {user_cmd}",
             evidence_stdout=(
-                f"=== domains.cfg realm-tfa ===\n{realm_tfa}\n\n"
-                f"=== users without tfa (first 5) ===\n{admin_no_tfa[:5]}"
+                f"=== domains.cfg realm-tfa ===\n{realm_tfa}\n\n=== users without tfa (first 5) ===\n{admin_no_tfa[:5]}"
             )[:2048],
             evidence_stderr="",
             evidence_parsed={

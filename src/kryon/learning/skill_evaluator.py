@@ -55,140 +55,211 @@ logger = logging.getLogger(__name__)
 #     a CWE). New CWEs in the file extend the default map.
 _DEFAULT_CWE_TO_TOOLS: dict[str, set[str]] = {
     # ---- OWASP Top 10 / web app ----
-    "CWE-89":  {  # SQL injection
-        "sqlmap_scan", "sqlmap_request", "sqlmap_crawl", "validate_sqli",
-        "nuclei_scan", "burp_active_scan", "zap_full_scan", "zap_baseline_scan",
+    "CWE-89": {  # SQL injection
+        "sqlmap_scan",
+        "sqlmap_request",
+        "sqlmap_crawl",
+        "validate_sqli",
+        "nuclei_scan",
+        "burp_active_scan",
+        "zap_full_scan",
+        "zap_baseline_scan",
     },
-    "CWE-79":  {  # XSS (reflected/stored)
-        "validate_xss", "browser_test_xss", "nuclei_scan",
-        "burp_active_scan", "zap_full_scan", "zap_baseline_scan",
+    "CWE-79": {  # XSS (reflected/stored)
+        "validate_xss",
+        "browser_test_xss",
+        "nuclei_scan",
+        "burp_active_scan",
+        "zap_full_scan",
+        "zap_baseline_scan",
     },
-    "CWE-22":  {  # path traversal / LFI
-        "nuclei_scan", "feroxbuster_scan", "wfuzz",
-        "burp_active_scan", "zap_full_scan",
+    "CWE-22": {  # path traversal / LFI
+        "nuclei_scan",
+        "feroxbuster_scan",
+        "wfuzz",
+        "burp_active_scan",
+        "zap_full_scan",
     },
-    "CWE-78":  {  # OS command injection
-        "nuclei_scan", "burp_active_scan", "zap_full_scan",
+    "CWE-78": {  # OS command injection
+        "nuclei_scan",
+        "burp_active_scan",
+        "zap_full_scan",
         "generate_injection_payloads",
     },
-    "CWE-94":  {  # generic code injection
-        "nuclei_scan", "semgrep_scan", "joern_scan",
-        "burp_active_scan", "generate_injection_payloads",
+    "CWE-94": {  # generic code injection
+        "nuclei_scan",
+        "semgrep_scan",
+        "joern_scan",
+        "burp_active_scan",
+        "generate_injection_payloads",
     },
     "CWE-918": {  # SSRF
-        "nuclei_scan", "burp_active_scan", "fuzz_api_endpoint",
+        "nuclei_scan",
+        "burp_active_scan",
+        "fuzz_api_endpoint",
     },
     "CWE-352": {  # CSRF
-        "burp_active_scan", "zap_full_scan", "nuclei_scan",
+        "burp_active_scan",
+        "zap_full_scan",
+        "nuclei_scan",
     },
     "CWE-611": {  # XXE
-        "nuclei_scan", "burp_active_scan", "fuzz_api_endpoint",
+        "nuclei_scan",
+        "burp_active_scan",
+        "fuzz_api_endpoint",
         "zap_full_scan",
     },
     "CWE-434": {  # unrestricted upload
-        "nuclei_scan", "burp_active_scan", "zap_full_scan",
+        "nuclei_scan",
+        "burp_active_scan",
+        "zap_full_scan",
         "fuzz_api_endpoint",
     },
     "CWE-502": {  # insecure deserialization
-        "nuclei_scan", "burp_active_scan", "joern_scan", "semgrep_scan",
+        "nuclei_scan",
+        "burp_active_scan",
+        "joern_scan",
+        "semgrep_scan",
     },
     "CWE-200": {  # information exposure
-        "whatweb_scan", "nuclei_scan", "crawl_web_target", "nmap",
+        "whatweb_scan",
+        "nuclei_scan",
+        "crawl_web_target",
+        "nmap",
         "feroxbuster_scan",
     },
     "CWE-693": {  # protection-mechanism failure (security headers etc)
-        "nuclei_scan", "burp_active_scan", "zap_baseline_scan",
+        "nuclei_scan",
+        "burp_active_scan",
+        "zap_baseline_scan",
         "run_compliance_audit",
     },
     # CWE-1004 (missing HttpOnly / Secure on cookies) is intentionally NOT
     # in the default map — banking ops team should opt in via override
     # if they care, otherwise findings of that class skip the denominator.
-
     # ---- AuthN / AuthZ ----
     "CWE-287": {  # improper authentication / brute-forceable
-        "hydra_attack", "medusa_attack", "credential_spray",
-        "nuclei_scan", "burp_active_scan",
+        "hydra_attack",
+        "medusa_attack",
+        "credential_spray",
+        "nuclei_scan",
+        "burp_active_scan",
     },
     "CWE-307": {  # missing rate-limit / lockout
-        "hydra_attack", "medusa_attack", "credential_spray",
+        "hydra_attack",
+        "medusa_attack",
+        "credential_spray",
         "burp_active_scan",
     },
     "CWE-639": {  # IDOR / BOLA — API authorization
-        "discover_api_endpoints", "api_security_scan", "owasp_api_top",
-        "fuzz_api_endpoint", "burp_active_scan",
+        "discover_api_endpoints",
+        "api_security_scan",
+        "owasp_api_top",
+        "fuzz_api_endpoint",
+        "burp_active_scan",
     },
     "CWE-915": {  # mass-assignment (unsafe object property modification)
-        "api_security_scan", "owasp_api_top", "fuzz_api_endpoint",
+        "api_security_scan",
+        "owasp_api_top",
+        "fuzz_api_endpoint",
         "burp_active_scan",
     },
     "CWE-345": {  # JWT / token verification (insufficient signing checks)
-        "jwt_decode", "jwt_forge", "jwt_crack", "nuclei_scan",
+        "jwt_decode",
+        "jwt_forge",
+        "jwt_crack",
+        "nuclei_scan",
     },
-
     # ---- Network / TLS / config ----
     "CWE-319": {  # cleartext transmission
-        "nmap", "nuclei_scan", "frida_intercept_ssl",
+        "nmap",
+        "nuclei_scan",
+        "frida_intercept_ssl",
         "run_compliance_audit",
     },
     "CWE-326": {  # weak/inadequate crypto
-        "nuclei_scan", "nmap", "run_compliance_audit",
+        "nuclei_scan",
+        "nmap",
+        "run_compliance_audit",
     },
     "CWE-327": {  # broken / risky cryptographic algorithm
-        "nuclei_scan", "nmap", "semgrep_scan", "joern_scan",
+        "nuclei_scan",
+        "nmap",
+        "semgrep_scan",
+        "joern_scan",
     },
     "CWE-295": {  # improper certificate validation
-        "nmap", "nuclei_scan", "frida_intercept_ssl",
+        "nmap",
+        "nuclei_scan",
+        "frida_intercept_ssl",
     },
     "CWE-732": {  # incorrect permission assignment
-        "run_compliance_audit", "semgrep_scan",
+        "run_compliance_audit",
+        "semgrep_scan",
     },
-
     # ---- Active Directory / lateral movement ----
     # Note: Kryon's AD playbooks expose dedicated tools — map AD-class
     # CWEs to those rather than to generic web scanners.
     "CWE-1390": {  # weak authentication in AD context (umbrella)
-        "bloodhound_collect", "bas_ad_reconnaissance",
-        "kerberoast", "asreproast", "dcsync_attack",
+        "bloodhound_collect",
+        "bas_ad_reconnaissance",
+        "kerberoast",
+        "asreproast",
+        "dcsync_attack",
     },
-    "CWE-264":  {  # generic permission/privilege issues (AD ACLs etc)
-        "bloodhound_collect", "bas_ad_reconnaissance", "dcsync_attack",
-        "smb_lateral_movement", "rdp_lateral_movement",
+    "CWE-264": {  # generic permission/privilege issues (AD ACLs etc)
+        "bloodhound_collect",
+        "bas_ad_reconnaissance",
+        "dcsync_attack",
+        "smb_lateral_movement",
+        "rdp_lateral_movement",
     },
-
     # ---- Credentials / secrets ----
     "CWE-798": {  # use of hard-coded credentials
-        "semgrep_scan", "joern_scan", "search_credential_dataset",
+        "semgrep_scan",
+        "joern_scan",
+        "search_credential_dataset",
     },
     "CWE-256": {  # plaintext storage of credentials
-        "semgrep_scan", "joern_scan", "search_credential_dataset",
+        "semgrep_scan",
+        "joern_scan",
+        "search_credential_dataset",
     },
     "CWE-916": {  # password hashing without salt / weak hashing
-        "semgrep_scan", "crack_ntlm_hash",
+        "semgrep_scan",
+        "crack_ntlm_hash",
     },
-
     # ---- Supply chain / SBOM ----
     "CWE-1357": {  # reliance on insufficiently trustworthy component
-        "scan_sbom_vulns", "check_typosquatting",
+        "scan_sbom_vulns",
+        "check_typosquatting",
         "detect_dependency_confusion",
     },
-    "CWE-829":  {  # inclusion of functionality from untrusted control sphere
-        "scan_sbom_vulns", "check_typosquatting",
-        "detect_dependency_confusion", "semgrep_scan",
+    "CWE-829": {  # inclusion of functionality from untrusted control sphere
+        "scan_sbom_vulns",
+        "check_typosquatting",
+        "detect_dependency_confusion",
+        "semgrep_scan",
     },
-
     # ---- Wireless / 802.11 (Unifi audits) ----
     "CWE-1391": {  # use of weak credentials (covers WPA2 weak PSKs)
-        "aircrack_capture", "aircrack_crack",
-        "credential_spray", "hydra_attack",
+        "aircrack_capture",
+        "aircrack_crack",
+        "credential_spray",
+        "hydra_attack",
     },
-
     # ---- API security (OWASP API Top 10) ----
-    "CWE-285":  {  # improper authorization
-        "api_security_scan", "owasp_api_top", "discover_api_endpoints",
-        "fuzz_api_endpoint", "burp_active_scan",
+    "CWE-285": {  # improper authorization
+        "api_security_scan",
+        "owasp_api_top",
+        "discover_api_endpoints",
+        "fuzz_api_endpoint",
+        "burp_active_scan",
     },
-    "CWE-862":  {  # missing authorization
-        "api_security_scan", "owasp_api_top", "discover_api_endpoints",
+    "CWE-862": {  # missing authorization
+        "api_security_scan",
+        "owasp_api_top",
+        "discover_api_endpoints",
         "fuzz_api_endpoint",
     },
 }
@@ -239,9 +310,7 @@ def load_cwe_map_override(
     back to the unchanged default map. The caller never gets an
     exception — eval pipeline must keep running.
     """
-    merged: dict[str, set[str]] = {
-        cwe: set(tools) for cwe, tools in _DEFAULT_CWE_TO_TOOLS.items()
-    }
+    merged: dict[str, set[str]] = {cwe: set(tools) for cwe, tools in _DEFAULT_CWE_TO_TOOLS.items()}
 
     file_path = _resolve_override_path(path)
     if file_path is None or not file_path.is_file():
@@ -249,6 +318,7 @@ def load_cwe_map_override(
 
     try:
         import yaml  # PyYAML is in the base deps via transitives
+
         raw = yaml.safe_load(file_path.read_text(encoding="utf-8"))
     except Exception as e:  # noqa: BLE001
         logger.warning("cwe_map override load failed (%s): %s", file_path, e)
@@ -259,16 +329,17 @@ def load_cwe_map_override(
         if raw is None:
             return merged
         logger.warning(
-            "cwe_map override at %s has wrong shape (expected dict, got %s) "
-            "— ignoring", file_path, type(raw).__name__,
+            "cwe_map override at %s has wrong shape (expected dict, got %s) — ignoring",
+            file_path,
+            type(raw).__name__,
         )
         return merged
 
     for cwe, tools in raw.items():
         if not isinstance(tools, list):
             logger.warning(
-                "cwe_map override: %s value must be a list of tool names "
-                "— skipping", cwe,
+                "cwe_map override: %s value must be a list of tool names — skipping",
+                cwe,
             )
             continue
         # Coerce to set of strings; drop non-string items defensively.
@@ -323,9 +394,7 @@ def _profiles_overlap(cluster_tech: set[str], finding_tech: set[str]) -> bool:
     return bool(cluster_tech & finding_tech)
 
 
-def _relevant_findings(
-    findings: list[dict[str, Any]], cluster_profile: dict[str, Any]
-) -> list[dict[str, Any]]:
+def _relevant_findings(findings: list[dict[str, Any]], cluster_profile: dict[str, Any]) -> list[dict[str, Any]]:
     """Filter to findings whose tech overlaps the cluster's profile."""
     cluster_tech = _profile_tech(cluster_profile)
     return [f for f in findings if _profiles_overlap(cluster_tech, _finding_tech(f))]
@@ -361,12 +430,14 @@ def _guide_threshold() -> float:
     raw = os.environ.get("KRYON_GUIDE_THRESHOLD", "")
     if not raw:
         from kryon.learning.guide_scorer import GUIDE_DEFAULT_THRESHOLD
+
         return GUIDE_DEFAULT_THRESHOLD
     try:
         return float(raw)
     except ValueError:
         logger.warning("Invalid KRYON_GUIDE_THRESHOLD=%r — falling back to default", raw)
         from kryon.learning.guide_scorer import GUIDE_DEFAULT_THRESHOLD
+
         return GUIDE_DEFAULT_THRESHOLD
 
 

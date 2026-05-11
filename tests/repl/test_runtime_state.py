@@ -139,6 +139,7 @@ def test_concurrent_set_and_read_does_not_crash() -> None:
     t1.start()
     t2.start()
     import time
+
     time.sleep(0.05)
     stop.set()
     t1.join(timeout=1)

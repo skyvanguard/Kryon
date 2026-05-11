@@ -80,7 +80,10 @@ _DEFAULT_SERVER = os.environ.get("KRYON_JOERN_URL", "ws://joern:8080")
 # after importing us (e.g. the Juliet bench switching env per-runner).
 # Keep a read-live helper + a mutable module var so tests can monkeypatch.
 _ENABLED = os.environ.get("KRYON_JOERN_ENABLED", "false").strip().lower() in {
-    "1", "true", "yes", "on",
+    "1",
+    "true",
+    "yes",
+    "on",
 }
 
 
@@ -90,7 +93,10 @@ def _enabled_now() -> bool:
     if _ENABLED:
         return True
     return os.environ.get("KRYON_JOERN_ENABLED", "false").strip().lower() in {
-        "1", "true", "yes", "on",
+        "1",
+        "true",
+        "yes",
+        "on",
     }
 
 
@@ -194,9 +200,7 @@ def _has_upper_bound(gcode: str, var: str) -> bool:
             return True
         if re.search(rf"[^<>=]\s*>=?\s*\b{re.escape(var)}\b", clause):
             return True
-        if re.search(r"\b(?:CHAR|INT|SHRT|LONG|SIZE)_MAX\b", clause) and re.search(
-            r"[<>]", clause
-        ):
+        if re.search(r"\b(?:CHAR|INT|SHRT|LONG|SIZE)_MAX\b", clause) and re.search(r"[<>]", clause):
             return True
     return False
 
@@ -265,9 +269,7 @@ def _execute_with_timeout(client, query: str, timeout_s: int, phase: str) -> dic
         # internally. Safe: next call begins with workspace.reset.
         raise _JoernError("timeout", f"{phase} exceeded {timeout_s}s", phase)
     if exc_holder:
-        raise _JoernError(
-            "error", f"{phase} raised: {exc_holder[0]!r}", phase
-        ) from exc_holder[0]
+        raise _JoernError("error", f"{phase} raised: {exc_holder[0]!r}", phase) from exc_holder[0]
     return result
 
 
@@ -348,8 +350,8 @@ def _make_finding(
         "confidence": _severity_to_confidence(severity),
         "cwe": cwe,
         "message": (
-            f"Tainted data from {src.get('code','source')!s} reaches "
-            f"{sink.get('code','sink')!s} without upper-bound validation"
+            f"Tainted data from {src.get('code', 'source')!s} reaches "
+            f"{sink.get('code', 'sink')!s} without upper-bound validation"
         )[:500],
         "method": method or "",
         "flow": flow_path,
@@ -405,9 +407,7 @@ def _run_one_query(
         guards = guards_by_method.get(method, [])
         if _flow_has_guard(path_nodes, guards):
             continue
-        findings.append(
-            _make_finding(cwe_label, rule_id, method, f.get("file", ""), path_nodes)
-        )
+        findings.append(_make_finding(cwe_label, rule_id, method, f.get("file", ""), path_nodes))
         if len(findings) >= max_findings:
             break
     return (findings, elapsed_ms)
@@ -434,35 +434,40 @@ def _joern_scan_impl(
     max_findings: int,
 ) -> str:
     if not _enabled_now():
-        return json.dumps({
-            "status": "unavailable",
-            "reason": "KRYON_JOERN_ENABLED is not true — bring up the "
-                      "`joern` compose service (profile: dataflow)",
-            "count": 0,
-            "findings": [],
-            "target": target_path,
-        })
+        return json.dumps(
+            {
+                "status": "unavailable",
+                "reason": "KRYON_JOERN_ENABLED is not true — bring up the `joern` compose service (profile: dataflow)",
+                "count": 0,
+                "findings": [],
+                "target": target_path,
+            }
+        )
 
     target = Path(target_path)
     if not target.exists():
-        return json.dumps({
-            "status": "error",
-            "reason": f"target not found: {target_path}",
-            "count": 0,
-            "findings": [],
-            "target": target_path,
-        })
+        return json.dumps(
+            {
+                "status": "error",
+                "reason": f"target not found: {target_path}",
+                "count": 0,
+                "findings": [],
+                "target": target_path,
+            }
+        )
 
     keys = list(_QUERIES.keys()) if cwe_focus == "auto" else [cwe_focus]
     unknown = [k for k in keys if k not in _QUERIES]
     if unknown:
-        return json.dumps({
-            "status": "error",
-            "reason": f"unsupported cwe_focus={unknown!r}, known: {list(_QUERIES)}",
-            "count": 0,
-            "findings": [],
-            "target": target_path,
-        })
+        return json.dumps(
+            {
+                "status": "error",
+                "reason": f"unsupported cwe_focus={unknown!r}, known: {list(_QUERIES)}",
+                "count": 0,
+                "findings": [],
+                "target": target_path,
+            }
+        )
 
     with _SCAN_LOCK:
         try:
@@ -472,49 +477,55 @@ def _joern_scan_impl(
             total_query_ms = 0
             for k in keys:
                 try:
-                    findings, q_ms = _run_one_query(
-                        client, k, query_timeout_s, max_findings
-                    )
+                    findings, q_ms = _run_one_query(client, k, query_timeout_s, max_findings)
                     all_findings.extend(findings)
                     total_query_ms += q_ms
                 except _JoernError as exc:
                     logger.warning("joern query %s failed: %s", k, exc.reason)
                     # Continue with remaining CWEs, but surface the error in status.
-                    return json.dumps({
-                        "status": exc.status,
-                        "reason": f"cwe={k}: {exc.reason}",
-                        "phase": exc.phase,
-                        "count": len(all_findings),
-                        "findings": _dedupe_findings(all_findings)[:max_findings],
-                        "target": target_path,
-                    })
+                    return json.dumps(
+                        {
+                            "status": exc.status,
+                            "reason": f"cwe={k}: {exc.reason}",
+                            "phase": exc.phase,
+                            "count": len(all_findings),
+                            "findings": _dedupe_findings(all_findings)[:max_findings],
+                            "target": target_path,
+                        }
+                    )
             all_findings = _dedupe_findings(all_findings)[:max_findings]
-            return json.dumps({
-                "status": "ok",
-                "count": len(all_findings),
-                "target": target_path,
-                "cwe_focus": cwe_focus,
-                "findings": all_findings,
-                "stats": {"parse_ms": parse_ms, "query_ms": total_query_ms},
-            })
+            return json.dumps(
+                {
+                    "status": "ok",
+                    "count": len(all_findings),
+                    "target": target_path,
+                    "cwe_focus": cwe_focus,
+                    "findings": all_findings,
+                    "stats": {"parse_ms": parse_ms, "query_ms": total_query_ms},
+                }
+            )
         except _JoernError as exc:
-            return json.dumps({
-                "status": exc.status,
-                "reason": exc.reason,
-                "phase": exc.phase,
-                "count": 0,
-                "findings": [],
-                "target": target_path,
-            })
+            return json.dumps(
+                {
+                    "status": exc.status,
+                    "reason": exc.reason,
+                    "phase": exc.phase,
+                    "count": 0,
+                    "findings": [],
+                    "target": target_path,
+                }
+            )
         except Exception as exc:  # catch-all: never raise to the agent
             logger.exception("joern_scan fatal")
-            return json.dumps({
-                "status": "error",
-                "reason": f"unexpected: {exc!r}",
-                "count": 0,
-                "findings": [],
-                "target": target_path,
-            })
+            return json.dumps(
+                {
+                    "status": "error",
+                    "reason": f"unexpected: {exc!r}",
+                    "count": 0,
+                    "findings": [],
+                    "target": target_path,
+                }
+            )
 
 
 @function_tool(strict_mode=False)

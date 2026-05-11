@@ -63,15 +63,26 @@ class _AuditPolicyCheck:
 
         if not (domain and user and pwd and dc):
             return missing_creds_error(
-                self.control_id, self.control_title, self.section,
-                self.severity, self.remediation_static, ctx.host, t0,
+                self.control_id,
+                self.control_title,
+                self.section,
+                self.severity,
+                self.remediation_static,
+                ctx.host,
+                t0,
             )
 
         if not check_tool(ctx, "rpcclient"):
             return tool_missing_error(
-                self.control_id, self.control_title, self.section,
-                self.severity, self.remediation_static, ctx.host, t0,
-                tool="rpcclient", install_hint="apt install smbclient",
+                self.control_id,
+                self.control_title,
+                self.section,
+                self.severity,
+                self.remediation_static,
+                ctx.host,
+                t0,
+                tool="rpcclient",
+                install_hint="apt install smbclient",
             )
 
         # Probe WinRM 5985/5986 first — if not reachable, SIEM forwarding
@@ -82,9 +93,7 @@ class _AuditPolicyCheck:
         winrm_open = "5985/tcp open" in n_out or "5986/tcp open" in n_out
 
         # Try `rpcclient` netsharegetinfo as a low-priv sanity check
-        rpc_cmd = (
-            f"rpcclient -U '{domain}\\\\{user}%{pwd}' -c 'srvinfo' {dc} 2>&1 | head -10"
-        )
+        rpc_cmd = f"rpcclient -U '{domain}\\\\{user}%{pwd}' -c 'srvinfo' {dc} 2>&1 | head -10"
         r_out, r_err, r_rc = run_cmd(ctx, rpc_cmd, shell=True, timeout_s=10)
 
         issues: list[str] = []
@@ -101,10 +110,7 @@ class _AuditPolicyCheck:
         }
 
         if not winrm_open:
-            issues.append(
-                "WinRM (5985/5986) not reachable — Event Forwarding "
-                "to SIEM unlikely to be configured"
-            )
+            issues.append("WinRM (5985/5986) not reachable — Event Forwarding to SIEM unlikely to be configured")
 
         if r_rc != 0 and "NT_STATUS_LOGON_FAILURE" not in r_out:
             # If logon failed, we still counted something
@@ -122,9 +128,7 @@ class _AuditPolicyCheck:
             section=self.section,
             verdict=verdict,
             evidence_command=f"{nmap_cmd} ; {rpc_cmd.replace(pwd, '***')}",
-            evidence_stdout=(
-                f"=== nmap WinRM ===\n{n_out}\n\n=== rpcclient srvinfo ===\n{r_out}"
-            )[:2048],
+            evidence_stdout=(f"=== nmap WinRM ===\n{n_out}\n\n=== rpcclient srvinfo ===\n{r_out}")[:2048],
             evidence_stderr=r_err[:256],
             evidence_parsed=parsed,
             remediation_static=self.remediation_static,

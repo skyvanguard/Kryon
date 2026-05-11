@@ -18,6 +18,7 @@ def _sanitize_html(value: str) -> str:
     value = re.sub(r"<[^>]+>", "", value)
     return value.strip()
 
+
 # --- Requests ---
 
 

@@ -51,8 +51,8 @@ class S7EnumResult:
     host: str
     port: int
     reachable: bool
-    cotp_connected: bool         # COTP Connection Confirm received
-    s7_session_established: bool # S7 Setup Ack received
+    cotp_connected: bool  # COTP Connection Confirm received
+    s7_session_established: bool  # S7 Setup Ack received
     module_identification: dict[str, str] = field(default_factory=dict)
     plc_firmware_version: str = ""
     error: str = ""
@@ -116,7 +116,12 @@ def _build_s7_setup_communication() -> bytes:
     """
     s7_pdu = struct.pack(
         ">BBHHHH",
-        0x32, 0x01, 0x0000, 0x0000, 0x0008, 0x0000,
+        0x32,
+        0x01,
+        0x0000,
+        0x0000,
+        0x0008,
+        0x0000,
     )
     s7_pdu += struct.pack(">BBHHH", 0xF0, 0x00, 0x0001, 0x0001, 0x03C0)
     # COTP Data PDU header: length(1)=0x02 | PDU_code(1)=0xF0 | TPDU_nr(1)
@@ -158,12 +163,15 @@ def _build_s7_read_szl(szl_id: int = 0x0011, szl_index: int = 0x0000) -> bytes:
     #  | szl_id(2) | szl_index(2)
     s7_pdu = struct.pack(
         ">BBHHHH",
-        0x32, 0x07, 0x0000, 0x0001, 0x0008, 0x0008,  # ROSCTR=7 (User Data)
+        0x32,
+        0x07,
+        0x0000,
+        0x0001,
+        0x0008,
+        0x0008,  # ROSCTR=7 (User Data)
     )
-    s7_pdu += struct.pack(">BBBBBBBB",
-                          0x00, 0x01, 0x12, 0x04, 0x11, 0x44, 0x01, 0x00)
-    s7_pdu += struct.pack(">BBHHH",
-                          0xFF, 0x09, 0x0004, szl_id, szl_index)
+    s7_pdu += struct.pack(">BBBBBBBB", 0x00, 0x01, 0x12, 0x04, 0x11, 0x44, 0x01, 0x00)
+    s7_pdu += struct.pack(">BBHHH", 0xFF, 0x09, 0x0004, szl_id, szl_index)
     cotp = struct.pack(">BBB", 0x02, 0xF0, 0x80) + s7_pdu
     return _tpkt_wrap(cotp)
 
@@ -208,6 +216,7 @@ def _parse_szl_module_id(response: bytes) -> dict[str, str]:
 
     # Firmware version pattern: "V x.y.z".
     import re
+
     for run in runs:
         m = re.search(r"V\s*\d+\.\d+(\.\d+)?", run)
         if m:

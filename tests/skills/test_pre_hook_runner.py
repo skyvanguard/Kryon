@@ -68,16 +68,18 @@ async def test_template_substitution_from_ctx() -> None:
         received_kwargs.update(kwargs)
         return "ok"
 
-    hooks = parse_pre_hooks([
-        {
-            "tool": "compliance",
-            "args": {
-                "framework": "fortigate",
-                "host": "{ctx.host}",
-                "ssh_user": "{ctx.ssh_user}",
-            },
-        }
-    ])
+    hooks = parse_pre_hooks(
+        [
+            {
+                "tool": "compliance",
+                "args": {
+                    "framework": "fortigate",
+                    "host": "{ctx.host}",
+                    "ssh_user": "{ctx.ssh_user}",
+                },
+            }
+        ]
+    )
     ctx = {"host": "192.168.1.1", "ssh_user": "auditor"}
 
     await run_pre_hooks(hooks, ctx=ctx, tool_callables={"compliance": capture_args})
@@ -100,9 +102,7 @@ async def test_template_with_missing_ctx_var_substitutes_empty() -> None:
         received.update(kwargs)
         return "ok"
 
-    hooks = parse_pre_hooks([
-        {"tool": "x", "args": {"host": "{ctx.host}", "user": "{ctx.ssh_user}"}}
-    ])
+    hooks = parse_pre_hooks([{"tool": "x", "args": {"host": "{ctx.host}", "user": "{ctx.ssh_user}"}}])
     ctx = {"host": "10.0.0.1"}  # no ssh_user
 
     await run_pre_hooks(hooks, ctx=ctx, tool_callables={"x": capture})
@@ -122,14 +122,14 @@ async def test_multiple_hooks_run_in_order_and_merge() -> None:
         call_order.append("second")
         return "B"
 
-    hooks = parse_pre_hooks([
-        {"tool": "first", "inject_as": "alpha"},
-        {"tool": "second", "inject_as": "beta"},
-    ])
-
-    out = await run_pre_hooks(
-        hooks, ctx={}, tool_callables={"first": first, "second": second}
+    hooks = parse_pre_hooks(
+        [
+            {"tool": "first", "inject_as": "alpha"},
+            {"tool": "second", "inject_as": "beta"},
+        ]
     )
+
+    out = await run_pre_hooks(hooks, ctx={}, tool_callables={"first": first, "second": second})
 
     assert call_order == ["first", "second"]
     assert out == {"alpha": "A", "beta": "B"}
@@ -187,14 +187,14 @@ async def test_tool_raising_optional_continues_with_placeholder() -> None:
     def succeed() -> str:
         return "fine"
 
-    hooks = parse_pre_hooks([
-        {"tool": "boom", "required": False, "inject_as": "broke"},
-        {"tool": "succeed", "inject_as": "ok"},
-    ])
-
-    out = await run_pre_hooks(
-        hooks, ctx={}, tool_callables={"boom": boom, "succeed": succeed}
+    hooks = parse_pre_hooks(
+        [
+            {"tool": "boom", "required": False, "inject_as": "broke"},
+            {"tool": "succeed", "inject_as": "ok"},
+        ]
     )
+
+    out = await run_pre_hooks(hooks, ctx={}, tool_callables={"boom": boom, "succeed": succeed})
 
     assert "failed" in out["broke"]
     assert out["ok"] == "fine"
@@ -218,9 +218,7 @@ async def test_timeout_optional_continues() -> None:
         await asyncio.sleep(2)
         return "never"
 
-    hooks = _make_hook(
-        tool="slow", timeout_s=1, required=False, inject_as="timed_out"
-    )
+    hooks = _make_hook(tool="slow", timeout_s=1, required=False, inject_as="timed_out")
     out = await run_pre_hooks(hooks, ctx={}, tool_callables={"slow": slow})
 
     assert "timed out" in out["timed_out"]
@@ -237,9 +235,7 @@ async def test_python_hatch_sync_callable_runs() -> None:
         [{"python": "./sample_hook.py:run_sync"}],
         source_dir=_FIXTURE_DIR,
     )
-    out = await run_pre_hooks(
-        hooks, ctx={"host": "192.168.1.1"}, tool_callables={}
-    )
+    out = await run_pre_hooks(hooks, ctx={"host": "192.168.1.1"}, tool_callables={})
     assert "sync hook saw host='192.168.1.1'" in out["run_sync"]
 
 
@@ -249,9 +245,7 @@ async def test_python_hatch_async_callable_runs() -> None:
         [{"python": "./sample_hook.py:run_async"}],
         source_dir=_FIXTURE_DIR,
     )
-    out = await run_pre_hooks(
-        hooks, ctx={"ssh_user": "auditor"}, tool_callables={}
-    )
+    out = await run_pre_hooks(hooks, ctx={"ssh_user": "auditor"}, tool_callables={})
     assert "async hook ssh_user='auditor'" in out["run_async"]
 
 
@@ -261,9 +255,7 @@ async def test_python_hatch_returns_dict_serializes_to_json() -> None:
         [{"python": "./sample_hook.py:returns_dict", "inject_as": "result"}],
         source_dir=_FIXTURE_DIR,
     )
-    out = await run_pre_hooks(
-        hooks, ctx={"host": "10.0.0.1"}, tool_callables={}
-    )
+    out = await run_pre_hooks(hooks, ctx={"host": "10.0.0.1"}, tool_callables={})
     parsed = json.loads(out["result"])
     assert parsed["verdicts"]["PASS"] == 5
     assert parsed["host"] == "10.0.0.1"
@@ -271,9 +263,7 @@ async def test_python_hatch_returns_dict_serializes_to_json() -> None:
 
 @pytest.mark.asyncio
 async def test_python_hatch_failing_required_raises() -> None:
-    hooks = parse_pre_hooks(
-        [{"python": "./sample_hook.py:fails"}], source_dir=_FIXTURE_DIR
-    )
+    hooks = parse_pre_hooks([{"python": "./sample_hook.py:fails"}], source_dir=_FIXTURE_DIR)
     with pytest.raises(PreHookExecutionError, match="expected failure for tests"):
         await run_pre_hooks(hooks, ctx={}, tool_callables={})
 
@@ -281,11 +271,13 @@ async def test_python_hatch_failing_required_raises() -> None:
 @pytest.mark.asyncio
 async def test_python_hatch_failing_optional_continues() -> None:
     hooks = parse_pre_hooks(
-        [{
-            "python": "./sample_hook.py:fails",
-            "required": False,
-            "inject_as": "broke",
-        }],
+        [
+            {
+                "python": "./sample_hook.py:fails",
+                "required": False,
+                "inject_as": "broke",
+            }
+        ],
         source_dir=_FIXTURE_DIR,
     )
     out = await run_pre_hooks(hooks, ctx={}, tool_callables={})
@@ -354,6 +346,7 @@ async def test_empty_hooks_returns_empty_dict() -> None:
 @pytest.mark.asyncio
 async def test_non_string_return_is_coerced_to_string() -> None:
     """dicts and lists get JSON-encoded; everything else uses str()."""
+
     def returns_dict() -> str:  # type: ignore[return-value]
         return {"a": 1}  # type: ignore[return-value]
 

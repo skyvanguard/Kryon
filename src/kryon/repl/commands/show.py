@@ -39,9 +39,7 @@ class ShowCommand(Command):
         try:
             step_id = int(args[0])
         except ValueError:
-            console.print(
-                f"[red]/show expects a step number, got: {args[0]!r}[/red]"
-            )
+            console.print(f"[red]/show expects a step number, got: {args[0]!r}[/red]")
             return False
 
         try:

@@ -51,9 +51,9 @@ class _ControllerFirmwareCheck:
         t0 = time.time()
         cmd = (
             "mongo --port 27117 ace --quiet --eval "
-            "'var s=db.setting.findOne({key:\"super_identity\"});"
-            "var i=db.setting.findOne({key:\"super_install_info\"});"
-            "print(JSON.stringify({version: (i && i.version) || \"\", build: (i && i.build) || \"\"}))'"
+            '\'var s=db.setting.findOne({key:"super_identity"});'
+            'var i=db.setting.findOne({key:"super_install_info"});'
+            'print(JSON.stringify({version: (i && i.version) || "", build: (i && i.build) || ""}))\''
         )
         out, err, rc = run_cmd(ctx, cmd, shell=True, timeout_s=10)
 
@@ -89,9 +89,7 @@ class _ControllerFirmwareCheck:
         min_major, min_minor = _parse_floor()
         issues: list[str] = []
         if version_raw and (major, minor) < (min_major, min_minor):
-            issues.append(
-                f"Controller {version_raw} < supported floor {min_major}.{min_minor}.x"
-            )
+            issues.append(f"Controller {version_raw} < supported floor {min_major}.{min_minor}.x")
         if not version_raw:
             issues.append("could not parse controller version from setting collection")
 
