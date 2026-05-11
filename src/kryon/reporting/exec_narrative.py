@@ -201,9 +201,7 @@ def generate_executive_narrative(
     text = (doc.get("choices") or [{}])[0].get("message", {}).get("content", "")
     # Verify the 3 paragraph tags are present. If not, drop — falls
     # back to template-only summary upstream.
-    if not all(tag in text for tag in (
-        "PARRAFO_1_IMPACTO", "PARRAFO_2_PATRON", "PARRAFO_3_RECOMENDACION"
-    )):
+    if not all(tag in text for tag in ("PARRAFO_1_IMPACTO", "PARRAFO_2_PATRON", "PARRAFO_3_RECOMENDACION")):
         logger.info("exec_narrative output missing required tags; falling back")
         return ""
 
@@ -232,11 +230,7 @@ def render_narrative_as_html(narrative: str) -> str:
             return ""
         body = m.group(1).strip()
         # HTML-escape the body since we control the wrapper
-        return (
-            body.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-        )
+        return body.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
     p1 = _extract("PARRAFO_1_IMPACTO")
     p2 = _extract("PARRAFO_2_PATRON")
@@ -246,9 +240,9 @@ def render_narrative_as_html(narrative: str) -> str:
 
     return (
         '<div class="exec-narrative">\n'
-        '  <h3>Análisis ejecutivo</h3>\n'
-        f'  <p><strong>Impacto al negocio.</strong> {p1}</p>\n'
-        f'  <p><strong>Patrón de exposición.</strong> {p2}</p>\n'
-        f'  <p><strong>Recomendación prioritaria.</strong> {p3}</p>\n'
-        '</div>'
+        "  <h3>Análisis ejecutivo</h3>\n"
+        f"  <p><strong>Impacto al negocio.</strong> {p1}</p>\n"
+        f"  <p><strong>Patrón de exposición.</strong> {p2}</p>\n"
+        f"  <p><strong>Recomendación prioritaria.</strong> {p3}</p>\n"
+        "</div>"
     )

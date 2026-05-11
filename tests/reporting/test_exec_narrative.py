@@ -73,13 +73,7 @@ def test_generate_returns_text_on_success(monkeypatch):
     def fake_urlopen(req, timeout=None):  # noqa: ARG001
         captured_request["url"] = req.full_url
         captured_request["body"] = json.loads(req.data.decode())
-        return _MockResponse(
-            {
-                "choices": [
-                    {"message": {"content": _SAMPLE_OUTPUT}}
-                ]
-            }
-        )
+        return _MockResponse({"choices": [{"message": {"content": _SAMPLE_OUTPUT}}]})
 
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
 
@@ -103,14 +97,9 @@ def test_generate_returns_text_on_success(monkeypatch):
 
 def test_generate_returns_empty_on_missing_tags(monkeypatch):
     """If the LLM forgets the structured tags, we fall back to template."""
+
     def fake_urlopen(req, timeout=None):  # noqa: ARG001
-        return _MockResponse(
-            {
-                "choices": [
-                    {"message": {"content": "Free-form prose without tags."}}
-                ]
-            }
-        )
+        return _MockResponse({"choices": [{"message": {"content": "Free-form prose without tags."}}]})
 
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
     out = generate_executive_narrative([_FakeFinding()], client_name="x", scope="y")
@@ -120,6 +109,7 @@ def test_generate_returns_empty_on_missing_tags(monkeypatch):
 def test_generate_returns_empty_on_urlopen_failure(monkeypatch):
     """Any urlopen exception falls back to empty string — the
     deterministic template still ships."""
+
     def fake_urlopen(req, timeout=None):  # noqa: ARG001
         raise ConnectionError("DeepSeek unreachable")
 
@@ -162,7 +152,7 @@ def test_external_endpoint_uses_real_api_key(monkeypatch):
 
 def test_render_html_extracts_three_paragraphs():
     html = render_narrative_as_html(_SAMPLE_OUTPUT)
-    assert '<h3>Análisis ejecutivo</h3>' in html
+    assert "<h3>Análisis ejecutivo</h3>" in html
     assert "Impacto al negocio" in html
     assert "Patrón de exposición" in html
     assert "Recomendación prioritaria" in html
@@ -178,11 +168,7 @@ def test_render_html_returns_empty_for_empty_input():
 def test_render_html_escapes_dangerous_chars():
     """Even though the LLM output is sanitised upstream, the HTML
     render path itself must escape <, >, & in the paragraph bodies."""
-    crafted = (
-        "PARRAFO_1_IMPACTO: <script>alert(1)</script>\n"
-        "PARRAFO_2_PATRON: A & B\n"
-        "PARRAFO_3_RECOMENDACION: end."
-    )
+    crafted = "PARRAFO_1_IMPACTO: <script>alert(1)</script>\nPARRAFO_2_PATRON: A & B\nPARRAFO_3_RECOMENDACION: end."
     html = render_narrative_as_html(crafted)
     assert "<script>" not in html
     assert "&lt;script&gt;" in html
