@@ -45,7 +45,13 @@ from .tracing.span_data import AgentSpanData
 from .usage import Usage
 from .util import _coro, _error_tracing
 
-# KRYON_MAX_TURNS must be converted to an int to avoid type mismatch error when comparing.
+# F85.B — Budget hardening.
+#
+# KRYON_MAX_TURNS caps how many LLM turns a single run can execute before the
+# orchestrator forces termination via MaxTurnsExceeded. The previous default
+# of float("inf") let a stuck agent burn the full API key. 40 covers ~99% of
+# real engagements (median engage runs 4-12 turns); operators with genuinely
+# long workflows can override via the env var.
 max_turns_env = os.getenv("KRYON_MAX_TURNS")
 DEFAULT_MAX_TURNS: float
 if max_turns_env is not None:
@@ -55,18 +61,24 @@ if max_turns_env is not None:
         try:
             DEFAULT_MAX_TURNS = float(max_turns_env)
         except ValueError:
-            DEFAULT_MAX_TURNS = float("inf")
+            DEFAULT_MAX_TURNS = 40
 else:
-    DEFAULT_MAX_TURNS = float("inf")
+    DEFAULT_MAX_TURNS = 40
 
+# KRYON_PRICE_LIMIT is read AND enforced by kryon.util.cost_tracker (which
+# wraps the chat-completions call path). We keep the parsed value here as
+# DEFAULT_PRICE_LIMIT so it's discoverable next to MAX_TURNS, but the actual
+# abort lives in CostTracker.check_budget() — see openai_chatcompletions.py
+# call sites (lines ~906, 912, 1046, 1596). Default 5 USD per run keeps a
+# bug-induced loop from emptying the wallet; raise via env or RunConfig.
 price_limit_env = os.getenv("KRYON_PRICE_LIMIT")
 if price_limit_env is not None:
     try:
         DEFAULT_PRICE_LIMIT = float(price_limit_env)
     except ValueError:
-        DEFAULT_PRICE_LIMIT = float("inf")
+        DEFAULT_PRICE_LIMIT = 5.0
 else:
-    DEFAULT_PRICE_LIMIT = float("inf")
+    DEFAULT_PRICE_LIMIT = 5.0
 
 
 @dataclass
