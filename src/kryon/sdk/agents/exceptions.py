@@ -64,3 +64,25 @@ class PriceLimitExceeded(AgentsException):
 
     def __init__(self, current_cost: float, price_limit: float):
         super().__init__(f"Maximum price limit (${price_limit:.4f}) exceeded. Current cost: ${current_cost:.4f}")
+
+
+class StuckError(AgentsException):
+    """F85.E — Raised by the StuckDetector when the same
+    ``(tool_name, args_hash, result_hash)`` triple repeats too many
+    times within the sliding window, signalling the agent is looping
+    on a step it cannot make progress on.
+
+    The exception carries the offending triple and the count so the
+    orchestrator can decide how to render the failure to the user
+    (typically: structured ``outcome="stuck"`` instead of a crash).
+    """
+
+    def __init__(self, tool_name: str, repeat_count: int, window_size: int):
+        self.tool_name = tool_name
+        self.repeat_count = repeat_count
+        self.window_size = window_size
+        super().__init__(
+            f"Agent stuck on tool '{tool_name}': "
+            f"identical (tool, args, result) triple seen {repeat_count} times "
+            f"in last {window_size} calls. Aborting run."
+        )

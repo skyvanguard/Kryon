@@ -187,8 +187,23 @@ class Runner:
             generated_items: list[RunItem] = []
             model_responses: list[ModelResponse] = []
 
+            # F85.E — Attach a per-run StuckDetector so _run_impl can
+            # flag tool-call loops. Window / thresholds are tunable via
+            # env vars for experimentation; defaults come from the
+            # Manus/agent-patterns prior-art consensus.
+            from ._stuck_detector import StuckDetector
+
+            stuck_window = int(os.getenv("KRYON_STUCK_WINDOW", "5"))
+            stuck_intervene = int(os.getenv("KRYON_STUCK_INTERVENE_AT", "2"))
+            stuck_abort = int(os.getenv("KRYON_STUCK_ABORT_AT", "3"))
+
             context_wrapper: RunContextWrapper[TContext] = RunContextWrapper(
                 context=context,  # type: ignore
+                stuck_detector=StuckDetector(
+                    window_size=stuck_window,
+                    intervene_at=stuck_intervene,
+                    abort_at=stuck_abort,
+                ),
             )
 
             input_guardrail_results: list[InputGuardrailResult] = []
