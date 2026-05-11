@@ -543,37 +543,82 @@ def _invoke_agent_deepening(
 # Phase 2b' — device-family deterministic compliance checks
 # -----------------------------------------------------------------------------
 
-# Mapping: family-name → (detection predicate, import path, control_id prefix,
-# pretty-name for the banner). Adding a new family means importing its package
-# and adding one row here — no other engage-side wiring needed.
-_DEVICE_FAMILIES: list[tuple[str, str, str, str]] = [
-    ("proxmox", "kryon.compliance.checks.proxmox", "PVE-", "Proxmox VE"),
-    ("fortigate", "kryon.compliance.checks.fortigate", "FGT-", "FortiGate"),
-    # ("unifi", "kryon.compliance.checks.unifi", "UNF-", "UniFi"),  # ready when tested
+# Mapping: family-name → (import path, control_id prefixes, pretty-name).
+# `control_id_prefixes` is a tuple so families with non-uniform numbering
+# (CIS section_*, where control_ids are "2.2.7", "6.3.3", etc) still get
+# filtered cleanly. Adding a new family is one row + an explicit-import
+# `__init__.py` on the corresponding check package.
+_DEVICE_FAMILIES: list[tuple[str, list[str], tuple[str, ...], str]] = [
+    ("proxmox",
+     ["kryon.compliance.checks.proxmox"],
+     ("PVE-",),
+     "Proxmox VE"),
+    ("fortigate",
+     ["kryon.compliance.checks.fortigate"],
+     ("FGT-",),
+     "FortiGate"),
+    ("linux",
+     [
+         "kryon.compliance.checks.section_2",
+         "kryon.compliance.checks.section_6",
+         "kryon.compliance.checks.section_8",
+         "kryon.compliance.checks.section_10",
+     ],
+     ("2.", "6.", "8.", "10."),  # CIS Linux uses numeric dotted ids
+     "Linux CIS"),
+    ("windows_ad",
+     ["kryon.compliance.checks.active_directory"],
+     ("AD-",),
+     "Windows AD"),
+    # ("unifi", ["kryon.compliance.checks.unifi"], ("UNF-",), "UniFi"),  # ready when tested
 ]
 
 
 def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
-    """Heuristic: classify a target into one or more device families based on
-    banners and canonical management ports. Returns a list of family ids
-    (e.g. ['proxmox']) — same target can legitimately match more than one
-    (rare; an HCI box that's both Proxmox and a Fortinet edge).
+    """Heuristic: classify a target into one or more device families based
+    on banners and canonical management ports. Returns a list of family
+    ids (e.g. ['proxmox', 'linux'] — many real targets match more than
+    one because a Proxmox host IS a Linux server too).
     """
     families: list[str] = []
+
+    def _add(fam: str) -> None:
+        if fam not in families:
+            families.append(fam)
+
+    has_ssh = False
     for s in services:
         product = (s.product or "").lower()
+        # Proxmox VE
         if "proxmox" in product or s.port in (8006, 3128):
-            if "proxmox" not in families:
-                families.append("proxmox")
+            _add("proxmox")
+        # FortiGate
         if (
             "fortigate" in product
             or "fortinet" in product
             or "fortios" in product
-            # canonical FortiGate management / SSL-VPN ports
             or s.port in (10443, 8443)
         ):
-            if "fortigate" not in families:
-                families.append("fortigate")
+            _add("fortigate")
+        # Windows AD (LDAP 389, LDAPS 636, Kerberos 88, SMB 445, RPC EPM 135)
+        if s.port in (88, 135, 389, 445, 636, 3268, 3269):
+            _add("windows_ad")
+        # Track SSH presence — Linux CIS checks need SSH access. We only
+        # tag the target as 'linux' when SSH is open AND the banner does
+        # NOT scream "FortiOS" / "Cisco IOS" / "PVE" (those have their
+        # own family above; running generic CIS Linux against them
+        # would emit noisy false positives).
+        if s.port == 22 and s.state == "open":
+            has_ssh = True
+
+    if has_ssh:
+        # Only auto-add 'linux' when there's no Forti / Cisco / similar
+        # appliance signature already in the family list. Proxmox IS
+        # Linux underneath so we DO want CIS Linux checks alongside PVE.
+        appliance_families = {"fortigate"}
+        if not any(f in appliance_families for f in families):
+            _add("linux")
+
     return families
 
 
@@ -596,12 +641,13 @@ def _run_device_compliance(
     if family_row is None:
         console.print(f"  [dim]unknown device family: {family}[/dim]")
         return []
-    _, import_path, prefix, pretty_name = family_row
+    _, import_paths, prefixes, pretty_name = family_row
 
     try:
         import importlib
 
-        importlib.import_module(import_path)  # registers checks via side effects
+        for path in import_paths:
+            importlib.import_module(path)  # side-effect registers checks
         from kryon.compliance.checks.base import CheckContext
         from kryon.compliance.runner import run_all
     except Exception as exc:
@@ -628,12 +674,14 @@ def _run_device_compliance(
         transport="ssh",
     )
 
-    # Filter results to the family's control_id prefix so we never bleed
-    # other frameworks (e.g. a prior _run_compliance pass) into engage's
-    # findings table.
+    # Filter results to the family's control_id prefixes so we never
+    # bleed other frameworks (e.g. a prior _run_compliance pass) into
+    # engage's findings table. CIS Linux uses numeric dotted ids
+    # ("2.2.7"), so `prefixes` is a tuple.
     all_results = run_all(ctx)
     family_results = [
-        r for r in all_results if r.control_id.upper().startswith(prefix.upper())
+        r for r in all_results
+        if any(r.control_id.upper().startswith(p.upper()) for p in prefixes)
     ]
 
     findings: list[Finding] = []
@@ -656,9 +704,12 @@ def _run_device_compliance(
             severity_rank=_SEV_RANK[sev],
         ))
     if findings:
+        # `prefixes[0].rstrip('-')` gives us a nice short tag — "PVE",
+        # "FGT", "2.", "AD" — for the operator banner.
+        short_tag = prefixes[0].rstrip("-").rstrip(".")
         console.print(
             f"  [green]{pretty_name} compliance:[/green] {len(findings)} FAIL/ERROR "
-            f"(de {len(family_results)} controles {prefix.rstrip('-')})"
+            f"(de {len(family_results)} controles {short_tag})"
         )
     return findings
 
