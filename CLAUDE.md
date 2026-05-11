@@ -151,8 +151,8 @@ turnkey product. For internal development purposes, the honest status is:
 
 | Playbook | Status | Notes |
 |---|---|---|
-| `pci-dss-audit.md` | **production-capable** | F15.1 + F39: 40 deterministic checks wired to compliance runner. Reproducibility-hashed. Ready for SAQ B/C/D scoping. |
-| `proxmox-audit.md` | **production-capable** | F23 + F23.1: 7 deterministic PVE checks. Validated in the F48 internal pilot. |
+| `pci-dss-audit.md` | **production-capable** | F15.1 + F39 + F85.E: 44 deterministic checks wired to compliance runner (F85.E added 2.2.8 fail2ban, 6.3.4 unattended-upgrades, 6.5.1 disk capacity, 10.2.2 rsyslog after the proxmox2 ground-truth gap analysis). Reproducibility-hashed. Ready for SAQ B/C/D scoping. |
+| `proxmox-audit.md` | **production-capable** | F23 + F23.1 + F85.E: 8 deterministic PVE checks (F85.E added PVE-6.1 cluster quorum tie-breaker). Validated in the F48 internal pilot. |
 | `audit-bank-full.md` | **production-capable** | F46: orchestrates the three above + multi-framework PDF (F44). |
 | `core-banking-assessment.md` | **template** | Vendor-specific (T24/Flexcube/Finacle/Bantotal): methodology + checklist only. No out-of-the-box scanner for any of these. Needs vendor sandbox + credentials per engagement. |
 | `swift-network-security.md` | **template** | Maps CSP v2024 (32 controls). Execution is manual + with Alliance Access access. Not a KY3P replacement. |

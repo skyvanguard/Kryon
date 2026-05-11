@@ -103,9 +103,11 @@ def test_every_check_has_substantive_fields(framework):
 
 
 def test_runner_registers_full_pci_baseline() -> None:
-    """The CLAUDE.md banking pitch promises 40 PCI-DSS checks. This pins
-    the actual count of PCI-shaped IDs the runner registers — YAML
-    framework + hand-written sections, deduplicated."""
+    """Pins the actual count of PCI-shaped IDs the runner registers —
+    YAML framework + hand-written sections, deduplicated. Bumped from
+    40 to 44 when the proxmox2 ground-truth gap analysis added four
+    deterministic checks: 2.2.8 (fail2ban), 6.3.4 (unattended-upgrades),
+    6.5.1 (disk capacity), and 10.2.2 (rsyslog active)."""
     import re
 
     from kryon.compliance.runner import _import_all_checks, registered_checks
@@ -114,10 +116,10 @@ def test_runner_registers_full_pci_baseline() -> None:
     pci_id_re = re.compile(r"^\d+(\.\d+){1,3}$")
     pci_checks = [c for c in registered_checks() if pci_id_re.match(c.control_id)]
 
-    assert len(pci_checks) == 40, (
-        f"PCI baseline drifted from 40 (CLAUDE.md commitment) to "
-        f"{len(pci_checks)}. If this is intentional, update CLAUDE.md "
-        f"and the Banking-vertical reality table."
+    assert len(pci_checks) == 44, (
+        f"PCI baseline drifted from 44 to {len(pci_checks)}. If this "
+        f"is intentional, update CLAUDE.md and the Banking-vertical "
+        f"reality table."
     )
 
     # Sanity — no duplicate ids from YAML colliding with hand-written.

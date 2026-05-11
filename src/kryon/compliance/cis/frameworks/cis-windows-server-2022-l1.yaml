@@ -391,24 +391,6 @@ checks:
     pass_when:
       stdout_matches: "True"
 
-  - id: CIS-WIN-9.2.1
-    title: "Ensure 'Windows Firewall: Private: Firewall state' is 'On'"
-    section: "9.2"
-    severity: HIGH
-    command: "powershell -nop -c \"(Get-NetFirewallProfile -Name Private).Enabled\" 2>nul"
-    remediation: "Set-NetFirewallProfile -Profile Private -Enabled True"
-    pass_when:
-      stdout_matches: "True"
-
-  - id: CIS-WIN-9.3.1
-    title: "Ensure 'Windows Firewall: Public: Firewall state' is 'On'"
-    section: "9.3"
-    severity: HIGH
-    command: "powershell -nop -c \"(Get-NetFirewallProfile -Name Public).Enabled\" 2>nul"
-    remediation: "Set-NetFirewallProfile -Profile Public -Enabled True"
-    pass_when:
-      stdout_matches: "True"
-
   - id: CIS-WIN-9.1.2
     title: "Ensure 'Windows Firewall: Domain: Inbound connections' is 'Block (default)'"
     section: "9.1"
@@ -418,6 +400,15 @@ checks:
     pass_when:
       stdout_matches: "Block"
 
+  - id: CIS-WIN-9.2.1
+    title: "Ensure 'Windows Firewall: Private: Firewall state' is 'On'"
+    section: "9.2"
+    severity: HIGH
+    command: "powershell -nop -c \"(Get-NetFirewallProfile -Name Private).Enabled\" 2>nul"
+    remediation: "Set-NetFirewallProfile -Profile Private -Enabled True"
+    pass_when:
+      stdout_matches: "True"
+
   - id: CIS-WIN-9.2.2
     title: "Ensure 'Windows Firewall: Private: Inbound connections' is 'Block (default)'"
     section: "9.2"
@@ -426,6 +417,15 @@ checks:
     command: "powershell -nop -c \"(Get-NetFirewallProfile -Name Private).DefaultInboundAction\" 2>nul"
     pass_when:
       stdout_matches: "Block"
+
+  - id: CIS-WIN-9.3.1
+    title: "Ensure 'Windows Firewall: Public: Firewall state' is 'On'"
+    section: "9.3"
+    severity: HIGH
+    command: "powershell -nop -c \"(Get-NetFirewallProfile -Name Public).Enabled\" 2>nul"
+    remediation: "Set-NetFirewallProfile -Profile Public -Enabled True"
+    pass_when:
+      stdout_matches: "True"
 
   - id: CIS-WIN-9.3.2
     title: "Ensure 'Windows Firewall: Public: Inbound connections' is 'Block (default)'"
