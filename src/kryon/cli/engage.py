@@ -437,8 +437,15 @@ def _invoke_agent_deepening(
     try:
         import asyncio
 
+        # Max turns is tunable via KRYON_AGENT_MAX_TURNS so that pilots
+        # against real targets (where the agent needs many SSH-based
+        # checks) can extend it without code changes. Default 4 stays
+        # because the engage demo flow expects a quick deepening, not
+        # a full audit replacement.
+        _agent_max = int(os.environ.get("KRYON_AGENT_MAX_TURNS", "4"))
+
         async def _one_shot() -> str:
-            result = await Runner.run(agent, preamble, max_turns=4)
+            result = await Runner.run(agent, preamble, max_turns=_agent_max)
             return getattr(result, "final_output", "") or ""
 
         text = asyncio.run(_one_shot())
