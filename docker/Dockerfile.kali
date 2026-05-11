@@ -69,6 +69,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     dnsutils \
     tini \
+    # WeasyPrint system libs — without these, kryon[reporting] PDF generation
+    # fails at runtime even though the Python package is installed (cffi cannot
+    # locate the native libs). Manifested as: "pdf_error → install the
+    # 'reporting' extra" in engagement reports.
+    libpango-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
+    libpangoft2-1.0-0 \
+    # Cross-compile toolchain for beacon/payload generation (F85.G)
+    golang-go \
+    mingw-w64 \
+    # WiFi PMKID capture (evil_twin.py — not provided by kali-tools-top10)
+    hcxdumptool \
     # Node.js for Claude Code CLI
     nodejs \
     npm \
@@ -110,6 +123,10 @@ RUN uv venv /opt/venv && \
     . /opt/venv/bin/activate && \
     uv pip install --no-cache ".[rag,server,tracing,viz,tui,reporting,orchestration]" && \
     uv pip install --no-cache impacket bloodhound playwright && \
+    # Mobile-banking-audit playbook tools (Frida-based instrumentation +
+    # objection for runtime mobile testing). Optional but pre-installed so the
+    # skill's deterministic hooks work out of the box when invoked.
+    uv pip install --no-cache frida-tools objection && \
     # F15.2 fix: align all opentelemetry packages to >=1.41 line so chromadb
     # (which pulls exporter 1.41+) and semgrep (which pins ~=1.37) don't
     # collide at runtime via missing ReadableLogRecord/LogData symbols.
@@ -138,13 +155,17 @@ COPY --from=builder /usr/local/lib/python3.11 /usr/local/lib/python3.11
 COPY --from=builder /usr/local/lib/libpython3.11.so* /usr/local/lib/
 RUN ln -sf /usr/local/bin/python3.11 /usr/local/bin/python3 && ldconfig
 
-# Verify critical AD binaries are available
+# Verify critical AD + reporting + payload-build binaries are available
 RUN /opt/venv/bin/python3.11 -c "import impacket; print('impacket OK')" && \
     /opt/venv/bin/python3.11 -c "import bloodhound; print('bloodhound OK')" && \
+    /opt/venv/bin/python3.11 -c "import weasyprint; print('weasyprint OK')" && \
     test -f /opt/venv/bin/secretsdump.py && echo "secretsdump.py OK" && \
     test -f /opt/venv/bin/GetUserSPNs.py && echo "GetUserSPNs.py OK" && \
     test -f /opt/venv/bin/bloodhound-python && echo "bloodhound-python OK" && \
-    which evil-winrm && echo "evil-winrm OK"
+    which evil-winrm && echo "evil-winrm OK" && \
+    which go && echo "golang OK" && \
+    which x86_64-w64-mingw32-gcc && echo "mingw OK" && \
+    which hcxdumptool && echo "hcxdumptool OK"
 
 # Create non-root user for default operation
 RUN groupadd -r kryon && useradd -r -g kryon -m -s /bin/bash kryon
