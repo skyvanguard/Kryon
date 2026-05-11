@@ -45,8 +45,7 @@ def test_match_fortigate_profile_prefers_fortigate_audit():
         fgt_idx = names.index("fortigate-audit")
         rec_idx = names.index("recon-scout")
         assert fgt_idx < rec_idx, (
-            f"fortigate-audit ({fgt_idx}) should rank above recon-scout ({rec_idx}); "
-            f"full order: {names}"
+            f"fortigate-audit ({fgt_idx}) should rank above recon-scout ({rec_idx}); full order: {names}"
         )
 
 
@@ -133,6 +132,7 @@ def test_engage_helper_falls_back_when_swap_fails(monkeypatch):
         "kryon.skills.loader.SkillLoader",
         lambda: fake_loader,
     )
+
     # Stub Runner.run so we don't actually call an LLM
     async def fake_run(*_a, **_kw):
         return MagicMock(final_output="")
@@ -157,6 +157,4 @@ def test_engage_helper_falls_back_when_swap_fails(monkeypatch):
     assert isinstance(findings, list)
     # Confirm we hit the swap-failure path
     printed_args = [c.args[0] for c in console.print.call_args_list if c.args]
-    assert any("skill swap skipped" in str(a) for a in printed_args), (
-        f"expected swap-skipped log; got: {printed_args}"
-    )
+    assert any("skill swap skipped" in str(a) for a in printed_args), f"expected swap-skipped log; got: {printed_args}"

@@ -587,10 +587,7 @@ def _invoke_agent_deepening(
             new_skills = loader.match(profile=profile, user_msg=intent)
             if new_skills:
                 update_agent_skills(agent, new_skills)
-                console.print(
-                    f"  [dim]skills swapped: {[s.name for s in new_skills][:5]} "
-                    f"(families={families})[/dim]"
-                )
+                console.print(f"  [dim]skills swapped: {[s.name for s in new_skills][:5]} (families={families})[/dim]")
         except Exception as exc:  # pragma: no cover — runtime only
             console.print(f"  [yellow]skill swap skipped: {exc}[/yellow]")
 
