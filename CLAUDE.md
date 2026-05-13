@@ -135,6 +135,9 @@ KRYON_RETEST_FIRE=                 # F88: 'true' enables live HTTP in retest_fin
 KRYON_RETEST_ALLOW_MUTATIONS=      # F88: 'true' opts in to replay POST/PUT/PATCH/DELETE
                                    # findings. Default GET-only — avoids accidental re-submission
                                    # of mutation-side findings (e.g. a transfer endpoint).
+KRYON_BRAND_FIRE=                  # F90.1: 'true' enables live DNS resolution in typosquat_scan
+                                   # tool. Same double-gate as F87/F88. Default unset = generate
+                                   # candidates only (pure, no network).
 ```
 
 ## Docker / K8s
