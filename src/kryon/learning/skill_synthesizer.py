@@ -405,6 +405,15 @@ def synthesize_from_cluster(
         "avg_outcome_score": cluster.avg_outcome_score,
         "source": "auto-cluster",
         "synthesized_at": datetime.now(timezone.utc).isoformat(),
+        # F77.G.6 — preserve the cluster signature in machine-readable
+        # form so the merge decider can compare a new cluster against
+        # this draft without re-loading the experience corpus. The
+        # `required_tools` field above also encodes the chain, but
+        # losing the order would corrupt the Jaccard-on-bigrams
+        # similarity the decider relies on. Keeping a separate
+        # ordered list here is cheap and unambiguous.
+        "representative_chain": list(cluster.representative_chain),
+        "representative_tech": list(cluster.representative_profile.get("tech") or []),
     }
 
     description = (

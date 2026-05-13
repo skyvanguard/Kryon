@@ -395,6 +395,77 @@ pytest tests/learning/test_pattern_detector.py \
        tests/learning/test_auto_e2e.py
 ```
 
+## F77.G.6 — AutoSkill merge-ternary decision (arxiv 2603.01145)
+
+### Why
+
+`auto_pipeline` previously synthesized a fresh draft for every cluster
+the pattern detector surfaced. On real corpora that means three
+different `auto_web_pentest_*.md` files describing overlapping chains
+all end up in `~/.kryon/drafts/`. AutoSkill's contribution is to gate
+synthesis with a ternary triage step:
+
+  - **ADD** — cluster is semantically new; synthesize a fresh draft.
+  - **MERGE** — cluster overlaps an existing auto-skill enough to
+    propose a versioned `.vN+1` of that skill instead. The original
+    is NEVER overwritten.
+  - **DISCARD** — cluster is degenerate (too small, low outcome) or
+    sits in the ambiguous similarity band — skip silently instead of
+    diluting the draft pool.
+
+### Decision tree
+
+```
+1. cluster.sample_size < 3              → DISCARD (quality floor)
+2. cluster.avg_outcome_score < 0.4      → DISCARD (quality floor)
+3. existing pool is empty               → ADD
+4. max similarity ≥ 0.80                → MERGE against argmax (v+1)
+5. 0.50 ≤ max similarity < 0.80         → DISCARD (ambiguous band)
+6. max similarity < 0.50                → ADD
+```
+
+Similarity is the same `0.7 * chain + 0.3 * tech` blend that
+`pattern_detector._combined_similarity` uses, so the numbers are
+comparable across both modules. Thresholds are configurable via
+`decide_merge_action(merge_threshold=..., discard_band_lo=...)`.
+
+### Banca-safety
+
+- **MERGE never overwrites a promoted playbook.** It writes a NEW
+  `.vN.md` draft in `~/.kryon/drafts/_auto/`. The operator inspects
+  the diff, runs the existing tests, and promotes manually if (and
+  only if) the v2 supersedes v1.
+- The decider only sees auto-generated drafts (those with a
+  `_provenance` frontmatter block). Hand-written drafts and core
+  playbooks are outside the comparison set — the operator owns them.
+- DISCARD is silent on the user-facing surface but logged at INFO
+  with the reason chain, so `/skill auto detect --explain` can
+  surface why a cluster was dropped.
+
+### Lineage on a merged draft
+
+When `auto_pipeline` writes a merged `.v2` draft, `_provenance` gains:
+
+```yaml
+_provenance:
+  merge_from: pci-dss-audit          # base name of the merged-against skill
+  merge_from_version: 1              # previous version
+  merge_similarity: 0.92             # combined similarity score
+```
+
+This lets a curator running `gh pr diff` understand at a glance why
+the new draft exists and what it claims to supersede.
+
+### Activation
+
+Always-on as of F77.G.6 — there's no opt-out env var. The decider's
+default thresholds preserve the legacy ADD-everything behaviour
+when the existing pool is empty (cold start). The MERGE path only
+fires when at least one existing draft has `_provenance.representative_chain`
+in its frontmatter — pre-F77.G.6 drafts that lack this field are
+treated as hand-edited and excluded from comparison, so legacy
+corpora upgrade gracefully.
+
 ## F77.G.5 — Dual-reward ranking (SAGE: arxiv 2512.17102)
 
 ### Why

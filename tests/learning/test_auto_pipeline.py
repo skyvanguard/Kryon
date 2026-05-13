@@ -293,3 +293,114 @@ def test_findings_loader_failure_treated_as_empty(drafts_dir: Path) -> None:
     # Cluster detected, draft synthesized, eval skipped → goes to rejected.
     assert result.clusters_detected == 1
     assert result.drafts_skipped == 1
+
+
+# =====================================================================
+# F77.G.6 — merge-ternary decisions wired into the pipeline
+# =====================================================================
+
+
+def test_first_cluster_is_added(drafts_dir: Path) -> None:
+    """Cold start: empty drafts dir → every cluster is ADD.
+    PipelineResult.clusters_added counts the action; the file is
+    written without a .vN suffix."""
+    from kryon.learning.auto_pipeline import run_auto_pipeline
+
+    exps = [_experience(f"e{i}", ["nmap", "wpscan", "sqlmap"], ["wordpress"]) for i in range(5)]
+    result = run_auto_pipeline(
+        experience_loader=lambda: exps,
+        findings_loader=lambda: [_finding("CWE-89") for _ in range(5)],
+    )
+    assert result.clusters_detected == 1
+    assert result.clusters_added == 1
+    assert result.clusters_merged == 0
+    assert result.clusters_discarded == 0
+    drafts = list(drafts_dir.rglob("*.md"))
+    assert len(drafts) == 1
+    assert ".v" not in drafts[0].stem  # no version suffix
+
+
+def test_second_run_with_same_pattern_triggers_merge(drafts_dir: Path) -> None:
+    """First run ADDs the draft. Second run with the same cluster
+    pattern must see the existing draft and MERGE → produce a .v2
+    file alongside the original (NOT overwriting it)."""
+    from kryon.learning.auto_pipeline import run_auto_pipeline
+
+    exps = [_experience(f"e{i}", ["nmap", "wpscan", "sqlmap"], ["wordpress"]) for i in range(5)]
+    findings = [_finding("CWE-89") for _ in range(5)]
+
+    run1 = run_auto_pipeline(
+        experience_loader=lambda: exps,
+        findings_loader=lambda: findings,
+    )
+    assert run1.clusters_added == 1
+
+    # Second run: same cluster signature. Use fresh experience IDs so
+    # the cluster id is the same (cluster_id is derived from modal
+    # chain + tech, not member IDs).
+    exps2 = [_experience(f"f{i}", ["nmap", "wpscan", "sqlmap"], ["wordpress"]) for i in range(5)]
+    run2 = run_auto_pipeline(
+        experience_loader=lambda: exps2,
+        findings_loader=lambda: findings,
+    )
+    assert run2.clusters_merged == 1
+    assert run2.clusters_added == 0
+    # v2 draft sits next to the v1.
+    v2 = [p for p in drafts_dir.rglob("*.md") if p.stem.endswith(".v2")]
+    assert len(v2) == 1
+
+
+def test_degenerate_cluster_is_discarded_before_synthesis(drafts_dir: Path) -> None:
+    """A cluster with exactly 3 members but mostly partial outcomes can
+    still pass the size floor. Test that the avg_outcome_score floor
+    on the decider kicks in for a fail-heavy cluster: every member
+    is `partial` (score 0.5), which is at the floor — adjust to
+    purely `recon-only` (score 0) to force a discard."""
+    from kryon.learning.auto_pipeline import run_auto_pipeline
+
+    exps = [
+        _experience(f"e{i}", ["nmap", "wpscan", "sqlmap"], ["wordpress"], outcome="partial")
+        for i in range(3)
+    ]
+    # Convert two of them to recon-only — average outcome drops to ~0.16.
+    for i in (0, 1):
+        exps[i]["outcome"] = "recon-only"
+
+    result = run_auto_pipeline(
+        experience_loader=lambda: exps,
+        findings_loader=lambda: [],
+    )
+    # pattern_detector still surfaces the cluster (it only requires
+    # outcome != fail). Decider discards on avg_outcome_score.
+    assert result.clusters_detected <= 1
+    # But the file should NOT be written.
+    assert result.clusters_discarded >= result.clusters_detected
+    assert result.clusters_added == 0
+    assert result.clusters_merged == 0
+
+
+def test_merge_records_provenance_lineage(drafts_dir: Path) -> None:
+    """The merged .v2 draft must carry merge_from + merge_from_version
+    fields in _provenance — pinned for the curator's review workflow."""
+    from kryon.learning.auto_pipeline import run_auto_pipeline
+    import yaml as _yaml
+
+    exps1 = [_experience(f"e{i}", ["nmap", "wpscan", "sqlmap"], ["wordpress"]) for i in range(5)]
+    findings = [_finding("CWE-89") for _ in range(5)]
+    run_auto_pipeline(
+        experience_loader=lambda: exps1,
+        findings_loader=lambda: findings,
+    )
+    exps2 = [_experience(f"f{i}", ["nmap", "wpscan", "sqlmap"], ["wordpress"]) for i in range(5)]
+    run_auto_pipeline(
+        experience_loader=lambda: exps2,
+        findings_loader=lambda: findings,
+    )
+    v2 = next(p for p in drafts_dir.rglob("*.md") if p.stem.endswith(".v2"))
+    text = v2.read_text(encoding="utf-8")
+    fm_block = text.split("\n---", 2)[0][3:]
+    fm = _yaml.safe_load(fm_block)
+    prov = fm["_provenance"]
+    assert prov["merge_from"]
+    assert prov["merge_from_version"] == 1
+    assert prov["merge_similarity"] >= 0.8  # default merge threshold

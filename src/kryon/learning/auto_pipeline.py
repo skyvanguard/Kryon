@@ -28,6 +28,8 @@ from pathlib import Path
 from typing import Callable
 
 from kryon.learning.draft_writer import get_drafts_dir, list_existing_names
+from kryon.learning.merge_decider import MergeDecision, decide_merge_action
+from kryon.learning.merge_loader import load_existing_for_merge
 from kryon.learning.pattern_detector import (
     ChainCluster,
     detect_recurrent_chains,
@@ -51,6 +53,11 @@ class PipelineResult:
     drafts_passed: int = 0
     drafts_rejected: int = 0
     drafts_skipped: int = 0
+    # F77.G.6 — merge-ternary outcome counts. drafts_discarded covers
+    # both quality-floor and ambiguous-band discards.
+    clusters_added: int = 0
+    clusters_merged: int = 0
+    clusters_discarded: int = 0
     output_paths: tuple[str, ...] = field(default_factory=tuple)
 
 
@@ -132,9 +139,33 @@ def run_auto_pipeline(
     drafts_root = get_drafts_dir()
     existing = _existing_names_across_subdirs(drafts_root)
 
+    # F77.G.6 — load existing auto-skill signatures for the merge
+    # decider. Best-effort: if loading fails (corrupt frontmatter on
+    # disk, etc.) we degrade to "no comparisons" which always returns
+    # ADD — equivalent to the pre-F77.G.6 behaviour.
+    try:
+        existing_skills_for_merge = load_existing_for_merge(drafts_root)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("auto_pipeline: merge-loader failed (%s); treating corpus as empty", e)
+        existing_skills_for_merge = []
+
     paths: list[str] = []
     passed = rejected = skipped = synthesized = 0
+    added = merged = discarded = 0
     for cluster in clusters:
+        # F77.G.6 — triage BEFORE synthesis. Discarded clusters never
+        # produce a draft on disk; merged clusters get versioned names
+        # (.v2.md) so they don't shadow the existing skill.
+        decision = decide_merge_action(cluster, existing_skills_for_merge)
+        if decision.decision == "discard":
+            discarded += 1
+            logger.info(
+                "auto_pipeline: discard cluster %s (%s)",
+                cluster.cluster_id,
+                decision.reason,
+            )
+            continue
+
         try:
             draft = synthesize_from_cluster(
                 cluster,
@@ -149,6 +180,15 @@ def run_auto_pipeline(
             )
             continue
         synthesized += 1
+
+        # When MERGE, rename the draft to the proposed .vN form so the
+        # filename + frontmatter agree. The body stays the same; the
+        # operator inspects the diff against v(N-1) before promoting.
+        if decision.decision == "merge" and decision.target_draft_name:
+            draft = _rename_draft_for_merge(draft, decision)
+            merged += 1
+        else:
+            added += 1
         existing.add(draft.name)
 
         report = evaluate_draft_against_corpus(
@@ -183,5 +223,31 @@ def run_auto_pipeline(
         drafts_passed=passed,
         drafts_rejected=rejected,
         drafts_skipped=skipped,
+        clusters_added=added,
+        clusters_merged=merged,
+        clusters_discarded=discarded,
         output_paths=tuple(paths),
+    )
+
+
+def _rename_draft_for_merge(draft: SkillDraft, decision: MergeDecision) -> SkillDraft:
+    """Replace the draft's name + the `name` key in the frontmatter
+    with the merge-decider's proposed versioned slug. Body untouched.
+
+    SkillDraft is frozen, so we build a fresh instance — never mutate
+    in place."""
+    new_name = decision.target_draft_name or draft.name
+    new_frontmatter = dict(draft.frontmatter)
+    new_frontmatter["name"] = new_name
+    # Record the merge lineage on `_provenance` so the curator sees
+    # which existing skill this was proposed to supersede.
+    prov = dict(new_frontmatter.get("_provenance") or {})
+    prov["merge_from"] = decision.target_existing_name
+    prov["merge_from_version"] = (decision.target_new_version or 1) - 1
+    prov["merge_similarity"] = decision.max_similarity
+    new_frontmatter["_provenance"] = prov
+    return SkillDraft(
+        name=new_name,
+        body=draft.body,
+        frontmatter=new_frontmatter,
     )
