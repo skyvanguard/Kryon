@@ -99,15 +99,16 @@ def test_every_check_has_substantive_fields(framework):
         assert c.severity in {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}
 
 
-# ---------- F39.2 — runner integration: 40 PCI checks live in registry ----------
+# ---------- F39.3 — runner integration: 46 PCI checks live in registry ----------
 
 
 def test_runner_registers_full_pci_baseline() -> None:
     """Pins the actual count of PCI-shaped IDs the runner registers —
-    YAML framework + hand-written sections, deduplicated. Bumped from
-    40 to 44 when the proxmox2 ground-truth gap analysis added four
-    deterministic checks: 2.2.8 (fail2ban), 6.3.4 (unattended-upgrades),
-    6.5.1 (disk capacity), and 10.2.2 (rsyslog active)."""
+    YAML framework + hand-written sections, deduplicated. History:
+    F39 baseline 40 → F85.E gap analysis +4 (2.2.8 fail2ban, 6.3.4
+    unattended-upgrades, 6.5.1 disk capacity, 10.2.2 rsyslog) → 44.
+    F39.3 +2 (6.4.3 SRI+CSP scripts, 8.4.3 phishing-resistant MFA),
+    both mandatorios desde 2025-03-31 en PCI-DSS v4.0.1 → 46."""
     import re
 
     from kryon.compliance.runner import _import_all_checks, registered_checks
@@ -116,8 +117,8 @@ def test_runner_registers_full_pci_baseline() -> None:
     pci_id_re = re.compile(r"^\d+(\.\d+){1,3}$")
     pci_checks = [c for c in registered_checks() if pci_id_re.match(c.control_id)]
 
-    assert len(pci_checks) == 44, (
-        f"PCI baseline drifted from 44 to {len(pci_checks)}. If this "
+    assert len(pci_checks) == 46, (
+        f"PCI baseline drifted from 46 to {len(pci_checks)}. If this "
         f"is intentional, update CLAUDE.md and the Banking-vertical "
         f"reality table."
     )
@@ -138,3 +139,27 @@ def test_runner_pci_baseline_covers_4_2_1_and_5_2_1_and_8_4_2() -> None:
     by_id = {c.control_id: c for c in registered_checks()}
     for required in ("4.2.1", "5.2.1", "8.4.2"):
         assert required in by_id, f"PCI control {required} missing from registry — the 6→40 upgrade pipeline regressed."
+
+
+def test_runner_pci_baseline_covers_6_4_3_and_8_4_3() -> None:
+    """F39.3 — PCI-DSS v4.0.1 deltas (mandatorios desde 2025-03-31).
+    6.4.3 cubre integridad de scripts en página de pago (SRI+CSP);
+    es la respuesta del estándar a ataques tipo Magecart inyectados
+    via TPSP comprometido. 8.4.3 cubre MFA phishing-resistant
+    (FIDO2/WebAuthn/PKI) — SMS-OTP ya NO califica."""
+    from kryon.compliance.runner import _import_all_checks, registered_checks
+
+    _import_all_checks()
+    by_id = {c.control_id: c for c in registered_checks()}
+    for required in ("6.4.3", "8.4.3"):
+        assert required in by_id, (
+            f"PCI control {required} missing — F39.3 delta regressed. "
+            f"Both are MANDATORIO under PCI-DSS 4.0.1 since 2025-03-31; "
+            f"omitting them blocks any 4.0.1-scope SAQ."
+        )
+        # Both 4.0.1 deltas are CRITICAL by design.
+        assert by_id[required].severity == "CRITICAL", (
+            f"PCI {required} severity drifted from CRITICAL — both "
+            f"4.0.1 deltas guard high-impact attack surface (payment "
+            f"page tampering + non-phishing-resistant MFA)."
+        )
