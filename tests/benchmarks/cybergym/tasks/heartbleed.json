@@ -1,0 +1,19 @@
+{
+  "slug": "heartbleed",
+  "cve_id": "CVE-2014-0160",
+  "expected_cwe": "CWE-125",
+  "expected_file": "ssl/d1_both.c",
+  "expected_line": 1437,
+  "project": "openssl",
+  "repo_url": "https://github.com/openssl/openssl",
+  "vuln_commit": "4817504d069b4c5082161b02a22116ad75f822b1",
+  "patch_commit": "96db9023b881d7cd9f379b0c154650d6c108e9a3",
+  "category": "memory_corruption",
+  "status": "ready",
+  "wall_budget_seconds": 600,
+  "source": {
+    "type": "git",
+    "ref": "https://github.com/openssl/openssl"
+  },
+  "notes": "Heartbleed — TLS/DTLS heartbeat extension reads memory using a client-controlled payload length without validating the actual buffer size, leaking up to 64 KB of process memory."
+}

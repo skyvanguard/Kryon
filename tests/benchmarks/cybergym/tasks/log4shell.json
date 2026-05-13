@@ -1,0 +1,19 @@
+{
+  "slug": "log4shell",
+  "cve_id": "CVE-2021-44228",
+  "expected_cwe": "CWE-502",
+  "expected_file": "log4j-core/src/main/java/org/apache/logging/log4j/core/lookup/JndiLookup.java",
+  "expected_line": 56,
+  "project": "log4j",
+  "repo_url": "https://github.com/apache/logging-log4j2",
+  "vuln_commit": "be881e503e14b267fb8a8f94b6d15eddba7ed8c4",
+  "patch_commit": "7fe72d6e1bb38e85ea30c0fb6c47ee1c2bb9e87f",
+  "category": "deserialization",
+  "status": "ready",
+  "wall_budget_seconds": 600,
+  "source": {
+    "type": "git",
+    "ref": "https://github.com/apache/logging-log4j2"
+  },
+  "notes": "Log4Shell — JndiLookup performs an unrestricted JNDI lookup on user-controlled strings, allowing remote class loading and RCE via ldap:// or rmi:// references."
+}
