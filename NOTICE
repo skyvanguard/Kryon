@@ -1,0 +1,36 @@
+KRYON — Third-party data attribution
+=====================================
+
+This file lists data sources bundled with KRYON that require
+attribution under their respective licenses. Software dependencies
+declared in pyproject.toml carry their own license terms and are not
+duplicated here.
+
+---------------------------------------------------------------------
+CISA ICS Advisory Project
+---------------------------------------------------------------------
+
+The file at:
+
+    src/kryon/knowledge/datasets/cisa_ics_advisories_seed.csv
+
+contains a current-year subset of the CISA ICS Advisory Project,
+made available by the project maintainers under the
+Open Database License (ODbL) v1.0.
+
+  Source repository: https://github.com/icsadvprj/ICS-Advisory-Project
+  License:           Open Database License (ODbL) v1.0
+                     http://opendatacommons.org/licenses/odbl/1.0/
+  Database contents: Database Contents License (DbCL) v1.0
+                     http://opendatacommons.org/licenses/dbcl/1.0/
+
+When redistributing KRYON or any work derived from this dataset, you
+MUST keep this NOTICE intact and preserve the attribution string:
+
+    "Contains information from the ICS Advisory Project, licensed
+     under the Open Database License (ODbL) v1.0."
+
+Operators who refresh the dataset via
+`scripts/update_cisa_advisories.sh` pull the full Master CSV into
+$KRYON_HOME/datasets/ — the same attribution rules apply to that
+copy.

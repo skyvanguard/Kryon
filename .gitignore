@@ -194,6 +194,9 @@ src/.kryon_cache/
 # Large dataset files
 *.csv
 exploitdb_import_stats.json
+# Exception: bundled CISA ICS Advisories seed — banking air-gap fallback.
+# Operator full refresh goes to $KRYON_HOME/datasets/ (already ignored).
+!src/kryon/knowledge/datasets/cisa_ics_advisories_seed.csv
 
 # Test result files
 python313_failures.txt
