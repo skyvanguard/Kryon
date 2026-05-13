@@ -46,6 +46,11 @@ from kryon.tools.api.vuln_js_libs import (
     analyze_scripts,
 )
 from kryon.tools.crawler.crawler import Crawler, CrawlerConfig, CrawlResult
+from kryon.tools.nuclei.runner import (
+    NuclieConfig,
+    is_nuclei_available,
+    run_nuclei,
+)
 from kryon.tools.pipeline.tls_capture import capture_tls_profile
 
 __all__ = [
@@ -95,6 +100,8 @@ class PipelineConfig:
     disclosure_paths: tuple[str, ...] = ()  # explicit override; if empty + run_disclosure use minimal
     run_tls: bool = False          # F100 — opens TLS socket (banca opt-in)
     tls_timeout: float = 5.0
+    run_nuclei: bool = False       # F110 — delegate to nuclei CLI (banca opt-in)
+    nuclei_config: NuclieConfig | None = None  # if None + run_nuclei: build a banca-safe default
 
 
 @dataclass(frozen=True)
@@ -360,6 +367,44 @@ class Pipeline:
             for f in analysis.findings
         ]
 
+    def _run_nuclei_for_seeds(self) -> list[UnifiedFinding]:
+        """Delegate breadth-of-coverage to nuclei. Returns empty list
+        if binary not installed (no error — soft failure)."""
+        cfg = self.config.nuclei_config or NuclieConfig(targets=self.config.seeds)
+        result = run_nuclei(cfg)
+        if result.nuclei_missing:
+            return []
+        out: list[UnifiedFinding] = []
+        for f in result.findings:
+            extra: list[tuple[str, str]] = [
+                ("template_id", f.template_id),
+                ("nuclei_severity", f.nuclei_severity),
+            ]
+            if f.cve_id:
+                extra.append(("cve", f.cve_id))
+            if f.cvss_score:
+                extra.append(("cvss", f"{f.cvss_score:.1f}"))
+            if f.tags:
+                extra.append(("tags", ",".join(f.tags)))
+            if f.reference:
+                extra.append(("references", " | ".join(f.reference[:3])))
+            out.append(
+                UnifiedFinding(
+                    rule_id=f"NUC:{f.template_id}",
+                    severity=f.severity,
+                    title=f.name or f.template_id,
+                    detail=f.description or f.name or "",
+                    remediation=(
+                        "Review nuclei template + the matched-at URL. "
+                        "Confirm exploitability before remediation."
+                    ),
+                    source_module="F110",
+                    target=f.matched_at or f.target,
+                    extra=tuple(extra),
+                )
+            )
+        return out
+
     def _run_tls_for_host(self, host: str, port: int = 443) -> list[UnifiedFinding]:
         profile = capture_tls_profile(host, port, timeout=self.config.tls_timeout)
         if profile is None:
@@ -445,6 +490,21 @@ class Pipeline:
             stages_run.append("F101-disclosure")
         else:
             stages_skipped.append("F101-disclosure")
+
+        # ---- Stage 5b: F110 Nuclei (opt-in) ----
+        # Run BEFORE TLS so it can use any extra surface area
+        # discovered without blocking on a TLS handshake.
+        if self.config.run_nuclei:
+            if is_nuclei_available(
+                (self.config.nuclei_config.nuclei_binary
+                 if self.config.nuclei_config else "nuclei")
+            ):
+                findings.extend(self._run_nuclei_for_seeds())
+                stages_run.append("F110-nuclei")
+            else:
+                stages_skipped.append("F110-nuclei (binary-missing)")
+        else:
+            stages_skipped.append("F110-nuclei")
 
         # ---- Stage 5: F100 TLS (opt-in) ----
         if self.config.run_tls:
