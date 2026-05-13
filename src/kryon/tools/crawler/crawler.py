@@ -236,7 +236,9 @@ class Crawler:
         self._buckets_lock = threading.Lock()
         self._robots: dict[str, RobotFileParser | None] = {}
         self._robots_lock = threading.Lock()
-        self._session = self._build_session()
+        # `requests.Session` is documented as NOT thread-safe; share a
+        # cookie jar but give each worker thread its own session.
+        self._thread_local = threading.local()
         # Visited-URL set guarded by lock so the dispatcher and workers
         # share it.
         self._visited: set[str] = set()
@@ -256,6 +258,13 @@ class Crawler:
         )
         sess.mount("http://", adapter)
         sess.mount("https://", adapter)
+        return sess
+
+    def _session_for_thread(self) -> requests.Session:
+        sess = getattr(self._thread_local, "session", None)
+        if sess is None:
+            sess = self._build_session()
+            self._thread_local.session = sess
         return sess
 
     # ----- scope decisions ---------------------------------------------------
@@ -314,24 +323,39 @@ class Crawler:
 
     def _fetch(self, url: str) -> tuple[requests.Response | None, str]:
         """Returns (response_or_None, error_reason). Rate-limits + handles
-        errors uniformly."""
+        errors uniformly. Uses stream=True + iter_content to enforce
+        BOTH the byte cap AND the timeout (raw.read ignores requests'
+        per-request timeout under stream=True)."""
         host = _host_of(url)
         self._bucket_for(host).acquire()
+        session = self._session_for_thread()
         try:
-            resp = self._session.get(
+            resp = session.get(
                 url,
                 timeout=self.config.per_request_timeout_seconds,
                 allow_redirects=True,
                 stream=True,
             )
-            # Read at most max_body_bytes to enforce body cap
-            content = resp.raw.read(
-                self.config.max_body_bytes + 1, decode_content=True
-            )
-            # Stash the content on the response so caller sees a clean
-            # `.text` / `.content`. We can't reassign resp.content
-            # cleanly, so attach a custom attribute.
-            resp._kryon_capped_content = content[: self.config.max_body_bytes]  # type: ignore[attr-defined]
+            # Pull at most max_body_bytes worth of content via
+            # iter_content. We enforce BOTH the byte cap AND a hard
+            # wall-clock deadline — iter_content's per-read timeout
+            # resets on every chunk received, so a slow trickle can
+            # otherwise stall indefinitely.
+            cap = self.config.max_body_bytes
+            deadline = time.monotonic() + self.config.per_request_timeout_seconds
+            buf = bytearray()
+            try:
+                for chunk in resp.iter_content(chunk_size=8192, decode_unicode=False):
+                    if time.monotonic() > deadline:
+                        return None, "timeout (body deadline)"
+                    if chunk:
+                        buf.extend(chunk)
+                    if len(buf) >= cap:
+                        break
+            finally:
+                # Always close to release the connection back to the pool
+                resp.close()
+            resp._kryon_capped_content = bytes(buf[:cap])  # type: ignore[attr-defined]
             return resp, ""
         except requests.exceptions.SSLError as e:
             return None, f"ssl-error: {e}"
@@ -341,6 +365,11 @@ class Crawler:
             return None, f"connection-error: {e}"
         except requests.exceptions.RequestException as e:
             return None, f"request-error: {e}"
+        except Exception as e:
+            # Defensive: any other failure (e.g. chunked-encoding
+            # decode errors, content-too-long) is logged + skipped
+            # rather than crashing the entire crawl.
+            return None, f"fetch-error: {type(e).__name__}: {e}"
 
     # ----- crawl loop --------------------------------------------------------
 

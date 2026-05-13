@@ -268,13 +268,14 @@ def extract_forms_from_html(body: str, base_url: str) -> list[ExtractedForm]:
 # ----- JavaScript endpoint extraction ---------------------------------------
 
 # Quoted string that looks like a URL or absolute path.
-# We match BOTH ' and " quoted strings. Backticks (template literals)
-# we handle separately because they support ${} interpolation.
-_JS_QUOTED_STR_RE = re.compile(
-    r"""(?P<quote>['"])(?P<value>(?:\\.|(?!(?P=quote)).){1,500})(?P=quote)""",
-    re.DOTALL,
-)
-_JS_BACKTICK_RE = re.compile(r"`([^`$]{1,500})`")
+# IMPORTANT: this pattern is intentionally simple (character class,
+# no backreference, no lookahead) to avoid catastrophic backtracking
+# (ReDoS) on minified JS bundles. We pay for that by NOT handling
+# escaped quotes inside the string — but URLs almost never contain
+# escaped quotes, so the tradeoff is right.
+_JS_DOUBLE_QUOTE_RE = re.compile(r'"([^"\\\n\r]{1,500})"')
+_JS_SINGLE_QUOTE_RE = re.compile(r"'([^'\\\n\r]{1,500})'")
+_JS_BACKTICK_RE = re.compile(r"`([^`$\n\r]{1,500})`")
 
 # fetch / axios / $.ajax / $.get / $.post — capture the URL argument
 _FETCH_CALL_RE = re.compile(
@@ -353,18 +354,14 @@ def extract_endpoints_from_js(
     for m in _XHR_OPEN_RE.finditer(js_body):
         _add(m.group(4))
 
-    # Fallback: any quoted string that looks like an endpoint
-    for m in _JS_QUOTED_STR_RE.finditer(js_body):
-        value = m.group("value")
-        # Skip already-found exact strings
-        if not _classify_js_url_candidate(value):
-            continue
-        _add(value)
-
-    for m in _JS_BACKTICK_RE.finditer(js_body):
-        value = m.group(1)
-        if not _classify_js_url_candidate(value):
-            continue
-        _add(value)
+    # Fallback: any quoted string that looks like an endpoint.
+    # Use separate single/double-quote regexes (no backreference) to
+    # keep this O(n) and ReDoS-safe.
+    for pattern in (_JS_DOUBLE_QUOTE_RE, _JS_SINGLE_QUOTE_RE, _JS_BACKTICK_RE):
+        for m in pattern.finditer(js_body):
+            value = m.group(1)
+            if not _classify_js_url_candidate(value):
+                continue
+            _add(value)
 
     return out
