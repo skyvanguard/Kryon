@@ -15,6 +15,15 @@
 #   and the `<tool_call>...</tool_call>` emission protocol, which Ollama's
 #   OpenAI-compat shim translates to/from `tool_calls`.
 #
+# F85.1 NOTE — Why NOT the MFDoom/deepseek-r1-tool-calling template:
+#   The MFDoom template uses native DeepSeek tokens
+#   `<｜tool▁call▁begin｜>`/`<｜tool▁call▁end｜>` from the *full* R1
+#   tokenizer. R1-Distill-Qwen-14B is built on Qwen2.5-14B and only the
+#   Qwen tokens are in its trained vocabulary — DeepSeek-prefixed tokens
+#   are OOV and degrade tool-call reliability. Empirically the Qwen3
+#   template below outperforms MFDoom on this specific base. If a future
+#   distill is built on the actual DeepSeek-V2/V3 tokenizer, revisit.
+#
 #   The reasoning trace is preserved: Qwen3's template has the same
 #   <think>{{ .Thinking }}</think> hook the DeepSeek template uses, so
 #   R1's chain-of-thought still surfaces in the `reasoning` field of
