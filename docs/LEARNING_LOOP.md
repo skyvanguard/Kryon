@@ -262,12 +262,15 @@ better track record without a human re-ordering `priority:` fields by hand.
 **Pipeline**:
 1. `score_skills(experiences, skill_names)` aggregates per-skill stats
    (success/partial/fail counts, win rate, Wilson 95% lower bound).
-2. `SkillLoader.match()` accepts a `ranking` arg with three modes:
+2. `SkillLoader.match()` accepts a `ranking` arg with four modes:
    - `priority` (default) — pure priority sort, exactly v1 behaviour.
-   - `hybrid` — priority is tier-1 sort, score breaks ties within tiers.
+   - `hybrid` — priority is tier-1 sort, Wilson lower bound breaks
+     ties within tiers.
+   - `dual` (F77.G.5) — priority tier-1, **combined Wilson + reusability**
+     score breaks ties. See "F77.G.5 dual-reward" section below.
    - `score` — score-only ranking; experimental, not banking-safe.
-3. Activation: env var `KRYON_SKILL_RANKING=hybrid` (off by default for
-   regulated audits — priority remains deterministic).
+3. Activation: env var `KRYON_SKILL_RANKING=hybrid|dual` (off by default
+   for regulated audits — priority remains deterministic).
 
 **Wilson lower bound** keeps a 5/5-cold-starter from leapfrogging an
 80/100-veteran. Skills with sample < 10 are flagged `is_low_confidence`
@@ -344,7 +347,8 @@ New CWEs in the file extend the map.
 
 | Var | Effect |
 |---|---|
-| `KRYON_SKILL_RANKING` | `priority` (default) / `hybrid` / `score` |
+| `KRYON_SKILL_RANKING` | `priority` (default) / `hybrid` / `dual` / `score` |
+| `KRYON_SKILL_RANKING_WILSON_WEIGHT` | (informational; weights live in scorer code) |
 | `KRYON_DRAFTS_DIR` | Override `~/.kryon/drafts/` |
 | `KRYON_SELECTION_LOG` | Override `~/.kryon/selection_log.jsonl` path |
 | `KRYON_SELECTION_LOG_DISABLE` | `1` skips telemetry writes |
@@ -390,6 +394,72 @@ pytest tests/learning/test_pattern_detector.py \
        tests/learning/test_auto_pipeline.py \
        tests/learning/test_auto_e2e.py
 ```
+
+## F77.G.5 — Dual-reward ranking (SAGE: arxiv 2512.17102)
+
+### Why
+
+Wilson-only ranking captures "how often does this skill succeed?" but
+ignores "how often does the operator's matcher actually pick it up?".
+A skill with a tight Wilson interval is well-validated; a skill that
+also gets *re-selected across distinct engagements* is validated **AND**
+broadly useful. SAGE (arxiv 2512.17102) shows that combining these two
+signals gives faster, more stable skill evolution than either axis
+alone — drafts validated in 2-3 similar engagements get promoted
+sooner, and "one-hit wonders" that crushed a single CTF but never
+re-appeared get pushed below their priority floor.
+
+### How
+
+The combined score is a weighted blend:
+
+```
+combined_score = w_wilson * wilson_lower_bound + w_reuse * reusability_norm
+                                   (default 0.7)              (default 0.3)
+```
+
+- `wilson_lower_bound`: 95% Wilson lower bound on the success rate
+  (unchanged from F77.G F2).
+- `reusability_norm`: per-skill count of distinct selection-log records
+  where the skill was selected, divided by the corpus max. Values are
+  in [0, 1].
+
+The 70/30 weighting deliberately keeps **correctness > popularity** for
+banking compliance: a skill the operator happens to invoke a lot but
+that fails 40% of the time still ranks below a quieter skill with a
+tight Wilson interval. Operators can override the weights via
+`score_skills(..., wilson_weight=..., reuse_weight=...)` for offline
+experiments.
+
+### Banking-safety contract
+
+Same as hybrid: **priority is the primary sort** in `rank_skills_dual`.
+A high-combined-score skill at priority 50 NEVER outranks a
+low-combined-score skill at priority 10. The combined score only
+orders within a priority tier. This is enforced by
+`test_dual_ranker_respects_priority_tiers` so a refactor that breaks
+the contract can't be merged.
+
+### Activation
+
+```bash
+export KRYON_SKILL_RANKING=dual
+```
+
+Off by default — the matcher uses priority-only ranking unless the
+operator explicitly opts in. When telemetry is missing (fresh install,
+selection log cleared), dual ranking degrades gracefully to
+Wilson-only via the `telemetry_records=None` path.
+
+### Edge cases pinned
+
+| Case | Behaviour | Test |
+|---|---|---|
+| No telemetry passed | reusability fields = 0 → combined collapses to `0.7 * wilson` | `test_score_skills_without_telemetry_is_legacy_path` |
+| Skill in telemetry but no experiences | sample=0, Wilson=0, combined = `0.3 * reuse_norm` | `test_zero_engagement_skill_with_reusability` |
+| Low-confidence skill (sample < 10) | Wilson contribution suppressed (treated as 0); only reuse contributes | `test_low_confidence_skill_suppresses_wilson_in_combined` |
+| Same priority + dual ranking | combined_score breaks tie, NOT Wilson alone | `test_dual_and_hybrid_diverge_on_reuse_tie_break` |
+| Cross-priority + dual ranking | Priority ALWAYS wins (banca-safe) | `test_dual_ranker_respects_priority_tiers` |
 
 ## F77.G.4 — Guide gate (relevance + naturalness)
 

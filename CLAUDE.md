@@ -81,7 +81,7 @@ Two execution modes:
 
 - **`learning/`** — Self-improving loop, **v2 closed**. v1 capture: `experiences.py` (ChromaDB), `profiler.py`, `chain_extractor.py`, `findings_library.py`. v2 closes the loop in three layers (full doc: `docs/LEARNING_LOOP.md` v2 section):
   - **F1 drafting** — `skill_synthesizer.py` + `draft_writer.py`. Every successful engagement auto-writes a draft `.md` to `~/.kryon/drafts/`. Operator promotes via `/skill promote`.
-  - **F2 scoring** — `skill_scorer.py` (Wilson 95% lower bound) + `selection_telemetry.py` (JSONL log). Activate hybrid ranking with `KRYON_SKILL_RANKING=hybrid`. Off by default (banking-safe).
+  - **F2 scoring** — `skill_scorer.py` (Wilson 95% lower bound) + `selection_telemetry.py` (JSONL log). Activate hybrid ranking with `KRYON_SKILL_RANKING=hybrid`. Off by default (banking-safe). **F77.G.5** adds a second reward axis (reusability — cuántas veces fue seleccionada cross-engagements), available via `KRYON_SKILL_RANKING=dual`. The combined score is `0.7 * wilson_lower + 0.3 * reusability_norm`; priority remains the primary sort, score only orders within a tier. Same banking-safety contract as hybrid.
   - **F3 auto-creation** — `pattern_detector.py` (Jaccard clustering) + `synthesize_from_cluster()` (LLM-assisted body, hallucinated tool names rejected) + `skill_evaluator.py` (CWE→tools eval gate, conservative precision-over-recall) + `auto_pipeline.py`. Manual trigger: `/skill auto detect`.
   - REPL commands: `/skill drafts|review|promote|discard|scores|auto`.
   - CWE map override: `~/.kryon/cwe_map.yaml` (template at `docs/examples/cwe_map.yaml`) or `KRYON_CWE_MAP` env var.

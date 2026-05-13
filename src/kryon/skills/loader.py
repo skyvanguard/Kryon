@@ -373,10 +373,14 @@ class SkillLoader:
         return selected
 
     def _resolve_ranking_mode(self, ranking: str | None) -> str:
-        """Resolve final ranking mode: explicit arg > env var > priority."""
+        """Resolve final ranking mode: explicit arg > env var > priority.
+
+        F77.G.5 adds 'dual' — Wilson + reusability blend. Still respects
+        priority as primary sort, same banking-safety contract as
+        'hybrid'."""
         if ranking is None:
             ranking = os.environ.get("KRYON_SKILL_RANKING", "").strip().lower()
-        if ranking in ("hybrid", "score"):
+        if ranking in ("hybrid", "score", "dual"):
             return ranking
         return "priority"
 
@@ -399,19 +403,50 @@ class SkillLoader:
         try:
             experiences = self._load_experiences_for_ranking(experience_loader)
             from kryon.learning.skill_scorer import (
+                rank_skills_dual,
                 rank_skills_hybrid,
                 rank_skills_score_only,
                 score_skills,
             )
 
+            # F77.G.5 — pull selection telemetry only for the dual mode
+            # so the legacy hybrid / score paths stay byte-equivalent to
+            # before. Best-effort: if telemetry can't be read, dual
+            # degrades gracefully to Wilson-only ranking.
+            telemetry_records: list[dict[str, Any]] | None = None
+            if ranking == "dual":
+                try:
+                    from kryon.learning.selection_telemetry import read_recent
+
+                    telemetry_records = read_recent(limit=500)
+                except Exception as e:  # noqa: BLE001
+                    logger.debug("dual ranking: telemetry unavailable (%s); ignoring", e)
+                    telemetry_records = None
+
             skill_names = [s.name for _, s in scored]
-            scores = score_skills(experiences=experiences, skill_names=skill_names)
+            scores = score_skills(
+                experiences=experiences,
+                skill_names=skill_names,
+                telemetry_records=telemetry_records,
+            )
             pairs = [(s.name, prio) for prio, s in scored]
-            ranker = rank_skills_hybrid if ranking == "hybrid" else rank_skills_score_only
+            if ranking == "hybrid":
+                ranker = rank_skills_hybrid
+            elif ranking == "dual":
+                ranker = rank_skills_dual
+            else:
+                ranker = rank_skills_score_only
             ranked_pairs = ranker(pairs, scores)
             by_name = {s.name: (prio, s) for prio, s in scored}
             ordered = [by_name[name] for name, _ in ranked_pairs]
-            scores_by_name = {n: scores[n].confidence_lower for n in scores}
+            # Surface the score the ranker actually used: combined for
+            # dual, Wilson for hybrid/score. Telemetry consumers
+            # downstream (skill scores REPL, exports) get the same
+            # number that drove the decision.
+            if ranking == "dual":
+                scores_by_name = {n: scores[n].combined_score for n in scores}
+            else:
+                scores_by_name = {n: scores[n].confidence_lower for n in scores}
             return ordered, scores_by_name
         except Exception as e:  # noqa: BLE001
             logger.debug("ranking %r failed, falling back to priority: %s", ranking, e)

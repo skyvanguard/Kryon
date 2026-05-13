@@ -38,7 +38,12 @@ _DEFAULT_MIN_SAMPLE = 10
 
 @dataclass(frozen=True)
 class SkillScore:
-    """One skill's aggregate performance over the experience corpus."""
+    """One skill's aggregate performance over the experience corpus.
+
+    F77.G.5 (SAGE dual-reward, arxiv 2512.17102) adds the `reusability_*`
+    + `combined_score` fields. They default to 0 so callers that don't
+    pass telemetry get exactly the legacy F2 Wilson-only behaviour.
+    """
 
     skill_name: str
     sample_size: int = 0
@@ -50,6 +55,13 @@ class SkillScore:
     avg_chain_len: float = 0.0
     last_used: str | None = None
     is_low_confidence: bool = True
+    # F77.G.5 — second reward axis. Counts how many *distinct* selection
+    # log records (i.e. independent engagements / turns) selected the
+    # skill. Normalized against the corpus max into [0, 1]. The
+    # `combined_score` is the weighted blend used by rank_skills_dual.
+    reusability_count: int = 0
+    reusability_norm: float = 0.0
+    combined_score: float = 0.0
 
 
 def wilson_lower_bound(
@@ -98,11 +110,71 @@ def _agent_path_skills(experience: dict[str, Any]) -> list[str]:
     return [str(s) for s in raw if s]
 
 
+# F77.G.5 — weight applied to Wilson lower bound in the combined score.
+# 0.7 means Wilson dominates the ranking decision; reusability nudges
+# tie-breaks. We picked 0.7 over 0.5 because correctness > popularity
+# for banking compliance: a skill the operator happens to invoke a lot
+# but that fails 40% of the time should NOT outrank a quieter skill
+# with a tight Wilson interval.
+_DEFAULT_WILSON_WEIGHT = 0.7
+_DEFAULT_REUSE_WEIGHT = 0.3
+
+
+def reusability_from_telemetry(
+    telemetry_records: list[dict[str, Any]],
+    skill_names: list[str],
+) -> dict[str, int]:
+    """Count how many distinct selection-log records selected each
+    skill. One log record = one turn; selecting the same skill twice
+    in one turn (impossible today but defensive) counts once.
+
+    Args:
+        telemetry_records: rows from selection_telemetry.read_recent()
+            or any source matching that shape — each must carry a
+            `selected: list[str]` field.
+        skill_names: skills to score. Unrequested names are dropped
+            from the returned dict so the caller never has to filter.
+
+    Returns:
+        dict[skill_name -> count]. Skills present in `skill_names` but
+        absent from every log record return 0.
+    """
+    requested = set(skill_names)
+    counts: dict[str, int] = {name: 0 for name in requested}
+    for record in telemetry_records:
+        selected = record.get("selected") or []
+        if not isinstance(selected, list):
+            continue
+        # dedupe within a single record so a (defensive) duplicate
+        # entry doesn't double-count.
+        for name in set(selected):
+            if name in counts:
+                counts[name] += 1
+    return counts
+
+
+def _normalize_counts(counts: dict[str, int]) -> dict[str, float]:
+    """Map raw counts to [0, 1] by dividing by the corpus max.
+
+    Empty corpus / all-zero counts return all-zero norms so the
+    combined score reduces to Wilson * w_wilson.
+    """
+    if not counts:
+        return {}
+    max_count = max(counts.values(), default=0)
+    if max_count <= 0:
+        return {name: 0.0 for name in counts}
+    return {name: c / max_count for name, c in counts.items()}
+
+
 def score_skills(
     experiences: list[dict[str, Any]],
     skill_names: list[str],
     *,
     min_sample_for_confidence: int = _DEFAULT_MIN_SAMPLE,
+    telemetry_records: list[dict[str, Any]] | None = None,
+    wilson_weight: float = _DEFAULT_WILSON_WEIGHT,
+    reuse_weight: float = _DEFAULT_REUSE_WEIGHT,
 ) -> dict[str, SkillScore]:
     """Aggregate experiences into per-skill SkillScore entries.
 
@@ -152,6 +224,15 @@ def score_skills(
                 if not bucket["last_used"] or created_at > bucket["last_used"]:
                     bucket["last_used"] = created_at
 
+    # F77.G.5 — reusability axis. None telemetry → all-zero counts so
+    # combined_score collapses to wilson * wilson_weight.
+    reuse_counts: dict[str, int]
+    if telemetry_records is None:
+        reuse_counts = {name: 0 for name in requested}
+    else:
+        reuse_counts = reusability_from_telemetry(telemetry_records, list(requested))
+    reuse_norms = _normalize_counts(reuse_counts)
+
     out: dict[str, SkillScore] = {}
     for name in requested:
         c = counts[name]
@@ -159,8 +240,20 @@ def score_skills(
         p = c["partial"]
         f = c["fail"]
         total = s + p + f
+        reuse_count = reuse_counts.get(name, 0)
+        reuse_norm = reuse_norms.get(name, 0.0)
         if total == 0:
-            out[name] = SkillScore(skill_name=name)
+            # Cold-start skill: surface the reusability signal but zero
+            # everything correctness-derived. Wilson is 0 so combined
+            # is just reuse_weight * reuse_norm — still useful for the
+            # leaderboard "noticed but never validated" bucket.
+            combined = reuse_weight * reuse_norm
+            out[name] = SkillScore(
+                skill_name=name,
+                reusability_count=reuse_count,
+                reusability_norm=reuse_norm,
+                combined_score=combined,
+            )
             continue
 
         # Win rate: partial counts half-credit.
@@ -168,6 +261,12 @@ def score_skills(
         # Wilson uses hard successes. Partial does NOT lift confidence.
         conf = wilson_lower_bound(successes=s, total=total)
         avg_chain = c["chain_len_sum"] / total
+
+        # Low-confidence skills do NOT contribute Wilson to the combined
+        # score — same rule as _ranking_score for the legacy hybrid path.
+        is_low_conf = total < min_sample_for_confidence
+        effective_wilson = 0.0 if is_low_conf else conf
+        combined = wilson_weight * effective_wilson + reuse_weight * reuse_norm
 
         out[name] = SkillScore(
             skill_name=name,
@@ -179,7 +278,10 @@ def score_skills(
             confidence_lower=conf,
             avg_chain_len=avg_chain,
             last_used=c["last_used"],
-            is_low_confidence=total < min_sample_for_confidence,
+            is_low_confidence=is_low_conf,
+            reusability_count=reuse_count,
+            reusability_norm=reuse_norm,
+            combined_score=combined,
         )
 
     return out
@@ -235,5 +337,37 @@ def rank_skills_score_only(
         name, priority = item
         score_val = _ranking_score(scores.get(name, SkillScore(skill_name=name)))
         return (-score_val, priority)
+
+    return sorted(skills_with_priority, key=sort_key)
+
+
+def _dual_score(score: SkillScore) -> float:
+    """Single-number ranker for the dual-reward path. Same low-confidence
+    rule as `_ranking_score`: skills with too few samples contribute
+    only their reusability share to the score, never their Wilson
+    component (because the interval is too wide to trust).
+
+    The `combined_score` field is already populated with the correct
+    blend, but we recompute the post-low-confidence-floor value here
+    so it's obvious in the ranker exactly what's being sorted.
+    """
+    return score.combined_score
+
+
+def rank_skills_dual(
+    skills_with_priority: list[tuple[str, int]],
+    scores: dict[str, SkillScore],
+) -> list[tuple[str, int]]:
+    """F77.G.5 (SAGE dual-reward) — sort by (priority asc, combined_score
+    desc). Same banking-safety contract as `rank_skills_hybrid`:
+    priority is THE primary law, the score (now blending Wilson +
+    reusability) only orders within a tier. A high-reuse low-priority
+    skill NEVER beats a low-reuse high-priority one.
+    """
+
+    def sort_key(item: tuple[str, int]) -> tuple[int, float]:
+        name, priority = item
+        score_val = _dual_score(scores.get(name, SkillScore(skill_name=name)))
+        return (priority, -score_val)
 
     return sorted(skills_with_priority, key=sort_key)
