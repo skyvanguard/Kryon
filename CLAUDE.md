@@ -125,6 +125,8 @@ KRYON_TOOL_BUDGET=static           # F84.7: 'itr' enables per-turn embedding-bas
 KRYON_BOLA_FIRE=                   # F87.2: 'true' enables live HTTP probes in detect_bola tool.
                                    # Default unset = dry-run only (no network traffic). Operator
                                    # MUST also pass fire=True in the tool call — both gates required.
+KRYON_GRAPHQL_FIRE=                # F87.3: 'true' enables live HTTP probes in graphql_recon tool.
+                                   # Same double-gate as KRYON_BOLA_FIRE. Default unset = dry-run.
 ```
 
 ## Docker / K8s
