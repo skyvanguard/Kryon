@@ -51,6 +51,11 @@ from kryon.tools.auth.runner import (
     AuthSession,
 )
 from kryon.tools.crawler.crawler import Crawler, CrawlerConfig, CrawlResult
+from kryon.tools.ffuf.runner import (
+    FfufConfig,
+    is_ffuf_available,
+    run_ffuf,
+)
 from kryon.tools.nuclei.runner import (
     NuclieConfig,
     is_nuclei_available,
@@ -107,6 +112,8 @@ class PipelineConfig:
     tls_timeout: float = 5.0
     run_nuclei: bool = False       # F110 — delegate to nuclei CLI (banca opt-in)
     nuclei_config: NuclieConfig | None = None  # if None + run_nuclei: build a banca-safe default
+    run_ffuf: bool = False         # F112 — content-discovery fuzzing (banca opt-in)
+    ffuf_config: FfufConfig | None = None  # if None + run_ffuf: build a banca-safe default per origin
     # F111 — authenticated audit. If set, runs the login flow BEFORE
     # the crawl + injects captured cookies/headers into the crawler.
     auth_flow: AuthFlowConfig | None = None
@@ -406,6 +413,59 @@ class Pipeline:
             for f in analysis.findings
         ]
 
+    def _run_ffuf_for_origins(
+        self,
+        origins: list[str],
+        auth_cookies: tuple[tuple[str, str], ...],
+        auth_headers: tuple[tuple[str, str], ...],
+    ) -> list[UnifiedFinding]:
+        """Run ffuf against each origin. Hits become DisclosureProbe
+        records and run through F101's classifier, so a hit on
+        `/.git/config` (200 + git-config body) emerges as a CRITICAL
+        INFO-001 finding — same shape as if the operator had hand-
+        probed it."""
+        out: list[UnifiedFinding] = []
+        for origin in origins:
+            cfg = self.config.ffuf_config or FfufConfig(
+                base_url=origin.rstrip("/") + "/FUZZ",
+                cookies=auth_cookies,
+                headers=auth_headers,
+            )
+            # If operator supplied a config but no base_url with FUZZ,
+            # we don't override — caller is responsible. If they
+            # supplied a base_url WITHOUT FUZZ, ffuf will error.
+            result = run_ffuf(cfg)
+            if result.ffuf_missing or not result.hits:
+                continue
+            # Translate each hit → DisclosureProbe; classify via F101
+            probes: list[DisclosureProbe] = []
+            for hit in result.hits:
+                # The path is the FUZZ value; ensure leading slash
+                path = hit.input if hit.input.startswith("/") else "/" + hit.input
+                probes.append(
+                    DisclosureProbe(
+                        path=path,
+                        http_status=hit.http_status,
+                        body_fingerprint="",  # ffuf doesn't capture body
+                        content_length=hit.content_length,
+                    )
+                )
+            disclosure = analyze_disclosure_probes(probes)
+            for f in disclosure.findings:
+                out.append(
+                    UnifiedFinding(
+                        rule_id=f.rule_id,
+                        severity=f.severity,
+                        title=f.title,
+                        detail=f.detail + " (discovered via ffuf)",
+                        remediation=f.remediation,
+                        source_module="F101",  # classification module
+                        target=origin.rstrip("/") + f.path,
+                        extra=(("discovery_module", "F112"),),
+                    )
+                )
+        return out
+
     def _run_nuclei_for_seeds(self) -> list[UnifiedFinding]:
         """Delegate breadth-of-coverage to nuclei. Returns empty list
         if binary not installed (no error — soft failure)."""
@@ -548,6 +608,34 @@ class Pipeline:
             stages_run.append("F101-disclosure")
         else:
             stages_skipped.append("F101-disclosure")
+
+        # ---- Stage 5a: F112 ffuf (opt-in, before nuclei so nuclei
+        # could in theory consume the discovered paths) ----
+        if self.config.run_ffuf:
+            if is_ffuf_available(
+                (self.config.ffuf_config.ffuf_binary
+                 if self.config.ffuf_config else "ffuf")
+            ):
+                origins_list: list[str] = []
+                for seed in self.config.seeds:
+                    parsed = urlparse(seed)
+                    if parsed.scheme and parsed.hostname:
+                        netloc = parsed.hostname
+                        if parsed.port:
+                            netloc = f"{parsed.hostname}:{parsed.port}"
+                        origin = f"{parsed.scheme}://{netloc}"
+                        if origin not in origins_list:
+                            origins_list.append(origin)
+                findings.extend(
+                    self._run_ffuf_for_origins(
+                        origins_list, auth_cookies, auth_headers
+                    )
+                )
+                stages_run.append("F112-ffuf")
+            else:
+                stages_skipped.append("F112-ffuf (binary-missing)")
+        else:
+            stages_skipped.append("F112-ffuf")
 
         # ---- Stage 5b: F110 Nuclei (opt-in) ----
         # Run BEFORE TLS so it can use any extra surface area
