@@ -228,7 +228,116 @@ def test_empty_observation_zero_findings():
 
 def test_all_rules_pinned():
     expected_subset = {"CMS-001", "CMS-002", "CMS-010", "CMS-022", "CMS-030", "CMS-040"}
+    expected_extended = {f"CMS-{n:03d}" for n in (50, 51, 52, 53, 55, 57, 58, 60, 63, 68, 70, 71, 72, 74)}
     assert expected_subset <= ALL_CMS_RULES
+    assert expected_extended <= ALL_CMS_RULES
+
+
+# =====================================================================
+# F104 v2 — extended catalog tests
+# =====================================================================
+
+
+def test_cms_050_ghost_via_meta():
+    body = '<meta name="generator" content="Ghost 5.40" />'
+    analysis = analyze_fingerprint(_obs(body=body))
+    assert any(f.rule_id == "CMS-050" for f in analysis.findings)
+
+
+def test_cms_051_shopify_via_body():
+    body = '<link rel="stylesheet" href="//cdn.shopify.com/s/files/1/0001/0001/t/1/assets/theme.css">'
+    analysis = analyze_fingerprint(_obs(body=body))
+    assert any(f.rule_id == "CMS-051" for f in analysis.findings)
+
+
+def test_cms_051_shopify_via_header():
+    analysis = analyze_fingerprint(
+        _obs(headers=(("X-Shopify-Stage", "production"),))
+    )
+    assert any(f.rule_id == "CMS-051" for f in analysis.findings)
+
+
+def test_cms_053_mediawiki_via_meta():
+    body = '<meta name="generator" content="MediaWiki 1.39.5" />'
+    analysis = analyze_fingerprint(_obs(body=body))
+    assert any(f.rule_id == "CMS-053" for f in analysis.findings)
+
+
+def test_cms_055_discourse_via_header():
+    analysis = analyze_fingerprint(
+        _obs(headers=(("X-Discourse-Route", "topics/show"),))
+    )
+    assert any(f.rule_id == "CMS-055" for f in analysis.findings)
+
+
+def test_cms_057_sitecore_via_path():
+    body = '<script src="/sitecore/shell/themes/foo.js"></script>'
+    analysis = analyze_fingerprint(_obs(body=body))
+    assert any(f.rule_id == "CMS-057" for f in analysis.findings)
+
+
+def test_cms_058_aem_via_paths():
+    body = '<link href="/etc/designs/foo/theme.css">\n<img src="/content/dam/site/logo.png">'
+    analysis = analyze_fingerprint(_obs(body=body))
+    assert any(f.rule_id == "CMS-058" for f in analysis.findings)
+
+
+def test_cms_060_liferay_via_body():
+    body = '<a href="/c/portal/login">Login</a>\nLiferay 7.4'
+    analysis = analyze_fingerprint(_obs(body=body))
+    assert any(f.rule_id == "CMS-060" for f in analysis.findings)
+
+
+def test_cms_068_wix_via_header():
+    analysis = analyze_fingerprint(
+        _obs(headers=(("X-Wix-Request-Id", "abc-123"),))
+    )
+    assert any(f.rule_id == "CMS-068" for f in analysis.findings)
+
+
+def test_cms_070_nextjs_via_body():
+    body = '<script src="/_next/static/chunks/main.js"></script>'
+    analysis = analyze_fingerprint(_obs(body=body))
+    assert any(f.rule_id == "CMS-070" for f in analysis.findings)
+
+
+def test_cms_070_nextjs_via_header():
+    analysis = analyze_fingerprint(
+        _obs(headers=(("X-Powered-By", "Next.js"),))
+    )
+    assert any(f.rule_id == "CMS-070" for f in analysis.findings)
+
+
+def test_cms_071_nuxt_via_body():
+    body = '<script>window.__NUXT__={data:{}}</script>'
+    analysis = analyze_fingerprint(_obs(body=body))
+    assert any(f.rule_id == "CMS-071" for f in analysis.findings)
+
+
+def test_cms_072_gatsby_via_body():
+    body = '<script>window.___gatsby = {}</script>'
+    analysis = analyze_fingerprint(_obs(body=body))
+    assert any(f.rule_id == "CMS-072" for f in analysis.findings)
+
+
+def test_cms_074_hugo_static_via_meta():
+    body = '<meta name="generator" content="Hugo 0.119.0" />'
+    analysis = analyze_fingerprint(_obs(body=body))
+    assert any(f.rule_id == "CMS-074" for f in analysis.findings)
+
+
+def test_cms_extended_via_cookie():
+    """phpBB session cookie should trigger CMS-054."""
+    analysis = analyze_fingerprint(_obs(cookies=("phpbb3_abc_sid",)))
+    assert any(f.rule_id == "CMS-054" for f in analysis.findings)
+
+
+def test_cms_clean_site_no_findings_from_extended():
+    """A site without any CMS markers should not trip extended rules."""
+    body = "<html><body>Pure HTML site, no CMS.</body></html>"
+    analysis = analyze_fingerprint(_obs(body=body))
+    extended_ids = {f"CMS-{n:03d}" for n in range(50, 76)}
+    assert not any(f.rule_id in extended_ids for f in analysis.findings)
 
 
 def test_dataclasses_are_frozen():
