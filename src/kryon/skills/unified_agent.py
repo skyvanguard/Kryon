@@ -110,9 +110,11 @@ def create_unified_agent(
     If `skills` is None, the loader auto-matches based on `profile` and
     `user_msg`. Pass explicit skills to override auto-matching.
     """
+    import os
+
     from kryon.agents.base import create_agent
     from kryon.skills.loader import SkillLoader
-    from kryon.skills.tool_budget import select_tools
+    from kryon.skills.tool_budget import select_tools, select_tools_itr
 
     loader = SkillLoader()
 
@@ -137,11 +139,23 @@ def create_unified_agent(
 
     instructions = _BASE_PROMPT.format(skill_sections=skill_sections)
 
-    # Select tools based on active skills (respecting per-skill vetoes)
+    # Select tools — ITR per-turn (F84.7) or static skill-driven (F77).
+    # Default is static for banca-safe rollout; operators opt in to
+    # ITR via KRYON_TOOL_BUDGET=itr.
     registry = _get_tool_registry()
     skill_tool_names = loader.required_tool_names(skills)
     forbidden = loader.forbidden_tool_names(skills)
-    tools = select_tools(registry, skill_tool_names, forbidden_tool_names=forbidden)
+    tools: list[Any] | None = None
+    if os.environ.get("KRYON_TOOL_BUDGET", "static").lower() == "itr" and user_msg.strip():
+        tools = select_tools_itr(
+            registry,
+            user_query=user_msg,
+            forbidden_tool_names=forbidden,
+        )
+        if tools is None:
+            logger.debug("ITR returned None for query=%r; falling back to static", user_msg[:80])
+    if tools is None:
+        tools = select_tools(registry, skill_tool_names, forbidden_tool_names=forbidden)
 
     logger.info(
         "Unified agent: %d skills loaded (%s), %d tools active",

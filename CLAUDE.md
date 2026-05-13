@@ -119,6 +119,9 @@ KRYON_FORCE_TOOL_TURNS=8           # Force tool use first N turns (Ollama reliab
 KRYON_MEMORY=true
 KRYON_STREAM=false                 # Non-streaming REPL (stable)
 KRYON_EMBEDDING_MODEL=nomic-embed-text
+KRYON_TOOL_BUDGET=static           # F84.7: 'itr' enables per-turn embedding-based tool selection.
+                                   # Default 'static' = banca-safe legacy skill-driven selection.
+                                   # Build the index first: python -m scripts.build_itr_index
 ```
 
 ## Docker / K8s

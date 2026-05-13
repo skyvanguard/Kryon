@@ -137,3 +137,65 @@ def select_tools(
         tools = always + rest[: max_tools - len(always)]
 
     return tools
+
+
+def select_tools_itr(
+    registry: dict[str, Any],
+    user_query: str,
+    *,
+    max_tools: int = 30,
+    forbidden_tool_names: set[str] | None = None,
+    embedder: Any = None,
+    index: Any = None,
+) -> list[Any] | None:
+    """F84.7 — Per-turn ITR tool selection. Embeds the user query,
+    scores every tool in the persisted index by cosine similarity,
+    keeps the high-confidence hits (CAR adaptive K) plus the
+    ALWAYS_INCLUDE set, caps at max_tools.
+
+    Returns None on any of:
+      - empty query
+      - index not built / missing
+      - embedder failure (network, model down)
+      - too few hits clear the confidence threshold (ambiguous query)
+
+    The caller is REQUIRED to handle None by falling back to
+    `select_tools` so an ITR misfire never produces an empty tool
+    list on a live banking engagement.
+
+    `embedder` and `index` are dependency-injected so tests can mock
+    them. Production callers pass None and we wire the Ollama
+    embedder + on-disk index automatically."""
+    if not user_query or not user_query.strip():
+        return None
+    if not registry:
+        return None
+
+    # Lazy import to avoid pulling the embedder module on the static
+    # path (banca-safe default).
+    from kryon.skills.itr_retriever import select_with_itr
+
+    if embedder is None:
+        from kryon.skills.itr_tool_index import OllamaEmbedder
+
+        embedder = OllamaEmbedder()
+    if index is None:
+        from kryon.skills.itr_tool_index import load_index
+
+        index = load_index()
+
+    selected_names = select_with_itr(
+        user_query,
+        embedder,
+        index,
+        max_tools=max_tools,
+        always_include=ALWAYS_INCLUDE,
+    )
+    if selected_names is None:
+        return None
+
+    if forbidden_tool_names:
+        selected_names = [n for n in selected_names if n not in forbidden_tool_names]
+
+    tools = [registry[n] for n in selected_names if n in registry]
+    return tools or None
