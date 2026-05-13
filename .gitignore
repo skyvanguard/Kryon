@@ -224,6 +224,8 @@ docs/*
 !docs/PLAN_PARITY_CAI.md
 !docs/benchmarks/
 !docs/benchmarks/**
+!docs/ci/
+!docs/ci/**
 
 # Benchmark run outputs (per-machine, not versioned)
 reports/
