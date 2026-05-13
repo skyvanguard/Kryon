@@ -45,6 +45,11 @@ from kryon.tools.api.vuln_js_libs import (
     ScriptObservation,
     analyze_scripts,
 )
+from kryon.tools.auth.runner import (
+    AuthFlowConfig,
+    AuthFlowRunner,
+    AuthSession,
+)
 from kryon.tools.crawler.crawler import Crawler, CrawlerConfig, CrawlResult
 from kryon.tools.nuclei.runner import (
     NuclieConfig,
@@ -102,6 +107,9 @@ class PipelineConfig:
     tls_timeout: float = 5.0
     run_nuclei: bool = False       # F110 — delegate to nuclei CLI (banca opt-in)
     nuclei_config: NuclieConfig | None = None  # if None + run_nuclei: build a banca-safe default
+    # F111 — authenticated audit. If set, runs the login flow BEFORE
+    # the crawl + injects captured cookies/headers into the crawler.
+    auth_flow: AuthFlowConfig | None = None
 
 
 @dataclass(frozen=True)
@@ -125,6 +133,8 @@ class PipelineResult:
     elapsed_seconds: float = 0.0
     stages_run: tuple[str, ...] = ()
     stages_skipped: tuple[str, ...] = ()
+    # F111: present when an auth flow ran (success or failure both visible)
+    auth_session: AuthSession | None = None
 
 
 # ----- helpers --------------------------------------------------------------
@@ -184,10 +194,39 @@ class Pipeline:
             raise ValueError("PipelineConfig.seeds must be non-empty")
         self.config = config
 
-    def _make_crawler_config(self) -> CrawlerConfig:
+    def _make_crawler_config(
+        self, auth_cookies: tuple[tuple[str, str], ...] = (),
+        auth_headers: tuple[tuple[str, str], ...] = (),
+    ) -> CrawlerConfig:
+        """Build the CrawlerConfig, layering in any captured auth
+        session on top of operator-supplied defaults."""
         if self.config.crawler is not None:
-            return self.config.crawler
-        return CrawlerConfig(seeds=self.config.seeds)
+            base = self.config.crawler
+            # Merge: auth_session entries take precedence over base
+            merged_cookies = list(base.auth_cookies) + list(auth_cookies)
+            merged_headers = list(base.auth_headers) + list(auth_headers)
+            return CrawlerConfig(
+                seeds=base.seeds,
+                user_agent=base.user_agent,
+                max_pages=base.max_pages,
+                max_depth=base.max_depth,
+                max_concurrency=base.max_concurrency,
+                max_body_bytes=base.max_body_bytes,
+                per_request_timeout_seconds=base.per_request_timeout_seconds,
+                rate_limit_per_second=base.rate_limit_per_second,
+                respect_robots=base.respect_robots,
+                same_origin_only=base.same_origin_only,
+                allowed_extra_hosts=base.allowed_extra_hosts,
+                block_internal_ips=base.block_internal_ips,
+                fetch_external_js=base.fetch_external_js,
+                auth_cookies=tuple(merged_cookies),
+                auth_headers=tuple(merged_headers),
+            )
+        return CrawlerConfig(
+            seeds=self.config.seeds,
+            auth_cookies=auth_cookies,
+            auth_headers=auth_headers,
+        )
 
     def _analyze_headers(self, page) -> list[UnifiedFinding]:
         headers_dict = _headers_to_dict(page.headers)
@@ -431,8 +470,27 @@ class Pipeline:
         stages_skipped: list[str] = []
         findings: list[UnifiedFinding] = []
 
+        # ---- Stage 0: optional auth flow (F111) ----
+        auth_session: AuthSession | None = None
+        auth_cookies: tuple[tuple[str, str], ...] = ()
+        auth_headers: tuple[tuple[str, str], ...] = ()
+        if self.config.auth_flow is not None:
+            auth_session = AuthFlowRunner(self.config.auth_flow).execute()
+            if auth_session.success:
+                auth_cookies = auth_session.cookies
+                auth_headers = auth_session.headers
+                stages_run.append("F111-auth-flow")
+            else:
+                # Login failed — proceed unauthenticated so the audit
+                # still produces value for the pre-auth surface.
+                stages_skipped.append(
+                    f"F111-auth-flow (login-failed: {auth_session.failure_reason[:80]})"
+                )
+        else:
+            stages_skipped.append("F111-auth-flow")
+
         # ---- Stage 1: crawl ----
-        crawler = Crawler(self._make_crawler_config())
+        crawler = Crawler(self._make_crawler_config(auth_cookies, auth_headers))
         crawl = crawler.crawl()
         stages_run.append("crawl")
 
@@ -539,6 +597,7 @@ class Pipeline:
             elapsed_seconds=time.monotonic() - t0,
             stages_run=tuple(stages_run),
             stages_skipped=tuple(stages_skipped),
+            auth_session=auth_session,
         )
 
 
