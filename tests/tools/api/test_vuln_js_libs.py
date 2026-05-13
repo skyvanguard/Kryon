@@ -204,8 +204,107 @@ def test_realistic_legacy_site_scan():
 
 
 def test_all_rules_pinned():
-    expected = {f"VJS-{n:03d}" for n in range(1, 17)}
+    expected = {f"VJS-{n:03d}" for n in range(1, 51)}
     assert expected == ALL_VJS_RULES
+
+
+# =====================================================================
+# F102 v2 — expanded catalog tests
+# =====================================================================
+
+
+def test_vjs_017_vue_pre_270():
+    findings = _classify_observation(_obs("/vue-2.6.14.min.js"))
+    assert any(f.rule_id == "VJS-017" for f in findings)
+
+
+def test_vjs_018_react_pre_1642():
+    findings = _classify_observation(_obs("/react-16.4.1.min.js"))
+    assert any(f.rule_id == "VJS-018" for f in findings)
+
+
+def test_vjs_021_ember_pre_3240():
+    findings = _classify_observation(_obs("/ember-3.20.0.min.js"))
+    assert any(f.rule_id == "VJS-021" for f in findings)
+
+
+def test_vjs_022_backbone_pre_141():
+    findings = _classify_observation(_obs("/backbone-1.3.3.min.js"))
+    assert any(f.rule_id == "VJS-022" for f in findings)
+
+
+def test_vjs_024_prototype_pre_174_high():
+    findings = _classify_observation(_obs("/prototype-1.7.3.min.js"))
+    assert any(f.rule_id == "VJS-024" and f.severity == "HIGH" for f in findings)
+
+
+def test_vjs_026_marked_pre_4010():
+    findings = _classify_observation(_obs("/marked-4.0.9.min.js"))
+    assert any(f.rule_id == "VJS-026" for f in findings)
+
+
+def test_vjs_028_ejs_pre_317_critical():
+    findings = _classify_observation(_obs("/ejs-3.1.6.min.js"))
+    assert any(f.rule_id == "VJS-028" and f.severity == "CRITICAL" for f in findings)
+
+
+def test_vjs_030_pug_pre_301_critical():
+    findings = _classify_observation(_obs("/pug-3.0.0.min.js"))
+    assert any(f.rule_id == "VJS-030" and f.severity == "CRITICAL" for f in findings)
+
+
+def test_vjs_032_jsonwebtoken_pre_900_critical():
+    findings = _classify_observation(_obs("/jsonwebtoken/8.5.1/index.js"))
+    assert any(f.rule_id == "VJS-032" and f.severity == "CRITICAL" for f in findings)
+
+
+def test_vjs_034_express_pre_4173():
+    findings = _classify_observation(_obs("/express-4.17.0.min.js"))
+    assert any(f.rule_id == "VJS-034" for f in findings)
+
+
+def test_vjs_038_semver_pre_752():
+    findings = _classify_observation(_obs("/semver-7.5.1.min.js"))
+    assert any(f.rule_id == "VJS-038" for f in findings)
+
+
+def test_vjs_040_crypto_js_pre_420():
+    findings = _classify_observation(_obs("/crypto-js-4.1.1.min.js"))
+    assert any(f.rule_id == "VJS-040" for f in findings)
+
+
+def test_vjs_044_ckeditor_pre_4240():
+    findings = _classify_observation(_obs("/ckeditor/4.22.1/ckeditor.js"))
+    assert any(f.rule_id == "VJS-044" for f in findings)
+
+
+def test_vjs_045_tinymce_pre_5100():
+    findings = _classify_observation(_obs("/tinymce/5.9.0/tinymce.min.js"))
+    assert any(f.rule_id == "VJS-045" for f in findings)
+
+
+def test_vjs_046_chartjs_pre_294():
+    findings = _classify_observation(_obs("/chart-2.9.3.min.js"))
+    assert any(f.rule_id == "VJS-046" for f in findings)
+
+
+def test_modern_versions_clean():
+    """Each newer-than-fixed version should produce 0 findings."""
+    clean_cases = [
+        "/vue-3.4.0.min.js",
+        "/react-18.2.0.min.js",
+        "/marked-12.0.0.min.js",
+        "/ejs-3.1.10.min.js",
+        "/pug-3.0.3.min.js",
+        "/express-5.0.0.min.js",
+        "/semver-7.6.0.min.js",
+        "/ckeditor/4.24.0/ckeditor.js",
+        "/tinymce/6.0.0/tinymce.min.js",
+        "/chart-4.4.0.min.js",
+    ]
+    for src in clean_cases:
+        findings = _classify_observation(_obs(src))
+        assert findings == [], f"Expected no findings for {src}, got {findings}"
 
 
 def test_dataclasses_are_frozen():
