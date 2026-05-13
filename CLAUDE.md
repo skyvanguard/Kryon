@@ -127,6 +127,9 @@ KRYON_BOLA_FIRE=                   # F87.2: 'true' enables live HTTP probes in d
                                    # MUST also pass fire=True in the tool call — both gates required.
 KRYON_GRAPHQL_FIRE=                # F87.3: 'true' enables live HTTP probes in graphql_recon tool.
                                    # Same double-gate as KRYON_BOLA_FIRE. Default unset = dry-run.
+KRYON_FAPI_FIRE=                   # F87.4: 'true' enables live fetch of OpenID Connect Discovery
+                                   # documents in validate_fapi tool. Same double-gate. Default
+                                   # unset = pass discovery JSON via mode='from_json' (air-gap path).
 ```
 
 ## Docker / K8s
