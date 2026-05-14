@@ -754,6 +754,8 @@ def _invoke_orchestrated_engagement(
         from kryon.tools.autonomous.phase_evaluator import (
             PhaseVerdict,
             cascade_skip_dependents,
+            cascade_skip_remaining,
+            dedup_findings_by_rule_and_host,
             evaluate_phase,
         )
     except Exception as exc:  # pragma: no cover
@@ -848,7 +850,11 @@ def _invoke_orchestrated_engagement(
         if text:
             summary_lines.append(f"[{phase.name}] {text.strip()[:500]}")
             parsed = _parse_agent_findings(text, target_host=target)
-            new_findings.extend(parsed)
+            # F121 — Dedup by (rule_id, host) against everything we already
+            # have so a phase that re-emits the same finding (or that
+            # overlaps with an earlier phase) doesn't fatten the report.
+            unique = dedup_findings_by_rule_and_host(findings + new_findings, parsed)
+            new_findings.extend(unique)
         phase.status = PhaseStatus.COMPLETED
         phase.findings_after = len(findings) + len(new_findings)
 
@@ -885,16 +891,45 @@ def _invoke_orchestrated_engagement(
             if evaluation.recommend_retry and retry_max > 0:
                 hint = f"missed expected signatures: {', '.join(evaluation.expected_sigs_missed)}"
                 console.print(f"  [yellow]↻[/yellow] retry phase '{phase.name}' with sharper preamble")
+                retry_start = _time.monotonic()
                 try:
                     retry_text = asyncio.run(_run_phase(phase, extra_hint=hint))
                 except Exception as exc:  # pragma: no cover
                     console.print(f"  [yellow]retry of '{phase.name}' failed: {exc}[/yellow]")
+                    # F121 — Persist the retry attempt to the audit log
+                    # even when it fails, so forensia keeps the trail.
+                    audit_log.append(
+                        tool_name="phase_run_retry",
+                        args={"phase": phase.name, "agent_key": phase.agent_key, "hint": hint},
+                        result={"error": str(exc)},
+                        phase=phase.name,
+                        duration_ms=int((_time.monotonic() - retry_start) * 1000),
+                        status="failed",
+                    )
                 else:
+                    retry_findings_added = 0
                     if retry_text:
                         summary_lines.append(f"[{phase.name}*] {retry_text.strip()[:500]}")
                         retry_parsed = _parse_agent_findings(retry_text, target_host=target)
-                        new_findings.extend(retry_parsed)
+                        # F121 — Dedup retry findings against everything
+                        # already known (incl. what the first attempt
+                        # produced) so the retry doesn't double the report.
+                        retry_unique = dedup_findings_by_rule_and_host(findings + new_findings, retry_parsed)
+                        new_findings.extend(retry_unique)
+                        retry_findings_added = len(retry_unique)
                         phase.findings_after = len(findings) + len(new_findings)
+                    # F121 — Persist the retry as a separate audit entry.
+                    audit_log.append(
+                        tool_name="phase_run_retry",
+                        args={"phase": phase.name, "agent_key": phase.agent_key, "hint": hint},
+                        result={
+                            "text": retry_text[:2000] if retry_text else "",
+                            "new_findings_added": retry_findings_added,
+                        },
+                        phase=phase.name,
+                        duration_ms=int((_time.monotonic() - retry_start) * 1000),
+                        status="ok",
+                    )
 
             if evaluation.skip_dependents:
                 cascaded = cascade_skip_dependents(plan, phase.name)
@@ -922,13 +957,18 @@ def _invoke_orchestrated_engagement(
                 f"[dim]{progress.reasoning}[/dim]"
             )
             if progress.should_terminate_early() and goal_early_terminate:
-                terminated = 0
-                for pending in plan.phases:
-                    if pending.status == PhaseStatus.PENDING:
-                        pending.status = PhaseStatus.SKIPPED
-                        terminated += 1
-                console.print(f"  [green]✓[/green] goal satisfied — skipping {terminated} remaining phase(s)")
-                break
+                # F121 — Keep the reporting phase pending even on early
+                # termination so the operator still gets a written summary.
+                # Without this exception the engagement ends with a verdict
+                # but no narrative-driven report.
+                terminated = cascade_skip_remaining(plan, except_names=("reporting",))
+                kept_reporting = any(p.name == "reporting" and p.status == PhaseStatus.PENDING for p in plan.phases)
+                msg = f"goal satisfied — skipping {terminated} remaining phase(s)"
+                if kept_reporting:
+                    msg += " (reporting kept)"
+                console.print(f"  [green]✓[/green] {msg}")
+                if not kept_reporting:
+                    break  # nothing left worth running
 
     # Final verdict (only emitted when a goal was declared).
     if goal_evaluator is not None and goal is not None:

@@ -21,6 +21,8 @@ from kryon.tools.autonomous.phase_evaluator import (
     PhaseEvaluation,
     PhaseVerdict,
     cascade_skip_dependents,
+    cascade_skip_remaining,
+    dedup_findings_by_rule_and_host,
     evaluate_phase,
 )
 
@@ -286,3 +288,115 @@ def test_cascade_returns_zero_when_no_dependents():
 
     assert cascaded == 0
     assert plan.phases[1].status is PhaseStatus.PENDING
+
+
+# ---------------------------------------------------------------------------
+# cascade_skip_remaining (F121 — F118 early termination should keep reporting)
+# ---------------------------------------------------------------------------
+
+
+def test_cascade_skip_remaining_keeps_reporting_by_default():
+    phases = [
+        PlanPhase(name="recon", agent_key="r", max_turns=3, status=PhaseStatus.COMPLETED),
+        PlanPhase(name="vuln_scan", agent_key="v", max_turns=3, status=PhaseStatus.PENDING),
+        PlanPhase(name="api_fuzzing", agent_key="a", max_turns=3, status=PhaseStatus.PENDING),
+        PlanPhase(name="reporting", agent_key="rep", max_turns=2, status=PhaseStatus.PENDING),
+    ]
+    plan = _plan_with_phases(phases)
+
+    skipped = cascade_skip_remaining(plan)
+
+    assert skipped == 2  # vuln_scan + api_fuzzing
+    statuses = {p.name: p.status for p in plan.phases}
+    assert statuses["vuln_scan"] is PhaseStatus.SKIPPED
+    assert statuses["api_fuzzing"] is PhaseStatus.SKIPPED
+    assert statuses["reporting"] is PhaseStatus.PENDING  # kept!
+    assert statuses["recon"] is PhaseStatus.COMPLETED
+
+
+def test_cascade_skip_remaining_custom_except_list():
+    phases = [
+        PlanPhase(name="recon", agent_key="r", max_turns=3, status=PhaseStatus.PENDING),
+        PlanPhase(name="vuln_scan", agent_key="v", max_turns=3, status=PhaseStatus.PENDING),
+        PlanPhase(name="reporting", agent_key="rep", max_turns=2, status=PhaseStatus.PENDING),
+    ]
+    plan = _plan_with_phases(phases)
+
+    # operator opts to skip reporting too
+    skipped = cascade_skip_remaining(plan, except_names=())
+
+    assert skipped == 3
+    assert all(p.status is PhaseStatus.SKIPPED for p in plan.phases)
+
+
+def test_cascade_skip_remaining_returns_zero_when_no_pending():
+    phases = [
+        PlanPhase(name="recon", agent_key="r", max_turns=3, status=PhaseStatus.COMPLETED),
+        PlanPhase(name="reporting", agent_key="rep", max_turns=2, status=PhaseStatus.COMPLETED),
+    ]
+    plan = _plan_with_phases(phases)
+
+    skipped = cascade_skip_remaining(plan)
+
+    assert skipped == 0
+
+
+# ---------------------------------------------------------------------------
+# dedup_findings_by_rule_and_host (F121 — retry should not double findings)
+# ---------------------------------------------------------------------------
+
+
+def test_dedup_skips_findings_with_same_rule_and_host():
+    existing = [_F(rule_id="WEB-001", severity="HIGH", message="orig")]
+    candidates = [
+        _F(rule_id="WEB-001", severity="HIGH", message="duplicate from retry"),
+        _F(rule_id="WEB-002", severity="MEDIUM", message="new"),
+    ]
+    kept = dedup_findings_by_rule_and_host(existing, candidates)
+
+    assert len(kept) == 1
+    assert kept[0].rule_id == "WEB-002"
+
+
+def test_dedup_keeps_same_rule_different_host():
+    existing = [_F(rule_id="exposed-cp", severity="MEDIUM", message="host A")]
+    candidates = [
+        _F(rule_id="exposed-cp", severity="MEDIUM", message="host A — duplicate"),
+    ]
+    # Force different host attr via the underlying dataclass field
+    existing[0].__dict__["host"] = "a.example"
+    candidates[0].__dict__["host"] = "b.example"
+    kept = dedup_findings_by_rule_and_host(existing, candidates)
+
+    assert len(kept) == 1  # different host → kept
+    assert kept[0].__dict__["host"] == "b.example"
+
+
+def test_dedup_against_empty_existing():
+    candidates = [
+        _F(rule_id="WEB-001", severity="HIGH"),
+        _F(rule_id="WEB-002", severity="MEDIUM"),
+    ]
+    kept = dedup_findings_by_rule_and_host([], candidates)
+    assert kept == candidates
+
+
+def test_dedup_dedupes_within_candidates_themselves():
+    candidates = [
+        _F(rule_id="WEB-001", severity="HIGH"),
+        _F(rule_id="WEB-001", severity="HIGH"),  # duplicate
+        _F(rule_id="WEB-002", severity="MEDIUM"),
+    ]
+    kept = dedup_findings_by_rule_and_host([], candidates)
+    assert len(kept) == 2
+    assert {f.rule_id for f in kept} == {"WEB-001", "WEB-002"}
+
+
+def test_dedup_preserves_order():
+    candidates = [
+        _F(rule_id="WEB-003", severity="HIGH"),
+        _F(rule_id="WEB-001", severity="MEDIUM"),
+        _F(rule_id="WEB-002", severity="LOW"),
+    ]
+    kept = dedup_findings_by_rule_and_host([], candidates)
+    assert [f.rule_id for f in kept] == ["WEB-003", "WEB-001", "WEB-002"]

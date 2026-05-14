@@ -100,6 +100,42 @@ def cascade_skip_dependents(plan: Any, gating_phase_name: str) -> int:
     return cascaded
 
 
+def cascade_skip_remaining(plan: Any, except_names: tuple[str, ...] = ("reporting",)) -> int:
+    """Mark every PENDING phase as SKIPPED, except those whose name is in
+    ``except_names``. Returns the number of phases that were skipped.
+
+    Used by F118 early termination: when the goal is satisfied we want to
+    stop the LLM-driven phases (recon/vuln_scan/exploitation/...) but still
+    let ``reporting`` run so the operator gets a written summary. The plan
+    is mutated in place.
+    """
+    skipped = 0
+    for p in plan.phases:
+        if p.status == PhaseStatus.PENDING and p.name not in except_names:
+            p.status = PhaseStatus.SKIPPED
+            skipped += 1
+    return skipped
+
+
+def dedup_findings_by_rule_and_host(existing: list[Any], candidates: list[Any]) -> list[Any]:
+    """Return items from ``candidates`` whose ``(rule_id, host)`` pair is
+    not already present in ``existing``. Preserves input order. Used after
+    parsing LLM-emitted findings to avoid the retry-doubles-findings bug
+    where the same finding gets re-emitted on a retry pass.
+    """
+    seen: set[tuple[str, str]] = set()
+    for f in existing:
+        seen.add((str(getattr(f, "rule_id", "")), str(getattr(f, "host", ""))))
+    kept: list[Any] = []
+    for f in candidates:
+        key = (str(getattr(f, "rule_id", "")), str(getattr(f, "host", "")))
+        if key in seen:
+            continue
+        seen.add(key)
+        kept.append(f)
+    return kept
+
+
 def _severity_lower(finding: Any) -> str:
     sev = getattr(finding, "severity", None)
     if sev is None:
