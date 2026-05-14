@@ -474,78 +474,60 @@ _AGENT_JSON_FENCE_RE = re.compile(
 def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
     """Extract structured findings from the agent's final output.
 
-    The deepening preamble asks the agent for `{"summary": ..., "findings": [...]}`
-    wrapped in a ```json``` fence. We also accept a bare array of findings,
-    and raw JSON without fences. Items missing required fields are skipped
-    rather than failing the whole engagement.
+    F150 — R1-tolerant. Uses ``kryon.parsing.llm_output`` to:
+      1. Strip ``<think>...</think>`` reasoning blocks (R1 distill).
+      2. Walk every JSON candidate in the cleaned text.
+      3. Reject tool-call shapes (``{"name": ..., "arguments": ...}``)
+         and keep only finding-shaped dicts.
+
+    Accepts the legacy shapes too: a fenced ```json``` block, a bare
+    array, or ``{"findings": [...]}`` envelope. Items missing required
+    fields are skipped rather than failing the whole engagement.
     """
     if not text:
         return []
-    import json
 
-    candidates: list[str] = []
-    for m in _AGENT_JSON_FENCE_RE.finditer(text):
-        candidates.append(m.group(1))
-    # Fallback: bare JSON object/array starting at the first '[' or '{'
-    if not candidates:
-        i = min(
-            (p for p in (text.find("["), text.find("{")) if p >= 0),
-            default=-1,
-        )
-        if i >= 0:
-            candidates.append(text[i:])
+    from kryon.parsing.llm_output import extract_finding_json_blocks
+
+    items = extract_finding_json_blocks(text)
+    if not items:
+        return []
+
+    from kryon.redaction.pan_redactor import redact_sensitive
 
     out: list[Finding] = []
-    for raw in candidates:
-        try:
-            parsed = json.loads(raw)
-        except Exception:
+    for item in items:
+        if not isinstance(item, dict):
             continue
-        # Normalise: an object with a `findings` array, OR a bare array.
-        if isinstance(parsed, dict):
-            items = parsed.get("findings", [])
-        elif isinstance(parsed, list):
-            items = parsed
-        else:
+        sev = str(item.get("severity", "")).upper()
+        if sev not in _SEV_RANK:
             continue
-        if not isinstance(items, list):
+        msg = str(item.get("message") or item.get("finding") or "").strip()
+        if not msg:
             continue
-        for item in items:
-            if not isinstance(item, dict):
-                continue
-            sev = str(item.get("severity", "")).upper()
-            if sev not in _SEV_RANK:
-                continue
-            msg = str(item.get("message") or item.get("finding") or "").strip()
-            if not msg:
-                continue
-            # F119 — Redact PAN/CVV/PY-ID before persisting into a Finding.
-            # The agent may have echoed sensitive data from a response body
-            # into its narration; redact at the boundary, not at render time.
-            from kryon.redaction.pan_redactor import redact_sensitive
-
-            msg_red = redact_sensitive(msg).text
-            ev_red = redact_sensitive(str(item.get("evidence", ""))[:800]).text
-            rem_red = redact_sensitive(str(item.get("remediation", ""))).text
-            out.append(
-                Finding(
-                    cwe=str(item.get("cwe", "CWE-0")),
-                    severity=sev,
-                    host=str(item.get("host", target_host)),
-                    rule_id=str(item.get("rule_id", "agent-finding")),
-                    message=msg_red,
-                    evidence=ev_red,
-                    remediation=rem_red,
-                    severity_rank=_SEV_RANK[sev],
-                    # F134 — LLM-emitted findings start at 0.5; the
-                    # post-engagement annotate_confidence pass may boost
-                    # them if a deterministic finding corroborates.
-                    confidence=0.5,
-                    needs_verification=True,
-                )
+        # F119 — Redact PAN/CVV/PY-ID before persisting into a Finding.
+        # The agent may have echoed sensitive data from a response body
+        # into its narration; redact at the boundary, not at render time.
+        msg_red = redact_sensitive(msg).text
+        ev_red = redact_sensitive(str(item.get("evidence", ""))[:800]).text
+        rem_red = redact_sensitive(str(item.get("remediation", ""))).text
+        out.append(
+            Finding(
+                cwe=str(item.get("cwe", "CWE-0")),
+                severity=sev,
+                host=str(item.get("host", target_host)),
+                rule_id=str(item.get("rule_id", "agent-finding")),
+                message=msg_red,
+                evidence=ev_red,
+                remediation=rem_red,
+                severity_rank=_SEV_RANK[sev],
+                # F134 — LLM-emitted findings start at 0.5; the
+                # post-engagement annotate_confidence pass may boost
+                # them if a deterministic finding corroborates.
+                confidence=0.5,
+                needs_verification=True,
             )
-        if out:
-            break
+        )
     return out
 
 
@@ -750,7 +732,7 @@ def _phase_preamble(phase_name: str, *, target: str, scope: str, families: list[
         "findings if you discover anything new.",
     )
     findings_summary = "; ".join(f"{f.rule_id} ({f.severity})" for f in findings[:5]) or "none yet"
-    return template.format(
+    rendered = template.format(
         phase=phase_name,
         target=target,
         scope=scope,
@@ -758,6 +740,21 @@ def _phase_preamble(phase_name: str, *, target: str, scope: str, families: list[
         findings_count=len(findings),
         findings_summary=findings_summary,
     )
+    # F150 — R1-tolerant output contract. Tell the model exactly what
+    # shape we want at the end, with a concrete example. This stays
+    # short so it doesn't dominate the prompt budget but it's enough
+    # to push R1 past "I'll just emit tool calls and stop". Instruct
+    # models (kryon-14b baseline) already follow this naturally.
+    rendered += (
+        "\n\nIMPORTANT — after you finish reasoning and running tools, your "
+        "FINAL message MUST contain a JSON array of findings, exactly in "
+        'this shape: [{"cwe": "CWE-...", "severity": "CRITICAL|HIGH|MEDIUM|'
+        'LOW|INFO", "host": "...", "rule_id": "...", "message": "...", '
+        '"evidence": "...", "remediation": "..."}]. Emit [] if there are '
+        "no findings. Tool-call JSON does NOT count as a finding. "
+        "<think>...</think> blocks are accepted; the parser strips them."
+    )
+    return rendered
 
 
 def _invoke_orchestrated_engagement(
