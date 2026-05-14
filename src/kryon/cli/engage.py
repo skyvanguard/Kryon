@@ -721,7 +721,7 @@ def _invoke_orchestrated_engagement(
     findings: list[Finding],
     families: list[str],
     goal: Any = None,
-) -> tuple[list[str], list[Finding]]:
+) -> tuple[list[str], list[Finding], dict | None]:
     """F85.F — Orchestrated multi-phase agent invocation.
 
     Replacement for ``_invoke_agent_deepening`` activated via the
@@ -747,7 +747,7 @@ def _invoke_orchestrated_engagement(
     """
     try:
         from kryon.agents import get_agent_by_name
-        from kryon.audit.action_log import ActionLog, default_log_path
+        from kryon.audit.action_log import ActionLog, clear_active_log, default_log_path, set_active_log
         from kryon.sdk.agents.run import Runner
         from kryon.tools.autonomous.engagement_goal import GoalEvaluator
         from kryon.tools.autonomous.pentest_planner import PentestPlanner, PhaseStatus
@@ -755,6 +755,7 @@ def _invoke_orchestrated_engagement(
             PhaseVerdict,
             cascade_skip_dependents,
             cascade_skip_remaining,
+            consecutive_unproductive_phases,
             dedup_findings_by_rule_and_host,
             evaluate_phase,
         )
@@ -781,6 +782,11 @@ def _invoke_orchestrated_engagement(
 
     eval_enabled = os.environ.get("KRYON_PHASE_EVAL_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
     retry_max = max(0, int(os.environ.get("KRYON_PHASE_EVAL_RETRY_MAX", "1")))
+    # F124 — Circuit breaker: abort the plan if N consecutive phases are
+    # unproductive (FAILED/SKIPPED). Default N=3 keeps the orchestrator
+    # from burning budget on a plan that has stopped producing evidence.
+    failure_threshold = max(1, int(os.environ.get("KRYON_PHASE_FAILURE_THRESHOLD", "3")))
+    circuit_breaker_tripped = False
 
     # F119 — Forensic audit log. One JSONL file per engagement under
     # ``KRYON_AUDIT_LOG_PATH`` (default ``.kryon/audit/``). Args + results
@@ -819,13 +825,40 @@ def _invoke_orchestrated_engagement(
         )
         if extra_hint:
             preamble = f"{preamble}\n\nRetry hint: {extra_hint}"
-        result = await Runner.run(agent, preamble, max_turns=max_turns)
+        # F123 — Register the active ActionLog so every tool call inside
+        # this phase lands as its own audit entry. Cleared in finally so
+        # one phase's audit doesn't bleed into the next phase or into
+        # other agent runs in the same process.
+        set_active_log(audit_log, phase=phase.name)
+        try:
+            result = await Runner.run(agent, preamble, max_turns=max_turns)
+        finally:
+            clear_active_log()
         return getattr(result, "final_output", "") or ""
 
     for phase in plan.phases:
         if phase.status != PhaseStatus.PENDING:
             console.print(f"  [dim]skipped phase '{phase.name}' (status={phase.status.value})[/dim]")
             continue
+        # F124 — Circuit breaker check: if the tail of the plan has too
+        # many consecutive FAILED/SKIPPED phases, stop walking and abort.
+        run_len = consecutive_unproductive_phases(plan)
+        if run_len >= failure_threshold:
+            circuit_breaker_tripped = True
+            console.print(
+                f"  [red]✕[/red] circuit breaker: {run_len} consecutive unproductive phase(s) "
+                f">= threshold {failure_threshold} — aborting plan"
+            )
+            audit_log.append(
+                tool_name="circuit_breaker_trip",
+                args={"threshold": failure_threshold, "consecutive": run_len},
+                result={"action": "abort_plan"},
+                phase="orchestrator",
+                status="aborted",
+            )
+            # Mark remaining as SKIPPED so the plan state stays consistent.
+            cascade_skip_remaining(plan, except_names=("reporting",))
+            break
         phase.status = PhaseStatus.RUNNING
         phase.findings_before = len(findings) + len(new_findings)
         phase_findings_before = list(findings) + list(new_findings)
@@ -971,6 +1004,7 @@ def _invoke_orchestrated_engagement(
                     break  # nothing left worth running
 
     # Final verdict (only emitted when a goal was declared).
+    verdict_info: dict | None = None
     if goal_evaluator is not None and goal is not None:
         final_progress = goal_evaluator.evaluate(goal, findings + new_findings)
         verdict_color = {
@@ -983,8 +1017,18 @@ def _invoke_orchestrated_engagement(
             f"[{verdict_color}]{final_progress.verdict.value.upper()}[/{verdict_color}] "
             f"[dim]— {final_progress.reasoning}[/dim]"
         )
+        # F122 — Surface the verdict to the reporting layer so the PDF
+        # can render it alongside the findings table.
+        verdict_info = {
+            "verdict": final_progress.verdict.value,
+            "reasoning": final_progress.reasoning,
+            "goal_kind": goal.kind.value,
+            "goal_raw": goal.raw,
+            "evidence_count": len(final_progress.evidence),
+            "circuit_breaker_tripped": circuit_breaker_tripped,
+        }
 
-    return summary_lines, new_findings
+    return summary_lines, new_findings, verdict_info
 
 
 # -----------------------------------------------------------------------------
@@ -1282,10 +1326,11 @@ def run_engage(args: argparse.Namespace) -> int:
         except Exception as exc:  # pragma: no cover
             console.print(f"  [yellow]objective parse failed: {exc}[/yellow]")
 
+    engagement_verdict_info: dict | None = None  # F122
     if args.use_agent or os.environ.get("KRYON_ENGAGE_AGENT", "").lower() in {"1", "true", "yes"} or orchestrated:
         if orchestrated:
             _banner(console, "Fase 2c' — orquestador multi-fase (F85.F)")
-            agent_observations, agent_findings = _invoke_orchestrated_engagement(
+            agent_observations, agent_findings, engagement_verdict_info = _invoke_orchestrated_engagement(
                 console,
                 target=target,
                 scope=scope,
@@ -1481,6 +1526,9 @@ def run_engage(args: argparse.Namespace) -> int:
         "auditor": args.auditor or "SkyVanguard / Kryon",
         "applied": applied_findings,
         "agent_observations": agent_observations,
+        # F122 — Surface the engagement verdict so the demo_report can
+        # render it next to the findings table.
+        "engagement_verdict": engagement_verdict_info,
     }
     demo_paths = render_demo_report(
         findings_dict,

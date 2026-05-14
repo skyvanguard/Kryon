@@ -14,7 +14,6 @@ from kryon.tools.active_probes.ssrf_active import (
     probe_ssrf_active,
 )
 
-
 # =====================================================================
 # Pure functions
 # =====================================================================
@@ -160,7 +159,16 @@ class _SsrfVulnHandler(BaseHTTPRequestHandler):
             parsed = urllib.parse.urlparse(self.path)
             qs = dict(urllib.parse.parse_qsl(parsed.query, keep_blank_values=True))
             target = qs.get("url", "")
-            INTERNAL_MARKERS = ("169.254", "127.0.0", "metadata.google", "localhost", "10.", "192.168.", "172.", "file://")
+            INTERNAL_MARKERS = (
+                "169.254",
+                "127.0.0",
+                "metadata.google",
+                "localhost",
+                "10.",
+                "192.168.",
+                "172.",
+                "file://",
+            )
             if any(m in target for m in INTERNAL_MARKERS):
                 body = b"forbidden - internal URL"
                 self.send_response(403)

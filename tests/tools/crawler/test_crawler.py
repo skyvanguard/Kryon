@@ -14,7 +14,6 @@ from kryon.tools.crawler.crawler import (
     CrawlResult,
 )
 
-
 # =====================================================================
 # Test HTTP server fixture
 # =====================================================================
@@ -129,7 +128,7 @@ def test_respects_max_depth(server):
     _route("/", '<a href="/d1">d1</a>')
     _route("/d1", '<a href="/d2">d2</a>')
     _route("/d2", '<a href="/d3">d3</a>')
-    _route("/d3", '<h1>d3</h1>')
+    _route("/d3", "<h1>d3</h1>")
     result = Crawler(_make_config([server + "/"], max_depth=1)).crawl()
     urls = {p.url for p in result.pages}
     # Depth 0 = root; depth 1 = /d1. /d2 should not be reached.

@@ -28,7 +28,6 @@ from kryon.tools.api.cors_detector import (
     analyze_cors_response,
 )
 
-
 # =====================================================================
 # Helpers
 # =====================================================================
@@ -94,9 +93,7 @@ def test_wildcard_with_credentials_fires_critical():
 
 
 def test_wildcard_without_credentials_does_not_fire_cors_001():
-    analysis = analyze_cors_response(
-        _resp({"Access-Control-Allow-Origin": "*"})
-    )
+    analysis = analyze_cors_response(_resp({"Access-Control-Allow-Origin": "*"}))
     assert "CORS-001" not in _ids(analysis.findings)
 
 
@@ -149,9 +146,7 @@ def test_origin_mismatch_does_not_fire_cors_002():
 
 
 def test_null_origin_fires_high():
-    analysis = analyze_cors_response(
-        _resp({"Access-Control-Allow-Origin": "null"})
-    )
+    analysis = analyze_cors_response(_resp({"Access-Control-Allow-Origin": "null"}))
     null_f = [f for f in analysis.findings if f.rule_id == "CORS-003"]
     assert null_f and null_f[0].severity == "HIGH"
 
@@ -175,25 +170,19 @@ def test_null_origin_escalates_to_critical_with_credentials():
 
 
 def test_subdomain_wildcard_fires_medium():
-    analysis = analyze_cors_response(
-        _resp({"Access-Control-Allow-Origin": "*.bank.com"})
-    )
+    analysis = analyze_cors_response(_resp({"Access-Control-Allow-Origin": "*.bank.com"}))
     assert "CORS-004" in _ids(analysis.findings)
 
 
 def test_full_wildcard_does_not_fire_cors_004():
     """`*` is a different rule (CORS-001 when combined with creds);
     CORS-004 fires only for the *.something pattern."""
-    analysis = analyze_cors_response(
-        _resp({"Access-Control-Allow-Origin": "*"})
-    )
+    analysis = analyze_cors_response(_resp({"Access-Control-Allow-Origin": "*"}))
     assert "CORS-004" not in _ids(analysis.findings)
 
 
 def test_specific_origin_does_not_fire_cors_004():
-    analysis = analyze_cors_response(
-        _resp({"Access-Control-Allow-Origin": "https://app.bank.com"})
-    )
+    analysis = analyze_cors_response(_resp({"Access-Control-Allow-Origin": "https://app.bank.com"}))
     assert "CORS-004" not in _ids(analysis.findings)
 
 
@@ -329,26 +318,20 @@ def test_invalid_max_age_does_not_fire():
 def test_missing_acao_with_probe_origin_fires_cors_008_info():
     """Probe sent Origin, server returned no ACAO → INFO finding so
     auditor confirms intent."""
-    analysis = analyze_cors_response(
-        _resp({"Content-Type": "application/json"})
-    )
+    analysis = analyze_cors_response(_resp({"Content-Type": "application/json"}))
     infos = [f for f in analysis.findings if f.rule_id == "CORS-008"]
     assert infos and infos[0].severity == "INFO"
 
 
 def test_acao_present_silences_cors_008():
-    analysis = analyze_cors_response(
-        _resp({"Access-Control-Allow-Origin": "*"})
-    )
+    analysis = analyze_cors_response(_resp({"Access-Control-Allow-Origin": "*"}))
     assert "CORS-008" not in _ids(analysis.findings)
 
 
 def test_empty_request_origin_does_not_fire_cors_008():
     """If the operator didn't send an Origin probe, the analyzer
     can't tell whether CORS was intentionally omitted."""
-    analysis = analyze_cors_response(
-        _resp({"Content-Type": "application/json"}, request_origin="")
-    )
+    analysis = analyze_cors_response(_resp({"Content-Type": "application/json"}, request_origin=""))
     assert "CORS-008" not in _ids(analysis.findings)
 
 
@@ -474,9 +457,7 @@ def test_dataclasses_are_frozen():
     with pytest.raises(FrozenInstanceError):
         resp.request_origin = "y"  # type: ignore[misc]
 
-    finding = CORSFinding(
-        rule_id="CORS-001", severity="CRITICAL", title="x", detail="x", remediation="x"
-    )
+    finding = CORSFinding(rule_id="CORS-001", severity="CRITICAL", title="x", detail="x", remediation="x")
     with pytest.raises(FrozenInstanceError):
         finding.severity = "LOW"  # type: ignore[misc]
 
@@ -511,9 +492,7 @@ def test_tool_wrapper_dict_shape():
 def test_tool_wrapper_handles_empty_headers():
     from kryon.tools.api.cors_tool import _analysis_to_dict
 
-    analysis = analyze_cors_response(
-        CORSResponse(request_origin="https://attacker.example", headers={})
-    )
+    analysis = analyze_cors_response(CORSResponse(request_origin="https://attacker.example", headers={}))
     payload = _analysis_to_dict(analysis)
     assert payload["allow_origin"] is None
     # CORS-008 should fire since origin was provided.

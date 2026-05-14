@@ -16,7 +16,6 @@ from kryon.tools.pipeline.pipeline import (
     run_pipeline,
 )
 
-
 _ROUTES: dict[str, tuple[int, dict[str, str], bytes]] = {}
 
 
@@ -145,7 +144,7 @@ def test_pipeline_chains_f102_via_crawler(server):
         "/",
         '<html><head><meta name="generator" content="WordPress 6.4.1">'
         '<script src="/static/jquery-1.8.3.min.js"></script>'
-        '</head><body></body></html>',
+        "</head><body></body></html>",
     )
     _route(
         "/static/jquery-1.8.3.min.js",

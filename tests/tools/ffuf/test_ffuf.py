@@ -12,14 +12,13 @@ from kryon.tools.ffuf.runner import (
     FfufConfig,
     FfufHit,
     FfufResult,
+    _build_args,
+    _write_default_wordlist,
     embedded_wordlist,
     is_ffuf_available,
     parse_ffuf_json,
     run_ffuf,
-    _build_args,
-    _write_default_wordlist,
 )
-
 
 # =====================================================================
 # Embedded wordlist
@@ -132,11 +131,7 @@ def test_parse_ffuf_json_duration_converted_to_ms():
 
 def test_parse_ffuf_json_input_as_string():
     """Some ffuf versions emit input as a string, not a dict."""
-    doc = {
-        "results": [
-            {"url": "x", "input": "admin", "status": 200, "length": 100, "words": 1, "lines": 1}
-        ]
-    }
+    doc = {"results": [{"url": "x", "input": "admin", "status": 200, "length": 100, "words": 1, "lines": 1}]}
     hits = parse_ffuf_json(json.dumps(doc))
     assert hits[0].input == "admin"
 
@@ -177,10 +172,7 @@ def test_build_args_cookies_passed_as_header():
     )
     args = _build_args(cfg, "/tmp/x.json", "/tmp/w.txt")
     # Find the Cookie header
-    cookie_headers = [
-        args[i + 1] for i, a in enumerate(args)
-        if a == "-H" and args[i + 1].startswith("Cookie:")
-    ]
+    cookie_headers = [args[i + 1] for i, a in enumerate(args) if a == "-H" and args[i + 1].startswith("Cookie:")]
     assert len(cookie_headers) == 1
     assert "session=abc" in cookie_headers[0]
     assert "csrf=xyz" in cookie_headers[0]
@@ -250,8 +242,10 @@ def test_run_ffuf_parses_subprocess_output(tmp_path):
         return _FakeProc()
 
     cfg = FfufConfig(base_url="https://target.com/FUZZ")
-    with patch("kryon.tools.ffuf.runner.is_ffuf_available", return_value=True), \
-         patch("kryon.tools.ffuf.runner.subprocess.run", side_effect=_fake_run):
+    with (
+        patch("kryon.tools.ffuf.runner.is_ffuf_available", return_value=True),
+        patch("kryon.tools.ffuf.runner.subprocess.run", side_effect=_fake_run),
+    ):
         result = run_ffuf(cfg)
     assert result.ffuf_missing is False
     assert len(result.hits) == 3
@@ -283,8 +277,10 @@ def test_run_ffuf_uses_custom_wordlist(tmp_path):
             fh.write('{"results":[]}')
         return _FakeProc()
 
-    with patch("kryon.tools.ffuf.runner.is_ffuf_available", return_value=True), \
-         patch("kryon.tools.ffuf.runner.subprocess.run", side_effect=_capture):
+    with (
+        patch("kryon.tools.ffuf.runner.is_ffuf_available", return_value=True),
+        patch("kryon.tools.ffuf.runner.subprocess.run", side_effect=_capture),
+    ):
         result = run_ffuf(cfg)
     assert result.wordlist_used == str(wl)
     w_idx = captured_args[0].index("-w")
@@ -299,8 +295,10 @@ def test_run_ffuf_handles_timeout():
     def _raise(*args, **kwargs):
         raise sp.TimeoutExpired(cmd="ffuf", timeout=1)
 
-    with patch("kryon.tools.ffuf.runner.is_ffuf_available", return_value=True), \
-         patch("kryon.tools.ffuf.runner.subprocess.run", side_effect=_raise):
+    with (
+        patch("kryon.tools.ffuf.runner.is_ffuf_available", return_value=True),
+        patch("kryon.tools.ffuf.runner.subprocess.run", side_effect=_raise),
+    ):
         result = run_ffuf(cfg)
     assert result.exit_code == -5
 

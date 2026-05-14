@@ -9,7 +9,6 @@ from kryon.tools.content_classifier.threat_scorer import (
     score_threat,
 )
 
-
 # =====================================================================
 # Source code in production endpoints
 # =====================================================================
@@ -134,17 +133,13 @@ def test_no_secrets_no_score_from_secrets():
 
 
 def test_zip_in_api_path():
-    r = score_threat(
-        detected_label="zip", source_url="https://target.com/api/export"
-    )
+    r = score_threat(detected_label="zip", source_url="https://target.com/api/export")
     assert r.primary_rule == "CC-008"
     assert r.score >= 20
 
 
 def test_zip_in_static_path_low_score():
-    r = score_threat(
-        detected_label="zip", source_url="https://target.com/static/data.zip"
-    )
+    r = score_threat(detected_label="zip", source_url="https://target.com/static/data.zip")
     # No factor bonus from /api or /admin
     assert r.score == 0  # zip in /static is fine
 
@@ -155,9 +150,7 @@ def test_zip_in_static_path_low_score():
 
 
 def test_backup_path_adds_to_score():
-    r = score_threat(
-        detected_label="txt", source_url="https://target.com/config.bak"
-    )
+    r = score_threat(detected_label="txt", source_url="https://target.com/config.bak")
     assert r.score > 0
     assert any("backup" in f.lower() for f in r.factors)
 

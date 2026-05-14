@@ -18,7 +18,6 @@ from kryon.tools.oob.interactsh import (
     run_interactsh_batch,
 )
 
-
 # =====================================================================
 # Pure functions
 # =====================================================================
@@ -136,8 +135,10 @@ def test_run_batch_allow_public_when_opted_in():
     fake_proc.stderr = io.StringIO("")
     fake_proc.poll.return_value = 0
     fake_proc.returncode = 0
-    with patch("kryon.tools.oob.interactsh.is_interactsh_available", return_value=True), \
-         patch("kryon.tools.oob.interactsh.subprocess.Popen", return_value=fake_proc):
+    with (
+        patch("kryon.tools.oob.interactsh.is_interactsh_available", return_value=True),
+        patch("kryon.tools.oob.interactsh.subprocess.Popen", return_value=fake_proc),
+    ):
         result = run_interactsh_batch(cfg)
     # We allowed public; outcome is then governed by the actual run
     # logic, which (no domain produced from empty stdout) → error
@@ -164,18 +165,17 @@ def _make_proc_with_stdout(stdout_text: str):
 def test_run_batch_extracts_domain():
     """When stdout yields the assigned domain, the result captures
     it."""
-    stdout = (
-        "[INF] Listing 1 payload for OOB Testing\n"
-        "[INF] abcdef12345.my-interactsh.lab\n"
-    )
+    stdout = "[INF] Listing 1 payload for OOB Testing\n[INF] abcdef12345.my-interactsh.lab\n"
     fake_proc = _make_proc_with_stdout(stdout)
     cfg = InteractshConfig(
         server_url="https://my-interactsh.lab",
         collect_seconds=0,
         startup_timeout_seconds=2.0,
     )
-    with patch("kryon.tools.oob.interactsh.is_interactsh_available", return_value=True), \
-         patch("kryon.tools.oob.interactsh.subprocess.Popen", return_value=fake_proc):
+    with (
+        patch("kryon.tools.oob.interactsh.is_interactsh_available", return_value=True),
+        patch("kryon.tools.oob.interactsh.subprocess.Popen", return_value=fake_proc),
+    ):
         result = run_interactsh_batch(cfg)
     assert result.callback_domain == "abcdef12345.my-interactsh.lab"
     assert result.binary_missing is False
@@ -197,19 +197,17 @@ def test_run_batch_parses_interactions():
         "remote-address": "5.6.7.8",
         "timestamp": "2026-05-13T20:00:01Z",
     }
-    stdout = (
-        "[INF] abcdef12345.my-interactsh.lab\n"
-        + json.dumps(evt1) + "\n"
-        + json.dumps(evt2) + "\n"
-    )
+    stdout = "[INF] abcdef12345.my-interactsh.lab\n" + json.dumps(evt1) + "\n" + json.dumps(evt2) + "\n"
     fake_proc = _make_proc_with_stdout(stdout)
     cfg = InteractshConfig(
         server_url="https://my-interactsh.lab",
         collect_seconds=0,
         startup_timeout_seconds=2.0,
     )
-    with patch("kryon.tools.oob.interactsh.is_interactsh_available", return_value=True), \
-         patch("kryon.tools.oob.interactsh.subprocess.Popen", return_value=fake_proc):
+    with (
+        patch("kryon.tools.oob.interactsh.is_interactsh_available", return_value=True),
+        patch("kryon.tools.oob.interactsh.subprocess.Popen", return_value=fake_proc),
+    ):
         result = run_interactsh_batch(cfg)
     assert len(result.interactions) == 2
     protocols = {i.protocol for i in result.interactions}
@@ -232,8 +230,10 @@ def test_run_batch_invokes_pre_collect_callback():
     def _cb(domain: str) -> None:
         seen.append(domain)
 
-    with patch("kryon.tools.oob.interactsh.is_interactsh_available", return_value=True), \
-         patch("kryon.tools.oob.interactsh.subprocess.Popen", return_value=fake_proc):
+    with (
+        patch("kryon.tools.oob.interactsh.is_interactsh_available", return_value=True),
+        patch("kryon.tools.oob.interactsh.subprocess.Popen", return_value=fake_proc),
+    ):
         run_interactsh_batch(cfg, pre_collect_callback=_cb)
     assert seen == ["my-cid.my-interactsh.lab"]
 
@@ -252,8 +252,10 @@ def test_run_batch_callback_exception_is_swallowed():
     def _cb_raises(_d: str) -> None:
         raise RuntimeError("operator's probe loop crashed")
 
-    with patch("kryon.tools.oob.interactsh.is_interactsh_available", return_value=True), \
-         patch("kryon.tools.oob.interactsh.subprocess.Popen", return_value=fake_proc):
+    with (
+        patch("kryon.tools.oob.interactsh.is_interactsh_available", return_value=True),
+        patch("kryon.tools.oob.interactsh.subprocess.Popen", return_value=fake_proc),
+    ):
         result = run_interactsh_batch(cfg, pre_collect_callback=_cb_raises)
     # No crash; we got a callback domain
     assert result.callback_domain == "my-cid.my-interactsh.lab"
@@ -268,8 +270,10 @@ def test_run_batch_no_domain_extracted():
         collect_seconds=0,
         startup_timeout_seconds=0.5,  # short
     )
-    with patch("kryon.tools.oob.interactsh.is_interactsh_available", return_value=True), \
-         patch("kryon.tools.oob.interactsh.subprocess.Popen", return_value=fake_proc):
+    with (
+        patch("kryon.tools.oob.interactsh.is_interactsh_available", return_value=True),
+        patch("kryon.tools.oob.interactsh.subprocess.Popen", return_value=fake_proc),
+    ):
         result = run_interactsh_batch(cfg)
     assert result.callback_domain == ""
     assert "failed to extract callback domain" in result.error
@@ -278,7 +282,9 @@ def test_run_batch_no_domain_extracted():
 def test_run_batch_subprocess_failure_to_spawn():
     """FileNotFoundError on Popen → binary_missing."""
     cfg = InteractshConfig(server_url="https://my-interactsh.lab")
-    with patch("kryon.tools.oob.interactsh.is_interactsh_available", return_value=True), \
-         patch("kryon.tools.oob.interactsh.subprocess.Popen", side_effect=FileNotFoundError("nope")):
+    with (
+        patch("kryon.tools.oob.interactsh.is_interactsh_available", return_value=True),
+        patch("kryon.tools.oob.interactsh.subprocess.Popen", side_effect=FileNotFoundError("nope")),
+    ):
         result = run_interactsh_batch(cfg)
     assert result.binary_missing is True

@@ -46,16 +46,13 @@ from kryon.brand.typosquat import (
     TyposquatScanResult,
 )
 
-
 # =====================================================================
 # Fixtures
 # =====================================================================
 
 
 def _now_iso(offset_days: int = 0) -> str:
-    return (datetime.now(timezone.utc) - timedelta(days=offset_days)).strftime(
-        "%Y-%m-%dT%H:%M:%S"
-    )
+    return (datetime.now(timezone.utc) - timedelta(days=offset_days)).strftime("%Y-%m-%dT%H:%M:%S")
 
 
 def _typosquat_result(
@@ -141,11 +138,11 @@ def test_default_tier_thresholds_pinned():
     [
         (100, "high"),
         (75, "high"),
-        (70, "high"),       # boundary inclusive
+        (70, "high"),  # boundary inclusive
         (69, "medium"),
-        (40, "medium"),     # boundary inclusive
+        (40, "medium"),  # boundary inclusive
         (39, "low"),
-        (20, "low"),        # boundary inclusive
+        (20, "low"),  # boundary inclusive
         (19, "info"),
         (0, "info"),
     ],
@@ -207,9 +204,7 @@ def test_full_phishing_signal_set_is_high():
     report = aggregate_reputation(
         brand_keyword="bcp",
         typosquat_results=[_typosquat_result(domain, strategy="tld_swap")],
-        ct_assessments=[
-            _ct_assessment(domain, risk="medium", matched_recent=True)
-        ],
+        ct_assessments=[_ct_assessment(domain, risk="medium", matched_recent=True)],
     )
     assert len(report.high_risk) == 1
     high = report.high_risk[0]
@@ -304,9 +299,7 @@ def test_unresolved_typosquat_does_not_register():
     candidates the operator can't act on."""
     report = aggregate_reputation(
         brand_keyword="bcp",
-        typosquat_results=[
-            _typosquat_result("ghost-domain.example", verdict="not_resolving")
-        ],
+        typosquat_results=[_typosquat_result("ghost-domain.example", verdict="not_resolving")],
     )
     assert report.total_domains == 0
 
@@ -317,16 +310,11 @@ def test_ct_only_signal_still_surfaces_domain():
     even if the domain's typosquat tool didn't pick it up."""
     report = aggregate_reputation(
         brand_keyword="bcp",
-        ct_assessments=[
-            _ct_assessment("bcp-secure-banking.com", risk="high", matched_recent=True)
-        ],
+        ct_assessments=[_ct_assessment("bcp-secure-banking.com", risk="high", matched_recent=True)],
     )
     assert report.total_domains >= 1
     # The domain made it into the universe.
-    risk_domains = (
-        {r.domain for r in report.high_risk}
-        | {r.domain for r in report.medium_risk}
-    )
+    risk_domains = {r.domain for r in report.high_risk} | {r.domain for r in report.medium_risk}
     assert "bcp-secure-banking.com" in risk_domains
 
 
@@ -335,9 +323,7 @@ def test_ct_assessment_without_matched_brand_is_skipped():
     don't pull them into the universe."""
     report = aggregate_reputation(
         brand_keyword="bcp",
-        ct_assessments=[
-            _ct_assessment("unrelated.example", matched_brand=False)
-        ],
+        ct_assessments=[_ct_assessment("unrelated.example", matched_brand=False)],
     )
     assert report.total_domains == 0
 
@@ -367,10 +353,7 @@ def test_wildcard_cert_covers_base_domain():
         brand_keyword="bcp",
         ct_assessments=[assessment],
     )
-    risk_domains = (
-        {r.domain for r in report.high_risk}
-        | {r.domain for r in report.medium_risk}
-    )
+    risk_domains = {r.domain for r in report.high_risk} | {r.domain for r in report.medium_risk}
     assert "bcp-secure.com" in risk_domains
 
 
@@ -465,9 +448,7 @@ def test_lookup_whois_parses_age_from_creation_date(monkeypatch):
     monkeypatch.setenv("KRYON_BRAND_FIRE", "true")
 
     class _Result:
-        stdout = "Creation Date: " + (
-            datetime.now(timezone.utc) - timedelta(days=42)
-        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        stdout = "Creation Date: " + (datetime.now(timezone.utc) - timedelta(days=42)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     with patch("kryon.brand.reputation.subprocess.run", return_value=_Result()):
         age = lookup_whois_age("bcp.com.py", fire=True)
@@ -564,6 +545,7 @@ def test_tool_handles_empty_inputs():
     assert payload["high_risk"] == []
     assert payload["medium_risk"] == []
     import json as _json
+
     _json.dumps(payload)  # round-trips through JSON
 
 

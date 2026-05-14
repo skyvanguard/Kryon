@@ -9,11 +9,10 @@ import pytest
 from kryon.tools.oob.payloads import (
     OOB_PAYLOAD_KINDS,
     OobPayload,
-    correlation_id,
     correlate_payload_with_interactions,
+    correlation_id,
     generate_oob_payloads,
 )
-
 
 CB = "my-interactsh.lab"  # canary callback domain for tests
 

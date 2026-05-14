@@ -358,10 +358,7 @@ def test_degenerate_cluster_is_discarded_before_synthesis(drafts_dir: Path) -> N
     purely `recon-only` (score 0) to force a discard."""
     from kryon.learning.auto_pipeline import run_auto_pipeline
 
-    exps = [
-        _experience(f"e{i}", ["nmap", "wpscan", "sqlmap"], ["wordpress"], outcome="partial")
-        for i in range(3)
-    ]
+    exps = [_experience(f"e{i}", ["nmap", "wpscan", "sqlmap"], ["wordpress"], outcome="partial") for i in range(3)]
     # Convert two of them to recon-only — average outcome drops to ~0.16.
     for i in (0, 1):
         exps[i]["outcome"] = "recon-only"
@@ -382,8 +379,9 @@ def test_degenerate_cluster_is_discarded_before_synthesis(drafts_dir: Path) -> N
 def test_merge_records_provenance_lineage(drafts_dir: Path) -> None:
     """The merged .v2 draft must carry merge_from + merge_from_version
     fields in _provenance — pinned for the curator's review workflow."""
-    from kryon.learning.auto_pipeline import run_auto_pipeline
     import yaml as _yaml
+
+    from kryon.learning.auto_pipeline import run_auto_pipeline
 
     exps1 = [_experience(f"e{i}", ["nmap", "wpscan", "sqlmap"], ["wordpress"]) for i in range(5)]
     findings = [_finding("CWE-89") for _ in range(5)]

@@ -39,7 +39,6 @@ from kryon.retester.record import (
 )
 from kryon.retester.replay import replay_finding
 
-
 # =====================================================================
 # Fixtures
 # =====================================================================
@@ -507,9 +506,7 @@ def test_tool_single_record_dispatch():
 def test_tool_batch_dispatch_returns_report():
     from kryon.retester.tool import _summarize_report
 
-    report = aggregate_retest(
-        [_verdict("fixed"), _verdict("still_open"), _verdict("dry_run")]
-    )
+    report = aggregate_retest([_verdict("fixed"), _verdict("still_open"), _verdict("dry_run")])
     payload = _summarize_report(report)
     assert payload["total"] == 3
     assert payload["by_verdict"]["fixed"] == 1

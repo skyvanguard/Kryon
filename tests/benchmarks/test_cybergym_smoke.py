@@ -176,8 +176,7 @@ def test_runner_uses_dry_run_fixture(monkeypatch):
     wires through correctly without needing the kryon container."""
     monkeypatch.setenv("KRYON_BENCH_DRY_RUN", "1")
     fake_transcript = (
-        "Analysis of log4j-core/.../JndiLookup.java reveals "
-        "CWE-502 deserialization on line 58 of JndiLookup.java"
+        "Analysis of log4j-core/.../JndiLookup.java reveals CWE-502 deserialization on line 58 of JndiLookup.java"
     )
     monkeypatch.setenv("KRYON_BENCH_FIXTURE_TRANSCRIPT", fake_transcript)
 

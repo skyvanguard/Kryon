@@ -153,6 +153,15 @@ KRYON_BRAND_FIRE=                  # F90.1: 'true' enables live DNS resolution i
 - When adding capabilities in v2.x: **prefer a skill** (`.md` in `skills/playbooks/`) over a new Python agent.
 - Banking skills go in `skills/playbooks/banking/`. Imported upstream skills go in `skills/playbooks/imported/`. Core skills at the top level.
 - When editing markdown (prompts or skills) on Windows: ensure LF line endings (Git will warn about CRLF).
+- **MSYS path conversion gotcha (Windows + Git Bash + Docker)**: env vars passed via
+  `docker exec -e KRYON_AUDIT_LOG_PATH=/home/...` get rewritten by Git Bash before
+  reaching the container, ending up as `C:/Program Files/Git/home/...` and the
+  default-relative audit log lands at `/workspace/C:/Program Files/Git/home/...`
+  inside the container. Workarounds: (a) use PowerShell instead of Git Bash for
+  any `docker exec -e KRYON_*_PATH=...` call, (b) prefix the command with
+  `MSYS_NO_PATHCONV=1`, or (c) let the default kick in
+  (`default_log_path()` → `/workspace/.kryon/audit/<engagement>.jsonl`). The
+  Linux/macOS path is fine; this is a Windows-only quirk.
 
 ## Working with banking clients
 

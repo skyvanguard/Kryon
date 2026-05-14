@@ -8,15 +8,14 @@ from unittest.mock import patch
 import pytest
 
 from kryon.tools.nuclei.runner import (
-    NuclieConfig,
     NucleiFinding,
     NucleiResult,
+    NuclieConfig,
     is_nuclei_available,
     parse_nuclei_jsonl,
     run_nuclei,
     severity_normalize,
 )
-
 
 # =====================================================================
 # Severity normalization
@@ -136,21 +135,25 @@ def test_parse_empty_returns_empty():
 
 def test_parse_tags_as_string():
     """Some nuclei versions emit tags as comma-separated string."""
-    evt = json.dumps({
-        "template-id": "x",
-        "matched-at": "https://example.com/",
-        "info": {"name": "x", "severity": "low", "tags": "tech,cms,wordpress"},
-    })
+    evt = json.dumps(
+        {
+            "template-id": "x",
+            "matched-at": "https://example.com/",
+            "info": {"name": "x", "severity": "low", "tags": "tech,cms,wordpress"},
+        }
+    )
     findings = parse_nuclei_jsonl(evt)
     assert findings[0].tags == ("tech", "cms", "wordpress")
 
 
 def test_parse_reference_as_string():
-    evt = json.dumps({
-        "template-id": "x",
-        "matched-at": "https://example.com/",
-        "info": {"name": "x", "severity": "low", "reference": "https://foo.example/x"},
-    })
+    evt = json.dumps(
+        {
+            "template-id": "x",
+            "matched-at": "https://example.com/",
+            "info": {"name": "x", "severity": "low", "reference": "https://foo.example/x"},
+        }
+    )
     findings = parse_nuclei_jsonl(evt)
     assert findings[0].reference == ("https://foo.example/x",)
 
@@ -216,8 +219,10 @@ def test_run_nuclei_parses_subprocess_output():
         returncode = 0
 
     cfg = NuclieConfig(targets=("https://example.com",))
-    with patch("kryon.tools.nuclei.runner.is_nuclei_available", return_value=True), \
-         patch("kryon.tools.nuclei.runner.subprocess.run", return_value=_FakeProc()):
+    with (
+        patch("kryon.tools.nuclei.runner.is_nuclei_available", return_value=True),
+        patch("kryon.tools.nuclei.runner.subprocess.run", return_value=_FakeProc()),
+    ):
         result = run_nuclei(cfg)
     assert result.nuclei_missing is False
     assert len(result.findings) == 2
@@ -238,8 +243,10 @@ def test_run_nuclei_handles_timeout():
     def _raise_timeout(*args, **kwargs):
         raise subprocess.TimeoutExpired(cmd="nuclei", timeout=1)
 
-    with patch("kryon.tools.nuclei.runner.is_nuclei_available", return_value=True), \
-         patch("kryon.tools.nuclei.runner.subprocess.run", side_effect=_raise_timeout):
+    with (
+        patch("kryon.tools.nuclei.runner.is_nuclei_available", return_value=True),
+        patch("kryon.tools.nuclei.runner.subprocess.run", side_effect=_raise_timeout),
+    ):
         result = run_nuclei(cfg)
     assert result.exit_code == -3
 
@@ -259,8 +266,10 @@ def test_run_nuclei_command_includes_banca_safe_flags():
         return _FakeProc()
 
     cfg = NuclieConfig(targets=("https://example.com",))
-    with patch("kryon.tools.nuclei.runner.is_nuclei_available", return_value=True), \
-         patch("kryon.tools.nuclei.runner.subprocess.run", side_effect=_capture):
+    with (
+        patch("kryon.tools.nuclei.runner.is_nuclei_available", return_value=True),
+        patch("kryon.tools.nuclei.runner.subprocess.run", side_effect=_capture),
+    ):
         run_nuclei(cfg)
     args = captured_args[0]
     assert "-jsonl" in args
@@ -286,8 +295,10 @@ def test_run_nuclei_severity_filter_applied():
         return _FakeProc()
 
     cfg = NuclieConfig(targets=("https://example.com",), severities=("high", "critical"))
-    with patch("kryon.tools.nuclei.runner.is_nuclei_available", return_value=True), \
-         patch("kryon.tools.nuclei.runner.subprocess.run", side_effect=_cap):
+    with (
+        patch("kryon.tools.nuclei.runner.is_nuclei_available", return_value=True),
+        patch("kryon.tools.nuclei.runner.subprocess.run", side_effect=_cap),
+    ):
         run_nuclei(cfg)
     args = captured[0]
     assert "-severity" in args
@@ -311,8 +322,10 @@ def test_run_nuclei_findings_sorted_by_severity():
         returncode = 0
 
     cfg = NuclieConfig(targets=("https://example.com",))
-    with patch("kryon.tools.nuclei.runner.is_nuclei_available", return_value=True), \
-         patch("kryon.tools.nuclei.runner.subprocess.run", return_value=_FakeProc()):
+    with (
+        patch("kryon.tools.nuclei.runner.is_nuclei_available", return_value=True),
+        patch("kryon.tools.nuclei.runner.subprocess.run", return_value=_FakeProc()),
+    ):
         result = run_nuclei(cfg)
     severities = [f.severity for f in result.findings]
     severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}

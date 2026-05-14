@@ -194,31 +194,23 @@ def test_cookie_002_silent_with_httponly():
 
 
 def test_cookie_003_fires_when_samesite_absent():
-    analysis = analyze_cookies(
-        ["sid=abc; Secure; HttpOnly"], is_https=True
-    )
+    analysis = analyze_cookies(["sid=abc; Secure; HttpOnly"], is_https=True)
     assert "COOKIE-003" in _ids(analysis.findings)
 
 
 def test_cookie_003_silent_with_samesite_lax():
-    analysis = analyze_cookies(
-        ["sid=abc; Secure; HttpOnly; SameSite=Lax"], is_https=True
-    )
+    analysis = analyze_cookies(["sid=abc; Secure; HttpOnly; SameSite=Lax"], is_https=True)
     assert "COOKIE-003" not in _ids(analysis.findings)
 
 
 def test_cookie_004_samesite_none_without_secure_fires():
     """RFC 6265bis + Chrome 80+ reject SameSite=None without Secure."""
-    analysis = analyze_cookies(
-        ["sid=abc; SameSite=None"], is_https=True
-    )
+    analysis = analyze_cookies(["sid=abc; SameSite=None"], is_https=True)
     assert "COOKIE-004" in _ids(analysis.findings)
 
 
 def test_cookie_004_samesite_none_with_secure_silent():
-    analysis = analyze_cookies(
-        ["sid=abc; Secure; HttpOnly; SameSite=None"], is_https=True
-    )
+    analysis = analyze_cookies(["sid=abc; Secure; HttpOnly; SameSite=None"], is_https=True)
     assert "COOKIE-004" not in _ids(analysis.findings)
 
 
@@ -228,39 +220,29 @@ def test_cookie_004_samesite_none_with_secure_silent():
 
 
 def test_cookie_005_parent_domain_fires():
-    analysis = analyze_cookies(
-        ["sid=abc; Secure; HttpOnly; Domain=.example.com"], is_https=True
-    )
+    analysis = analyze_cookies(["sid=abc; Secure; HttpOnly; Domain=.example.com"], is_https=True)
     assert "COOKIE-005" in _ids(analysis.findings)
 
 
 def test_cookie_005_specific_host_silent():
-    analysis = analyze_cookies(
-        ["sid=abc; Secure; HttpOnly; Domain=app.example.com"], is_https=True
-    )
+    analysis = analyze_cookies(["sid=abc; Secure; HttpOnly; Domain=app.example.com"], is_https=True)
     assert "COOKIE-005" not in _ids(analysis.findings)
 
 
 def test_cookie_006_path_root_on_session_fires():
-    analysis = analyze_cookies(
-        ["session_id=abc; Secure; HttpOnly; Path=/"], is_https=True
-    )
+    analysis = analyze_cookies(["session_id=abc; Secure; HttpOnly; Path=/"], is_https=True)
     assert "COOKIE-006" in _ids(analysis.findings)
 
 
 def test_cookie_006_specific_path_silent():
-    analysis = analyze_cookies(
-        ["session_id=abc; Secure; HttpOnly; Path=/app"], is_https=True
-    )
+    analysis = analyze_cookies(["session_id=abc; Secure; HttpOnly; Path=/app"], is_https=True)
     assert "COOKIE-006" not in _ids(analysis.findings)
 
 
 def test_cookie_006_silent_on_non_session_cookie():
     """Non-session cookies on Path=/ are normal (preferences,
     locale, etc.) — don't false-flag."""
-    analysis = analyze_cookies(
-        ["theme=dark; Path=/"], is_https=True
-    )
+    analysis = analyze_cookies(["theme=dark; Path=/"], is_https=True)
     assert "COOKIE-006" not in _ids(analysis.findings)
 
 
@@ -330,9 +312,7 @@ def test_cookie_020_jsessionid_fires():
 
 
 def test_cookie_020_neutral_name_silent():
-    analysis = analyze_cookies(
-        ["session_id=abc; Secure; HttpOnly; SameSite=Lax"], is_https=True
-    )
+    analysis = analyze_cookies(["session_id=abc; Secure; HttpOnly; SameSite=Lax"], is_https=True)
     assert "COOKIE-020" not in _ids(analysis.findings)
 
 
@@ -347,9 +327,7 @@ def test_framework_cookie_names_pinned():
 
 
 def test_cookie_021_email_in_session_cookie_fires():
-    analysis = analyze_cookies(
-        ["session=user@example.com; Secure; HttpOnly; SameSite=Lax"], is_https=True
-    )
+    analysis = analyze_cookies(["session=user@example.com; Secure; HttpOnly; SameSite=Lax"], is_https=True)
     assert "COOKIE-021" in _ids(analysis.findings)
 
 
@@ -381,9 +359,7 @@ def test_cookie_021_opaque_token_silent():
 def test_cookie_021_non_session_with_email_silent():
     """COOKIE-021 only fires on session-named cookies, regardless
     of value pattern."""
-    analysis = analyze_cookies(
-        ["email_pref=user@example.com; Secure; SameSite=Lax"], is_https=True
-    )
+    analysis = analyze_cookies(["email_pref=user@example.com; Secure; SameSite=Lax"], is_https=True)
     assert "COOKIE-021" not in _ids(analysis.findings)
 
 
@@ -399,23 +375,17 @@ def test_cookie_030_host_prefix_without_secure_fires():
 
 
 def test_cookie_030_host_prefix_with_wrong_path_fires():
-    analysis = analyze_cookies(
-        ["__Host-sid=abc; Secure; Path=/app; HttpOnly"], is_https=True
-    )
+    analysis = analyze_cookies(["__Host-sid=abc; Secure; Path=/app; HttpOnly"], is_https=True)
     assert "COOKIE-030" in _ids(analysis.findings)
 
 
 def test_cookie_030_host_prefix_with_domain_fires():
-    analysis = analyze_cookies(
-        ["__Host-sid=abc; Secure; Path=/; Domain=example.com; HttpOnly"], is_https=True
-    )
+    analysis = analyze_cookies(["__Host-sid=abc; Secure; Path=/; Domain=example.com; HttpOnly"], is_https=True)
     assert "COOKIE-030" in _ids(analysis.findings)
 
 
 def test_cookie_030_valid_host_prefix_silent():
-    analysis = analyze_cookies(
-        ["__Host-sid=abc; Secure; Path=/; HttpOnly; SameSite=Lax"], is_https=True
-    )
+    analysis = analyze_cookies(["__Host-sid=abc; Secure; Path=/; HttpOnly; SameSite=Lax"], is_https=True)
     assert "COOKIE-030" not in _ids(analysis.findings)
 
 
@@ -425,9 +395,7 @@ def test_cookie_031_secure_prefix_without_secure_fires():
 
 
 def test_cookie_031_valid_secure_prefix_silent():
-    analysis = analyze_cookies(
-        ["__Secure-sid=abc; Secure; Path=/; HttpOnly; SameSite=Lax"], is_https=True
-    )
+    analysis = analyze_cookies(["__Secure-sid=abc; Secure; Path=/; HttpOnly; SameSite=Lax"], is_https=True)
     assert "COOKIE-031" not in _ids(analysis.findings)
 
 
@@ -464,17 +432,13 @@ def test_cookie_040_different_names_silent():
 
 
 def test_cookie_050_session_only_fires_info():
-    analysis = analyze_cookies(
-        ["pref=dark; Secure; SameSite=Lax"], is_https=True
-    )
+    analysis = analyze_cookies(["pref=dark; Secure; SameSite=Lax"], is_https=True)
     info = [f for f in analysis.findings if f.rule_id == "COOKIE-050"]
     assert info and info[0].severity == "INFO"
 
 
 def test_cookie_050_with_max_age_silent():
-    analysis = analyze_cookies(
-        ["pref=dark; Secure; SameSite=Lax; Max-Age=3600"], is_https=True
-    )
+    analysis = analyze_cookies(["pref=dark; Secure; SameSite=Lax; Max-Age=3600"], is_https=True)
     assert "COOKIE-050" not in _ids(analysis.findings)
 
 
@@ -489,9 +453,7 @@ def test_realistic_locked_down_session_cookie_minimal_findings():
         ["__Host-session=abc123opaque; Secure; HttpOnly; Path=/; SameSite=Lax; Max-Age=1800"],
         is_https=True,
     )
-    high_med = [
-        f for f in analysis.findings if f.severity in ("HIGH", "MEDIUM")
-    ]
+    high_med = [f for f in analysis.findings if f.severity in ("HIGH", "MEDIUM")]
     assert not high_med, f"Locked-down cookie should produce 0 HIGH/MEDIUM: got {high_med}"
 
 
@@ -527,15 +489,9 @@ def test_cookie_value_never_in_findings_output():
     token, JWT, etc.) must NEVER appear in finding strings.
     Findings carry cookie NAMES + flags, never the raw value."""
     secret_value = "SUPER_SECRET_TOKEN_VALUE_xyzABC123"
-    analysis = analyze_cookies(
-        [f"session={secret_value}; Path=/; Max-Age=86400"], is_https=True
-    )
-    rendered = " ".join(
-        f.detail + " " + f.title + " " + f.remediation for f in analysis.findings
-    )
-    assert secret_value not in rendered, (
-        f"Cookie value leaked into findings: {rendered}"
-    )
+    analysis = analyze_cookies([f"session={secret_value}; Path=/; Max-Age=86400"], is_https=True)
+    rendered = " ".join(f.detail + " " + f.title + " " + f.remediation for f in analysis.findings)
+    assert secret_value not in rendered, f"Cookie value leaked into findings: {rendered}"
 
 
 # =====================================================================
@@ -602,14 +558,10 @@ def test_tool_wrapper_does_not_echo_cookie_values():
     from kryon.tools.api.cookie_security_tool import _analysis_to_dict
 
     secret_value = "TOKEN_xyz_ABC_123_secret"
-    analysis = analyze_cookies(
-        [f"session={secret_value}; Secure; HttpOnly; SameSite=Lax"], is_https=True
-    )
+    analysis = analyze_cookies([f"session={secret_value}; Secure; HttpOnly; SameSite=Lax"], is_https=True)
     payload = _analysis_to_dict(analysis)
     blob = json.dumps(payload)
-    assert secret_value not in blob, (
-        "Tool wrapper output must NOT contain cookie values"
-    )
+    assert secret_value not in blob, "Tool wrapper output must NOT contain cookie values"
 
 
 def test_tool_wrapper_dict_shape():

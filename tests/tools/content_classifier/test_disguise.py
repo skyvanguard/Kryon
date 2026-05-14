@@ -11,7 +11,6 @@ from kryon.tools.content_classifier.disguise import (
     label_implies_mime,
 )
 
-
 # =====================================================================
 # label_implies_mime
 # =====================================================================
@@ -79,9 +78,7 @@ def test_no_disguise_when_everything_matches():
 def test_mime_disguise_phpsource_as_html():
     """Classic: PHP source returned with Content-Type: text/html →
     interpreter not running, source leaked."""
-    assess = detect_disguise(
-        "phpsource", "text/html", "https://x/index.php"
-    )
+    assess = detect_disguise("phpsource", "text/html", "https://x/index.php")
     assert assess.mime_disguise is True
     assert assess.severity == "CRITICAL"
 
@@ -95,9 +92,7 @@ def test_mime_disguise_executable_as_html():
 def test_extension_disguise_php_as_jpg():
     """Upload-bypass classic: file uploaded as profile.jpg but
     content is PHP."""
-    assess = detect_disguise(
-        "phpsource", "image/jpeg", "https://x/uploads/profile.jpg"
-    )
+    assess = detect_disguise("phpsource", "image/jpeg", "https://x/uploads/profile.jpg")
     assert assess.extension_disguise is True
     # Both mismatch AND PHP is severe
     assert assess.severity == "CRITICAL"
@@ -105,9 +100,7 @@ def test_extension_disguise_php_as_jpg():
 
 def test_extension_only_disguise():
     """Same content type declared correctly but URL extension misleads."""
-    assess = detect_disguise(
-        "javascript", "application/javascript", "https://x/banner.png"
-    )
+    assess = detect_disguise("javascript", "application/javascript", "https://x/banner.png")
     assert assess.mime_disguise is False
     assert assess.extension_disguise is True
 

@@ -5,13 +5,12 @@ from __future__ import annotations
 import pytest
 
 from kryon.tools.content_classifier.secrets import (
-    EmbeddedSecret,
     SECRET_PATTERNS,
+    EmbeddedSecret,
+    _redact,
     scan_for_secrets,
     shannon_entropy,
-    _redact,
 )
-
 
 # =====================================================================
 # Shannon entropy
@@ -28,6 +27,7 @@ def test_shannon_entropy_one_for_binary_uniform():
 
 def test_shannon_entropy_high_for_random():
     import os
+
     e = shannon_entropy(os.urandom(2000))
     assert 7.5 <= e <= 8.0  # uniform random bytes ≈ 8.0
 
@@ -126,13 +126,15 @@ def test_detects_private_key_header():
 
 
 def test_detects_npm_token():
-    body = b'//registry.npmjs.org/:_authToken=npm_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789'
+    body = b"//registry.npmjs.org/:_authToken=npm_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789"
     secrets = scan_for_secrets(body)
     assert any(s.kind == "npm-token" for s in secrets)
 
 
 def test_detects_bearer_in_body():
-    body = b'Sample HTML: <script>fetch("...", {headers: {Authorization: "Bearer eyJhbGc1234567890ABCDEFGHIJ"}})</script>'
+    body = (
+        b'Sample HTML: <script>fetch("...", {headers: {Authorization: "Bearer eyJhbGc1234567890ABCDEFGHIJ"}})</script>'
+    )
     secrets = scan_for_secrets(body)
     assert any(s.kind == "bearer-token-in-body" for s in secrets)
 
@@ -182,9 +184,7 @@ def test_redacted_preview_never_contains_full_value():
 
 def test_max_secrets_cap_respected():
     """Generate way more secrets than max_secrets and ensure cap."""
-    body = b"\n".join(
-        f"AKIA{i:016d}".encode() for i in range(100)
-    )
+    body = b"\n".join(f"AKIA{i:016d}".encode() for i in range(100))
     secrets = scan_for_secrets(body, max_secrets=10)
     assert len(secrets) <= 10
 

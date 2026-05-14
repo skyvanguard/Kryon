@@ -16,7 +16,6 @@ from kryon.tools.content_classifier.polyglot import (
     is_polyglot,
 )
 
-
 # ---- AV-evasion: build "dangerous" byte fragments at runtime ----
 
 
@@ -102,7 +101,7 @@ def test_pdf_plus_javascript_is_polyglot():
 
 
 def test_pure_jsp_only_one_family():
-    jsp = b"<%" + b"@ page import=\"java.util.*\" %" + b">"
+    jsp = b"<%" + b'@ page import="java.util.*" %' + b">"
     content = jsp + b"\n<h1>hello</h1>"
     inds = detect_polyglot(content)
     families = {p.signature for p in inds}

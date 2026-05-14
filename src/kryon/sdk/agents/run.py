@@ -209,6 +209,17 @@ class Runner:
             stuck_intervene = int(os.getenv("KRYON_STUCK_INTERVENE_AT", "2"))
             stuck_abort = int(os.getenv("KRYON_STUCK_ABORT_AT", "3"))
 
+            # F123 — Pull the active ActionLog from the registry so the
+            # _run_impl tool-call hook can persist per-tool entries.
+            # Optional: when no orchestrator is active, get_active_log()
+            # returns (None, "agent") and the audit path is a no-op.
+            try:
+                from kryon.audit.action_log import get_active_log
+
+                active_audit_log, active_audit_phase = get_active_log()
+            except Exception:  # pragma: no cover
+                active_audit_log, active_audit_phase = None, "agent"
+
             context_wrapper: RunContextWrapper[TContext] = RunContextWrapper(
                 context=context,  # type: ignore
                 stuck_detector=StuckDetector(
@@ -216,6 +227,8 @@ class Runner:
                     intervene_at=stuck_intervene,
                     abort_at=stuck_abort,
                 ),
+                audit_log=active_audit_log,
+                audit_phase=active_audit_phase,
             )
 
             input_guardrail_results: list[InputGuardrailResult] = []

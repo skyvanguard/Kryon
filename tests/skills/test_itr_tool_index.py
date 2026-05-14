@@ -24,7 +24,6 @@ from kryon.skills.itr_tool_index import (
     tool_doc_for_index,
 )
 
-
 pytest.importorskip("numpy", reason="indexer persistence requires numpy")
 
 

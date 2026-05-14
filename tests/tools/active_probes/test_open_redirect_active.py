@@ -12,11 +12,10 @@ import pytest
 
 from kryon.tools.active_probes.open_redirect_active import (
     OpenRedirectActiveConfig,
+    _build_probe_url,
     build_redirect_payloads,
     probe_open_redirect_active,
-    _build_probe_url,
 )
-
 
 # =====================================================================
 # Pure functions
@@ -37,18 +36,14 @@ def test_build_redirect_payloads_includes_classic_bypasses():
 
 
 def test_build_probe_url_replaces_existing_param():
-    out = _build_probe_url(
-        "https://target.com/login?next=before&keep=1", "next", "AFTER"
-    )
+    out = _build_probe_url("https://target.com/login?next=before&keep=1", "next", "AFTER")
     assert "next=AFTER" in out
     assert "keep=1" in out
     assert "next=before" not in out
 
 
 def test_build_probe_url_appends_when_not_present():
-    out = _build_probe_url(
-        "https://target.com/login?keep=1", "next", "VAL"
-    )
+    out = _build_probe_url("https://target.com/login?keep=1", "next", "VAL")
     assert "next=VAL" in out
     assert "keep=1" in out
 

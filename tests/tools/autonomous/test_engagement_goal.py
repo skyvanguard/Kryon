@@ -288,3 +288,107 @@ def test_evidence_contains_matched_findings():
     progress = GoalEvaluator().evaluate(goal, findings)
     assert len(progress.evidence) == 1
     assert progress.evidence[0].rule_id == "WEB-002"
+
+
+# ---------------------------------------------------------------------------
+# F125 — RECON with technology + endpoint sub-criteria
+# ---------------------------------------------------------------------------
+
+
+def test_recon_with_min_technologies_requires_tech_count():
+    goal = EngagementGoal(
+        kind=GoalKind.RECON,
+        raw="enumerate tech stack",
+        params={"min_services": 1, "min_technologies": 3},
+    )
+    findings = [
+        _F(rule_id="NMAP-001", message="open port 80/tcp"),
+        _F(rule_id="WW-001", message="Apache 2.4.50 with Bootstrap"),
+        _F(rule_id="WW-002", message="cPanel detected"),
+    ]
+    progress = GoalEvaluator().evaluate(goal, findings)
+    assert progress.satisfied is True
+    assert progress.technologies_detected >= 3
+
+
+def test_recon_min_technologies_unmet_is_partial():
+    goal = EngagementGoal(
+        kind=GoalKind.RECON,
+        raw="enumerate tech stack",
+        params={"min_services": 1, "min_technologies": 5},
+    )
+    findings = [
+        _F(rule_id="NMAP-001", message="open port 22"),
+        _F(rule_id="WW-001", message="Apache"),
+    ]
+    progress = GoalEvaluator().evaluate(goal, findings)
+    assert progress.satisfied is False
+    assert progress.verdict is EngagementVerdict.PARTIAL
+
+
+def test_recon_with_min_endpoints_counts_paths():
+    goal = EngagementGoal(
+        kind=GoalKind.RECON,
+        raw="discover endpoints",
+        params={"min_services": 1, "min_endpoints": 3},
+    )
+    findings = [
+        _F(rule_id="NMAP", message="open port 443"),
+        _F(rule_id="FFUF-1", message="/admin returned 200"),
+        _F(rule_id="FFUF-2", message="/api/v1 returned 401"),
+        _F(rule_id="FFUF-3", message="/webmail redirects to :2096"),
+    ]
+    progress = GoalEvaluator().evaluate(goal, findings)
+    assert progress.satisfied is True
+    assert progress.endpoints_enumerated >= 3
+
+
+def test_recon_combined_criteria_must_all_pass():
+    goal = EngagementGoal(
+        kind=GoalKind.RECON,
+        raw="complete recon",
+        params={"min_services": 3, "min_technologies": 2, "min_endpoints": 2},
+    )
+    findings = [
+        _F(rule_id="NMAP", message="open port 22 ssh"),
+        _F(rule_id="NMAP", message="open port 80 http"),
+        _F(rule_id="NMAP", message="open port 443 https"),
+        _F(rule_id="WW", message="Apache server with cPanel"),
+        _F(rule_id="FFUF", message="/admin and /api/v1 found"),
+    ]
+    progress = GoalEvaluator().evaluate(goal, findings)
+    assert progress.satisfied is True
+
+
+def test_recon_combined_criteria_one_missing_is_partial():
+    goal = EngagementGoal(
+        kind=GoalKind.RECON,
+        raw="complete recon",
+        params={"min_services": 3, "min_technologies": 2, "min_endpoints": 2},
+    )
+    findings = [
+        _F(rule_id="NMAP", message="open port 22"),
+        _F(rule_id="NMAP", message="open port 80"),
+        _F(rule_id="NMAP", message="open port 443"),
+        _F(rule_id="WW", message="Apache"),  # only 1 tech, need 2
+        _F(rule_id="FFUF", message="/admin /api"),
+    ]
+    progress = GoalEvaluator().evaluate(goal, findings)
+    assert progress.satisfied is False
+    assert progress.verdict is EngagementVerdict.PARTIAL
+    assert "techs" in progress.reasoning
+
+
+def test_recon_default_still_services_only_for_backward_compat():
+    # Without min_technologies/min_endpoints declared, behaviour is the
+    # same as the F118 baseline — only count ports.
+    goal = EngagementGoal(kind=GoalKind.RECON, raw="recon", params={"min_services": 2})
+    findings = [
+        _F(rule_id="NMAP", message="open port 22"),
+        _F(rule_id="NMAP", message="open port 443"),
+    ]
+    progress = GoalEvaluator().evaluate(goal, findings)
+    assert progress.satisfied is True
+    # Technologies + endpoints counters present but zero (no extra criteria).
+    assert progress.technologies_detected == 0
+    assert progress.endpoints_enumerated == 0

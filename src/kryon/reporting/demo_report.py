@@ -122,6 +122,37 @@ def _sorted_findings(findings: list[dict]) -> list[dict]:
     )
 
 
+def _render_engagement_verdict(verdict_info: dict | None) -> str:
+    """F122 — Render the F118 engagement verdict as an HTML banner so
+    the operator/client sees SATISFIED/PARTIAL/NOT_MET in the report,
+    not just in the console output."""
+    if not verdict_info:
+        return ""
+    verdict = str(verdict_info.get("verdict", "")).lower()
+    label = verdict.upper() or "—"
+    reasoning = _html.escape(str(verdict_info.get("reasoning", "")))
+    goal_raw = _html.escape(str(verdict_info.get("goal_raw", "")))
+    goal_kind = _html.escape(str(verdict_info.get("goal_kind", "")))
+    evidence_count = int(verdict_info.get("evidence_count", 0))
+    color = {
+        "satisfied": ("#22543d", "#c6f6d5"),
+        "partial": ("#744210", "#fefcbf"),
+        "not_met": ("#822727", "#fed7d7"),
+    }.get(verdict, ("#2a4365", "#bee3f8"))
+    return (
+        f'<div class="verdict-banner" style="margin:20px 0;padding:14px 18px;'
+        f'border-left:5px solid {color[0]};background:{color[1]};border-radius:4px;">'
+        f'<div style="font-size:11px;color:{color[0]};text-transform:uppercase;'
+        f'letter-spacing:0.08em;font-weight:600;">Veredicto del engagement</div>'
+        f'<div style="font-size:22px;color:{color[0]};font-weight:700;margin:4px 0;">'
+        f"{label}</div>"
+        f'<div style="font-size:13px;color:#2d3748;">{reasoning}</div>'
+        f'<div style="font-size:11px;color:#718096;margin-top:8px;">'
+        f"Objetivo declarado ({goal_kind}): <em>{goal_raw}</em> · "
+        f"{evidence_count} evidencia(s) recolectada(s)</div></div>"
+    )
+
+
 def _build_executive_summary(findings: list[dict], context: dict, counts: dict[str, int]) -> str:
     """Plain-text summary, deterministic — no LLM needed for the demo PDF."""
     total = len(findings)
@@ -257,6 +288,7 @@ def render_html(findings: list[dict], context: dict) -> str:
 
 <h2>Resumen ejecutivo</h2>
 <div class="summary">{summary}</div>
+{_render_engagement_verdict(ctx.get("engagement_verdict"))}
 {_kpi_row_html(counts, total)}
 
 <h2>Índice de hallazgos</h2>

@@ -592,11 +592,7 @@ def test_tool_wrapper_dry_run_summarizes_findings():
                 }
             }
         },
-        "components": {
-            "securitySchemes": {
-                "bearerAuth": {"type": "http", "scheme": "bearer"}
-            }
-        },
+        "components": {"securitySchemes": {"bearerAuth": {"type": "http", "scheme": "bearer"}}},
     }
     from kryon.tools.api.openapi_importer import parse_openapi
 

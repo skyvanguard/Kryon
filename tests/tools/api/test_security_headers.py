@@ -98,38 +98,26 @@ def test_hsh_001_csp_present_silences():
 
 
 def test_hsh_002_unsafe_inline_fires():
-    r = HTTPResponse(
-        headers={
-            "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'"
-        }
-    )
+    r = HTTPResponse(headers={"Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'"})
     findings = analyze_security_headers(r).findings
     high = [f for f in findings if f.rule_id == "HSH-002"]
     assert high and high[0].severity == "HIGH"
 
 
 def test_hsh_002_no_unsafe_inline_silent():
-    r = HTTPResponse(
-        headers={
-            "Content-Security-Policy": "default-src 'self'; script-src 'self' 'nonce-abc123'"
-        }
-    )
+    r = HTTPResponse(headers={"Content-Security-Policy": "default-src 'self'; script-src 'self' 'nonce-abc123'"})
     assert "HSH-002" not in _ids(analyze_security_headers(r).findings)
 
 
 def test_hsh_003_unsafe_eval_fires():
-    r = HTTPResponse(
-        headers={"Content-Security-Policy": "default-src 'self' 'unsafe-eval'"}
-    )
+    r = HTTPResponse(headers={"Content-Security-Policy": "default-src 'self' 'unsafe-eval'"})
     findings = analyze_security_headers(r).findings
     med = [f for f in findings if f.rule_id == "HSH-003"]
     assert med and med[0].severity == "MEDIUM"
 
 
 def test_hsh_004_wildcard_in_script_src_fires():
-    r = HTTPResponse(
-        headers={"Content-Security-Policy": "default-src 'self'; script-src *"}
-    )
+    r = HTTPResponse(headers={"Content-Security-Policy": "default-src 'self'; script-src *"})
     findings = analyze_security_headers(r).findings
     assert "HSH-004" in _ids(findings)
 
@@ -140,21 +128,13 @@ def test_hsh_004_wildcard_in_default_src_fires():
 
 
 def test_hsh_005_http_scheme_fires():
-    r = HTTPResponse(
-        headers={
-            "Content-Security-Policy": "default-src 'self'; img-src 'self' http://insecure.example"
-        }
-    )
+    r = HTTPResponse(headers={"Content-Security-Policy": "default-src 'self'; img-src 'self' http://insecure.example"})
     findings = analyze_security_headers(r).findings
     assert "HSH-005" in _ids(findings)
 
 
 def test_hsh_005_https_only_silent():
-    r = HTTPResponse(
-        headers={
-            "Content-Security-Policy": "default-src 'self'; img-src 'self' https://secure.cdn"
-        }
-    )
+    r = HTTPResponse(headers={"Content-Security-Policy": "default-src 'self'; img-src 'self' https://secure.cdn"})
     assert "HSH-005" not in _ids(analyze_security_headers(r).findings)
 
 
@@ -214,9 +194,7 @@ def test_hsh_012_include_subdomains_missing_fires():
 def test_hsh_012_include_subdomains_present_silent():
     r = HTTPResponse(
         is_https=True,
-        headers={
-            "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"
-        },
+        headers={"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"},
     )
     assert "HSH-012" not in _ids(analyze_security_headers(r).findings)
 
@@ -234,9 +212,7 @@ def test_hsh_013_preload_missing_fires():
 def test_hsh_013_preload_present_silent():
     r = HTTPResponse(
         is_https=True,
-        headers={
-            "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"
-        },
+        headers={"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"},
     )
     assert "HSH-013" not in _ids(analyze_security_headers(r).findings)
 
@@ -499,10 +475,7 @@ def test_locked_down_response_minimal_findings():
     r = HTTPResponse(
         is_https=True,
         headers={
-            "Content-Security-Policy": (
-                "default-src 'self'; script-src 'self' 'nonce-abc123'; "
-                "frame-ancestors 'none'"
-            ),
+            "Content-Security-Policy": ("default-src 'self'; script-src 'self' 'nonce-abc123'; frame-ancestors 'none'"),
             "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
             "X-Content-Type-Options": "nosniff",
             "X-Frame-Options": "DENY",
@@ -516,9 +489,7 @@ def test_locked_down_response_minimal_findings():
     ids = _ids(findings)
     # No HIGH or MEDIUM findings.
     for f in findings:
-        assert f.severity not in ("HIGH", "MEDIUM"), (
-            f"Unexpected {f.severity} on locked-down fixture: {f.rule_id}"
-        )
+        assert f.severity not in ("HIGH", "MEDIUM"), f"Unexpected {f.severity} on locked-down fixture: {f.rule_id}"
 
 
 # =====================================================================
@@ -617,9 +588,7 @@ def test_csp_only_default_src_does_not_fire_unsafe_inline():
 def test_csp_with_only_unsafe_inline_in_default_src_fires():
     """HSH-002 must check default-src as fallback when script-src
     is absent — that's how CSP spec applies it."""
-    r = HTTPResponse(
-        headers={"Content-Security-Policy": "default-src 'self' 'unsafe-inline'"}
-    )
+    r = HTTPResponse(headers={"Content-Security-Policy": "default-src 'self' 'unsafe-inline'"})
     assert "HSH-002" in _ids(analyze_security_headers(r).findings)
 
 

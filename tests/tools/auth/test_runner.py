@@ -18,11 +18,10 @@ from kryon.tools.auth.runner import (
     AuthSuccessSignal,
     LoginCredentials,
     _classify_response,
-    _looks_like_csrf,
     _is_session_like,
+    _looks_like_csrf,
     execute_auth_flow,
 )
-
 
 # =====================================================================
 # Pure-function smoke
@@ -90,7 +89,7 @@ class _LoginHandler(BaseHTTPRequestHandler):
               <input type="submit" value="Login">
             </form>
             </body></html>
-            """.encode("utf-8")
+            """.encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Set-Cookie", "csrftoken_cookie=set-on-get; Path=/")
@@ -126,10 +125,7 @@ class _LoginHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"<h1>CSRF token mismatch</h1>")
             return
-        if (
-            fields.get("username") == _VALID_USER
-            and fields.get("password") == _VALID_PASS
-        ):
+        if fields.get("username") == _VALID_USER and fields.get("password") == _VALID_PASS:
             # Success: 302 to /dashboard + Set-Cookie session
             self.send_response(302)
             self.send_header("Set-Cookie", "session=abc-xyz-123; Path=/; HttpOnly")
@@ -327,8 +323,9 @@ def test_jwt_in_body_signal():
     """When a JWT-shaped string appears in the response body and
     expected_jwt_in_body=True, that should count as success +
     captured as Bearer header."""
-    import requests
     from unittest.mock import MagicMock, patch
+
+    import requests
 
     # We build a synthetic response with a JWT in the body.
     fake_jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIn0.AbcdefghIJKL"
@@ -339,8 +336,6 @@ def test_jwt_in_body_signal():
     fake_resp.history = []
     fake_resp.headers = {}
     fake_resp.cookies = []
-
-    from kryon.tools.auth.runner import _classify_response
 
     cfg = AuthFlowConfig(
         login_url="http://127.0.0.1:9999/login",

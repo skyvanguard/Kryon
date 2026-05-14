@@ -112,8 +112,7 @@ def test_template_declares_documented_variables(template):
     for name, default in expected.items():
         assert name in variables, f"variable {name} not declared"
         assert variables[name] == default, (
-            f"variable {name} default drifted: docs say {default!r}, "
-            f"template has {variables[name]!r}"
+            f"variable {name} default drifted: docs say {default!r}, template has {variables[name]!r}"
         )
 
 
@@ -214,8 +213,7 @@ def test_example_includes_template(example):
     if isinstance(includes, dict):
         includes = [includes]
     template_refs = [
-        i for i in includes
-        if isinstance(i, dict) and "/.gitlab/ci/kryon-audit.gitlab-ci.yml" in str(i.get("file", ""))
+        i for i in includes if isinstance(i, dict) and "/.gitlab/ci/kryon-audit.gitlab-ci.yml" in str(i.get("file", ""))
     ]
     assert template_refs, "example pipeline doesn't reference the template"
 
@@ -242,9 +240,6 @@ def test_example_audit_job_needs_engage_artifacts(example):
     file."""
     audit_job = example["kryon-security-audit"]
     needs = audit_job.get("needs", [])
-    engage_dep = [
-        n for n in needs
-        if isinstance(n, dict) and n.get("job") == "kryon-engage"
-    ]
+    engage_dep = [n for n in needs if isinstance(n, dict) and n.get("job") == "kryon-engage"]
     assert engage_dep, "audit job doesn't declare needs:[kryon-engage]"
     assert engage_dep[0].get("artifacts") is True

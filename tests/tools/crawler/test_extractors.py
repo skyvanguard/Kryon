@@ -13,7 +13,6 @@ from kryon.tools.crawler.extractors import (
     urljoin_safe,
 )
 
-
 BASE = "https://target.example/page"
 
 

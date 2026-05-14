@@ -108,10 +108,7 @@ def test_dom_006_insertadjacenthtml():
 
 
 def test_dom_007_dangerously_set_inner_html():
-    body = (
-        "const userBio = localStorage.getItem('bio');\n"
-        "return <div dangerouslySetInnerHTML={{__html: userBio}} />;"
-    )
+    body = "const userBio = localStorage.getItem('bio');\nreturn <div dangerouslySetInnerHTML={{__html: userBio}} />;"
     findings = _classify_snippet(_s(body))
     assert any(f.rule_id == "DOM-007" for f in findings)
 

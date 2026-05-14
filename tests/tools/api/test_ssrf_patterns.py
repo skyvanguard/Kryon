@@ -17,7 +17,6 @@ from kryon.tools.api.ssrf_patterns import (
     analyze_ssrf,
 )
 
-
 # =====================================================================
 # Parameter-name heuristic
 # =====================================================================
@@ -99,9 +98,7 @@ def test_value_points_internal_false(value):
 
 
 def test_ssrf_002_internal_value_high():
-    findings = _classify_param(
-        SsrfParameter(name="url", sample_value="http://169.254.169.254/")
-    )
+    findings = _classify_param(SsrfParameter(name="url", sample_value="http://169.254.169.254/"))
     assert any(f.rule_id == "SSRF-002" and f.severity == "HIGH" for f in findings)
 
 
@@ -159,7 +156,7 @@ def test_ssrf_003_javascript_fetch():
 
 
 def test_ssrf_003_java_urlconnection():
-    body = "URL u = new URL(request.getParameter(\"url\"));"
+    body = 'URL u = new URL(request.getParameter("url"));'
     findings = _classify_snippet(SsrfCodeSnippet(language="java", file_path="Servlet.java", body=body))
     assert any(f.rule_id == "SSRF-003" for f in findings)
 

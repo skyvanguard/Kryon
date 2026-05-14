@@ -117,6 +117,31 @@ def cascade_skip_remaining(plan: Any, except_names: tuple[str, ...] = ("reportin
     return skipped
 
 
+def consecutive_unproductive_phases(
+    plan: Any,
+    *,
+    unproductive_statuses: tuple[Any, ...] = (PhaseStatus.FAILED, PhaseStatus.SKIPPED),
+) -> int:
+    """F124 — Count the trailing run of phases whose status is in
+    ``unproductive_statuses``. Used by the circuit breaker to decide
+    whether the orchestrator should give up.
+
+    Trailing PENDING/RUNNING phases are skipped first (they represent
+    phases the orchestrator hasn't decided yet), and then the count is
+    taken from there backwards. Any COMPLETED phase stops the count.
+    """
+    i = len(plan.phases) - 1
+    # Step past trailing not-yet-decided phases.
+    while i >= 0 and plan.phases[i].status in (PhaseStatus.PENDING, PhaseStatus.RUNNING):
+        i -= 1
+    # Count consecutive unproductive at the tail of decided phases.
+    count = 0
+    while i >= 0 and plan.phases[i].status in unproductive_statuses:
+        count += 1
+        i -= 1
+    return count
+
+
 def dedup_findings_by_rule_and_host(existing: list[Any], candidates: list[Any]) -> list[Any]:
     """Return items from ``candidates`` whose ``(rule_id, host)`` pair is
     not already present in ``existing``. Preserves input order. Used after

@@ -64,6 +64,8 @@ class GoalProgress:
     evidence: tuple[Any, ...] = field(default_factory=tuple)
     controls_evaluated: int = 0
     services_enumerated: int = 0
+    technologies_detected: int = 0  # F125
+    endpoints_enumerated: int = 0  # F125
 
     def should_terminate_early(self) -> bool:
         return self.satisfied
@@ -215,6 +217,51 @@ _SEVERE = frozenset({"critical", "high"})
 
 _SERVICE_PORT_RE = re.compile(r"\bport\s+(\d{1,5})(?:/\w+)?\b", re.IGNORECASE)
 
+# F125 — Tech fingerprint dictionary. Matched as substring (case-insensitive)
+# against finding text. Each canonical key counts at most once per evaluation
+# so "Apache" in 5 findings still counts as 1 technology detected.
+_TECH_FINGERPRINTS: tuple[str, ...] = (
+    "apache",
+    "nginx",
+    "iis",
+    "openssh",
+    "lighttpd",
+    "tomcat",
+    "wordpress",
+    "drupal",
+    "joomla",
+    "magento",
+    "django",
+    "rails",
+    "express",
+    "laravel",
+    "spring",
+    "flask",
+    "bootstrap",
+    "react",
+    "vue",
+    "angular",
+    "jquery",
+    "cpanel",
+    "plesk",
+    "webmin",
+    "phpmyadmin",
+    "fortigate",
+    "fortios",
+    "pfsense",
+    "proxmox",
+    "unifi",
+    "openssl",
+    "php",
+    "node.js",
+    "nodejs",
+)
+
+# F125 — Endpoint regex. Captures HTTP-style paths (/something or /a/b)
+# referenced in finding text — useful for goals like "enumerate the
+# endpoint surface" where matching ports alone undersells the engagement.
+_ENDPOINT_RE = re.compile(r"(?<![\w])(/[a-zA-Z0-9_\-]{2,}(?:/[a-zA-Z0-9_\-\.]+)*)", re.MULTILINE)
+
 
 class GoalEvaluator:
     """Deterministic goal progress evaluator. Pure: no I/O, no LLM."""
@@ -318,18 +365,96 @@ class GoalEvaluator:
 
     def _eval_recon(self, goal: EngagementGoal, findings: list[Any]) -> GoalProgress:
         min_services = int(goal.params.get("min_services", 1))
+        # F125 — secondary criteria. Both default to 0 (off) so existing
+        # RECON goals keep their port-only semantics. Set in goal.params
+        # to require AND-ed satisfaction of multiple criteria.
+        min_technologies = int(goal.params.get("min_technologies", 0))
+        min_endpoints = int(goal.params.get("min_endpoints", 0))
+
         ports_seen: set[str] = set()
         service_findings: list[Any] = []
+        techs_seen: set[str] = set()
+        endpoints_seen: set[str] = set()
+        evidence: list[Any] = []
+
         for f in findings:
             text = _finding_text(f)
+            contributes = False
+
             for m in _SERVICE_PORT_RE.finditer(text):
                 port = m.group(1)
                 if port not in ports_seen:
                     ports_seen.add(port)
-                    service_findings.append(f)
-                    break  # only count each finding once
+                    if not contributes:
+                        service_findings.append(f)
+                        contributes = True
 
-        count = len(ports_seen)
+            for tech in _TECH_FINGERPRINTS:
+                if tech in text and tech not in techs_seen:
+                    techs_seen.add(tech)
+                    if not contributes:
+                        evidence.append(f)
+                        contributes = True
+
+            for m in _ENDPOINT_RE.finditer(text):
+                ep = m.group(1).rstrip(".,;:")
+                if len(ep) > 1 and ep not in endpoints_seen:
+                    endpoints_seen.add(ep)
+                    if not contributes:
+                        evidence.append(f)
+                        contributes = True
+
+        services_count = len(ports_seen)
+        techs_count = len(techs_seen)
+        endpoints_count = len(endpoints_seen)
+        all_evidence = tuple(service_findings + [e for e in evidence if e not in service_findings])
+
+        # All declared minimums must be met. ``min_services`` defaults to 1
+        # so backward compat (port-only goals) keeps its prior behaviour.
+        services_ok = services_count >= min_services
+        techs_ok = techs_count >= min_technologies
+        endpoints_ok = endpoints_count >= min_endpoints
+
+        if services_ok and techs_ok and endpoints_ok:
+            criteria = [f"{services_count} services"]
+            if min_technologies > 0:
+                criteria.append(f"{techs_count} technologies")
+            if min_endpoints > 0:
+                criteria.append(f"{endpoints_count} endpoints")
+            return GoalProgress(
+                verdict=EngagementVerdict.SATISFIED,
+                satisfied=True,
+                reasoning=f"recon goal met — {', '.join(criteria)} enumerated",
+                evidence=all_evidence,
+                services_enumerated=services_count,
+                technologies_detected=techs_count,
+                endpoints_enumerated=endpoints_count,
+            )
+
+        # Partial: some signal but not enough.
+        any_progress = services_count > 0 or techs_count > 0 or endpoints_count > 0
+        if any_progress:
+            shortfalls: list[str] = []
+            if not services_ok:
+                shortfalls.append(f"services {services_count}/{min_services}")
+            if not techs_ok:
+                shortfalls.append(f"techs {techs_count}/{min_technologies}")
+            if not endpoints_ok:
+                shortfalls.append(f"endpoints {endpoints_count}/{min_endpoints}")
+            return GoalProgress(
+                verdict=EngagementVerdict.PARTIAL,
+                satisfied=False,
+                reasoning="recon partial — " + ", ".join(shortfalls),
+                evidence=all_evidence,
+                services_enumerated=services_count,
+                technologies_detected=techs_count,
+                endpoints_enumerated=endpoints_count,
+            )
+
+        # Original happy paths preserved below for the no-extra-criteria
+        # legacy case (the explicit checks above already covered the new
+        # cases). Falls through to the legacy NOT_MET path.
+        count = services_count
         if count >= min_services:
             return GoalProgress(
                 verdict=EngagementVerdict.SATISFIED,

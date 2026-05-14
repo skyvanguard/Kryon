@@ -116,9 +116,7 @@ def test_hostname_mismatch():
 
 def test_tls_001_tls_10_enabled_fires():
     p = _modern_profile()
-    p = TLSProfile(
-        **{**p.__dict__, "supported_protocols": ("TLSv1.0", "TLSv1.2", "TLSv1.3")}
-    )
+    p = TLSProfile(**{**p.__dict__, "supported_protocols": ("TLSv1.0", "TLSv1.2", "TLSv1.3")})
     assert "TLS-001" in _ids(analyze_tls_profile(p).findings)
 
 
@@ -127,25 +125,19 @@ def test_tls_001_silent_when_no_tls_10():
 
 
 def test_tls_002_tls_11_enabled_fires():
-    p = TLSProfile(
-        **{**_modern_profile().__dict__, "supported_protocols": ("TLSv1.1", "TLSv1.2", "TLSv1.3")}
-    )
+    p = TLSProfile(**{**_modern_profile().__dict__, "supported_protocols": ("TLSv1.1", "TLSv1.2", "TLSv1.3")})
     assert "TLS-002" in _ids(analyze_tls_profile(p).findings)
 
 
 def test_tls_003_sslv3_fires_critical():
-    p = TLSProfile(
-        **{**_modern_profile().__dict__, "supported_protocols": ("SSLv3", "TLSv1.2", "TLSv1.3")}
-    )
+    p = TLSProfile(**{**_modern_profile().__dict__, "supported_protocols": ("SSLv3", "TLSv1.2", "TLSv1.3")})
     findings = analyze_tls_profile(p).findings
     crit = [f for f in findings if f.rule_id == "TLS-003"]
     assert crit and crit[0].severity == "CRITICAL"
 
 
 def test_tls_003_sslv2_fires_critical():
-    p = TLSProfile(
-        **{**_modern_profile().__dict__, "supported_protocols": ("SSLv2",)}
-    )
+    p = TLSProfile(**{**_modern_profile().__dict__, "supported_protocols": ("SSLv2",)})
     findings = analyze_tls_profile(p).findings
     assert any(f.rule_id == "TLS-003" and f.severity == "CRITICAL" for f in findings)
 
@@ -169,50 +161,38 @@ def test_tls_004_with_tls_13_silent():
 
 
 def test_tls_010_rc4_fires_high():
-    p = TLSProfile(
-        **{**_modern_profile().__dict__, "supported_ciphers": ("ECDHE-RSA-RC4-SHA",)}
-    )
+    p = TLSProfile(**{**_modern_profile().__dict__, "supported_ciphers": ("ECDHE-RSA-RC4-SHA",)})
     findings = analyze_tls_profile(p).findings
     rc4 = [f for f in findings if f.rule_id == "TLS-010"]
     assert rc4 and rc4[0].severity == "HIGH"
 
 
 def test_tls_010_3des_fires():
-    p = TLSProfile(
-        **{**_modern_profile().__dict__, "supported_ciphers": ("ECDHE-RSA-DES-CBC3-SHA",)}
-    )
+    p = TLSProfile(**{**_modern_profile().__dict__, "supported_ciphers": ("ECDHE-RSA-DES-CBC3-SHA",)})
     assert "TLS-010" in _ids(analyze_tls_profile(p).findings)
 
 
 def test_tls_010_plain_des_fires():
-    p = TLSProfile(
-        **{**_modern_profile().__dict__, "supported_ciphers": ("TLS_RSA_WITH_DES_CBC_SHA",)}
-    )
+    p = TLSProfile(**{**_modern_profile().__dict__, "supported_ciphers": ("TLS_RSA_WITH_DES_CBC_SHA",)})
     assert "TLS-010" in _ids(analyze_tls_profile(p).findings)
 
 
 def test_tls_011_null_cipher_fires_critical():
-    p = TLSProfile(
-        **{**_modern_profile().__dict__, "supported_ciphers": ("TLS_RSA_WITH_NULL_SHA",)}
-    )
+    p = TLSProfile(**{**_modern_profile().__dict__, "supported_ciphers": ("TLS_RSA_WITH_NULL_SHA",)})
     findings = analyze_tls_profile(p).findings
     null = [f for f in findings if f.rule_id == "TLS-011"]
     assert null and null[0].severity == "CRITICAL"
 
 
 def test_tls_011_anon_cipher_fires_critical():
-    p = TLSProfile(
-        **{**_modern_profile().__dict__, "supported_ciphers": ("TLS_DH_anon_WITH_AES_256_CBC_SHA",)}
-    )
+    p = TLSProfile(**{**_modern_profile().__dict__, "supported_ciphers": ("TLS_DH_anon_WITH_AES_256_CBC_SHA",)})
     findings = analyze_tls_profile(p).findings
     anon = [f for f in findings if f.rule_id == "TLS-011"]
     assert anon and anon[0].severity == "CRITICAL"
 
 
 def test_tls_012_export_cipher_fires_critical():
-    p = TLSProfile(
-        **{**_modern_profile().__dict__, "supported_ciphers": ("EXP-RC4-MD5",)}
-    )
+    p = TLSProfile(**{**_modern_profile().__dict__, "supported_ciphers": ("EXP-RC4-MD5",)})
     findings = analyze_tls_profile(p).findings
     exp = [f for f in findings if f.rule_id == "TLS-012"]
     assert exp and exp[0].severity == "CRITICAL"
@@ -220,16 +200,12 @@ def test_tls_012_export_cipher_fires_critical():
 
 def test_tls_013_no_forward_secrecy_fires():
     """Static RSA key exchange = no FS."""
-    p = TLSProfile(
-        **{**_modern_profile().__dict__, "negotiated_cipher": "AES256-SHA256"}
-    )
+    p = TLSProfile(**{**_modern_profile().__dict__, "negotiated_cipher": "AES256-SHA256"})
     assert "TLS-013" in _ids(analyze_tls_profile(p).findings)
 
 
 def test_tls_013_ecdhe_silent():
-    p = TLSProfile(
-        **{**_modern_profile().__dict__, "negotiated_cipher": "ECDHE-RSA-AES256-GCM-SHA384"}
-    )
+    p = TLSProfile(**{**_modern_profile().__dict__, "negotiated_cipher": "ECDHE-RSA-AES256-GCM-SHA384"})
     assert "TLS-013" not in _ids(analyze_tls_profile(p).findings)
 
 
@@ -241,13 +217,9 @@ def test_tls_013_tls13_aead_silent():
 
 
 def test_tls_014_md5_mac_fires():
-    p = TLSProfile(
-        **{**_modern_profile().__dict__, "supported_ciphers": ("ECDHE-RSA-AES128-SHA-MD5",)}
-    )
+    p = TLSProfile(**{**_modern_profile().__dict__, "supported_ciphers": ("ECDHE-RSA-AES128-SHA-MD5",)})
     # MD5 alone in cipher name
-    p = TLSProfile(
-        **{**_modern_profile().__dict__, "supported_ciphers": ("TLS_RSA_WITH_RC2_CBC_40_MD5",)}
-    )
+    p = TLSProfile(**{**_modern_profile().__dict__, "supported_ciphers": ("TLS_RSA_WITH_RC2_CBC_40_MD5",)})
     assert "TLS-014" in _ids(analyze_tls_profile(p).findings)
 
 
@@ -283,25 +255,19 @@ def test_tls_020_rsa_4096_silent():
 
 
 def test_tls_021_ecdsa_192_fires():
-    cert = TLSCertificate(
-        **{**_good_cert().__dict__, "key_algorithm": "EC", "key_size_bits": 192}
-    )
+    cert = TLSCertificate(**{**_good_cert().__dict__, "key_algorithm": "EC", "key_size_bits": 192})
     p = TLSProfile(**{**_modern_profile().__dict__, "certificate": cert})
     assert "TLS-021" in _ids(analyze_tls_profile(p).findings)
 
 
 def test_tls_021_ecdsa_256_silent():
-    cert = TLSCertificate(
-        **{**_good_cert().__dict__, "key_algorithm": "EC", "key_size_bits": 256}
-    )
+    cert = TLSCertificate(**{**_good_cert().__dict__, "key_algorithm": "EC", "key_size_bits": 256})
     p = TLSProfile(**{**_modern_profile().__dict__, "certificate": cert})
     assert "TLS-021" not in _ids(analyze_tls_profile(p).findings)
 
 
 def test_tls_022_sha1_signature_fires():
-    cert = TLSCertificate(
-        **{**_good_cert().__dict__, "signature_algorithm": "sha1WithRSAEncryption"}
-    )
+    cert = TLSCertificate(**{**_good_cert().__dict__, "signature_algorithm": "sha1WithRSAEncryption"})
     p = TLSProfile(**{**_modern_profile().__dict__, "certificate": cert})
     findings = analyze_tls_profile(p).findings
     sha1 = [f for f in findings if f.rule_id == "TLS-022"]
@@ -309,9 +275,7 @@ def test_tls_022_sha1_signature_fires():
 
 
 def test_tls_023_md5_signature_fires_critical():
-    cert = TLSCertificate(
-        **{**_good_cert().__dict__, "signature_algorithm": "md5WithRSAEncryption"}
-    )
+    cert = TLSCertificate(**{**_good_cert().__dict__, "signature_algorithm": "md5WithRSAEncryption"})
     p = TLSProfile(**{**_modern_profile().__dict__, "certificate": cert})
     findings = analyze_tls_profile(p).findings
     md5 = [f for f in findings if f.rule_id == "TLS-023"]
@@ -371,9 +335,7 @@ def test_tls_040_self_signed_fires():
 
 
 def test_tls_041_hostname_not_in_san_fires():
-    cert = TLSCertificate(
-        **{**_good_cert().__dict__, "san_dns_names": ("other.example.org",)}
-    )
+    cert = TLSCertificate(**{**_good_cert().__dict__, "san_dns_names": ("other.example.org",)})
     p = TLSProfile(**{**_modern_profile().__dict__, "certificate": cert})
     findings = analyze_tls_profile(p).findings
     assert "TLS-041" in _ids(findings)
@@ -385,12 +347,8 @@ def test_tls_041_hostname_in_san_silent():
 
 
 def test_tls_041_wildcard_san_matches():
-    cert = TLSCertificate(
-        **{**_good_cert().__dict__, "san_dns_names": ("*.example.com",)}
-    )
-    p = TLSProfile(
-        **{**_modern_profile().__dict__, "hostname": "app.example.com", "certificate": cert}
-    )
+    cert = TLSCertificate(**{**_good_cert().__dict__, "san_dns_names": ("*.example.com",)})
+    p = TLSProfile(**{**_modern_profile().__dict__, "hostname": "app.example.com", "certificate": cert})
     assert "TLS-041" not in _ids(analyze_tls_profile(p).findings)
 
 

@@ -301,6 +301,29 @@ class RunImpl:
         if interrupt_exception:
             raise interrupt_exception
 
+        # F123 — Granular forensic audit log. When the orchestrator
+        # attached an ActionLog to the context, persist one JSONL entry
+        # per tool call (args + result pre-redacted via PAN redactor +
+        # hash-anchored). This is the tool-level companion to the phase
+        # boundary entries written by the orchestrator itself. Never
+        # raises — a failing audit must not abort the agent run.
+        audit_log = getattr(context_wrapper, "audit_log", None)
+        if audit_log is not None:
+            audit_phase = getattr(context_wrapper, "audit_phase", "agent")
+            for fr in function_results:
+                try:
+                    audit_log.append(
+                        tool_name=fr.tool.name,
+                        args=(
+                            fr.run_item.raw_item.get("arguments", "") if isinstance(fr.run_item.raw_item, dict) else ""
+                        ),
+                        result=fr.output,
+                        phase=audit_phase,
+                        status="ok",
+                    )
+                except Exception:  # pragma: no cover — forensic log must never abort the run
+                    pass
+
         # F85.E — Feed every completed tool call to the StuckDetector.
         # When the detector flags a loop, either inject a system-style
         # tool output telling the LLM to reconsider ("intervene") or

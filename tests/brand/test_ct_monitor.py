@@ -42,7 +42,6 @@ from kryon.brand.ct_monitor import (
     query_crtsh,
 )
 
-
 # =====================================================================
 # Fixtures
 # =====================================================================
@@ -288,9 +287,7 @@ def test_parser_splits_newline_separated_sans():
 def test_parser_lowercases_common_name_and_sans():
     """Normalization at parse time makes downstream comparisons
     cheap — every domain comparator can assume lower-case."""
-    certs = _parse_certificates(
-        [{"id": "1", "common_name": "LOGIN.BCP.COM.PY", "name_value": "LOGIN.BCP.COM.PY"}]
-    )
+    certs = _parse_certificates([{"id": "1", "common_name": "LOGIN.BCP.COM.PY", "name_value": "LOGIN.BCP.COM.PY"}])
     assert certs[0].common_name == "login.bcp.com.py"
     assert certs[0].san_names == ("login.bcp.com.py",)
 
@@ -423,10 +420,7 @@ def test_recent_handles_subsecond_fraction():
     """crt.sh sometimes returns '2026-05-10T12:00:00.123' — the
     parser must strip the sub-second fraction or Python's fromisoformat
     fails on older Pythons. Our parser strips it explicitly."""
-    iso_with_fraction = (
-        (datetime.now(timezone.utc) - timedelta(days=2))
-        .strftime("%Y-%m-%dT%H:%M:%S.456")
-    )
+    iso_with_fraction = (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%S.456")
     cert = CTCertificate(
         cert_id="x",
         common_name="x",
@@ -453,9 +447,7 @@ def test_classify_not_brand_is_low():
 
 def test_classify_legitimate_is_low():
     cert = _cert(cn="bcp.com.py", sans=("bcp.com.py",))
-    assessment = classify_cert(
-        cert, brand_keyword="bcp", legitimate_domains=("bcp.com.py",)
-    )
+    assessment = classify_cert(cert, brand_keyword="bcp", legitimate_domains=("bcp.com.py",))
     assert assessment.risk == "low"
     assert assessment.matched_legitimate is True
 
@@ -469,18 +461,14 @@ def test_classify_brand_plus_suspicious_tld_is_high():
 
 def test_classify_brand_plus_recent_is_high():
     cert = _cert(cn="bcp-secure-banking.com", age_days=1)
-    assessment = classify_cert(
-        cert, brand_keyword="bcp", legitimate_domains=("bcp.com.py",), recency_days=30
-    )
+    assessment = classify_cert(cert, brand_keyword="bcp", legitimate_domains=("bcp.com.py",), recency_days=30)
     assert assessment.risk == "high"
     assert assessment.matched_recent is True
 
 
 def test_classify_brand_older_is_medium():
     cert = _cert(cn="bcp-something.com", age_days=200)
-    assessment = classify_cert(
-        cert, brand_keyword="bcp", legitimate_domains=("bcp.com.py",), recency_days=30
-    )
+    assessment = classify_cert(cert, brand_keyword="bcp", legitimate_domains=("bcp.com.py",), recency_days=30)
     assert assessment.risk == "medium"
 
 
@@ -489,9 +477,7 @@ def test_classify_legitimate_overrides_suspicious_recency_check():
     low even if it's also recent — banks issue new certs all the
     time."""
     cert = _cert(cn="bcp.com.py", sans=("bcp.com.py",), age_days=1)
-    assessment = classify_cert(
-        cert, brand_keyword="bcp", legitimate_domains=("bcp.com.py",)
-    )
+    assessment = classify_cert(cert, brand_keyword="bcp", legitimate_domains=("bcp.com.py",))
     assert assessment.risk == "low"
 
 

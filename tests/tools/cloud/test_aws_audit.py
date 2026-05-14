@@ -126,9 +126,7 @@ def test_s3_acl_with_authenticated_users_fires_s3_002():
     acl = {
         "Grants": [
             {
-                "Grantee": {
-                    "URI": "http://acs.amazonaws.com/groups/global/AuthenticatedUsers"
-                },
+                "Grantee": {"URI": "http://acs.amazonaws.com/groups/global/AuthenticatedUsers"},
                 "Permission": "READ",
             }
         ]
@@ -213,11 +211,7 @@ def test_s3_no_encryption_fires_s3_004():
 def test_s3_with_aes256_encryption_does_not_fire():
     encryption = {
         "ServerSideEncryptionConfiguration": {
-            "Rules": [
-                {
-                    "ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}
-                }
-            ]
+            "Rules": [{"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}]
         }
     }
     findings = audit_s3_bucket("mybucket", encryption_document=encryption)
@@ -293,11 +287,7 @@ def test_s3_mfa_delete_on_does_not_fire_s3_007():
 
 
 def test_iam_full_admin_fires_iam_001():
-    policy = {
-        "Statement": [
-            {"Effect": "Allow", "Action": "*", "Resource": "*"}
-        ]
-    }
+    policy = {"Statement": [{"Effect": "Allow", "Action": "*", "Resource": "*"}]}
     findings = audit_iam_policy("FullAdminPolicy", policy)
     crit = [f for f in findings if f.rule_id == "AWS-IAM-001"]
     assert crit and crit[0].severity == "CRITICAL"
@@ -306,25 +296,13 @@ def test_iam_full_admin_fires_iam_001():
 def test_iam_admin_unwraps_get_policy_version_envelope():
     """aws iam get-policy-version returns a {PolicyVersion: {Document:
     {...}}} envelope. Verify unwrap."""
-    envelope = {
-        "PolicyVersion": {
-            "Document": {
-                "Statement": [
-                    {"Effect": "Allow", "Action": "*", "Resource": "*"}
-                ]
-            }
-        }
-    }
+    envelope = {"PolicyVersion": {"Document": {"Statement": [{"Effect": "Allow", "Action": "*", "Resource": "*"}]}}}
     findings = audit_iam_policy("FullAdminPolicy", envelope)
     assert "AWS-IAM-001" in _ids(findings)
 
 
 def test_iam_specific_action_does_not_fire_iam_001():
-    policy = {
-        "Statement": [
-            {"Effect": "Allow", "Action": "s3:GetObject", "Resource": "*"}
-        ]
-    }
+    policy = {"Statement": [{"Effect": "Allow", "Action": "s3:GetObject", "Resource": "*"}]}
     findings = audit_iam_policy("ReadS3Policy", policy)
     assert "AWS-IAM-001" not in _ids(findings)
 
@@ -335,21 +313,13 @@ def test_iam_specific_action_does_not_fire_iam_001():
 
 
 def test_iam_iam_star_fires_iam_002():
-    policy = {
-        "Statement": [
-            {"Effect": "Allow", "Action": "iam:*", "Resource": "*"}
-        ]
-    }
+    policy = {"Statement": [{"Effect": "Allow", "Action": "iam:*", "Resource": "*"}]}
     findings = audit_iam_policy("p", policy)
     assert "AWS-IAM-002" in _ids(findings)
 
 
 def test_iam_kms_star_fires_iam_002():
-    policy = {
-        "Statement": [
-            {"Effect": "Allow", "Action": "kms:*", "Resource": "*"}
-        ]
-    }
+    policy = {"Statement": [{"Effect": "Allow", "Action": "kms:*", "Resource": "*"}]}
     findings = audit_iam_policy("p", policy)
     assert "AWS-IAM-002" in _ids(findings)
 
@@ -357,11 +327,7 @@ def test_iam_kms_star_fires_iam_002():
 def test_iam_full_star_does_not_double_fire_iam_002():
     """When Action: * is set, AWS-IAM-001 wins; we shouldn't also fire
     AWS-IAM-002 for every sensitive service."""
-    policy = {
-        "Statement": [
-            {"Effect": "Allow", "Action": "*", "Resource": "*"}
-        ]
-    }
+    policy = {"Statement": [{"Effect": "Allow", "Action": "*", "Resource": "*"}]}
     findings = audit_iam_policy("p", policy)
     assert "AWS-IAM-001" in _ids(findings)
     assert "AWS-IAM-002" not in _ids(findings)
@@ -369,11 +335,7 @@ def test_iam_full_star_does_not_double_fire_iam_002():
 
 def test_iam_specific_iam_action_does_not_fire_iam_002():
     """iam:PassRole alone is a specific, auditable action."""
-    policy = {
-        "Statement": [
-            {"Effect": "Allow", "Action": "iam:PassRole", "Resource": "*"}
-        ]
-    }
+    policy = {"Statement": [{"Effect": "Allow", "Action": "iam:PassRole", "Resource": "*"}]}
     findings = audit_iam_policy("p", policy)
     assert "AWS-IAM-002" not in _ids(findings)
 
@@ -445,9 +407,7 @@ def test_iam_allow_with_condition_does_not_fire_iam_004():
                 "Effect": "Allow",
                 "Action": "s3:GetObject",
                 "Resource": "*",
-                "Condition": {
-                    "Bool": {"aws:MultiFactorAuthPresent": "true"}
-                },
+                "Condition": {"Bool": {"aws:MultiFactorAuthPresent": "true"}},
             }
         ]
     }
@@ -501,11 +461,7 @@ def test_iam_allow_deny_overlap_fires_iam_006():
 
 
 def test_iam_no_deny_does_not_fire_iam_006():
-    policy = {
-        "Statement": [
-            {"Effect": "Allow", "Action": "s3:*", "Resource": "*"}
-        ]
-    }
+    policy = {"Statement": [{"Effect": "Allow", "Action": "s3:*", "Resource": "*"}]}
     findings = audit_iam_policy("p", policy)
     assert "AWS-IAM-006" not in _ids(findings)
 
@@ -547,18 +503,12 @@ def test_realistic_well_configured_s3_bucket_zero_findings():
     }
     encryption = {
         "ServerSideEncryptionConfiguration": {
-            "Rules": [
-                {"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "aws:kms"}}
-            ]
+            "Rules": [{"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "aws:kms"}}]
         }
     }
     versioning = {"Status": "Enabled", "MFADelete": "Enabled"}
     logging = {"LoggingEnabled": {"TargetBucket": "audit", "TargetPrefix": "logs/"}}
-    acl = {
-        "Grants": [
-            {"Grantee": {"Type": "CanonicalUser", "ID": "x"}, "Permission": "FULL_CONTROL"}
-        ]
-    }
+    acl = {"Grants": [{"Grantee": {"Type": "CanonicalUser", "ID": "x"}, "Permission": "FULL_CONTROL"}]}
     findings = audit_s3_bucket(
         "bank-data",
         policy_document=policy,
@@ -582,9 +532,7 @@ def test_realistic_least_privilege_iam_zero_findings():
                     "arn:aws:s3:::bank-reports",
                     "arn:aws:s3:::bank-reports/*",
                 ],
-                "Condition": {
-                    "Bool": {"aws:MultiFactorAuthPresent": "true"}
-                },
+                "Condition": {"Bool": {"aws:MultiFactorAuthPresent": "true"}},
             }
         ]
     }
@@ -612,10 +560,19 @@ def test_findings_sorted_by_severity():
 
 def test_all_aws_rules_includes_documented():
     required = {
-        "AWS-S3-001", "AWS-S3-002", "AWS-S3-003", "AWS-S3-004",
-        "AWS-S3-005", "AWS-S3-006", "AWS-S3-007",
-        "AWS-IAM-001", "AWS-IAM-002", "AWS-IAM-003", "AWS-IAM-004",
-        "AWS-IAM-005", "AWS-IAM-006",
+        "AWS-S3-001",
+        "AWS-S3-002",
+        "AWS-S3-003",
+        "AWS-S3-004",
+        "AWS-S3-005",
+        "AWS-S3-006",
+        "AWS-S3-007",
+        "AWS-IAM-001",
+        "AWS-IAM-002",
+        "AWS-IAM-003",
+        "AWS-IAM-004",
+        "AWS-IAM-005",
+        "AWS-IAM-006",
     }
     assert required <= ALL_AWS_RULES
 

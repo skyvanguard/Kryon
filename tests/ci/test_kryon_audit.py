@@ -32,7 +32,6 @@ from scripts.ci.kryon_audit import (
     write_github_outputs,
 )
 
-
 # =====================================================================
 # Fixtures
 # =====================================================================
@@ -195,9 +194,12 @@ def test_main_returns_zero_when_no_findings_at_threshold(tmp_path, monkeypatch):
     sarif_out = tmp_path / "kryon.sarif"
     rc = main(
         [
-            "--findings", str(findings_file),
-            "--sarif-out", str(sarif_out),
-            "--fail-on", "high",
+            "--findings",
+            str(findings_file),
+            "--sarif-out",
+            str(sarif_out),
+            "--fail-on",
+            "high",
         ]
     )
     assert rc == 0
@@ -206,14 +208,15 @@ def test_main_returns_zero_when_no_findings_at_threshold(tmp_path, monkeypatch):
 
 def test_main_returns_one_when_gate_triggers(tmp_path, monkeypatch):
     monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "out.txt"))
-    findings_file = _write_findings(
-        tmp_path, [_finding("medium"), _finding("critical")]
-    )
+    findings_file = _write_findings(tmp_path, [_finding("medium"), _finding("critical")])
     rc = main(
         [
-            "--findings", str(findings_file),
-            "--sarif-out", str(tmp_path / "k.sarif"),
-            "--fail-on", "high",
+            "--findings",
+            str(findings_file),
+            "--sarif-out",
+            str(tmp_path / "k.sarif"),
+            "--fail-on",
+            "high",
         ]
     )
     assert rc == 1
@@ -224,9 +227,12 @@ def test_main_never_threshold_disables_gate(tmp_path, monkeypatch):
     findings_file = _write_findings(tmp_path, [_finding("critical")])
     rc = main(
         [
-            "--findings", str(findings_file),
-            "--sarif-out", str(tmp_path / "k.sarif"),
-            "--fail-on", "never",
+            "--findings",
+            str(findings_file),
+            "--sarif-out",
+            str(tmp_path / "k.sarif"),
+            "--fail-on",
+            "never",
         ]
     )
     assert rc == 0
@@ -236,8 +242,10 @@ def test_main_returns_two_on_missing_file(tmp_path, monkeypatch):
     monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "out.txt"))
     rc = main(
         [
-            "--findings", str(tmp_path / "nope.json"),
-            "--sarif-out", str(tmp_path / "k.sarif"),
+            "--findings",
+            str(tmp_path / "nope.json"),
+            "--sarif-out",
+            str(tmp_path / "k.sarif"),
         ]
     )
     assert rc == 2
@@ -249,8 +257,10 @@ def test_main_returns_two_on_invalid_json(tmp_path, monkeypatch):
     p.write_text("{not json{", encoding="utf-8")
     rc = main(
         [
-            "--findings", str(p),
-            "--sarif-out", str(tmp_path / "k.sarif"),
+            "--findings",
+            str(p),
+            "--sarif-out",
+            str(tmp_path / "k.sarif"),
         ]
     )
     assert rc == 2
@@ -267,9 +277,12 @@ def test_main_accepts_envelope_shape(tmp_path, monkeypatch):
     )
     rc = main(
         [
-            "--findings", str(p),
-            "--sarif-out", str(tmp_path / "k.sarif"),
-            "--fail-on", "high",
+            "--findings",
+            str(p),
+            "--sarif-out",
+            str(tmp_path / "k.sarif"),
+            "--fail-on",
+            "high",
         ]
     )
     assert rc == 0
@@ -286,9 +299,12 @@ def test_main_drops_non_dict_entries_silently(tmp_path, monkeypatch):
     )
     rc = main(
         [
-            "--findings", str(p),
-            "--sarif-out", str(tmp_path / "k.sarif"),
-            "--fail-on", "high",
+            "--findings",
+            str(p),
+            "--sarif-out",
+            str(tmp_path / "k.sarif"),
+            "--fail-on",
+            "high",
         ]
     )
     assert rc == 1  # critical still fails the gate
@@ -301,15 +317,16 @@ def test_main_drops_non_dict_entries_silently(tmp_path, monkeypatch):
 
 def test_sarif_output_contains_findings(tmp_path, monkeypatch):
     monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "out.txt"))
-    findings_file = _write_findings(
-        tmp_path, [_finding("critical", cwe="CWE-639"), _finding("medium", cwe="CWE-89")]
-    )
+    findings_file = _write_findings(tmp_path, [_finding("critical", cwe="CWE-639"), _finding("medium", cwe="CWE-89")])
     sarif_out = tmp_path / "kryon.sarif"
     main(
         [
-            "--findings", str(findings_file),
-            "--sarif-out", str(sarif_out),
-            "--fail-on", "never",
+            "--findings",
+            str(findings_file),
+            "--sarif-out",
+            str(sarif_out),
+            "--fail-on",
+            "never",
         ]
     )
     payload = json.loads(sarif_out.read_text(encoding="utf-8"))
@@ -328,9 +345,12 @@ def test_evidence_redacted_in_sarif_by_default(tmp_path, monkeypatch):
     sarif_out = tmp_path / "k.sarif"
     main(
         [
-            "--findings", str(findings_file),
-            "--sarif-out", str(sarif_out),
-            "--fail-on", "never",
+            "--findings",
+            str(findings_file),
+            "--sarif-out",
+            str(sarif_out),
+            "--fail-on",
+            "never",
         ]
     )
     blob = sarif_out.read_text(encoding="utf-8")
@@ -343,9 +363,12 @@ def test_evidence_surfaced_when_include_evidence_flag_set(tmp_path, monkeypatch)
     sarif_out = tmp_path / "k.sarif"
     main(
         [
-            "--findings", str(findings_file),
-            "--sarif-out", str(sarif_out),
-            "--fail-on", "never",
+            "--findings",
+            str(findings_file),
+            "--sarif-out",
+            str(sarif_out),
+            "--fail-on",
+            "never",
             "--include-evidence",
         ]
     )
@@ -359,10 +382,14 @@ def test_engagement_metadata_flows_to_run_properties(tmp_path, monkeypatch):
     sarif_out = tmp_path / "k.sarif"
     main(
         [
-            "--findings", str(findings_file),
-            "--sarif-out", str(sarif_out),
-            "--engagement-id", "eng_2026_42",
-            "--client", "BCP",
+            "--findings",
+            str(findings_file),
+            "--sarif-out",
+            str(sarif_out),
+            "--engagement-id",
+            "eng_2026_42",
+            "--client",
+            "BCP",
         ]
     )
     payload = json.loads(sarif_out.read_text(encoding="utf-8"))

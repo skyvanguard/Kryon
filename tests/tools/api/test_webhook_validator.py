@@ -39,7 +39,6 @@ from kryon.tools.api.webhook_validator import (
     detect_signature_scheme,
 )
 
-
 # =====================================================================
 # Helpers
 # =====================================================================
@@ -62,9 +61,7 @@ def _github_sig(secret: bytes, body: bytes, *, sha256: bool = True) -> str:
     return f"{prefix}={sig}"
 
 
-def _req(
-    headers: dict[str, str], body: bytes = b"", method: str = "POST"
-) -> WebhookRequest:
+def _req(headers: dict[str, str], body: bytes = b"", method: str = "POST") -> WebhookRequest:
     return WebhookRequest(method=method, url="https://example.com/hook", headers=headers, body=body)
 
 
@@ -116,11 +113,7 @@ def test_detect_bcp_scheme():
 
 
 def test_detect_rfc9421():
-    r = _req(
-        {
-            "Signature": 'keyId="key-1",algorithm="hmac-sha256",signature="abc",created="100"'
-        }
-    )
+    r = _req({"Signature": 'keyId="key-1",algorithm="hmac-sha256",signature="abc",created="100"'})
     assert detect_signature_scheme(r) == "rfc9421"
 
 
@@ -174,22 +167,12 @@ def test_github_sha1_fires_whk_002():
 
 
 def test_rfc9421_with_sha1_alg_fires_whk_002():
-    analysis = analyze_webhook(
-        _req({"Signature": 'algorithm="hmac-sha1",signature="abc",created="100"'})
-    )
+    analysis = analyze_webhook(_req({"Signature": 'algorithm="hmac-sha1",signature="abc",created="100"'}))
     assert any(f.finding_id == "WHK-002" for f in analysis.findings)
 
 
 def test_rfc9421_with_sha256_does_not_fire_whk_002():
-    analysis = analyze_webhook(
-        _req(
-            {
-                "Signature": (
-                    f'algorithm="hmac-sha256",signature="abc",created="{_now()}"'
-                )
-            }
-        )
-    )
+    analysis = analyze_webhook(_req({"Signature": (f'algorithm="hmac-sha256",signature="abc",created="{_now()}"')}))
     assert not any(f.finding_id == "WHK-002" for f in analysis.findings)
 
 
@@ -233,9 +216,7 @@ def test_github_always_fires_whk_003():
 
 
 def test_rfc9421_missing_created_fires_whk_003():
-    analysis = analyze_webhook(
-        _req({"Signature": 'algorithm="hmac-sha256",signature="abc"'})
-    )
+    analysis = analyze_webhook(_req({"Signature": 'algorithm="hmac-sha256",signature="abc"'}))
     assert any(f.finding_id == "WHK-003" for f in analysis.findings)
 
 
@@ -393,9 +374,7 @@ def test_secret_value_never_in_analysis_output():
         secret=secret,
     )
     # Aggregate every string the analysis carries.
-    rendered = " ".join(
-        f.detail + " " + f.title + " " + f.remediation for f in analysis.findings
-    )
+    rendered = " ".join(f.detail + " " + f.title + " " + f.remediation for f in analysis.findings)
     assert b"BANCO_SECRET_VALUE".decode() not in rendered
     assert secret.decode() not in rendered
 
@@ -428,9 +407,7 @@ def test_dataclasses_are_frozen():
     with pytest.raises(FrozenInstanceError):
         req.method = "GET"  # type: ignore[misc]
 
-    f = WebhookFinding(
-        finding_id="WHK-001", severity="CRITICAL", title="x", detail="x", remediation="x"
-    )
+    f = WebhookFinding(finding_id="WHK-001", severity="CRITICAL", title="x", detail="x", remediation="x")
     with pytest.raises(FrozenInstanceError):
         f.severity = "LOW"  # type: ignore[misc]
 

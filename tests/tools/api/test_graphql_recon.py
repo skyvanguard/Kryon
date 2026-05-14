@@ -35,7 +35,6 @@ from kryon.tools.api.graphql_recon import (
     probe_introspection,
 )
 
-
 # =====================================================================
 # Fire gate — dry-run default
 # =====================================================================
@@ -156,17 +155,13 @@ def test_verdict_enabled_when_schema_present():
 
 
 def test_verdict_disabled_when_errors_mention_introspection():
-    body = json.dumps(
-        {"errors": [{"message": "GraphQL introspection is not allowed"}]}
-    ).encode()
+    body = json.dumps({"errors": [{"message": "GraphQL introspection is not allowed"}]}).encode()
     verdict, _ = _verdict_from_response(200, body)
     assert verdict == "disabled"
 
 
 def test_verdict_disabled_when_errors_mention_schema_keyword():
-    body = json.dumps(
-        {"errors": [{"message": "Cannot query field __schema on type Query"}]}
-    ).encode()
+    body = json.dumps({"errors": [{"message": "Cannot query field __schema on type Query"}]}).encode()
     verdict, _ = _verdict_from_response(200, body)
     assert verdict == "disabled"
 
@@ -233,10 +228,18 @@ def test_probe_introspection_enabled_classifies_high_risk(monkeypatch):
             "kind": "OBJECT",
             "fields": [
                 {"name": "user", "type": {"name": "User", "kind": "OBJECT", "ofType": None}, "isDeprecated": False},
-                {"name": "accounts", "type": {"name": None, "kind": "LIST", "ofType": {"name": "Account", "kind": "OBJECT"}}, "isDeprecated": False},
+                {
+                    "name": "accounts",
+                    "type": {"name": None, "kind": "LIST", "ofType": {"name": "Account", "kind": "OBJECT"}},
+                    "isDeprecated": False,
+                },
             ],
         },
-        {"name": "User", "kind": "OBJECT", "fields": [{"name": "id", "type": {"name": "ID", "kind": "SCALAR", "ofType": None}, "isDeprecated": False}]},
+        {
+            "name": "User",
+            "kind": "OBJECT",
+            "fields": [{"name": "id", "type": {"name": "ID", "kind": "SCALAR", "ofType": None}, "isDeprecated": False}],
+        },
         {"name": "Account", "kind": "OBJECT", "fields": []},
     ]
     resp = _FakeResp(200, _introspection_payload(types))
@@ -306,8 +309,16 @@ def test_probe_uses_introspection_query(monkeypatch):
 
 def test_parse_schema_extracts_root_names_and_types():
     types = [
-        {"name": "Query", "kind": "OBJECT", "fields": [{"name": "me", "type": {"name": "User"}, "isDeprecated": False}]},
-        {"name": "Mutation", "kind": "OBJECT", "fields": [{"name": "login", "type": {"name": "AuthPayload"}, "isDeprecated": False}]},
+        {
+            "name": "Query",
+            "kind": "OBJECT",
+            "fields": [{"name": "me", "type": {"name": "User"}, "isDeprecated": False}],
+        },
+        {
+            "name": "Mutation",
+            "kind": "OBJECT",
+            "fields": [{"name": "login", "type": {"name": "AuthPayload"}, "isDeprecated": False}],
+        },
         {"name": "User", "kind": "OBJECT", "fields": []},
         {"name": "__Schema", "kind": "OBJECT", "fields": []},  # internal — must be excluded
     ]

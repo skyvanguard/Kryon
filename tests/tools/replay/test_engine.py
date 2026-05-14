@@ -18,15 +18,14 @@ from kryon.tools.pipeline.pipeline import (
     run_pipeline,
 )
 from kryon.tools.replay.engine import (
-    ReplayConfig,
-    ReplayEngine,
-    ReplayedFinding,
     REPLAY_STATUS_DISAPPEARED,
     REPLAY_STATUS_INCONCLUSIVE,
     REPLAY_STATUS_STILL_PRESENT,
+    ReplayConfig,
+    ReplayedFinding,
+    ReplayEngine,
     run_replay,
 )
-
 
 # State: mutable per test
 _HEADERS_ENABLED = {"value": False}
@@ -150,9 +149,7 @@ def test_replay_inconclusive_on_unreachable_target():
         source_module="F97",
         target="http://127.0.0.1:1/",  # port 1 — unreachable
     )
-    cfg = ReplayConfig(
-        findings=(finding,), timeout_seconds=2.0, rate_limit_per_second=100
-    )
+    cfg = ReplayConfig(findings=(finding,), timeout_seconds=2.0, rate_limit_per_second=100)
     result = run_replay(cfg)
     assert result.inconclusive_count == 1
     assert result.replayed[0].status == REPLAY_STATUS_INCONCLUSIVE
@@ -196,10 +193,7 @@ def test_replay_counts_match_replayed_list(server):
     findings = tuple(pipeline.findings[:5])  # cap at 5 for speed
     result = run_replay(ReplayConfig(findings=findings, rate_limit_per_second=100))
     total_classified = (
-        result.still_present_count
-        + result.disappeared_count
-        + result.changed_count
-        + result.inconclusive_count
+        result.still_present_count + result.disappeared_count + result.changed_count + result.inconclusive_count
     )
     assert total_classified == len(result.replayed)
     assert len(result.replayed) == len(findings)

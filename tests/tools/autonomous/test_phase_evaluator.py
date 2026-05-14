@@ -22,6 +22,7 @@ from kryon.tools.autonomous.phase_evaluator import (
     PhaseVerdict,
     cascade_skip_dependents,
     cascade_skip_remaining,
+    consecutive_unproductive_phases,
     dedup_findings_by_rule_and_host,
     evaluate_phase,
 )
@@ -400,3 +401,66 @@ def test_dedup_preserves_order():
     ]
     kept = dedup_findings_by_rule_and_host([], candidates)
     assert [f.rule_id for f in kept] == ["WEB-003", "WEB-001", "WEB-002"]
+
+
+# ---------------------------------------------------------------------------
+# consecutive_unproductive_phases (F124 — circuit breaker)
+# ---------------------------------------------------------------------------
+
+
+def test_circuit_breaker_counts_trailing_failed_run():
+    phases = [
+        PlanPhase(name="recon", agent_key="r", max_turns=3, status=PhaseStatus.COMPLETED),
+        PlanPhase(name="vuln_scan", agent_key="v", max_turns=3, status=PhaseStatus.FAILED),
+        PlanPhase(name="api_fuzzing", agent_key="a", max_turns=3, status=PhaseStatus.FAILED),
+        PlanPhase(name="exploitation", agent_key="e", max_turns=5, status=PhaseStatus.FAILED),
+        PlanPhase(name="reporting", agent_key="rep", max_turns=2, status=PhaseStatus.PENDING),
+    ]
+    plan = _plan_with_phases(phases)
+    # PENDING reporting stops the scan; tail run = 3 failed.
+    assert consecutive_unproductive_phases(plan) == 3
+
+
+def test_circuit_breaker_counts_skipped_too():
+    phases = [
+        PlanPhase(name="recon", agent_key="r", max_turns=3, status=PhaseStatus.COMPLETED),
+        PlanPhase(name="vuln_scan", agent_key="v", max_turns=3, status=PhaseStatus.SKIPPED),
+        PlanPhase(name="exploitation", agent_key="e", max_turns=5, status=PhaseStatus.FAILED),
+    ]
+    plan = _plan_with_phases(phases)
+    assert consecutive_unproductive_phases(plan) == 2
+
+
+def test_circuit_breaker_resets_on_completed_phase():
+    phases = [
+        PlanPhase(name="recon", agent_key="r", max_turns=3, status=PhaseStatus.FAILED),
+        PlanPhase(name="vuln_scan", agent_key="v", max_turns=3, status=PhaseStatus.COMPLETED),
+        PlanPhase(name="reporting", agent_key="rep", max_turns=2, status=PhaseStatus.FAILED),
+    ]
+    plan = _plan_with_phases(phases)
+    # Only the trailing 1 failure counts; the earlier COMPLETED resets the run.
+    assert consecutive_unproductive_phases(plan) == 1
+
+
+def test_circuit_breaker_zero_when_last_is_completed():
+    phases = [
+        PlanPhase(name="recon", agent_key="r", max_turns=3, status=PhaseStatus.FAILED),
+        PlanPhase(name="vuln_scan", agent_key="v", max_turns=3, status=PhaseStatus.COMPLETED),
+    ]
+    plan = _plan_with_phases(phases)
+    assert consecutive_unproductive_phases(plan) == 0
+
+
+def test_circuit_breaker_empty_plan_returns_zero():
+    plan = _plan_with_phases([])
+    assert consecutive_unproductive_phases(plan) == 0
+
+
+def test_circuit_breaker_custom_unproductive_set():
+    phases = [
+        PlanPhase(name="recon", agent_key="r", max_turns=3, status=PhaseStatus.SKIPPED),
+        PlanPhase(name="vuln_scan", agent_key="v", max_turns=3, status=PhaseStatus.SKIPPED),
+    ]
+    plan = _plan_with_phases(phases)
+    # When SKIPPED is excluded from the unproductive set, the run is 0.
+    assert consecutive_unproductive_phases(plan, unproductive_statuses=(PhaseStatus.FAILED,)) == 0

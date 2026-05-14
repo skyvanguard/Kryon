@@ -164,6 +164,56 @@ def test_log_path_parent_directory_created(tmp_path):
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# F123 — Active-log registry
+# ---------------------------------------------------------------------------
+
+
+def test_registry_default_is_none(monkeypatch):
+    from kryon.audit.action_log import clear_active_log, get_active_log
+
+    clear_active_log()
+    log, phase = get_active_log()
+    assert log is None
+    assert phase == "agent"
+
+
+def test_set_active_log_then_get(tmp_path):
+    from kryon.audit.action_log import (
+        ActionLog,
+        clear_active_log,
+        get_active_log,
+        set_active_log,
+    )
+
+    log = ActionLog(path=tmp_path / "x.jsonl", engagement_id="reg-test")
+    set_active_log(log, phase="recon")
+    try:
+        got_log, got_phase = get_active_log()
+        assert got_log is log
+        assert got_phase == "recon"
+    finally:
+        clear_active_log()
+
+
+def test_clear_active_log_resets():
+    from pathlib import Path
+
+    from kryon.audit.action_log import (
+        ActionLog,
+        clear_active_log,
+        get_active_log,
+        set_active_log,
+    )
+
+    log = ActionLog(path=Path("/tmp/x"), engagement_id="t")
+    set_active_log(log, phase="vuln_scan")
+    clear_active_log()
+    got_log, got_phase = get_active_log()
+    assert got_log is None
+    assert got_phase == "agent"
+
+
 def test_entry_to_dict_contains_required_fields():
     e = ActionLogEntry(
         timestamp="2026-05-14T12:00:00Z",

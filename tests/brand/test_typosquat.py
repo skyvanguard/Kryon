@@ -42,7 +42,6 @@ from kryon.brand.typosquat import (
     resolve_candidate,
 )
 
-
 # =====================================================================
 # Domain split + label validation
 # =====================================================================
@@ -154,9 +153,7 @@ def test_idn_homoglyph_produces_punycode_a_label():
     if not pairs:
         pytest.skip("no IDN homoglyphs for this label")
     for display, ascii_label in pairs:
-        assert ascii_label.startswith("xn--"), (
-            f"IDN ascii form must be punycode: got {ascii_label!r}"
-        )
+        assert ascii_label.startswith("xn--"), f"IDN ascii form must be punycode: got {ascii_label!r}"
         # Display form must contain at least one non-ASCII character.
         assert any(ord(ch) > 127 for ch in display)
 

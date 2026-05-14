@@ -110,17 +110,13 @@ def test_or_003_confirmed_scheme_relative_redirect_high():
 
 def test_or_004_meta_refresh_redirect():
     body = '<meta http-equiv="refresh" content="0; url=https://evil.example/x">'
-    findings = _classify_observation(
-        _obs(probe="https://evil.example/x", body=body)
-    )
+    findings = _classify_observation(_obs(probe="https://evil.example/x", body=body))
     assert any(f.rule_id == "OR-004" for f in findings)
 
 
 def test_or_004_js_location_redirect():
     body = 'window.location = "https://evil.example/x";'
-    findings = _classify_observation(
-        _obs(probe="https://evil.example/x", body=body)
-    )
+    findings = _classify_observation(_obs(probe="https://evil.example/x", body=body))
     assert any(f.rule_id == "OR-004" for f in findings)
 
 

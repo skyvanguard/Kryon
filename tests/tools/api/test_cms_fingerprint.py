@@ -119,9 +119,7 @@ def test_server_without_version_no_finding():
 
 
 def test_aspnet_version_header():
-    analysis = analyze_fingerprint(
-        _obs(headers=(("X-AspNet-Version", "4.0.30319"),))
-    )
+    analysis = analyze_fingerprint(_obs(headers=(("X-AspNet-Version", "4.0.30319"),)))
     ids = {f.rule_id for f in analysis.findings}
     assert "CMS-022" in ids
 
@@ -139,9 +137,7 @@ def test_express_via_xpoweredby():
 
 
 def test_django_via_server_header():
-    analysis = analyze_fingerprint(
-        _obs(headers=(("Server", "WSGIServer/0.2 CPython/3.11 Django/4.2"),))
-    )
+    analysis = analyze_fingerprint(_obs(headers=(("Server", "WSGIServer/0.2 CPython/3.11 Django/4.2"),)))
     ids = {f.rule_id for f in analysis.findings}
     assert "CMS-020" in ids
 
@@ -197,9 +193,7 @@ def test_dedupes_repeated_findings():
     """WP detected both via meta + cookie shouldn't produce 2x CMS-001
     for the same tech + version."""
     body = '<meta name="generator" content="WordPress 6.4.1" />'
-    analysis = analyze_fingerprint(
-        _obs(body=body, cookies=("wp_user_settings",))
-    )
+    analysis = analyze_fingerprint(_obs(body=body, cookies=("wp_user_settings",)))
     cms_001_count = sum(1 for f in analysis.findings if f.rule_id == "CMS-001")
     # One for the (version=6.4.1) detection; the cookie detection
     # produces a no-version dup which our dedup may or may not collapse.
@@ -251,9 +245,7 @@ def test_cms_051_shopify_via_body():
 
 
 def test_cms_051_shopify_via_header():
-    analysis = analyze_fingerprint(
-        _obs(headers=(("X-Shopify-Stage", "production"),))
-    )
+    analysis = analyze_fingerprint(_obs(headers=(("X-Shopify-Stage", "production"),)))
     assert any(f.rule_id == "CMS-051" for f in analysis.findings)
 
 
@@ -264,9 +256,7 @@ def test_cms_053_mediawiki_via_meta():
 
 
 def test_cms_055_discourse_via_header():
-    analysis = analyze_fingerprint(
-        _obs(headers=(("X-Discourse-Route", "topics/show"),))
-    )
+    analysis = analyze_fingerprint(_obs(headers=(("X-Discourse-Route", "topics/show"),)))
     assert any(f.rule_id == "CMS-055" for f in analysis.findings)
 
 
@@ -289,9 +279,7 @@ def test_cms_060_liferay_via_body():
 
 
 def test_cms_068_wix_via_header():
-    analysis = analyze_fingerprint(
-        _obs(headers=(("X-Wix-Request-Id", "abc-123"),))
-    )
+    analysis = analyze_fingerprint(_obs(headers=(("X-Wix-Request-Id", "abc-123"),)))
     assert any(f.rule_id == "CMS-068" for f in analysis.findings)
 
 
@@ -302,20 +290,18 @@ def test_cms_070_nextjs_via_body():
 
 
 def test_cms_070_nextjs_via_header():
-    analysis = analyze_fingerprint(
-        _obs(headers=(("X-Powered-By", "Next.js"),))
-    )
+    analysis = analyze_fingerprint(_obs(headers=(("X-Powered-By", "Next.js"),)))
     assert any(f.rule_id == "CMS-070" for f in analysis.findings)
 
 
 def test_cms_071_nuxt_via_body():
-    body = '<script>window.__NUXT__={data:{}}</script>'
+    body = "<script>window.__NUXT__={data:{}}</script>"
     analysis = analyze_fingerprint(_obs(body=body))
     assert any(f.rule_id == "CMS-071" for f in analysis.findings)
 
 
 def test_cms_072_gatsby_via_body():
-    body = '<script>window.___gatsby = {}</script>'
+    body = "<script>window.___gatsby = {}</script>"
     analysis = analyze_fingerprint(_obs(body=body))
     assert any(f.rule_id == "CMS-072" for f in analysis.findings)
 

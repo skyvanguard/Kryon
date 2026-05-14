@@ -40,7 +40,6 @@ from kryon.tools.container.dockerfile_audit import (
     parse_dockerfile,
 )
 
-
 # =====================================================================
 # Helpers
 # =====================================================================
@@ -117,13 +116,13 @@ def test_parser_skips_unknown_directives():
 
 
 def test_missing_user_fires_dkr_4_1():
-    text = "FROM alpine:3.18\nCMD [\"sh\"]\n"
+    text = 'FROM alpine:3.18\nCMD ["sh"]\n'
     findings = audit_dockerfile(text)
     assert "DKR-4.1" in _ids(findings)
 
 
 def test_user_set_silences_dkr_4_1():
-    text = "FROM alpine:3.18\nRUN adduser -D app\nUSER app\nCMD [\"sh\"]\n"
+    text = 'FROM alpine:3.18\nRUN adduser -D app\nUSER app\nCMD ["sh"]\n'
     findings = audit_dockerfile(text)
     assert "DKR-4.1" not in _ids(findings)
 
@@ -184,12 +183,7 @@ def test_scratch_base_is_skipped():
 
 
 def test_add_with_url_is_high():
-    text = (
-        "FROM alpine:3.18\n"
-        "USER app\n"
-        "ADD https://example.com/installer.sh /tmp/installer.sh\n"
-        "HEALTHCHECK CMD true\n"
-    )
+    text = "FROM alpine:3.18\nUSER app\nADD https://example.com/installer.sh /tmp/installer.sh\nHEALTHCHECK CMD true\n"
     findings = audit_dockerfile(text)
     add = [f for f in findings if f.rule_id == "DKR-4.5"]
     assert add and add[0].severity == "HIGH"
@@ -230,17 +224,13 @@ def test_copy_does_not_fire_dkr_4_5():
 
 
 def test_missing_healthcheck_fires_dkr_4_6():
-    text = "FROM alpine:3.18\nUSER app\nCMD [\"sh\"]\n"
+    text = 'FROM alpine:3.18\nUSER app\nCMD ["sh"]\n'
     findings = audit_dockerfile(text)
     assert "DKR-4.6" in _ids(findings)
 
 
 def test_healthcheck_present_does_not_fire():
-    text = (
-        "FROM alpine:3.18\n"
-        "USER app\n"
-        "HEALTHCHECK --interval=30s CMD curl -f http://localhost/health\n"
-    )
+    text = "FROM alpine:3.18\nUSER app\nHEALTHCHECK --interval=30s CMD curl -f http://localhost/health\n"
     findings = audit_dockerfile(text)
     assert "DKR-4.6" not in _ids(findings)
 
@@ -251,12 +241,7 @@ def test_healthcheck_present_does_not_fire():
 
 
 def test_apt_install_without_recommends_flag_fires():
-    text = (
-        "FROM debian:12-slim\n"
-        "USER app\n"
-        "RUN apt-get update && apt-get install -y curl\n"
-        "HEALTHCHECK CMD true\n"
-    )
+    text = "FROM debian:12-slim\nUSER app\nRUN apt-get update && apt-get install -y curl\nHEALTHCHECK CMD true\n"
     findings = audit_dockerfile(text)
     assert "DKR-4.3" in _ids(findings)
 
@@ -314,12 +299,7 @@ def test_apt_update_combined_with_install_does_not_fire():
 
 
 def test_env_with_real_looking_secret_fires_critical():
-    text = (
-        "FROM alpine:3.18\n"
-        "USER app\n"
-        "ENV API_KEY=AKIAIOSFODNN7EXAMPLEABCDEF\n"
-        "HEALTHCHECK CMD true\n"
-    )
+    text = "FROM alpine:3.18\nUSER app\nENV API_KEY=AKIAIOSFODNN7EXAMPLEABCDEF\nHEALTHCHECK CMD true\n"
     findings = audit_dockerfile(text)
     sec = [f for f in findings if f.rule_id == "DKR-4.10"]
     assert sec
@@ -328,12 +308,7 @@ def test_env_with_real_looking_secret_fires_critical():
 
 def test_arg_with_placeholder_value_does_not_fire():
     """ARG API_KEY=changeme is a placeholder — must not false-flag."""
-    text = (
-        "FROM alpine:3.18\n"
-        "USER app\n"
-        "ARG API_KEY=changeme\n"
-        "HEALTHCHECK CMD true\n"
-    )
+    text = "FROM alpine:3.18\nUSER app\nARG API_KEY=changeme\nHEALTHCHECK CMD true\n"
     findings = audit_dockerfile(text)
     assert "DKR-4.10" not in _ids(findings)
 
@@ -354,12 +329,7 @@ def test_env_with_template_reference_does_not_fire():
 
 def test_env_with_non_secret_key_does_not_fire():
     """The key has to match the secret pattern (password/api_key/etc.)."""
-    text = (
-        "FROM alpine:3.18\n"
-        "USER app\n"
-        "ENV BUILD_HASH=4d3c2b1a0f9e8d7c6b5a49382716050495\n"
-        "HEALTHCHECK CMD true\n"
-    )
+    text = "FROM alpine:3.18\nUSER app\nENV BUILD_HASH=4d3c2b1a0f9e8d7c6b5a49382716050495\nHEALTHCHECK CMD true\n"
     findings = audit_dockerfile(text)
     assert "DKR-4.10" not in _ids(findings)
 
@@ -370,23 +340,13 @@ def test_env_with_non_secret_key_does_not_fire():
 
 
 def test_curl_pipe_sh_fires():
-    text = (
-        "FROM alpine:3.18\n"
-        "USER app\n"
-        "RUN curl https://get.example.com/install.sh | sh\n"
-        "HEALTHCHECK CMD true\n"
-    )
+    text = "FROM alpine:3.18\nUSER app\nRUN curl https://get.example.com/install.sh | sh\nHEALTHCHECK CMD true\n"
     findings = audit_dockerfile(text)
     assert "DKR-CURL-PIPE-SH" in _ids(findings)
 
 
 def test_wget_pipe_bash_fires():
-    text = (
-        "FROM alpine:3.18\n"
-        "USER app\n"
-        "RUN wget -qO- https://get.example.com/install.sh | bash\n"
-        "HEALTHCHECK CMD true\n"
-    )
+    text = "FROM alpine:3.18\nUSER app\nRUN wget -qO- https://get.example.com/install.sh | bash\nHEALTHCHECK CMD true\n"
     findings = audit_dockerfile(text)
     assert "DKR-CURL-PIPE-SH" in _ids(findings)
 

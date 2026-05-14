@@ -28,7 +28,6 @@ from kryon.tools.api.openapi_importer import (
     parse_openapi,
 )
 
-
 # =====================================================================
 # Minimal fixtures (built inline to keep tests self-contained)
 # =====================================================================
@@ -60,11 +59,7 @@ def _minimal_openapi_3() -> dict[str, Any]:
                 "post": {
                     "operationId": "createTransfer",
                     "requestBody": {
-                        "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/Transfer"}
-                            }
-                        }
+                        "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Transfer"}}}
                     },
                     "responses": {"201": {"description": "Created"}},
                     "security": [{"oauth2": ["payments:write"]}],
@@ -72,9 +67,7 @@ def _minimal_openapi_3() -> dict[str, Any]:
             },
         },
         "components": {
-            "schemas": {
-                "Transfer": {"type": "object", "properties": {"amount": {"type": "number"}}}
-            },
+            "schemas": {"Transfer": {"type": "object", "properties": {"amount": {"type": "number"}}}},
             "securitySchemes": {
                 "bearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"},
                 "oauth2": {
@@ -111,9 +104,7 @@ def _minimal_swagger_2() -> dict[str, Any]:
                 },
             }
         },
-        "securityDefinitions": {
-            "apiKey": {"type": "apiKey", "in": "header", "name": "X-API-Key"}
-        },
+        "securityDefinitions": {"apiKey": {"type": "apiKey", "in": "header", "name": "X-API-Key"}},
         "security": [{"apiKey": []}],
     }
 
@@ -370,7 +361,7 @@ def test_dataclasses_are_frozen():
 def test_tool_wrapper_with_inline_text():
     """End-to-end through the @function_tool wrapper: inline JSON
     spec → summary dict serialized as a string."""
-    from kryon.tools.api.import_tool import import_openapi_spec, _summarize_for_agent
+    from kryon.tools.api.import_tool import _summarize_for_agent, import_openapi_spec
 
     # Use the raw helper because the @function_tool wraps the callable
     # in an Agent SDK shim that requires a context.

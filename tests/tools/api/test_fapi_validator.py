@@ -41,7 +41,6 @@ from kryon.tools.api.fapi_validator import (
     validate_fapi_advanced,
 )
 
-
 # =====================================================================
 # Fixtures
 # =====================================================================
@@ -118,9 +117,7 @@ def test_parse_discovery_handles_missing_keys():
 def test_parse_discovery_coerces_non_list_fields():
     """If a server returns a string where the spec says list, we drop
     the field. Better than crashing or producing garbage tuples."""
-    d = parse_discovery(
-        {"issuer": "x", "response_types_supported": "not a list"}
-    )
+    d = parse_discovery({"issuer": "x", "response_types_supported": "not a list"})
     assert d.response_types_supported == ()
 
 
@@ -327,7 +324,7 @@ def test_bcp_paraguay_fails_expected_checks():
     warnings = {r.check_id for r in report.results if r.status == "warning"}
     assert "FAPI-1" in failures  # PAR missing
     assert "FAPI-10" in failures  # AMR/ACR missing
-    assert "FAPI-8" in warnings   # JARM warning
+    assert "FAPI-8" in warnings  # JARM warning
     # Critical checks fail → not compliant.
     assert report.compliant is False
 
@@ -406,17 +403,11 @@ def test_fetch_discovery_invalid_json_returns_none(monkeypatch):
 
 
 def test_well_known_url_appends_path():
-    assert (
-        _well_known_url("https://auth.bank.example")
-        == "https://auth.bank.example/.well-known/openid-configuration"
-    )
+    assert _well_known_url("https://auth.bank.example") == "https://auth.bank.example/.well-known/openid-configuration"
 
 
 def test_well_known_url_strips_trailing_slash():
-    assert (
-        _well_known_url("https://auth.bank.example/")
-        == "https://auth.bank.example/.well-known/openid-configuration"
-    )
+    assert _well_known_url("https://auth.bank.example/") == "https://auth.bank.example/.well-known/openid-configuration"
 
 
 def test_well_known_url_preserves_existing_path():

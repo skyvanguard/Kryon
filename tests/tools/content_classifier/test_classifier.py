@@ -18,7 +18,6 @@ from kryon.tools.content_classifier.classifier import (
     is_magika_available,
 )
 
-
 # ---- AV-evasion fragments -------------------------------------------------
 
 
@@ -148,11 +147,7 @@ def test_executable_in_uploads_emits_cc_004():
 
 
 def test_polyglot_jpg_plus_php_emits_cc_003():
-    content = (
-        _jpeg_magic() + b"\x00\x10JFIF\x00\x01\x01\x00"
-        + b"\x00" * 50
-        + _php_payload()
-    )
+    content = _jpeg_magic() + b"\x00\x10JFIF\x00\x01\x01\x00" + b"\x00" * 50 + _php_payload()
     r = classify_content(
         content,
         source_url="https://target.com/uploads/profile.jpg",
@@ -185,9 +180,7 @@ def test_clean_html_no_findings():
 
 
 def test_polyglot_in_uploads_combo_findings():
-    content = (
-        _jpeg_magic() + b"\x00" * 30 + _php_payload() + b"\x00" * 30
-    )
+    content = _jpeg_magic() + b"\x00" * 30 + _php_payload() + b"\x00" * 30
     r = classify_content(
         content,
         source_url="https://target.com/uploads/x.jpg",
@@ -239,9 +232,7 @@ def test_classifier_soft_fails_without_magika(monkeypatch):
 
     monkeypatch.setattr(mod, "is_magika_available", lambda: False)
     classifier = ContentClassifier()
-    r = classifier.classify(
-        ContentInput(content=_png_magic(), content_length=8)
-    )
+    r = classifier.classify(ContentInput(content=_png_magic(), content_length=8))
     assert r.magika_available is False
     assert r.heuristic_label == "png"
 
@@ -262,6 +253,7 @@ def test_secret_value_never_in_classification_output():
 
 def test_classification_dataclasses_frozen():
     from dataclasses import FrozenInstanceError
+
     from kryon.tools.content_classifier.classifier import ContentClassification
 
     c = ContentClassification()

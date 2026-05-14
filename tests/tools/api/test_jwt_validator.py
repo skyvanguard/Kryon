@@ -38,7 +38,6 @@ from kryon.tools.api.jwt_validator import (
     parse_jwt,
 )
 
-
 # =====================================================================
 # Helpers
 # =====================================================================
@@ -254,9 +253,7 @@ def test_aud_string_mismatch_fires_jwt_021():
 
 def test_aud_list_form_accepted():
     """RFC 7519 §4.1.3: aud may be a string OR a list of strings."""
-    token = _build_token(
-        payload={"sub": "u", "exp": _now_ts(3600), "iss": "x", "aud": ["other", "my-svc"]}
-    )
+    token = _build_token(payload={"sub": "u", "exp": _now_ts(3600), "iss": "x", "aud": ["other", "my-svc"]})
     analysis = analyze_jwt(token, expected_audience="my-svc")
     # aud list contains expected_audience → JWT-021 should NOT fire.
     assert not any(f.finding_id == "JWT-021" for f in analysis.findings)
@@ -332,17 +329,13 @@ def test_jku_without_whitelist_is_high():
 
 def test_jku_outside_whitelist_is_high():
     token = _build_token(header={"alg": "RS256", "jku": "https://attacker.example/jwks.json"})
-    analysis = analyze_jwt(
-        token, trusted_jku_hosts=("auth.bank.example",)
-    )
+    analysis = analyze_jwt(token, trusted_jku_hosts=("auth.bank.example",))
     assert any(f.finding_id == "JWT-041" for f in analysis.findings)
 
 
 def test_jku_in_whitelist_does_not_fire():
     token = _build_token(header={"alg": "RS256", "jku": "https://auth.bank.example/jwks.json"})
-    analysis = analyze_jwt(
-        token, trusted_jku_hosts=("auth.bank.example",)
-    )
+    analysis = analyze_jwt(token, trusted_jku_hosts=("auth.bank.example",))
     assert not any(f.finding_id in ("JWT-040", "JWT-041") for f in analysis.findings)
 
 
@@ -402,9 +395,7 @@ def test_analysis_does_not_carry_sub_claim_value():
     value (typically a user id / email / cedula) should NOT appear
     in the serializable output beyond claims_present (key list)."""
     sensitive_sub = "cedula-1234567-9"
-    token = _build_token(
-        payload={"sub": sensitive_sub, "exp": _now_ts(3600), "iss": "x", "aud": "y"}
-    )
+    token = _build_token(payload={"sub": sensitive_sub, "exp": _now_ts(3600), "iss": "x", "aud": "y"})
     analysis = analyze_jwt(token)
     # claims_present is the list of KEYS, not values.
     assert sensitive_sub not in analysis.claims_present
@@ -416,9 +407,7 @@ def test_analysis_does_not_carry_sub_claim_value():
 
 
 def test_claims_present_reports_keys_only():
-    token = _build_token(
-        payload={"sub": "x", "exp": _now_ts(3600), "iss": "y", "aud": "z", "email": "u@x"}
-    )
+    token = _build_token(payload={"sub": "x", "exp": _now_ts(3600), "iss": "y", "aud": "z", "email": "u@x"})
     analysis = analyze_jwt(token)
     assert set(analysis.claims_present) == {"sub", "exp", "iss", "aud", "email"}
 

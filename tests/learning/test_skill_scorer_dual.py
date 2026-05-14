@@ -248,15 +248,9 @@ def test_dual_ranker_orders_within_priority_tier():
     """Two skills at the same priority tier — combined_score
     breaks the tie."""
     scores = {
-        "a": SkillScore(
-            skill_name="a", sample_size=20, combined_score=0.3, is_low_confidence=False
-        ),
-        "b": SkillScore(
-            skill_name="b", sample_size=20, combined_score=0.7, is_low_confidence=False
-        ),
-        "c": SkillScore(
-            skill_name="c", sample_size=20, combined_score=0.5, is_low_confidence=False
-        ),
+        "a": SkillScore(skill_name="a", sample_size=20, combined_score=0.3, is_low_confidence=False),
+        "b": SkillScore(skill_name="b", sample_size=20, combined_score=0.7, is_low_confidence=False),
+        "c": SkillScore(skill_name="c", sample_size=20, combined_score=0.5, is_low_confidence=False),
     }
     pairs = [("a", 10), ("b", 10), ("c", 10)]
     ranked = rank_skills_dual(pairs, scores)
@@ -267,9 +261,7 @@ def test_dual_ranker_handles_missing_score():
     """A skill not in the scores dict must not crash the ranker."""
     pairs = [("never_seen", 10), ("known", 10)]
     scores = {
-        "known": SkillScore(
-            skill_name="known", sample_size=20, combined_score=0.5, is_low_confidence=False
-        ),
+        "known": SkillScore(skill_name="known", sample_size=20, combined_score=0.5, is_low_confidence=False),
     }
     ranked = rank_skills_dual(pairs, scores)
     # known has score 0.5, never_seen treated as 0 — known first.

@@ -154,3 +154,41 @@ def default_log_path(engagement_id: str) -> Path:
     if root:
         return Path(root) / f"{engagement_id}.jsonl"
     return Path(".kryon") / "audit" / f"{engagement_id}.jsonl"
+
+
+# ---------------------------------------------------------------------------
+# F123 — Module-level registry for per-tool-call hookup
+# ---------------------------------------------------------------------------
+# The SDK Runner.run() builds the RunContextWrapper fresh per run, so the
+# orchestrator can't directly attach the ActionLog to it. We bridge via a
+# module-level registry: the orchestrator calls set_active_log() before
+# each phase, and Runner.run reads it when constructing the context.
+# Concurrency note: each engagement is single-threaded, so a plain global
+# is enough. If multi-engagement parallelism is ever added, replace with
+# contextvars.ContextVar.
+
+
+_ACTIVE_LOG: ActionLog | None = None
+_ACTIVE_PHASE: str = "agent"
+
+
+def set_active_log(log: ActionLog | None, phase: str = "agent") -> None:
+    """Register the ActionLog the SDK Runner should hook into for the
+    next tool call. Pass ``None`` to disable per-tool audit."""
+    global _ACTIVE_LOG, _ACTIVE_PHASE
+    _ACTIVE_LOG = log
+    _ACTIVE_PHASE = phase
+
+
+def get_active_log() -> tuple[ActionLog | None, str]:
+    """Return ``(log, phase)`` registered for the current scope, or
+    ``(None, "agent")`` if no log is active."""
+    return _ACTIVE_LOG, _ACTIVE_PHASE
+
+
+def clear_active_log() -> None:
+    """Drop the registered ActionLog. Call this after every phase to
+    avoid bleeding audit entries from one engagement into another."""
+    global _ACTIVE_LOG, _ACTIVE_PHASE
+    _ACTIVE_LOG = None
+    _ACTIVE_PHASE = "agent"

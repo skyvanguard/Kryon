@@ -33,7 +33,6 @@ from kryon.skills.itr_retriever import (
 )
 from kryon.skills.tool_budget import ALWAYS_INCLUDE, select_tools_itr
 
-
 # =====================================================================
 # Pure cosine math
 # =====================================================================
@@ -215,7 +214,9 @@ def test_select_with_itr_respects_max_tools_cap():
     index = _gradient_index(20)
     embedder = _StaticEmbedder([1.0, 0.0])
     selected = select_with_itr(
-        "q", embedder, index,
+        "q",
+        embedder,
+        index,
         max_tools=5,
         always_include=set(),
         min_high_confidence=1,
@@ -232,7 +233,9 @@ def test_select_with_itr_always_include_jumps_queue():
     index["run_command"] = [0.0, 1.0]  # orthogonal — would NOT clear threshold
     embedder = _StaticEmbedder([1.0, 0.0])
     selected = select_with_itr(
-        "q", embedder, index,
+        "q",
+        embedder,
+        index,
         max_tools=10,
         always_include={"run_command"},
         min_high_confidence=1,
@@ -248,7 +251,9 @@ def test_select_with_itr_always_include_missing_from_index_is_silent():
     index = _gradient_index(10)
     embedder = _StaticEmbedder([1.0, 0.0])
     selected = select_with_itr(
-        "q", embedder, index,
+        "q",
+        embedder,
+        index,
         max_tools=10,
         always_include={"some_tool_not_in_index"},
         min_high_confidence=1,

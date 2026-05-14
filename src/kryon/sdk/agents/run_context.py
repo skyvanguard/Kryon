@@ -6,6 +6,8 @@ from typing_extensions import TypeVar
 from .usage import Usage
 
 if TYPE_CHECKING:
+    from kryon.audit.action_log import ActionLog
+
     from ._stuck_detector import StuckDetector
 
 TContext = TypeVar("TContext", default=Any)
@@ -34,3 +36,18 @@ class RunContextWrapper(Generic[TContext]):
     ``stuck_detector.record(...)`` and may inject a system message
     ("intervene") or raise ``StuckError`` ("abort") if the same
     (tool, args, result) triple repeats too many times."""
+
+    audit_log: Optional["ActionLog"] = None
+    """F123 — Granular forensic audit log. When set, ``_run_impl`` appends
+    one JSONL entry per tool call (not only per phase boundary) so post-
+    engagement we can answer "what did Kryon do at 14:32?" at tool-level
+    granularity. Args + result pass through the PAN redactor before
+    persistence. Optional — None means tool-level audit is disabled and
+    only the phase-level audit applies."""
+
+    audit_phase: str = "agent"
+    """F123 — Phase name to tag every per-tool audit entry with. Set by
+    the orchestrator before each phase invocation so the audit log
+    associates tool calls with the phase that generated them. Defaults
+    to ``"agent"`` for single-shot agent runs that don't use the multi-
+    phase orchestrator."""
