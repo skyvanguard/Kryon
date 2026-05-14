@@ -8,14 +8,12 @@ from typing import Any
 from kryon.sdk.agents import function_tool
 from kryon.tools.oob.interactsh import (
     InteractshConfig,
-    InteractshResult,
     is_interactsh_available,
     run_interactsh_batch,
 )
 from kryon.tools.oob.payloads import (
-    OobPayload,
     OOB_PAYLOAD_KINDS,
-    correlate_payload_with_interactions,
+    OobPayload,
     generate_oob_payloads,
 )
 
@@ -73,9 +71,7 @@ def generate_oob_probe_payloads(config_json: str) -> str:
     else:
         kinds_tuple = OOB_PAYLOAD_KINDS
     prefix = str(doc.get("correlation_id_prefix") or "k")
-    payloads = generate_oob_payloads(
-        callback_domain=str(domain), kinds=kinds_tuple, correlation_id_prefix=prefix
-    )
+    payloads = generate_oob_payloads(callback_domain=str(domain), kinds=kinds_tuple, correlation_id_prefix=prefix)
     return json.dumps(
         {
             "callback_domain": str(domain),

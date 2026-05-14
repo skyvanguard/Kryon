@@ -22,9 +22,7 @@ def _result_to_summary(
     legitimate_csv: str,
     recency_days: int,
 ) -> dict[str, Any]:
-    legitimate = tuple(
-        d.strip() for d in legitimate_csv.split(",") if d.strip()
-    )
+    legitimate = tuple(d.strip() for d in legitimate_csv.split(",") if d.strip())
     if result.verdict != "ok":
         return {
             "keyword": result.keyword,

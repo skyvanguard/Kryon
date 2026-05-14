@@ -88,9 +88,7 @@ def validate_tls_profile(profile_json: str) -> str:
             key_algorithm=str(cert_dict.get("key_algorithm") or ""),
             key_size_bits=int(cert_dict.get("key_size_bits") or 0),
             signature_algorithm=str(cert_dict.get("signature_algorithm") or ""),
-            san_dns_names=tuple(
-                str(s) for s in (cert_dict.get("san_dns_names") or ())
-            ),
+            san_dns_names=tuple(str(s) for s in (cert_dict.get("san_dns_names") or ())),
             is_self_signed=bool(cert_dict.get("is_self_signed", False)),
             serial_number=str(cert_dict.get("serial_number") or ""),
         )
@@ -99,13 +97,9 @@ def validate_tls_profile(profile_json: str) -> str:
         hostname=str(doc.get("hostname") or ""),
         port=int(doc.get("port") or 443),
         negotiated_protocol=str(doc.get("negotiated_protocol") or ""),
-        supported_protocols=tuple(
-            str(p) for p in (doc.get("supported_protocols") or ())
-        ),
+        supported_protocols=tuple(str(p) for p in (doc.get("supported_protocols") or ())),
         negotiated_cipher=str(doc.get("negotiated_cipher") or ""),
-        supported_ciphers=tuple(
-            str(c) for c in (doc.get("supported_ciphers") or ())
-        ),
+        supported_ciphers=tuple(str(c) for c in (doc.get("supported_ciphers") or ())),
         certificate=cert,
     )
     analysis = analyze_tls_profile(profile)

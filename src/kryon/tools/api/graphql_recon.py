@@ -421,11 +421,7 @@ def _fields_of_root(doc: dict[str, Any], root_name: str | None) -> tuple[str, ..
         if t.get("name") != root_name:
             continue
         fields = t.get("fields") or []
-        names = [
-            str(f["name"])
-            for f in fields
-            if isinstance(f, dict) and isinstance(f.get("name"), str)
-        ]
+        names = [str(f["name"]) for f in fields if isinstance(f, dict) and isinstance(f.get("name"), str)]
         return tuple(sorted(set(names)))
     return ()
 

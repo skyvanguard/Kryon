@@ -36,7 +36,6 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -54,15 +53,28 @@ __all__ = [
 ALL_HSH_RULES: frozenset[str] = frozenset(
     {
         # Group A — CSP
-        "HSH-001", "HSH-002", "HSH-003", "HSH-004", "HSH-005",
+        "HSH-001",
+        "HSH-002",
+        "HSH-003",
+        "HSH-004",
+        "HSH-005",
         # Group B — Transport
-        "HSH-010", "HSH-011", "HSH-012", "HSH-013",
+        "HSH-010",
+        "HSH-011",
+        "HSH-012",
+        "HSH-013",
         # Group C — Basic
-        "HSH-020", "HSH-021", "HSH-022", "HSH-023",
+        "HSH-020",
+        "HSH-021",
+        "HSH-022",
+        "HSH-023",
         # Group D — Cross-Origin isolation
-        "HSH-030", "HSH-031", "HSH-032",
+        "HSH-030",
+        "HSH-031",
+        "HSH-032",
         # Group E — Info leaks
-        "HSH-040", "HSH-041",
+        "HSH-040",
+        "HSH-041",
     }
 )
 
@@ -255,9 +267,7 @@ def _check_csp(response: HTTPResponse) -> list[HSHFinding]:
         )
 
     # HSH-004: wildcard (*) in script-src or default-src
-    if "*" in (directives.get("script-src") or []) or "*" in (
-        directives.get("default-src") or []
-    ):
+    if "*" in (directives.get("script-src") or []) or "*" in (directives.get("default-src") or []):
         findings.append(
             HSHFinding(
                 rule_id="HSH-004",
@@ -346,7 +356,7 @@ def _check_hsts(response: HTTPResponse) -> list[HSHFinding]:
                             "after cache expiry."
                         ),
                         remediation=(
-                            f"Raise max-age to at least 15768000 (6 months); "
+                            "Raise max-age to at least 15768000 (6 months); "
                             "31536000 (1 year) is the production-recommended value."
                         ),
                     )
@@ -366,10 +376,7 @@ def _check_hsts(response: HTTPResponse) -> list[HSHFinding]:
                     "(e.g. dev / staging on the same parent) can be used to "
                     "set cookies the browser sends to the main site over HTTP."
                 ),
-                remediation=(
-                    "Add `includeSubDomains`. Audit that ALL subdomains support "
-                    "HTTPS before deploying."
-                ),
+                remediation=("Add `includeSubDomains`. Audit that ALL subdomains support HTTPS before deploying."),
             )
         )
 
@@ -511,10 +518,7 @@ def _check_cross_origin(response: HTTPResponse) -> list[HSHFinding]:
                     "share browsing context group references. Spectre-class "
                     "side channels and tab-napping become possible."
                 ),
-                remediation=(
-                    "Add `Cross-Origin-Opener-Policy: same-origin` for "
-                    "authenticated pages."
-                ),
+                remediation=("Add `Cross-Origin-Opener-Policy: same-origin` for authenticated pages."),
             )
         )
     if not _get_header(headers, "Cross-Origin-Resource-Policy"):
@@ -529,8 +533,7 @@ def _check_cross_origin(response: HTTPResponse) -> list[HSHFinding]:
                     "data / response body via timing oracles becomes feasible."
                 ),
                 remediation=(
-                    "Add `Cross-Origin-Resource-Policy: same-origin` (or "
-                    "`same-site` for shared-CDN scenarios)."
+                    "Add `Cross-Origin-Resource-Policy: same-origin` (or `same-site` for shared-CDN scenarios)."
                 ),
             )
         )
@@ -546,8 +549,7 @@ def _check_cross_origin(response: HTTPResponse) -> list[HSHFinding]:
                     "for most banking apps; surfaces so the auditor knows."
                 ),
                 remediation=(
-                    "Add `Cross-Origin-Embedder-Policy: require-corp` when COI "
-                    "is needed; harmless to omit otherwise."
+                    "Add `Cross-Origin-Embedder-Policy: require-corp` when COI is needed; harmless to omit otherwise."
                 ),
             )
         )
@@ -594,13 +596,9 @@ def _check_info_leaks(response: HTTPResponse) -> list[HSHFinding]:
                     severity="LOW",
                     title=f"Stack fingerprint header present ({header_name}: {value!r})",
                     detail=(
-                        f"{header_name} reveals the underlying framework. Attackers "
-                        "use this for targeted CVE matching."
+                        f"{header_name} reveals the underlying framework. Attackers use this for targeted CVE matching."
                     ),
-                    remediation=(
-                        f"Remove the {header_name} header at the framework or "
-                        "front-proxy level."
-                    ),
+                    remediation=(f"Remove the {header_name} header at the framework or front-proxy level."),
                 )
             )
             break  # one fingerprint finding is enough signal

@@ -24,8 +24,7 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass, field
-from http.cookiejar import CookieJar
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -70,9 +69,9 @@ class AuthSuccessSignal:
     as success. Empty signals mean "operator didn't specify"."""
 
     expected_status: int | None = None  # e.g. 302 for redirect-based
-    expected_cookie_name: str = ""      # e.g. "JSESSIONID", "session"
-    expected_body_substring: str = ""   # case-insensitive
-    expected_redirect_path: str = ""    # match against Location header
+    expected_cookie_name: str = ""  # e.g. "JSESSIONID", "session"
+    expected_body_substring: str = ""  # case-insensitive
+    expected_redirect_path: str = ""  # match against Location header
     expected_jwt_in_body: bool = False  # JWT shape regex
     # If all of the above are empty AND a Set-Cookie WITH a session-y
     # name was returned, we treat that as success. Banca-safe default
@@ -176,7 +175,7 @@ _CSRF_FIELD_NAMES: frozenset[str] = frozenset(
 )
 
 
-_JWT_BODY_RE = re.compile(r'\b[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b')
+_JWT_BODY_RE = re.compile(r"\b[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b")
 
 
 def _is_session_like(name: str) -> bool:
@@ -280,7 +279,7 @@ def _classify_response(
     if signal.expected_body_substring:
         if signal.expected_body_substring.lower() in body_lower:
             return True, "body-substring-match", ""
-        return False, "", f"expected body substring not found"
+        return False, "", "expected body substring not found"
 
     if signal.expected_redirect_path:
         # Check Location header on the FIRST redirect (history) or
@@ -305,9 +304,7 @@ def _classify_response(
         return False, "", "no explicit signal matched + require_explicit_signal=True"
 
     # Heuristic: any session-like cookie set on the final response?
-    session_cookie_names = [
-        c.name for c in resp.cookies if _is_session_like(c.name)
-    ]
+    session_cookie_names = [c.name for c in resp.cookies if _is_session_like(c.name)]
     if session_cookie_names:
         return True, f"session-cookie-set:{session_cookie_names[0]}", ""
 
@@ -401,8 +398,7 @@ class AuthFlowRunner:
             return AuthSession(
                 success=False,
                 failure_reason=(
-                    f"form action {action_url!r} would post off-origin "
-                    f"(login is on {lp.scheme}://{lp.netloc})"
+                    f"form action {action_url!r} would post off-origin (login is on {lp.scheme}://{lp.netloc})"
                 ),
                 elapsed_seconds=time.monotonic() - t0,
             )
@@ -439,9 +435,7 @@ class AuthFlowRunner:
 
         body = (r_post.text or "")[: self.config.max_body_bytes]
         # Capture cookies + headers we should bring forward.
-        captured_cookies = tuple(
-            (c.name, c.value) for c in session.cookies if c.value
-        )
+        captured_cookies = tuple((c.name, c.value) for c in session.cookies if c.value)
         success, signal_name, failure_reason = _classify_response(
             self.config,
             r_post,

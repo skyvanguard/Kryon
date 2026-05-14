@@ -10,7 +10,6 @@ Two modes:
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 from typing import Any
 
 from kryon.sdk.agents import function_tool

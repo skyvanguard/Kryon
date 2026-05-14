@@ -102,11 +102,7 @@ def execute_login_flow(config_json: str) -> str:
     if not isinstance(sig_doc, dict):
         sig_doc = {}
     sig = AuthSuccessSignal(
-        expected_status=(
-            int(sig_doc["expected_status"])
-            if sig_doc.get("expected_status") is not None
-            else None
-        ),
+        expected_status=(int(sig_doc["expected_status"]) if sig_doc.get("expected_status") is not None else None),
         expected_cookie_name=str(sig_doc.get("expected_cookie_name") or ""),
         expected_body_substring=str(sig_doc.get("expected_body_substring") or ""),
         expected_redirect_path=str(sig_doc.get("expected_redirect_path") or ""),

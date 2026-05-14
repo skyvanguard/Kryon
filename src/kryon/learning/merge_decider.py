@@ -46,7 +46,7 @@ Outputs:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 from kryon.learning.pattern_detector import (
@@ -180,19 +180,13 @@ def decide_merge_action(
         return MergeDecision(
             cluster_id=cluster.cluster_id,
             decision="discard",
-            reason=(
-                f"cluster size {cluster.sample_size} < min_cluster_size "
-                f"{min_cluster_size}"
-            ),
+            reason=(f"cluster size {cluster.sample_size} < min_cluster_size {min_cluster_size}"),
         )
     if cluster.avg_outcome_score < min_outcome_score:
         return MergeDecision(
             cluster_id=cluster.cluster_id,
             decision="discard",
-            reason=(
-                f"avg_outcome_score {cluster.avg_outcome_score:.2f} < "
-                f"min_outcome_score {min_outcome_score:.2f}"
-            ),
+            reason=(f"avg_outcome_score {cluster.avg_outcome_score:.2f} < min_outcome_score {min_outcome_score:.2f}"),
         )
 
     # 2. Empty existing — every new cluster is a fresh ADD.
@@ -275,8 +269,7 @@ def decide_merge_action(
         cluster_id=cluster.cluster_id,
         decision="add",
         reason=(
-            f"max similarity {best_sim:.2f} < discard_band_lo "
-            f"{discard_band_lo:.2f}; closest neighbour was {best.name}"
+            f"max similarity {best_sim:.2f} < discard_band_lo {discard_band_lo:.2f}; closest neighbour was {best.name}"
         ),
         max_similarity=best_sim,
         matched_against=best.name,

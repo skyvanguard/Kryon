@@ -252,7 +252,7 @@ def _generate_omissions(label: str) -> set[str]:
     """Drop each character once. Skip when the result is empty."""
     if len(label) <= 2:
         return set()
-    return {label[:i] + label[i + 1:] for i in range(len(label))}
+    return {label[:i] + label[i + 1 :] for i in range(len(label))}
 
 
 def _generate_additions(label: str) -> set[str]:
@@ -272,7 +272,7 @@ def _generate_replacements(label: str) -> set[str]:
     out: set[str] = set()
     for i, c in enumerate(label):
         for neighbour in _QWERTY_NEIGHBOURS.get(c, ""):
-            out.add(label[:i] + neighbour + label[i + 1:])
+            out.add(label[:i] + neighbour + label[i + 1 :])
     return out
 
 
@@ -281,7 +281,7 @@ def _generate_homoglyphs(label: str) -> set[str]:
     out: set[str] = set()
     for i, c in enumerate(label):
         for replacement in _LATIN_HOMOGLYPHS.get(c, ()):
-            out.add(label[:i] + replacement + label[i + 1:])
+            out.add(label[:i] + replacement + label[i + 1 :])
     return out
 
 
@@ -296,7 +296,7 @@ def _generate_idn_homoglyphs(label: str) -> set[tuple[str, str]]:
     out: set[tuple[str, str]] = set()
     for i, c in enumerate(label):
         for replacement in _IDN_HOMOGLYPHS.get(c, ()):
-            display = label[:i] + replacement + label[i + 1:]
+            display = label[:i] + replacement + label[i + 1 :]
             try:
                 ascii_label = display.encode("idna").decode("ascii")
             except (UnicodeError, ValueError):

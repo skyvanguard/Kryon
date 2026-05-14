@@ -42,7 +42,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -126,10 +126,7 @@ def rank_tools(query_vec: list[float], index: ToolIndex) -> list[ToolMatch]:
     similarity 0 (the cosine helper returns 0 for malformed inputs)
     so the caller's fallback path still kicks in via the
     `min_high_confidence` check."""
-    matches = [
-        ToolMatch(tool_name=name, similarity=_cosine(query_vec, vec))
-        for name, vec in index.items()
-    ]
+    matches = [ToolMatch(tool_name=name, similarity=_cosine(query_vec, vec)) for name, vec in index.items()]
     matches.sort(key=lambda m: m.similarity, reverse=True)
     return matches
 

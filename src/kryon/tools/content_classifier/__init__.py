@@ -13,18 +13,18 @@ from kryon.tools.content_classifier.classifier import (
     ALL_CC_RULES,
     ContentClassification,
     ContentClassifier,
-    ContentInput,
     ContentFinding,
+    ContentInput,
     classify_content,
     is_magika_available,
 )
-from kryon.tools.content_classifier.secrets import (
-    EmbeddedSecret,
-    SECRET_PATTERNS,
-    scan_for_secrets,
-)
 from kryon.tools.content_classifier.disguise import detect_disguise
 from kryon.tools.content_classifier.polyglot import detect_polyglot
+from kryon.tools.content_classifier.secrets import (
+    SECRET_PATTERNS,
+    EmbeddedSecret,
+    scan_for_secrets,
+)
 from kryon.tools.content_classifier.threat_scorer import score_threat
 
 __all__ = [

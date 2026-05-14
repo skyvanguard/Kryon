@@ -21,7 +21,7 @@ import hashlib
 import math
 import re
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 __all__ = [
     "EmbeddedSecret",
@@ -176,7 +176,7 @@ def scan_for_secrets(
     if not content:
         return ()
     # Cap scan size — banca-safety + DoS guard
-    scan_window = content[: 2_000_000]
+    scan_window = content[:2_000_000]
     out: list[EmbeddedSecret] = []
     seen_hashes: set[str] = set()
     for pattern, kind, severity in SECRET_PATTERNS:

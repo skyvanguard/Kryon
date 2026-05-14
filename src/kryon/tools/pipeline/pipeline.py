@@ -100,19 +100,19 @@ class PipelineConfig:
     crawler: CrawlerConfig | None = None
     # Which analyzer stages to run (each defaults to ON for the pure-
     # static analyzers, OFF for stages that perform extra network IO).
-    run_headers: bool = True       # F97
-    run_cookies: bool = True       # F98
-    run_cms: bool = True           # F104
-    run_js_libs: bool = True       # F102
-    run_dom_xss: bool = True       # F107
-    run_disclosure: bool = False   # F101 — extra probes (banca opt-in)
+    run_headers: bool = True  # F97
+    run_cookies: bool = True  # F98
+    run_cms: bool = True  # F104
+    run_js_libs: bool = True  # F102
+    run_dom_xss: bool = True  # F107
+    run_disclosure: bool = False  # F101 — extra probes (banca opt-in)
     run_disclosure_full: bool = False  # full ~130-path scan (operator opt-in)
     disclosure_paths: tuple[str, ...] = ()  # explicit override; if empty + run_disclosure use minimal
-    run_tls: bool = False          # F100 — opens TLS socket (banca opt-in)
+    run_tls: bool = False  # F100 — opens TLS socket (banca opt-in)
     tls_timeout: float = 5.0
-    run_nuclei: bool = False       # F110 — delegate to nuclei CLI (banca opt-in)
+    run_nuclei: bool = False  # F110 — delegate to nuclei CLI (banca opt-in)
     nuclei_config: NuclieConfig | None = None  # if None + run_nuclei: build a banca-safe default
-    run_ffuf: bool = False         # F112 — content-discovery fuzzing (banca opt-in)
+    run_ffuf: bool = False  # F112 — content-discovery fuzzing (banca opt-in)
     ffuf_config: FfufConfig | None = None  # if None + run_ffuf: build a banca-safe default per origin
     # F111 — authenticated audit. If set, runs the login flow BEFORE
     # the crawl + injects captured cookies/headers into the crawler.
@@ -129,7 +129,7 @@ class UnifiedFinding:
     detail: str
     remediation: str
     source_module: str  # "F97" / "F98" / "F100" / "F101" / "F102" / "F104" / "F107"
-    target: str = ""    # URL / host where it was found
+    target: str = ""  # URL / host where it was found
     extra: tuple[tuple[str, str], ...] = field(default_factory=tuple)
 
 
@@ -202,7 +202,8 @@ class Pipeline:
         self.config = config
 
     def _make_crawler_config(
-        self, auth_cookies: tuple[tuple[str, str], ...] = (),
+        self,
+        auth_cookies: tuple[tuple[str, str], ...] = (),
         auth_headers: tuple[tuple[str, str], ...] = (),
     ) -> CrawlerConfig:
         """Build the CrawlerConfig, layering in any captured auth
@@ -261,9 +262,7 @@ class Pipeline:
         set_cookies = _extract_set_cookie_strings(page.headers)
         if not set_cookies:
             return []
-        analysis = analyze_cookies(
-            set_cookies, is_https=page.url.startswith("https://")
-        )
+        analysis = analyze_cookies(set_cookies, is_https=page.url.startswith("https://"))
         return [
             UnifiedFinding(
                 rule_id=f.rule_id,
@@ -310,9 +309,7 @@ class Pipeline:
             for f in analysis.findings
         ]
 
-    def _analyze_js_libs(
-        self, script_urls: Iterable[str]
-    ) -> list[UnifiedFinding]:
+    def _analyze_js_libs(self, script_urls: Iterable[str]) -> list[UnifiedFinding]:
         observations = [ScriptObservation(src=src) for src in script_urls]
         analysis = analyze_scripts(observations)
         return [
@@ -355,12 +352,11 @@ class Pipeline:
             return self.config.disclosure_paths
         if self.config.run_disclosure_full:
             from kryon.tools.api.info_disclosure import default_probe_paths
+
             return tuple(default_probe_paths())
         return _DISCLOSURE_MINIMAL_PATHS
 
-    def _run_disclosure_for_origin(
-        self, origin: str
-    ) -> list[UnifiedFinding]:
+    def _run_disclosure_for_origin(self, origin: str) -> list[UnifiedFinding]:
         """Spin up a side-crawler with seeds = origin + each disclosure
         path, depth 0, fetch_external_js=False. Lets us reuse all the
         crawler safety guards."""
@@ -494,8 +490,7 @@ class Pipeline:
                     title=f.name or f.template_id,
                     detail=f.description or f.name or "",
                     remediation=(
-                        "Review nuclei template + the matched-at URL. "
-                        "Confirm exploitability before remediation."
+                        "Review nuclei template + the matched-at URL. Confirm exploitability before remediation."
                     ),
                     source_module="F110",
                     target=f.matched_at or f.target,
@@ -543,9 +538,7 @@ class Pipeline:
             else:
                 # Login failed — proceed unauthenticated so the audit
                 # still produces value for the pre-auth surface.
-                stages_skipped.append(
-                    f"F111-auth-flow (login-failed: {auth_session.failure_reason[:80]})"
-                )
+                stages_skipped.append(f"F111-auth-flow (login-failed: {auth_session.failure_reason[:80]})")
         else:
             stages_skipped.append("F111-auth-flow")
 
@@ -612,10 +605,7 @@ class Pipeline:
         # ---- Stage 5a: F112 ffuf (opt-in, before nuclei so nuclei
         # could in theory consume the discovered paths) ----
         if self.config.run_ffuf:
-            if is_ffuf_available(
-                (self.config.ffuf_config.ffuf_binary
-                 if self.config.ffuf_config else "ffuf")
-            ):
+            if is_ffuf_available(self.config.ffuf_config.ffuf_binary if self.config.ffuf_config else "ffuf"):
                 origins_list: list[str] = []
                 for seed in self.config.seeds:
                     parsed = urlparse(seed)
@@ -626,11 +616,7 @@ class Pipeline:
                         origin = f"{parsed.scheme}://{netloc}"
                         if origin not in origins_list:
                             origins_list.append(origin)
-                findings.extend(
-                    self._run_ffuf_for_origins(
-                        origins_list, auth_cookies, auth_headers
-                    )
-                )
+                findings.extend(self._run_ffuf_for_origins(origins_list, auth_cookies, auth_headers))
                 stages_run.append("F112-ffuf")
             else:
                 stages_skipped.append("F112-ffuf (binary-missing)")
@@ -641,10 +627,7 @@ class Pipeline:
         # Run BEFORE TLS so it can use any extra surface area
         # discovered without blocking on a TLS handshake.
         if self.config.run_nuclei:
-            if is_nuclei_available(
-                (self.config.nuclei_config.nuclei_binary
-                 if self.config.nuclei_config else "nuclei")
-            ):
+            if is_nuclei_available(self.config.nuclei_config.nuclei_binary if self.config.nuclei_config else "nuclei"):
                 findings.extend(self._run_nuclei_for_seeds())
                 stages_run.append("F110-nuclei")
             else:
@@ -662,9 +645,7 @@ class Pipeline:
                     key = f"{parsed.hostname}:{port}"
                     if key not in hosts_seen:
                         hosts_seen.add(key)
-                        findings.extend(
-                            self._run_tls_for_host(parsed.hostname, port)
-                        )
+                        findings.extend(self._run_tls_for_host(parsed.hostname, port))
             stages_run.append("F100-tls")
         else:
             stages_skipped.append("F100-tls")

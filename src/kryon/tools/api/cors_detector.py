@@ -30,7 +30,6 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -177,8 +176,7 @@ def _check_wildcard_with_credentials(
                     "CORS policy."
                 ),
                 remediation=(
-                    "Set ACAO to a specific allow-listed origin OR drop "
-                    "Allow-Credentials. Never both with wildcard."
+                    "Set ACAO to a specific allow-listed origin OR drop Allow-Credentials. Never both with wildcard."
                 ),
             )
         ]
@@ -218,11 +216,9 @@ def _check_reflected_origin(
                 f"Access-Control-Allow-Origin: {allow_origin}. The server "
                 "appears to reflect whatever Origin the request supplies. "
                 + (
-                    "With credentials enabled, an attacker page can "
-                    "make authenticated requests and read the response."
+                    "With credentials enabled, an attacker page can make authenticated requests and read the response."
                     if allow_credentials
-                    else "Even without credentials, this exposes data "
-                    "to any cross-origin requester."
+                    else "Even without credentials, this exposes data to any cross-origin requester."
                 )
             ),
             remediation=(
@@ -281,10 +277,7 @@ def _check_subdomain_wildcard(
                     "endpoint) lets an attacker register the subdomain and "
                     "satisfy the wildcard."
                 ),
-                remediation=(
-                    "Explicitly enumerate trusted subdomains; audit DNS for "
-                    "dangling CNAMEs quarterly."
-                ),
+                remediation=("Explicitly enumerate trusted subdomains; audit DNS for dangling CNAMEs quarterly."),
             )
         ]
     return []
@@ -382,8 +375,7 @@ def _check_long_preflight_cache(
                     "cache expires."
                 ),
                 remediation=(
-                    f"Cap Max-Age at {_MAX_REASONABLE_PREFLIGHT_AGE_S}s "
-                    "(24h). Browsers (Chromium) cap at 7200s anyway."
+                    f"Cap Max-Age at {_MAX_REASONABLE_PREFLIGHT_AGE_S}s (24h). Browsers (Chromium) cap at 7200s anyway."
                 ),
             )
         ]
@@ -436,27 +428,18 @@ def analyze_cors_response(
 
     allow_origin = _get(h, "Access-Control-Allow-Origin")
     allow_credentials_raw = _get(h, "Access-Control-Allow-Credentials")
-    allow_credentials = (
-        bool(allow_credentials_raw)
-        and allow_credentials_raw.strip().lower() == "true"
-    )
+    allow_credentials = bool(allow_credentials_raw) and allow_credentials_raw.strip().lower() == "true"
     allow_methods = _parse_csv_header(_get(h, "Access-Control-Allow-Methods"))
     allow_headers = _parse_csv_header(_get(h, "Access-Control-Allow-Headers"))
     max_age = _parse_max_age(_get(h, "Access-Control-Max-Age"))
 
     findings: list[CORSFinding] = []
     findings.extend(_check_wildcard_with_credentials(allow_origin, allow_credentials))
-    findings.extend(
-        _check_reflected_origin(
-            response.request_origin, allow_origin, allow_credentials
-        )
-    )
+    findings.extend(_check_reflected_origin(response.request_origin, allow_origin, allow_credentials))
     findings.extend(_check_null_origin(allow_origin, allow_credentials))
     findings.extend(_check_subdomain_wildcard(allow_origin))
     findings.extend(
-        _check_credentials_with_specific_allow_origin(
-            allow_origin, allow_credentials, response.request_origin
-        )
+        _check_credentials_with_specific_allow_origin(allow_origin, allow_credentials, response.request_origin)
     )
     findings.extend(_check_permissive_methods(allow_methods, allow_credentials))
     findings.extend(_check_long_preflight_cache(max_age))

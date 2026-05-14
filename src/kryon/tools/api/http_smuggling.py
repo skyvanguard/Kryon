@@ -44,9 +44,7 @@ __all__ = [
 ]
 
 
-ALL_SMG_RULES: frozenset[str] = frozenset(
-    {f"SMG-{n:03d}" for n in range(1, 9)}
-)
+ALL_SMG_RULES: frozenset[str] = frozenset({f"SMG-{n:03d}" for n in range(1, 9)})
 
 
 # Probe-type identifiers the operator tags each probe with.
@@ -67,9 +65,7 @@ _KNOWN_PROBE_TYPES: frozenset[str] = frozenset(
 # A "smuggled" response looks like a second HTTP message embedded in
 # the body or sent as a follow-up. Detection: response body contains
 # what looks like another HTTP response start line.
-_EMBEDDED_RESPONSE_RE = re.compile(
-    r"HTTP/1\.[01]\s+\d{3}\s+", re.MULTILINE
-)
+_EMBEDDED_RESPONSE_RE = re.compile(r"HTTP/1\.[01]\s+\d{3}\s+", re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -111,10 +107,7 @@ def _classify_probe(probe: SmugglingProbe) -> list[SmugglingFinding]:
     ptype = probe.probe_type.strip().lower()
 
     embedded = _embedded_response_count(probe.body_fingerprint)
-    has_smuggled_response = (
-        embedded > 0
-        or probe.additional_responses_observed > 0
-    )
+    has_smuggled_response = embedded > 0 or probe.additional_responses_observed > 0
 
     if ptype == "cl.te":
         # CL.TE: front-end honors CL, back-end honors TE. The
@@ -159,8 +152,7 @@ def _classify_probe(probe: SmugglingProbe) -> list[SmugglingFinding]:
                         "response in the pipeline."
                     ),
                     remediation=(
-                        "Reject requests that include both CL and TE. "
-                        "Standardize on a single framing semantics."
+                        "Reject requests that include both CL and TE. Standardize on a single framing semantics."
                     ),
                     probe_type=ptype,
                 )
@@ -184,8 +176,7 @@ def _classify_probe(probe: SmugglingProbe) -> list[SmugglingFinding]:
                         "back-end."
                     ),
                     remediation=(
-                        "Normalize / canonicalize header parsing across "
-                        "the entire chain. Reject duplicate TE headers."
+                        "Normalize / canonicalize header parsing across the entire chain. Reject duplicate TE headers."
                     ),
                     probe_type=ptype,
                 )
@@ -231,8 +222,7 @@ def _classify_probe(probe: SmugglingProbe) -> list[SmugglingFinding]:
                         "containing both."
                     ),
                     remediation=(
-                        "Configure the server / proxy to reject requests "
-                        "with conflicting framing headers (return 400)."
+                        "Configure the server / proxy to reject requests with conflicting framing headers (return 400)."
                     ),
                     probe_type=ptype,
                 )
@@ -278,8 +268,7 @@ def _classify_probe(probe: SmugglingProbe) -> list[SmugglingFinding]:
                         "Enables h2c smuggling."
                     ),
                     remediation=(
-                        "Disable HTTP/1.1 backend OR enforce strict "
-                        "pseudo-header validation at the front-end."
+                        "Disable HTTP/1.1 backend OR enforce strict pseudo-header validation at the front-end."
                     ),
                     probe_type=ptype,
                 )
@@ -300,10 +289,7 @@ def _classify_probe(probe: SmugglingProbe) -> list[SmugglingFinding]:
                         f"unrecognized ({probe.probe_type!r}); manual "
                         "review needed."
                     ),
-                    remediation=(
-                        "Re-probe with a documented technique (CL.TE / "
-                        "TE.CL / TE.TE) to confirm + classify."
-                    ),
+                    remediation=("Re-probe with a documented technique (CL.TE / TE.CL / TE.TE) to confirm + classify."),
                     probe_type=ptype,
                 )
             )

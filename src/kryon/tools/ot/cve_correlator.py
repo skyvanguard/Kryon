@@ -83,8 +83,7 @@ def _version_compatible(version: str | None, advisory: Advisory) -> bool:
     if queried is None:
         return True
     advisory_versions = [
-        tuple(int(p) for p in m.group(1).split("."))
-        for m in _VERSION_RE.finditer(advisory.products_affected)
+        tuple(int(p) for p in m.group(1).split(".")) for m in _VERSION_RE.finditer(advisory.products_affected)
     ]
     if not advisory_versions:
         return True
@@ -118,8 +117,4 @@ def correlate_banner_to_cves(
     if not candidates:
         return ()
 
-    return tuple(
-        adv
-        for adv in candidates
-        if _product_relates(product, adv) and _version_compatible(version, adv)
-    )
+    return tuple(adv for adv in candidates if _product_relates(product, adv) and _version_compatible(version, adv))

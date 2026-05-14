@@ -9,7 +9,7 @@ file-upload bypasses + leaked source code.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from urllib.parse import urlparse
 
 __all__ = [
@@ -202,8 +202,7 @@ def detect_disguise(
     ext_detail = ""
     if ext_disguise:
         ext_detail = (
-            f"URL path {urlparse(url).path!r} has an extension that "
-            f"doesn't match the detected content type {label!r}."
+            f"URL path {urlparse(url).path!r} has an extension that doesn't match the detected content type {label!r}."
         )
 
     return DisguiseAssessment(

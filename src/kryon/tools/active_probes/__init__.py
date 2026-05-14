@@ -11,9 +11,9 @@ payloads + reports them but sends no traffic). This mirrors the
 banca-safety contract documented in CLAUDE.md for F87/F88/F90."""
 
 from kryon.tools.active_probes.open_redirect_active import (
+    ActiveProbeAttempt,
     OpenRedirectActiveConfig,
     OpenRedirectActiveResult,
-    ActiveProbeAttempt,
     probe_open_redirect_active,
 )
 from kryon.tools.active_probes.ssrf_active import (

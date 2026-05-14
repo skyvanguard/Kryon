@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import asdict
 from typing import Any
 
 from kryon.sdk.agents import function_tool
@@ -107,7 +106,13 @@ def detect_bola(
 
     candidates = plan_probes(spec, max_ids_per_endpoint=max_ids_per_endpoint)
     if not candidates:
-        return json.dumps({"summary": {"total_probes": 0, "by_verdict": {}, "by_risk": {}, "confirmed_leak_count": 0}, "findings": [], "note": "no object-leveled GET endpoints found"})
+        return json.dumps(
+            {
+                "summary": {"total_probes": 0, "by_verdict": {}, "by_risk": {}, "confirmed_leak_count": 0},
+                "findings": [],
+                "note": "no object-leveled GET endpoints found",
+            }
+        )
 
     ids = [s.strip() for s in foreign_ids_csv.split(",") if s.strip()]
     if not ids:

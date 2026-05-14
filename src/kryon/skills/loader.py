@@ -40,6 +40,91 @@ def _keyword_matches(keyword: str, user_lower: str) -> bool:
     return re.search(pattern, user_lower) is not None
 
 
+# F130 — Goal kind → preferred skills (priority bump added on top of the
+# skill's declared priority). Generous bumps (50-100) so the goal-aware
+# skill outranks generic high-priority skills (priorities are usually 1-30
+# in the playbook frontmatter).
+_GOAL_KIND_TO_SKILLS: dict[str, dict[str, int]] = {
+    "compliance": {
+        # Pure framework playbooks get the biggest bump.
+        "pci-dss-audit": 100,
+        "audit-bank-full": 80,
+        "fortigate-audit": 60,
+        "unifi-audit": 60,
+        "proxmox-audit": 60,
+        # Generic compliance helpers.
+        "appsec": 30,
+    },
+    "vuln_search": {
+        # Generic vuln hunters first.
+        "vuln-hunter": 90,
+        "appsec": 70,
+        "browser-exploit": 40,
+        "burp-integration": 50,
+        # CTF skill picks up the "find X vuln" intent reasonably well.
+        "ctf-master": 30,
+    },
+    "recon": {
+        "recon-scout": 100,
+        "appsec": 30,
+        # Banking-flavoured recon helpers.
+        "audit-bank-full": 20,
+    },
+    "custom": {},
+}
+
+
+# F130 — Specific framework / vuln_type → extra skill bumps. Layered on
+# top of the generic kind bumps so e.g. COMPLIANCE PCI-DSS surfaces the
+# pci-dss-audit playbook even when the generic compliance bump alone
+# would tie it with other framework skills.
+_FRAMEWORK_TO_SKILLS: dict[str, dict[str, int]] = {
+    "PCI-DSS": {"pci-dss-audit": 50},
+    "HIPAA": {"appsec": 30},
+    "SOC2": {"appsec": 30},
+    "ISO27001": {"audit-bank-full": 30},
+    "GDPR": {"appsec": 30},
+}
+
+_VULN_TYPE_TO_SKILLS: dict[str, dict[str, int]] = {
+    "sqli": {"vuln-hunter": 30, "appsec": 30},
+    "xss": {"vuln-hunter": 30, "browser-exploit": 40},
+    "rce": {"vuln-hunter": 40},
+    "ssrf": {"vuln-hunter": 30, "appsec": 30},
+    "xxe": {"appsec": 30},
+    "lfi": {"vuln-hunter": 30},
+    "open_redirect": {"appsec": 30},
+}
+
+
+def _bumps_from_goal(goal: Any) -> dict[str, int]:
+    """F130 — Map an ``EngagementGoal`` to a ``{skill_name: bump}`` dict.
+
+    Returns an empty dict when ``goal`` is None or its shape isn't what
+    the goal module emits (defensive — callers should be able to pass
+    anything without crashing the loader)."""
+    if goal is None:
+        return {}
+    kind_value = getattr(goal, "kind", None)
+    if kind_value is None:
+        return {}
+    # ``EngagementGoal.kind`` is a ``GoalKind`` Enum where ``.value`` is
+    # the canonical string ("compliance"/"vuln_search"/"recon"/"custom").
+    kind = str(getattr(kind_value, "value", kind_value)).lower()
+    bumps: dict[str, int] = dict(_GOAL_KIND_TO_SKILLS.get(kind, {}))
+
+    params = getattr(goal, "params", {}) or {}
+    if kind == "compliance":
+        framework = str(params.get("framework", "")).upper()
+        for name, extra in _FRAMEWORK_TO_SKILLS.get(framework, {}).items():
+            bumps[name] = bumps.get(name, 0) + extra
+    elif kind == "vuln_search":
+        for vt in params.get("vuln_types", []):
+            for name, extra in _VULN_TYPE_TO_SKILLS.get(str(vt).lower(), {}).items():
+                bumps[name] = bumps.get(name, 0) + extra
+    return bumps
+
+
 @dataclass(frozen=True)
 class Skill:
     name: str
@@ -277,6 +362,7 @@ class SkillLoader:
         *,
         ranking: str | None = None,
         experience_loader: Any = None,
+        goal: Any = None,
     ) -> list[Skill]:
         """Return skills matching the target profile + user message.
 
@@ -303,6 +389,13 @@ class SkillLoader:
         target_tech = set(t.lower() for t in (profile.get("tech") or []))
         target_ports = set(profile.get("ports") or [])
 
+        # F130 — Goal-aware bumps. The operator declared an EngagementGoal
+        # via --objective; map the GoalKind + params to a set of skill
+        # names that should be prioritised. The bump adds a constant to
+        # the skill's priority (higher = ranks earlier) so it surfaces
+        # ahead of the generic base skills.
+        goal_skill_bumps = _bumps_from_goal(goal)
+
         scored: list[tuple[int, Skill]] = []
         for skill in all_skills:
             triggers = skill.triggers
@@ -324,12 +417,27 @@ class SkillLoader:
                 if target_ports & set(triggers["ports"]):
                     matched = True
 
+            # F130 — Goal bump: if this skill is on the goal's wish list,
+            # accept it even when no other trigger matched, so e.g. a
+            # COMPLIANCE PCI-DSS objective surfaces the pci-dss-audit
+            # skill even against a target whose nmap output didn't
+            # mention PCI.
+            if not matched and skill.name in goal_skill_bumps:
+                matched = True
+
             # Base skill (empty triggers) — always matches
             if not triggers.get("tech") and not triggers.get("ports") and not triggers.get("keywords"):
                 matched = True
 
             if matched:
-                scored.append((skill.priority, skill))
+                # F130 — In this codebase priority is sorted ASC
+                # (lower = more important), see rank_skills_hybrid.
+                # So a "bump" SUBTRACTS from the priority to move the
+                # skill to the front. Bumps are designed to dwarf the
+                # 1-40 range used by playbooks so even priority=40 with
+                # a generous bump lands ahead of priority=10 untouched.
+                effective_priority = skill.priority - goal_skill_bumps.get(skill.name, 0)
+                scored.append((effective_priority, skill))
 
         # Apply ranking (priority by default; hybrid/score consult experiences).
         effective_ranking = self._resolve_ranking_mode(ranking)

@@ -40,7 +40,6 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from http.cookies import SimpleCookie
-from typing import Iterable
 from urllib.parse import urlparse
 
 import requests
@@ -109,7 +108,7 @@ class ReplayedFinding:
     status: str
     detail: str = ""
     new_severity: str = ""  # populated when status == CHANGED
-    new_title: str = ""     # populated when status == CHANGED
+    new_title: str = ""  # populated when status == CHANGED
     elapsed_seconds: float = 0.0
 
 
@@ -191,11 +190,7 @@ class ReplayEngine:
         self._session: requests.Session | None = None
         self._auth_session: AuthSession | None = None
         self._host_buckets: dict[str, float] = {}  # host → last-fetch monotonic
-        self._min_interval = (
-            1.0 / self.config.rate_limit_per_second
-            if self.config.rate_limit_per_second > 0
-            else 0.0
-        )
+        self._min_interval = 1.0 / self.config.rate_limit_per_second if self.config.rate_limit_per_second > 0 else 0.0
 
     def _build_session(self, auth: AuthSession | None) -> requests.Session:
         sess = requests.Session()
@@ -329,9 +324,7 @@ class ReplayEngine:
                 status=REPLAY_STATUS_DISAPPEARED,
                 detail="no Set-Cookie headers on replayed response",
             )
-        analysis = analyze_cookies(
-            set_cookies, is_https=target.startswith("https://")
-        )
+        analysis = analyze_cookies(set_cookies, is_https=target.startswith("https://"))
         for f in analysis.findings:
             if f.rule_id == finding.rule_id:
                 if f.severity != finding.severity:
@@ -341,9 +334,7 @@ class ReplayEngine:
                         new_severity=f.severity,
                         new_title=f.title,
                     )
-                return ReplayedFinding(
-                    original=finding, status=REPLAY_STATUS_STILL_PRESENT
-                )
+                return ReplayedFinding(original=finding, status=REPLAY_STATUS_STILL_PRESENT)
         return ReplayedFinding(
             original=finding,
             status=REPLAY_STATUS_DISAPPEARED,
@@ -377,12 +368,8 @@ class ReplayEngine:
         analysis = analyze_fingerprint(obs)
         for f in analysis.findings:
             if f.rule_id == finding.rule_id:
-                return ReplayedFinding(
-                    original=finding, status=REPLAY_STATUS_STILL_PRESENT
-                )
-        return ReplayedFinding(
-            original=finding, status=REPLAY_STATUS_DISAPPEARED
-        )
+                return ReplayedFinding(original=finding, status=REPLAY_STATUS_STILL_PRESENT)
+        return ReplayedFinding(original=finding, status=REPLAY_STATUS_DISAPPEARED)
 
     def _replay_js_libs(self, finding: UnifiedFinding) -> ReplayedFinding:
         target = finding.target
@@ -396,9 +383,7 @@ class ReplayEngine:
         analysis = analyze_scripts([ScriptObservation(src=target)])
         for f in analysis.findings:
             if f.rule_id == finding.rule_id:
-                return ReplayedFinding(
-                    original=finding, status=REPLAY_STATUS_STILL_PRESENT
-                )
+                return ReplayedFinding(original=finding, status=REPLAY_STATUS_STILL_PRESENT)
         # Maybe operator's bundle got renamed; consider DISAPPEARED
         return ReplayedFinding(
             original=finding,
@@ -436,12 +421,8 @@ class ReplayEngine:
         analysis = analyze_dom_xss([JsSnippet(file_path=url, body=body)])
         for f in analysis.findings:
             if f.rule_id == finding.rule_id:
-                return ReplayedFinding(
-                    original=finding, status=REPLAY_STATUS_STILL_PRESENT
-                )
-        return ReplayedFinding(
-            original=finding, status=REPLAY_STATUS_DISAPPEARED
-        )
+                return ReplayedFinding(original=finding, status=REPLAY_STATUS_STILL_PRESENT)
+        return ReplayedFinding(original=finding, status=REPLAY_STATUS_DISAPPEARED)
 
     def _replay_disclosure(self, finding: UnifiedFinding) -> ReplayedFinding:
         target = finding.target
@@ -469,12 +450,8 @@ class ReplayEngine:
         analysis = analyze_disclosure_probes([probe])
         for f in analysis.findings:
             if f.rule_id == finding.rule_id:
-                return ReplayedFinding(
-                    original=finding, status=REPLAY_STATUS_STILL_PRESENT
-                )
-        return ReplayedFinding(
-            original=finding, status=REPLAY_STATUS_DISAPPEARED
-        )
+                return ReplayedFinding(original=finding, status=REPLAY_STATUS_STILL_PRESENT)
+        return ReplayedFinding(original=finding, status=REPLAY_STATUS_DISAPPEARED)
 
     def _replay_tls(self, finding: UnifiedFinding) -> ReplayedFinding:
         target = finding.target  # "host:port"
@@ -503,12 +480,8 @@ class ReplayEngine:
         analysis = analyze_tls_profile(profile)
         for f in analysis.findings:
             if f.rule_id == finding.rule_id:
-                return ReplayedFinding(
-                    original=finding, status=REPLAY_STATUS_STILL_PRESENT
-                )
-        return ReplayedFinding(
-            original=finding, status=REPLAY_STATUS_DISAPPEARED
-        )
+                return ReplayedFinding(original=finding, status=REPLAY_STATUS_STILL_PRESENT)
+        return ReplayedFinding(original=finding, status=REPLAY_STATUS_DISAPPEARED)
 
     def _replay_one(self, finding: UnifiedFinding) -> ReplayedFinding:
         t0 = time.monotonic()

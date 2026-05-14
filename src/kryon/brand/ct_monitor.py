@@ -304,9 +304,7 @@ def query_crtsh(
 
     certs = _parse_certificates(payload)
     # Sort by entry_timestamp descending; keep top max_certs.
-    sorted_certs = tuple(
-        sorted(certs, key=lambda c: c.entry_timestamp, reverse=True)
-    )[:max_certs]
+    sorted_certs = tuple(sorted(certs, key=lambda c: c.entry_timestamp, reverse=True))[:max_certs]
     return CTQueryResult(
         keyword=keyword,
         verdict="ok",
@@ -400,17 +398,17 @@ def classify_cert(
 ) -> CTRiskAssessment:
     """Classify one cert. Decision tree:
 
-      1. brand keyword NOT in any identifier → low (incidental hit
-         on the substring query).
-      2. all identifiers on the legitimate whitelist → low (it's
-         the bank's own cert).
-      3. brand match AND suspicious TLD → high.
-      4. brand match AND recent issuance AND not on legitimate list
-         → high (cert just appeared, not whitelisted).
-      5. brand match AND recent → medium (suspicious but on a
-         normal TLD; could be a customer subdomain that
-         legitimate_domains missed).
-      6. brand match older → medium (worth a manual look).
+    1. brand keyword NOT in any identifier → low (incidental hit
+       on the substring query).
+    2. all identifiers on the legitimate whitelist → low (it's
+       the bank's own cert).
+    3. brand match AND suspicious TLD → high.
+    4. brand match AND recent issuance AND not on legitimate list
+       → high (cert just appeared, not whitelisted).
+    5. brand match AND recent → medium (suspicious but on a
+       normal TLD; could be a customer subdomain that
+       legitimate_domains missed).
+    6. brand match older → medium (worth a manual look).
     """
     matched_brand = _matches_brand(cert, brand_keyword)
     matched_legitimate = _matches_legitimate(cert, legitimate_domains)

@@ -92,10 +92,7 @@ def _risk_to_dict(risk: DomainRisk) -> dict[str, Any]:
         "domain": risk.domain,
         "score": risk.score,
         "tier": risk.tier,
-        "signals": [
-            {"name": s.name, "delta": s.delta, "detail": s.detail}
-            for s in risk.signals
-        ],
+        "signals": [{"name": s.name, "delta": s.delta, "detail": s.detail} for s in risk.signals],
         "strategies_observed": list(risk.strategies_observed),
         "ip_addresses": list(risk.ip_addresses),
         "matching_cert_count": risk.matching_cert_count,
@@ -157,9 +154,7 @@ def reputation_aggregate(
     if not isinstance(ct_payload, list):
         ct_payload = []
 
-    legitimate = tuple(
-        d.strip() for d in legitimate_domains_csv.split(",") if d.strip()
-    )
+    legitimate = tuple(d.strip() for d in legitimate_domains_csv.split(",") if d.strip())
 
     typosquat_results = _typosquat_from_dict(ts_payload)
     ct_assessments = _ct_from_dict(ct_payload, brand_keyword, legitimate)

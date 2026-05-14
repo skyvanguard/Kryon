@@ -76,11 +76,25 @@ __all__ = [
 # Stable rule IDs.
 ALL_TLS_RULES: frozenset[str] = frozenset(
     {
-        "TLS-001", "TLS-002", "TLS-003", "TLS-004",
-        "TLS-010", "TLS-011", "TLS-012", "TLS-013", "TLS-014",
-        "TLS-020", "TLS-021", "TLS-022", "TLS-023",
-        "TLS-030", "TLS-031", "TLS-032",
-        "TLS-040", "TLS-041", "TLS-042",
+        "TLS-001",
+        "TLS-002",
+        "TLS-003",
+        "TLS-004",
+        "TLS-010",
+        "TLS-011",
+        "TLS-012",
+        "TLS-013",
+        "TLS-014",
+        "TLS-020",
+        "TLS-021",
+        "TLS-022",
+        "TLS-023",
+        "TLS-030",
+        "TLS-031",
+        "TLS-032",
+        "TLS-040",
+        "TLS-041",
+        "TLS-042",
     }
 )
 
@@ -118,7 +132,7 @@ class TLSCertificate:
     subject_common_name: str = ""
     issuer_common_name: str = ""
     not_before: str = ""  # ISO 8601 UTC, e.g. "2026-01-15T00:00:00Z"
-    not_after: str = ""   # ISO 8601 UTC
+    not_after: str = ""  # ISO 8601 UTC
     key_algorithm: str = ""  # "RSA" | "EC" | "Ed25519" | "DSA"
     key_size_bits: int = 0  # 2048 / 3072 / 4096 for RSA; 256/384 for EC
     signature_algorithm: str = ""  # "sha256WithRSAEncryption", "ecdsa-with-SHA256", ...
@@ -384,25 +398,41 @@ def _check_ciphers(profile: TLSProfile) -> list[TLSFinding]:
         # RC4 → TLS-010 HIGH
         if "RC4" not in fired and any(p in upper for p in WEAK_CIPHER_PATTERNS["RC4"]):
             findings.append(
-                _weak_cipher_finding("TLS-010", "HIGH", "RC4", cipher,
-                                     "RC4 has known biases (Bar-Mizrachi 2013, RC4 NoMore 2015) — practical recovery of HTTPS cookies."))
+                _weak_cipher_finding(
+                    "TLS-010",
+                    "HIGH",
+                    "RC4",
+                    cipher,
+                    "RC4 has known biases (Bar-Mizrachi 2013, RC4 NoMore 2015) — practical recovery of HTTPS cookies.",
+                )
+            )
             fired.add("RC4")
         # Plain DES → TLS-010 HIGH
-        if "DES_NON_3DES" not in fired and any(
-            p in upper for p in WEAK_CIPHER_PATTERNS["DES_NON_3DES"]
-        ):
+        if "DES_NON_3DES" not in fired and any(p in upper for p in WEAK_CIPHER_PATTERNS["DES_NON_3DES"]):
             # Skip if it's actually 3DES (DES-CBC3 / 3DES_EDE patterns)
             is_3des = any(p in upper for p in WEAK_CIPHER_PATTERNS["3DES"])
             if not is_3des:
                 findings.append(
-                    _weak_cipher_finding("TLS-010", "HIGH", "DES (56-bit)", cipher,
-                                         "Single-DES is 56-bit symmetric — brute-forceable in <1 day on modern hardware."))
+                    _weak_cipher_finding(
+                        "TLS-010",
+                        "HIGH",
+                        "DES (56-bit)",
+                        cipher,
+                        "Single-DES is 56-bit symmetric — brute-forceable in <1 day on modern hardware.",
+                    )
+                )
                 fired.add("DES_NON_3DES")
         # 3DES → TLS-010 HIGH (Sweet32)
         if "3DES" not in fired and any(p in upper for p in WEAK_CIPHER_PATTERNS["3DES"]):
             findings.append(
-                _weak_cipher_finding("TLS-010", "HIGH", "3DES", cipher,
-                                     "3DES has a 64-bit block — Sweet32 birthday attack recovers plaintext on long-lived sessions."))
+                _weak_cipher_finding(
+                    "TLS-010",
+                    "HIGH",
+                    "3DES",
+                    cipher,
+                    "3DES has a 64-bit block — Sweet32 birthday attack recovers plaintext on long-lived sessions.",
+                )
+            )
             fired.add("3DES")
         # MD5 MAC → TLS-014 MEDIUM
         if "MD5" not in fired and any(p in upper for p in WEAK_CIPHER_PATTERNS["MD5"]):
@@ -495,11 +525,7 @@ def _check_key_and_signature(profile: TLSProfile) -> list[TLSFinding]:
                 remediation="Rotate to a 2048-bit (or 3072-bit) RSA key.",
             )
         )
-    if (
-        algo in ("EC", "ECDSA", "ECDHE")
-        and cert.key_size_bits
-        and cert.key_size_bits < MIN_ECDSA_KEY_BITS
-    ):
+    if algo in ("EC", "ECDSA", "ECDHE") and cert.key_size_bits and cert.key_size_bits < MIN_ECDSA_KEY_BITS:
         findings.append(
             TLSFinding(
                 rule_id="TLS-021",
@@ -595,10 +621,7 @@ def _check_certificate(profile: TLSProfile) -> list[TLSFinding]:
                     rule_id="TLS-032",
                     severity="HIGH",
                     title=f"Certificate expires in {int(days)} days",
-                    detail=(
-                        f"not_after={cert.not_after}. Renewal window starts "
-                        "this month."
-                    ),
+                    detail=(f"not_after={cert.not_after}. Renewal window starts this month."),
                     remediation="Renew within the next two weeks; monitor automation.",
                 )
             )
@@ -625,10 +648,7 @@ def _check_certificate(profile: TLSProfile) -> list[TLSFinding]:
 
     # TLS-041 / TLS-042: hostname / SAN
     if profile.hostname and cert.san_dns_names:
-        matched = any(
-            _hostname_matches_dns_name(profile.hostname, san)
-            for san in cert.san_dns_names
-        )
+        matched = any(_hostname_matches_dns_name(profile.hostname, san) for san in cert.san_dns_names)
         if not matched:
             findings.append(
                 TLSFinding(
@@ -641,8 +661,7 @@ def _check_certificate(profile: TLSProfile) -> list[TLSFinding]:
                         "SAN entry. Browsers fail the connection."
                     ),
                     remediation=(
-                        "Reissue the cert with the correct SAN list, or "
-                        "deploy this cert on the correct hostname."
+                        "Reissue the cert with the correct SAN list, or deploy this cert on the correct hostname."
                     ),
                 )
             )
@@ -658,10 +677,7 @@ def _check_certificate(profile: TLSProfile) -> list[TLSFinding]:
                     "ignore CN for hostname verification — only SAN counts. "
                     "Connection may fail despite the right CN."
                 ),
-                remediation=(
-                    "Reissue with subjectAltName extension listing the "
-                    "hostname(s) explicitly."
-                ),
+                remediation=("Reissue with subjectAltName extension listing the hostname(s) explicitly."),
             )
         )
 

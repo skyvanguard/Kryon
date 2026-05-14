@@ -7,7 +7,6 @@ from typing import Any
 
 from kryon.sdk.agents import function_tool
 from kryon.tools.api.http_smuggling import (
-    SmugglingAnalysis,
     SmugglingFinding,
     SmugglingProbe,
     analyze_probes,

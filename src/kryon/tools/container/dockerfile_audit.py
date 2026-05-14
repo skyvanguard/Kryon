@@ -49,8 +49,7 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -447,9 +446,8 @@ def _check_secrets_in_env_arg(
             # Skip empty / template / placeholder values.
             if not value or value.startswith("$") or value in ("changeme", "placeholder", "TODO"):
                 continue
-            looks_like_secret = (
-                len(value) >= 20
-                and (_SECRET_VALUE_HEX_RE.match(value) or _SECRET_VALUE_LONG_RE.match(value))
+            looks_like_secret = len(value) >= 20 and (
+                _SECRET_VALUE_HEX_RE.match(value) or _SECRET_VALUE_LONG_RE.match(value)
             )
             if looks_like_secret:
                 findings.append(

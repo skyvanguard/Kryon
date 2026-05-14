@@ -8,9 +8,7 @@ from typing import Any
 from kryon.sdk.agents import function_tool
 from kryon.tools.api.jwt_validator import (
     JWTAnalysis,
-    JWTParseError,
     analyze_jwt,
-    parse_jwt,
 )
 
 __all__ = ["validate_jwt"]
@@ -72,9 +70,7 @@ def validate_jwt(
     if not token.strip():
         return json.dumps({"error": "empty token"})
 
-    trusted_hosts = tuple(
-        h.strip().lower() for h in trusted_jku_hosts_csv.split(",") if h.strip()
-    )
+    trusted_hosts = tuple(h.strip().lower() for h in trusted_jku_hosts_csv.split(",") if h.strip())
 
     analysis = analyze_jwt(
         token,

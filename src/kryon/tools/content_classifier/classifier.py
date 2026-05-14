@@ -78,9 +78,7 @@ class ContentClassification:
     polyglot_indicators: tuple[PolyglotIndicator, ...] = ()
     polyglot: bool = False
     embedded_secrets: tuple[EmbeddedSecret, ...] = ()
-    threat: ThreatScoreResult = field(
-        default_factory=lambda: ThreatScoreResult(score=0, factors=())
-    )
+    threat: ThreatScoreResult = field(default_factory=lambda: ThreatScoreResult(score=0, factors=()))
     content_sha256: str = ""
     content_entropy: float = 0.0
     content_length: int = 0
@@ -96,6 +94,7 @@ _MAGIKA_INSTANCE = None
 def is_magika_available() -> bool:
     try:
         import magika  # noqa: F401
+
         return True
     except Exception:
         return False
@@ -106,6 +105,7 @@ def _magika_classify(content: bytes) -> str:
     try:
         if _MAGIKA_INSTANCE is None:
             from magika import Magika  # type: ignore
+
             _MAGIKA_INSTANCE = Magika()
         result = _MAGIKA_INSTANCE.identify_bytes(content)
         # Magika API: result.output.label
@@ -150,7 +150,7 @@ def _heuristic_label(content: bytes, content_type_header: str = "") -> str:
         return "phpsource"
     if low.startswith("<!doctype html") or low.startswith("<html"):
         return "html"
-    if low.startswith("{") and ("\":" in text or "\":\n" in text):
+    if low.startswith("{") and ('":' in text or '":\n' in text):
         return "json"
     if low.startswith("<?xml"):
         return "xml"
@@ -175,9 +175,7 @@ _SECRET_KIND_TO_RULE: dict[str, str] = {
 }
 
 
-def _build_findings(
-    classif: ContentClassification, source_url: str
-) -> tuple[ContentFinding, ...]:
+def _build_findings(classif: ContentClassification, source_url: str) -> tuple[ContentFinding, ...]:
     out: list[ContentFinding] = []
 
     # CC-001 / CC-002 — disguise findings
@@ -194,9 +192,7 @@ def _build_findings(
                     "magika-detected type."
                 ),
                 source_url=source_url,
-                extra=(
-                    ("detected_label", classif.magika_label or classif.heuristic_label),
-                ),
+                extra=(("detected_label", classif.magika_label or classif.heuristic_label),),
             )
         )
     if classif.disguise.extension_disguise:
@@ -211,9 +207,7 @@ def _build_findings(
                     "files whose content disagrees with their extension."
                 ),
                 source_url=source_url,
-                extra=(
-                    ("detected_label", classif.magika_label or classif.heuristic_label),
-                ),
+                extra=(("detected_label", classif.magika_label or classif.heuristic_label),),
             )
         )
 
@@ -249,8 +243,7 @@ def _build_findings(
                 title=f"Executable ({label}) served from web endpoint",
                 detail=(
                     f"Body content is a {label!r} executable. Threat score: "
-                    f"{classif.threat.score}/100. Factors: "
-                    + "; ".join(classif.threat.factors)
+                    f"{classif.threat.score}/100. Factors: " + "; ".join(classif.threat.factors)
                 ),
                 remediation=(
                     "Restrict file types served. If this endpoint should not "
@@ -309,11 +302,7 @@ def _build_findings(
         )
 
     # CC-007 — high entropy in unexpected place
-    if (
-        classif.content_entropy >= 7.0
-        and classif.content_length >= 256
-        and label in {"txt", "html", ""}
-    ):
+    if classif.content_entropy >= 7.0 and classif.content_length >= 256 and label in {"txt", "html", ""}:
         out.append(
             ContentFinding(
                 rule_id="CC-007",
@@ -325,8 +314,7 @@ def _build_findings(
                     "embedded encrypted/encoded data or a leaked secret blob."
                 ),
                 remediation=(
-                    "Inspect manually. If intentional (e.g. base64 payload), no "
-                    "action needed; if not, investigate."
+                    "Inspect manually. If intentional (e.g. base64 payload), no action needed; if not, investigate."
                 ),
                 source_url=source_url,
             )
@@ -358,9 +346,7 @@ class ContentClassifier:
             heuristic_label = _heuristic_label(content, input.content_type_header)
         chosen_label = magika_label or heuristic_label
 
-        disguise = detect_disguise(
-            chosen_label, input.content_type_header, input.source_url
-        )
+        disguise = detect_disguise(chosen_label, input.content_type_header, input.source_url)
         polyglot_inds = detect_polyglot(content)
         polyglot_flag = is_polyglot(polyglot_inds)
         secrets = scan_for_secrets(content)
@@ -391,9 +377,7 @@ class ContentClassifier:
             content_length=clen,
         )
         findings = _build_findings(classification, input.source_url)
-        return ContentClassification(
-            **{**classification.__dict__, "findings": findings}
-        )
+        return ContentClassification(**{**classification.__dict__, "findings": findings})
 
 
 def classify_content(

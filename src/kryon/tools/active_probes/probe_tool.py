@@ -9,12 +9,10 @@ from kryon.sdk.agents import function_tool
 from kryon.tools.active_probes.open_redirect_active import (
     ActiveProbeAttempt,
     OpenRedirectActiveConfig,
-    OpenRedirectActiveResult,
     probe_open_redirect_active,
 )
 from kryon.tools.active_probes.ssrf_active import (
     SsrfActiveConfig,
-    SsrfActiveResult,
     SsrfProbeAttempt,
     probe_ssrf_active,
 )

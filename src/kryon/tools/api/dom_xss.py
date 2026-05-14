@@ -52,9 +52,7 @@ __all__ = [
 ]
 
 
-ALL_DOM_RULES: frozenset[str] = frozenset(
-    {f"DOM-{n:03d}" for n in range(1, 11)}
-)
+ALL_DOM_RULES: frozenset[str] = frozenset({f"DOM-{n:03d}" for n in range(1, 11)})
 
 
 # ---- Sources -----------------------------------------------------------
@@ -85,47 +83,29 @@ def _line_has_source(line: str) -> bool:
 # ---- Sinks -------------------------------------------------------------
 # (rule_id, severity, label, regex, requires_source)
 _SINKS: tuple[tuple[str, str, str, re.Pattern, bool], ...] = (
-    ("DOM-001", "CRITICAL", "eval()",
-     re.compile(r"\beval\s*\("), True),
-    ("DOM-001", "CRITICAL", "Function constructor",
-     re.compile(r"\bnew\s+Function\s*\("), True),
-    ("DOM-001", "CRITICAL", "Function() (no-new)",
-     re.compile(r"(?<!\.)\bFunction\s*\("), True),
-
-    ("DOM-002", "HIGH", "element.innerHTML =",
-     re.compile(r"\.innerHTML\s*="), True),
-    ("DOM-002", "HIGH", "element.outerHTML =",
-     re.compile(r"\.outerHTML\s*="), True),
-    ("DOM-002", "HIGH", "document.write",
-     re.compile(r"\bdocument\.write(?:ln)?\s*\("), True),
-
-    ("DOM-003", "HIGH", "setTimeout with string",
-     re.compile(r"\bsetTimeout\s*\(\s*['\"]"), False),
-    ("DOM-003", "HIGH", "setInterval with string",
-     re.compile(r"\bsetInterval\s*\(\s*['\"]"), False),
-
-    ("DOM-004", "HIGH", "location.href = (assignment)",
-     re.compile(r"\blocation\.href\s*="), True),
-    ("DOM-004", "HIGH", "window.location = (assignment)",
-     re.compile(r"\bwindow\.location\s*="), True),
-    ("DOM-004", "HIGH", "location.assign",
-     re.compile(r"\blocation\.assign\s*\("), True),
-    ("DOM-004", "HIGH", "location.replace",
-     re.compile(r"\blocation\.replace\s*\("), True),
-
-    ("DOM-005", "HIGH", "jQuery $.html",
-     re.compile(r"\$\([^)]*\)\.html\s*\("), True),
-    ("DOM-005", "HIGH", "jQuery $.append",
-     re.compile(r"\$\([^)]*\)\.append\s*\("), True),
-
-    ("DOM-006", "HIGH", "insertAdjacentHTML",
-     re.compile(r"\.insertAdjacentHTML\s*\("), True),
-
-    ("DOM-007", "HIGH", "React dangerouslySetInnerHTML",
-     re.compile(r"dangerouslySetInnerHTML\s*[:=]"), True),
-
-    ("DOM-008", "CRITICAL", "script.src = user_input",
-     re.compile(r"\.src\s*=\s*[^'\"]*(?:location\.|document\.|event\.data|window\.name|getItem)"), False),
+    ("DOM-001", "CRITICAL", "eval()", re.compile(r"\beval\s*\("), True),
+    ("DOM-001", "CRITICAL", "Function constructor", re.compile(r"\bnew\s+Function\s*\("), True),
+    ("DOM-001", "CRITICAL", "Function() (no-new)", re.compile(r"(?<!\.)\bFunction\s*\("), True),
+    ("DOM-002", "HIGH", "element.innerHTML =", re.compile(r"\.innerHTML\s*="), True),
+    ("DOM-002", "HIGH", "element.outerHTML =", re.compile(r"\.outerHTML\s*="), True),
+    ("DOM-002", "HIGH", "document.write", re.compile(r"\bdocument\.write(?:ln)?\s*\("), True),
+    ("DOM-003", "HIGH", "setTimeout with string", re.compile(r"\bsetTimeout\s*\(\s*['\"]"), False),
+    ("DOM-003", "HIGH", "setInterval with string", re.compile(r"\bsetInterval\s*\(\s*['\"]"), False),
+    ("DOM-004", "HIGH", "location.href = (assignment)", re.compile(r"\blocation\.href\s*="), True),
+    ("DOM-004", "HIGH", "window.location = (assignment)", re.compile(r"\bwindow\.location\s*="), True),
+    ("DOM-004", "HIGH", "location.assign", re.compile(r"\blocation\.assign\s*\("), True),
+    ("DOM-004", "HIGH", "location.replace", re.compile(r"\blocation\.replace\s*\("), True),
+    ("DOM-005", "HIGH", "jQuery $.html", re.compile(r"\$\([^)]*\)\.html\s*\("), True),
+    ("DOM-005", "HIGH", "jQuery $.append", re.compile(r"\$\([^)]*\)\.append\s*\("), True),
+    ("DOM-006", "HIGH", "insertAdjacentHTML", re.compile(r"\.insertAdjacentHTML\s*\("), True),
+    ("DOM-007", "HIGH", "React dangerouslySetInnerHTML", re.compile(r"dangerouslySetInnerHTML\s*[:=]"), True),
+    (
+        "DOM-008",
+        "CRITICAL",
+        "script.src = user_input",
+        re.compile(r"\.src\s*=\s*[^'\"]*(?:location\.|document\.|event\.data|window\.name|getItem)"),
+        False,
+    ),
 )
 
 
@@ -286,10 +266,7 @@ def _remediation_for(rule_id: str) -> str:
             "to innerHTML / outerHTML."
         )
     if rule_id == "DOM-003":
-        return (
-            "Pass a FUNCTION to setTimeout / setInterval, never a string. "
-            "Strings are evaluated as code."
-        )
+        return "Pass a FUNCTION to setTimeout / setInterval, never a string. Strings are evaluated as code."
     if rule_id == "DOM-004":
         return (
             "Validate the URL before assigning. Reject javascript: + data: + "
@@ -312,10 +289,7 @@ def _remediation_for(rule_id: str) -> str:
             "sanitized result."
         )
     if rule_id == "DOM-008":
-        return (
-            "Never let user input control a <script src>. Use a strict "
-            "allow-list of script origins + CSP nonces."
-        )
+        return "Never let user input control a <script src>. Use a strict allow-list of script origins + CSP nonces."
     return "Validate / sanitize user input before reaching this sink."
 
 

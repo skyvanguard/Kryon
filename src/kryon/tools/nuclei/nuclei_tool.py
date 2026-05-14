@@ -7,9 +7,9 @@ from typing import Any
 
 from kryon.sdk.agents import function_tool
 from kryon.tools.nuclei.runner import (
-    NuclieConfig,
     NucleiFinding,
     NucleiResult,
+    NuclieConfig,
     is_nuclei_available,
     run_nuclei,
 )

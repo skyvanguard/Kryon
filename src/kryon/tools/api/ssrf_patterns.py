@@ -51,22 +51,46 @@ __all__ = [
 ]
 
 
-ALL_SSRF_RULES: frozenset[str] = frozenset(
-    {f"SSRF-{n:03d}" for n in range(1, 9)}
-)
+ALL_SSRF_RULES: frozenset[str] = frozenset({f"SSRF-{n:03d}" for n in range(1, 9)})
 
 
 _URL_PARAM_NAMES: frozenset[str] = frozenset(
     {
-        "url", "uri", "link", "src", "source", "href",
-        "image_url", "imageurl", "image",
-        "webhook", "webhook_url", "callback", "callback_url",
-        "proxy", "proxy_url", "fetch", "fetcher", "remote",
-        "xml", "xml_url", "feed", "feed_url", "rss",
-        "dest", "destination", "target",
-        "redirect_uri", "return_url",
-        "asset", "asset_url", "document_url", "pdf_url",
-        "host", "hostname", "endpoint",
+        "url",
+        "uri",
+        "link",
+        "src",
+        "source",
+        "href",
+        "image_url",
+        "imageurl",
+        "image",
+        "webhook",
+        "webhook_url",
+        "callback",
+        "callback_url",
+        "proxy",
+        "proxy_url",
+        "fetch",
+        "fetcher",
+        "remote",
+        "xml",
+        "xml_url",
+        "feed",
+        "feed_url",
+        "rss",
+        "dest",
+        "destination",
+        "target",
+        "redirect_uri",
+        "return_url",
+        "asset",
+        "asset_url",
+        "document_url",
+        "pdf_url",
+        "host",
+        "hostname",
+        "endpoint",
         "next",  # also redirect-prone
     }
 )
@@ -92,30 +116,66 @@ _INTERNAL_IP_PATTERNS: tuple[re.Pattern, ...] = (
 # Code-pattern signatures (per language)
 _CODE_PATTERNS: tuple[tuple[str, str, str, re.Pattern], ...] = (
     # (rule_id, language, label, regex)
-    ("SSRF-003", "python", "requests.get with user input",
-     re.compile(r"requests\.(?:get|post|put|delete|head)\s*\(\s*(?:[a-z_]\w*\.(?:GET|POST|args|form|values|json)|request\.[a-z_]+\.get)", re.IGNORECASE)),
-    ("SSRF-003", "python", "requests.get with format string",
-     re.compile(r"requests\.(?:get|post)\s*\(\s*f['\"]")),
-    ("SSRF-004", "python", "urlopen with user input",
-     re.compile(r"urllib\.request\.urlopen\s*\(\s*(?:request\.|.*\.GET|.*\.POST)", re.IGNORECASE)),
-    ("SSRF-004", "python", "urllib2 urlopen",
-     re.compile(r"urllib2?\.urlopen\s*\(", re.IGNORECASE)),
-    ("SSRF-005", "php", "curl_exec with user input",
-     re.compile(r"curl_setopt\s*\([^)]*CURLOPT_URL[^)]*\$_(?:GET|POST|REQUEST)", re.IGNORECASE)),
-    ("SSRF-005", "php", "file_get_contents with user input",
-     re.compile(r"file_get_contents\s*\(\s*\$_(?:GET|POST|REQUEST)", re.IGNORECASE)),
-    ("SSRF-005", "php", "fopen with user URL",
-     re.compile(r"fopen\s*\(\s*\$_(?:GET|POST|REQUEST)", re.IGNORECASE)),
-    ("SSRF-003", "javascript", "axios get with user input",
-     re.compile(r"axios\.(?:get|post)\s*\(\s*(?:req\.(?:query|body|params))", re.IGNORECASE)),
-    ("SSRF-003", "javascript", "fetch with user input",
-     re.compile(r"fetch\s*\(\s*req\.(?:query|body|params)\.", re.IGNORECASE)),
-    ("SSRF-004", "javascript", "http.get with user input",
-     re.compile(r"https?\.get\s*\(\s*req\.(?:query|body|params)\.", re.IGNORECASE)),
-    ("SSRF-003", "java", "URLConnection with user input",
-     re.compile(r"new\s+URL\s*\(\s*request\.getParameter", re.IGNORECASE)),
-    ("SSRF-003", "ruby", "Net::HTTP with user input",
-     re.compile(r"Net::HTTP\.get\s*\(\s*URI\(\s*params\[", re.IGNORECASE)),
+    (
+        "SSRF-003",
+        "python",
+        "requests.get with user input",
+        re.compile(
+            r"requests\.(?:get|post|put|delete|head)\s*\(\s*(?:[a-z_]\w*\.(?:GET|POST|args|form|values|json)|request\.[a-z_]+\.get)",
+            re.IGNORECASE,
+        ),
+    ),
+    ("SSRF-003", "python", "requests.get with format string", re.compile(r"requests\.(?:get|post)\s*\(\s*f['\"]")),
+    (
+        "SSRF-004",
+        "python",
+        "urlopen with user input",
+        re.compile(r"urllib\.request\.urlopen\s*\(\s*(?:request\.|.*\.GET|.*\.POST)", re.IGNORECASE),
+    ),
+    ("SSRF-004", "python", "urllib2 urlopen", re.compile(r"urllib2?\.urlopen\s*\(", re.IGNORECASE)),
+    (
+        "SSRF-005",
+        "php",
+        "curl_exec with user input",
+        re.compile(r"curl_setopt\s*\([^)]*CURLOPT_URL[^)]*\$_(?:GET|POST|REQUEST)", re.IGNORECASE),
+    ),
+    (
+        "SSRF-005",
+        "php",
+        "file_get_contents with user input",
+        re.compile(r"file_get_contents\s*\(\s*\$_(?:GET|POST|REQUEST)", re.IGNORECASE),
+    ),
+    ("SSRF-005", "php", "fopen with user URL", re.compile(r"fopen\s*\(\s*\$_(?:GET|POST|REQUEST)", re.IGNORECASE)),
+    (
+        "SSRF-003",
+        "javascript",
+        "axios get with user input",
+        re.compile(r"axios\.(?:get|post)\s*\(\s*(?:req\.(?:query|body|params))", re.IGNORECASE),
+    ),
+    (
+        "SSRF-003",
+        "javascript",
+        "fetch with user input",
+        re.compile(r"fetch\s*\(\s*req\.(?:query|body|params)\.", re.IGNORECASE),
+    ),
+    (
+        "SSRF-004",
+        "javascript",
+        "http.get with user input",
+        re.compile(r"https?\.get\s*\(\s*req\.(?:query|body|params)\.", re.IGNORECASE),
+    ),
+    (
+        "SSRF-003",
+        "java",
+        "URLConnection with user input",
+        re.compile(r"new\s+URL\s*\(\s*request\.getParameter", re.IGNORECASE),
+    ),
+    (
+        "SSRF-003",
+        "ruby",
+        "Net::HTTP with user input",
+        re.compile(r"Net::HTTP\.get\s*\(\s*URI\(\s*params\[", re.IGNORECASE),
+    ),
 )
 
 
@@ -198,8 +258,7 @@ def _classify_param(p: SsrfParameter) -> list[SsrfFinding]:
                 severity="LOW",
                 title=f"Parameter {p.name!r} commonly carries URLs (SSRF candidate)",
                 detail=(
-                    "Parameter name matches the URL-handling heuristic. "
-                    "Should be tested for SSRF + open-redirect."
+                    "Parameter name matches the URL-handling heuristic. Should be tested for SSRF + open-redirect."
                 ),
                 remediation=(
                     "Validate the parameter against an allow-list of "
@@ -315,9 +374,7 @@ def analyze_ssrf(
     for s in snippets:
         findings.extend(_classify_snippet(s))
     severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
-    findings.sort(
-        key=lambda f: (severity_order.get(f.severity, 99), f.rule_id, f.location)
-    )
+    findings.sort(key=lambda f: (severity_order.get(f.severity, 99), f.rule_id, f.location))
     return SsrfAnalysis(
         total_parameters=len(parameters),
         total_snippets=len(snippets),

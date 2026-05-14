@@ -232,11 +232,7 @@ def probe_ssrf_active(config: SsrfActiveConfig) -> SsrfActiveResult:
     sess.mount("http://", adapter)
     sess.mount("https://", adapter)
 
-    min_interval = (
-        1.0 / config.rate_limit_per_second
-        if config.rate_limit_per_second > 0
-        else 0.0
-    )
+    min_interval = 1.0 / config.rate_limit_per_second if config.rate_limit_per_second > 0 else 0.0
     last = 0.0
     attempts: list[SsrfProbeAttempt] = []
     findings: list[SsrfFinding] = []
@@ -248,9 +244,7 @@ def probe_ssrf_active(config: SsrfActiveConfig) -> SsrfActiveResult:
                 time.sleep(wait)
         last = time.monotonic()
 
-        probe_url = _build_probe_url(
-            config.endpoint_url, config.parameter_name, payload
-        )
+        probe_url = _build_probe_url(config.endpoint_url, config.parameter_name, payload)
         a_start = time.monotonic()
         try:
             resp = sess.get(
@@ -288,7 +282,9 @@ def probe_ssrf_active(config: SsrfActiveConfig) -> SsrfActiveResult:
                 findings.append(
                     SsrfFinding(
                         rule_id="SSRF-100",
-                        severity="CRITICAL" if signature in {"aws-metadata", "gcp-metadata", "azure-imds", "file-etc-passwd"} else "HIGH",
+                        severity="CRITICAL"
+                        if signature in {"aws-metadata", "gcp-metadata", "azure-imds", "file-etc-passwd"}
+                        else "HIGH",
                         title=f"Confirmed SSRF (signature: {signature})",
                         detail=(
                             f"Probe with payload {payload!r} against "

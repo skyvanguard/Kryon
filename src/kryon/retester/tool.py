@@ -14,14 +14,13 @@ GET-only unless KRYON_RETEST_ALLOW_MUTATIONS=true.
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 from typing import Any
 
-from kryon.sdk.agents import function_tool
 from kryon.retester.aggregator import aggregate_retest
 from kryon.retester.comparator import RetestVerdict
-from kryon.retester.record import RetestRecord, record_from_dict
+from kryon.retester.record import record_from_dict
 from kryon.retester.replay import replay_finding
+from kryon.sdk.agents import function_tool
 
 __all__ = ["retest_finding"]
 
@@ -87,9 +86,7 @@ def retest_finding(
     is_batch = isinstance(doc, list)
     raw_records = doc if is_batch else [doc] if isinstance(doc, dict) else None
     if raw_records is None:
-        return json.dumps(
-            {"error": "records_json must be a JSON object or array of objects"}
-        )
+        return json.dumps({"error": "records_json must be a JSON object or array of objects"})
 
     current_auth: dict[str, str] | None = None
     if auth_header_value.strip():

@@ -63,6 +63,11 @@ class Finding:
     remediation_command: str = ""  # exact shell command for Fase 3
     target_host: str = ""  # admin@host for SSH exec
     severity_rank: int = field(default=99)
+    # F134 — confidence score in [0.0, 1.0]. Default 1.0 because most
+    # callers construct Finding from deterministic checks; the LLM
+    # parser knocks this down before the orchestrator returns.
+    confidence: float = 1.0
+    needs_verification: bool = False
 
 
 _SEV_RANK = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
@@ -532,6 +537,11 @@ def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
                     evidence=ev_red,
                     remediation=rem_red,
                     severity_rank=_SEV_RANK[sev],
+                    # F134 — LLM-emitted findings start at 0.5; the
+                    # post-engagement annotate_confidence pass may boost
+                    # them if a deterministic finding corroborates.
+                    confidence=0.5,
+                    needs_verification=True,
                 )
             )
         if out:
@@ -867,6 +877,31 @@ def _invoke_orchestrated_engagement(
         )
         if extra_hint:
             preamble = f"{preamble}\n\nRetry hint: {extra_hint}"
+
+        # F131 — Goal-aware phase skill swap. When a phase was injected
+        # by adapt_plan_for_goal it carries goal_kind_hint; re-run the
+        # SkillLoader.match with the goal so the agent gets the matching
+        # playbook bodies (pci-dss-audit / vuln-hunter / recon-scout)
+        # loaded before this phase's LLM turn. Best-effort: failures
+        # are non-fatal and the agent runs with whatever skills it
+        # already had.
+        if getattr(phase, "goal_kind_hint", None) and goal is not None:
+            try:
+                from kryon.skills.loader import SkillLoader
+                from kryon.skills.unified_agent import update_agent_skills
+
+                loader_for_phase = getattr(agent, "_skill_loader", None) or SkillLoader()
+                profile = {"tech": list(families), "ports": []}
+                new_skills = loader_for_phase.match(
+                    profile=profile,
+                    user_msg=f"{phase.name} {goal.raw}",
+                    goal=goal,
+                )
+                if new_skills:
+                    update_agent_skills(agent, new_skills)
+            except Exception as exc:  # pragma: no cover
+                console.print(f"  [dim]goal-skill swap failed for '{phase.name}': {exc}[/dim]")
+
         # F123 — Register the active ActionLog so every tool call inside
         # this phase lands as its own audit entry. Cleared in finally so
         # one phase's audit doesn't bleed into the next phase or into
@@ -1276,6 +1311,43 @@ def run_engage(args: argparse.Namespace) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     engagement_id = args.engagement_id or (f"engagement-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M')}")
 
+    # F132 — Engagement deduplication. Skip the run entirely if the
+    # operator passed --no-recent N and the last run against this target
+    # finished less than N minutes ago. Logs the dedup hit so the
+    # scheduling layer can tell "already ran" from "fresh execution".
+    previous_findings_for_diff: list = []
+    if getattr(args, "no_recent", 0) and args.no_recent > 0:
+        try:
+            from kryon.state.engagement_state import minutes_since, read_state
+
+            prev = read_state(target)
+            if prev is not None:
+                elapsed = minutes_since(prev)
+                if elapsed is not None and elapsed < args.no_recent:
+                    console.print(
+                        f"  [yellow]↺[/yellow] dedup: {target} scanned "
+                        f"{elapsed:.1f} min ago (< --no-recent={args.no_recent}); "
+                        f"reusing previous findings ({prev.finding_count} items, "
+                        f"engagement_id={prev.last_engagement_id})"
+                    )
+                    return 0
+        except Exception as exc:  # pragma: no cover
+            console.print(f"  [dim]dedup check skipped: {exc}[/dim]")
+
+    # F133 — Load previous findings (if any) for baseline diffing.
+    # Independent of the dedup gate above — this runs even when the
+    # operator did NOT pass --no-recent, so every engagement gets a
+    # diff section comparing against the last known state.
+    try:
+        from kryon.state.baseline_diff import load_previous_findings
+        from kryon.state.engagement_state import read_state as _read_state_for_diff
+
+        prev_state = _read_state_for_diff(target)
+        if prev_state is not None:
+            previous_findings_for_diff = load_previous_findings(prev_state.findings_path)
+    except Exception as exc:  # pragma: no cover
+        console.print(f"  [dim]previous-findings load skipped: {exc}[/dim]")
+
     # Security hygiene: prefer `SSHPASS` env over --ssh-password argv.
     # Passing the password as a CLI argument to `kryon engage` leaves
     # the plaintext in /proc/<pid>/cmdline of the Kryon process itself
@@ -1398,6 +1470,31 @@ def run_engage(args: argparse.Namespace) -> int:
             console.print(f"  [green]agent findings:[/green] +{len(agent_findings)} estructurados desde el LLM")
         if agent_observations:
             console.print(f"  [green]✓[/green] agente produjo {len(agent_observations)} observaciones")
+
+    # F134 — Cross-tool validation: score every finding's confidence
+    # based on whether a deterministic finding corroborates the LLM one.
+    # LLM findings without corroboration get needs_verification=True so
+    # the report can flag them as "review before client handoff".
+    try:
+        from kryon.scoring.confidence import annotate_confidence
+
+        annotate_confidence(findings)
+        needs_review = sum(1 for f in findings if f.needs_verification)
+        if needs_review:
+            console.print(f"  [yellow]⚠[/yellow] {needs_review} finding(s) marked needs_verification")
+    except Exception as exc:  # pragma: no cover
+        console.print(f"  [dim]confidence scoring skipped: {exc}[/dim]")
+
+    # F133 — Compute baseline diff against previous engagement state.
+    baseline_diff = None
+    if previous_findings_for_diff:
+        try:
+            from kryon.state.baseline_diff import compute_diff, format_diff_summary
+
+            baseline_diff = compute_diff(previous_findings_for_diff, findings)
+            console.print(f"  [cyan]Δ[/cyan] {format_diff_summary(baseline_diff)}")
+        except Exception as exc:  # pragma: no cover
+            console.print(f"  [dim]baseline diff skipped: {exc}[/dim]")
 
     # --- Phase 3: findings table ------------------------------------------
     _banner(console, "Fase 3 — resumen")
@@ -1581,6 +1678,21 @@ def run_engage(args: argparse.Namespace) -> int:
     paths.update(demo_paths)
     for k, v in paths.items():
         console.print(f"  [green]{k}[/green] → {v}")
+
+    # F132 — Persist per-target state so the next run can dedup.
+    try:
+        from kryon.state.engagement_state import write_state
+
+        findings_json_path = paths.get("json", "")
+        write_state(
+            target,
+            engagement_id=engagement_id,
+            findings_path=str(findings_json_path),
+            finding_count=len(findings),
+        )
+    except Exception as exc:  # pragma: no cover
+        console.print(f"  [dim]state write skipped: {exc}[/dim]")
+
     return 0
 
 
@@ -1632,6 +1744,17 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
     )
     p.add_argument("--ssh-key", default="", help="SSH private key path for compliance runner")
     p.add_argument("--skip-reaudit", action="store_true", help="skip the post-remediation re-scan (Phase 5)")
+    # F132 — Engagement deduplication. When set, the orchestrator
+    # checks the per-target state file and reuses the previous findings
+    # if the last run was less than --no-recent minutes ago. Useful for
+    # avoiding duplicate scans when scheduled jobs overlap.
+    p.add_argument(
+        "--no-recent",
+        type=int,
+        default=0,
+        help="Skip the run if this target was already scanned in the last N minutes "
+        "(reuses the previous findings.json). 0 (default) disables the check.",
+    )
     # F118 — Goal-directed reasoning. The operator declares what success
     # looks like; the orchestrator terminates early on satisfaction and
     # emits a final verdict (SATISFIED/PARTIAL/NOT_MET) at the end.

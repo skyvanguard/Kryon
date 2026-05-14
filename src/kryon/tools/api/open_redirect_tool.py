@@ -7,7 +7,6 @@ from typing import Any
 
 from kryon.sdk.agents import function_tool
 from kryon.tools.api.open_redirect import (
-    RedirectAnalysis,
     RedirectFinding,
     RedirectObservation,
     analyze_observations,

@@ -57,7 +57,7 @@ Banca-safety:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -221,7 +221,7 @@ def audit_s3_bucket(
                     AWSFinding(
                         rule_id="AWS-S3-001",
                         severity="CRITICAL",
-                        title=f"Bucket policy grants public access (Principal: *)",
+                        title="Bucket policy grants public access (Principal: *)",
                         detail=(
                             f"Bucket {bucket_name}: a policy Statement with "
                             f"Effect=Allow has Principal={principal!r}. Anyone "
@@ -244,7 +244,7 @@ def audit_s3_bucket(
                     AWSFinding(
                         rule_id="AWS-S3-003",
                         severity="HIGH",
-                        title=f"Bucket policy allows wildcard S3 actions",
+                        title="Bucket policy allows wildcard S3 actions",
                         detail=(
                             f"Bucket {bucket_name}: Statement has "
                             f"Action={action!r}. Grants every S3 operation "
@@ -252,8 +252,7 @@ def audit_s3_bucket(
                             "permissive for almost every use case."
                         ),
                         remediation=(
-                            "Enumerate the specific actions actually needed "
-                            "(s3:GetObject, s3:PutObject, etc.)."
+                            "Enumerate the specific actions actually needed (s3:GetObject, s3:PutObject, etc.)."
                         ),
                         resource=bucket_name,
                     )
@@ -272,7 +271,7 @@ def audit_s3_bucket(
                     AWSFinding(
                         rule_id="AWS-S3-002",
                         severity="CRITICAL",
-                        title=f"Bucket ACL grants public access",
+                        title="Bucket ACL grants public access",
                         detail=(
                             f"Bucket {bucket_name}: ACL grant for {uri!r}. "
                             f"Permission={grant.get('Permission')!r}. Anyone "
@@ -340,8 +339,7 @@ def audit_s3_bucket(
                     "read/wrote which object."
                 ),
                 remediation=(
-                    "Configure server-access logging to a dedicated audit "
-                    "bucket (separate from data buckets)."
+                    "Configure server-access logging to a dedicated audit bucket (separate from data buckets)."
                 ),
                 resource=bucket_name,
             )
@@ -361,8 +359,8 @@ def audit_s3_bucket(
                 ),
                 remediation=(
                     "Enable MFA Delete (root-user only): `aws s3api put-"
-                    "bucket-versioning ... --mfa \"arn:aws:iam::ACCT:mfa/USER "
-                    "OTP-CODE\" ...`."
+                    'bucket-versioning ... --mfa "arn:aws:iam::ACCT:mfa/USER '
+                    'OTP-CODE" ...`.'
                 ),
                 resource=bucket_name,
             )
@@ -428,11 +426,7 @@ def _statement_action_wildcards_in(actions: Any, target_prefix: str) -> bool:
     if isinstance(actions, str):
         return actions == f"{target_prefix}:*" or actions == "*"
     if isinstance(actions, list):
-        return any(
-            a == f"{target_prefix}:*" or a == "*"
-            for a in actions
-            if isinstance(a, str)
-        )
+        return any(a == f"{target_prefix}:*" or a == "*" for a in actions if isinstance(a, str))
     return False
 
 
@@ -515,16 +509,13 @@ def audit_iam_policy(
 
         # AWS-IAM-001: Action: * AND Resource: * (admin)
         if effect == "Allow":
-            action_is_full_wildcard = (
-                action == "*"
-                or (isinstance(action, list) and "*" in action)
-            )
+            action_is_full_wildcard = action == "*" or (isinstance(action, list) and "*" in action)
             if action_is_full_wildcard and _statement_resource_is_wildcard(resource):
                 findings.append(
                     AWSFinding(
                         rule_id="AWS-IAM-001",
                         severity="CRITICAL",
-                        title=f"Policy allows Action: * on Resource: *",
+                        title="Policy allows Action: * on Resource: *",
                         detail=(
                             f"Policy {policy_name}: Allow with Action=* and "
                             "Resource=*. Identity holding this policy has "
@@ -546,9 +537,7 @@ def audit_iam_policy(
                 if _statement_action_wildcards_in(action, service):
                     # Skip when it's already AWS-IAM-001 (full *) —
                     # that's a stronger finding.
-                    if action == "*" or (
-                        isinstance(action, list) and "*" in action
-                    ):
+                    if action == "*" or (isinstance(action, list) and "*" in action):
                         continue
                     findings.append(
                         AWSFinding(
@@ -563,8 +552,7 @@ def audit_iam_policy(
                                 "that service."
                             ),
                             remediation=(
-                                f"Enumerate the specific {service} actions "
-                                "needed (e.g. iam:PassRole, kms:Decrypt)."
+                                f"Enumerate the specific {service} actions needed (e.g. iam:PassRole, kms:Decrypt)."
                             ),
                             resource=policy_name,
                         )
@@ -614,7 +602,7 @@ def audit_iam_policy(
                     ),
                     remediation=(
                         "Add Condition: { Bool: { aws:MultiFactorAuthPresent: "
-                        "\"true\" } } or IpAddress restrictions where the "
+                        '"true" } } or IpAddress restrictions where the '
                         "consumer's IP is fixed."
                     ),
                     resource=policy_name,

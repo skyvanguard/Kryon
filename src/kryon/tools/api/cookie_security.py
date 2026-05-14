@@ -55,7 +55,6 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -75,11 +74,18 @@ __all__ = [
 # Stable rule IDs.
 ALL_COOKIE_RULES: frozenset[str] = frozenset(
     {
-        "COOKIE-001", "COOKIE-002", "COOKIE-003", "COOKIE-004",
-        "COOKIE-005", "COOKIE-006",
-        "COOKIE-010", "COOKIE-011",
-        "COOKIE-020", "COOKIE-021",
-        "COOKIE-030", "COOKIE-031",
+        "COOKIE-001",
+        "COOKIE-002",
+        "COOKIE-003",
+        "COOKIE-004",
+        "COOKIE-005",
+        "COOKIE-006",
+        "COOKIE-010",
+        "COOKIE-011",
+        "COOKIE-020",
+        "COOKIE-021",
+        "COOKIE-030",
+        "COOKIE-031",
         "COOKIE-040",
         "COOKIE-050",
     }
@@ -109,21 +115,21 @@ SESSION_NAME_PATTERNS: tuple[str, ...] = (
 # so substring noise doesn't cause false positives.
 FRAMEWORK_COOKIE_NAMES: frozenset[str] = frozenset(
     {
-        "phpsessid",       # PHP
-        "jsessionid",      # Java servlet
+        "phpsessid",  # PHP
+        "jsessionid",  # Java servlet
         "asp.net_sessionid",  # ASP.NET
         "asp.netcore.session",  # ASP.NET Core
-        "connect.sid",     # Express / Connect
+        "connect.sid",  # Express / Connect
         "laravel_session",  # Laravel
-        "ci_session",      # CodeIgniter
+        "ci_session",  # CodeIgniter
         "ci_cookie",
         "djangosession",
         "django_session",
         "django_language",
-        "wp-settings",     # WordPress
+        "wp-settings",  # WordPress
         "wordpress_logged_in",
-        "rack.session",    # Ruby Rack
-        "_session_id",     # Rails default
+        "rack.session",  # Ruby Rack
+        "_session_id",  # Rails default
     }
 )
 
@@ -314,9 +320,7 @@ def _check_secure_flag(cookie: ParsedCookie, *, is_https: bool) -> list[CookieFi
                 "page on the same origin (rare on banking apps but possible "
                 "via misconfigured links / mixed-content fallbacks)."
             ),
-            remediation=(
-                "Add `Secure` attribute to every Set-Cookie on HTTPS-only sites."
-            ),
+            remediation=("Add `Secure` attribute to every Set-Cookie on HTTPS-only sites."),
             cookie_name=cookie.name,
         )
     ]
@@ -416,9 +420,7 @@ def _check_scope(cookie: ParsedCookie) -> list[CookieFinding]:
                     "domain — including static asset endpoints — receives the "
                     "auth credential. Scope to the application path only."
                 ),
-                remediation=(
-                    "Set Path=/app or wherever the authenticated surface lives."
-                ),
+                remediation=("Set Path=/app or wherever the authenticated surface lives."),
                 cookie_name=cookie.name,
             )
         )
@@ -470,8 +472,7 @@ def _check_lifetime(cookie: ParsedCookie) -> list[CookieFinding]:
                         "case configuration — XSS + MITM + CSRF all in scope."
                     ),
                     remediation=(
-                        "Set `Secure; HttpOnly; SameSite=Lax` at minimum. "
-                        "Reaudit every session-bearing endpoint."
+                        "Set `Secure; HttpOnly; SameSite=Lax` at minimum. Reaudit every session-bearing endpoint."
                     ),
                     cookie_name=cookie.name,
                 )
@@ -490,10 +491,7 @@ def _check_lifetime(cookie: ParsedCookie) -> list[CookieFinding]:
                     "the browser session. Often intentional; surface so the "
                     "auditor confirms."
                 ),
-                remediation=(
-                    "If session-only is intended, no action. Otherwise set an "
-                    "explicit Max-Age."
-                ),
+                remediation=("If session-only is intended, no action. Otherwise set an explicit Max-Age."),
                 cookie_name=cookie.name,
             )
         )
@@ -540,7 +538,7 @@ def _check_value_hygiene(cookie: ParsedCookie) -> list[CookieFinding]:
                     severity="LOW",
                     title=f"Session cookie {cookie.name!r} value looks unencrypted",
                     detail=(
-                        f"Cookie value matches a human-readable pattern "
+                        "Cookie value matches a human-readable pattern "
                         "(email / username). Session cookies should be opaque "
                         "tokens — readable values are forgeable + may leak PII."
                     ),

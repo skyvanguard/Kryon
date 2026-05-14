@@ -7,7 +7,6 @@ from typing import Any
 
 from kryon.sdk.agents import function_tool
 from kryon.tools.api.ssrf_patterns import (
-    SsrfAnalysis,
     SsrfCodeSnippet,
     SsrfFinding,
     SsrfParameter,

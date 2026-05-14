@@ -140,7 +140,7 @@ def reusability_from_telemetry(
         absent from every log record return 0.
     """
     requested = set(skill_names)
-    counts: dict[str, int] = {name: 0 for name in requested}
+    counts: dict[str, int] = dict.fromkeys(requested, 0)
     for record in telemetry_records:
         selected = record.get("selected") or []
         if not isinstance(selected, list):
@@ -163,7 +163,7 @@ def _normalize_counts(counts: dict[str, int]) -> dict[str, float]:
         return {}
     max_count = max(counts.values(), default=0)
     if max_count <= 0:
-        return {name: 0.0 for name in counts}
+        return dict.fromkeys(counts, 0.0)
     return {name: c / max_count for name, c in counts.items()}
 
 
@@ -228,7 +228,7 @@ def score_skills(
     # combined_score collapses to wilson * wilson_weight.
     reuse_counts: dict[str, int]
     if telemetry_records is None:
-        reuse_counts = {name: 0 for name in requested}
+        reuse_counts = dict.fromkeys(requested, 0)
     else:
         reuse_counts = reusability_from_telemetry(telemetry_records, list(requested))
     reuse_norms = _normalize_counts(reuse_counts)

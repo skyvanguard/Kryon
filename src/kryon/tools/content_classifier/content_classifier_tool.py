@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import base64
 import json
-from typing import Any
 
 from kryon.sdk.agents import function_tool
 from kryon.tools.content_classifier.classifier import (
-    ContentInput,
     ContentClassifier,
+    ContentInput,
     is_magika_available,
 )
 
@@ -73,10 +72,7 @@ def classify_content_bytes(config_json: str) -> str:
             },
             "polyglot": {
                 "is_polyglot": classif.polyglot,
-                "signatures": [
-                    {"signature": p.signature, "offset": p.offset}
-                    for p in classif.polyglot_indicators
-                ],
+                "signatures": [{"signature": p.signature, "offset": p.offset} for p in classif.polyglot_indicators],
             },
             "embedded_secrets": [
                 {

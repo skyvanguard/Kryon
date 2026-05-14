@@ -57,6 +57,7 @@ __all__ = [
 
 # ----- HTML link extractors -------------------------------------------------
 
+
 # <tag ... attr="value" ...> capture. Tolerates single/double quotes
 # and unquoted values. The leading anchor (?<= or boundary) avoids
 # matching inside other attribute names.
@@ -74,9 +75,7 @@ _SCRIPT_SRC_RE = _href_pattern("script", "src")
 _IMG_SRC_RE = _href_pattern("img", "src")
 _IFRAME_SRC_RE = _href_pattern("iframe", "src")
 _FORM_OPEN_RE = re.compile(r"<form\b[^>]*>", re.IGNORECASE)
-_FORM_BLOCK_RE = re.compile(
-    r"<form\b([^>]*)>(.*?)</form>", re.IGNORECASE | re.DOTALL
-)
+_FORM_BLOCK_RE = re.compile(r"<form\b([^>]*)>(.*?)</form>", re.IGNORECASE | re.DOTALL)
 _INPUT_RE = re.compile(
     r"<(?:input|textarea|select)\b([^>]*)/?>",
     re.IGNORECASE | re.DOTALL,
@@ -130,9 +129,7 @@ def _parse_attrs(raw: str) -> dict[str, str]:
     for m in _ATTR_RE.finditer(raw):
         key = m.group(1).lower()
         # whichever quote variant matched
-        val = m.group(2) if m.group(2) is not None else (
-            m.group(3) if m.group(3) is not None else m.group(4) or ""
-        )
+        val = m.group(2) if m.group(2) is not None else (m.group(3) if m.group(3) is not None else m.group(4) or "")
         out[key] = html.unescape(val)
     # Boolean attributes (no `=value`)
     for m in _BOOL_ATTR_RE.finditer(raw):
@@ -169,9 +166,7 @@ def urljoin_safe(base_url: str, ref: str) -> str:
     return joined
 
 
-def _extract_with_pattern(
-    pattern: re.Pattern, body: str, base_url: str, source_tag: str
-) -> list[ExtractedLink]:
+def _extract_with_pattern(pattern: re.Pattern, body: str, base_url: str, source_tag: str) -> list[ExtractedLink]:
     out: list[ExtractedLink] = []
     seen: set[str] = set()
     for m in pattern.finditer(body):
@@ -201,10 +196,7 @@ def extract_links_from_html(body: str, base_url: str) -> list[ExtractedLink]:
 
 def extract_script_srcs_from_html(body: str, base_url: str) -> list[str]:
     """Return just the external JS script URLs (feeds F102 directly)."""
-    return [
-        link.url
-        for link in _extract_with_pattern(_SCRIPT_SRC_RE, body, base_url, "script")
-    ]
+    return [link.url for link in _extract_with_pattern(_SCRIPT_SRC_RE, body, base_url, "script")]
 
 
 def extract_meta_tags_from_html(body: str) -> dict[str, str]:
@@ -231,11 +223,7 @@ def extract_forms_from_html(body: str, base_url: str) -> list[ExtractedForm]:
         form_attrs = _parse_attrs(m.group(1))
         inner = m.group(2)
         action_raw = form_attrs.get("action", "")
-        action_url = (
-            urljoin_safe(base_url, action_raw)
-            if action_raw
-            else base_url
-        )
+        action_url = urljoin_safe(base_url, action_raw) if action_raw else base_url
         method = (form_attrs.get("method") or "GET").upper()
         if method not in ("GET", "POST"):
             method = "GET"
@@ -259,9 +247,7 @@ def extract_forms_from_html(body: str, base_url: str) -> list[ExtractedForm]:
                     required=required,
                 )
             )
-        forms.append(
-            ExtractedForm(action=action_url, method=method, fields=tuple(fields))
-        )
+        forms.append(ExtractedForm(action=action_url, method=method, fields=tuple(fields)))
     return forms
 
 
@@ -278,9 +264,7 @@ _JS_SINGLE_QUOTE_RE = re.compile(r"'([^'\\\n\r]{1,500})'")
 _JS_BACKTICK_RE = re.compile(r"`([^`$\n\r]{1,500})`")
 
 # fetch / axios / $.ajax / $.get / $.post — capture the URL argument
-_FETCH_CALL_RE = re.compile(
-    r"""\bfetch\s*\(\s*(['"`])([^'"`]+)\1""", re.DOTALL
-)
+_FETCH_CALL_RE = re.compile(r"""\bfetch\s*\(\s*(['"`])([^'"`]+)\1""", re.DOTALL)
 _AXIOS_CALL_RE = re.compile(
     r"""\baxios(?:\.(?:get|post|put|delete|patch|head|request))?\s*\(\s*(['"`])([^'"`]+)\1""",
     re.DOTALL | re.IGNORECASE,
@@ -324,9 +308,7 @@ def _classify_js_url_candidate(value: str) -> bool:
     return False
 
 
-def extract_endpoints_from_js(
-    js_body: str, base_url: str
-) -> list[str]:
+def extract_endpoints_from_js(js_body: str, base_url: str) -> list[str]:
     """Extract candidate endpoint URLs from a JavaScript bundle.
 
     Returns absolute URLs, deduped. Combines explicit call-site

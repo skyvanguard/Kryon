@@ -40,21 +40,39 @@ __all__ = [
 ]
 
 
-ALL_OR_RULES: frozenset[str] = frozenset(
-    {"OR-001", "OR-002", "OR-003", "OR-004", "OR-005", "OR-006"}
-)
+ALL_OR_RULES: frozenset[str] = frozenset({"OR-001", "OR-002", "OR-003", "OR-004", "OR-005", "OR-006"})
 
 
 # Parameter names that historically carry redirect targets.
 _REDIRECT_PARAM_NAMES: frozenset[str] = frozenset(
     {
-        "next", "return", "returnurl", "return_url", "returnto",
-        "redirect", "redirect_uri", "redirecturl", "redirect_url",
-        "callback", "continue", "dest", "destination",
-        "url", "uri", "target", "to", "goto",
-        "link", "back", "forward",
-        "successurl", "success_url", "failureurl",
-        "checkout_url", "completionurl", "completion_url",
+        "next",
+        "return",
+        "returnurl",
+        "return_url",
+        "returnto",
+        "redirect",
+        "redirect_uri",
+        "redirecturl",
+        "redirect_url",
+        "callback",
+        "continue",
+        "dest",
+        "destination",
+        "url",
+        "uri",
+        "target",
+        "to",
+        "goto",
+        "link",
+        "back",
+        "forward",
+        "successurl",
+        "success_url",
+        "failureurl",
+        "checkout_url",
+        "completionurl",
+        "completion_url",
     }
 )
 
@@ -63,12 +81,8 @@ _REDIRECT_PARAM_NAMES: frozenset[str] = frozenset(
 # scheme-absolute (http(s)://evil) and scheme-relative (//evil) +
 # meta-refresh / JS variants.
 _ABSOLUTE_REDIRECT_RE = re.compile(r"^(https?:)?//", re.IGNORECASE)
-_META_REFRESH_RE = re.compile(
-    r"<meta[^>]*http-equiv=['\"]?refresh['\"]?[^>]*url=([^'\">]+)", re.IGNORECASE
-)
-_JS_LOCATION_RE = re.compile(
-    r"(?:window\.)?location(?:\.href)?\s*=\s*['\"]([^'\"]+)['\"]", re.IGNORECASE
-)
+_META_REFRESH_RE = re.compile(r"<meta[^>]*http-equiv=['\"]?refresh['\"]?[^>]*url=([^'\">]+)", re.IGNORECASE)
+_JS_LOCATION_RE = re.compile(r"(?:window\.)?location(?:\.href)?\s*=\s*['\"]([^'\"]+)['\"]", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -203,8 +217,7 @@ def _classify_observation(obs: RedirectObservation) -> list[RedirectFinding]:
                             "send the user to the attacker domain."
                         ),
                         remediation=(
-                            "Strip scheme-relative `//` prefixes from redirect "
-                            "targets. Anchor to an allow-list."
+                            "Strip scheme-relative `//` prefixes from redirect targets. Anchor to an allow-list."
                         ),
                         url=obs.url,
                         parameter_name=obs.parameter_name,
@@ -252,10 +265,7 @@ def _classify_observation(obs: RedirectObservation) -> list[RedirectFinding]:
                             "via JavaScript. Behaves like a 302 to the "
                             "attacker domain."
                         ),
-                        remediation=(
-                            "Never assign user-controlled values to "
-                            "window.location without an allow-list."
-                        ),
+                        remediation=("Never assign user-controlled values to window.location without an allow-list."),
                         url=obs.url,
                         parameter_name=obs.parameter_name,
                     )
@@ -326,9 +336,5 @@ def analyze_observations(
     for obs in observations:
         findings.extend(_classify_observation(obs))
     severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
-    findings.sort(
-        key=lambda f: (severity_order.get(f.severity, 99), f.rule_id, f.url)
-    )
-    return RedirectAnalysis(
-        total_observations=len(observations), findings=tuple(findings)
-    )
+    findings.sort(key=lambda f: (severity_order.get(f.severity, 99), f.rule_id, f.url))
+    return RedirectAnalysis(total_observations=len(observations), findings=tuple(findings))

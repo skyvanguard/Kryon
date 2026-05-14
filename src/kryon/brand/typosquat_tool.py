@@ -11,12 +11,11 @@ Two operation shapes:
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 from typing import Any
 
 from kryon.brand.typosquat import (
-    DEFAULT_MAX_VARIANTS,
     ALL_STRATEGIES,
+    DEFAULT_MAX_VARIANTS,
     TyposquatScanResult,
     generate_typosquats,
     resolve_candidate,

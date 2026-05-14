@@ -74,8 +74,8 @@ def _parse_cert(cert_dict: dict, der: bytes) -> TLSCertificate:
         from cryptography.hazmat.primitives.asymmetric import (
             dsa,
             ec,
-            ed25519,
             ed448,
+            ed25519,
             rsa,
         )
 
@@ -111,9 +111,7 @@ def _parse_cert(cert_dict: dict, der: bytes) -> TLSCertificate:
     )
 
 
-def capture_tls_profile(
-    host: str, port: int = 443, timeout: float = 5.0
-) -> TLSProfile | None:
+def capture_tls_profile(host: str, port: int = 443, timeout: float = 5.0) -> TLSProfile | None:
     """Open a live TLS connection to (host, port) and return a
     TLSProfile. Returns None if connection fails."""
     try:

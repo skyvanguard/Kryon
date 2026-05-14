@@ -162,13 +162,7 @@ def _parse_interaction_line(line: str) -> Interaction | None:
     if not isinstance(evt, dict):
         return None
     # Different interactsh-client versions use slightly different keys
-    unique_id = (
-        evt.get("unique-id")
-        or evt.get("unique_id")
-        or evt.get("full-id")
-        or evt.get("uniqueID")
-        or ""
-    )
+    unique_id = evt.get("unique-id") or evt.get("unique_id") or evt.get("full-id") or evt.get("uniqueID") or ""
     return Interaction(
         unique_id=str(unique_id),
         protocol=str(evt.get("protocol") or evt.get("kind") or "").lower(),

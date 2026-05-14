@@ -32,14 +32,12 @@ Banca-safety:
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import hmac
 import logging
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -57,15 +55,15 @@ __all__ = [
 # Recognized schemes. Stable identifiers so reports / dashboards
 # group consistently.
 ALL_SCHEMES: tuple[str, ...] = (
-    "stripe",            # Stripe-Signature: t=...,v1=...
-    "github_sha256",     # X-Hub-Signature-256: sha256=...
-    "github_sha1",       # X-Hub-Signature: sha1=...  (legacy, weak)
-    "discord_ed25519",   # X-Signature-Ed25519 + X-Signature-Timestamp
-    "rfc9421",           # Signature: keyId=...,algorithm=...,signature=...
-    "bancard",           # X-Bancard-Signature (LATAM banking)
-    "bcp",               # X-BCP-Signature (LATAM banking)
+    "stripe",  # Stripe-Signature: t=...,v1=...
+    "github_sha256",  # X-Hub-Signature-256: sha256=...
+    "github_sha1",  # X-Hub-Signature: sha1=...  (legacy, weak)
+    "discord_ed25519",  # X-Signature-Ed25519 + X-Signature-Timestamp
+    "rfc9421",  # Signature: keyId=...,algorithm=...,signature=...
+    "bancard",  # X-Bancard-Signature (LATAM banking)
+    "bcp",  # X-BCP-Signature (LATAM banking)
     "open_banking_jws",  # x-jws-signature (Open Banking UK/BR)
-    "custom_x_signature", # generic X-Signature / X-Webhook-Signature
+    "custom_x_signature",  # generic X-Signature / X-Webhook-Signature
     "unknown",
 )
 
@@ -76,9 +74,7 @@ ALL_SCHEMES: tuple[str, ...] = (
 _WEAK_ALGORITHMS = frozenset({"md5", "sha1", "hmac-md5", "hmac-sha1", "rsa-sha1"})
 
 # Stripe-Signature value format: t=<unix_ts>,v1=<hex_sig>[,v0=<hex_sig>]
-_STRIPE_SIGNATURE_RE = re.compile(
-    r"t=(?P<ts>\d+),v1=(?P<sig>[A-Fa-f0-9]+)"
-)
+_STRIPE_SIGNATURE_RE = re.compile(r"t=(?P<ts>\d+),v1=(?P<sig>[A-Fa-f0-9]+)")
 
 # GitHub HMAC signature value format: "sha256=<hex>" or "sha1=<hex>"
 _GITHUB_SIGNATURE_RE = re.compile(
@@ -279,9 +275,7 @@ def _parse_discord_timestamp(value: str) -> int | None:
 # ---------------------------------------------------------------------------
 
 
-def _check_signature_present(
-    request: WebhookRequest, scheme: str
-) -> list[WebhookFinding]:
+def _check_signature_present(request: WebhookRequest, scheme: str) -> list[WebhookFinding]:
     if scheme != "unknown":
         return []
     return [
@@ -303,9 +297,7 @@ def _check_signature_present(
     ]
 
 
-def _check_weak_algorithm(
-    request: WebhookRequest, scheme: str
-) -> list[WebhookFinding]:
+def _check_weak_algorithm(request: WebhookRequest, scheme: str) -> list[WebhookFinding]:
     findings: list[WebhookFinding] = []
     headers = _normalize_headers(request.headers)
 
@@ -416,8 +408,7 @@ def _check_replay_protection(
                     severity="HIGH",
                     title="RFC 9421 signature missing `created` parameter",
                     detail=(
-                        "Per RFC 9421 §2.3, `created` SHOULD be present so the "
-                        "verifier can enforce a freshness window."
+                        "Per RFC 9421 §2.3, `created` SHOULD be present so the verifier can enforce a freshness window."
                     ),
                     remediation="Require senders to include `created=` in the Signature header.",
                 )
@@ -444,8 +435,7 @@ def _check_replay_protection(
                         "or major clock drift."
                     ),
                     remediation=(
-                        f"Reject when skew > {max_skew_seconds}s; widen window "
-                        "only if both sides are NTP-attested."
+                        f"Reject when skew > {max_skew_seconds}s; widen window only if both sides are NTP-attested."
                     ),
                 )
             )
@@ -504,8 +494,7 @@ def _check_body_integrity(request: WebhookRequest) -> list[WebhookFinding]:
                 "transformed body will fail silently."
             ),
             remediation=(
-                "Read the raw request body BEFORE any JSON parsing; verify "
-                "signature against those exact bytes."
+                "Read the raw request body BEFORE any JSON parsing; verify signature against those exact bytes."
             ),
         )
     ]
@@ -516,12 +505,10 @@ def _check_body_integrity(request: WebhookRequest) -> list[WebhookFinding]:
 # ---------------------------------------------------------------------------
 
 
-def _verify_stripe(
-    request: WebhookRequest, secret: bytes, ts: int, signature_hex: str
-) -> bool:
+def _verify_stripe(request: WebhookRequest, secret: bytes, ts: int, signature_hex: str) -> bool:
     """Verify a Stripe-style signature: HMAC-SHA256 over `<ts>.<body>`."""
     body = request.canonical_body or request.body
-    signed_payload = f"{ts}.".encode("utf-8") + body
+    signed_payload = f"{ts}.".encode() + body
     digest = hmac.new(secret, signed_payload, hashlib.sha256).hexdigest()
     return hmac.compare_digest(digest.lower(), signature_hex.lower())
 
@@ -664,9 +651,7 @@ def analyze_webhook(
     findings: list[WebhookFinding] = []
     findings.extend(_check_signature_present(request, scheme))
     findings.extend(_check_weak_algorithm(request, scheme))
-    replay_findings, timestamp = _check_replay_protection(
-        request, scheme, max_skew_seconds=max_skew_seconds
-    )
+    replay_findings, timestamp = _check_replay_protection(request, scheme, max_skew_seconds=max_skew_seconds)
     findings.extend(replay_findings)
     findings.extend(_check_unknown_scheme(scheme))
     findings.extend(_check_body_integrity(request))
@@ -689,9 +674,7 @@ def analyze_webhook(
     verified: bool | None = None
     verify_findings: list[WebhookFinding] = []
     if secret or public_key:
-        verified, verify_findings = _attempt_verify(
-            request, scheme, secret=secret, public_key=public_key
-        )
+        verified, verify_findings = _attempt_verify(request, scheme, secret=secret, public_key=public_key)
         findings.extend(verify_findings)
 
     # Header presence flags surfaced for the report.

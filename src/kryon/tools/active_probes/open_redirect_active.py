@@ -184,11 +184,7 @@ def probe_open_redirect_active(
     sess.mount("http://", adapter)
     sess.mount("https://", adapter)
 
-    min_interval = (
-        1.0 / config.rate_limit_per_second
-        if config.rate_limit_per_second > 0
-        else 0.0
-    )
+    min_interval = 1.0 / config.rate_limit_per_second if config.rate_limit_per_second > 0 else 0.0
     last_fetch = 0.0
     attempts: list[ActiveProbeAttempt] = []
     observations: list[RedirectObservation] = []
@@ -201,9 +197,7 @@ def probe_open_redirect_active(
                 time.sleep(wait)
         last_fetch = time.monotonic()
 
-        probe_url = _build_probe_url(
-            config.endpoint_url, config.parameter_name, payload
-        )
+        probe_url = _build_probe_url(config.endpoint_url, config.parameter_name, payload)
         a_start = time.monotonic()
         try:
             resp = sess.get(
@@ -225,9 +219,7 @@ def probe_open_redirect_active(
                         break
             finally:
                 resp.close()
-            body = bytes(buf[: config.max_body_bytes]).decode(
-                resp.encoding or "utf-8", errors="replace"
-            )
+            body = bytes(buf[: config.max_body_bytes]).decode(resp.encoding or "utf-8", errors="replace")
             location = resp.headers.get("Location", "") or ""
             elapsed = time.monotonic() - a_start
             attempts.append(

@@ -58,10 +58,9 @@ from typing import Any
 
 from kryon.brand.ct_monitor import (
     SUSPICIOUS_TLDS,
-    CTCertificate,
     CTRiskAssessment,
 )
-from kryon.brand.typosquat import TyposquatCandidate, TyposquatScanResult
+from kryon.brand.typosquat import TyposquatScanResult
 
 logger = logging.getLogger(__name__)
 
@@ -291,11 +290,7 @@ def _ct_signals_for_domain(
         # subdomain of one (covers wildcard certs too).
         identifiers = [cn] + list(sans)
         if not any(
-            i == d
-            or (i.startswith("*.") and d.endswith("." + i[2:]))
-            or d.endswith("." + i)
-            for i in identifiers
-            if i
+            i == d or (i.startswith("*.") and d.endswith("." + i[2:])) or d.endswith("." + i) for i in identifiers if i
         ):
             continue
         matching += 1
@@ -400,9 +395,7 @@ def aggregate_reputation(
 
     # Now decorate each domain with the cumulative CT signals.
     for domain, entry in domains.items():
-        matching, _, has_cert, has_recent, has_high = _ct_signals_for_domain(
-            domain, ct_assessments
-        )
+        matching, _, has_cert, has_recent, has_high = _ct_signals_for_domain(domain, ct_assessments)
         entry["matching_certs"] = matching
         if has_cert:
             entry["signals"].append(
@@ -445,7 +438,7 @@ def aggregate_reputation(
                 BrandSignal(
                     name="suspicious_tld",
                     delta=SIGNAL_DELTAS["suspicious_tld"],
-                    detail=f"TLD on the abuse-prone list",
+                    detail="TLD on the abuse-prone list",
                 )
             )
         age = whois_ages.get(domain)

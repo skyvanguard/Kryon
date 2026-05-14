@@ -28,28 +28,33 @@ class ThreatScoreResult:
 
 
 # Source-code labels that are NEVER expected from production endpoints
-_SOURCE_LABELS: frozenset[str] = frozenset(
-    {"phpsource", "php", "python", "ruby", "go", "java", "rust"}
-)
+_SOURCE_LABELS: frozenset[str] = frozenset({"phpsource", "php", "python", "ruby", "go", "java", "rust"})
 
 # Executable labels — almost never legit from web responses
-_EXECUTABLE_LABELS: frozenset[str] = frozenset(
-    {"elf", "pe", "macho", "wasm", "dosbinary"}
-)
+_EXECUTABLE_LABELS: frozenset[str] = frozenset({"elf", "pe", "macho", "wasm", "dosbinary"})
 
 # Archive labels — sometimes legit (downloads) but risky in some paths
-_ARCHIVE_LABELS: frozenset[str] = frozenset(
-    {"zip", "gzip", "tar", "7zip", "rar"}
-)
+_ARCHIVE_LABELS: frozenset[str] = frozenset({"zip", "gzip", "tar", "7zip", "rar"})
 
 # Path heuristics: bonus / penalty multipliers
 _UPLOAD_PATH_HINTS: tuple[str, ...] = (
-    "/upload", "/uploads", "/userfiles", "/files/user", "/avatar",
-    "/profile/photo", "/attachments",
+    "/upload",
+    "/uploads",
+    "/userfiles",
+    "/files/user",
+    "/avatar",
+    "/profile/photo",
+    "/attachments",
 )
 _STATIC_PATH_HINTS: tuple[str, ...] = (
-    "/static/", "/assets/", "/public/", "/dist/", "/build/",
-    "/_next/", "/_nuxt/", "/wp-content/uploads/themes/",
+    "/static/",
+    "/assets/",
+    "/public/",
+    "/dist/",
+    "/build/",
+    "/_next/",
+    "/_nuxt/",
+    "/wp-content/uploads/themes/",
 )
 _API_PATH_HINTS: tuple[str, ...] = ("/api/", "/v1/", "/v2/", "/graphql", "/rest/")
 _ADMIN_PATH_HINTS: tuple[str, ...] = ("/admin", "/manage", "/dashboard", "/wp-admin/")

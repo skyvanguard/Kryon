@@ -97,10 +97,10 @@ class Parameter:
 @dataclass(frozen=True)
 class AuthScheme:
     """One security definition. Field set varies by `type`:
-      basic / http   — only name + type + scheme.
-      apiKey         — adds `in_`, `param_name`.
-      oauth2         — adds `flows` (raw dict; F87.4 inspects it).
-      openIdConnect  — adds `openid_url`.
+    basic / http   — only name + type + scheme.
+    apiKey         — adds `in_`, `param_name`.
+    oauth2         — adds `flows` (raw dict; F87.4 inspects it).
+    openIdConnect  — adds `openid_url`.
     """
 
     name: str  # the key under securityDefinitions / components.securitySchemes
@@ -338,11 +338,7 @@ def _parse_endpoint(
     operation-level isn't overridden."""
     op_params_raw = raw_op.get("parameters") or []
     merged_params_raw = list(path_level_params) + list(op_params_raw)
-    parameters = tuple(
-        p
-        for p in (_parse_parameter(rp, doc, unresolved) for rp in merged_params_raw)
-        if p is not None
-    )
+    parameters = tuple(p for p in (_parse_parameter(rp, doc, unresolved) for rp in merged_params_raw) if p is not None)
 
     # security may be present (override) OR absent (inherit). Empty
     # list at operation level means "no auth" — an explicit
@@ -382,9 +378,7 @@ def _parse_endpoint(
     )
 
 
-def _parse_auth_schemes(
-    doc: dict[str, Any], version: OpenAPIVersion
-) -> tuple[AuthScheme, ...]:
+def _parse_auth_schemes(doc: dict[str, Any], version: OpenAPIVersion) -> tuple[AuthScheme, ...]:
     """Pull `securityDefinitions` (Swagger 2) or
     `components.securitySchemes` (OpenAPI 3) into typed AuthSchemes."""
     if version.is_swagger_2:

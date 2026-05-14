@@ -123,10 +123,7 @@ def _fingerprint_for_finding(finding: dict[str, Any]) -> str:
     """Stable fingerprint over (cwe, host, url_shape, probe_id). The
     same finding produced twice yields the same fingerprint so
     GitHub's deduplication recognizes it as one alert across runs."""
-    payload = "|".join(
-        str(finding.get(k, "") or "")
-        for k in ("cwe_id", "host", "url_shape", "probe_id")
-    )
+    payload = "|".join(str(finding.get(k, "") or "") for k in ("cwe_id", "host", "url_shape", "probe_id"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
 
 
@@ -185,7 +182,7 @@ def _build_result(
             "kryon/severity": severity,
         },
     }
-    if (fid := finding.get("id")):
+    if fid := finding.get("id"):
         result["properties"]["kryon/finding_id"] = str(fid)
 
     location = _build_location(finding)

@@ -56,10 +56,7 @@ def _result_to_dict(r: CrawlResult) -> dict[str, Any]:
             }
             for page_url, pairs in r.meta_tags
         ],
-        "errors": [
-            {"url": e.url, "reason": e.reason, "detail": e.detail}
-            for e in r.errors
-        ],
+        "errors": [{"url": e.url, "reason": e.reason, "detail": e.detail} for e in r.errors],
         "stats": {
             "pages_count": len(r.pages),
             "endpoint_count": len(r.endpoints),

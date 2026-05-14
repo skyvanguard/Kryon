@@ -46,7 +46,6 @@ import os
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -149,11 +148,7 @@ def _endpoint_risk(endpoint: Endpoint, id_param: Parameter) -> str:
     """
     if endpoint.deprecated:
         return "low"
-    id_segment_count = sum(
-        1
-        for seg in endpoint.path.split("/")
-        if seg.startswith("{") and seg.endswith("}")
-    )
+    id_segment_count = sum(1 for seg in endpoint.path.split("/") if seg.startswith("{") and seg.endswith("}"))
     if id_segment_count == 1:
         return "high"
     if id_segment_count == 2:
@@ -187,9 +182,7 @@ def plan_probes(
         # disagrees they can manually probe.
         if not endpoint.security:
             continue
-        scheme_names = tuple(
-            sorted({name for entry in endpoint.security for name in entry.keys()})
-        )
+        scheme_names = tuple(sorted({name for entry in endpoint.security for name in entry.keys()}))
         for param in endpoint.parameters:
             if not is_object_leveled_path_param(param):
                 continue
@@ -242,13 +235,13 @@ def _substitute_path(
 
 def _classify_response(status: int, body: str) -> str:
     """Verdict heuristic:
-      - 200 + non-trivial JSON body → leak_confirmed
-      - 200 + empty / one-line body → leak_suspected (could be a stub)
-      - 401 / 403                    → protected
-      - 404                          → ambiguous (could be BOLA via
-                                       enumeration timing)
-      - 5xx                          → error
-      - everything else              → ambiguous
+    - 200 + non-trivial JSON body → leak_confirmed
+    - 200 + empty / one-line body → leak_suspected (could be a stub)
+    - 401 / 403                    → protected
+    - 404                          → ambiguous (could be BOLA via
+                                     enumeration timing)
+    - 5xx                          → error
+    - everything else              → ambiguous
     """
     if 200 <= status < 300:
         # 30 chars is enough for a JSON body with at least one key
@@ -304,10 +297,7 @@ def execute_probe(
             candidate=candidate,
             id_tested=id_to_test,
             verdict="dry_run",
-            notes=(
-                f"would GET {candidate.endpoint_path} with "
-                f"{candidate.path_parameter}={id_to_test!r}"
-            ),
+            notes=(f"would GET {candidate.endpoint_path} with {candidate.path_parameter}={id_to_test!r}"),
         )
 
     url = _substitute_path(base_url, candidate, id_to_test)

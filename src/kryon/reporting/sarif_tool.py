@@ -10,10 +10,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
-from kryon.sdk.agents import function_tool
 from kryon.reporting.sarif import findings_to_sarif, write_sarif
+from kryon.sdk.agents import function_tool
 
 __all__ = ["emit_sarif"]
 

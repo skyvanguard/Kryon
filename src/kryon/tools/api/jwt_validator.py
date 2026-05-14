@@ -43,7 +43,6 @@ from __future__ import annotations
 import base64
 import json
 import logging
-import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -177,9 +176,7 @@ def parse_jwt(token: str) -> JWTToken:
         raise JWTParseError("empty token")
     parts = token.split(".")
     if len(parts) != 3:
-        raise JWTParseError(
-            f"JWT must have 3 dot-separated segments; got {len(parts)}"
-        )
+        raise JWTParseError(f"JWT must have 3 dot-separated segments; got {len(parts)}")
     header_b64, payload_b64, signature_b64 = parts
 
     try:
@@ -255,8 +252,7 @@ def _check_alg(token: JWTToken, allow_hmac_with_pubkey: bool) -> list[JWTFinding
                     "algorithm skip signature verification entirely (CVE-2015-9235)."
                 ),
                 remediation=(
-                    "Hard-code the expected algorithm at the verifier; never trust "
-                    "the alg field from the token header."
+                    "Hard-code the expected algorithm at the verifier; never trust the alg field from the token header."
                 ),
             )
         )
@@ -360,9 +356,7 @@ def _check_temporal_claims(token: JWTToken, leeway_seconds: int = 60) -> list[JW
                 finding_id="JWT-013",
                 severity="MEDIUM",
                 title="Token not yet valid",
-                detail=(
-                    f"nbf={datetime.fromtimestamp(nbf, tz=timezone.utc).isoformat()} is in the future."
-                ),
+                detail=(f"nbf={datetime.fromtimestamp(nbf, tz=timezone.utc).isoformat()} is in the future."),
                 remediation="Check verifier honors nbf; otherwise tokens are valid before their issuer intended.",
             )
         )
@@ -512,8 +506,7 @@ def _check_url_headers(
                         "own JWKS endpoint."
                     ),
                     remediation=(
-                        f"Pin allowed {header_name} hosts to the issuer's published "
-                        "JWKS URL; reject everything else."
+                        f"Pin allowed {header_name} hosts to the issuer's published JWKS URL; reject everything else."
                     ),
                 )
             )
@@ -523,10 +516,7 @@ def _check_url_headers(
                     finding_id="JWT-041",
                     severity="HIGH",
                     title=f"{header_name} host not in trusted list",
-                    detail=(
-                        f"{header_name} points at {host!r} which is not in "
-                        f"trusted_hosts={sorted(trusted)}."
-                    ),
+                    detail=(f"{header_name} points at {host!r} which is not in trusted_hosts={sorted(trusted)}."),
                     remediation=f"Reject tokens whose {header_name} resolves outside the whitelist.",
                 )
             )
@@ -547,8 +537,7 @@ def _check_typ(token: JWTToken) -> list[JWTFinding]:
                 severity="MEDIUM",
                 title="Unusual typ header",
                 detail=(
-                    f"typ={typ!r}; non-JWT typ values can signal nested tokens or "
-                    "smuggling. Confirm intended use."
+                    f"typ={typ!r}; non-JWT typ values can signal nested tokens or smuggling. Confirm intended use."
                 ),
                 remediation="Pin acceptable typ values at the verifier.",
             )
@@ -632,9 +621,7 @@ def analyze_jwt(
     findings.extend(_check_url_headers(token, trusted_hosts=trusted_jku_hosts))
     findings.extend(_check_typ(token))
 
-    claims_present = tuple(sorted(
-        k for k, v in token.payload.items() if _claim_present(v)
-    ))
+    claims_present = tuple(sorted(k for k, v in token.payload.items() if _claim_present(v)))
 
     return JWTAnalysis(
         parsed=True,

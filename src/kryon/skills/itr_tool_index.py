@@ -259,9 +259,7 @@ def is_index_stale(
         return True
     stored_hashes = meta.get("doc_hashes", {})
     current_hashes = {
-        name: _hash_doc(tool_doc_for_index(tool))
-        for name, tool in registry.items()
-        if tool_doc_for_index(tool).strip()
+        name: _hash_doc(tool_doc_for_index(tool)) for name, tool in registry.items() if tool_doc_for_index(tool).strip()
     }
     if set(stored_hashes) != set(current_hashes):
         return True

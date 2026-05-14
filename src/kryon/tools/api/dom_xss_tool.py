@@ -7,7 +7,6 @@ from typing import Any
 
 from kryon.sdk.agents import function_tool
 from kryon.tools.api.dom_xss import (
-    DomXssAnalysis,
     DomXssFinding,
     JsSnippet,
     analyze_dom_xss,

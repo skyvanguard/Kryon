@@ -27,7 +27,6 @@ import time
 from collections import deque
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Iterable
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
@@ -35,7 +34,6 @@ import requests
 from requests.adapters import HTTPAdapter
 
 from kryon.tools.crawler.extractors import (
-    ExtractedForm,
     extract_endpoints_from_js,
     extract_forms_from_html,
     extract_links_from_html,
@@ -149,15 +147,11 @@ def _origin_of(url: str) -> str:
 def _is_html_response(content_type: str) -> bool:
     if not content_type:
         return False
-    return content_type.lower().startswith("text/html") or content_type.lower().startswith(
-        "application/xhtml"
-    )
+    return content_type.lower().startswith("text/html") or content_type.lower().startswith("application/xhtml")
 
 
 def _is_js_response(content_type: str, url: str) -> bool:
-    if content_type and (
-        "javascript" in content_type.lower() or "ecmascript" in content_type.lower()
-    ):
+    if content_type and ("javascript" in content_type.lower() or "ecmascript" in content_type.lower()):
         return True
     return url.lower().endswith((".js", ".mjs"))
 
@@ -385,9 +379,7 @@ class Crawler:
         errors: list[CrawlError] = []
 
         # BFS queue of (url, depth, parent_url)
-        queue: deque[tuple[str, int, str]] = deque(
-            (s, 0, "") for s in self.config.seeds
-        )
+        queue: deque[tuple[str, int, str]] = deque((s, 0, "") for s in self.config.seeds)
 
         def _enqueue_if_new(target: str, depth: int, parent: str) -> None:
             with self._visited_lock:
@@ -398,18 +390,12 @@ class Crawler:
                 self._visited.add(target)
             queue.append((target, depth, parent))
 
-        def _record_endpoint(
-            url: str, source: str, source_page: str
-        ) -> None:
+        def _record_endpoint(url: str, source: str, source_page: str) -> None:
             key = (url, source, source_page)
             if key in endpoints_seen:
                 return
             endpoints_seen.add(key)
-            endpoints.append(
-                DiscoveredEndpoint(
-                    url=url, source=source, source_page=source_page
-                )
-            )
+            endpoints.append(DiscoveredEndpoint(url=url, source=source, source_page=source_page))
 
         # Seed the visited set
         with self._visited_lock:
@@ -427,14 +413,10 @@ class Crawler:
                 for url, depth, parent in batch:
                     in_scope, reason = self._in_scope(url)
                     if not in_scope:
-                        errors.append(
-                            CrawlError(url=url, reason="out-of-scope", detail=reason)
-                        )
+                        errors.append(CrawlError(url=url, reason="out-of-scope", detail=reason))
                         continue
                     if not self._allowed_by_robots(url):
-                        errors.append(
-                            CrawlError(url=url, reason="robots-blocked")
-                        )
+                        errors.append(CrawlError(url=url, reason="robots-blocked"))
                         continue
                     fut = pool.submit(self._fetch, url)
                     future_map[fut] = (url, depth, parent)
@@ -447,13 +429,9 @@ class Crawler:
                     content_type = resp.headers.get("Content-Type", "")
                     raw_body: bytes = getattr(resp, "_kryon_capped_content", b"")
                     body_str: str = ""
-                    if _is_html_response(content_type) or _is_js_response(
-                        content_type, url
-                    ):
+                    if _is_html_response(content_type) or _is_js_response(content_type, url):
                         try:
-                            body_str = raw_body.decode(
-                                resp.encoding or "utf-8", errors="replace"
-                            )
+                            body_str = raw_body.decode(resp.encoding or "utf-8", errors="replace")
                         except Exception:
                             body_str = raw_body.decode("utf-8", errors="replace")
                     pages.append(
@@ -470,17 +448,9 @@ class Crawler:
                     )
 
                     # Only extract links if HTML + 2xx
-                    if (
-                        not _is_html_response(content_type)
-                        or not (200 <= resp.status_code < 300)
-                        or not body_str
-                    ):
+                    if not _is_html_response(content_type) or not (200 <= resp.status_code < 300) or not body_str:
                         # Still extract endpoints from JS bundles
-                        if (
-                            _is_js_response(content_type, url)
-                            and 200 <= resp.status_code < 300
-                            and body_str
-                        ):
+                        if _is_js_response(content_type, url) and 200 <= resp.status_code < 300 and body_str:
                             for ep_url in extract_endpoints_from_js(body_str, url):
                                 _record_endpoint(ep_url, "js-extract", url)
                         continue
@@ -488,9 +458,7 @@ class Crawler:
                     # HTML body — full extraction pass
                     links = extract_links_from_html(body_str, url)
                     for link in links:
-                        _record_endpoint(
-                            link.url, f"html-{link.source_tag}", url
-                        )
+                        _record_endpoint(link.url, f"html-{link.source_tag}", url)
                         # Enqueue navigational links + iframes
                         if link.source_tag in ("a", "iframe") and depth + 1 <= self.config.max_depth:
                             in_scope, _ = self._in_scope(link.url)
@@ -502,10 +470,7 @@ class Crawler:
                         if src not in script_urls_seen:
                             script_urls_seen.add(src)
                             script_urls.append(src)
-                        if (
-                            self.config.fetch_external_js
-                            and depth + 1 <= self.config.max_depth
-                        ):
+                        if self.config.fetch_external_js and depth + 1 <= self.config.max_depth:
                             in_scope, _ = self._in_scope(src)
                             if in_scope:
                                 _enqueue_if_new(src, depth + 1, url)
@@ -525,9 +490,7 @@ class Crawler:
                     # Meta tags
                     metas = extract_meta_tags_from_html(body_str)
                     if metas:
-                        meta_tags.append(
-                            (url, tuple((k, v) for k, v in metas.items()))
-                        )
+                        meta_tags.append((url, tuple((k, v) for k, v in metas.items())))
 
         return CrawlResult(
             pages=tuple(pages),

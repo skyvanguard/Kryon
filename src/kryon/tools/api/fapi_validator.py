@@ -210,9 +210,13 @@ def parse_discovery(doc: dict[str, Any]) -> FAPIDiscovery:
     issuer = str(doc.get("issuer") or "")
     return FAPIDiscovery(
         issuer=issuer,
-        authorization_endpoint=str(doc["authorization_endpoint"]) if isinstance(doc.get("authorization_endpoint"), str) else None,
+        authorization_endpoint=str(doc["authorization_endpoint"])
+        if isinstance(doc.get("authorization_endpoint"), str)
+        else None,
         token_endpoint=str(doc["token_endpoint"]) if isinstance(doc.get("token_endpoint"), str) else None,
-        par_endpoint=str(doc["pushed_authorization_request_endpoint"]) if isinstance(doc.get("pushed_authorization_request_endpoint"), str) else None,
+        par_endpoint=str(doc["pushed_authorization_request_endpoint"])
+        if isinstance(doc.get("pushed_authorization_request_endpoint"), str)
+        else None,
         jwks_uri=str(doc["jwks_uri"]) if isinstance(doc.get("jwks_uri"), str) else None,
         response_types_supported=_str_tuple(doc.get("response_types_supported")),
         response_modes_supported=_str_tuple(doc.get("response_modes_supported")),
@@ -411,8 +415,7 @@ def _check_phishing_resistant_acr(d: FAPIDiscovery) -> FAPICheckResult:
     else:
         status = "fail"
         actual = (
-            f"acr_values_supported={list(d.acr_values_supported)}, "
-            f"amr_values_supported={list(d.amr_values_supported)}"
+            f"acr_values_supported={list(d.acr_values_supported)}, amr_values_supported={list(d.amr_values_supported)}"
         )
     return FAPICheckResult(
         check_id="FAPI-10",
@@ -451,11 +454,7 @@ def validate_fapi_advanced(discovery: FAPIDiscovery) -> FAPIComplianceReport:
     counts: dict[str, int] = {}
     for r in results:
         counts[r.status] = counts.get(r.status, 0) + 1
-    compliant = all(
-        r.status == "pass"
-        for r in results
-        if r.severity in ("CRITICAL", "HIGH")
-    )
+    compliant = all(r.status == "pass" for r in results if r.severity in ("CRITICAL", "HIGH"))
     return FAPIComplianceReport(
         issuer=discovery.issuer,
         profile="fapi_1_advanced",

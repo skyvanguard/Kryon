@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -63,17 +62,12 @@ def _summarize_for_agent(spec: OpenAPISpec) -> dict[str, Any]:
                 "summary": e.summary[:140],
                 "required_params": [p.name for p in e.parameters if p.required],
                 "param_count": len(e.parameters),
-                "security_scheme_names": sorted(
-                    {n for entry in e.security for n in entry.keys()}
-                ),
+                "security_scheme_names": sorted({n for entry in e.security for n in entry.keys()}),
                 "deprecated": e.deprecated,
             }
             for e in spec.endpoints
         ],
-        "auth_schemes": [
-            {"name": s.name, "type": s.type_, "scheme": s.scheme}
-            for s in spec.auth_schemes
-        ],
+        "auth_schemes": [{"name": s.name, "type": s.type_, "scheme": s.scheme} for s in spec.auth_schemes],
         "unresolved_refs": list(spec.unresolved_refs),
     }
 

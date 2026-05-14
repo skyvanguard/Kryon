@@ -14,8 +14,8 @@ from kryon.tools.auth.runner import (
 from kryon.tools.pipeline.pipeline import UnifiedFinding
 from kryon.tools.replay.engine import (
     ReplayConfig,
-    ReplayResult,
     ReplayedFinding,
+    ReplayResult,
     run_replay,
 )
 
@@ -66,10 +66,7 @@ def _parse_findings(raw: list) -> list[UnifiedFinding]:
                 remediation=str(entry.get("remediation") or ""),
                 source_module=str(entry.get("source_module") or ""),
                 target=str(entry.get("target") or ""),
-                extra=tuple(
-                    (str(k), str(v))
-                    for k, v in (entry.get("extra") or {}).items()
-                ),
+                extra=tuple((str(k), str(v)) for k, v in (entry.get("extra") or {}).items()),
             )
         )
     return findings
@@ -90,11 +87,7 @@ def _parse_auth_flow(doc: dict) -> AuthFlowConfig | None:
     if not isinstance(sig_doc, dict):
         sig_doc = {}
     sig = AuthSuccessSignal(
-        expected_status=(
-            int(sig_doc["expected_status"])
-            if sig_doc.get("expected_status") is not None
-            else None
-        ),
+        expected_status=(int(sig_doc["expected_status"]) if sig_doc.get("expected_status") is not None else None),
         expected_cookie_name=str(sig_doc.get("expected_cookie_name") or ""),
         expected_body_substring=str(sig_doc.get("expected_body_substring") or ""),
         expected_redirect_path=str(sig_doc.get("expected_redirect_path") or ""),

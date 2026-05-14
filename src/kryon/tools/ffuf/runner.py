@@ -397,7 +397,9 @@ def parse_ffuf_json(json_text: str) -> list[FfufHit]:
         hits.append(
             FfufHit(
                 url=str(r.get("url") or ""),
-                input=str((r.get("input") or {}).get("FUZZ") or "") if isinstance(r.get("input"), dict) else str(r.get("input") or ""),
+                input=str((r.get("input") or {}).get("FUZZ") or "")
+                if isinstance(r.get("input"), dict)
+                else str(r.get("input") or ""),
                 http_status=int(r.get("status") or 0),
                 content_length=int(r.get("length") or 0),
                 content_words=int(r.get("words") or 0),
@@ -485,7 +487,7 @@ def run_ffuf(config: FfufConfig) -> FfufResult:
     json_text = ""
     try:
         if os.path.isfile(out_path):
-            with open(out_path, "r", encoding="utf-8", errors="replace") as fh:
+            with open(out_path, encoding="utf-8", errors="replace") as fh:
                 json_text = fh.read()
     finally:
         try:

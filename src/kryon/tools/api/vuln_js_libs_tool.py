@@ -7,7 +7,6 @@ from typing import Any
 
 from kryon.sdk.agents import function_tool
 from kryon.tools.api.vuln_js_libs import (
-    JSLibAnalysis,
     JSLibFinding,
     ScriptObservation,
     analyze_scripts,

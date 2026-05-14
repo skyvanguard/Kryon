@@ -112,9 +112,7 @@ def verdict_for(record: RetestRecord, current: CurrentResponse) -> RetestVerdict
             status_changed=False,
         )
 
-    body_changed = bool(record.original_body_sha256) and (
-        current.body_sha256 != record.original_body_sha256
-    )
+    body_changed = bool(record.original_body_sha256) and (current.body_sha256 != record.original_body_sha256)
     status_changed = current.http_status != record.original_http_status
 
     # 2 — byte-equivalent reproduction → still open.
