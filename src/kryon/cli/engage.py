@@ -739,6 +739,11 @@ def _invoke_orchestrated_engagement(
         from kryon.agents import get_agent_by_name
         from kryon.sdk.agents.run import Runner
         from kryon.tools.autonomous.pentest_planner import PentestPlanner, PhaseStatus
+        from kryon.tools.autonomous.phase_evaluator import (
+            PhaseVerdict,
+            cascade_skip_dependents,
+            evaluate_phase,
+        )
     except Exception as exc:  # pragma: no cover
         console.print(f"  [dim]orchestrated path skipped: {exc}[/dim]")
         return [], []
@@ -760,9 +765,12 @@ def _invoke_orchestrated_engagement(
     summary_lines: list[str] = []
     new_findings: list[Finding] = []
 
+    eval_enabled = os.environ.get("KRYON_PHASE_EVAL_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+    retry_max = max(0, int(os.environ.get("KRYON_PHASE_EVAL_RETRY_MAX", "1")))
+
     import asyncio
 
-    async def _run_phase(phase) -> str:
+    async def _run_phase(phase, extra_hint: str = "") -> str:
         max_turns = int(os.environ.get("KRYON_AGENT_MAX_TURNS", str(phase.max_turns)))
         preamble = _phase_preamble(
             phase.name,
@@ -771,6 +779,8 @@ def _invoke_orchestrated_engagement(
             families=families,
             findings=findings + new_findings,
         )
+        if extra_hint:
+            preamble = f"{preamble}\n\nRetry hint: {extra_hint}"
         result = await Runner.run(agent, preamble, max_turns=max_turns)
         return getattr(result, "final_output", "") or ""
 
@@ -780,6 +790,7 @@ def _invoke_orchestrated_engagement(
             continue
         phase.status = PhaseStatus.RUNNING
         phase.findings_before = len(findings) + len(new_findings)
+        phase_findings_before = list(findings) + list(new_findings)
         try:
             console.print(f"  [cyan]▸[/cyan] phase: {phase.name}")
             text = asyncio.run(_run_phase(phase))
@@ -793,6 +804,46 @@ def _invoke_orchestrated_engagement(
             new_findings.extend(parsed)
         phase.status = PhaseStatus.COMPLETED
         phase.findings_after = len(findings) + len(new_findings)
+
+        # F117 meta-evaluation: classify the phase, retry on PARTIAL,
+        # cascade-skip dependents on BARREN.
+        if eval_enabled:
+            phase_findings_after = list(findings) + list(new_findings)
+            evaluation = evaluate_phase(phase, phase_findings_before, phase_findings_after)
+            verdict_color = {
+                PhaseVerdict.USEFUL: "green",
+                PhaseVerdict.PARTIAL: "yellow",
+                PhaseVerdict.BARREN: "red",
+                PhaseVerdict.INCONCLUSIVE: "dim",
+            }[evaluation.verdict]
+            console.print(
+                f"  [dim]eval[/dim] [{verdict_color}]{evaluation.verdict.value}[/{verdict_color}] "
+                f"[dim]Δ={evaluation.delta_findings} crit/high={evaluation.delta_critical_high} "
+                f"reason={evaluation.reasoning}[/dim]"
+            )
+
+            if evaluation.recommend_retry and retry_max > 0:
+                hint = f"missed expected signatures: {', '.join(evaluation.expected_sigs_missed)}"
+                console.print(f"  [yellow]↻[/yellow] retry phase '{phase.name}' with sharper preamble")
+                try:
+                    retry_text = asyncio.run(_run_phase(phase, extra_hint=hint))
+                except Exception as exc:  # pragma: no cover
+                    console.print(f"  [yellow]retry of '{phase.name}' failed: {exc}[/yellow]")
+                else:
+                    if retry_text:
+                        summary_lines.append(f"[{phase.name}*] {retry_text.strip()[:500]}")
+                        retry_parsed = _parse_agent_findings(retry_text, target_host=target)
+                        new_findings.extend(retry_parsed)
+                        phase.findings_after = len(findings) + len(new_findings)
+
+            if evaluation.skip_dependents:
+                cascaded = cascade_skip_dependents(plan, phase.name)
+                if cascaded:
+                    console.print(
+                        f"  [red]✕[/red] [dim]skipped {cascaded} dependent phase(s) "
+                        f"(gating phase '{phase.name}' was BARREN)[/dim]"
+                    )
+
         # Re-adapt the plan with the new findings so downstream phases
         # can react to evidence discovered just now.
         plan = planner.adapt_plan(plan, findings + new_findings)
