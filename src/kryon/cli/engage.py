@@ -748,6 +748,12 @@ def _phase_preamble(phase_name: str, *, target: str, scope: str, families: list[
         findings_count=len(findings),
         findings_summary=findings_summary,
     )
+    # F159 — Activate Qwen3 dense thinking mode (kryon-14b). The
+    # ``/think`` token must be the FIRST line of the user message for
+    # Qwen3 to emit <think>...</think> reasoning blocks. F150 strips
+    # the tags before parsing, F152 grounding still applies post-think.
+    if os.environ.get("KRYON_DEEP_REASONING", "").strip().lower() in {"1", "true", "yes", "on"}:
+        rendered = "/think\n\n" + rendered
     # F150 — R1-tolerant output contract. Tell the model exactly what
     # shape we want at the end, with a concrete example. This stays
     # short so it doesn't dominate the prompt budget but it's enough
@@ -1353,11 +1359,17 @@ def run_engage(args: argparse.Namespace) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     engagement_id = args.engagement_id or (f"engagement-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M')}")
 
+    # F159 — Surface --deep-reasoning into env so the policy gate
+    # (F153) and the phase preamble both see it. Operator's explicit
+    # env value wins.
+    if getattr(args, "deep_reasoning", False):
+        os.environ.setdefault("KRYON_DEEP_REASONING", "true")
+
     # F153 — Pre-flight policy gate. Resolve the active policy
     # (model + temperature + strict/grounding/cve/redact gates),
     # auto-enable strict + grounding when the model is a reasoning
-    # variant, and surface the banner so the operator sees exactly
-    # what they're about to run.
+    # variant (or when --deep-reasoning is set), and surface the
+    # banner so the operator sees exactly what they're about to run.
     try:
         from kryon.policy import apply_policy_to_env, resolve_policy
 
@@ -1909,6 +1921,17 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
         default=0,
         help="Skip the run if this target was already scanned in the last N minutes "
         "(reuses the previous findings.json). 0 (default) disables the check.",
+    )
+    # F159 — Activate Qwen3 dense's opt-in thinking mode on base
+    # instruct models (kryon-14b). The preamble prepends ``/think`` and
+    # the policy gate (F153) auto-enables strict + grounding.
+    p.add_argument(
+        "--deep-reasoning",
+        action="store_true",
+        help="F159 — Activate Qwen3 /think mode (chain-of-thought) on the base "
+        "instruct model. Slower per phase but produces auditable reasoning and "
+        "auto-enables F148 adversarial-strict + F152 grounding. KRYON_DEEP_REASONING "
+        "env also works.",
     )
     # F136 — Checkpoint + resume. When --resume is set, the orchestrator
     # loads the saved checkpoint for that engagement_id and continues

@@ -40,9 +40,22 @@ class EngagementPolicy:
     require_grounding: bool
     redact_pan: bool
     reasoning_model: bool
+    # F159 — Qwen3 dense (kryon-14b) supports opt-in thinking mode via
+    # the ``/think`` token in the preamble. When the operator sets
+    # KRYON_DEEP_REASONING=true (or passes --deep-reasoning), the
+    # orchestrator injects ``/think`` and the preflight gate treats
+    # the run as reasoning-active for downstream strictness defaults.
+    deep_reasoning: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+    @property
+    def reasoning_active(self) -> bool:
+        """True when this engagement should emit chain-of-thought —
+        either because the model itself is reasoning-class (R1 distill)
+        or because the operator opted in via deep_reasoning."""
+        return self.reasoning_model or self.deep_reasoning
 
     def banner(self) -> str:
         """One-line summary suitable for the engagement banner."""
@@ -54,8 +67,12 @@ class EngagementPolicy:
             f"grounding={'on' if self.require_grounding else 'off'}",
             f"redact_pan={'on' if self.redact_pan else 'off'}",
         ]
+        # Insert reasoning label right after the model name so the
+        # operator sees the run mode at a glance.
         if self.reasoning_model:
             parts.insert(1, "(reasoning)")
+        elif self.deep_reasoning:
+            parts.insert(1, "(deep-reasoning)")
         return "Policy: " + " ".join(parts)
 
 
@@ -113,16 +130,22 @@ def resolve_policy() -> EngagementPolicy:
     model = os.environ.get("KRYON_MODEL", "kryon-14b").strip()
     reasoning = is_reasoning_model(model)
 
+    # F159 — Opt-in deep reasoning. ``KRYON_DEEP_REASONING=true`` makes
+    # any base instruct model (Qwen3 dense / kryon-14b) emit chain-of-
+    # thought via the ``/think`` token. Auto-on strict + grounding the
+    # same way reasoning-class models do.
+    deep_reasoning, _ = _env_bool("KRYON_DEEP_REASONING", default=False)
+    reasoning_active = reasoning or deep_reasoning
+
     temperature = _env_float("KRYON_LLM_TEMPERATURE", 0.0)
 
-    strict_default = reasoning  # auto-on for R1
+    strict_default = reasoning_active
     adversarial_strict, _ = _env_bool("KRYON_ADVERSARIAL_STRICT", default=strict_default)
 
     cve_validate, _ = _env_bool("KRYON_CVE_VALIDATE", default=True)
     cve_cache_required, _ = _env_bool("KRYON_CVE_CACHE_REQUIRED", default=False)
 
-    # Grounding is conservative: only auto-on for reasoning models.
-    grounding_default = reasoning
+    grounding_default = reasoning_active
     require_grounding, _ = _env_bool("KRYON_REQUIRE_GROUNDING", default=grounding_default)
 
     redact_pan, _ = _env_bool("KRYON_REDACT_PAN", default=True)
@@ -136,6 +159,7 @@ def resolve_policy() -> EngagementPolicy:
         require_grounding=require_grounding,
         redact_pan=redact_pan,
         reasoning_model=reasoning,
+        deep_reasoning=deep_reasoning,
     )
 
 
@@ -151,3 +175,4 @@ def apply_policy_to_env(policy: EngagementPolicy) -> None:
     os.environ.setdefault("KRYON_CVE_CACHE_REQUIRED", "true" if policy.cve_cache_required else "false")
     os.environ.setdefault("KRYON_REQUIRE_GROUNDING", "true" if policy.require_grounding else "false")
     os.environ.setdefault("KRYON_REDACT_PAN", "true" if policy.redact_pan else "false")
+    os.environ.setdefault("KRYON_DEEP_REASONING", "true" if policy.deep_reasoning else "false")

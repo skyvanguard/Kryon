@@ -210,3 +210,55 @@ def test_apply_policy_does_not_overwrite_existing_env(monkeypatch):
 
     # Operator's explicit "false" survives.
     assert os.environ["KRYON_ADVERSARIAL_STRICT"] == "false"
+
+
+# ---------------------------------------------------------------------------
+# F159 — Deep reasoning mode (Qwen3 /think for instruct base models)
+# ---------------------------------------------------------------------------
+
+
+def test_deep_reasoning_via_env_flips_strict_and_grounding(monkeypatch):
+    """KRYON_DEEP_REASONING=true on an instruct base model should
+    auto-on strict + grounding the same way reasoning-class models do."""
+    monkeypatch.setenv("KRYON_MODEL", "kryon-14b")
+    monkeypatch.setenv("KRYON_DEEP_REASONING", "true")
+    p = resolve_policy()
+    assert p.deep_reasoning is True
+    assert p.reasoning_active is True
+    assert p.adversarial_strict is True
+    assert p.require_grounding is True
+
+
+def test_deep_reasoning_default_off(monkeypatch):
+    monkeypatch.setenv("KRYON_MODEL", "kryon-14b")
+    monkeypatch.delenv("KRYON_DEEP_REASONING", raising=False)
+    p = resolve_policy()
+    assert p.deep_reasoning is False
+    assert p.reasoning_active is False
+    assert p.adversarial_strict is False
+
+
+def test_reasoning_active_true_for_r1_even_without_deep_flag(monkeypatch):
+    """R1 distill is always-thinking — reasoning_active True regardless."""
+    monkeypatch.setenv("KRYON_MODEL", "kryon-r1-14b")
+    monkeypatch.delenv("KRYON_DEEP_REASONING", raising=False)
+    p = resolve_policy()
+    assert p.reasoning_model is True
+    assert p.reasoning_active is True
+
+
+def test_banner_shows_deep_reasoning_label():
+    p = EngagementPolicy(
+        model="kryon-14b",
+        temperature=0.0,
+        adversarial_strict=True,
+        cve_validate=True,
+        cve_cache_required=False,
+        require_grounding=True,
+        redact_pan=True,
+        reasoning_model=False,
+        deep_reasoning=True,
+    )
+    banner = p.banner()
+    assert "(deep-reasoning)" in banner
+    assert "kryon-14b" in banner
