@@ -2194,6 +2194,16 @@ def main():
 
     add_audit_summary_subparser(subparsers)
 
+    # --- schedule subcommand (F135) — scheduled engagements ---
+    from kryon.cli.schedule_cmd import add_schedule_subparser
+
+    add_schedule_subparser(subparsers)
+
+    # --- learn subcommand (F138) — auto-promote drafts ---
+    from kryon.cli.learn_cmd import add_learn_subparser
+
+    add_learn_subparser(subparsers)
+
     # --- default (REPL) arguments ---
     parser.add_argument(
         "prompt",
@@ -2274,6 +2284,16 @@ def main():
         from kryon.cli.audit_summary import run_audit_summary
 
         sys.exit(run_audit_summary(args))
+
+    if args.command == "schedule":
+        from kryon.cli.schedule_cmd import run_schedule_command
+
+        sys.exit(run_schedule_command(args))
+
+    if args.command == "learn":
+        from kryon.cli.learn_cmd import run_learn_command
+
+        sys.exit(run_learn_command(args))
 
     if args.command == "report":
         import asyncio

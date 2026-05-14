@@ -796,6 +796,7 @@ def _invoke_orchestrated_engagement(
         from kryon.agents import get_agent_by_name
         from kryon.audit.action_log import ActionLog, clear_active_log, default_log_path, set_active_log
         from kryon.sdk.agents.run import Runner
+        from kryon.state.checkpoint import build_checkpoint, delete_checkpoint, save_checkpoint
         from kryon.tools.autonomous.engagement_goal import GoalEvaluator
         from kryon.tools.autonomous.pentest_planner import PentestPlanner, PhaseStatus
         from kryon.tools.autonomous.phase_evaluator import (
@@ -808,7 +809,7 @@ def _invoke_orchestrated_engagement(
         )
     except Exception as exc:  # pragma: no cover
         console.print(f"  [dim]orchestrated path skipped: {exc}[/dim]")
-        return [], []
+        return [], [], None
 
     os.environ["KRYON_AGENT_TYPE"] = "kryon"
     try:
@@ -981,6 +982,25 @@ def _invoke_orchestrated_engagement(
             status="ok",
         )
 
+        # F136 — Checkpoint snapshot after every phase. If the process
+        # crashes between here and the next phase, --resume can pick up
+        # from this point without re-running the work just completed.
+        try:
+            save_checkpoint(
+                build_checkpoint(
+                    engagement_id=engagement_id,
+                    target=target,
+                    scope=scope,
+                    families=families,
+                    plan_phases=plan.phases,
+                    findings=findings,
+                    new_findings=new_findings,
+                    goal=goal,
+                )
+            )
+        except Exception as exc:  # pragma: no cover
+            console.print(f"  [dim]checkpoint save skipped: {exc}[/dim]")
+
         # F117 meta-evaluation: classify the phase, retry on PARTIAL,
         # cascade-skip dependents on BARREN.
         if eval_enabled:
@@ -1104,6 +1124,14 @@ def _invoke_orchestrated_engagement(
             "evidence_count": len(final_progress.evidence),
             "circuit_breaker_tripped": circuit_breaker_tripped,
         }
+
+    # F136 — Engagement completed cleanly; remove the checkpoint so it
+    # doesn't accumulate disk noise. Resume only makes sense for
+    # interrupted runs.
+    try:
+        delete_checkpoint(engagement_id)
+    except Exception:  # pragma: no cover
+        pass
 
     return summary_lines, new_findings, verdict_info
 
@@ -1311,6 +1339,34 @@ def run_engage(args: argparse.Namespace) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     engagement_id = args.engagement_id or (f"engagement-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M')}")
 
+    # F136 — Resume from checkpoint. When --resume <eng_id> is set, the
+    # orchestrator re-uses the saved findings + plan state and skips
+    # Phase 1 (nmap) + Phase 2 (deterministic checks). Goal-driven
+    # plan adaptation already ran the first time; on resume we trust
+    # the previous plan and pick up at the first PENDING phase.
+    resumed_checkpoint = None
+    if getattr(args, "resume", ""):
+        try:
+            from kryon.state.checkpoint import load_checkpoint
+
+            resumed_checkpoint = load_checkpoint(args.resume)
+            if resumed_checkpoint is None:
+                console.print(f"[red]--resume {args.resume}: checkpoint not found[/red]")
+                return 2
+            console.print(
+                f"[cyan]↻ resume[/cyan] engagement_id={resumed_checkpoint.engagement_id} "
+                f"target={resumed_checkpoint.target} ({len(resumed_checkpoint.findings)} findings, "
+                f"first pending phase: {resumed_checkpoint.first_pending_phase_index()})"
+            )
+            # Carry forward target/scope/engagement_id from the checkpoint
+            # so we don't second-guess the original engagement.
+            target = resumed_checkpoint.target
+            scope = resumed_checkpoint.scope or target
+            engagement_id = resumed_checkpoint.engagement_id
+        except Exception as exc:  # pragma: no cover
+            console.print(f"[red]--resume failed: {exc}[/red]")
+            return 2
+
     # F132 — Engagement deduplication. Skip the run entirely if the
     # operator passed --no-recent N and the last run against this target
     # finished less than N minutes ago. Logs the dedup hit so the
@@ -1364,17 +1420,47 @@ def run_engage(args: argparse.Namespace) -> int:
         )
 
     # --- Phase 1: discovery -----------------------------------------------
-    _banner(console, f"Fase 1 — descubrimiento ({target})")
-    xml = _run_nmap(target, timeout_s=args.nmap_timeout)
-    services = _parse_nmap_xml(xml, target)
-    open_svcs = [s for s in services if s.state == "open"]
-    console.print(f"  [green]{len(open_svcs)}[/green] puertos abiertos en {target}")
-    for s in open_svcs[:10]:
-        console.print(f"    {s.port:>5}/{s.state}  {s.service} {s.product or ''} {s.version or ''}")
+    # F136 — On --resume we trust the checkpoint and skip nmap + Phase 2
+    # deterministic checks. Findings are seeded from the saved snapshot.
+    open_svcs: list[DiscoveredService] = []
+    findings: list[Finding] = []
+    if resumed_checkpoint is not None:
+        _banner(console, "Fase 1 — RESUMED (skipping nmap, seeding from checkpoint)")
+        # Re-hydrate findings from the checkpoint as plain dataclass instances.
+        for f in resumed_checkpoint.findings:
+            if isinstance(f, dict):
+                try:
+                    findings.append(
+                        Finding(
+                            cwe=str(f.get("cwe", "CWE-0")),
+                            severity=str(f.get("severity", "INFO")),
+                            host=str(f.get("host", target)),
+                            rule_id=str(f.get("rule_id", "agent-finding")),
+                            message=str(f.get("message", "")),
+                            evidence=str(f.get("evidence", "")),
+                            remediation=str(f.get("remediation", "")),
+                            severity_rank=_SEV_RANK.get(str(f.get("severity", "INFO")).upper(), 99),
+                            confidence=float(f.get("confidence", 1.0) or 1.0),
+                            needs_verification=bool(f.get("needs_verification", False)),
+                        )
+                    )
+                except (KeyError, ValueError, TypeError):
+                    continue
+        console.print(f"  [green]✓[/green] resumed with {len(findings)} findings from checkpoint")
+    else:
+        _banner(console, f"Fase 1 — descubrimiento ({target})")
+        xml = _run_nmap(target, timeout_s=args.nmap_timeout)
+        services = _parse_nmap_xml(xml, target)
+        open_svcs = [s for s in services if s.state == "open"]
+        console.print(f"  [green]{len(open_svcs)}[/green] puertos abiertos en {target}")
+        for s in open_svcs[:10]:
+            console.print(f"    {s.port:>5}/{s.state}  {s.service} {s.product or ''} {s.version or ''}")
 
     # --- Phase 2: service checks ------------------------------------------
-    _banner(console, "Fase 2 — evaluación por servicio")
-    findings: list[Finding] = []
+    if resumed_checkpoint is not None:
+        _banner(console, "Fase 2 — RESUMED (skipping deterministic checks; using checkpoint findings)")
+    else:
+        _banner(console, "Fase 2 — evaluación por servicio")
     for svc in open_svcs:
         if svc.service in ("http", "http-proxy", "https") or svc.port in (80, 443, 8080, 8443):
             findings.extend(_check_http(svc))
@@ -1693,6 +1779,31 @@ def run_engage(args: argparse.Namespace) -> int:
     except Exception as exc:  # pragma: no cover
         console.print(f"  [dim]state write skipped: {exc}[/dim]")
 
+    # F137 — Auto-ticket-on-engage. The default provider is Noop so this
+    # is safe-by-default: only when KRYON_TICKET_PROVIDER is explicitly
+    # set (jira/linear/github) and the matching creds env vars are
+    # populated does this actually file tickets.
+    try:
+        from kryon.tickets.routing import create_tickets_for_findings
+
+        tickets = create_tickets_for_findings(findings, engagement_id=engagement_id)
+        if tickets:
+            opened = [t for t in tickets if t.ok and not t.dry_run]
+            dry = [t for t in tickets if t.dry_run]
+            errored = [t for t in tickets if not t.ok]
+            if opened:
+                console.print(f"  [green]✓[/green] opened {len(opened)} ticket(s):")
+                for t in opened[:10]:
+                    console.print(f"      [green]{t.provider}[/green] {t.ticket_id} {t.url}".rstrip())
+            if dry:
+                console.print(
+                    f"  [dim]ticket dry-run: {len(dry)} finding(s) would open tickets (provider={dry[0].provider})[/dim]"
+                )
+            if errored:
+                console.print(f"  [yellow]⚠[/yellow] {len(errored)} ticket creation(s) failed")
+    except Exception as exc:  # pragma: no cover
+        console.print(f"  [dim]ticket integration skipped: {exc}[/dim]")
+
     return 0
 
 
@@ -1754,6 +1865,15 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
         default=0,
         help="Skip the run if this target was already scanned in the last N minutes "
         "(reuses the previous findings.json). 0 (default) disables the check.",
+    )
+    # F136 — Checkpoint + resume. When --resume is set, the orchestrator
+    # loads the saved checkpoint for that engagement_id and continues
+    # from the first PENDING phase instead of starting over.
+    p.add_argument(
+        "--resume",
+        default="",
+        help="Resume a previously interrupted engagement by ID. The checkpoint must "
+        "exist at .kryon/checkpoints/<engagement_id>.json (or KRYON_CHECKPOINT_PATH/...).",
     )
     # F118 — Goal-directed reasoning. The operator declares what success
     # looks like; the orchestrator terminates early on satisfaction and
