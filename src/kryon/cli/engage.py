@@ -494,6 +494,7 @@ def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
         return []
 
     from kryon.redaction.pan_redactor import redact_sensitive
+    from kryon.validation.cve_validator import validate_finding_cve
 
     out: list[Finding] = []
     for item in items:
@@ -504,6 +505,13 @@ def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
             continue
         msg = str(item.get("message") or item.get("finding") or "").strip()
         if not msg:
+            continue
+        # F151 — drop findings whose rule_id looks like a CVE but
+        # fails format/year/cache validation. Catches LLM-invented
+        # CVE IDs that survived the F150 parser.
+        cve_ok, cve_reason = validate_finding_cve(item)
+        if not cve_ok:
+            logger.warning("F151 dropped LLM finding: %s", cve_reason)
             continue
         # F119 — Redact PAN/CVV/PY-ID before persisting into a Finding.
         # The agent may have echoed sensitive data from a response body
@@ -752,7 +760,16 @@ def _phase_preamble(phase_name: str, *, target: str, scope: str, families: list[
         'LOW|INFO", "host": "...", "rule_id": "...", "message": "...", '
         '"evidence": "...", "remediation": "..."}]. Emit [] if there are '
         "no findings. Tool-call JSON does NOT count as a finding. "
-        "<think>...</think> blocks are accepted; the parser strips them."
+        "<think>...</think> blocks are accepted; the parser strips them.\n"
+        "F152 — In the ``evidence`` field, ALWAYS cite the concrete tool "
+        "output that backs the finding: include the literal ``call_id: <id>`` "
+        "or ``step <N>`` or ``según output de <tool>``. Findings without a "
+        "tool citation will be flagged as needs_verification and may be "
+        "dropped under banca-safe mode.\n"
+        "F151 — If ``rule_id`` is a CVE, use the real published format "
+        "(CVE-YYYY-NNNN with a plausible year). Invented CVE IDs will be "
+        "dropped by the validator. Prefer non-CVE rule_ids when you don't "
+        "have a verified upstream CVE reference."
     )
     return rendered
 
@@ -1336,6 +1353,20 @@ def run_engage(args: argparse.Namespace) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     engagement_id = args.engagement_id or (f"engagement-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M')}")
 
+    # F153 — Pre-flight policy gate. Resolve the active policy
+    # (model + temperature + strict/grounding/cve/redact gates),
+    # auto-enable strict + grounding when the model is a reasoning
+    # variant, and surface the banner so the operator sees exactly
+    # what they're about to run.
+    try:
+        from kryon.policy import apply_policy_to_env, resolve_policy
+
+        _preflight_policy = resolve_policy()
+        apply_policy_to_env(_preflight_policy)
+        console.print(f"[bold cyan]▸[/bold cyan] {_preflight_policy.banner()}")
+    except Exception as exc:  # pragma: no cover
+        console.print(f"[dim]policy gate skipped: {exc}[/dim]")
+
     # F136 — Resume from checkpoint. When --resume <eng_id> is set, the
     # orchestrator re-uses the saved findings + plan state and skips
     # Phase 1 (nmap) + Phase 2 (deterministic checks). Goal-driven
@@ -1567,6 +1598,22 @@ def run_engage(args: argparse.Namespace) -> int:
             console.print(f"  [yellow]⚠[/yellow] {needs_review} finding(s) marked needs_verification")
     except Exception as exc:  # pragma: no cover
         console.print(f"  [dim]confidence scoring skipped: {exc}[/dim]")
+
+    # F152 — Tool-output grounding. Findings whose narration doesn't
+    # cite a concrete tool output (call_id, step N, "según output de X")
+    # get their confidence capped + flagged for verification. Auto-on
+    # for reasoning models via F153 (KRYON_REQUIRE_GROUNDING).
+    try:
+        from kryon.validation.grounding import apply_grounding
+
+        penalised = apply_grounding(findings)
+        if penalised:
+            console.print(
+                f"  [yellow]⚠[/yellow] {penalised} finding(s) penalised by F152 grounding "
+                "(no tool citation in narration)"
+            )
+    except Exception as exc:  # pragma: no cover
+        console.print(f"  [dim]grounding check skipped: {exc}[/dim]")
 
     # F133 — Compute baseline diff against previous engagement state.
     baseline_diff = None

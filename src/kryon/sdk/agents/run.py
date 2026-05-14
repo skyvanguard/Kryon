@@ -784,6 +784,21 @@ class Runner:
         model = cls._get_model(agent, run_config)
         model_settings = agent.model_settings.resolve(run_config.model_settings)
         model_settings = RunImpl.maybe_reset_tool_choice(agent, tool_use_tracker, model_settings)
+        # F155 — Default LLM temperature from env. Lower temperature
+        # reduces hallucinations (R1 distill especially) at the cost
+        # of creativity. Banca-safe default is 0.0; can be overridden
+        # per-run via KRYON_LLM_TEMPERATURE or per-agent via the
+        # ``model_settings.temperature`` field. Only set when the
+        # caller hasn't already specified one.
+        if model_settings.temperature is None:
+            env_temp = os.environ.get("KRYON_LLM_TEMPERATURE", "").strip()
+            if env_temp:
+                try:
+                    model_settings.temperature = float(env_temp)
+                except ValueError:
+                    pass
+            else:
+                model_settings.temperature = 0.0
 
         # Ensure agent model is set in model_settings for streaming mode
         if not hasattr(model_settings, "agent_model") or not model_settings.agent_model:
@@ -1069,6 +1084,21 @@ class Runner:
         model = cls._get_model(agent, run_config)
         model_settings = agent.model_settings.resolve(run_config.model_settings)
         model_settings = RunImpl.maybe_reset_tool_choice(agent, tool_use_tracker, model_settings)
+        # F155 — Default LLM temperature from env. Lower temperature
+        # reduces hallucinations (R1 distill especially) at the cost
+        # of creativity. Banca-safe default is 0.0; can be overridden
+        # per-run via KRYON_LLM_TEMPERATURE or per-agent via the
+        # ``model_settings.temperature`` field. Only set when the
+        # caller hasn't already specified one.
+        if model_settings.temperature is None:
+            env_temp = os.environ.get("KRYON_LLM_TEMPERATURE", "").strip()
+            if env_temp:
+                try:
+                    model_settings.temperature = float(env_temp)
+                except ValueError:
+                    pass
+            else:
+                model_settings.temperature = 0.0
 
         # Ensure agent model is set in model_settings
         if not hasattr(model_settings, "agent_model") or not model_settings.agent_model:
