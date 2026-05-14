@@ -689,6 +689,43 @@ _PHASE_PREAMBLES: dict[str, str] = {
         "business impact, (2) patterns and tendencies, (3) "
         "prioritised recommendation. NO new findings — narrative only."
     ),
+    # F128 — Goal-aware phases. Preambles below tell the LLM what to
+    # produce when the orchestrator injected one of these phases in
+    # response to the declared --objective.
+    "compliance_audit": (
+        "Phase: compliance audit (goal-driven). Target {target}. "
+        "The operator declared a COMPLIANCE goal — verify framework "
+        "controls against the running services. Look for: missing "
+        "security headers, weak TLS, default credentials, exposed "
+        "admin panels, audit-log gaps. Tag findings with the "
+        "framework's control prefix (PCI-DSS-x.y, HIPAA-x.y, etc) "
+        "so the goal evaluator picks them up. Emit JSON findings."
+    ),
+    "web_vuln_scan": (
+        "Phase: web vulnerability scan (goal-driven). Target {target}. "
+        "The operator declared a VULN_SEARCH goal with web-class "
+        "vuln types. Run nuclei web templates, fuzz parameters, look "
+        "for SQLi/XSS/RCE/SSRF/path-traversal. Read-only payloads "
+        "only — no destructive write attempts. Emit JSON findings "
+        "tagged with the vuln class in rule_id (e.g. WEB-SQLi-001)."
+    ),
+    "tech_fingerprint": (
+        "Phase: technology fingerprinting (goal-driven). Target "
+        "{target}. The operator declared a RECON goal — enumerate "
+        "every framework / library / server stack reachable on "
+        "this host. Use whatweb, http response headers, JS asset "
+        "comments, exposed paths. Emit JSON findings naming each "
+        "tech (rule_id=tech-<name>, message includes version when "
+        "detected)."
+    ),
+    "endpoint_discovery": (
+        "Phase: endpoint discovery (goal-driven). Target {target}. "
+        "RECON goal — enumerate paths the web app exposes. Use "
+        "ffuf with a banca-safe wordlist (rate-limited, GET only). "
+        "Report each distinct path: rule_id=path-<slug>, message "
+        "includes the path + response code + size. NO destructive "
+        "requests."
+    ),
 }
 
 
@@ -772,6 +809,11 @@ def _invoke_orchestrated_engagement(
 
     planner = PentestPlanner()
     plan = planner.generate_plan(scope=[target], profile="standard")
+    # F128 — Goal-aware pre-adaptation. If --objective was declared,
+    # inject phases that match the goal kind (compliance_audit,
+    # web_vuln_scan, tech_fingerprint, endpoint_discovery) before the
+    # family-based + findings-based adapters run.
+    plan = planner.adapt_plan_for_goal(plan, goal)
     plan = planner.adapt_plan_for_families(plan, families)
     plan = planner.adapt_plan(plan, findings)
 

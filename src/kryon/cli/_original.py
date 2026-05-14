@@ -2189,6 +2189,11 @@ def main():
 
     add_engage_subparser(subparsers)
 
+    # --- audit-summary subcommand (F129) — cross-engagement aggregator ---
+    from kryon.cli.audit_summary import add_audit_summary_subparser
+
+    add_audit_summary_subparser(subparsers)
+
     # --- default (REPL) arguments ---
     parser.add_argument(
         "prompt",
@@ -2264,6 +2269,11 @@ def main():
         from kryon.cli.engage import run_engage
 
         sys.exit(run_engage(args))
+
+    if args.command == "audit-summary":
+        from kryon.cli.audit_summary import run_audit_summary
+
+        sys.exit(run_audit_summary(args))
 
     if args.command == "report":
         import asyncio

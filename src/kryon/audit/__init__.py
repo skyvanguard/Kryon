@@ -7,5 +7,12 @@ audit trail itself stays PCI-DSS-3.3-compliant.
 """
 
 from kryon.audit.action_log import ActionLog, ActionLogEntry
+from kryon.audit.aggregator import AggregateReport, aggregate_audit_logs, format_report
 
-__all__ = ["ActionLog", "ActionLogEntry"]
+__all__ = [
+    "ActionLog",
+    "ActionLogEntry",
+    "AggregateReport",
+    "aggregate_audit_logs",
+    "format_report",
+]
