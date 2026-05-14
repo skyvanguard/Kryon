@@ -2204,6 +2204,24 @@ def main():
 
     add_learn_subparser(subparsers)
 
+    # --- Sprint D wirings (F139-F148) ---
+    from kryon.cli.api_cmd import add_api_subparser
+    from kryon.cli.approve_cmd import add_approve_subparser
+    from kryon.cli.digest_cmd import add_digest_subparser
+    from kryon.cli.discover_cmd import add_discover_subparser
+    from kryon.cli.doctor_cmd import add_doctor_subparser, add_heartbeat_subparser
+    from kryon.cli.queue_cmd import add_queue_subparser
+    from kryon.cli.update_skills_cmd import add_update_skills_subparser
+
+    add_doctor_subparser(subparsers)
+    add_heartbeat_subparser(subparsers)
+    add_discover_subparser(subparsers)
+    add_queue_subparser(subparsers)
+    add_approve_subparser(subparsers)
+    add_digest_subparser(subparsers)
+    add_update_skills_subparser(subparsers)
+    add_api_subparser(subparsers)
+
     # --- default (REPL) arguments ---
     parser.add_argument(
         "prompt",
@@ -2294,6 +2312,40 @@ def main():
         from kryon.cli.learn_cmd import run_learn_command
 
         sys.exit(run_learn_command(args))
+
+    # --- Sprint D dispatch ---
+    if args.command == "doctor":
+        from kryon.cli.doctor_cmd import run_doctor_command
+
+        sys.exit(run_doctor_command(args))
+    if args.command == "heartbeat":
+        from kryon.cli.doctor_cmd import run_heartbeat_command
+
+        sys.exit(run_heartbeat_command(args))
+    if args.command == "discover":
+        from kryon.cli.discover_cmd import run_discover_command
+
+        sys.exit(run_discover_command(args))
+    if args.command == "queue":
+        from kryon.cli.queue_cmd import run_queue_command
+
+        sys.exit(run_queue_command(args))
+    if args.command == "approve":
+        from kryon.cli.approve_cmd import run_approve_command
+
+        sys.exit(run_approve_command(args))
+    if args.command == "digest":
+        from kryon.cli.digest_cmd import run_digest_command
+
+        sys.exit(run_digest_command(args))
+    if args.command == "update-skills":
+        from kryon.cli.update_skills_cmd import run_update_skills_command
+
+        sys.exit(run_update_skills_command(args))
+    if args.command == "api":
+        from kryon.cli.api_cmd import run_api_command
+
+        sys.exit(run_api_command(args))
 
     if args.command == "report":
         import asyncio
