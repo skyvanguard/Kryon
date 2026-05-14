@@ -247,6 +247,36 @@ def test_reasoning_active_true_for_r1_even_without_deep_flag(monkeypatch):
     assert p.reasoning_active is True
 
 
+def test_f160_temperature_default_bumps_to_06_when_reasoning_active(monkeypatch):
+    """F160 — Qwen3 docs recommend temperature 0.6 (not 0.0) for
+    thinking mode. Temperature 0 under /think loops the CoT because
+    every token is argmax with no diversity escape. Auto-bumps when
+    reasoning_active is True."""
+    monkeypatch.setenv("KRYON_MODEL", "kryon-14b")
+    monkeypatch.setenv("KRYON_DEEP_REASONING", "true")
+    monkeypatch.delenv("KRYON_LLM_TEMPERATURE", raising=False)
+    p = resolve_policy()
+    assert p.reasoning_active is True
+    assert p.temperature == 0.6
+
+
+def test_f160_temperature_default_zero_when_no_reasoning(monkeypatch):
+    monkeypatch.setenv("KRYON_MODEL", "kryon-14b")
+    monkeypatch.delenv("KRYON_DEEP_REASONING", raising=False)
+    monkeypatch.delenv("KRYON_LLM_TEMPERATURE", raising=False)
+    p = resolve_policy()
+    assert p.reasoning_active is False
+    assert p.temperature == 0.0
+
+
+def test_f160_temperature_explicit_overrides_reasoning_default(monkeypatch):
+    """Operator's explicit KRYON_LLM_TEMPERATURE always wins."""
+    monkeypatch.setenv("KRYON_MODEL", "kryon-r1-14b")
+    monkeypatch.setenv("KRYON_LLM_TEMPERATURE", "0.2")
+    p = resolve_policy()
+    assert p.temperature == 0.2
+
+
 def test_banner_shows_deep_reasoning_label():
     p = EngagementPolicy(
         model="kryon-14b",

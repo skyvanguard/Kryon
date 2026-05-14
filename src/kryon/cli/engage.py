@@ -748,12 +748,6 @@ def _phase_preamble(phase_name: str, *, target: str, scope: str, families: list[
         findings_count=len(findings),
         findings_summary=findings_summary,
     )
-    # F159 — Activate Qwen3 dense thinking mode (kryon-14b). The
-    # ``/think`` token must be the FIRST line of the user message for
-    # Qwen3 to emit <think>...</think> reasoning blocks. F150 strips
-    # the tags before parsing, F152 grounding still applies post-think.
-    if os.environ.get("KRYON_DEEP_REASONING", "").strip().lower() in {"1", "true", "yes", "on"}:
-        rendered = "/think\n\n" + rendered
     # F150 — R1-tolerant output contract. Tell the model exactly what
     # shape we want at the end, with a concrete example. This stays
     # short so it doesn't dominate the prompt budget but it's enough
@@ -777,6 +771,18 @@ def _phase_preamble(phase_name: str, *, target: str, scope: str, families: list[
         "dropped by the validator. Prefer non-CVE rule_ids when you don't "
         "have a verified upstream CVE reference."
     )
+    # F159/F160 — Activate Qwen3 dense thinking mode (kryon-14b). The
+    # Qwen3 chat template (see ``ollama show kryon-14b --template``)
+    # appends `` /think`` at the END of the LAST user message when its
+    # ``IsThinkSet`` flag fires. Going through the OpenAI-compat path,
+    # Ollama doesn't surface that flag, so we replicate the exact
+    # placement by appending ``/think`` as the final whitespace-
+    # separated token. Prepending it at the start (as F159 did) made
+    # Qwen3 treat ``/think`` as freeform text and the model never
+    # entered thinking mode — it produced a runaway pseudo-CoT that
+    # never returned, which is why F159.B stalled mid-recon.
+    if os.environ.get("KRYON_DEEP_REASONING", "").strip().lower() in {"1", "true", "yes", "on"}:
+        rendered = rendered.rstrip() + " /think"
     return rendered
 
 

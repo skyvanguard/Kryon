@@ -23,19 +23,27 @@ def _no_deep_reasoning(monkeypatch):
 def test_default_preamble_does_not_inject_think_token(monkeypatch):
     monkeypatch.delenv("KRYON_DEEP_REASONING", raising=False)
     text = _phase_preamble("recon", target="x", scope="x", families=[], findings=[])
-    assert not text.startswith("/think")
+    # F150 contract mentions ``<think>`` blocks in passing; what we care
+    # about is the trailing ``/think`` token that activates Qwen3
+    # thinking mode — that should be absent.
+    assert not text.rstrip().endswith("/think")
 
 
-def test_env_on_prepends_think_token(monkeypatch):
+def test_env_on_appends_think_token_at_end(monkeypatch):
+    """F160 — Qwen3 chat template expects ``/think`` at the END of
+    the last user message, not the start. F159's prepend approach
+    made the model treat ``/think`` as text and never enter thinking
+    mode (witnessed in F159.B Juice Shop stall)."""
     monkeypatch.setenv("KRYON_DEEP_REASONING", "true")
     text = _phase_preamble("recon", target="x", scope="x", families=[], findings=[])
-    assert text.startswith("/think\n\n")
+    assert text.endswith(" /think")
+    assert not text.startswith("/think")
 
 
-def test_env_off_explicit_does_not_prepend(monkeypatch):
+def test_env_off_explicit_does_not_append(monkeypatch):
     monkeypatch.setenv("KRYON_DEEP_REASONING", "false")
     text = _phase_preamble("recon", target="x", scope="x", families=[], findings=[])
-    assert not text.startswith("/think")
+    assert not text.rstrip().endswith("/think")
 
 
 def test_think_token_for_every_phase_kind(monkeypatch):
@@ -44,23 +52,27 @@ def test_think_token_for_every_phase_kind(monkeypatch):
     monkeypatch.setenv("KRYON_DEEP_REASONING", "true")
     for phase in ("recon", "vuln_scan", "web_vuln_scan", "compliance_audit", "reporting"):
         text = _phase_preamble(phase, target="x", scope="x", families=[], findings=[])
-        assert text.startswith("/think\n\n"), f"phase {phase} missing /think"
+        assert text.endswith(" /think"), f"phase {phase} missing trailing /think"
 
 
 def test_existing_preamble_body_preserved(monkeypatch):
-    """The /think prefix doesn't strip the rest of the preamble."""
+    """The /think suffix doesn't strip the rest of the preamble."""
     monkeypatch.setenv("KRYON_DEEP_REASONING", "true")
     text = _phase_preamble("vuln_scan", target="britimp.com.py", scope="x", families=[], findings=[])
     assert "britimp.com.py" in text
     assert "Phase: vulnerability assessment" in text or "vuln_scan" in text.lower()
+    # The F150/F151/F152 contract section is preserved.
+    assert "IMPORTANT" in text
 
 
-def test_think_appears_before_f150_contract(monkeypatch):
-    """``/think`` must be the FIRST token so Qwen3 activates thinking;
-    the F150 output contract appended later doesn't interfere."""
+def test_think_token_is_final_token(monkeypatch):
+    """F160 — ``/think`` must be the LAST token so Qwen3 activates
+    thinking. The F150 output contract sits before it."""
     monkeypatch.setenv("KRYON_DEEP_REASONING", "true")
     text = _phase_preamble("recon", target="x", scope="x", families=[], findings=[])
-    think_idx = text.find("/think")
+    think_idx = text.rfind("/think")
     contract_idx = text.find("IMPORTANT — after you finish reasoning")
-    assert think_idx == 0
-    assert contract_idx > think_idx
+    # /think is the LAST token; contract comes before it.
+    assert think_idx > contract_idx
+    # Nothing after /think other than the leading space.
+    assert text[think_idx:].rstrip() == "/think"

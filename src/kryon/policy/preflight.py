@@ -137,7 +137,14 @@ def resolve_policy() -> EngagementPolicy:
     deep_reasoning, _ = _env_bool("KRYON_DEEP_REASONING", default=False)
     reasoning_active = reasoning or deep_reasoning
 
-    temperature = _env_float("KRYON_LLM_TEMPERATURE", 0.0)
+    # F160 — Qwen3 thinking mode + Qwen3 official docs recommend
+    # temperature 0.6 (not 0.0) when ``/think`` is active. Temperature 0
+    # under thinking mode tends to loop the chain-of-thought because
+    # every token is the argmax, the model never breaks out of a stall.
+    # The dense Qwen3 + thinking_recommended params land at 0.6 / top_p
+    # 0.95 / top_k 20 — matching the Modelfile defaults except temp.
+    temperature_default = 0.6 if reasoning_active else 0.0
+    temperature = _env_float("KRYON_LLM_TEMPERATURE", temperature_default)
 
     strict_default = reasoning_active
     adversarial_strict, _ = _env_bool("KRYON_ADVERSARIAL_STRICT", default=strict_default)
