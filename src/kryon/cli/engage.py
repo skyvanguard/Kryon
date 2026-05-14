@@ -514,15 +514,23 @@ def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
             msg = str(item.get("message") or item.get("finding") or "").strip()
             if not msg:
                 continue
+            # F119 — Redact PAN/CVV/PY-ID before persisting into a Finding.
+            # The agent may have echoed sensitive data from a response body
+            # into its narration; redact at the boundary, not at render time.
+            from kryon.redaction.pan_redactor import redact_sensitive
+
+            msg_red = redact_sensitive(msg).text
+            ev_red = redact_sensitive(str(item.get("evidence", ""))[:800]).text
+            rem_red = redact_sensitive(str(item.get("remediation", ""))).text
             out.append(
                 Finding(
                     cwe=str(item.get("cwe", "CWE-0")),
                     severity=sev,
                     host=str(item.get("host", target_host)),
                     rule_id=str(item.get("rule_id", "agent-finding")),
-                    message=msg,
-                    evidence=str(item.get("evidence", ""))[:800],
-                    remediation=str(item.get("remediation", "")),
+                    message=msg_red,
+                    evidence=ev_red,
+                    remediation=rem_red,
                     severity_rank=_SEV_RANK[sev],
                 )
             )
@@ -739,6 +747,7 @@ def _invoke_orchestrated_engagement(
     """
     try:
         from kryon.agents import get_agent_by_name
+        from kryon.audit.action_log import ActionLog, default_log_path
         from kryon.sdk.agents.run import Runner
         from kryon.tools.autonomous.engagement_goal import GoalEvaluator
         from kryon.tools.autonomous.pentest_planner import PentestPlanner, PhaseStatus
@@ -770,6 +779,21 @@ def _invoke_orchestrated_engagement(
 
     eval_enabled = os.environ.get("KRYON_PHASE_EVAL_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
     retry_max = max(0, int(os.environ.get("KRYON_PHASE_EVAL_RETRY_MAX", "1")))
+
+    # F119 — Forensic audit log. One JSONL file per engagement under
+    # ``KRYON_AUDIT_LOG_PATH`` (default ``.kryon/audit/``). Args + results
+    # pass through the PAN redactor before being persisted.
+    engagement_id = (
+        os.environ.get("KRYON_ENGAGEMENT_ID", "").strip() or f"engage-{target.replace(':', '_').replace('/', '_')}"
+    )
+    audit_log = ActionLog(path=default_log_path(engagement_id), engagement_id=engagement_id)
+    audit_log.append(
+        tool_name="orchestrated_engagement_start",
+        args={"target": target, "scope": scope, "families": families},
+        result={"phases": [p.name for p in plan.phases]},
+        phase="bootstrap",
+        status="ok",
+    )
     goal_early_terminate = os.environ.get("KRYON_GOAL_EARLY_TERMINATE", "true").strip().lower() in {
         "1",
         "true",
@@ -803,12 +827,23 @@ def _invoke_orchestrated_engagement(
         phase.status = PhaseStatus.RUNNING
         phase.findings_before = len(findings) + len(new_findings)
         phase_findings_before = list(findings) + list(new_findings)
+        import time as _time
+
+        phase_start = _time.monotonic()
         try:
             console.print(f"  [cyan]▸[/cyan] phase: {phase.name}")
             text = asyncio.run(_run_phase(phase))
         except Exception as exc:  # pragma: no cover
             console.print(f"  [yellow]phase '{phase.name}' failed: {exc}[/yellow]")
             phase.status = PhaseStatus.FAILED
+            audit_log.append(
+                tool_name="phase_run",
+                args={"phase": phase.name, "agent_key": phase.agent_key, "max_turns": phase.max_turns},
+                result={"error": str(exc)},
+                phase=phase.name,
+                duration_ms=int((_time.monotonic() - phase_start) * 1000),
+                status="failed",
+            )
             continue
         if text:
             summary_lines.append(f"[{phase.name}] {text.strip()[:500]}")
@@ -816,6 +851,19 @@ def _invoke_orchestrated_engagement(
             new_findings.extend(parsed)
         phase.status = PhaseStatus.COMPLETED
         phase.findings_after = len(findings) + len(new_findings)
+
+        # F119 — Persist phase boundary to forensic audit log.
+        audit_log.append(
+            tool_name="phase_run",
+            args={"phase": phase.name, "agent_key": phase.agent_key, "max_turns": phase.max_turns},
+            result={
+                "text": text[:2000] if text else "",
+                "new_findings_delta": phase.findings_after - phase.findings_before,
+            },
+            phase=phase.name,
+            duration_ms=int((_time.monotonic() - phase_start) * 1000),
+            status="ok",
+        )
 
         # F117 meta-evaluation: classify the phase, retry on PARTIAL,
         # cascade-skip dependents on BARREN.
