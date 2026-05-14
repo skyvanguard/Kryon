@@ -46,6 +46,7 @@ import subprocess
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -711,6 +712,7 @@ def _invoke_orchestrated_engagement(
     scope: str,
     findings: list[Finding],
     families: list[str],
+    goal: Any = None,
 ) -> tuple[list[str], list[Finding]]:
     """F85.F — Orchestrated multi-phase agent invocation.
 
@@ -738,6 +740,7 @@ def _invoke_orchestrated_engagement(
     try:
         from kryon.agents import get_agent_by_name
         from kryon.sdk.agents.run import Runner
+        from kryon.tools.autonomous.engagement_goal import GoalEvaluator
         from kryon.tools.autonomous.pentest_planner import PentestPlanner, PhaseStatus
         from kryon.tools.autonomous.phase_evaluator import (
             PhaseVerdict,
@@ -767,6 +770,15 @@ def _invoke_orchestrated_engagement(
 
     eval_enabled = os.environ.get("KRYON_PHASE_EVAL_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
     retry_max = max(0, int(os.environ.get("KRYON_PHASE_EVAL_RETRY_MAX", "1")))
+    goal_early_terminate = os.environ.get("KRYON_GOAL_EARLY_TERMINATE", "true").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    goal_evaluator = GoalEvaluator() if goal is not None else None
+    if goal is not None:
+        console.print(f"  [dim]goal:[/dim] [cyan]{goal.kind.value}[/cyan] [dim]({goal.raw[:80]})[/dim]")
 
     import asyncio
 
@@ -847,6 +859,42 @@ def _invoke_orchestrated_engagement(
         # Re-adapt the plan with the new findings so downstream phases
         # can react to evidence discovered just now.
         plan = planner.adapt_plan(plan, findings + new_findings)
+
+        # F118 — Goal-directed reasoning: check progress after the phase.
+        # On success, optionally short-circuit the rest of the plan.
+        if goal_evaluator is not None and goal is not None:
+            progress = goal_evaluator.evaluate(goal, findings + new_findings)
+            verdict_color = {
+                "satisfied": "green",
+                "partial": "yellow",
+                "not_met": "red",
+            }.get(progress.verdict.value, "dim")
+            console.print(
+                f"  [dim]goal[/dim] [{verdict_color}]{progress.verdict.value}[/{verdict_color}] "
+                f"[dim]{progress.reasoning}[/dim]"
+            )
+            if progress.should_terminate_early() and goal_early_terminate:
+                terminated = 0
+                for pending in plan.phases:
+                    if pending.status == PhaseStatus.PENDING:
+                        pending.status = PhaseStatus.SKIPPED
+                        terminated += 1
+                console.print(f"  [green]✓[/green] goal satisfied — skipping {terminated} remaining phase(s)")
+                break
+
+    # Final verdict (only emitted when a goal was declared).
+    if goal_evaluator is not None and goal is not None:
+        final_progress = goal_evaluator.evaluate(goal, findings + new_findings)
+        verdict_color = {
+            "satisfied": "green",
+            "partial": "yellow",
+            "not_met": "red",
+        }.get(final_progress.verdict.value, "dim")
+        console.print(
+            f"  [bold]engagement verdict:[/bold] "
+            f"[{verdict_color}]{final_progress.verdict.value.upper()}[/{verdict_color}] "
+            f"[dim]— {final_progress.reasoning}[/dim]"
+        )
 
     return summary_lines, new_findings
 
@@ -1134,6 +1182,18 @@ def run_engage(args: argparse.Namespace) -> int:
     # --- Phase 2c: optional agent deepening (F77.A / F85.D / F85.F) -------
     agent_observations: list[str] = []
     orchestrated = args.orchestrated or os.environ.get("KRYON_ORCHESTRATED", "").lower() in {"1", "true", "yes"}
+
+    # F118 — Parse declarative objective once, hand structured goal to orchestrator.
+    declared_goal = None
+    objective_text = (getattr(args, "objective", "") or os.environ.get("KRYON_OBJECTIVE", "")).strip()
+    if objective_text:
+        try:
+            from kryon.tools.autonomous.engagement_goal import parse_objective
+
+            declared_goal = parse_objective(objective_text)
+        except Exception as exc:  # pragma: no cover
+            console.print(f"  [yellow]objective parse failed: {exc}[/yellow]")
+
     if args.use_agent or os.environ.get("KRYON_ENGAGE_AGENT", "").lower() in {"1", "true", "yes"} or orchestrated:
         if orchestrated:
             _banner(console, "Fase 2c' — orquestador multi-fase (F85.F)")
@@ -1143,6 +1203,7 @@ def run_engage(args: argparse.Namespace) -> int:
                 scope=scope,
                 findings=findings,
                 families=detected_families,
+                goal=declared_goal,
             )
         else:
             _banner(console, "Fase 2c — agente Kryon (deep-dive)")
@@ -1393,6 +1454,17 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
     )
     p.add_argument("--ssh-key", default="", help="SSH private key path for compliance runner")
     p.add_argument("--skip-reaudit", action="store_true", help="skip the post-remediation re-scan (Phase 5)")
+    # F118 — Goal-directed reasoning. The operator declares what success
+    # looks like; the orchestrator terminates early on satisfaction and
+    # emits a final verdict (SATISFIED/PARTIAL/NOT_MET) at the end.
+    p.add_argument(
+        "--objective",
+        default="",
+        help='engagement objective in natural language, e.g. "audit PCI-DSS '
+        'compliance for cashbox" or "find RCE on the admin panel". Parsed by '
+        "engagement_goal.parse_objective into a structured goal; the orchestrator "
+        "checks progress after each phase and stops early on success.",
+    )
     # F85.B — Budget hardening. Both flags are also readable from env
     # (KRYON_MAX_TURNS, KRYON_PRICE_LIMIT) so containerised runs can be
     # capped without touching the CLI invocation.
