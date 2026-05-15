@@ -2211,6 +2211,7 @@ def main():
     from kryon.cli.discover_cmd import add_discover_subparser
     from kryon.cli.doctor_cmd import add_doctor_subparser, add_heartbeat_subparser
     from kryon.cli.queue_cmd import add_queue_subparser
+    from kryon.cli.cve_cache_cmd import add_cve_cache_subparser
     from kryon.cli.update_skills_cmd import add_update_skills_subparser
 
     add_doctor_subparser(subparsers)
@@ -2220,6 +2221,7 @@ def main():
     add_approve_subparser(subparsers)
     add_digest_subparser(subparsers)
     add_update_skills_subparser(subparsers)
+    add_cve_cache_subparser(subparsers)
     add_api_subparser(subparsers)
 
     # --- default (REPL) arguments ---
@@ -2342,6 +2344,10 @@ def main():
         from kryon.cli.update_skills_cmd import run_update_skills_command
 
         sys.exit(run_update_skills_command(args))
+    if args.command == "update-cve-cache":
+        from kryon.cli.cve_cache_cmd import run_cve_cache_command
+
+        sys.exit(run_cve_cache_command(args))
     if args.command == "api":
         from kryon.cli.api_cmd import run_api_command
 
