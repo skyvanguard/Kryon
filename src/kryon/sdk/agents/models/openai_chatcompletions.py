@@ -952,6 +952,33 @@ class OpenAIChatCompletionsModel(Model):
                 msg = response.choices[0].message
                 has_tool_calls = hasattr(msg, "tool_calls") and msg.tool_calls
                 content = getattr(msg, "content", "") or ""
+
+                # F162 — OpenAI Harmony format (gpt-oss-20b and successors).
+                # Try Harmony parser first; if it finds tool calls, use them
+                # and skip the JSON-in-content fallback below.
+                if not has_tool_calls and content.strip():
+                    from kryon.sdk.agents.models.harmony_parser import (
+                        parse_harmony_tool_calls,
+                    )
+
+                    harmony_calls = parse_harmony_tool_calls(content)
+                    if harmony_calls:
+                        from types import SimpleNamespace
+
+                        msg.tool_calls = [
+                            SimpleNamespace(
+                                id=tc["id"],
+                                type=tc["type"],
+                                function=SimpleNamespace(
+                                    name=tc["function"]["name"],
+                                    arguments=tc["function"]["arguments"],
+                                ),
+                            )
+                            for tc in harmony_calls
+                        ]
+                        msg.content = None
+                        has_tool_calls = True
+
                 if not has_tool_calls and content.strip():
                     try:
                         # Strip markdown code fences if present
