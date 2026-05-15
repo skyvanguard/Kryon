@@ -8,7 +8,7 @@ Current date: {{ currentDate }}
 Reasoning: {{ .ThinkLevel }}
 {{- else if or (not .IsThinkSet) (and .IsThinkSet .Think) }}
 
-Reasoning: medium
+Reasoning: low
 {{- end }}
 
 {{- $hasNonBuiltinTools := false }}
@@ -184,3 +184,8 @@ PARAMETER repeat_penalty 1.0
 PARAMETER stop "<|endoftext|>"
 PARAMETER stop "<|return|>"
 PARAMETER stop "<|call|>"
+
+# F167 — Reasoning: low is the default in the template above (canonical
+# upstream defaults to "medium"). Operator can override per-call by
+# passing ``think_level`` in the Ollama API request; the template
+# respects that.
