@@ -87,17 +87,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     npm \
     && rm -rf /var/lib/apt/lists/*
 
-# Install nuclei (latest from ProjectDiscovery)
-RUN NUCLEI_URL=$(curl -sL https://api.github.com/repos/projectdiscovery/nuclei/releases/latest \
-        | jq -r '.assets[] | select(.name | test("linux_amd64.zip$")) | .browser_download_url') \
-    && if [ -n "$NUCLEI_URL" ] && [ "$NUCLEI_URL" != "null" ]; then \
-        curl -sSfL "$NUCLEI_URL" -o /tmp/nuclei.zip \
-        && unzip -o /tmp/nuclei.zip -d /usr/local/bin/ nuclei \
-        && chmod +x /usr/local/bin/nuclei \
-        && rm /tmp/nuclei.zip; \
-    else \
-        echo "WARNING: nuclei install failed (GitHub API), skipping"; \
-    fi
+# Install nuclei (latest from ProjectDiscovery, pinned fallback)
+# F163 — the previous "skip silently" path lost nuclei on intermittent
+# GitHub API failures (rate limit + transient network), and the failure
+# only showed up at engagement time when the scan tool blew up. Pin a
+# known-good version as fallback so the build is reproducible and the
+# binary is always present.
+RUN set -e; \
+    NUCLEI_PINNED_VERSION=3.8.0; \
+    NUCLEI_URL=$(curl -sL https://api.github.com/repos/projectdiscovery/nuclei/releases/latest \
+        | jq -r '.assets[] | select(.name | test("linux_amd64.zip$")) | .browser_download_url' 2>/dev/null); \
+    if [ -z "$NUCLEI_URL" ] || [ "$NUCLEI_URL" = "null" ]; then \
+        echo "GitHub API unreachable, falling back to pinned nuclei v${NUCLEI_PINNED_VERSION}"; \
+        NUCLEI_URL="https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_PINNED_VERSION}/nuclei_${NUCLEI_PINNED_VERSION}_linux_amd64.zip"; \
+    fi; \
+    curl -sSfL "$NUCLEI_URL" -o /tmp/nuclei.zip \
+    && unzip -o /tmp/nuclei.zip -d /usr/local/bin/ nuclei \
+    && chmod +x /usr/local/bin/nuclei \
+    && rm /tmp/nuclei.zip \
+    && /usr/local/bin/nuclei -version | head -1
 
 # ---------------------------------------------------------------------------
 # Stage 2: builder — Python dependencies via uv

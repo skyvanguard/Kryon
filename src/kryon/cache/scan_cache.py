@@ -343,6 +343,42 @@ def get_scan_cache() -> ScanCache:
     return _global_scan_cache
 
 
+# F164 — markers that indicate a scan never actually ran. When the wrapped
+# tool returns one of these, we MUST skip the cache write so the next
+# invocation gets a fresh attempt (e.g. after the operator installs the
+# missing binary). Otherwise a single failure poisons the cache for the
+# full TTL window (12h for vuln_scan), which masked a working bench
+# during F163 even though the binary had already been installed mid-session.
+_SCAN_FAILURE_MARKERS: tuple[str, ...] = (
+    "[KRYON_TOOL_ERROR]",
+    "command not found",
+    "not found",  # "/bin/sh: 1: X: not found", "bash: X: not found"
+    "[FTL]",
+    "[FATAL]",
+    "could not find template",
+    "could not run nuclei",
+    "no templates provided for scan",
+)
+
+
+def _is_scan_failure(result: object) -> bool:
+    """True when the result represents a scan that never ran.
+
+    Conservative — only inspects string returns. Non-string returns
+    (dicts, lists) pass through and are cached as usual.
+    Empty strings count as failure: a scan that produces no bytes at
+    all is almost always a missing-binary or fatal-config error, never
+    a real "no findings" result (legit "no findings" outputs from
+    nuclei/sqlmap/etc. always include at least template/loader banners).
+    """
+    if not isinstance(result, str):
+        return False
+    if result == "":
+        return True
+    lowered = result.lower()
+    return any(marker.lower() in lowered for marker in _SCAN_FAILURE_MARKERS)
+
+
 def cache_scan_result(scan_type: str | None = None, ttl: int = 7200):
     """
     Decorator factory for caching scan tool results.
@@ -359,6 +395,10 @@ def cache_scan_result(scan_type: str | None = None, ttl: int = 7200):
 
     Returns:
         Decorator function
+
+    Note (F164): Failed scan results (binary missing, fatal template
+    errors, empty output, ``[KRYON_TOOL_ERROR]`` envelopes) are NOT
+    cached. See ``_SCAN_FAILURE_MARKERS``.
     """
     from functools import wraps
 
@@ -383,8 +423,8 @@ def cache_scan_result(scan_type: str | None = None, ttl: int = 7200):
             # Execute function
             result = func(*args, **kwargs)
 
-            # Cache result
-            if target:
+            # Cache result — but skip failures so the next invocation retries.
+            if target and not _is_scan_failure(result):
                 scan_cache = get_scan_cache()
                 scan_cache.cache_scan(func.__name__, target, result, params, ttl)
 

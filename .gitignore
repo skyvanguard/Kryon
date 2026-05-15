@@ -13,6 +13,12 @@ GEMINI.md
 AGENTS*.md
 # Windows null device file
 nul
+
+# F163 — model weights (GGUF binaries) live in models/ but are too big
+# for git. Modelfiles and small docs in that folder are fine.
+models/*.gguf
+models/*.bin
+models/*.safetensors
 # Byte-compiled / optimized / DLL files
 __pycache__/
 **/__pycache__/

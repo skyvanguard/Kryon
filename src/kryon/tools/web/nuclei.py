@@ -99,7 +99,16 @@ def nuclei_scan(
 
     Args:
         target: Target URL, IP, or file with targets
-        templates: Specific template or directory to use
+        templates: Nuclei template DIRECTORY path (must end in ``/``) or a
+            specific template file. Common valid values:
+            ``"cves/"``, ``"vulnerabilities/"``, ``"default-logins/"``,
+            ``"exposures/"``, ``"misconfiguration/"``, ``"technologies/"``,
+            ``"takeovers/"``. **Do NOT pass generic keywords like "web",
+            "all", or "default"** — those are not nuclei templates and the
+            scan will fail. Leave EMPTY (``""``) to use the auto-selected
+            default template set, which is the right choice for most
+            recon. F164 — invalid bare keywords are stripped automatically
+            and the scan falls back to the default set.
         workflows: Workflow file or directory
         severity: Filter by severity (critical,high,medium,low,info)
         tags: Filter by tags (e.g., "cve,rce,sqli")
@@ -236,9 +245,18 @@ def nuclei_scan(
     else:
         cmd_parts.extend(["-l", target])
 
-    # Templates
+    # Templates — F164: validate against LLM-invented bare keywords.
+    # gpt-oss-20b / kryon-14b sometimes pass strings like "web", "all",
+    # "default" thinking they are template categories. Nuclei rejects
+    # those with "Could not find template" and the scan never runs.
+    # Real nuclei template directories always contain ``/`` or end in
+    # ``.yaml``. If the value looks like a bare keyword, drop it so the
+    # scan falls through to the auto-selected default set.
     if templates:
-        cmd_parts.extend(["-t", templates])
+        looks_like_path = "/" in templates or templates.startswith(".") or templates.endswith(".yaml")
+        if looks_like_path:
+            cmd_parts.extend(["-t", templates])
+        # Otherwise silently fall back to default (nothing appended).
     elif workflows:
         cmd_parts.extend(["-w", workflows])
     elif automatic_scan:
