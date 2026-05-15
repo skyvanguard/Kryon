@@ -82,6 +82,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     mingw-w64 \
     # WiFi PMKID capture (evil_twin.py — not provided by kali-tools-top10)
     hcxdumptool \
+    # F165 — nikto is part of kali-tools-top10 most editions but not all base
+    # images. Pin it explicitly so the kryon container always has it.
+    nikto \
     # Node.js for Claude Code CLI
     nodejs \
     npm \
@@ -105,7 +108,14 @@ RUN set -e; \
     && unzip -o /tmp/nuclei.zip -d /usr/local/bin/ nuclei \
     && chmod +x /usr/local/bin/nuclei \
     && rm /tmp/nuclei.zip \
-    && /usr/local/bin/nuclei -version | head -1
+    && /usr/local/bin/nuclei -version | head -1 \
+    # F165 — download the official template repo so scans against fresh
+    # containers don't ship the [WRN] Loading 1 unsigned templates for scan
+    # warning we saw in the F164 bench. Without templates nuclei is
+    # functionally dead. `|| true` so a one-off network glitch during build
+    # doesn't break the image; the operator gets the warning at runtime if
+    # it happened.
+    && /usr/local/bin/nuclei -update-templates -silent 2>&1 | tail -3 || true
 
 # ---------------------------------------------------------------------------
 # Stage 2: builder — Python dependencies via uv
