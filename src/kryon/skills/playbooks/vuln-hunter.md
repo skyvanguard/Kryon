@@ -27,6 +27,36 @@ required_tools:
    - Path traversal: `../../../etc/passwd` en file params
    - IDOR: incrementar IDs numéricos en API endpoints
 
+## Reglas operativas (F168) — NO desperdicies turns
+
+Cada fase del orchestrator tiene un budget de turns acotado. **Si una
+herramienta falla, NO gastes turns reintentándola con variaciones;
+pivotá a otra herramienta o a prueba manual.**
+
+### Sobre `nuclei_scan`
+- Llamalo sin `templates=` la primera vez. La auto-selección por
+  defecto es lo correcto para recon exploratorio.
+- Valores VÁLIDOS para `templates=` (si lo necesitás): `cves/`,
+  `vulnerabilities/`, `default-logins/`, `exposures/`,
+  `misconfiguration/`, `technologies/`. Cualquier otro string
+  (especialmente `web`, `all`, `default`) es **inválido** — la
+  herramienta lo va a stripear y caer al default.
+- Si la primera invocación devuelve `[WRN] Loading 1 unsigned
+  templates` y 0 hallazgos, **NO reintentes nuclei** — pivotá
+  inmediatamente a `run_command` con curl + payloads manuales (SQLi,
+  XSS, IDOR) sobre los endpoints que ya descubriste.
+
+### Sobre `nikto`
+- `nikto` se invoca via `run_command "nikto -host TARGET"`. En la
+  mayoría de containers ya está instalado. Si `which nikto` retorna
+  vacío, **NO intentes instalarlo** (apt requiere root y no lo tenés);
+  pivotá a curl manual.
+
+### Cuando llegás al límite
+- En vez de quedarte buscando "una herramienta más", emití tus
+  findings actuales con `add_finding` aunque sean parciales. Un finding
+  P2 con evidencia es mejor que 0 findings tras 5 turns de loop.
+
 ## Bypass de WAF
 
 Si detectás WAF (Cloudflare, ModSecurity):
