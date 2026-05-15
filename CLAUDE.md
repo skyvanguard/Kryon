@@ -99,7 +99,40 @@ Two execution modes:
 
 ### Important cross-cutting rules
 
-- **Ollama-first**: The recommended model is `kryon-14b` (Modelfile: `FROM qwen3:14b` + `num_ctx 32768` + `num_predict 4096`). Qwen3-14B dense fits 100% in 12GB VRAM and outperforms the older `kryon-30b-moe` (MoE 3.3B-active with 18GB Q4 → VRAM spillover). F20 bench proved the upgrade: Juice Shop 0/111 → 9/111 (8.1%) with no other change. Many fixes live in `sdk/agents/models/openai_chatcompletions.py` to make tool calling reliable with local models (tool name normalization, hallucination tolerance, schema fix, tool_choice forcing).
+- **Ollama-first**: Two production models are available. The default for new
+  engagements is **`kryon-gpt-oss`** (F162-F170, OpenAI gpt-oss-20b Q4_K_M
+  ~10.8 GB + the official Harmony chat template). It detected 9 real
+  findings + 1 false positive on the OWASP Juice Shop bench (SATISFIED in
+  225s) vs `kryon-14b`'s 1 INFO placeholder (NOT_MET in 215s) under the
+  same F165-F168 stack. The fallback is **`kryon-14b`** (Modelfile: `FROM
+  qwen3:14b` + `num_ctx 32768` + `num_predict 4096`) for cases where
+  `gpt-oss` reasoning is too verbose or the operator wants tighter
+  determinism. Both fit in 12 GB VRAM. Many fixes live in
+  `sdk/agents/models/openai_chatcompletions.py` to make tool calling
+  reliable with local models (tool name normalization, hallucination
+  tolerance, schema fix, tool_choice forcing, F162 Harmony parser).
+- **gpt-oss Harmony stack (F162-F170)**:
+  - F162: `sdk/agents/models/harmony_parser.py` translates Harmony
+    `<|channel|>... to=NAMESPACE.FUNC ...<|message|>{...}<|call|>` tool
+    calls to OpenAI ``tool_calls`` arrays (Ollama doesn't do it for us).
+  - F163: `models/Modelfile.kryon-gpt-oss` ships the official Harmony
+    template (TypeScript signatures + developer message) so the model
+    respects real tool names instead of inventing `whatweb(host,port)`.
+  - F166: reasoning models (gpt-oss, R1, o1/o3, deepseek-r1,
+    Foundation-Sec-Reasoning) auto-bump per-phase `max_turns` from 5 to 8
+    via `is_reasoning_model()` in `tools/autonomous/pentest_planner.py`.
+    Override with `KRYON_PHASE_TURNS=<int>`.
+  - F167: `Reasoning: low` is the in-template default for `kryon-gpt-oss`
+    (canonical Harmony defaults to medium). Operator can override
+    per-request via the Ollama `think_level` parameter.
+  - F164: scan-cache decorator now skips failure outputs (binary missing,
+    `[KRYON_TOOL_ERROR]`, empty), so one failed run doesn't poison the
+    12-hour cache. Same commit pins nuclei v3.8.0 in `Dockerfile.kali`
+    and downloads templates at build time.
+  - F171: `kryon update-cve-cache --year YYYY|--years A-B|--all`
+    populates `~/.kryon/nvd_cache/cves.txt`. With
+    `KRYON_CVE_CACHE_REQUIRED=true`, F151 filters out hallucinated CVE
+    IDs that pass format check but were never published.
 - **LiteLLM without `[proxy]`** — uvloop is not supported on Windows; do not re-add the proxy extra to `pyproject.toml`.
 - **`openinference-instrumentation-openai`** is Python-version-gated (`< 3.14`) under the `tracing` extra.
 - **Optional extras**: `voice`, `viz`, `tracing`, `rag`, `server`, `tui`, `reporting`, `orchestration`, `dev`.
@@ -112,7 +145,14 @@ Two execution modes:
 Runtime config via env vars (see `docker/.env.docker`):
 
 ```bash
-KRYON_MODEL=kryon-14b              # Recommended (Qwen3-14B dense + 32K ctx)
+KRYON_MODEL=kryon-gpt-oss          # F170 default: gpt-oss-20b Q4_K_M (10.8 GB)
+                                   # 10 findings on Juice Shop bench (SATISFIED in 225s)
+                                   # Fallback: kryon-14b (Qwen3-14B dense)
+KRYON_PHASE_TURNS=                 # F166: override per-phase turn cap (default
+                                   # 8 for reasoning models / 5 for instruct).
+KRYON_CVE_CACHE_REQUIRED=          # F151+F171: 'true' drops findings whose CVE
+                                   # rule_id is NOT in ~/.kryon/nvd_cache/cves.txt.
+                                   # Populate with: kryon update-cve-cache --all
 KRYON_AGENT_TYPE=kryon             # Use unified agent (v2.x)
 KRYON_UNIFIED=true
 KRYON_FORCE_TOOL_TURNS=8           # Force tool use first N turns (Ollama reliability)
