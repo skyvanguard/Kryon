@@ -1041,14 +1041,36 @@ def _invoke_orchestrated_engagement(
         # before the LLM), execute them now and append the output to
         # the preamble. The model sees authoritative tool output as
         # context — no decision needed on whether to invoke the tool.
-        # Set KRYON_TARGET_HOST so the ``{ctx.target}`` substitution in
-        # the YAML resolves to the engagement's real target.
+        #
+        # F185.C — also re-activate skills for THIS phase using the
+        # objective + phase name as user_msg. The goal-swap above (line
+        # 1022) only fires when phase.goal_kind_hint is set, which the
+        # base "recon/vuln_scan/reporting" template phases lack. Without
+        # the re-match, ``vuln-hunter`` (which carries the pre_hooks)
+        # never enters ``agent._active_skills`` and pre_hooks no-op.
         try:
+            from kryon.skills.loader import SkillLoader
             from kryon.skills.pre_hook_integration import maybe_run_pre_hooks
+            from kryon.skills.unified_agent import update_agent_skills
 
             os.environ["KRYON_TARGET_HOST"] = target
+            objective_text = goal.raw if goal is not None else ""
+            phase_msg = f"{phase.name} {objective_text} {target}".strip()
+            try:
+                loader_for_hooks = getattr(agent, "_skill_loader", None) or SkillLoader()
+                profile = {"tech": list(families), "ports": []}
+                hook_skills = loader_for_hooks.match(
+                    profile=profile,
+                    user_msg=phase_msg,
+                    goal=goal,
+                )
+                if hook_skills:
+                    update_agent_skills(agent, hook_skills)
+            except Exception:  # pragma: no cover — non-fatal skill match
+                pass
+
             pre_hook_suffix = await maybe_run_pre_hooks(
-                agent, target, console
+                agent, phase_msg, console
             )
             if pre_hook_suffix:
                 preamble = preamble + pre_hook_suffix
