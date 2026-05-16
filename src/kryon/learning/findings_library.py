@@ -308,6 +308,18 @@ def add_finding(finding: dict[str, Any]) -> str:
         metadata.get("host"),
         metadata.get("url_shape"),
     )
+
+    # F176 — also append to the per-engagement partial JSONL so the
+    # reporting phase can recover findings even if the orchestrator
+    # aborts early. No-op when KRYON_ENGAGEMENT_ID isn't set
+    # (one-off CLI calls).
+    try:
+        from kryon.validation.findings_persistence import append_partial_finding
+
+        append_partial_finding(finding)
+    except Exception as exc:  # noqa: BLE001 — partial persistence is best-effort
+        logger.debug("partial finding persistence failed: %s", exc)
+
     return finding["id"]
 
 
