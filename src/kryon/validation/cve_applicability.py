@@ -177,6 +177,29 @@ def _normalize(token: str) -> str:
     return " ".join(t.split())
 
 
+# F183 — generic vendor tokens that show up across MANY unrelated
+# products. ``apache`` is in Apache HTTP Server, Tomcat, Struts, Log4j,
+# Camel, Kafka, etc. — sharing only ``apache`` with a target stack is
+# not enough to claim the CVE applies to that target. The matcher
+# requires AT LEAST one non-generic shared token.
+_GENERIC_VENDOR_TOKENS = frozenset(
+    {
+        "apache",
+        "google",
+        "microsoft",
+        "oracle",
+        "amazon",
+        "intel",
+        "redhat",
+        "ibm",
+        "open",
+        "project",
+        "server",
+        "client",
+    }
+)
+
+
 def _tokens_overlap(left: str, right: str) -> bool:
     """True iff the normalized forms share a substring at the product
     level. ``apache log4j core`` overlaps ``log4j``, but ``apache`` alone
@@ -188,13 +211,20 @@ def _tokens_overlap(left: str, right: str) -> bool:
     if not a or not b:
         return False
 
-    # Split into words and look for a meaningful shared word.
+    # Split into words and look for a meaningful shared word that
+    # isn't a generic vendor token.
     a_words = {w for w in a.split() if len(w) >= 4}
     b_words = {w for w in b.split() if len(w) >= 4}
-    if a_words & b_words:
+    shared = a_words & b_words
+    if shared - _GENERIC_VENDOR_TOKENS:
+        # At least one non-generic word matches.
         return True
 
-    # Substring fallback for compound product names without spaces.
+    # Substring fallback for compound product names without spaces —
+    # but reject when either side is just a generic vendor token (so
+    # ``apache`` doesn't match ``apache log4j``).
+    if a in _GENERIC_VENDOR_TOKENS or b in _GENERIC_VENDOR_TOKENS:
+        return False
     if len(a) >= 4 and a in b:
         return True
     if len(b) >= 4 and b in a:

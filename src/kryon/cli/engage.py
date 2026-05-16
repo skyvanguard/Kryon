@@ -519,6 +519,9 @@ def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
         is_cve_applicable_for_finding,
     )
     from kryon.validation.cve_validator import validate_finding_cve
+    from kryon.validation.finding_applicability import (
+        is_finding_applicable_general,
+    )
 
     # F180 — derive tech stack from the agent's PRE-JSON narration. The
     # model typically mentions detected technologies before emitting
@@ -588,6 +591,34 @@ def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
                 )
         if not app_ok:
             logger.warning("F173 dropped LLM finding: %s", app_reason)
+            continue
+        # F183 — broader applicability gate: catches FPs whose
+        # rule_id is non-CVE-shaped (e.g. ``WEB-XSS-001``) but whose
+        # message/evidence still cite a wrong-stack product (the F182
+        # bench saw the model disguise the JAMon FP under
+        # ``rule_id=WEB-XSS-001``). Scans message + evidence for product
+        # keywords and compares against the same effective stack.
+        gen_ok, gen_reason = is_finding_applicable_general(
+            item, tech_stack=tech_stack
+        )
+        if _debug_path:
+            import json as _json
+
+            with _debug_path.open("a", encoding="utf-8") as _fh:
+                _fh.write(
+                    _json.dumps(
+                        {
+                            "event": "F183_check",
+                            "rule_id": item.get("rule_id"),
+                            "host": item.get("host"),
+                            "ok": gen_ok,
+                            "reason": gen_reason,
+                        }
+                    )
+                    + "\n"
+                )
+        if not gen_ok:
+            logger.warning("F183 dropped LLM finding: %s", gen_reason)
             continue
         # F119 — Redact PAN/CVV/PY-ID before persisting into a Finding.
         # The agent may have echoed sensitive data from a response body
