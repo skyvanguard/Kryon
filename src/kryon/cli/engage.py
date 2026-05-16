@@ -493,6 +493,26 @@ def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
     if not items:
         return []
 
+    # F181.C — gated parse-decision trail. Stays dormant unless
+    # ``KRYON_DEBUG_PARSE`` is set, so production runs aren't slowed
+    # by extra disk I/O. The trail is what found the F181 self-confirm
+    # FP path; keep it available for future regression hunting.
+    _debug_parse = os.environ.get("KRYON_DEBUG_PARSE", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    _debug_path = None
+    if _debug_parse:
+        import json as _json
+        from pathlib import Path as _Path
+
+        _debug_path = _Path(".kryon/debug") / f"parse_{os.environ.get('KRYON_ENGAGEMENT_ID', 'unknown')}.jsonl"
+        _debug_path.parent.mkdir(parents=True, exist_ok=True)
+        with _debug_path.open("a", encoding="utf-8") as _fh:
+            _fh.write(_json.dumps({"event": "parse_start", "items": len(items), "text_len": len(text)}) + "\n")
+
     from kryon.redaction.pan_redactor import redact_sensitive
     from kryon.validation.cve_applicability import (
         extract_target_tech_stack,
@@ -524,6 +544,22 @@ def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
         # fails format/year/cache validation. Catches LLM-invented
         # CVE IDs that survived the F150 parser.
         cve_ok, cve_reason = validate_finding_cve(item)
+        if _debug_path:
+            import json as _json
+
+            with _debug_path.open("a", encoding="utf-8") as _fh:
+                _fh.write(
+                    _json.dumps(
+                        {
+                            "event": "F151_check",
+                            "rule_id": item.get("rule_id"),
+                            "host": item.get("host"),
+                            "ok": cve_ok,
+                            "reason": cve_reason,
+                        }
+                    )
+                    + "\n"
+                )
         if not cve_ok:
             logger.warning("F151 dropped LLM finding: %s", cve_reason)
             continue
@@ -533,6 +569,23 @@ def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
         # a Node.js target — F173 drops it when the CVE's products
         # don't overlap with the detected tech stack.
         app_ok, app_reason = is_cve_applicable_for_finding(item, tech_stack=tech_stack)
+        if _debug_path:
+            import json as _json
+
+            with _debug_path.open("a", encoding="utf-8") as _fh:
+                _fh.write(
+                    _json.dumps(
+                        {
+                            "event": "F180_check",
+                            "rule_id": item.get("rule_id"),
+                            "host": item.get("host"),
+                            "tech_stack": sorted(tech_stack),
+                            "ok": app_ok,
+                            "reason": app_reason,
+                        }
+                    )
+                    + "\n"
+                )
         if not app_ok:
             logger.warning("F173 dropped LLM finding: %s", app_reason)
             continue

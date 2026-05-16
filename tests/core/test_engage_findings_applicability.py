@@ -75,12 +75,24 @@ def test_jamon_cve_dropped_for_express_target():
     assert "Missing-CSP" in rule_ids
 
 
-def test_jamon_cve_kept_for_tomcat_jsp_target():
-    """When the narration legitimately mentions JAMon + Tomcat + JSP,
-    the CVE applies and must NOT be dropped."""
+def test_jamon_cve_dropped_even_when_tomcat_jsp_narration_present():
+    """F181.C trade-off: removing ``jamon`` and ``jsp`` from the
+    keyword extractor closed the self-confirmation FP loop seen in the
+    F181 bench. The side-effect: even a narration that legitimately
+    mentions JAMon (rare in real engagements) won't pass the CVE,
+    because the stack now only has ``apache`` + ``tomcat`` and the
+    CVE's products list is ``("jamon", "jamonadmin")``. The filter
+    favors banca-safe false negatives on niche products over the more
+    common false positives we measured.
+
+    To make the JAMon CVE pass, the operator must add ``jamon`` to a
+    real recon source (e.g. whatweb plugin output explicitly naming
+    JAMon as a detected plugin, which lands in the WhatWeb plugin
+    regex path that bypasses ``_TECH_KEYWORDS_RE``).
+    """
     findings = _parse_agent_findings(_JAMON_LEGIT_BLOCK, target_host="target")
     rule_ids = [f.rule_id for f in findings]
-    assert "CVE-2013-6235" in rule_ids
+    assert "CVE-2013-6235" not in rule_ids
 
 
 # ---------------------------------------------------------------------------

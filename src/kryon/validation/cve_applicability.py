@@ -77,9 +77,16 @@ _SERVER_HEADER_RE = re.compile(
 # describes the stack inline ("Express server detected", "Node.js
 # Express app") rather than dumping raw headers. These tokens are
 # popular enough that a substring hit is strong evidence.
+# F181.C — removed "jsp" and "jamon" from the keyword set. They aren't
+# generic web stack tokens (Tomcat / WebSphere already cover the JSP
+# runtime); they're product names that frequently appear in CVE
+# descriptions and finding messages. When the model dumps a finding
+# whose ``message`` mentions "JAMonAdmin.jsp", the keyword extractor
+# would pull "jsp" + "jamon" into the stack, and the next pass would
+# self-confirm the very FP we're trying to drop.
 _TECH_KEYWORDS_RE = re.compile(
     r"(?i)\b(express|node\.?js|django|flask|rails|laravel|spring boot|tomcat|"
-    r"jsp|jamon|wordpress|drupal|joomla|apache|nginx|iis|php|asp\.net|"
+    r"wordpress|drupal|joomla|apache|nginx|iis|php|asp\.net|"
     r"java|python|ruby|golang|go-lang|node|next\.?js|nuxt)\b"
 )
 
@@ -312,6 +319,16 @@ def is_cve_applicable_for_finding(
     where the LLM's reporting-phase response no longer mentioned the
     stack from prior recon phases — without a host-based hint, every
     CVE survived the conservative-pass branch.
+
+    F181.C — for known-target hosts the host hint is **authoritative**,
+    not just additive. The orchestrator builds up ``text`` across
+    multiple phases so the narration carried into the second
+    ``_parse_agent_findings`` call contains the JSON message strings
+    from the first call ("JAMonAdmin.jsp"), which were enough for the
+    keyword extractor to pull "jamon" into the stack and self-confirm
+    the very FP we were trying to drop. For controlled lab targets the
+    ground truth is the curated map; ignore narration-derived tokens
+    entirely.
     """
     if isinstance(finding, dict):
         rule_id = str(finding.get("rule_id", "") or "")
@@ -324,8 +341,16 @@ def is_cve_applicable_for_finding(
     if not rule_id.startswith("CVE-"):
         return True, "rule_id is not CVE-shaped; gate does not apply"
 
-    # Augment the caller-provided stack with any known-target hint.
-    effective_stack = set(tech_stack) | _target_tech_hint(host)
+    host_hint = _target_tech_hint(host)
+    if host_hint:
+        # Authoritative path: for known lab targets we trust the
+        # curated stack and ignore any narration-derived tokens. This
+        # blocks the self-confirmation loop that surfaced in F181.C.
+        effective_stack = host_hint
+    else:
+        # Unknown target: caller's narration extraction is the only
+        # signal we have.
+        effective_stack = set(tech_stack)
 
     cve_meta = _lookup_cve_metadata(rule_id)
     return is_cve_applicable(cve_meta, effective_stack)

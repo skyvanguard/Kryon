@@ -381,3 +381,69 @@ def test_caller_stack_merged_with_host_hint():
         finding, tech_stack={"tomcat"}
     )
     assert ok is False
+
+
+# ---------------------------------------------------------------------------
+# F181.C — host hint is AUTHORITATIVE for known lab targets
+# ---------------------------------------------------------------------------
+
+
+def test_f181c_known_target_overrides_contaminated_narration():
+    """Regression test for the F181 bench gap.
+
+    The orchestrator's second ``_parse_agent_findings`` call receives a
+    ``text`` that includes the JSON of findings emitted in the first
+    call. A finding from the first call mentions "JAMonAdmin.jsp" in
+    its ``message`` field. If we naively union the narration-derived
+    stack with the host hint, the keyword extractor pulls
+    ``jamon`` / ``jsp`` from the prior finding's message and
+    self-confirms the same FP.
+
+    Fix: for known lab targets the host hint is the ONLY signal. The
+    caller's narration-derived stack is discarded.
+    """
+    from kryon.validation import cve_applicability
+
+    finding = {
+        "rule_id": "CVE-2013-6235",
+        "host": "http://juice_shop:3000",
+        "severity": "HIGH",
+        "message": "JAMonAdmin.jsp vulnerable to XSS (CVE-2013-6235).",
+    }
+    # Simulate the contamination: narration extractor pulled jamon
+    # from a prior finding's message.
+    contaminated = {"jamon", "jsp", "node"}
+    ok, reason = cve_applicability.is_cve_applicable_for_finding(
+        finding, tech_stack=contaminated
+    )
+    assert ok is False, (
+        f"Known target host should override contaminated stack, "
+        f"but got ok=True with reason: {reason}"
+    )
+    assert "jamon" not in reason or "no match" in reason.lower()
+
+
+def test_jsp_keyword_no_longer_extracted_from_text():
+    """F181.C — ``jsp`` removed from the keyword extractor because
+    finding messages that cite a JSP CVE were pulling it into the
+    stack and self-confirming. Now narration like ``running on
+    JAMonAdmin.jsp`` extracts nothing for jsp specifically; the
+    operator's recon must surface ``Tomcat`` / ``Spring`` / similar."""
+    from kryon.validation.cve_applicability import extract_target_tech_stack
+
+    stack = extract_target_tech_stack(
+        "Finding 1: JAMonAdmin.jsp XSS. Finding 2: served by .jsp pages."
+    )
+    assert "jsp" not in stack
+    assert "jamon" not in stack
+
+
+def test_jsp_targets_still_caught_via_tomcat_keyword():
+    """The genuine signal for a JSP target — ``Tomcat`` server — is
+    still in the keyword set."""
+    from kryon.validation.cve_applicability import extract_target_tech_stack
+
+    stack = extract_target_tech_stack(
+        "Server: Apache Tomcat 9.0 hosting JAMonAdmin.jsp."
+    )
+    assert "tomcat" in stack
