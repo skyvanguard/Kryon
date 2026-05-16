@@ -63,6 +63,17 @@ _NUCLEI_LINE_RE = re.compile(
 _NIKTO_LINE_RE = re.compile(r"^\+\s+(?:\[\d+\]\s+)?/[^:]*:.+$")
 
 
+# F187 — sqlmap finding markers. Sqlmap emits its verdict in a
+# ``sqlmap identified the following injection point(s)`` block and a
+# parameter summary like ``Parameter: q (GET)\n  Type: ...``. We
+# preserve those plus the "back-end DBMS:" line. Everything else
+# (banners, [INFO] testing X, HTTP error stats) goes away.
+_SQLMAP_VULNERABLE_RE = re.compile(
+    r"is vulnerable|injection point\(s\)|Parameter: |Type: |Title: |Payload: |back-end DBMS:",
+    re.IGNORECASE,
+)
+
+
 def _nuclei_severity(line: str) -> int:
     """Return the severity rank for a nuclei finding line. Unknown
     lines sort to the bottom."""
@@ -111,6 +122,40 @@ def _looks_like_nikto(inject_as: str, payload: str) -> bool:
     return "Nikto v" in payload or _NIKTO_LINE_RE.search(payload) is not None
 
 
+def _looks_like_sqlmap(inject_as: str, payload: str) -> bool:
+    if "sqlmap" in inject_as.lower():
+        return True
+    return "sqlmap" in payload.lower() or "sqlmap identified" in payload
+
+
+def _summarize_sqlmap(payload: str, *, max_items: int) -> str:
+    """Keep only sqlmap lines that describe a finding (injection
+    point, parameter type, payload, backend DBMS). Drop the verbose
+    [INFO] testing trail.
+
+    If sqlmap reports no injection ("not appear to be injectable"),
+    return a single negative line so the model knows the probe ran.
+    """
+    candidates: list[str] = []
+    not_injectable = False
+    for raw in payload.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if "not appear to be injectable" in line or "all tested parameters do not appear" in line:
+            not_injectable = True
+            continue
+        if _SQLMAP_VULNERABLE_RE.search(line):
+            # Strip the timestamp prefix sqlmap puts on every log line.
+            cleaned = re.sub(r"^\[\d{2}:\d{2}:\d{2}\]\s*\[INFO\]\s*", "", line)
+            candidates.append(cleaned)
+
+    if not candidates and not_injectable:
+        return "[sqlmap] no injection points found; target parameters not vulnerable"
+
+    return "\n".join(candidates[:max_items])
+
+
 def summarize_pre_hook_output(
     inject_as: str, payload: str | None, *, max_items: int = 30
 ) -> str:
@@ -127,6 +172,8 @@ def summarize_pre_hook_output(
         compact = _summarize_nuclei(payload, max_items=max_items)
     elif _looks_like_nikto(inject_as, payload):
         compact = _summarize_nikto(payload, max_items=max_items)
+    elif _looks_like_sqlmap(inject_as, payload):
+        compact = _summarize_sqlmap(payload, max_items=max_items)
     else:
         compact = payload
 

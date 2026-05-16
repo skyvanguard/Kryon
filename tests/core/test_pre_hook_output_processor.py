@@ -183,6 +183,68 @@ def test_nikto_v26_metadata_lines_filtered():
 
 
 # ---------------------------------------------------------------------------
+# sqlmap summarization (F187)
+# ---------------------------------------------------------------------------
+
+
+_SQLMAP_VULNERABLE_SAMPLE = """\
+[*] starting @ 21:16:01
+
+[21:16:01] [INFO] testing connection to the target URL
+[21:16:01] [INFO] testing if GET parameter 'q' is dynamic
+[21:16:25] [INFO] checking if the injection point on POST parameter 'JSON email' is a false positive
+(custom) POST parameter 'JSON email' is vulnerable. Do you want to keep testing the others (if any)? [y/N] N
+sqlmap identified the following injection point(s) with a total of 411 HTTP(s) requests:
+---
+Parameter: JSON email ((custom) POST)
+    Type: boolean-based blind
+    Title: SQLite AND boolean-based blind - WHERE, HAVING, GROUP BY or HAVING clause (JSON)
+    Payload: {"email":"test' AND CASE WHEN 3293=3293 THEN 3293 ELSE JSON(CHAR(104,81,72,106)) END AND 'mmuj'='mmuj","password":"test"}
+---
+[21:16:26] [INFO] the back-end DBMS is SQLite
+back-end DBMS: SQLite
+[21:16:26] [WARNING] HTTP error codes detected during run: 401 - 310 times
+"""
+
+
+def test_sqlmap_vulnerable_finding_preserved():
+    out = summarize_pre_hook_output(
+        "sqlmap_rest_login_pre_scan", _SQLMAP_VULNERABLE_SAMPLE
+    )
+    # The injection point block + parameter type + payload + DBMS line
+    # are the four things the model needs to emit a CWE-89 finding.
+    assert "injection point" in out
+    assert "Parameter: JSON email" in out
+    assert "Type: boolean-based blind" in out
+    assert "Payload:" in out
+    assert "back-end DBMS: SQLite" in out
+    # Verbose [INFO] testing lines stripped.
+    assert "testing connection" not in out
+    assert "testing if GET parameter" not in out
+
+
+_SQLMAP_NEGATIVE_SAMPLE = """\
+[*] starting @ 21:15:19
+[21:15:19] [INFO] testing connection to the target URL
+[21:15:20] [INFO] testing if GET parameter 'q' is dynamic
+[21:15:20] [WARNING] GET parameter 'q' does not seem to be injectable
+[21:15:20] [ERROR] all tested parameters do not appear to be injectable.
+"""
+
+
+def test_sqlmap_negative_compact_message():
+    """When sqlmap finds nothing, the model still needs to know the
+    probe ran (so it doesn't re-invoke sqlmap or claim "we didn't
+    test SQLi"). A single negative line suffices."""
+    out = summarize_pre_hook_output(
+        "sqlmap_rest_login_pre_scan", _SQLMAP_NEGATIVE_SAMPLE
+    )
+    assert "no injection" in out.lower() or "not vulnerable" in out.lower()
+    # Don't include the verbose testing trail.
+    assert "testing if GET parameter" not in out
+
+
+# ---------------------------------------------------------------------------
 # Unknown / generic output → length cap only
 # ---------------------------------------------------------------------------
 
