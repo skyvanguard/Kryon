@@ -51,8 +51,16 @@ _NUCLEI_LINE_RE = re.compile(
 )
 
 
-# nikto line shape: ``+ /path: finding description``
-_NIKTO_LINE_RE = re.compile(r"^\+\s+/[^:]+:.+$")
+# nikto line shape. Nikto v2.6+ emits findings as
+# ``+ [NNNNNN] /path: description.`` where ``[NNNNNN]`` is the
+# OSVDB/nikto-internal ID. Older versions sometimes emit
+# ``+ /path: description.`` without the bracketed id. The root path
+# can appear as ``/`` followed by ``:`` directly (``+ [id] /: ...``)
+# so the path body is ``[^:]*`` (zero or more non-colon chars).
+# The leading ``+`` plus a slash-rooted token is what distinguishes
+# real findings from nikto's metadata lines (``+ Target IP: ...``,
+# ``+ Start Time: ...``, ``+ Server: ...``).
+_NIKTO_LINE_RE = re.compile(r"^\+\s+(?:\[\d+\]\s+)?/[^:]*:.+$")
 
 
 def _nuclei_severity(line: str) -> int:

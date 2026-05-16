@@ -133,6 +133,55 @@ def test_nikto_summary_truncates_to_top_n():
     assert len(finding_lines) <= 30
 
 
+_NIKTO_V26_SAMPLE = """\
+- Nikto v2.6.0
++ Target IP:          172.21.0.3
++ Target Hostname:    juice_shop
++ Server: No banner retrieved
++ [999986] /: Retrieved access-control-allow-origin header: *.
++ [999996] /robots.txt: contains 1 entry which should be manually viewed.
++ [013587] /: Suggested security header missing: permissions-policy.
++ [013587] /: Suggested security header missing: strict-transport-security.
++ [013587] /: Suggested security header missing: content-security-policy.
++ Scan terminated: 1 error and 7 items reported.
++ End Time:           2026-05-16 19:59:59
+"""
+
+
+def test_nikto_v26_bracketed_id_lines_recognized():
+    """F186.B regression — nikto v2.6+ emits findings as
+    ``+ [NNNNNN] /path: ...`` with an OSVDB-style id. The original
+    F186 regex only accepted ``+ /path: ...`` so it dropped every
+    real finding from nikto v2.6 — the bench saw nikto_pre_scan
+    return 2122 chars but the model received "" as the parsed
+    summary."""
+    out = summarize_pre_hook_output("nikto_pre_scan", _NIKTO_V26_SAMPLE)
+    # The bracketed-id findings must survive.
+    assert "[999986]" in out
+    assert "[999996]" in out
+    assert "/robots.txt" in out
+    # Metadata lines stripped (Target IP, Server: No banner, Scan
+    # terminated, End Time).
+    assert "Target IP" not in out
+    assert "No banner retrieved" not in out
+    assert "Scan terminated" not in out
+    assert "End Time" not in out
+
+
+def test_nikto_v26_metadata_lines_filtered():
+    """``+ Server: ...``, ``+ Target IP: ...``, etc. start with ``+ Word:``
+    (no leading slash). Must NOT match the finding regex."""
+    payload = (
+        "+ Target IP:          1.2.3.4\n"
+        "+ Server: nginx/1.20\n"
+        "+ [999986] /api: real finding\n"
+    )
+    out = summarize_pre_hook_output("nikto_pre_scan", payload)
+    assert "real finding" in out
+    assert "Target IP" not in out
+    assert "Server: nginx" not in out
+
+
 # ---------------------------------------------------------------------------
 # Unknown / generic output → length cap only
 # ---------------------------------------------------------------------------
