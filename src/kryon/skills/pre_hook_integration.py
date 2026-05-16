@@ -100,9 +100,22 @@ def format_findings_block(findings: dict[str, str]) -> str:
     Designed to be appended to the user input (or the last user message
     in a conversation_input list) so the model sees authoritative context
     inline with the request.
+
+    F186 — each payload is run through ``summarize_pre_hook_output``
+    before rendering: nuclei/nikto-shaped output gets de-noised (banners,
+    template-load metadata, scan progress stripped) and capped to the
+    top-N findings sorted by severity. The block ends with the F186
+    imperative suffix that forces the model to convert the evidence
+    into findings JSON instead of re-invoking the tools.
     """
     if not findings:
         return ""
+
+    from kryon.skills.pre_hook_output_processor import (
+        imperative_findings_suffix,
+        summarize_pre_hook_output,
+    )
+
     parts = [
         "",
         "---",
@@ -116,15 +129,19 @@ def format_findings_block(findings: dict[str, str]) -> str:
     for inject_as, payload in findings.items():
         parts.append(f"### {inject_as}")
         parts.append("")
-        parts.append("```json")
-        # Try to keep payload as raw JSON if it parses; otherwise dump as-is.
+        parts.append("```")
+        # Try to keep payload as raw JSON if it parses (e.g.
+        # ``deterministic_compliance_findings`` from run_compliance_audit
+        # is structured JSON we don't want to text-summarize).
         try:
             parsed = json.loads(payload)
             parts.append(json.dumps(parsed, indent=2, ensure_ascii=False))
         except (json.JSONDecodeError, TypeError):
-            parts.append(payload[:8000])  # cap to avoid runaway tokens
+            # F186 — text output goes through the de-noiser + truncator.
+            parts.append(summarize_pre_hook_output(inject_as, payload))
         parts.append("```")
         parts.append("")
+    parts.append(imperative_findings_suffix())
     return "\n".join(parts)
 
 
