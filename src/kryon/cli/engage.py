@@ -1036,6 +1036,25 @@ def _invoke_orchestrated_engagement(
             except Exception as exc:  # pragma: no cover
                 console.print(f"  [dim]goal-skill swap failed for '{phase.name}': {exc}[/dim]")
 
+        # F185 — Pre-hooks deterministic execution. If any active skill
+        # declares ``pre_hooks:`` (e.g. vuln-hunter runs nuclei + nikto
+        # before the LLM), execute them now and append the output to
+        # the preamble. The model sees authoritative tool output as
+        # context — no decision needed on whether to invoke the tool.
+        # Set KRYON_TARGET_HOST so the ``{ctx.target}`` substitution in
+        # the YAML resolves to the engagement's real target.
+        try:
+            from kryon.skills.pre_hook_integration import maybe_run_pre_hooks
+
+            os.environ["KRYON_TARGET_HOST"] = target
+            pre_hook_suffix = await maybe_run_pre_hooks(
+                agent, target, console
+            )
+            if pre_hook_suffix:
+                preamble = preamble + pre_hook_suffix
+        except Exception as exc:  # pragma: no cover — non-fatal
+            console.print(f"  [dim]pre-hooks skipped for '{phase.name}': {exc}[/dim]")
+
         # F123 — Register the active ActionLog so every tool call inside
         # this phase lands as its own audit entry. Cleared in finally so
         # one phase's audit doesn't bleed into the next phase or into

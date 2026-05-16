@@ -12,6 +12,30 @@ required_tools:
   - search_vulnerabilities
   - query_knowledge_base
   - duckduckgo_search
+# F185 — Deterministic-first execution. Pre-hooks run BEFORE the LLM
+# sees the engagement. The model used to bounce between "should I
+# invoke nuclei? sqlmap? nikto?" while burning turns on CoT; with
+# pre-hooks we always run the active detectors first and the LLM
+# only narrates the evidence.
+#
+# All pre-hooks are ``required: false`` so a missing binary doesn't
+# block the engagement — the LLM falls back to manual probes when a
+# hook fails (the F164 cache failure-skip means the failure isn't
+# poisoning the cache either).
+pre_hooks:
+  - tool: nuclei_scan
+    args:
+      target: "{ctx.target}"
+      severity: "critical,high,medium"
+    inject_as: nuclei_pre_scan
+    required: false
+    timeout_s: 240
+  - tool: run_command
+    args:
+      command: "nikto -host {ctx.target} -nointeractive -Tuning x6 -maxtime 60"
+    inject_as: nikto_pre_scan
+    required: false
+    timeout_s: 90
 ---
 
 ## Toolbox disponible (F182)
