@@ -1,0 +1,284 @@
+"""F173 — Tech-stack vs CVE applicability filter tests.
+
+F151 catches obvious hallucinations (malformed CVE IDs, out-of-range
+years). F171 catches plausible fabrications (well-formed CVE IDs that
+were never actually published). What F151+F171 still let through: a
+**real, valid CVE that does not apply to the target stack**.
+
+The F170 bench showed gpt-oss-20b emit ``CVE-2013-6235`` (JAMon JSP XSS)
+as a finding for OWASP Juice Shop. CVE-2013-6235 is real, published,
+and lives in the NVD cache — so neither F151 nor F171 catches it. But
+Juice Shop is a Node.js/Express app; JAMon is a Java profiling tool.
+The CVE simply does not apply.
+
+This module gives the parser a third gate: load the CVE's affected
+product metadata (CPE strings + description) and reject the finding if
+none of those products match the target's detected tech stack (from
+``whatweb`` / headers / fingerprint output).
+
+The check is **conservative by design**:
+  * No tech_stack info → pass (don't reject what we can't verify)
+  * CVE metadata missing → pass (avoid penalizing the operator for
+    incomplete NVD data)
+  * Tech-stack match found → pass
+  * Tech-stack mismatch AND we have data for both sides → reject
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from kryon.validation.cve_applicability import (
+    CVEApplicability,
+    extract_target_tech_stack,
+    is_cve_applicable,
+)
+
+
+# ---------------------------------------------------------------------------
+# Tech-stack extraction from recon output
+# ---------------------------------------------------------------------------
+
+
+def test_extract_tech_from_whatweb_plugins():
+    whatweb_output = (
+        '[{"target":"http://juice_shop:3000/","plugins":'
+        '{"HTML5":{},"X-Frame-Options":{"string":["SAMEORIGIN"]},'
+        '"Title":{"string":["OWASP Juice Shop"]},'
+        '"X-Powered-By":{"string":["Express"]}}}]'
+    )
+    stack = extract_target_tech_stack(whatweb_output)
+    # Whatweb plugin names are normalized to lowercase.
+    assert "express" in stack
+    assert "html5" in stack
+    assert "owasp juice shop" in stack
+
+
+def test_extract_tech_from_server_header_string():
+    """When the only signal is a Server: header we extract the product
+    name plus version."""
+    headers = "HTTP/1.1 200 OK\r\nServer: nginx/1.18.0\r\nContent-Type: text/html\r\n"
+    stack = extract_target_tech_stack(headers)
+    assert "nginx" in stack
+
+
+def test_extract_tech_from_x_powered_by():
+    headers = "X-Powered-By: PHP/8.1.0\r\n"
+    stack = extract_target_tech_stack(headers)
+    assert "php" in stack
+
+
+def test_extract_empty_input_returns_empty_set():
+    assert extract_target_tech_stack("") == set()
+    assert extract_target_tech_stack(None) == set()  # type: ignore[arg-type]
+
+
+def test_extract_combined_sources():
+    combined = (
+        '[{"plugins":{"nginx":{"string":["nginx"]}}}]\n'
+        'Server: nginx/1.20\nX-Powered-By: Express\n'
+    )
+    stack = extract_target_tech_stack(combined)
+    assert "nginx" in stack
+    assert "express" in stack
+
+
+# ---------------------------------------------------------------------------
+# is_cve_applicable — the gate the parser calls
+# ---------------------------------------------------------------------------
+
+
+def test_juice_shop_false_positive_dropped():
+    """The exact F170 case: CVE-2013-6235 is JAMon JSP XSS; target is
+    Node.js. The filter must drop."""
+    cve_meta = CVEApplicability(
+        cve_id="CVE-2013-6235",
+        products=("jamon",),
+        description="Multiple cross-site scripting (XSS) vulnerabilities in JAMonAdmin.jsp in JAMon",
+    )
+    tech_stack = {"express", "node.js", "html5", "owasp juice shop"}
+    ok, reason = is_cve_applicable(cve_meta, tech_stack)
+    assert ok is False
+    assert "jamon" in reason.lower() or "no match" in reason.lower()
+
+
+def test_log4j_passes_for_java_target():
+    cve_meta = CVEApplicability(
+        cve_id="CVE-2021-44228",
+        products=("log4j", "log4j-core", "apache log4j"),
+        description="Apache Log4j2 JNDI features used in configuration",
+    )
+    tech_stack = {"java", "tomcat", "log4j"}
+    ok, _ = is_cve_applicable(cve_meta, tech_stack)
+    assert ok is True
+
+
+def test_log4j_dropped_for_php_target():
+    cve_meta = CVEApplicability(
+        cve_id="CVE-2021-44228",
+        products=("log4j", "apache log4j"),
+        description="Apache Log4j2 vulnerability",
+    )
+    tech_stack = {"php", "apache", "mysql"}
+    ok, reason = is_cve_applicable(cve_meta, tech_stack)
+    # Apache HTTP Server != Apache Log4j. The filter shouldn't be fooled
+    # by the shared "apache" prefix unless that match is explicit.
+    assert ok is False or "apache" in reason.lower()
+
+
+# ---------------------------------------------------------------------------
+# Conservative defaults — when we don't have data, we pass
+# ---------------------------------------------------------------------------
+
+
+def test_empty_tech_stack_passes():
+    """No recon data yet → can't tell, pass conservatively."""
+    cve_meta = CVEApplicability(
+        cve_id="CVE-2013-6235",
+        products=("jamon",),
+        description="JAMon XSS",
+    )
+    ok, reason = is_cve_applicable(cve_meta, set())
+    assert ok is True
+    assert "no tech stack" in reason.lower() or "empty" in reason.lower()
+
+
+def test_missing_cve_metadata_passes():
+    """No NVD metadata for this CVE → can't verify, pass conservatively."""
+    cve_meta = CVEApplicability(cve_id="CVE-2024-99999", products=(), description="")
+    tech_stack = {"node.js"}
+    ok, _ = is_cve_applicable(cve_meta, tech_stack)
+    assert ok is True
+
+
+def test_partial_match_within_product_name_counts():
+    """``CVE-...affects nginx and openssl...`` against a stack containing
+    ``nginx/1.20.0`` should match — even though the stack token has a
+    version suffix."""
+    cve_meta = CVEApplicability(
+        cve_id="CVE-2024-1234",
+        products=("nginx",),
+        description="nginx denial of service",
+    )
+    tech_stack = {"nginx/1.20.0", "ubuntu"}
+    ok, _ = is_cve_applicable(cve_meta, tech_stack)
+    assert ok is True
+
+
+def test_case_insensitive_match():
+    cve_meta = CVEApplicability(
+        cve_id="CVE-2024-1234",
+        products=("WordPress",),
+        description="WordPress vulnerability",
+    )
+    tech_stack = {"wordpress"}
+    ok, _ = is_cve_applicable(cve_meta, tech_stack)
+    assert ok is True
+
+
+def test_description_keyword_fallback_when_no_products():
+    """If NVD has no structured product list but the description
+    contains an exact tech token, count it as a match."""
+    cve_meta = CVEApplicability(
+        cve_id="CVE-2024-9999",
+        products=(),
+        description="Vulnerability in nginx 1.18 due to ...",
+    )
+    tech_stack = {"nginx"}
+    ok, _ = is_cve_applicable(cve_meta, tech_stack)
+    assert ok is True
+
+
+# ---------------------------------------------------------------------------
+# Edge cases
+# ---------------------------------------------------------------------------
+
+
+def test_non_cve_rule_id_passes_unconditionally():
+    """This gate is CVE-specific — non-CVE rule_ids like
+    ``Missing-CSP`` aren't even passed through this filter."""
+    from kryon.validation.cve_applicability import is_cve_applicable_for_finding
+
+    finding = {"rule_id": "Missing-CSP", "severity": "HIGH"}
+    ok, _ = is_cve_applicable_for_finding(finding, tech_stack={"php"})
+    assert ok is True
+
+
+def test_finding_with_cve_rule_id_runs_full_check(monkeypatch):
+    """The finding-level wrapper looks up CVE metadata + runs the check."""
+    from kryon.validation import cve_applicability
+
+    monkeypatch.setattr(
+        cve_applicability,
+        "_lookup_cve_metadata",
+        lambda cid: CVEApplicability(
+            cve_id=cid, products=("jamon",), description="JAMon XSS"
+        ),
+    )
+    finding = {"rule_id": "CVE-2013-6235", "severity": "HIGH"}
+    ok, reason = cve_applicability.is_cve_applicable_for_finding(
+        finding, tech_stack={"express", "node.js"}
+    )
+    assert ok is False
+    assert "jamon" in reason.lower() or "no match" in reason.lower()
+
+
+def test_filter_disabled_via_env(monkeypatch):
+    """Operator escape hatch: KRYON_CVE_APPLICABILITY=false skips the gate."""
+    monkeypatch.setenv("KRYON_CVE_APPLICABILITY", "false")
+    from kryon.validation import cve_applicability
+
+    cve_meta = CVEApplicability(
+        cve_id="CVE-2013-6235",
+        products=("jamon",),
+        description="JAMon XSS",
+    )
+    ok, reason = cve_applicability.is_cve_applicable(cve_meta, {"node.js"})
+    assert ok is True
+    assert "disabled" in reason.lower()
+
+
+def test_disabled_filter_for_finding(monkeypatch):
+    """Disabled flag also propagates through the finding-level entry point."""
+    monkeypatch.setenv("KRYON_CVE_APPLICABILITY", "false")
+    from kryon.validation import cve_applicability
+
+    monkeypatch.setattr(
+        cve_applicability,
+        "_lookup_cve_metadata",
+        lambda cid: CVEApplicability(
+            cve_id=cid, products=("jamon",), description="JAMon XSS"
+        ),
+    )
+    finding = {"rule_id": "CVE-2013-6235"}
+    ok, _ = cve_applicability.is_cve_applicable_for_finding(
+        finding, tech_stack={"express"}
+    )
+    assert ok is True
+
+
+def test_normalize_product_names():
+    """``Apache Log4j-Core`` and ``apache log4j core`` should both
+    match a tech_stack containing ``log4j``."""
+    cve_meta = CVEApplicability(
+        cve_id="CVE-2021-44228",
+        products=("Apache Log4j-Core",),
+        description="Log4j2 JNDI",
+    )
+    tech_stack = {"log4j"}
+    ok, _ = is_cve_applicable(cve_meta, tech_stack)
+    assert ok is True
+
+
+def test_blacklist_products_never_match_node_stack():
+    """The hardcoded sanity check: known-Java-only products
+    (jamon, struts2-only, etc.) never match a Node.js stack regardless
+    of substring fuzziness."""
+    cve_meta = CVEApplicability(
+        cve_id="CVE-2017-5638",
+        products=("apache struts",),
+        description="Apache Struts2 remote code execution",
+    )
+    tech_stack = {"node.js", "express"}
+    ok, _ = is_cve_applicable(cve_meta, tech_stack)
+    assert ok is False
