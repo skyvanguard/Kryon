@@ -66,14 +66,14 @@ pre_hooks:
   # F187 — Active SQLi probe against a common REST login endpoint.
   # Many vulnerable test targets (Juice Shop, DVWA REST, bWAPP)
   # expose ``/rest/user/login`` or similar JSON POST routes where
-  # the email/username field is SQLi-injectable. ``--ignore-code=401``
-  # so sqlmap continues testing past the unauth response (the
-  # injectable code path runs server-side before auth check).
-  # Targets without that route return "not injectable" cleanly in
-  # 5-10s and the hook produces an empty finding block.
-  - tool: run_command
+  # the email/username field is SQLi-injectable. We use the F80
+  # Python escape hatch because the declarative ``tool: run_command``
+  # form rejects the JSON body ``{"email":"test","password":"test"}``
+  # — the SSTI-guarded template substitution treats every ``{...}``
+  # as a potential template placeholder.
+  - python: ./pre_hooks/sqlmap_rest_login_hook.py:run
     args:
-      command: "sqlmap -u {ctx.target}/rest/user/login --data='{\"email\":\"test\",\"password\":\"test\"}' --headers='Content-Type: application/json' --batch --level=2 --risk=2 --threads=5 --timeout=8 --ignore-code=401 --technique=B --random-agent"
+      target: "{ctx.target}"
     inject_as: sqlmap_rest_login_pre_scan
     required: false
     timeout_s: 120
