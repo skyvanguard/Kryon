@@ -4,7 +4,34 @@ description: "Búsqueda avanzada de vulnerabilidades, bug bounty, zero-day"
 triggers:
   tech: []
   ports: []
-  keywords: ["vulnerability", "vuln", "bug bounty", "cve", "zero-day", "exploit"]
+  # F185 — broaden keyword triggers so the skill activates on web-vuln
+  # objective phrases the operator actually uses (``find SQLi or XSS or
+  # RCE``, ``buscar injection``, etc.). Without these keywords the skill
+  # wasn't activating reliably, and its F185 pre_hooks (nuclei + nikto)
+  # never fired — bench runs 2/3 saw 0 findings.
+  keywords:
+    - "vulnerability"
+    - "vuln"
+    - "bug bounty"
+    - "cve"
+    - "zero-day"
+    - "exploit"
+    - "sqli"
+    - "sql injection"
+    - "xss"
+    - "cross-site scripting"
+    - "rce"
+    - "remote code execution"
+    - "idor"
+    - "ssrf"
+    - "path traversal"
+    - "injection"
+    - "web vulnerability"
+    - "web vuln"
+    # ``find`` is the most common verb in pentest objectives
+    # ("find SQLi", "find XSS or RCE", etc.) — broadens activation
+    # but also matches generic phrasing, which is the point.
+    - "find"
 priority: 15
 required_tools:
   - run_command
