@@ -179,8 +179,66 @@ def run_doctor(
     # Env sanity.
     checks.append(_check_env("KRYON_MODEL"))
 
+    # F177 — CVE cache health.
+    checks.append(_check_cve_cache())
+
     # External dependencies (optional).
     if check_ollama:
         checks.append(_check_ollama_reachable())
 
     return checks
+
+
+def _check_cve_cache() -> HealthCheckResult:
+    """F177 — surface CVE cache state for the operator.
+
+    The cache lives at ``KRYON_CVE_CACHE_PATH`` (default
+    ``.kryon/nvd_cache/cves.txt``). When the operator sets
+    ``KRYON_CVE_CACHE_REQUIRED=true`` (F151 strict mode), an empty
+    cache silently rejects every CVE-shaped finding. This check
+    catches that misconfiguration up front.
+
+    Status:
+      * ok=True with line count when the file exists and has >100 IDs
+      * ok=True with "soft mode" note when cache is empty AND strict
+        mode is off (the operator chose not to enforce — that's fine)
+      * ok=False when cache is empty AND strict mode is on (the
+        operator is about to silently drop every CVE finding)
+    """
+    cache_path_str = os.environ.get(
+        "KRYON_CVE_CACHE_PATH",
+        ".kryon/nvd_cache/cves.txt",
+    ).strip() or ".kryon/nvd_cache/cves.txt"
+    strict = os.environ.get("KRYON_CVE_CACHE_REQUIRED", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+    path = Path(cache_path_str)
+    if not path.exists():
+        detail = f"missing ({cache_path_str}). Run: kryon update-cve-cache --years 2020-2026"
+        return HealthCheckResult(name="cve_cache", ok=not strict, detail=detail)
+
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return HealthCheckResult(name="cve_cache", ok=False, detail=f"read error: {exc}")
+
+    count = 0
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            count += 1
+
+    if count == 0:
+        detail = f"empty ({cache_path_str}). Run: kryon update-cve-cache --years 2020-2026"
+        return HealthCheckResult(name="cve_cache", ok=not strict, detail=detail)
+    if count < 100:
+        return HealthCheckResult(
+            name="cve_cache",
+            ok=True,
+            detail=f"{count} entries (sparse — consider --all)",
+        )
+    return HealthCheckResult(name="cve_cache", ok=True, detail=f"{count} entries")
