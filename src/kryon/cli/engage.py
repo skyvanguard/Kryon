@@ -494,7 +494,21 @@ def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
         return []
 
     from kryon.redaction.pan_redactor import redact_sensitive
+    from kryon.validation.cve_applicability import (
+        extract_target_tech_stack,
+        is_cve_applicable_for_finding,
+    )
     from kryon.validation.cve_validator import validate_finding_cve
+
+    # F180 — derive tech stack from the agent's PRE-JSON narration. The
+    # model typically mentions detected technologies before emitting
+    # findings (whatweb dumps, "X-Powered-By: Express", etc.). We
+    # deliberately exclude the JSON block itself — otherwise a finding's
+    # own ``message`` mentioning the wrong-stack product (e.g. "JAMon
+    # 2.7") would be self-confirming and the gate would never fire.
+    json_start_match = re.search(r"```|^\s*\[\s*\{|^\s*\{", text, re.MULTILINE)
+    narration = text[: json_start_match.start()] if json_start_match else text
+    tech_stack = extract_target_tech_stack(narration)
 
     out: list[Finding] = []
     for item in items:
@@ -512,6 +526,15 @@ def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
         cve_ok, cve_reason = validate_finding_cve(item)
         if not cve_ok:
             logger.warning("F151 dropped LLM finding: %s", cve_reason)
+            continue
+        # F180 — third validation gate: even when the CVE is real and
+        # published (F171), it might not apply to this target. The F170
+        # bench saw gpt-oss emit CVE-2013-6235 (JAMon JSP XSS) against
+        # a Node.js target — F173 drops it when the CVE's products
+        # don't overlap with the detected tech stack.
+        app_ok, app_reason = is_cve_applicable_for_finding(item, tech_stack=tech_stack)
+        if not app_ok:
+            logger.warning("F173 dropped LLM finding: %s", app_reason)
             continue
         # F119 — Redact PAN/CVV/PY-ID before persisting into a Finding.
         # The agent may have echoed sensitive data from a response body

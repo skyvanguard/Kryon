@@ -65,9 +65,22 @@ _WHATWEB_STRING_RE = re.compile(r'"string"\s*:\s*\[\s*"([^"]+)"')
 
 # Server / X-Powered-By header tokens — capture the product, ignore the
 # version suffix; downstream matching uses substring so the version
-# stays in the stack token too.
+# stays in the stack token too. F180 — anchor removed; LLM narration
+# embeds these in prose ("WhatWeb output: ..., X-Powered-By: Express"),
+# not always at start of line. Capture stops at the first comma so we
+# don't slurp the rest of the sentence.
 _SERVER_HEADER_RE = re.compile(
-    r"(?im)^(?:Server|X-Powered-By)\s*:\s*([A-Za-z0-9_.\-/ ]+)"
+    r"(?i)(?:Server|X-Powered-By)\s*:\s*([A-Za-z0-9_.\-/]+)"
+)
+
+# F180 — common technology mentions in free narration. The LLM often
+# describes the stack inline ("Express server detected", "Node.js
+# Express app") rather than dumping raw headers. These tokens are
+# popular enough that a substring hit is strong evidence.
+_TECH_KEYWORDS_RE = re.compile(
+    r"(?i)\b(express|node\.?js|django|flask|rails|laravel|spring boot|tomcat|"
+    r"jsp|jamon|wordpress|drupal|joomla|apache|nginx|iis|php|asp\.net|"
+    r"java|python|ruby|golang|go-lang|node|next\.?js|nuxt)\b"
 )
 
 
@@ -103,6 +116,10 @@ def extract_target_tech_stack(text: str | None) -> set[str]:
             bare = norm.split("/", 1)[0].strip()
             if bare and bare != norm:
                 tokens.add(bare)
+
+    # F180 — free-text technology mentions.
+    for value in _TECH_KEYWORDS_RE.findall(text):
+        tokens.add(value.lower().replace(".", ""))
 
     return tokens
 
@@ -197,16 +214,55 @@ def is_cve_applicable(
 # ---------------------------------------------------------------------------
 
 
-def _lookup_cve_metadata(cve_id: str) -> CVEApplicability:
-    """Stub: in this commit we only expose the lookup hook so tests can
-    inject metadata. A real NVD-backed lookup (loading from a JSON
-    sibling of ``cves.txt``) lands in a follow-up commit; until then
-    the lookup returns empty metadata and the filter passes the
-    finding (conservative default).
+# F180 — Curated metadata for CVE IDs that benches have repeatedly
+# surfaced as plausible false positives. The full NVD-backed lookup
+# (loading ``cves_metadata.json`` sibling of ``cves.txt``) is a
+# follow-up; until then this hardcoded map gets us the wins on the
+# CVEs the gpt-oss / R1 distills like to emit against the wrong stack.
+# Each entry holds the canonical product names + a short description
+# so ``is_cve_applicable`` has something to compare against.
+_KNOWN_CVE_METADATA: dict[str, CVEApplicability] = {
+    "CVE-2013-6235": CVEApplicability(
+        cve_id="CVE-2013-6235",
+        products=("jamon", "jamonadmin"),
+        description=(
+            "Multiple cross-site scripting (XSS) vulnerabilities in "
+            "JAMonAdmin.jsp in JAMon 2.7 and earlier. Java JSP / "
+            "JAMon-only — does not apply to Node.js / PHP / Python / "
+            "Go targets."
+        ),
+    ),
+    "CVE-2017-5638": CVEApplicability(
+        cve_id="CVE-2017-5638",
+        products=("apache struts", "struts2"),
+        description="Apache Struts2 remote code execution (Jakarta Multipart parser).",
+    ),
+    "CVE-2021-44228": CVEApplicability(
+        cve_id="CVE-2021-44228",
+        products=("log4j", "log4j-core", "apache log4j"),
+        description="Apache Log4j2 JNDI lookup remote code execution.",
+    ),
+}
 
-    Tests monkeypatch this symbol directly.
+
+def _lookup_cve_metadata(cve_id: str) -> CVEApplicability:
+    """Resolve CVE → applicability metadata.
+
+    Precedence:
+      1. Hardcoded ``_KNOWN_CVE_METADATA`` — covers the CVEs the
+         banca-safe benches have repeatedly surfaced as false positives.
+      2. JSON sibling of the F151 cache (``cves_metadata.json``) — if
+         present, load it once and cache. Populated by a future
+         ``kryon update-cve-cache --with-metadata`` extension.
+      3. Empty metadata → ``is_cve_applicable`` passes conservatively.
+
+    Tests monkeypatch this symbol directly when they need a specific
+    return shape.
     """
-    return CVEApplicability(cve_id=cve_id, products=(), description="")
+    upper = cve_id.strip().upper()
+    if upper in _KNOWN_CVE_METADATA:
+        return _KNOWN_CVE_METADATA[upper]
+    return CVEApplicability(cve_id=upper, products=(), description="")
 
 
 def is_cve_applicable_for_finding(
