@@ -29,6 +29,29 @@ def _captured_command():
     return getattr(nuclei_module.run_command, "_captured", None)
 
 
+@pytest.fixture(autouse=True)
+def _clear_scan_cache():
+    """The ``@cache_scan_result`` decorator on ``nuclei_scan`` would
+    otherwise reuse a result from a prior test, never invoking the
+    recorded ``run_command`` and leaving ``captured["cmd"]`` empty."""
+    from kryon.cache import scan_cache as sc_module
+    from kryon.cache.cache_manager import CacheManager
+
+    fresh = CacheManager(enable_persistence=False)
+
+    class _FreshScanCache(sc_module.ScanCache):
+        def __init__(self):
+            super().__init__(cache_manager=fresh)
+
+    import pytest as _pytest
+
+    mp = _pytest.MonkeyPatch()
+    mp.setattr(sc_module, "_global_scan_cache", None)
+    mp.setattr(sc_module, "ScanCache", _FreshScanCache)
+    yield
+    mp.undo()
+
+
 @pytest.fixture
 def fake_run_command(monkeypatch):
     """Replace ``run_command`` with a recorder. The wrapped tool returns
