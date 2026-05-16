@@ -800,6 +800,16 @@ class Runner:
             else:
                 model_settings.temperature = 0.0
 
+        # F184 — propagate ``KRYON_REASONING_EFFORT`` env (low|medium|high)
+        # into model_settings so gpt-oss / o1 / o3 / R1 distill pick up
+        # the right CoT budget. Same precedence rule as temperature:
+        # caller's setting wins, env fills the gap, no default
+        # (means: leave None → backend's Modelfile default applies).
+        if not getattr(model_settings, "reasoning_effort", None):
+            env_effort = os.environ.get("KRYON_REASONING_EFFORT", "").strip().lower()
+            if env_effort in {"low", "medium", "high"}:
+                model_settings.reasoning_effort = env_effort
+
         # Ensure agent model is set in model_settings for streaming mode
         if not hasattr(model_settings, "agent_model") or not model_settings.agent_model:
             if isinstance(agent.model, str):
@@ -1099,6 +1109,13 @@ class Runner:
                     pass
             else:
                 model_settings.temperature = 0.0
+
+        # F184 — same reasoning_effort env propagation as the streaming
+        # path above.
+        if not getattr(model_settings, "reasoning_effort", None):
+            env_effort = os.environ.get("KRYON_REASONING_EFFORT", "").strip().lower()
+            if env_effort in {"low", "medium", "high"}:
+                model_settings.reasoning_effort = env_effort
 
         # Ensure agent model is set in model_settings
         if not hasattr(model_settings, "agent_model") or not model_settings.agent_model:
