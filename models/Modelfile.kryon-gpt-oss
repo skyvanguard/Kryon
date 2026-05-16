@@ -174,9 +174,23 @@ type {{ .Function.Name }} = () => any;
 <|start|>assistant
 {{- end -}}"""
 
-PARAMETER num_ctx 32768
+# F178 — num_ctx dropped from 32768 to 16384. The F170 Juice Shop bench
+# peaked at ~1.3K tokens (ctx 4% OK), so 16K is 5x the observed
+# working-set ceiling. The change frees ~0.5 GB VRAM (RTX 5070 Ti
+# Laptop went from 94%→85% usage, 12% CPU spillover → 0%) and leaves
+# headroom for nomic-embed-text to also serve from GPU. If a longer
+# engagement ever needs more, raise back per-instance with the Ollama
+# ``num_ctx`` request parameter or bake a higher value via env.
+PARAMETER num_ctx 16384
 PARAMETER num_predict 4096
-PARAMETER temperature 1.0
+# F179 — temperature 1.0 (canonical Harmony default) gave σ=2.83 on
+# n=3 with findings ranging 0-6 across identical runs. For agentic
+# pentest where we want reproducible findings, 0.3 reduces variance
+# while keeping enough diversity for the model to explore alt paths
+# when a tool fails. OpenAI's own gpt-oss agentic guide recommends
+# 0.2-0.4 for tool-use scenarios; canonical 1.0 is the chat-completion
+# default, not the agentic default.
+PARAMETER temperature 0.3
 PARAMETER top_p 1.0
 PARAMETER top_k 0
 PARAMETER min_p 0
