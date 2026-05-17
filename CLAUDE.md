@@ -133,6 +133,78 @@ Two execution modes:
     populates `~/.kryon/nvd_cache/cves.txt`. With
     `KRYON_CVE_CACHE_REQUIRED=true`, F151 filters out hallucinated CVE
     IDs that pass format check but were never published.
+- **gpt-oss anti-FP + active-detection stack (F178-F189)** —
+  the F178-F189 sprint took the F170 bench (10 findings but 1 disguised
+  CVE FP, single SATISFIED) to F189's reproducible 3/3 SATISFIED with
+  avg=18 findings, 0 FPs, and 2/3 runs emitting CWE-89 real SQLi via
+  sqlmap pre_hook.
+  - F178/F179: `Modelfile.kryon-gpt-oss` parameters tuned to
+    `num_ctx 16384` + `temperature 0.3`. The F170 bench peaked at
+    `ctx 4% OK`, so 16K is 5× the working-set ceiling and frees
+    ~0.5 GB VRAM (94% → 85% usage, 12% → 8% CPU spillover).
+    `temperature 0.3` collapses run-to-run variance (n=3 with
+    temp 1.0 = σ 2.83 → temp 0.3 = σ 0.0).
+  - F180+F180.B+F181.C: `kryon.validation.cve_applicability` is wired
+    into `_parse_agent_findings` and drops CVEs whose
+    products don't apply to the target stack. Known lab targets get a
+    curated host hint (juice_shop → node.js, dvwa → php, webgoat →
+    java) that's authoritative over narration tokens — closes the
+    self-confirmation loop where a JAMon CVE message would feed
+    `jamon` back into the stack.
+  - F183: `kryon.validation.finding_applicability` extends the gate to
+    non-CVE-shaped rule_ids. After F180+F181.C the model started
+    relabelling the JAMon FP as `WEB-XSS-001` to bypass the CVE-only
+    filter; F183 scans `message`+`evidence` for product keywords
+    (jamon, struts, log4j, ...) and drops the FP regardless of
+    rule_id shape. `KRYON_FINDING_APPLICABILITY=false` to disable.
+  - F185-F185.C: `pre_hooks:` wired into `engage.py:_run_phase`
+    (previously only fired from the REPL flow). Each phase now
+    re-matches skills against `phase_name + objective + target` and
+    runs the matched skills' pre-hooks before the LLM. `vuln-hunter`
+    keywords broadened to include `sqli`, `xss`, `rce`, `find`,
+    `injection`, etc. so the bench objective `find SQLi or XSS or
+    RCE` actually activates the skill.
+  - F186-F186.B: `kryon.skills.pre_hook_output_processor` de-noises
+    nuclei (severity-prioritized top-N) and nikto v2.6 (bracketed-id
+    `+ [NNNNNN] /path:` regex) output before it reaches the model.
+    Plus an imperative Spanish suffix: *"ACCIÓN OBLIGATORIA:
+    convertí CADA línea ... NO re-invocás nuclei/nikto/sqlmap."*
+    Forced the model to convert evidence instead of re-running tools.
+  - F187-F187.B: `vuln-hunter` ships three pre_hooks today:
+    `nuclei_scan(critical,high,medium)` + `nikto -Tuning x6 -maxtime 60`
+    + `sqlmap` via the Python escape hatch
+    (`./pre_hooks/sqlmap_rest_login_hook.py:run`). The Python form is
+    required because the declarative `tool: run_command` argument
+    validator (SSTI-guarded) rejects `{...}` literals — sqlmap's
+    JSON POST body `{"email":"test","password":"test"}` tripped it.
+    On Juice Shop the sqlmap hook detects the JSON `email` parameter
+    as boolean-based blind SQLi against SQLite in ~25s, model emits
+    CWE-89 finding.
+  - F184: `KRYON_REASONING_EFFORT` env (`low|medium|high`) propagates
+    to `model_settings.reasoning_effort` via `sdk/agents/run.py`. F189
+    bench proved that `medium` reasoning is only contraproductive when
+    the model has to DECIDE which tools to invoke. With pre_hooks
+    deterministicos (F185-F187), the model only converts evidence and
+    medium reasoning helps that conversion — n=3 went from 2/3 → 3/3
+    SATISFIED + CWE-89 from 1/3 → 2/3.
+- **Engagement configuration profiles (banca-safe vs active pentest)**:
+  - **Default (banca-safe / compliance audits)**: keep Modelfile
+    defaults — `Reasoning: low`, `KRYON_PHASE_TURNS` unset (auto 8 for
+    reasoning models, 5 for instruct), pre_hooks fire only for
+    vuln-hunter-activated phases (won't fire for pure compliance
+    runs).
+  - **Active pentest (authorized targets: Juice Shop / DVWA / WebGoat
+    / bug bounty with written authorization)**:
+    ```bash
+    KRYON_MODEL=kryon-gpt-oss
+    KRYON_REASONING_EFFORT=medium
+    KRYON_PHASE_TURNS=10
+    KRYON_RED_TEAM=true
+    ```
+    This unlocks the full F185-F189 active-detection stack: nuclei +
+    nikto + sqlmap pre_hooks, broader reasoning budget, evasion
+    modules. Use only against targets the operator has written
+    authorization for.
 - **LiteLLM without `[proxy]`** — uvloop is not supported on Windows; do not re-add the proxy extra to `pyproject.toml`.
 - **`openinference-instrumentation-openai`** is Python-version-gated (`< 3.14`) under the `tracing` extra.
 - **Optional extras**: `voice`, `viz`, `tracing`, `rag`, `server`, `tui`, `reporting`, `orchestration`, `dev`.
@@ -150,9 +222,30 @@ KRYON_MODEL=kryon-gpt-oss          # F170 default: gpt-oss-20b Q4_K_M (10.8 GB)
                                    # Fallback: kryon-14b (Qwen3-14B dense)
 KRYON_PHASE_TURNS=                 # F166: override per-phase turn cap (default
                                    # 8 for reasoning models / 5 for instruct).
+                                   # Set 10 for active-pentest profiles.
+KRYON_REASONING_EFFORT=            # F184: low|medium|high override of the
+                                   # Modelfile's Reasoning: setting. Default
+                                   # (unset) = Modelfile value (kryon-gpt-oss
+                                   # ships 'low'). Use 'medium' ONLY when
+                                   # pre_hooks are active (F185+); without
+                                   # them medium causes CoT loops (see F184).
 KRYON_CVE_CACHE_REQUIRED=          # F151+F171: 'true' drops findings whose CVE
                                    # rule_id is NOT in ~/.kryon/nvd_cache/cves.txt.
                                    # Populate with: kryon update-cve-cache --all
+KRYON_CVE_APPLICABILITY=           # F173/F180: 'false' disables the
+                                   # tech-stack/CVE-product applicability gate.
+                                   # Default (unset) = enabled — drops CVEs
+                                   # whose products don't match target stack
+                                   # (e.g. JAMon JSP CVE on Node.js target).
+KRYON_FINDING_APPLICABILITY=       # F183: 'false' disables the non-CVE
+                                   # applicability gate (scans message+evidence
+                                   # for product mentions; drops e.g. a
+                                   # WEB-XSS-001 finding citing JAMonAdmin.jsp
+                                   # on a Node.js host). Default = enabled.
+KRYON_DEBUG_PARSE=                 # F181.C: 'true' writes one JSONL line per
+                                   # finding-parse decision to
+                                   # .kryon/debug/parse_<engagement>.jsonl
+                                   # for post-mortem of FP escape paths.
 KRYON_AGENT_TYPE=kryon             # Use unified agent (v2.x)
 KRYON_UNIFIED=true
 KRYON_FORCE_TOOL_TURNS=8           # Force tool use first N turns (Ollama reliability)

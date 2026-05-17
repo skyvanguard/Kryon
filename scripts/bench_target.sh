@@ -115,7 +115,9 @@ for RUN in $(seq 1 "$RUNS"); do
     -e KRYON_REDACT_PAN=true \
     -e KRYON_RED_TEAM=true \
     -e KRYON_CVE_APPLICABILITY=true \
+    -e KRYON_FINDING_APPLICABILITY=true \
     ${KRYON_PHASE_TURNS:+-e KRYON_PHASE_TURNS=${KRYON_PHASE_TURNS}} \
+    ${KRYON_REASONING_EFFORT:+-e KRYON_REASONING_EFFORT=${KRYON_REASONING_EFFORT}} \
     kryon /bin/bash -c "
       /opt/venv/bin/kryon engage ${URL} \
         --orchestrated \
