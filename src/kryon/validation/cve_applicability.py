@@ -109,11 +109,14 @@ _KNOWN_TARGET_TECH: dict[str, frozenset[str]] = {
 
 
 def _target_tech_hint(target: str | None) -> set[str]:
-    """Look up a known target URL / hostname against the curated map.
+    """Look up a known target URL / hostname against the curated map,
+    then fall back to the F192 persisted fingerprint cache.
 
-    The match is substring + case-insensitive over the host portion of
-    the URL. Unknown targets return an empty set so the gate stays
-    conservative.
+    The hardcoded map is checked first (substring + case-insensitive)
+    because it carries authoritative ground-truth for lab targets. If
+    no match, ``load_target_fingerprint`` returns whatever WhatWeb
+    recorded for this host on a prior engagement. Unknown + uncached
+    targets return empty so the gate stays conservative.
     """
     if not target or not isinstance(target, str):
         return set()
@@ -121,7 +124,15 @@ def _target_tech_hint(target: str | None) -> set[str]:
     for marker, stack in _KNOWN_TARGET_TECH.items():
         if marker in lowered:
             return set(stack)
-    return set()
+
+    # F192 — persisted fingerprint cache as the second tier. Lazy
+    # import so the cve_applicability module doesn't acquire a hard
+    # dependency on validation.target_fingerprint_cache during test
+    # collection (avoids cycles when the cache module itself depends
+    # on env vars set per-test).
+    from kryon.validation.target_fingerprint_cache import load_target_fingerprint
+
+    return load_target_fingerprint(target)
 
 
 def extract_target_tech_stack(text: str | None) -> set[str]:

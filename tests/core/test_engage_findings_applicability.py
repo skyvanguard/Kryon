@@ -18,6 +18,17 @@ import pytest
 from kryon.cli.engage import _parse_agent_findings
 
 
+@pytest.fixture(autouse=True)
+def _isolated_fingerprint_cache(monkeypatch, tmp_path):
+    """F192 — every parser run persists narration-derived tech_stack to
+    a per-host JSON file. Without this isolation, one test's host like
+    ``http://x`` would leak its cached stack into the next test and
+    contaminate the assertion. Point the cache dir at a tmp path per
+    test."""
+    monkeypatch.setenv("KRYON_FINGERPRINT_DIR", str(tmp_path))
+    return tmp_path
+
+
 _JAMON_FP_BLOCK = """
 WhatWeb output: OWASP Juice Shop, X-Powered-By: Express, HTML5.
 

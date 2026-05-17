@@ -533,6 +533,20 @@ def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
     narration = text[: json_start_match.start()] if json_start_match else text
     tech_stack = extract_target_tech_stack(narration)
 
+    # F192 — persist the narration-derived stack so the next engagement
+    # against the same host gets it as the authoritative hint without
+    # having to wait for WhatWeb to dump signals again. Best-effort:
+    # silent failure if the cache write errors.
+    if tech_stack and target_host:
+        try:
+            from kryon.validation.target_fingerprint_cache import (
+                save_target_fingerprint,
+            )
+
+            save_target_fingerprint(target_host, tech_stack)
+        except Exception as exc:  # noqa: BLE001 — non-fatal
+            logger.debug("F192 fingerprint save failed: %s", exc)
+
     out: list[Finding] = []
     for item in items:
         if not isinstance(item, dict):
