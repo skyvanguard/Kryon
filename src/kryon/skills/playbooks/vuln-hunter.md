@@ -63,20 +63,19 @@ pre_hooks:
     inject_as: nikto_pre_scan
     required: false
     timeout_s: 90
-  # F187 — Active SQLi probe against a common REST login endpoint.
-  # Many vulnerable test targets (Juice Shop, DVWA REST, bWAPP)
-  # expose ``/rest/user/login`` or similar JSON POST routes where
-  # the email/username field is SQLi-injectable. We use the F80
-  # Python escape hatch because the declarative ``tool: run_command``
-  # form rejects the JSON body ``{"email":"test","password":"test"}``
-  # — the SSTI-guarded template substitution treats every ``{...}``
-  # as a potential template placeholder.
-  - python: ./pre_hooks/sqlmap_rest_login_hook.py:run
+  # F191 — Active SQLi probe across a curated list of common
+  # injectable endpoints (REST login JSON, GET search params, IDOR
+  # numeric IDs, DVWA-style form login). The helper does HTTP
+  # responsiveness check per endpoint first, then runs sqlmap only
+  # on the ones that answered — bounds wall-clock at ~5 min worst
+  # case, typically 60-90s because most endpoints fail HEAD or
+  # sqlmap exits in 5-8s on "not injectable".
+  - python: ./pre_hooks/endpoint_discovery_sqlmap_hook.py:run
     args:
       target: "{ctx.target}"
-    inject_as: sqlmap_rest_login_pre_scan
+    inject_as: sqlmap_multi_endpoint_pre_scan
     required: false
-    timeout_s: 120
+    timeout_s: 360
 ---
 
 ## Toolbox disponible (F182)
