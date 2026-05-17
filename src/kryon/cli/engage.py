@@ -1318,6 +1318,29 @@ def _invoke_orchestrated_engagement(
             "circuit_breaker_tripped": circuit_breaker_tripped,
         }
 
+    # F194 — emit a learning signal so the synthesizer can turn this
+    # engagement into a candidate skill draft. Best-effort: any failure
+    # is silently swallowed by ``emit_engagement_learning_signal`` so a
+    # learning side-effect can never crash an engagement.
+    try:
+        from kryon.learning.engagement_signal import emit_engagement_learning_signal
+
+        draft_path = emit_engagement_learning_signal(
+            target=target,
+            verdict_info=verdict_info,
+            findings=findings + new_findings,
+            families=list(families or []),
+            audit_log_path=audit_log.path,
+            engagement_id=engagement_id,
+            objective=(goal.raw if goal is not None else ""),
+        )
+        if draft_path:
+            console.print(
+                f"  [dim]📝 skill draft synthesized:[/dim] [cyan]{draft_path}[/cyan]"
+            )
+    except Exception as exc:  # pragma: no cover — non-fatal
+        console.print(f"  [dim]learning signal skipped: {exc}[/dim]")
+
     # F136 — Engagement completed cleanly; remove the checkpoint so it
     # doesn't accumulate disk noise. Resume only makes sense for
     # interrupted runs.
