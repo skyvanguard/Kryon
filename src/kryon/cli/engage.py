@@ -78,6 +78,31 @@ _SEV_RANK = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
 # -----------------------------------------------------------------------------
 
 
+def _build_engage_nmap_cmd(target: str) -> str:
+    """Build the Phase 1 nmap command honoring F196 throttle env.
+
+    The CLI's Phase 1 scan historically used `-T4` hardcoded. F196 lets
+    the operator override timing / min-rate / max-parallelism via env
+    when running banca-safe POCs in business hours, while preserving
+    legacy aggressive defaults when no env is set.
+    """
+    # -Pn: skip host discovery. Required when the target firewall
+    # filters ICMP (typical for hardened hosts and PVE behind FortiGate).
+    # -sT: TCP connect scan. Default -sV picks -sS (raw SYN) which needs
+    # Npcap/raw sockets — unavailable on Windows hosts without admin
+    # install. -sT works as a non-privileged user on every platform.
+    timing_env = os.environ.get("KRYON_NMAP_TIMING", "").strip()
+    timing_flag = f"-T{timing_env.lstrip('T')}" if timing_env else "-T4"
+
+    min_rate_env = os.environ.get("KRYON_NMAP_MIN_RATE", "").strip()
+    min_rate_extra = f" --min-rate {min_rate_env}" if min_rate_env else ""
+
+    max_par_env = os.environ.get("KRYON_NMAP_MAX_PARALLELISM", "").strip()
+    max_par_extra = f" --max-parallelism {max_par_env}" if max_par_env else ""
+
+    return f"nmap -Pn -sT -sV {timing_flag} --top-ports 100{min_rate_extra}{max_par_extra} -oX - {shlex.quote(target)}"
+
+
 def _run_nmap(target: str, *, timeout_s: int = 600) -> str:
     """Run a fast service-detection nmap against the target.
 
@@ -90,14 +115,7 @@ def _run_nmap(target: str, *, timeout_s: int = 600) -> str:
         "yes",
         "on",
     }
-    # -Pn: skip host discovery. Required when the target firewall
-    # filters ICMP (typical for hardened hosts and PVE behind FortiGate).
-    # Without -Pn, nmap concludes "host is down" and emits no ports even
-    # though TCP services are reachable.
-    # -sT: TCP connect scan. Default -sV picks -sS (raw SYN) which needs
-    # Npcap/raw sockets — unavailable on Windows hosts without admin
-    # install. -sT works as a non-privileged user on every platform.
-    cmd = f"nmap -Pn -sT -sV -T4 --top-ports 100 -oX - {shlex.quote(target)}"
+    cmd = _build_engage_nmap_cmd(target)
     if use_live:
         try:
             from kryon.repl.ui.live_progress import run_with_progress
@@ -617,9 +635,7 @@ def _parse_agent_findings(text: str, *, target_host: str) -> list[Finding]:
         # bench saw the model disguise the JAMon FP under
         # ``rule_id=WEB-XSS-001``). Scans message + evidence for product
         # keywords and compares against the same effective stack.
-        gen_ok, gen_reason = is_finding_applicable_general(
-            item, tech_stack=tech_stack
-        )
+        gen_ok, gen_reason = is_finding_applicable_general(item, tech_stack=tech_stack)
         if _debug_path:
             import json as _json
 
@@ -1088,9 +1104,7 @@ def _invoke_orchestrated_engagement(
             except Exception:  # pragma: no cover — non-fatal skill match
                 pass
 
-            pre_hook_suffix = await maybe_run_pre_hooks(
-                agent, phase_msg, console
-            )
+            pre_hook_suffix = await maybe_run_pre_hooks(agent, phase_msg, console)
             if pre_hook_suffix:
                 preamble = preamble + pre_hook_suffix
         except Exception as exc:  # pragma: no cover — non-fatal
@@ -1335,9 +1349,7 @@ def _invoke_orchestrated_engagement(
             objective=(goal.raw if goal is not None else ""),
         )
         if draft_path:
-            console.print(
-                f"  [dim]📝 skill draft synthesized:[/dim] [cyan]{draft_path}[/cyan]"
-            )
+            console.print(f"  [dim]📝 skill draft synthesized:[/dim] [cyan]{draft_path}[/cyan]")
     except Exception as exc:  # pragma: no cover — non-fatal
         console.print(f"  [dim]learning signal skipped: {exc}[/dim]")
 

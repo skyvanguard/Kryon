@@ -271,15 +271,19 @@ KRYON_RETEST_ALLOW_MUTATIONS=      # F88: 'true' opts in to replay POST/PUT/PATC
 KRYON_BRAND_FIRE=                  # F90.1: 'true' enables live DNS resolution in typosquat_scan
                                    # tool. Same double-gate as F87/F88. Default unset = generate
                                    # candidates only (pure, no network).
-KRYON_NMAP_TIMING=                 # F195: override nmap timing template (T0..T5).
-                                   # Replaces hardcoded -T4 in the full-port-scan
-                                   # path. Banca-safe / POC en horario laboral: T2.
-                                   # Caller-supplied -T flag in args= always wins.
-KRYON_NMAP_MIN_RATE=               # F195: override --min-rate. Replaces the
-                                   # hardcoded --min-rate 1000 of full-port scans.
-                                   # Banca-safe: 50. Caller --min-rate wins.
-KRYON_NMAP_MAX_PARALLELISM=        # F195: adds --max-parallelism when absent.
-                                   # Banca-safe: 10. Caller flag wins.
+KRYON_NMAP_TIMING=                 # F195/F196: override nmap timing (T0..T5).
+                                   # F195 cubre el function_tool del LLM
+                                   # (tools/reconnaissance/nmap.py). F196 extiende
+                                   # la misma var al CLI directo: engage._run_nmap
+                                   # y discovery.assets.discover_subnet (los dos
+                                   # tenian -T4 hardcoded). Banca-safe / POC en
+                                   # horario laboral: T2. Caller-supplied -T flag
+                                   # in args= always wins (F195); el CLI hace
+                                   # override duro si el env esta seteado (F196).
+KRYON_NMAP_MIN_RATE=               # F195/F196: override --min-rate. F195 en
+                                   # function_tool, F196 en engage CLI + discover
+                                   # subnet. Banca-safe: 50.
+KRYON_NMAP_MAX_PARALLELISM=        # F195/F196: --max-parallelism. Banca-safe: 10.
 KRYON_NUCLEI_RATE_LIMIT=           # F195: override nuclei_scan default rate_limit=150.
                                    # Banca-safe: 50. Only applies if the caller
                                    # left the function-tool default in place.
@@ -288,6 +292,44 @@ KRYON_NUCLEI_BULK_SIZE=            # F195: override nuclei_scan default bulk_siz
 KRYON_NUCLEI_CONCURRENCY=          # F195: override nuclei_scan default concurrency=25.
                                    # Banca-safe: 10.
 ```
+
+## Multi-target POC workflow (F196)
+
+Para POCs sobre un segmento entero (no un solo host), el flujo
+soportado end-to-end es:
+
+```bash
+# 1. Encolar todos los hosts vivos del segmento (con throttle banca-safe).
+KRYON_NMAP_TIMING=T2 KRYON_NMAP_MIN_RATE=50 \
+  kryon discover --subnet 10.x.x.0/24 --queue-add --output disc.json
+
+# 2. Drenar la cola invocando `kryon engage` por cada host.
+kryon queue process \
+  --concurrency 1 \
+  --framework pci_dss \
+  --orchestrated \
+  --auto-approve \
+  --client britimp-internal \
+  --out ./poc-reports
+```
+
+`kryon queue process` (F196):
+- Default concurrency 1 (banca-safe serial). Operador puede subir con
+  `--concurrency N` para acelerar.
+- `--limit N` corta despues de N items (util para POC en jornadas).
+- Items que fallan quedan en status `failed` para triage manual (no
+  hay auto-retry — silent retries pueden disparar acciones destructivas
+  duplicadas).
+- Cada item escribe a `<out>/<item_id>/` con `--engagement-id` pasado
+  al child `kryon engage`.
+- `KRYON_ENGAGE_BIN` env permite override del binario hijo (util en
+  containers donde `kryon` no esta en PATH).
+
+`engage` y `discover_subnet` NO soportan CIDR como target directo en
+el modo single-host. El flujo `discover --queue-add` → `queue process`
+es la unica via correcta para barrer un segmento.
+
+Wrapper completo del POC: `scripts/poc_britimp_segmento.sh`.
 
 ## Docker / K8s
 

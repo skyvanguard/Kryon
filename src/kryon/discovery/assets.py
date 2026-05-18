@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import shlex
 import socket
@@ -76,11 +77,31 @@ class DiscoveryReport:
 _NMAP_HOST_RE = re.compile(r"Nmap scan report for ([^\s]+)(?:\s+\(([\d.]+)\))?")
 
 
+def _build_subnet_sweep_cmd(cidr: str) -> str:
+    """F196 — Build the subnet sweep command honoring KRYON_NMAP_* env.
+
+    Default behaviour (no env set) keeps the legacy `-T4` aggressive
+    sweep. POC-safe operators set KRYON_NMAP_TIMING=T2 (and optionally
+    --min-rate / --max-parallelism) to throttle the discovery sweep
+    so it doesn't saturate the segment during business hours.
+    """
+    timing_env = os.environ.get("KRYON_NMAP_TIMING", "").strip()
+    timing_flag = f"-T{timing_env.lstrip('T')}" if timing_env else "-T4"
+
+    min_rate_env = os.environ.get("KRYON_NMAP_MIN_RATE", "").strip()
+    min_rate_extra = f" --min-rate {min_rate_env}" if min_rate_env else ""
+
+    max_par_env = os.environ.get("KRYON_NMAP_MAX_PARALLELISM", "").strip()
+    max_par_extra = f" --max-parallelism {max_par_env}" if max_par_env else ""
+
+    return f"nmap -sn {timing_flag}{min_rate_extra}{max_par_extra} {shlex.quote(cidr)}"
+
+
 def discover_subnet(cidr: str, *, timeout_s: int = 60) -> list[DiscoveredAsset]:
     """Run ``nmap -sn`` against ``cidr`` and parse hosts. Returns an
     empty list when nmap is unavailable or the scan times out — never
     raises so the CLI can fall back to subdomain-only mode."""
-    cmd = f"nmap -sn -T4 {shlex.quote(cidr)}"
+    cmd = _build_subnet_sweep_cmd(cidr)
     try:
         proc = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout_s, check=False)
     except (subprocess.TimeoutExpired, OSError) as exc:
