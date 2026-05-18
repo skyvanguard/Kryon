@@ -278,6 +278,37 @@ def _check_http(svc: DiscoveredService) -> list[Finding]:
             )
         )
 
+    # F199.L — CWE-200 X-Powered-By header leaks app framework. Common
+    # values seen in the wild:
+    #   X-Powered-By: Express           → Node.js Express
+    #   X-Powered-By: PHP/8.1.10        → PHP version
+    #   X-Powered-By: ASP.NET           → IIS / .NET
+    #   X-Powered-By: Servlet/3.1       → Java EE / Tomcat
+    #   X-Powered-By: PleskLin / Sucuri → cPanel / Sucuri WAF tells
+    # Even without a version, the framework name alone is useful CVE
+    # cross-reference fuel (e.g. "Express" → CVE-2024-29041 redirect).
+    xpb_m = re.search(r"^X-Powered-By:\s*([^\r\n]+)", headers, re.MULTILINE | re.IGNORECASE)
+    if xpb_m:
+        xpb_value = xpb_m.group(1).strip()
+        findings.append(
+            Finding(
+                cwe="CWE-200",
+                severity="MEDIUM",
+                host=f"{svc.host}:{svc.port}",
+                rule_id="http-xpoweredby",
+                message="Header X-Powered-By expone framework / runtime.",
+                evidence=f"X-Powered-By: {xpb_value}",
+                remediation=(
+                    "Suprimir el header. Por framework:\n"
+                    "  Express:  app.disable('x-powered-by')  o  helmet().hidePoweredBy()\n"
+                    "  PHP:      expose_php = Off  en php.ini\n"
+                    "  ASP.NET:  <httpProtocol> <customHeaders> <remove name='X-Powered-By'/>\n"
+                    "  Tomcat:   server.xml Connector xpoweredBy='false'"
+                ),
+                severity_rank=_SEV_RANK["MEDIUM"],
+            )
+        )
+
     # CWE-306: /admin accesible sin auth — F199.H distinguishes between
     # a real admin endpoint and a SPA catch-all that serves index.html
     # for every path (Angular / React / Vue with HTML5 routing). Helper
