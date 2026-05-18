@@ -72,6 +72,8 @@ def build_tool_registry() -> dict[str, Any]:
         "kryon.tools.iot.onvif_probe",
         # F198 — Asterisk / VoIP / SIP recon
         "kryon.tools.voice.asterisk_discover",
+        # F200.A — Apache Tomcat recon (version + endpoints + AJP probe)
+        "kryon.tools.web.tomcat_recon",
         # Source-code tools — F1 of ZERO_DAY_ROADMAP
         "kryon.tools.code.git_tools",
         "kryon.tools.code.reader",

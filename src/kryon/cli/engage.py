@@ -1498,6 +1498,7 @@ _DEVICE_FAMILIES: list[tuple[str, list[str], tuple[str, ...], str]] = [
     ("windows_ad", ["kryon.compliance.checks.active_directory"], ("AD-",), "Windows AD"),
     ("asterisk", ["kryon.compliance.checks.asterisk"], ("VOIP-",), "Asterisk / VoIP"),
     ("windows", ["kryon.compliance.checks.windows"], ("WIN-",), "Windows Server / endpoint"),
+    ("tomcat", ["kryon.compliance.checks.tomcat"], ("TOMCAT-",), "Apache Tomcat"),
     # F199.E — BMC (out-of-band management: HP iLO, Dell iDRAC, Supermicro IPMI).
     # No deterministic checks yet (F205 in roadmap). Listed here so it survives
     # the appliance-vs-linux disambiguation below and produces an explicit
@@ -1566,6 +1567,11 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
         # Federation port 17988 if present.
         if any(m in product for m in _BMC_BANNER_MARKERS) or s.port in (623, 17988, 17990, 17993):
             _add("bmc")
+        # F200.A — Apache Tomcat. Triggered by Coyote/Tomcat banner OR
+        # AJP port 8009. Note: 8080 alone is NOT enough (many non-Tomcat
+        # apps run on 8080 — Tomcat-specific check needs the banner).
+        if "tomcat" in product or "coyote" in product or s.port == 8009:
+            _add("tomcat")
         # Track SSH presence — Linux CIS checks need SSH access. We only
         # tag the target as 'linux' when SSH is open AND the banner does
         # NOT scream "FortiOS" / "Cisco IOS" / "PVE" / "iLO" (those have

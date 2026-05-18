@@ -318,6 +318,15 @@ def _import_all_checks() -> None:
         "kryon.compliance.checks.asterisk.c_voip_3_1_srtp_disabled",
         "kryon.compliance.checks.asterisk.c_voip_3_2_sip_tls_disabled",
         "kryon.compliance.checks.asterisk.c_voip_3_3_asterisk_version",
+        # F200.A Apache Tomcat — 8 checks deterministicos
+        "kryon.compliance.checks.tomcat.c_tomcat_1_1_version_eol",
+        "kryon.compliance.checks.tomcat.c_tomcat_1_2_ajp_ghostcat",
+        "kryon.compliance.checks.tomcat.c_tomcat_1_3_manager_exposed",
+        "kryon.compliance.checks.tomcat.c_tomcat_1_4_host_manager_exposed",
+        "kryon.compliance.checks.tomcat.c_tomcat_2_1_error_page_version_leak",
+        "kryon.compliance.checks.tomcat.c_tomcat_2_2_server_header_disclosure",
+        "kryon.compliance.checks.tomcat.c_tomcat_2_3_docs_accessible",
+        "kryon.compliance.checks.tomcat.c_tomcat_2_4_examples_accessible",
         # F199 Windows Server + endpoint — 15 checks via WinRM
         "kryon.compliance.checks.windows.c_win_1_1_smbv1",
         "kryon.compliance.checks.windows.c_win_1_2_lsa_protection",

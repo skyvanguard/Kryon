@@ -45,6 +45,9 @@ _FRAMEWORK_PREFIX = {
     "windows": ("WIN-",),  # F199 Windows Server + endpoint via WinRM
     "win": ("WIN-",),
     "windows-server": ("WIN-",),
+    "tomcat": ("TOMCAT-",),  # F200.A Apache Tomcat audit
+    "apache-tomcat": ("TOMCAT-",),
+    "coyote": ("TOMCAT-",),
     "all": (),
 }
 
