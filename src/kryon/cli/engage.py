@@ -138,12 +138,20 @@ def _run_nmap(target: str, *, timeout_s: int = 600) -> str:
         return ""
 
 
-_SERVICE_RE = re.compile(
-    r'<port protocol="tcp" portid="(\d+)">.*?'
-    r'<state state="(\w+)".*?'
-    r'(?:<service name="([^"]+)"(?:\s+product="([^"]*)")?(?:\s+version="([^"]*)")?)?',
+# F199.F — the previous regex made <service> optional and non-greedy `.*?`
+# made the engine drop it most of the time, returning name/product/version
+# = None for every host. That silently broke every banner-based family
+# detection (proxmox/fortigate/asterisk/bmc). Splitting into TWO passes:
+# first capture the `<port>` block as a whole, then extract service
+# attributes from that block. Reliable + easy to extend.
+_PORT_BLOCK_RE = re.compile(
+    r'<port protocol="tcp" portid="(\d+)">(.*?)</port>',
     re.DOTALL,
 )
+_STATE_RE = re.compile(r'<state state="(\w+)"')
+_SERVICE_NAME_RE = re.compile(r'<service\b[^>]*\bname="([^"]+)"')
+_SERVICE_PRODUCT_RE = re.compile(r'<service\b[^>]*\bproduct="([^"]+)"')
+_SERVICE_VERSION_RE = re.compile(r'<service\b[^>]*\bversion="([^"]+)"')
 
 
 @dataclass
@@ -157,16 +165,28 @@ class DiscoveredService:
 
 
 def _parse_nmap_xml(xml: str, host: str) -> list[DiscoveredService]:
+    """F199.F — Two-pass parser: capture each <port>...</port> block, then
+    extract service attributes from inside. Replaces the single regex that
+    silently dropped product/version on every match (DOTALL+non-greedy
+    plus optional service group made the engine skip <service> attrs).
+    """
     out: list[DiscoveredService] = []
-    for m in _SERVICE_RE.finditer(xml):
+    for m in _PORT_BLOCK_RE.finditer(xml):
+        port = int(m.group(1))
+        body = m.group(2)
+        state_m = _STATE_RE.search(body)
+        state = state_m.group(1) if state_m else ""
+        svc_name_m = _SERVICE_NAME_RE.search(body)
+        svc_product_m = _SERVICE_PRODUCT_RE.search(body)
+        svc_version_m = _SERVICE_VERSION_RE.search(body)
         out.append(
             DiscoveredService(
                 host=host,
-                port=int(m.group(1)),
-                state=m.group(2),
-                service=(m.group(3) or "").lower(),
-                product=m.group(4) or "",
-                version=m.group(5) or "",
+                port=port,
+                state=state,
+                service=(svc_name_m.group(1) if svc_name_m else "").lower(),
+                product=svc_product_m.group(1) if svc_product_m else "",
+                version=svc_version_m.group(1) if svc_version_m else "",
             )
         )
     return out
@@ -1390,8 +1410,32 @@ _DEVICE_FAMILIES: list[tuple[str, list[str], tuple[str, ...], str]] = [
     ("windows_ad", ["kryon.compliance.checks.active_directory"], ("AD-",), "Windows AD"),
     ("asterisk", ["kryon.compliance.checks.asterisk"], ("VOIP-",), "Asterisk / VoIP"),
     ("windows", ["kryon.compliance.checks.windows"], ("WIN-",), "Windows Server / endpoint"),
+    # F199.E — BMC (out-of-band management: HP iLO, Dell iDRAC, Supermicro IPMI).
+    # No deterministic checks yet (F205 in roadmap). Listed here so it survives
+    # the appliance-vs-linux disambiguation below and produces an explicit
+    # `bmc detected` banner instead of mis-firing the Linux CIS playbook.
+    ("bmc", [], ("BMC-",), "BMC (iLO / iDRAC / IPMI)"),
     # ("unifi", ["kryon.compliance.checks.unifi"], ("UNF-",), "UniFi"),  # ready when tested
 ]
+
+
+# F199.E — Banner markers that identify out-of-band management controllers.
+# These appliances expose SSH+HTTP+HTTPS just like a generic Linux server, but
+# running CIS Linux compliance against them generates false positives because
+# the OS is a vendor firmware, not Debian/RHEL/Ubuntu.
+_BMC_BANNER_MARKERS = (
+    "integrated lights-out",  # HP iLO
+    "ilo ",  # HP iLO short form
+    "mpssh",  # HP iLO custom SSH daemon
+    "idrac",  # Dell iDRAC
+    "dell remote access",  # Dell DRAC legacy
+    "supermicro",  # Supermicro IPMI
+    "aten ",  # ATEN-based IPMI (Supermicro, ASRock)
+    "ami megarac",  # AMI MegaRAC (IPMI 2.0 reference)
+    "raritan",  # Raritan KVM-over-IP
+    "lenovo xclarity",  # Lenovo XClarity / IMM2
+    "ibm system director",  # legacy IBM
+)
 
 
 def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
@@ -1428,19 +1472,28 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
             _add("windows")
         elif s.port in (3389,) and "windows_ad" not in families:
             _add("windows")
+        # F199.E — BMC / out-of-band management. Detected by banner string
+        # in any service product field (works for SSH mpSSH, HTTP "iLO web
+        # interface", HTTPS, IPMI 623/udp). Also pinned by canonical iLO
+        # Federation port 17988 if present.
+        if any(m in product for m in _BMC_BANNER_MARKERS) or s.port in (623, 17988, 17990, 17993):
+            _add("bmc")
         # Track SSH presence — Linux CIS checks need SSH access. We only
         # tag the target as 'linux' when SSH is open AND the banner does
-        # NOT scream "FortiOS" / "Cisco IOS" / "PVE" (those have their
-        # own family above; running generic CIS Linux against them
+        # NOT scream "FortiOS" / "Cisco IOS" / "PVE" / "iLO" (those have
+        # their own family above; running generic CIS Linux against them
         # would emit noisy false positives).
         if s.port == 22 and s.state == "open":
             has_ssh = True
 
     if has_ssh:
-        # Only auto-add 'linux' when there's no Forti / Cisco / similar
-        # appliance signature already in the family list. Proxmox IS
-        # Linux underneath so we DO want CIS Linux checks alongside PVE.
-        appliance_families = {"fortigate"}
+        # Only auto-add 'linux' when there's no appliance signature
+        # already in the family list. Proxmox IS Linux underneath so we
+        # DO want CIS Linux checks alongside PVE — it's intentionally
+        # absent from the exclusion set. F199.E added 'bmc' so HP iLO /
+        # Dell iDRAC / Supermicro IPMI no longer mis-fire 7 Linux CIS
+        # FAILs against a vendor firmware that doesn't even have shell.
+        appliance_families = {"fortigate", "bmc"}
         if not any(f in appliance_families for f in families):
             _add("linux")
 
