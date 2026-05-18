@@ -197,8 +197,35 @@ def _parse_nmap_xml(xml: str, host: str) -> list[DiscoveredService]:
 # -----------------------------------------------------------------------------
 
 
+_HTTP_STATUS_RE = re.compile(r"^HTTP/[\d.]+\s+(\d{3})", re.MULTILINE)
+_HTTP_LOCATION_RE = re.compile(r"^Location:\s*([^\r\n]+)", re.MULTILINE | re.IGNORECASE)
+
+
+def _is_tls_redirect(headers: str) -> bool:
+    """F199.G — Return True when the HTTP response is a 301/302 redirect
+    pointing to an https:// URL. That's the recommended mitigation, not
+    a vulnerability — Kryon shouldn't flag it as HIGH plaintext.
+    """
+    status_m = _HTTP_STATUS_RE.search(headers)
+    if not status_m:
+        return False
+    if status_m.group(1) not in ("301", "302", "307", "308"):
+        return False
+    loc_m = _HTTP_LOCATION_RE.search(headers)
+    if not loc_m:
+        return False
+    return loc_m.group(1).strip().lower().startswith("https://")
+
+
 def _check_http(svc: DiscoveredService) -> list[Finding]:
-    """HTTP plaintext + server-token leak + /admin open."""
+    """HTTP plaintext + server-token leak + /admin open.
+
+    F199.G — Distinguishes between three states on a non-TLS port:
+      1. 301/302 redirect to https:// → no plaintext finding (PASS via
+         TLS enforcement, just informative if anything).
+      2. 2xx/4xx response served directly over HTTP → flag HIGH plaintext.
+      3. Connect refused / curl failed → flag HIGH (conservative).
+    """
     findings: list[Finding] = []
     try:
         headers = subprocess.run(
@@ -211,20 +238,29 @@ def _check_http(svc: DiscoveredService) -> list[Finding]:
     except Exception:
         headers = ""
 
-    # CWE-319: HTTP plaintext (no TLS on this port)
-    if svc.port in (80, 8080) or svc.port not in (443, 8443):
-        findings.append(
-            Finding(
-                cwe="CWE-319",
-                severity="HIGH",
-                host=f"{svc.host}:{svc.port}",
-                rule_id="http-plaintext",
-                message=f"Servicio HTTP en {svc.host}:{svc.port} sin TLS.",
-                evidence=headers[:400] if headers else f"puerto {svc.port} abierto, servicio http",
-                remediation="Habilitar HTTPS y redirigir HTTP->HTTPS.",
-                severity_rank=_SEV_RANK["HIGH"],
+    # CWE-319: HTTP plaintext (no TLS on this port).
+    # Skip the flag when port is one of the canonical TLS ports — they
+    # mean the operator already deployed HTTPS, this scan probably hit
+    # the TLS-on-non-https-port edge case (uncommon but defensible).
+    is_tls_port = svc.port in (443, 8443, 4443, 9443)
+    if not is_tls_port:
+        if _is_tls_redirect(headers):
+            # The server enforces TLS via 301/302 — that's the correct
+            # behaviour. No plaintext finding.
+            pass
+        else:
+            findings.append(
+                Finding(
+                    cwe="CWE-319",
+                    severity="HIGH",
+                    host=f"{svc.host}:{svc.port}",
+                    rule_id="http-plaintext",
+                    message=f"Servicio HTTP en {svc.host}:{svc.port} sin TLS y sin redirect a HTTPS.",
+                    evidence=headers[:400] if headers else f"puerto {svc.port} abierto, servicio http",
+                    remediation="Habilitar HTTPS y redirigir HTTP->HTTPS (301/302) o cerrar el puerto plano.",
+                    severity_rank=_SEV_RANK["HIGH"],
+                )
             )
-        )
 
     # CWE-200: Server header leaks version
     m = re.search(r"^Server:\s*([^\r\n]+)", headers, re.MULTILINE | re.IGNORECASE)
