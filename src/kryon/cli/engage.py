@@ -1865,7 +1865,9 @@ _DEVICE_FAMILIES: list[tuple[str, list[str], tuple[str, ...], str]] = [
     # the appliance-vs-linux disambiguation below and produces an explicit
     # `bmc detected` banner instead of mis-firing the Linux CIS playbook.
     ("bmc", [], ("BMC-",), "BMC (iLO / iDRAC / IPMI)"),
-    # ("unifi", ["kryon.compliance.checks.unifi"], ("UNF-",), "UniFi"),  # ready when tested
+    # F199.P — activated. Surfaced by POC .8 (UniFi Controller on :8443
+    # was mis-classified as FortiGate by the old port-only rule).
+    ("unifi", ["kryon.compliance.checks.unifi"], ("UNF-",), "UniFi"),
 ]
 
 
@@ -1914,9 +1916,21 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
         elif s.port == 3128 and ("pve" in product.lower() or "proxmox" in product.lower()):
             # Port 3128 promoted to Proxmox only with banner confirmation.
             _add("proxmox")
-        # FortiGate
-        if "fortigate" in product or "fortinet" in product or "fortios" in product or s.port in (10443, 8443):
+        # FortiGate — banner-only after F199.P. Port 10443/8443 alone
+        # was too aggressive: UniFi Controller, Tomcat-HTTPS, Sophos
+        # XG, and any nginx with HTTPS-alt config use 8443 too. The
+        # 10443 canonical SSL-VPN port keeps detecting FortiGate
+        # without banner confirmation because no other product
+        # commonly sits on 10443.
+        if "fortigate" in product or "fortinet" in product or "fortios" in product or s.port == 10443:
             _add("fortigate")
+        # F199.P — UniFi Controller (Ubiquiti). Detection by banner
+        # OR by canonical Inform protocol port 8080 (the controller
+        # listens on 8080 for AP heartbeat) PLUS port 8443 (web).
+        # Banner is the strong signal; port-only would FP on any
+        # Tomcat-like 8080+8443 combo.
+        if "unifi" in product or "ubiquiti" in product or "unifi-controller" in product:
+            _add("unifi")
         # Windows AD (LDAP 389, LDAPS 636, Kerberos 88, SMB 445, RPC EPM 135)
         if s.port in (88, 135, 389, 445, 636, 3268, 3269):
             _add("windows_ad")

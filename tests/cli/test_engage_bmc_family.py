@@ -196,6 +196,54 @@ class TestWindowsSshDoesNotTriggerLinux:
 
 
 # ---------------------------------------------------------------------------
+# F199.P — UniFi family activation + FortiGate disambiguation
+# ---------------------------------------------------------------------------
+
+
+class TestUnifiAndFortigateDisambiguation:
+    """The .8 case from the Britimp POC: UniFi Controller on :8443
+    was mis-classified as FortiGate (21 FGT FPs). F199.P:
+      - activates the 'unifi' family
+      - removes 8443 from the FortiGate port-only trigger (only
+        banner now triggers FGT, plus the canonical SSL-VPN 10443)
+    """
+
+    def test_unifi_banner_detected(self):
+        services = [_svc("h", 8443, "https", "UniFi Controller")]
+        families = _detect_device_families(services)
+        assert "unifi" in families
+
+    def test_ubiquiti_banner_detected(self):
+        services = [_svc("h", 22, "ssh", "Ubiquiti UniFi Cloud Key")]
+        families = _detect_device_families(services)
+        assert "unifi" in families
+
+    def test_port_8443_alone_no_longer_triggers_fortigate(self):
+        """Pre-F199.P regression: 8443 alone was enough to add FortiGate.
+        Now banner is required."""
+        services = [_svc("h", 8443, "https", "")]
+        families = _detect_device_families(services)
+        assert "fortigate" not in families, f"8443 without banner must not be FortiGate: {families}"
+
+    def test_fortigate_banner_still_triggers_with_8443(self):
+        services = [_svc("h", 8443, "https", "FortiGate")]
+        families = _detect_device_families(services)
+        assert "fortigate" in families
+
+    def test_fortigate_canonical_sslvpn_port_10443_still_triggers(self):
+        """10443 is FortiGate-specific (no other vendor commonly uses
+        it) so we keep port-only detection there."""
+        services = [_svc("h", 10443, "https", "")]
+        families = _detect_device_families(services)
+        assert "fortigate" in families
+
+    def test_fortigate_fortios_banner_still_works(self):
+        services = [_svc("h", 22, "ssh", "FortiOS SSH")]
+        families = _detect_device_families(services)
+        assert "fortigate" in families
+
+
+# ---------------------------------------------------------------------------
 # Mixed scenarios
 # ---------------------------------------------------------------------------
 
