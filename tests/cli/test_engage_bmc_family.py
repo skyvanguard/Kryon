@@ -158,6 +158,44 @@ class TestLinuxStillDetected:
 
 
 # ---------------------------------------------------------------------------
+# F199.I — Windows hosts with OpenSSH-for-Windows must NOT trigger linux
+# ---------------------------------------------------------------------------
+
+
+class TestWindowsSshDoesNotTriggerLinux:
+    """The case from .13 in the Britimp POC: Windows host running
+    OpenSSH for Windows 9.5 (sshd.exe, native Windows feature since
+    Server 2019). Without the F199.I fix, has_ssh=True forces 'linux'
+    on top of windows_ad → 7 Linux CIS FPs against a host that does
+    not even have /etc/audit/."""
+
+    def test_windows_ad_with_ssh_for_windows_no_linux(self):
+        services = [
+            _svc("h", 22, "ssh", "OpenSSH for_Windows_9.5"),
+            _svc("h", 80, "http", "Microsoft IIS httpd 10.0"),
+            _svc("h", 135, "msrpc", "Microsoft Windows RPC"),
+            _svc("h", 139, "netbios-ssn", "Microsoft Windows netbios-ssn"),
+            _svc("h", 389, "ldap", "Microsoft AD LDAP"),
+            _svc("h", 445, "microsoft-ds", ""),
+            _svc("h", 3389, "ms-wbt-server", ""),
+        ]
+        families = _detect_device_families(services)
+        assert "windows_ad" in families
+        assert "linux" not in families, f"Windows host should not get linux family; got {families}"
+
+    def test_windows_member_with_ssh_no_linux(self):
+        """Win Server 2019+ member server with native sshd enabled."""
+        services = [
+            _svc("h", 22, "ssh", "OpenSSH for_Windows_9.0"),
+            _svc("h", 445, "microsoft-ds", ""),
+            _svc("h", 5985, "wsman", ""),
+        ]
+        families = _detect_device_families(services)
+        assert "windows" in families
+        assert "linux" not in families
+
+
+# ---------------------------------------------------------------------------
 # Mixed scenarios
 # ---------------------------------------------------------------------------
 

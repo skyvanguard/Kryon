@@ -1581,13 +1581,17 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
             has_ssh = True
 
     if has_ssh:
-        # Only auto-add 'linux' when there's no appliance signature
-        # already in the family list. Proxmox IS Linux underneath so we
-        # DO want CIS Linux checks alongside PVE — it's intentionally
-        # absent from the exclusion set. F199.E added 'bmc' so HP iLO /
-        # Dell iDRAC / Supermicro IPMI no longer mis-fire 7 Linux CIS
-        # FAILs against a vendor firmware that doesn't even have shell.
-        appliance_families = {"fortigate", "bmc"}
+        # Only auto-add 'linux' when there's no appliance / non-Linux
+        # signature already in the family list. Proxmox IS Linux
+        # underneath so we DO want CIS Linux checks alongside PVE —
+        # it's intentionally absent from the exclusion set.
+        # F199.E added 'bmc' (HP iLO / Dell iDRAC / Supermicro IPMI)
+        # so vendor management firmware no longer mis-fires 7 Linux
+        # CIS FAILs.
+        # F199.I added 'windows' / 'windows_ad' so OpenSSH-for-Windows
+        # hosts (sshd.exe shipped with Windows Server 2019+) don't
+        # spuriously add 'linux' on top of windows_ad.
+        appliance_families = {"fortigate", "bmc", "windows", "windows_ad"}
         if not any(f in appliance_families for f in families):
             _add("linux")
 
