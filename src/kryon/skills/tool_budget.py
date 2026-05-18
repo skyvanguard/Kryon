@@ -70,6 +70,8 @@ def build_tool_registry() -> dict[str, Any]:
         # F197 — IoT / DVR fingerprinting (Hikvision / Dahua / ONVIF)
         "kryon.tools.iot.dvr_recon",
         "kryon.tools.iot.onvif_probe",
+        # F198 — Asterisk / VoIP / SIP recon
+        "kryon.tools.voice.asterisk_discover",
         # Source-code tools — F1 of ZERO_DAY_ROADMAP
         "kryon.tools.code.git_tools",
         "kryon.tools.code.reader",

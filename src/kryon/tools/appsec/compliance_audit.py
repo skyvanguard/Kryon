@@ -39,6 +39,9 @@ _FRAMEWORK_PREFIX = {
     "unifi": ("UNF-",),  # F79 Unifi / Ubiquiti
     "ubnt": ("UNF-",),
     "ubiquiti": ("UNF-",),
+    "asterisk": ("VOIP-",),  # F198 Asterisk / FreePBX VoIP
+    "voip": ("VOIP-",),
+    "freepbx": ("VOIP-",),
     "all": (),
 }
 

@@ -309,6 +309,15 @@ def _import_all_checks() -> None:
         "kryon.compliance.checks.unifi.c_unf_3_4_inform_encryption",
         "kryon.compliance.checks.unifi.c_unf_4_1_remote_syslog",
         "kryon.compliance.checks.unifi.c_unf_4_2_ap_firmware_currency",
+        # F198 Asterisk (VoIP) — 8 checks deterministicos
+        "kryon.compliance.checks.asterisk.c_voip_1_1_anon_register",
+        "kryon.compliance.checks.asterisk.c_voip_1_2_ami_default_secret",
+        "kryon.compliance.checks.asterisk.c_voip_2_1_allowguest",
+        "kryon.compliance.checks.asterisk.c_voip_2_2_alwaysauthreject",
+        "kryon.compliance.checks.asterisk.c_voip_2_3_ami_wan_exposure",
+        "kryon.compliance.checks.asterisk.c_voip_3_1_srtp_disabled",
+        "kryon.compliance.checks.asterisk.c_voip_3_2_sip_tls_disabled",
+        "kryon.compliance.checks.asterisk.c_voip_3_3_asterisk_version",
     ]
     import importlib
 

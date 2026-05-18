@@ -1388,6 +1388,7 @@ _DEVICE_FAMILIES: list[tuple[str, list[str], tuple[str, ...], str]] = [
         "Linux CIS",
     ),
     ("windows_ad", ["kryon.compliance.checks.active_directory"], ("AD-",), "Windows AD"),
+    ("asterisk", ["kryon.compliance.checks.asterisk"], ("VOIP-",), "Asterisk / VoIP"),
     # ("unifi", ["kryon.compliance.checks.unifi"], ("UNF-",), "UniFi"),  # ready when tested
 ]
 
@@ -1416,6 +1417,9 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
         # Windows AD (LDAP 389, LDAPS 636, Kerberos 88, SMB 445, RPC EPM 135)
         if s.port in (88, 135, 389, 445, 636, 3268, 3269):
             _add("windows_ad")
+        # Asterisk / VoIP — SIP 5060/5061, AMI 5038, ARI 8088/8089
+        if "asterisk" in product or s.port in (5060, 5061, 5038, 8088, 8089):
+            _add("asterisk")
         # Track SSH presence — Linux CIS checks need SSH access. We only
         # tag the target as 'linux' when SSH is open AND the banner does
         # NOT scream "FortiOS" / "Cisco IOS" / "PVE" (those have their
