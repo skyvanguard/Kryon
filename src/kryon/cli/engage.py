@@ -772,20 +772,104 @@ def _check_ssh(svc: DiscoveredService, ssh_target: str | None, ssh_password: str
     return findings
 
 
+# F199.O — Per-engine metadata for the database-exposed check. Maps the
+# (service name, port) pair to the proper rule_id / human label /
+# vendor-specific remediation snippet. Keeps the generic _check_database
+# function below readable.
+_DATABASE_ENGINES: dict[tuple[str, int], dict[str, str]] = {
+    ("mysql", 3306): {
+        "engine": "mysql",
+        "pretty": "MySQL",
+        "remediation": (
+            "Habilitar require_secure_transport=ON, restringir bind-address "
+            "a la red de management, exigir TLS en todos los usuarios "
+            "(REQUIRE SSL en el CREATE USER)."
+        ),
+    },
+    ("mysql", 33060): {
+        "engine": "mysql",
+        "pretty": "MySQL X Protocol",
+        "remediation": (
+            "Deshabilitar el X Protocol si no se usa (mysqlx en my.cnf). "
+            "Sino, exigir TLS en mysqlx_socket_owner y restringir bind."
+        ),
+    },
+    ("postgresql", 5432): {
+        "engine": "postgresql",
+        "pretty": "PostgreSQL",
+        "remediation": (
+            "En postgresql.conf: ssl = on, ssl_cert_file, ssl_key_file. "
+            "En pg_hba.conf: usar `hostssl` en lugar de `host` para forzar TLS. "
+            "Restringir listen_addresses a la red interna."
+        ),
+    },
+    ("mongodb", 27017): {
+        "engine": "mongodb",
+        "pretty": "MongoDB",
+        "remediation": (
+            "En mongod.conf: net.tls.mode = requireTLS + net.tls.certificateKeyFile. "
+            "Forzar authentication via security.authorization = enabled. "
+            "Bind-IP solo a la red de aplicación."
+        ),
+    },
+    ("redis", 6379): {
+        "engine": "redis",
+        "pretty": "Redis",
+        "remediation": (
+            "En redis.conf: tls-port 6380 + tls-cert-file/tls-key-file. "
+            "Setear `requirepass <strong>` o usar ACL (Redis 6+). "
+            "Bind 127.0.0.1 si no es accedido remotamente."
+        ),
+    },
+}
+
+
+def _resolve_database_engine(svc: DiscoveredService) -> dict[str, str]:
+    """F199.O — Identify the database engine from svc.service and svc.port.
+
+    The port-only fallback covers cases where nmap couldn't grab the
+    service banner (filtered version detection, slow throttle). Returns
+    a dict with `engine`, `pretty`, `remediation`. Defaults to a
+    generic "database" entry when nothing matches.
+    """
+    service = (svc.service or "").lower()
+    # Try (service, port) first — most specific.
+    key = (service, svc.port)
+    if key in _DATABASE_ENGINES:
+        return _DATABASE_ENGINES[key]
+    # Fallback by port alone.
+    for (_engine, port), meta in _DATABASE_ENGINES.items():
+        if port == svc.port:
+            return meta
+    # Generic fallback.
+    return {
+        "engine": "database",
+        "pretty": f"Database service on port {svc.port}",
+        "remediation": (
+            "Restringir bind-address al management LAN, forzar TLS en la "
+            "conexión, exigir autenticación fuerte (no defaults)."
+        ),
+    }
+
+
 def _check_mysql(svc: DiscoveredService) -> list[Finding]:
-    """MySQL-port open + plaintext (no forced TLS detectable remotely)."""
+    """F199.O — Database-port open + plaintext (no forced TLS detectable
+    remotely). Funciona para MySQL / PostgreSQL / MongoDB / Redis — el
+    rule_id y la remediation salen de _resolve_database_engine para que
+    el reporte refleje el engine real, no "mysql" hardcodeado.
+    """
+    meta = _resolve_database_engine(svc)
+    engine = meta["engine"]
+    pretty = meta["pretty"]
     return [
         Finding(
             cwe="CWE-319",
             severity="HIGH",
             host=f"{svc.host}:{svc.port}",
-            rule_id="mysql-exposed",
-            message=f"MySQL accesible en {svc.host}:{svc.port}.",
-            evidence=f"nmap detectó {svc.product or 'mysql'} {svc.version} en tcp/{svc.port}",
-            remediation=(
-                "Habilitar require_secure_transport=ON, restringir "
-                "bind-address a la red interna, exigir TLS en todos los usuarios."
-            ),
+            rule_id=f"{engine}-exposed",
+            message=f"{pretty} accesible en {svc.host}:{svc.port} sin TLS forzado.",
+            evidence=f"nmap detectó {svc.product or engine} {svc.version} en tcp/{svc.port}",
+            remediation=meta["remediation"],
             severity_rank=_SEV_RANK["HIGH"],
         )
     ]
