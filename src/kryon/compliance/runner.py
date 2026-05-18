@@ -318,6 +318,22 @@ def _import_all_checks() -> None:
         "kryon.compliance.checks.asterisk.c_voip_3_1_srtp_disabled",
         "kryon.compliance.checks.asterisk.c_voip_3_2_sip_tls_disabled",
         "kryon.compliance.checks.asterisk.c_voip_3_3_asterisk_version",
+        # F199 Windows Server + endpoint — 15 checks via WinRM
+        "kryon.compliance.checks.windows.c_win_1_1_smbv1",
+        "kryon.compliance.checks.windows.c_win_1_2_lsa_protection",
+        "kryon.compliance.checks.windows.c_win_1_3_dc_print_spooler",
+        "kryon.compliance.checks.windows.c_win_2_1_defender",
+        "kryon.compliance.checks.windows.c_win_2_2_firewall_domain",
+        "kryon.compliance.checks.windows.c_win_2_3_bitlocker",
+        "kryon.compliance.checks.windows.c_win_2_4_llmnr",
+        "kryon.compliance.checks.windows.c_win_2_5_wsus_internet",
+        "kryon.compliance.checks.windows.c_win_3_1_gpo_refresh",
+        "kryon.compliance.checks.windows.c_win_3_2_laps",
+        "kryon.compliance.checks.windows.c_win_3_3_audit_policy",
+        "kryon.compliance.checks.windows.c_win_3_4_rdp_nla",
+        "kryon.compliance.checks.windows.c_win_3_5_uac",
+        "kryon.compliance.checks.windows.c_win_4_1_remote_registry",
+        "kryon.compliance.checks.windows.c_win_4_2_edr_detection",
     ]
     import importlib
 

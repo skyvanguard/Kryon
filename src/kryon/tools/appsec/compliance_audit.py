@@ -42,6 +42,9 @@ _FRAMEWORK_PREFIX = {
     "asterisk": ("VOIP-",),  # F198 Asterisk / FreePBX VoIP
     "voip": ("VOIP-",),
     "freepbx": ("VOIP-",),
+    "windows": ("WIN-",),  # F199 Windows Server + endpoint via WinRM
+    "win": ("WIN-",),
+    "windows-server": ("WIN-",),
     "all": (),
 }
 
