@@ -327,6 +327,16 @@ def _check_http(svc: DiscoveredService) -> list[Finding]:
             )
         )
 
+    # F200.B — Web server version EOL detection.
+    # The http-server-token check above flags information disclosure
+    # (MEDIUM CWE-200), but doesn't elevate severity when the disclosed
+    # version is itself end-of-life. F200.B parses the version string
+    # and flags HIGH CWE-1104 (Use of Unmaintained Third Party Components)
+    # when the version is below the minimum supported.
+    eol_finding = _check_webserver_eol(svc, headers)
+    if eol_finding:
+        findings.append(eol_finding)
+
     # F199.L — CWE-200 X-Powered-By header leaks app framework. Common
     # values seen in the wild:
     #   X-Powered-By: Express           → Node.js Express
@@ -603,6 +613,128 @@ def _check_python_simplehttp_exposed(svc: DiscoveredService) -> Finding | None:
         ),
         severity_rank=_SEV_RANK["CRITICAL"],
     )
+
+
+# F200.B — Web server EOL table. Keep `min_supported` conservative
+# (a few versions above the minor with a notable CVE). When the
+# scanner banner reports a lower version, flag HIGH with the CVE list.
+# `min_supported` is a tuple (major, minor, patch) so version
+# comparison stays semantic.
+_WEBSERVER_EOL_TABLE: tuple = (
+    {
+        "name_re": re.compile(r"^nginx(?:/(\d+)\.(\d+)\.(\d+))?\b", re.IGNORECASE),
+        "pretty": "nginx",
+        "min_supported": (1, 26, 0),  # 1.26 LTS (Apr 2024) — anything older has accumulating CVEs
+        "cves": (
+            ("CVE-2021-23017", "CRITICAL", "Pre-auth RCE remoto vía DNS resolver heap overflow (fixed 1.20.1)"),
+            ("CVE-2022-41741", "HIGH", "mp4 module heap overflow (fixed 1.23.2)"),
+            ("CVE-2022-41742", "HIGH", "mp4 module OOB read (fixed 1.23.2)"),
+            ("CVE-2024-7347", "HIGH", "mp4 module RCE potential (fixed 1.27.4)"),
+        ),
+        "remediation_extra": (
+            "Upgrade path:\n"
+            "  Ubuntu 22.04 (apt nginx 1.18) → enable nginx PPA o compilar 1.26.x\n"
+            "  Debian 12 (apt nginx 1.22)    → upgrade a 1.26.x desde nginx.org repo\n"
+            "  Compilar desde nginx.org/en/download.html (mainline = 1.27.x, stable = 1.26.x)"
+        ),
+    },
+    {
+        "name_re": re.compile(r"^Apache(?:/(\d+)\.(\d+)\.(\d+))?", re.IGNORECASE),
+        "pretty": "Apache httpd",
+        "min_supported": (2, 4, 62),  # 2.4.62 (Aug 2024) — earlier 2.4.x has multiple CVEs
+        "cves": (
+            ("CVE-2024-38476", "CRITICAL", "mod_rewrite RCE via request URL (fixed 2.4.60)"),
+            ("CVE-2024-38477", "HIGH", "mod_proxy NULL deref (fixed 2.4.60)"),
+            ("CVE-2023-31122", "MEDIUM", "mod_macro OOB read (fixed 2.4.58)"),
+            ("CVE-2022-23943", "CRITICAL", "mod_sed heap overflow (fixed 2.4.53)"),
+        ),
+        "remediation_extra": (
+            "Upgrade path:\n"
+            "  Debian 12 (apache2 2.4.62-1~deb12u2) → apt upgrade\n"
+            "  Ubuntu 22.04 (2.4.52)                 → apt upgrade (current 2.4.58)\n"
+            "  Compilar desde httpd.apache.org/download.cgi (current 2.4.x)"
+        ),
+    },
+    {
+        # IIS version banners ship as "Microsoft-IIS/X.Y" (no patch).
+        # Capture X, Y, and an empty third group so the unpack matches
+        # the (major, minor, patch) tuple expected by _parse_semver.
+        "name_re": re.compile(r"^Microsoft-IIS(?:/(\d+)\.(\d+)())?", re.IGNORECASE),
+        "pretty": "Microsoft IIS",
+        "min_supported": (10, 0, 0),  # IIS 10.0 (Windows Server 2016+); earlier (7.5/8.0) on EOL Windows
+        "cves": (
+            ("CVE-2022-22025", "HIGH", "IIS XSS in default error page"),
+            ("CVE-2020-0645", "MEDIUM", "IIS info disclosure"),
+        ),
+        "remediation_extra": (
+            "IIS < 10.0 means el host corre Windows Server <= 2012 R2 (EOL Oct 2023).\n"
+            "Migration urgente: Win Server 2022 + IIS 10.0.20348.x (release Aug 2021+)."
+        ),
+    },
+)
+
+
+def _parse_semver(major_s: str | None, minor_s: str | None, patch_s: str | None) -> tuple[int, int, int] | None:
+    """Return (major, minor, patch) if at least the major is parseable.
+    Patch defaults to 0 (e.g. IIS banner ships only major.minor).
+    Returns None when all three are missing (banner without version).
+    """
+    if major_s is None and minor_s is None and patch_s is None:
+        return None
+    try:
+        return (int(major_s or "0"), int(minor_s or "0"), int(patch_s or "0"))
+    except (TypeError, ValueError):
+        return None
+
+
+def _check_webserver_eol(svc: DiscoveredService, headers: str) -> Finding | None:
+    """F200.B — Flag HIGH when the Server header reveals a web server
+    version below the minimum supported (i.e. EOL with accumulated CVEs).
+
+    Surfaced by the Britimp POC pilot 2026-05-18 against .18 (nginx
+    1.18.0 EOL desde abril 2023). The generic http-server-token check
+    flagged the info disclosure (MEDIUM) but missed that the disclosed
+    version was the precondition for CVE-2021-23017 (CRITICAL pre-auth
+    RCE).
+    """
+    server_m = re.search(r"^Server:\s*([^\r\n]+)", headers, re.MULTILINE | re.IGNORECASE)
+    if not server_m:
+        return None
+    server_value = server_m.group(1).strip()
+
+    for entry in _WEBSERVER_EOL_TABLE:
+        v_m = entry["name_re"].search(server_value)
+        if not v_m:
+            continue
+        observed = _parse_semver(*v_m.groups()[:3])
+        if observed is None:
+            return None  # version present but unparsable — skip
+        min_v = entry["min_supported"]
+        if observed >= min_v:
+            return None  # version is supported, nothing to flag
+
+        # EOL — build the finding with CVE list + upgrade path.
+        cve_lines = "\n".join(f"  [{sev:8s}] {cve_id}: {desc}" for cve_id, sev, desc in entry["cves"])
+        observed_str = ".".join(str(p) for p in observed)
+        min_str = ".".join(str(p) for p in min_v)
+        return Finding(
+            cwe="CWE-1104",  # Use of Unmaintained Third Party Components
+            severity="HIGH",
+            host=f"{svc.host}:{svc.port}",
+            rule_id=f"{entry['pretty'].lower().replace(' ', '-')}-version-eol",
+            message=(
+                f"{entry['pretty']} {observed_str} es EOL / por debajo del mínimo soportado "
+                f"({min_str}). CVEs públicas aplicables a esta versión:"
+            ),
+            evidence=f"Server: {server_value}\n\nCVEs históricas para {entry['pretty']} <= {observed_str}:\n{cve_lines}",
+            remediation=(
+                f"Upgrade a {entry['pretty']} {min_str} o superior.\n\n"
+                f"{entry['remediation_extra']}\n\n"
+                "Validar con `curl -sSI` post-upgrade que el header Server refleje la versión nueva."
+            ),
+            severity_rank=_SEV_RANK["HIGH"],
+        )
+    return None
 
 
 def _check_admin_open(svc: DiscoveredService) -> Finding | None:
