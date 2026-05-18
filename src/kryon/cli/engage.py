@@ -367,12 +367,104 @@ def _check_http(svc: DiscoveredService) -> list[Finding]:
     admin_finding = _check_admin_open(svc)
     if admin_finding:
         findings.append(admin_finding)
+
+    # F199.N — Password manager / secrets-vault self-hosted detection.
+    # These are highest-value assets in any network: a compromised
+    # Vaultwarden / Passbolt instance exposes the credentials for
+    # everything else in scope. Flag HIGH so the operator pays attention.
+    pm_finding = _check_password_manager(svc)
+    if pm_finding:
+        findings.append(pm_finding)
+
     return findings
+
+
+# F199.N — Signature table for self-hosted password / secret managers.
+# Each tuple: (regex, short_id, pretty_name). Patterns are conservative —
+# we look for HTML title or unique JS/CSS asset paths that vendor ships.
+_PASSWORD_MANAGER_SIGNATURES = (
+    (re.compile(r"<title[^>]*>\s*Vaultwarden", re.IGNORECASE), "vaultwarden", "Vaultwarden (self-hosted Bitwarden)"),
+    (re.compile(r"<title[^>]*>\s*Bitwarden", re.IGNORECASE), "bitwarden", "Bitwarden self-hosted"),
+    (re.compile(r"<title[^>]*>\s*Passbolt", re.IGNORECASE), "passbolt", "Passbolt"),
+    (re.compile(r"passbolt-api\.com", re.IGNORECASE), "passbolt", "Passbolt"),
+    (re.compile(r"<title[^>]*>\s*Padloc", re.IGNORECASE), "padloc", "Padloc"),
+    (re.compile(r"\bpadloc-app\b", re.IGNORECASE), "padloc", "Padloc"),
+    (re.compile(r"<title[^>]*>\s*KeeWeb", re.IGNORECASE), "keeweb", "KeeWeb (KeePass web)"),
+    (re.compile(r"<title[^>]*>\s*Pleasant Password Server", re.IGNORECASE), "pleasant", "Pleasant Password Server"),
+    (re.compile(r"<title[^>]*>\s*Psono", re.IGNORECASE), "psono", "Psono (self-hosted)"),
+    (re.compile(r"<title[^>]*>\s*Teampass", re.IGNORECASE), "teampass", "Teampass"),
+)
+
+
+def _check_password_manager(svc: DiscoveredService) -> Finding | None:
+    """Detect self-hosted password managers exposed in the segment.
+
+    Surfaced by the Britimp POC pilot 2026-05-18 against .99, where the
+    corporate Vaultwarden (`<title>Vaultwarden Web</title>`) was reachable
+    from the data plane with only ssh-banner as the loudest signal —
+    Kryon was treating it like any other HTTPS host.
+
+    Severity HIGH (not CRITICAL — the asset is not vulnerable per se,
+    it's an asset-value flag). The remediation walks the operator
+    through the policy / segmentation review.
+    """
+    # Only meaningful for HTTP/HTTPS services. _check_http already gated
+    # the caller to web ports, so this is a safety belt.
+    if svc.service not in ("http", "https", "http-proxy") and svc.port not in (
+        80,
+        443,
+        8080,
+        8443,
+        4443,
+        9443,
+    ):
+        return None
+
+    scheme = "https" if svc.port in (443, 8443, 4443, 9443) else "http"
+    code, body = _http_get(f"{scheme}://{svc.host}:{svc.port}/")
+    if code == 0 or not body:
+        return None
+
+    for rx, short_id, pretty in _PASSWORD_MANAGER_SIGNATURES:
+        if rx.search(body):
+            return Finding(
+                cwe="CWE-668",  # Exposure of Resource to Wrong Sphere
+                severity="HIGH",
+                host=f"{svc.host}:{svc.port}",
+                rule_id=f"password-manager-{short_id}",
+                message=(
+                    f"{pretty} detectado en {svc.host}:{svc.port}. "
+                    "Asset de altísimo valor (gestor de credenciales corporativo) accesible desde "
+                    "el segmento auditado. Una compromise de este host expone TODAS las "
+                    "credenciales del equipo."
+                ),
+                evidence=f"GET {scheme}://{svc.host}:{svc.port}/ → {code}\n\nMatched signature: {rx.pattern}",
+                remediation=(
+                    "1. Revisar segmentación: el password manager debería vivir en una VLAN de gestión\n"
+                    "   dedicada, no en el segmento de servidores generales.\n"
+                    "2. Verificar TLS: certificado de CA confiable (no autofirmado) + HSTS preload.\n"
+                    "3. Verificar versión: cross-ref con CVE database del fabricante:\n"
+                    "   - Vaultwarden: CVE-2024-39926 (Webauthn bypass), CVE-2023-27924\n"
+                    "   - Bitwarden: revisar advisories.bitwarden.com\n"
+                    "   - Passbolt: passbolt.com/security/advisories\n"
+                    "4. Forzar MFA (TOTP, Webauthn, Duo) en cada cuenta — sin excepción.\n"
+                    "5. Auditar usuarios admin: deben ser ≤ 2, con accounts dedicadas (no email personal).\n"
+                    "6. Backup encriptado off-site + procedimiento de recovery documentado.\n"
+                    "7. Monitoreo: alertar en cada login admin + cada fallo de auth.\n"
+                    "8. Considerar SaaS (1Password Business, Bitwarden Cloud) si la operación no\n"
+                    "   puede asumir las responsabilidades de self-hosting."
+                ),
+                severity_rank=_SEV_RANK["HIGH"],
+            )
+    return None
 
 
 def _http_get(url: str, *, timeout_s: int = 5) -> tuple[int, str]:
     """GET `url` via curl. Returns (status_code, body[:65536]).
 
+    Uses `-k` to accept self-signed TLS — audit tooling must reach
+    the service even when the cert is invalid (very common for
+    internal admin panels, password managers, BMC web UIs).
     Returns (0, '') on any error so callers can degrade gracefully.
     """
     try:
@@ -380,6 +472,7 @@ def _http_get(url: str, *, timeout_s: int = 5) -> tuple[int, str]:
             [
                 "curl",
                 "-sS",
+                "-k",
                 "--max-time",
                 str(timeout_s),
                 "-w",
