@@ -7,8 +7,22 @@ service detection, OS fingerprinting, and security auditing.
 
 PERFORMANCE: Results are cached with 4-hour TTL to avoid redundant
 port scans and improve response times by 10-30x for repeated scans.
+
+THROTTLING (F195 — POC-safe defaults for production targets):
+Three env vars override aggressive defaults when scanning live infra:
+
+  KRYON_NMAP_TIMING            — replaces hardcoded -T4 in full-port path.
+                                 Valid: T0..T5. Banca-safe: T2.
+  KRYON_NMAP_MIN_RATE          — replaces hardcoded --min-rate 1000.
+                                 Banca-safe: 50.
+  KRYON_NMAP_MAX_PARALLELISM   — adds --max-parallelism if not present.
+                                 Banca-safe: 10.
+
+Caller-supplied flags (LLM/operator via args=) always win — env vars
+only kick in when the corresponding flag is absent from args.
 """
 
+import os
 import re
 
 from kryon.cache import cache_scan_result
@@ -32,6 +46,28 @@ def _is_full_port_scan(ports_str: str, flags_str: str) -> bool:
         if p in ("1-65535", "0-65535", "-"):
             return True
     return False
+
+
+def _apply_throttle_env(flags: str) -> str:
+    """Layer KRYON_NMAP_* env overrides onto already-built nmap flags.
+
+    Caller-supplied flags win — env vars only fill missing slots.
+    """
+    timing = os.getenv("KRYON_NMAP_TIMING", "").strip()
+    if timing and "-T" not in flags:
+        if not timing.startswith("-T"):
+            timing = f"-T{timing.lstrip('T')}"
+        flags += f" {timing}"
+
+    min_rate = os.getenv("KRYON_NMAP_MIN_RATE", "").strip()
+    if min_rate and "--min-rate" not in flags:
+        flags += f" --min-rate {min_rate}"
+
+    max_par = os.getenv("KRYON_NMAP_MAX_PARALLELISM", "").strip()
+    if max_par and "--max-parallelism" not in flags:
+        flags += f" --max-parallelism {max_par}"
+
+    return flags
 
 
 @function_tool(strict_mode=False)
@@ -161,11 +197,13 @@ def nmap(
     # Optimize full port scans: add speed flags and use longer timeout
     is_full = _is_full_port_scan(ports, nmap_flags)
     if is_full:
-        # Add speed optimization for full port scans over VPN
-        if "-T" not in nmap_flags:
+        # Default aggressive flags for full-port scans over VPN. F195: env
+        # overrides take precedence via _apply_throttle_env below.
+        if "-T" not in nmap_flags and not os.getenv("KRYON_NMAP_TIMING"):
             nmap_flags += " -T4"
-        if "--min-rate" not in nmap_flags:
+        if "--min-rate" not in nmap_flags and not os.getenv("KRYON_NMAP_MIN_RATE"):
             nmap_flags += " --min-rate 1000"
+        nmap_flags = _apply_throttle_env(nmap_flags)
         # For full port scans, skip version detection first (too slow)
         # Do a fast SYN scan to find open ports, then detailed scan
         if "-sV" in nmap_flags:
@@ -178,12 +216,14 @@ def nmap(
             # Extract open ports from fast scan
             open_ports = re.findall(r"(\d+)/tcp\s+open", fast_result)
             if open_ports:
-                # Phase 2: Detailed scan only on open ports
+                # Phase 2: Detailed scan only on open ports — also throttled.
                 port_list = ",".join(open_ports)
-                detail_cmd = f"nmap -sV -sC -p {port_list} {target}"
+                detail_flags = _apply_throttle_env("-sV -sC")
+                detail_cmd = f"nmap {detail_flags} -p {port_list} {target}"
                 return run_command(detail_cmd, ctf=ctf, timeout=300)
             else:
                 return fast_result  # No open ports found
 
+    nmap_flags = _apply_throttle_env(nmap_flags)
     command = f"nmap {nmap_flags} {target}"
     return run_command(command, ctf=ctf)

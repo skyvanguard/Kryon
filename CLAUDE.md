@@ -271,6 +271,22 @@ KRYON_RETEST_ALLOW_MUTATIONS=      # F88: 'true' opts in to replay POST/PUT/PATC
 KRYON_BRAND_FIRE=                  # F90.1: 'true' enables live DNS resolution in typosquat_scan
                                    # tool. Same double-gate as F87/F88. Default unset = generate
                                    # candidates only (pure, no network).
+KRYON_NMAP_TIMING=                 # F195: override nmap timing template (T0..T5).
+                                   # Replaces hardcoded -T4 in the full-port-scan
+                                   # path. Banca-safe / POC en horario laboral: T2.
+                                   # Caller-supplied -T flag in args= always wins.
+KRYON_NMAP_MIN_RATE=               # F195: override --min-rate. Replaces the
+                                   # hardcoded --min-rate 1000 of full-port scans.
+                                   # Banca-safe: 50. Caller --min-rate wins.
+KRYON_NMAP_MAX_PARALLELISM=        # F195: adds --max-parallelism when absent.
+                                   # Banca-safe: 10. Caller flag wins.
+KRYON_NUCLEI_RATE_LIMIT=           # F195: override nuclei_scan default rate_limit=150.
+                                   # Banca-safe: 50. Only applies if the caller
+                                   # left the function-tool default in place.
+KRYON_NUCLEI_BULK_SIZE=            # F195: override nuclei_scan default bulk_size=25.
+                                   # Banca-safe: 10.
+KRYON_NUCLEI_CONCURRENCY=          # F195: override nuclei_scan default concurrency=25.
+                                   # Banca-safe: 10.
 ```
 
 ## Docker / K8s

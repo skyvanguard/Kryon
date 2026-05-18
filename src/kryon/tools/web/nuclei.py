@@ -8,13 +8,44 @@ networks, and services.
 
 PERFORMANCE: Results are cached with 12-hour TTL to avoid redundant
 vulnerability scans and improve response times by 10-30x for repeated scans.
+
+THROTTLING (F195 — POC-safe defaults for production targets):
+
+  KRYON_NUCLEI_RATE_LIMIT     — overrides default rate_limit=150 (req/s).
+                                Banca-safe: 50.
+  KRYON_NUCLEI_BULK_SIZE      — overrides default bulk_size=25 (hosts/parallel).
+                                Banca-safe: 10.
+  KRYON_NUCLEI_CONCURRENCY    — overrides default concurrency=25 (templates/parallel).
+                                Banca-safe: 10.
+
+Env vars only override when the caller did NOT pass an explicit value
+(i.e. the value still matches the function-tool default). Explicit
+LLM/operator values always win.
 """
 
+import os
 import re
 
 from kryon.cache import cache_scan_result
 from kryon.sdk.agents import function_tool
 from kryon.tools.common import run_command
+
+# Defaults exposed to the function_tool signature. F195 — env-override
+# logic compares against these to decide if the caller passed a value.
+_DEFAULT_RATE_LIMIT = 150
+_DEFAULT_BULK_SIZE = 25
+_DEFAULT_CONCURRENCY = 25
+
+
+def _env_int(name: str) -> int | None:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
 
 # Markers Nuclei prints to stdout when a scan failed to actually execute.
 # Detect these so the agent does NOT interpret a failed scan as "0 findings".
@@ -69,9 +100,9 @@ def nuclei_scan(
     tags: str = "",
     exclude_tags: str = "",
     author: str = "",
-    rate_limit: int = 150,
-    bulk_size: int = 25,
-    concurrency: int = 25,
+    rate_limit: int = _DEFAULT_RATE_LIMIT,
+    bulk_size: int = _DEFAULT_BULK_SIZE,
+    concurrency: int = _DEFAULT_CONCURRENCY,
     timeout: int = 10,
     retries: int = 1,
     headers: str = "",
@@ -236,6 +267,22 @@ def nuclei_scan(
         - k8s: Kubernetes
         - docker: Docker
     """
+    # F195 — env-driven throttle. Override default values only when the
+    # caller did NOT pass an explicit value. Explicit LLM/operator values
+    # always win (banca-safe contract).
+    if rate_limit == _DEFAULT_RATE_LIMIT:
+        env_rl = _env_int("KRYON_NUCLEI_RATE_LIMIT")
+        if env_rl is not None:
+            rate_limit = env_rl
+    if bulk_size == _DEFAULT_BULK_SIZE:
+        env_bs = _env_int("KRYON_NUCLEI_BULK_SIZE")
+        if env_bs is not None:
+            bulk_size = env_bs
+    if concurrency == _DEFAULT_CONCURRENCY:
+        env_c = _env_int("KRYON_NUCLEI_CONCURRENCY")
+        if env_c is not None:
+            concurrency = env_c
+
     # Build nuclei command
     cmd_parts = ["nuclei"]
 
