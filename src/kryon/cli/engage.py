@@ -278,41 +278,93 @@ def _check_http(svc: DiscoveredService) -> list[Finding]:
             )
         )
 
-    # CWE-306: /admin accesible sin auth
+    # CWE-306: /admin accesible sin auth — F199.H distinguishes between
+    # a real admin endpoint and a SPA catch-all that serves index.html
+    # for every path (Angular / React / Vue with HTML5 routing). Helper
+    # below compares the /admin response against the root: identical
+    # body means SPA catch-all (no finding); different content means a
+    # real admin surface (flag HIGH).
+    admin_finding = _check_admin_open(svc)
+    if admin_finding:
+        findings.append(admin_finding)
+    return findings
+
+
+def _http_get(url: str, *, timeout_s: int = 5) -> tuple[int, str]:
+    """GET `url` via curl. Returns (status_code, body[:65536]).
+
+    Returns (0, '') on any error so callers can degrade gracefully.
+    """
     try:
-        admin_code = subprocess.run(
+        proc = subprocess.run(
             [
                 "curl",
                 "-sS",
-                "-o",
-                "/dev/null",
-                "-w",
-                "%{http_code}",
                 "--max-time",
-                "5",
-                f"http://{svc.host}:{svc.port}/admin",
+                str(timeout_s),
+                "-w",
+                "\n__HTTPCODE__%{http_code}",
+                url,
             ],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=timeout_s + 2,
             check=False,
-        ).stdout.strip()
-    except Exception:
-        admin_code = ""
-    if admin_code == "200":
-        findings.append(
-            Finding(
-                cwe="CWE-306",
-                severity="HIGH",
-                host=f"{svc.host}:{svc.port}",
-                rule_id="http-admin-open",
-                message="Endpoint /admin accesible sin autenticación.",
-                evidence=f"GET {svc.host}:{svc.port}/admin → 200",
-                remediation="Proteger /admin con autenticación (auth_basic / OAuth).",
-                severity_rank=_SEV_RANK["HIGH"],
-            )
         )
-    return findings
+        out = proc.stdout
+        marker = "__HTTPCODE__"
+        idx = out.rfind(marker)
+        if idx >= 0:
+            try:
+                code = int(out[idx + len(marker) :].strip())
+            except ValueError:
+                code = 0
+            body = out[:idx]
+        else:
+            code = 0
+            body = out
+        return code, body[:65536]
+    except Exception:  # noqa: BLE001 — collapse all curl errors to (0, "")
+        return 0, ""
+
+
+def _check_admin_open(svc: DiscoveredService) -> Finding | None:
+    """F199.H — Flag CWE-306 only when /admin is meaningfully different
+    from the root. SPA frameworks (Angular/React/Vue) serve index.html
+    for every path under their HTML5 routing config; comparing the
+    bodies tells us whether /admin is a real admin surface or a
+    catch-all artefact.
+    """
+    base_url = f"http://{svc.host}:{svc.port}"
+    root_code, root_body = _http_get(f"{base_url}/")
+    admin_code, admin_body = _http_get(f"{base_url}/admin")
+
+    # No /admin response at all (404, connect-refused) — nothing to flag.
+    if admin_code != 200:
+        return None
+
+    # If the root also returns 200 and the bodies are identical, this is
+    # a SPA catch-all, not a real admin endpoint. The cheapest stable
+    # signature is (length, sha256). We skip a tiny prefix to allow for
+    # CSRF tokens / nonces injected per-request.
+    import hashlib
+
+    def _fingerprint(body: str) -> tuple[int, str]:
+        return len(body), hashlib.sha256(body.encode("utf-8", errors="ignore")).hexdigest()
+
+    if root_code == 200 and _fingerprint(root_body) == _fingerprint(admin_body):
+        return None  # SPA catch-all — not an exposed admin
+
+    return Finding(
+        cwe="CWE-306",
+        severity="HIGH",
+        host=f"{svc.host}:{svc.port}",
+        rule_id="http-admin-open",
+        message="Endpoint /admin accesible sin autenticación.",
+        evidence=(f"GET {svc.host}:{svc.port}/admin → 200 (body distinto del root, no es SPA catch-all)"),
+        remediation="Proteger /admin con autenticación (auth_basic / OAuth / mTLS).",
+        severity_rank=_SEV_RANK["HIGH"],
+    )
 
 
 def _check_ssh(svc: DiscoveredService, ssh_target: str | None, ssh_password: str | None) -> list[Finding]:
