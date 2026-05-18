@@ -328,6 +328,110 @@ def _http_get(url: str, *, timeout_s: int = 5) -> tuple[int, str]:
         return 0, ""
 
 
+_PYTHON_SIMPLEHTTP_SERVER_RE = re.compile(r"^Server:\s*SimpleHTTP/[\d.]+\s+Python/[\d.]+", re.MULTILINE | re.IGNORECASE)
+_DIRECTORY_LISTING_RE = re.compile(r"<title>Directory listing for ", re.IGNORECASE)
+
+
+def _check_python_simplehttp_exposed(svc: DiscoveredService) -> Finding | None:
+    """F199.J — `python -m http.server` running on a production network.
+
+    Surfaced by the Britimp POC pilot on 2026-05-18 against TORRE_SVR.200,
+    where the Proxmox host had `python -m http.server 8888` left over from
+    a VM migration — exposing the full `sgapp-temp-flat.vmdk` to anyone
+    reachable on the segment.
+
+    This is a CRITICAL data-exfiltration vector even though the generic
+    http-plaintext check already flags the port: an attacker doesn't need
+    to compromise auth or run an exploit — `curl http://target:port/file`
+    is enough to walk away with the entire VM image (filesystem +
+    credentials + DB dumps + private keys).
+
+    Detection signature:
+      1. HTTP response header: `Server: SimpleHTTP/X.X Python/Y.Y`
+      2. GET / body contains `<title>Directory listing for ...`
+    Both required — the Python http.server can be repurposed by users to
+    serve a single file with a custom handler, in which case directory
+    listing is off and the risk is lower.
+    """
+    try:
+        headers_proc = subprocess.run(
+            ["curl", "-sSI", "--max-time", "5", f"http://{svc.host}:{svc.port}/"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        headers = headers_proc.stdout or ""
+    except Exception:  # noqa: BLE001
+        return None
+
+    if not _PYTHON_SIMPLEHTTP_SERVER_RE.search(headers):
+        return None
+
+    # Server header matches — fetch body to confirm directory listing.
+    try:
+        body_proc = subprocess.run(
+            ["curl", "-sS", "--max-time", "5", f"http://{svc.host}:{svc.port}/"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        body = body_proc.stdout or ""
+    except Exception:  # noqa: BLE001
+        body = ""
+
+    if not _DIRECTORY_LISTING_RE.search(body):
+        # Server header matches but no directory listing → custom handler.
+        # Still worth flagging at HIGH (Python http.server in prod is unusual)
+        # but not the CRITICAL CRITICAL of unauthenticated dirlist.
+        return Finding(
+            cwe="CWE-200",
+            severity="HIGH",
+            host=f"{svc.host}:{svc.port}",
+            rule_id="python-simplehttp-exposed",
+            message=(
+                f"`python -m http.server` (or BaseHTTPServer variant) detected on {svc.host}:{svc.port} "
+                "— directory listing off but Python's reference HTTP server has no security guarantees "
+                "for production."
+            ),
+            evidence=headers[:400],
+            remediation=(
+                "Replace with a hardened web server (nginx, Caddy, Apache) behind TLS + auth. "
+                "Python's http.server module documentation explicitly says: 'It is not recommended "
+                "to use this on the internet.'"
+            ),
+            severity_rank=_SEV_RANK["HIGH"],
+        )
+
+    # CRITICAL: server header + open directory listing = data exfiltration vector.
+    # Pull a short body snippet for the evidence so the report shows what's exposed.
+    body_snippet = body[:600]
+    return Finding(
+        cwe="CWE-548",  # Information Exposure Through Directory Listing
+        severity="CRITICAL",
+        host=f"{svc.host}:{svc.port}",
+        rule_id="python-simplehttp-directory-listing",
+        message=(
+            f"`python -m http.server` running on {svc.host}:{svc.port} with open directory listing — "
+            "anyone on the segment can download all files in the served directory without "
+            "authentication. Probable cause: VM migration / backup tooling left running in production."
+        ),
+        evidence=f"Server: SimpleHTTP detected + Directory listing exposed.\n\nSample body:\n{body_snippet}",
+        remediation=(
+            "1. INMEDIATO: stop the python http.server process:\n"
+            "   ssh <host> 'pgrep -af \"http.server\" && pkill -f http.server'\n"
+            "2. Investigate what was served and whether the files contain sensitive data:\n"
+            "   - VM disk images (.vmdk / .qcow2 / .vdi) — credenciales en filesystem\n"
+            "   - DB dumps, code archives, log bundles\n"
+            "3. Audit who could have downloaded the files (firewall logs, iptables LOG, network IDS).\n"
+            "4. Replace with a hardened transfer mechanism: scp+sftp, rsync over SSH, signed-URL\n"
+            "   object storage. Never expose `python -m http.server` on a production network."
+        ),
+        severity_rank=_SEV_RANK["CRITICAL"],
+    )
+
+
 def _check_admin_open(svc: DiscoveredService) -> Finding | None:
     """F199.H — Flag CWE-306 only when /admin is meaningfully different
     from the root. SPA frameworks (Angular/React/Vue) serve index.html
@@ -1542,8 +1646,16 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
     has_ssh = False
     for s in services:
         product = (s.product or "").lower()
-        # Proxmox VE
-        if "proxmox" in product or s.port in (8006, 3128):
+        # Proxmox VE — detect by banner (pve-api-daemon / Proxmox) OR
+        # by canonical web port 8006. Port 3128 alone is NOT enough:
+        # Squid proxy, Tinyproxy, and other HTTP proxies also use 3128.
+        # F199.K refined this after the Britimp POC pilot showed both
+        # Proxmox (real, banner "pve-api-daemon/3.0") and the risk
+        # that .200's Squid sibling would also be misclassified.
+        if "proxmox" in product or "pve-api" in product or s.port == 8006:
+            _add("proxmox")
+        elif s.port == 3128 and ("pve" in product.lower() or "proxmox" in product.lower()):
+            # Port 3128 promoted to Proxmox only with banner confirmation.
             _add("proxmox")
         # FortiGate
         if "fortigate" in product or "fortinet" in product or "fortios" in product or s.port in (10443, 8443):
@@ -1875,6 +1987,13 @@ def run_engage(args: argparse.Namespace) -> int:
     for svc in open_svcs:
         if svc.service in ("http", "http-proxy", "https") or svc.port in (80, 443, 8080, 8443):
             findings.extend(_check_http(svc))
+            # F199.J — Run the Python http.server detector on the same
+            # service. It only fires when the Server header explicitly
+            # says SimpleHTTP/Python, so it's cheap to call on every
+            # HTTP service.
+            python_finding = _check_python_simplehttp_exposed(svc)
+            if python_finding:
+                findings.append(python_finding)
         if svc.service == "ssh" or svc.port == 22 or svc.port == 2222:
             findings.extend(_check_ssh(svc, args.ssh, args.ssh_password))
         if svc.service in ("mysql", "postgresql", "mongodb", "redis") or svc.port in (3306, 33060, 5432, 27017, 6379):
