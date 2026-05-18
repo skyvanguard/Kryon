@@ -103,11 +103,59 @@ def _build_engage_nmap_cmd(target: str) -> str:
     return f"nmap -Pn -sT -sV {timing_flag} --top-ports 100{min_rate_extra}{max_par_extra} -oX - {shlex.quote(target)}"
 
 
+def _extend_timeout_for_throttle(timeout_s: int) -> int:
+    """F199.M — Stretch the nmap timeout when throttle env makes the
+    scan slower.
+
+    Surfaced by the Britimp POC pilot 2026-05-18 against .106:
+    `nmap -T2 --top-ports 100 --min-rate 50 --max-parallelism 10`
+    took 355s wall-clock on a real host with only 2 open ports —
+    well over the 180s default `--nmap-timeout`. Result: engage
+    silently lost both ports (timeout → empty stdout → 0 puertos).
+
+    Multipliers (conservative, can be tuned):
+      KRYON_NMAP_TIMING T0/T1 → ×4
+      KRYON_NMAP_TIMING T2    → ×3
+      KRYON_NMAP_MIN_RATE ≤ 50 → ×2 (on top of timing multiplier)
+      KRYON_NMAP_MAX_PARALLELISM ≤ 10 → +30 seconds
+    """
+    timing = os.environ.get("KRYON_NMAP_TIMING", "").strip().upper().lstrip("T")
+    min_rate = os.environ.get("KRYON_NMAP_MIN_RATE", "").strip()
+    max_par = os.environ.get("KRYON_NMAP_MAX_PARALLELISM", "").strip()
+
+    multiplier = 1.0
+    if timing in ("0", "1"):
+        multiplier = 4.0
+    elif timing == "2":
+        multiplier = 3.0
+
+    try:
+        if min_rate and int(min_rate) <= 50:
+            multiplier *= 2.0
+    except ValueError:
+        pass
+
+    extra_s = 0
+    try:
+        if max_par and int(max_par) <= 10:
+            extra_s = 30
+    except ValueError:
+        pass
+
+    if multiplier == 1.0 and extra_s == 0:
+        return timeout_s
+
+    return int(timeout_s * multiplier + extra_s)
+
+
 def _run_nmap(target: str, *, timeout_s: int = 600) -> str:
     """Run a fast service-detection nmap against the target.
 
     Uses live_progress when KRYON_LIVE_PROGRESS=true; otherwise falls
     back to plain subprocess so CI benches don't render Live panels.
+
+    F199.M — Auto-extends the timeout when throttle env vars are set
+    so banca-safe scans (T2 + min-rate 50) actually have time to finish.
     """
     use_live = os.environ.get("KRYON_LIVE_PROGRESS", "").strip().lower() in {
         "1",
@@ -116,6 +164,7 @@ def _run_nmap(target: str, *, timeout_s: int = 600) -> str:
         "on",
     }
     cmd = _build_engage_nmap_cmd(target)
+    timeout_s = _extend_timeout_for_throttle(timeout_s)
     if use_live:
         try:
             from kryon.repl.ui.live_progress import run_with_progress
