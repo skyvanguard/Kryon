@@ -228,6 +228,7 @@ docs/*
 !docs/REPL_DESIGN.md
 !docs/REPL_RENDERING_AUDIT.md
 !docs/PLAN_PARITY_CAI.md
+!docs/upstream_skills_diff.md
 !docs/benchmarks/
 !docs/benchmarks/**
 !docs/ci/
