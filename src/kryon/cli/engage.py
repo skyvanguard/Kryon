@@ -80,7 +80,7 @@ _SEV_RANK = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
 # -----------------------------------------------------------------------------
 
 
-def _build_engage_nmap_cmd(target: str) -> list[str]:
+def _build_engage_nmap_cmd(target: str, ports: str = "") -> list[str]:
     """Build the Phase 1 nmap command honoring F196 throttle env.
 
     F202.S security hardening: returns argv list (not string) so the
@@ -91,6 +91,11 @@ def _build_engage_nmap_cmd(target: str) -> list[str]:
     F202.S.C Windows fix: resolve nmap to absolute path via shutil.which
     because shell=False on Windows doesn't resolve `nmap` (without .exe
     suffix) from PATH.
+
+    F202.T: optional `ports` arg replaces `--top-ports 100` with an
+    explicit port list (e.g. "22,80,2222,8080,33060"). Useful for
+    focused scans against hosts with non-canonical ports OR to avoid
+    FPs when scanning localhost with mixed targets.
     """
     # -Pn: skip host discovery. Required when the target firewall
     # filters ICMP (typical for hardened hosts and PVE behind FortiGate).
@@ -104,7 +109,17 @@ def _build_engage_nmap_cmd(target: str) -> list[str]:
     timing_flag = f"-T{timing_env.lstrip('T')}" if timing_env else "-T4"
     cmd.append(timing_flag)
 
-    cmd.extend(["--top-ports", "100"])
+    # F202.T: --ports overrides --top-ports 100 when provided
+    if ports.strip():
+        # Sanitize: only digits + comma + dash (port ranges 80-100)
+        # to avoid argv injection via the operator-controlled flag.
+        sanitized = re.sub(r"[^0-9,\-]", "", ports.strip())
+        if sanitized:
+            cmd.extend(["-p", sanitized])
+        else:
+            cmd.extend(["--top-ports", "100"])  # fallback
+    else:
+        cmd.extend(["--top-ports", "100"])
 
     min_rate_env = os.environ.get("KRYON_NMAP_MIN_RATE", "").strip()
     if min_rate_env:
@@ -163,7 +178,7 @@ def _extend_timeout_for_throttle(timeout_s: int) -> int:
     return int(timeout_s * multiplier + extra_s)
 
 
-def _run_nmap(target: str, *, timeout_s: int = 600) -> str:
+def _run_nmap(target: str, *, timeout_s: int = 600, ports: str = "") -> str:
     """Run a fast service-detection nmap against the target.
 
     Uses live_progress when KRYON_LIVE_PROGRESS=true; otherwise falls
@@ -178,7 +193,7 @@ def _run_nmap(target: str, *, timeout_s: int = 600) -> str:
         "yes",
         "on",
     }
-    cmd = _build_engage_nmap_cmd(target)
+    cmd = _build_engage_nmap_cmd(target, ports=ports)
     timeout_s = _extend_timeout_for_throttle(timeout_s)
     if use_live:
         try:
@@ -4638,7 +4653,7 @@ def run_engage(args: argparse.Namespace) -> int:
         console.print(f"  [green]✓[/green] resumed with {len(findings)} findings from checkpoint")
     else:
         _banner(console, f"Fase 1 — descubrimiento ({target})")
-        xml = _run_nmap(target, timeout_s=args.nmap_timeout)
+        xml = _run_nmap(target, timeout_s=args.nmap_timeout, ports=getattr(args, "ports", ""))
         services = _parse_nmap_xml(xml, target)
         open_svcs = [s for s in services if s.state == "open"]
         console.print(f"  [green]{len(open_svcs)}[/green] puertos abiertos en {target}")
@@ -5142,6 +5157,15 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
     p.add_argument("--dry-run-only", action="store_true", help="skip remediation even if --ssh provided")
     p.add_argument("--auto-approve", action="store_true", help="skip approval prompt (lab / demo only — NEVER prod)")
     p.add_argument("--nmap-timeout", type=int, default=600, help="nmap wall-clock timeout in seconds (default: 600)")
+    p.add_argument(
+        "--ports",
+        default="",
+        help="F202.T — comma-separated port list (e.g. '22,80,2222,8080,33060'). "
+        "Replaces the default `--top-ports 100`. Util para lab/POC con "
+        "puertos no-canonicos OR para focused scan a un subset de targets "
+        "(evita FPs cuando el operador corre engage contra localhost con "
+        "varios containers Docker exposed).",
+    )
     p.add_argument(
         "--framework",
         default="",
