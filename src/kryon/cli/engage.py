@@ -2521,6 +2521,34 @@ def _check_ssh(svc: DiscoveredService, ssh_target: str | None, ssh_password: str
                 severity_rank=_SEV_RANK["HIGH"],
             )
         )
+    # F202.V — X11Forwarding yes (CWE-250 — Execution with Unnecessary
+    # Privileges). Surfaced docker/vulnerable-lab smoke test: ground truth
+    # planted vuln no detectada antes. X11 forwarding sobre SSH es vector
+    # de privilege escalation: cliente SSH puede inyectar X events al
+    # server display (xdotool-style), bypass de session lock, keystroke
+    # injection. Banking: nunca usar X11 forwarding en produccion.
+    if re.search(r"^\s*X11Forwarding\s+yes", cfg, re.MULTILINE | re.IGNORECASE):
+        findings.append(
+            Finding(
+                cwe="CWE-250",
+                severity="MEDIUM",
+                host=f"{user}@{host}",
+                rule_id="sshd-x11-forwarding",
+                message="sshd permite X11Forwarding — vector de privilege escalation via X event injection.",
+                evidence="X11Forwarding yes",
+                remediation=(
+                    "Deshabilitar X11Forwarding en /etc/ssh/sshd_config. "
+                    "Solo habilitarlo en hosts no-banking que realmente lo necesiten "
+                    "(estaciones de desarrollo con GUI), nunca en servers."
+                ),
+                remediation_command=(
+                    "sudo sed -i 's/^X11Forwarding yes/X11Forwarding no/' "
+                    "/etc/ssh/sshd_config && sudo systemctl reload sshd"
+                ),
+                target_host=f"{user}@{host}",
+                severity_rank=_SEV_RANK["MEDIUM"],
+            )
+        )
     m = re.search(r"^\s*MaxAuthTries\s+(\d+)", cfg, re.MULTILINE | re.IGNORECASE)
     if m and int(m.group(1)) > 4:
         findings.append(
