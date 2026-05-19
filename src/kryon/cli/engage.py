@@ -3199,6 +3199,188 @@ def _check_mysql(svc: DiscoveredService) -> list[Finding]:
     ]
 
 
+# F202.W — MySQL deep audit con creds (CWE-668 + CWE-319 + CWE-521).
+# Surfaced docker/vulnerable-lab smoke test target-db: ground truth
+# incluye bind 0.0.0.0 + sin require_secure_transport + weak password,
+# pero _check_mysql() solo emite el genérico "mysql-exposed" sin
+# detección de config interna. Con creds DB (env KRYON_DB_USER +
+# KRYON_DB_PASSWORD) podemos conectar y leer @@variables.
+#
+# Soft dep `pymysql`: si no esta instalado, graceful skip.
+# Banca-safe: SELECT-only queries de variables session/global, sin
+# INSERT/UPDATE/DELETE. read-only contract.
+
+
+def _check_mysql_deep(svc: DiscoveredService) -> list[Finding]:
+    """F202.W — Deep MySQL audit con creds.
+
+    Requires `KRYON_DB_USER` + `KRYON_DB_PASSWORD` env vars. Sin ellos
+    -> graceful skip (no finding, no error).
+    """
+    if svc.state != "open":
+        return []
+    if svc.port not in (3306, 33060):
+        return []
+
+    db_user = os.environ.get("KRYON_DB_USER", "").strip()
+    db_password = os.environ.get("KRYON_DB_PASSWORD", "").strip()
+    if not db_user or not db_password:
+        return []  # no creds — graceful skip
+
+    try:
+        import pymysql
+    except ImportError:
+        return []  # soft dep missing
+
+    findings: list[Finding] = []
+    try:
+        conn = pymysql.connect(
+            host=svc.host,
+            port=svc.port,
+            user=db_user,
+            password=db_password,
+            connect_timeout=6,
+            read_timeout=6,
+        )
+    except Exception:  # noqa: BLE001 — auth fail / network / timeout
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        # Helper: run single-value query, swallow errors
+        def _q(query: str, col: int = 0):
+            try:
+                cur.execute(query)
+                row = cur.fetchone()
+                return row[col] if row else None
+            except Exception:  # noqa: BLE001
+                return None
+
+        bind_addr = _q("SELECT @@bind_address")
+        require_ssl = _q("SELECT @@require_secure_transport")
+        # SHOW VARIABLES LIKE returns ('var_name', 'value') — queremos value
+        have_ssl = _q("SHOW VARIABLES LIKE 'have_ssl'", col=1)
+        local_infile = _q("SELECT @@local_infile")
+        version = _q("SELECT VERSION()")
+
+        # CWE-668 — bind 0.0.0.0 exposes DB a toda la red en lugar
+        # de a la VLAN de aplicacion.
+        if bind_addr == "0.0.0.0" or bind_addr == "::":
+            findings.append(
+                Finding(
+                    cwe="CWE-668",
+                    severity="HIGH",
+                    host=f"{svc.host}:{svc.port}",
+                    rule_id="mysql-bind-public",
+                    message=(
+                        f"MySQL @@bind_address={bind_addr} — DB escucha "
+                        "en todas las interfaces. Cualquier host del "
+                        "segmento puede conectar."
+                    ),
+                    evidence=f"SELECT @@bind_address -> '{bind_addr}'",
+                    remediation=(
+                        "En my.cnf [mysqld]:\n"
+                        "  bind-address = <VLAN_DB_INTERNAL_IP>\n"
+                        "Si es cluster, agregar TODAS las IPs de los nodos "
+                        "permitidos (bind-address = 10.0.1.5,10.0.1.6).\n"
+                        "Banking: NUNCA usar 0.0.0.0 en produccion."
+                    ),
+                    severity_rank=_SEV_RANK["HIGH"],
+                )
+            )
+
+        # CWE-319 — TLS available pero NO required
+        if require_ssl == 0 or require_ssl is None:
+            # require_ssl=None puede ser version <5.7 que no tiene
+            # la variable. Solo flag si have_ssl=YES (TLS configured
+            # pero no enforced).
+            if have_ssl == "YES":
+                findings.append(
+                    Finding(
+                        cwe="CWE-319",
+                        severity="HIGH",
+                        host=f"{svc.host}:{svc.port}",
+                        rule_id="mysql-tls-not-required",
+                        message=(
+                            "MySQL tiene SSL configurado (have_ssl=YES) "
+                            "pero NO forza TLS (require_secure_transport=0). "
+                            "Clientes pueden conectar plaintext."
+                        ),
+                        evidence=(
+                            f"SELECT @@require_secure_transport -> {require_ssl}\n"
+                            f"SHOW VARIABLES LIKE 'have_ssl' -> 'YES'"
+                        ),
+                        remediation=(
+                            "En my.cnf [mysqld]:\n"
+                            "  require_secure_transport = ON\n"
+                            "Adicional: en CREATE USER agregar REQUIRE SSL\n"
+                            "para cada user de aplicacion. Rotar las creds "
+                            "que ya pasaron por la red plaintext."
+                        ),
+                        severity_rank=_SEV_RANK["HIGH"],
+                    )
+                )
+
+        # CWE-200 — local_infile permite LOAD DATA LOCAL desde client
+        # (vector de exfiltracion de archivos del client si el server
+        # esta comprometido). MEDIUM porque requiere chain con SQLi.
+        if local_infile == 1:
+            findings.append(
+                Finding(
+                    cwe="CWE-200",
+                    severity="MEDIUM",
+                    host=f"{svc.host}:{svc.port}",
+                    rule_id="mysql-local-infile-enabled",
+                    message=(
+                        "MySQL local_infile=1 permite LOAD DATA LOCAL "
+                        "INFILE — un server malicioso (post-compromise o "
+                        "MITM) puede solicitar archivos del filesystem "
+                        "del cliente."
+                    ),
+                    evidence=f"SELECT @@local_infile -> {local_infile}",
+                    remediation=(
+                        "En my.cnf [mysqld]:\n"
+                        "  local_infile = 0\n"
+                        "En cliente: --local-infile=0 by default desde "
+                        "MySQL 8.x salvo override explicito."
+                    ),
+                    severity_rank=_SEV_RANK["MEDIUM"],
+                )
+            )
+
+        # CWE-1104 — MySQL EOL version. 5.7 EOL Oct 2023. 5.6/5.5/5.0 EOL hace anos.
+        if version and re.match(r"^5\.(7|6|5|0|1)\.", version):
+            findings.append(
+                Finding(
+                    cwe="CWE-1104",
+                    severity="HIGH",
+                    host=f"{svc.host}:{svc.port}",
+                    rule_id="mysql-version-eol",
+                    message=(
+                        f"MySQL {version} es EOL. Sin patches de seguridad "
+                        "desde el end-of-life date."
+                    ),
+                    evidence=f"SELECT VERSION() -> '{version}'",
+                    remediation=(
+                        "Upgrade path:\n"
+                        "  - MySQL 5.7 (EOL Oct 2023) -> 8.0 o 8.4 LTS\n"
+                        "  - MySQL 5.6 (EOL Feb 2021) -> 8.0\n"
+                        "  - MySQL 5.5 (EOL Dec 2018) -> 8.0\n"
+                        "Usar mysql_upgrade post-major-version-bump."
+                    ),
+                    severity_rank=_SEV_RANK["HIGH"],
+                )
+            )
+    finally:
+        try:
+            conn.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+    return findings
+
+
 # -----------------------------------------------------------------------------
 # F77.A — compliance + agent integration
 # -----------------------------------------------------------------------------
@@ -4813,6 +4995,18 @@ def run_engage(args: argparse.Namespace) -> int:
             "or use an SSH key.[/yellow]"
         )
 
+    # F202.W — promote --db-user / --db-password CLI args to env vars so
+    # that _check_mysql_deep (which reads KRYON_DB_USER / KRYON_DB_PASSWORD)
+    # picks them up. Same /proc warning rationale as --ssh-password.
+    if args.db_user:
+        os.environ["KRYON_DB_USER"] = args.db_user
+    if args.db_password:
+        os.environ["KRYON_DB_PASSWORD"] = args.db_password
+        console.print(
+            "[yellow]⚠  --db-password in argv is visible in /proc. "
+            "Prefer: `export KRYON_DB_PASSWORD=... && kryon engage ...`.[/yellow]"
+        )
+
     # --- Phase 1: discovery -----------------------------------------------
     # F136 — On --resume we trust the checkpoint and skip nmap + Phase 2
     # deterministic checks. Findings are seeded from the saved snapshot.
@@ -4898,6 +5092,10 @@ def run_engage(args: argparse.Namespace) -> int:
             1522,
         ):
             findings.extend(_check_mysql(svc))
+            # F202.W — Deep MySQL audit con creds (graceful skip si no
+            # hay KRYON_DB_USER + KRYON_DB_PASSWORD env vars).
+            if svc.port in (3306, 33060):
+                findings.extend(_check_mysql_deep(svc))
         # F202.A — DNS open resolver. Surfaced by .205 (DC britimp.com.py
         # responded to recursive queries from the operator VPN). If the
         # perimeter firewall allows UDP/53 from internet, this is an
@@ -5381,6 +5579,22 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
         "env var also works. Implies --use-agent.",
     )
     p.add_argument("--ssh-key", default="", help="SSH private key path for compliance runner")
+    # F202.W — DB creds opcionales para deep audit MySQL (config interna
+    # via SHOW VARIABLES). Sin esto solo se emite el rule_id genérico
+    # "mysql-exposed". Banking: NUNCA hardcodear; usar var KRYON_DB_PASSWORD
+    # en CI o `--db-password $(read -s -p 'DB password: ')` interactivo.
+    p.add_argument(
+        "--db-user",
+        default="",
+        help="F202.W — MySQL/MariaDB read-only user for deep audit (or set KRYON_DB_USER env). "
+        "Habilita _check_mysql_deep: CWE-668 bind, CWE-319 TLS, CWE-200 local_infile, CWE-1104 EOL.",
+    )
+    p.add_argument(
+        "--db-password",
+        default="",
+        help="F202.W — MySQL/MariaDB password (or set KRYON_DB_PASSWORD env). "
+        "argv-visible — prefiere env var en producción.",
+    )
     p.add_argument("--skip-reaudit", action="store_true", help="skip the post-remediation re-scan (Phase 5)")
     # F132 — Engagement deduplication. When set, the orchestrator
     # checks the per-target state file and reuses the previous findings

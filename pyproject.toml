@@ -33,6 +33,7 @@ dependencies = [
     "pypdf>=5.0.0, <7",
     "duckduckgo-search>=7.0, <9",
     "defusedxml>=0.7.1, <1",
+    "pymysql>=1.2.0",
 ]
 classifiers = [
     "Typing :: Typed",
