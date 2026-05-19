@@ -503,6 +503,13 @@ def _http_get(url: str, *, timeout_s: int = 5) -> tuple[int, str]:
                 "-sS",
                 "-k",
                 "--compressed",
+                # F202.S.B: --max-redirs 0 evita SSRF via Location header
+                # malicioso (file://, http://169.254.169.254/ metadata,
+                # http://internal-svc/). Sin esto, curl sigue hasta 30
+                # redirects por default y puede exfiltrar a metadata
+                # endpoints o servicios internos no autorizados.
+                "--max-redirs",
+                "0",
                 "--max-time",
                 str(timeout_s),
                 "-w",
@@ -699,7 +706,13 @@ def _check_dns_open_resolver(svc: DiscoveredService) -> Finding | None:
             timeout=8,
             check=False,
         )
-    except Exception:
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        # F202.A error handling: granular instead of bare except.
+        # TimeoutExpired = network slow / DNS down
+        # FileNotFoundError = nslookup missing in PATH
+        # OSError = network unreachable
+        return None
+    except Exception:  # noqa: BLE001 — consistent with other DNS checks
         return None
 
     out = (proc.stdout + "\n" + proc.stderr).lower()

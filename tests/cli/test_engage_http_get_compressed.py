@@ -67,6 +67,25 @@ class TestCompressedFlag:
         assert "--compressed" in captured["cmd"]
 
 
+class TestF202SBSsrfProtection:
+    """F202.S.B — curl --max-redirs 0 evita SSRF via redirect."""
+
+    def test_curl_invocation_includes_max_redirs_0(self):
+        captured, runner = _captured_cmd_runner()
+        with patch("kryon.cli.engage.subprocess.run", side_effect=runner):
+            _http_get("http://example.com/")
+        cmd = captured["cmd"]
+        assert "--max-redirs" in cmd
+        assert cmd[cmd.index("--max-redirs") + 1] == "0"
+
+    def test_max_redirs_present_for_all_invocations(self):
+        captured, runner = _captured_cmd_runner()
+        with patch("kryon.cli.engage.subprocess.run", side_effect=runner):
+            _http_get("https://internal.example.com:8443/")
+        # Even on HTTPS internal URLs, --max-redirs 0 must be set
+        assert "--max-redirs" in captured["cmd"]
+
+
 class TestStillReturnsBodyAndCode:
     """Sanity — F202.M no debe romper el contrato existente."""
 
