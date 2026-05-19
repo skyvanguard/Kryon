@@ -1035,6 +1035,190 @@ def _check_dns_chaos_leak(svc: DiscoveredService) -> Finding | None:
     )
 
 
+# F202.D — DNS cache snooping (privacy leak).
+# Sending a query with RD=0 (recursion-not-desired) + CD=1 (checking
+# disabled) to a recursor causes it to answer ONLY if the name is
+# already cached. By probing a curated list of SaaS / banking / social
+# domains and observing which ones return an ANSWER SECTION, an
+# attacker fingerprints what services the internal users consume.
+# Impact: privacy disclosure + phishing-target identification +
+# competitive-intelligence (which vendors the org uses).
+#
+# Severity: MEDIUM. The recursor itself isn't broken; it's a privacy
+# config gap. Microsoft DNS exposes this by default; BIND with
+# `allow-query-cache { internal; };` mitigates it.
+#
+# Banca-safe: 12 read-only DNS probes per target. Total ~30s with
+# 3s timeout each in serial. Banking POC explicitly authorized for
+# this kind of recon.
+
+_DNS_SNOOP_PROBES: tuple[str, ...] = (
+    # SaaS frecuente en empresas — Microsoft 365 stack
+    "outlook.office365.com",
+    "login.microsoftonline.com",
+    # SaaS general
+    "slack.com",
+    "dropbox.com",
+    "github.com",
+    # Banking Paraguay (Britimp context)
+    "bcp.com.py",
+    "bancard.com.py",
+    "mercadopago.com.py",
+    # Payments global
+    "stripe.com",
+    # Personal / social — uso en horario laboral = leak
+    "whatsapp.com",
+    "instagram.com",
+    "tiktok.com",
+)
+
+# Minimum cached hits to flag — single hit could be coincidence
+# (a recursor's own forwarder warming the cache). >=2 means the
+# internal users are actually consuming these services.
+_DNS_SNOOP_THRESHOLD = 2
+
+_DNS_SNOOP_DIG_FAILURE_MARKERS = (
+    "status: refused",
+    "connection timed out",
+    "connection refused",
+    "communications error",
+    "no servers could be reached",
+    "couldn't get address",
+)
+
+_DIG_ANSWER_SECTION_RE = re.compile(
+    r";;\s*answer\s+section\s*:\s*\n((?:[^\n;].*\n)+)",
+    re.IGNORECASE,
+)
+
+
+def _try_cache_snoop(host: str, name: str) -> bool | None:
+    """F202.D helper — probe whether `name` is cached on the target
+    recursor using dig +norecurse +cd.
+
+    Returns:
+      - True  -> name is in cache (ANSWER SECTION contains an A record)
+      - False -> name is NOT cached (no ANSWER SECTION, but server replied)
+      - None  -> probe could not be performed (dig missing / refused /
+                 timeout). Caller treats None as "skip this probe".
+    """
+    try:
+        proc = subprocess.run(
+            [
+                "dig",
+                "+norecurse",
+                "+cd",
+                "+time=3",
+                "+tries=1",
+                f"@{host}",
+                name,
+                "A",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+    except FileNotFoundError:
+        # dig not installed — we cannot perform this check on Windows
+        # without it. Caller will see None and skip cleanly.
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+
+    out = proc.stdout + "\n" + proc.stderr
+    out_lower = out.lower()
+
+    if any(m in out_lower for m in _DNS_SNOOP_DIG_FAILURE_MARKERS):
+        return None
+
+    m = _DIG_ANSWER_SECTION_RE.search(out)
+    if not m:
+        return False  # no answer section = not cached, but server replied
+
+    answer_block = m.group(1)
+    # ANSWER must contain the queried name AND an A record IPv4 form.
+    if name.lower() in answer_block.lower() and re.search(
+        r"\bA\s+\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", answer_block
+    ):
+        return True
+    return False
+
+
+def _check_dns_cache_snoop(svc: DiscoveredService) -> Finding | None:
+    """F202.D — Probe for DNS cache snooping. Reports MEDIUM when at
+    least `_DNS_SNOOP_THRESHOLD` curated domains return cached
+    answers from a non-recursive query.
+    """
+    if svc.state != "open" or svc.port != 53:
+        return None
+
+    cached_hits: list[str] = []
+    probe_attempted = 0
+    probe_succeeded = 0  # number of probes where the server actually
+    # replied (cached or not). If 0, dig is unavailable and we can't
+    # determine anything — skip the check silently.
+
+    for probe in _DNS_SNOOP_PROBES:
+        result = _try_cache_snoop(svc.host, probe)
+        probe_attempted += 1
+        if result is None:
+            continue
+        probe_succeeded += 1
+        if result is True:
+            cached_hits.append(probe)
+
+    # Bail if dig is unavailable on this host (all probes returned None).
+    if probe_succeeded == 0:
+        return None
+
+    if len(cached_hits) < _DNS_SNOOP_THRESHOLD:
+        return None
+
+    leaked_summary = ", ".join(cached_hits[:5])
+    if len(cached_hits) > 5:
+        leaked_summary += f", + {len(cached_hits) - 5} more"
+
+    return Finding(
+        cwe="CWE-200",
+        severity="MEDIUM",
+        host=f"{svc.host}:{svc.port}",
+        rule_id="dns-cache-snoop",
+        message=(
+            f"DNS recursor {svc.host}:53 vulnerable a cache snooping: "
+            f"{len(cached_hits)} dominio(s) curados estan cacheados y "
+            f"detectables con queries RD=0. Filtra que servicios SaaS / "
+            f"banking / social consume la organizacion. Dominios "
+            f"cacheados detectados: {leaked_summary}."
+        ),
+        evidence=(
+            f"dig +norecurse +cd @{svc.host} <domain> A retorno ANSWER "
+            f"SECTION para:\n  - " + "\n  - ".join(cached_hits)
+        ),
+        remediation=(
+            "Aislar el cache recursor de queries no autorizadas.\n"
+            "  - Microsoft DNS: dnsmgmt.msc > server > Properties > "
+            "Advanced > 'Secure cache against pollution' + scoping de "
+            "recursion (ACL Set-DnsServerRecursionScope).\n"
+            "  - BIND: views { internal { match-clients { 10.0.0.0/8; "
+            "}; recursion yes; allow-query-cache { internal; }; }; "
+            "external { match-clients { any; }; recursion no; "
+            "allow-query-cache { none; }; }; };\n"
+            "  - Unbound: access-control: 0.0.0.0/0 deny + "
+            "access-control: <internal_subnet> allow + "
+            "cache-min-ttl: 0 (forzar lookup fresco para sensitive "
+            "names si privacy es critica).\n"
+            "Idealmente este DNS solo responde queries de subnets "
+            "internas; el cache snooping requiere TCP/UDP 53 desde "
+            "internet con ACL al recursor.\n"
+            "Privacy impact: el cache filtra que dominios consume la "
+            "org. Combinado con timing analysis (TTLs) se puede "
+            "inferir patrones de uso y horarios. Recon barato pre-phishing."
+        ),
+        severity_rank=_SEV_RANK["MEDIUM"],
+    )
+
+
 # F200.B — Web server EOL table. Keep `min_supported` conservative
 # (a few versions above the minor with a notable CVE). When the
 # scanner banner reports a lower version, flag HIGH with the CVE list.
@@ -2955,6 +3139,11 @@ def run_engage(args: argparse.Namespace) -> int:
             chaos_finding = _check_dns_chaos_leak(svc)
             if chaos_finding:
                 findings.append(chaos_finding)
+            # F202.D — DNS cache snooping (privacy leak via +norecurse
+            # +cd probes of curated SaaS / banking / social domains).
+            snoop_finding = _check_dns_cache_snoop(svc)
+            if snoop_finding:
+                findings.append(snoop_finding)
 
     findings.sort(key=lambda f: f.severity_rank)
     console.print(f"  [yellow]{len(findings)}[/yellow] hallazgos detectados")
