@@ -1348,6 +1348,215 @@ def _check_dnssec_validation(svc: DiscoveredService) -> Finding | None:
     )
 
 
+# F202.F — DNS reverse zone enumeration check (CWE-200).
+# A DNS server that resolves PTR records for an entire /24 reveals
+# internal hostname conventions. Even without zone transfer (F202.B
+# blocked) an attacker can walk the subnet IP-by-IP via PTR queries:
+#   nslookup 172.18.201.5 <dns>  -> dc02.britimp.com.py
+#   nslookup 172.18.201.50 <dns> -> bastion-ubuntu.britimp.com.py
+#   nslookup 172.18.201.150 <dns> -> postgres-prod.britimp.com.py
+# In banking: names like "core-banking-db" / "swift-gateway" /
+# "payments-prod" become the high-value target list.
+#
+# Severity:
+#   - MEDIUM when only generic internal hostnames leak (dc, mail)
+#   - HIGH when sensitive function keywords leak (banking, payment,
+#     swift, prod, db, vault)
+#
+# Banca-safe: 10 PTR queries per target, total <20s with 2s
+# timeout. POC bancario autoriza este recon explicitamente.
+
+# Deterministic octet sample (no full /24 sweep). Targets the
+# common high-value IPs: gateway range (1-5), DC range (5-10),
+# bastion range (50, 100), DB range (150, 200), and final
+# host before broadcast (254).
+_REVERSE_PROBE_OCTETS: tuple[int, ...] = (
+    1, 5, 10, 20, 50, 100, 150, 200, 222, 254,
+)
+_REVERSE_HIT_THRESHOLD = 3
+
+# Function-revealing keywords that elevate the finding to HIGH.
+# Lowercase; matched as substrings of the hostname.
+_SENSITIVE_HOSTNAME_KEYWORDS: tuple[str, ...] = (
+    # Banking / payments / SWIFT
+    "bank", "banco", "payment", "pago", "swift",
+    "ach", "bancard", "stripe", "mastercard", "visa",
+    "core-bank", "corebank",
+    # Production / database
+    "prod", "production", "produccion",
+    "db-", "-db.", "sql-", "-sql.",
+    "rds-", "postgres", "mongo", "redis", "oracle",
+    "backup", "bkp",
+    # Identity / secrets / AD
+    "ldap", "ad-", "-ad.", "dc-", "-dc.",
+    "vault", "secret", "kdc",
+    # Mail / exchange
+    "exchange", "mail-", "-mail.", "smtp",
+    # File / share
+    "fileserver", "share-",
+)
+
+_REVERSE_FAILURE_MARKERS = (
+    "can't find",
+    "non-existent domain",
+    "nxdomain",
+    "server failed",
+    "request timed out",
+    "timed out",
+    "no response",
+    "refused",
+)
+
+
+def _try_ptr_query(host: str, ip: str) -> str | None:
+    """F202.F helper — probe a single PTR record. Returns the
+    resolved hostname (lowercased, no trailing dot) or None on
+    failure / NXDOMAIN / refused.
+    """
+    try:
+        proc = subprocess.run(
+            ["nslookup", ip, host],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except Exception:  # noqa: BLE001
+        return None
+
+    out = proc.stdout + "\n" + proc.stderr
+    out_lower = out.lower()
+    if any(m in out_lower for m in _REVERSE_FAILURE_MARKERS):
+        return None
+
+    # Windows nslookup PTR response shape:
+    #   Server:  UnKnown
+    #   Address:  172.18.201.205
+    #
+    #   Name:    dc01.britimp.com.py
+    #   Address:  172.18.201.205
+    # Match the `Name:    <fqdn>` line; ignore the server identity line.
+    for line in proc.stdout.splitlines():
+        m = re.search(r"^\s*Name\s*:\s*(\S+)", line, re.IGNORECASE)
+        if not m:
+            continue
+        name = m.group(1).rstrip(".").lower()
+        # Skip echo of the DNS server's own hostname / synthetic
+        # responses (e.g. the server identity line).
+        if "." not in name:
+            continue
+        return name
+    return None
+
+
+def _is_generic_ptr(hostname: str, ip: str) -> bool:
+    """A 'generic' PTR is one whose label is just the IP digits in
+    some encoding (e.g. `1-2-3-4.dyn.isp.net`, `host-172-18-201-5.x`,
+    `5.201.18.172.in-addr.arpa`). These don't expose internal
+    naming conventions and we shouldn't flag them.
+    """
+    if "in-addr.arpa" in hostname:
+        return True
+    octets = ip.split(".")
+    # If the hostname contains all four octet substrings (joined by
+    # any separator), it's IP-derived.
+    if all(o in hostname for o in octets):
+        return True
+    return False
+
+
+def _check_reverse_dns_enum(svc: DiscoveredService) -> Finding | None:
+    """F202.F — Walk a deterministic 10-IP sample of the /24 and
+    collect resolved PTR hostnames. Flags MEDIUM at >=3 hits,
+    elevates to HIGH when any hit matches a sensitive-function
+    keyword.
+    """
+    if svc.state != "open" or svc.port != 53:
+        return None
+
+    octets = svc.host.split(".")
+    if len(octets) != 4 or not all(o.isdigit() for o in octets):
+        return None
+
+    base_net = ".".join(octets[:3])
+    discovered: list[tuple[str, str]] = []  # (ip, hostname)
+    probes_attempted = 0
+    probes_succeeded = 0  # server actually replied (could be NXDOMAIN)
+
+    for octet in _REVERSE_PROBE_OCTETS:
+        ip = f"{base_net}.{octet}"
+        if ip == svc.host:
+            continue
+        probes_attempted += 1
+        result = _try_ptr_query(svc.host, ip)
+        if result is None:
+            continue
+        # Resolution succeeded — count as success even if generic
+        # (means the server is willing to answer reverse).
+        probes_succeeded += 1
+        if _is_generic_ptr(result, ip):
+            continue
+        discovered.append((ip, result))
+
+    if len(discovered) < _REVERSE_HIT_THRESHOLD:
+        return None
+
+    sensitive_hits = [
+        (ip, hn) for ip, hn in discovered
+        if any(kw in hn for kw in _SENSITIVE_HOSTNAME_KEYWORDS)
+    ]
+    severity = "HIGH" if sensitive_hits else "MEDIUM"
+
+    evidence_lines = [f"  {ip} -> {hn}" for ip, hn in discovered[:8]]
+    if sensitive_hits:
+        evidence_lines.append("")
+        evidence_lines.append("Hostnames con keywords sensibles:")
+        evidence_lines.extend(f"  {ip} -> {hn}" for ip, hn in sensitive_hits[:5])
+    evidence = "\n".join(evidence_lines)
+
+    discovered_summary = ", ".join(hn for _, hn in discovered[:5])
+    if len(discovered) > 5:
+        discovered_summary += f", + {len(discovered) - 5} mas"
+
+    return Finding(
+        cwe="CWE-200",
+        severity=severity,
+        host=f"{svc.host}:{svc.port}",
+        rule_id="dns-reverse-enum",
+        message=(
+            f"DNS server {svc.host}:53 expone PTR records de la /24 a "
+            f"clientes externos. Sample de 10 IPs retorno "
+            f"{len(discovered)} hostname(s) internos: {discovered_summary}. "
+            + (
+                f"{len(sensitive_hits)} hostname(s) revelan funcion sensible "
+                "(banking / DB / prod / secrets) — alta prioridad para "
+                "hardening o renombre."
+                if sensitive_hits
+                else "Recon barato pre-targeting de servicios criticos."
+            )
+        ),
+        evidence=evidence[:1200],
+        remediation=(
+            "Restringir queries reverse a subnets internas:\n"
+            "  - Microsoft DNS: dnsmgmt.msc > <reverse zone>.in-addr.arpa "
+            "> Properties > Security: limitar query permissions a internal "
+            "subnets. O usar Set-DnsServerZoneTransfer / "
+            "Set-DnsServerRecursionScope con ACL.\n"
+            "  - BIND: zone \"<X>.in-addr.arpa\" { type master; "
+            "allow-query { 10.0.0.0/8; 172.16.0.0/12; }; };\n"
+            "  - Unbound: stub-zone para reverse interno + "
+            "access-control: 0.0.0.0/0 deny + access-control: "
+            "<internal> allow.\n"
+            "Trade-off operativo: alternativa es usar PTR genericos "
+            "(host-N.internal.example) que no revelen funcion. Se "
+            "pierde clarity en logs pero se reduce el exposure pre-attack. "
+            "Para nodos sensibles (DB / SWIFT / payments) considerar el "
+            "renombre incluso si el reverse zone va a quedar restringido."
+        ),
+        severity_rank=_SEV_RANK[severity],
+    )
+
+
 # F200.B — Web server EOL table. Keep `min_supported` conservative
 # (a few versions above the minor with a notable CVE). When the
 # scanner banner reports a lower version, flag HIGH with the CVE list.
@@ -3280,6 +3489,13 @@ def run_engage(args: argparse.Namespace) -> int:
             dnssec_finding = _check_dnssec_validation(svc)
             if dnssec_finding:
                 findings.append(dnssec_finding)
+            # F202.F — Reverse zone enumeration. PTR walking exposes
+            # internal hostname conventions even when AXFR is blocked.
+            # Sample 10 IPs of the /24; elevates to HIGH on banking /
+            # DB / production keywords.
+            ptr_finding = _check_reverse_dns_enum(svc)
+            if ptr_finding:
+                findings.append(ptr_finding)
 
     findings.sort(key=lambda f: f.severity_rank)
     console.print(f"  [yellow]{len(findings)}[/yellow] hallazgos detectados")
