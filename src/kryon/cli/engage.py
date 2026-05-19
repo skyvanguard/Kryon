@@ -2015,9 +2015,12 @@ def diff_proxmox_cluster_posture(
     versions_per_host: dict[str, str] = {}
     for host, findings in pve_hosts.items():
         for f in findings:
-            if "pve-manager" in (f.evidence or "").lower() or "pveversion" in (f.evidence or "").lower():
-                import re as _re
-                m = _re.search(r"pve-manager/(\d+\.\d+\.\d+)", f.evidence or "")
+            evidence_lower = (f.evidence or "").lower()
+            if "pve-manager" in evidence_lower or "pveversion" in evidence_lower:
+                # F202.S code-quality cleanup: usar `re` top-level (ya
+                # importado en linea 43) en lugar de reimportar dentro
+                # del loop.
+                m = re.search(r"pve-manager/(\d+\.\d+\.\d+)", f.evidence or "")
                 if m:
                     versions_per_host[host] = m.group(1)
                     break
@@ -2543,6 +2546,9 @@ def _check_siem_activity(
 
     # CASO 4: SIEM heterogeneo (filebeat sin wazuh, o auditd solo) —
     # MEDIUM info. Operationally menos optimo que un stack unificado.
+    active_daemons = ", ".join(
+        name for name, status in statuses.items() if status == "active"
+    )
     return Finding(
         cwe="CWE-778",
         severity="MEDIUM",
@@ -2550,11 +2556,7 @@ def _check_siem_activity(
         rule_id="siem-heterogeneous",
         message=(
             f"Host {host_only} tiene SIEM heterogeneo. Active: "
-            + ", ".join(
-                name for name, status in statuses.items()
-                if status == "active"
-            )
-            + ". Faltan: Wazuh OR (auditd + rsyslog remoto)."
+            f"{active_daemons}. Faltan: Wazuh OR (auditd + rsyslog remoto)."
         ),
         evidence=f"Daemon status: {statuses}",
         remediation=(
@@ -2634,9 +2636,10 @@ def _check_smb_anonymous_shares(svc: "DiscoveredService") -> "Finding | None":
     out = proc.stdout + "\n" + proc.stderr
     out_lower = out.lower()
 
-    if any(m in out_lower for m in _SMB_FAILURE_MARKERS) and "anonymous login successful" not in out_lower:
-        return None
-
+    # F202.S code-quality: la condicion previa con failure_markers era
+    # dead logic (un subset del check siguiente). Si no hay "anonymous
+    # login successful" en output, no hay nada que reportar — sin
+    # importar si hay failure markers.
     if "anonymous login successful" not in out_lower:
         return None
 
