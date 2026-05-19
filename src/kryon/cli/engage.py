@@ -441,6 +441,168 @@ _PASSWORD_MANAGER_SIGNATURES = (
 )
 
 
+# F202.U — cookie security flags detector (CWE-1004 + CWE-614 + CWE-1275).
+# Surfaced docker/vulnerable-lab smoke test: target-web tiene cookies
+# sin `HttpOnly` flag (intentional planted vuln). Antes de F202.U,
+# Kryon NO detectaba este patron automaticamente — gap del producto
+# vs ground truth del lab.
+#
+# 3 niveles de problema, ordenados por severidad banking:
+#   - HttpOnly missing -> MEDIUM CWE-1004 (cookie stealable via XSS)
+#   - Secure missing en HTTPS -> MEDIUM CWE-614 (cookie via MITM)
+#   - SameSite=None o missing -> LOW CWE-1275 (CSRF risk)
+#
+# Banking: para session cookies (PHPSESSID, JSESSIONID, etc.), missing
+# HttpOnly + missing Secure = compromise inmediato de la sesion del
+# usuario logueado via XSS reflejado + sniff network.
+
+_HTTP_SET_COOKIE_RE = re.compile(
+    r"^Set-Cookie:\s*([^=\s]+)=([^;\r\n]*)([^\r\n]*)",
+    re.MULTILINE | re.IGNORECASE,
+)
+
+
+def _check_http_cookie_flags(svc: DiscoveredService) -> list[Finding]:
+    """F202.U — Check Set-Cookie headers for HttpOnly + Secure +
+    SameSite flags. Returns multiple findings if multiple cookies miss
+    different flags. Read-only HTTP HEAD-style request.
+    """
+    findings: list[Finding] = []
+    if svc.state != "open":
+        return findings
+    if svc.port not in (80, 443, 8080, 8443, 8000, 8888):
+        return findings
+
+    scheme = "https" if svc.port in (443, 8443) else "http"
+    url = f"{scheme}://{svc.host}:{svc.port}/"
+
+    try:
+        proc = subprocess.run(
+            [
+                shutil.which("curl") or "curl",
+                "-sSI",
+                "-k",
+                "--max-redirs", "0",
+                "--max-time", "5",
+                url,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return findings
+
+    headers = proc.stdout
+    if not headers:
+        return findings
+
+    cookies_missing_httponly: list[str] = []
+    cookies_missing_secure: list[str] = []
+    cookies_missing_samesite: list[str] = []
+
+    for m in _HTTP_SET_COOKIE_RE.finditer(headers):
+        name = m.group(1).strip()
+        # group 3 = rest of the attributes after the value
+        attrs_lower = m.group(3).lower()
+
+        if "httponly" not in attrs_lower:
+            cookies_missing_httponly.append(name)
+        # Secure flag only meaningful on HTTPS
+        if svc.port in (443, 8443) and "secure" not in attrs_lower:
+            cookies_missing_secure.append(name)
+        if "samesite" not in attrs_lower:
+            cookies_missing_samesite.append(name)
+
+    if cookies_missing_httponly:
+        findings.append(
+            Finding(
+                cwe="CWE-1004",
+                severity="MEDIUM",
+                host=f"{svc.host}:{svc.port}",
+                rule_id="http-cookie-missing-httponly",
+                message=(
+                    f"Cookie(s) sin flag HttpOnly en {svc.host}:{svc.port}: "
+                    f"{', '.join(cookies_missing_httponly[:5])}"
+                    + (f" (+{len(cookies_missing_httponly) - 5} mas)" if len(cookies_missing_httponly) > 5 else "")
+                    + ". Cookie stealable via XSS reflejado / DOM-XSS — "
+                    "compromiso de sesion banking user inmediato."
+                ),
+                evidence="Set-Cookie headers (snippet):\n" + "\n".join(
+                    f"  {ln}" for ln in headers.splitlines() if "set-cookie" in ln.lower()
+                )[:600],
+                remediation=(
+                    "Setear HttpOnly en TODAS las session cookies. Por framework:\n"
+                    "  - PHP: session.cookie_httponly = 1 en php.ini\n"
+                    "  - Node.js Express: app.use(session({ cookie: { httpOnly: true }}))\n"
+                    "  - Django: SESSION_COOKIE_HTTPONLY = True\n"
+                    "  - Spring Boot: server.servlet.session.cookie.http-only=true\n"
+                    "  - ASP.NET: <httpCookies httpOnlyCookies='true' /> in web.config\n"
+                    "Banking: aplica a TODAS las cookies — auth, csrf-token, anti-bot, "
+                    "tracking de session. Sin HttpOnly, XSS = full account takeover."
+                ),
+                severity_rank=_SEV_RANK["MEDIUM"],
+            )
+        )
+
+    if cookies_missing_secure:
+        findings.append(
+            Finding(
+                cwe="CWE-614",
+                severity="MEDIUM",
+                host=f"{svc.host}:{svc.port}",
+                rule_id="http-cookie-missing-secure",
+                message=(
+                    f"Cookie(s) sin flag Secure en HTTPS {svc.host}:{svc.port}: "
+                    f"{', '.join(cookies_missing_secure[:5])}. Cookie "
+                    "transmissible sobre HTTP plain — MITM puede capturarla "
+                    "si el cliente accidentalmente hits http://."
+                ),
+                evidence=f"HTTPS port {svc.port} returned Set-Cookie sin Secure flag: {cookies_missing_secure}",
+                remediation=(
+                    "Setear Secure en cookies en HTTPS endpoints:\n"
+                    "  - PHP: session.cookie_secure = 1\n"
+                    "  - Node.js Express: cookie: { secure: true }\n"
+                    "  - Django: SESSION_COOKIE_SECURE = True\n"
+                    "  - Spring Boot: server.servlet.session.cookie.secure=true\n"
+                    "Adicional: HSTS header (Strict-Transport-Security: "
+                    "max-age=31536000; includeSubDomains; preload) para "
+                    "garantizar que el browser NUNCA hits http:// del dominio."
+                ),
+                severity_rank=_SEV_RANK["MEDIUM"],
+            )
+        )
+
+    if cookies_missing_samesite:
+        findings.append(
+            Finding(
+                cwe="CWE-1275",
+                severity="LOW",
+                host=f"{svc.host}:{svc.port}",
+                rule_id="http-cookie-missing-samesite",
+                message=(
+                    f"Cookie(s) sin atributo SameSite en {svc.host}:{svc.port}: "
+                    f"{', '.join(cookies_missing_samesite[:5])}. Riesgo CSRF "
+                    "elevado si el endpoint acepta cross-origin requests."
+                ),
+                evidence=f"Set-Cookie sin SameSite: {cookies_missing_samesite}",
+                remediation=(
+                    "Setear SameSite=Lax (default seguro) o SameSite=Strict:\n"
+                    "  - PHP: session.cookie_samesite = Lax\n"
+                    "  - Node.js Express: cookie: { sameSite: 'lax' }\n"
+                    "  - Django: SESSION_COOKIE_SAMESITE = 'Lax'\n"
+                    "  - Spring Boot: server.servlet.session.cookie.same-site=lax\n"
+                    "Para banking webapps, Strict es preferible salvo que "
+                    "haya integraciones cross-origin legitimas."
+                ),
+                severity_rank=_SEV_RANK["LOW"],
+            )
+        )
+
+    return findings
+
+
 def _check_password_manager(svc: DiscoveredService) -> Finding | None:
     """Detect self-hosted password managers exposed in the segment.
 
@@ -4675,6 +4837,9 @@ def run_engage(args: argparse.Namespace) -> int:
             python_finding = _check_python_simplehttp_exposed(svc)
             if python_finding:
                 findings.append(python_finding)
+            # F202.U — cookie security flags (HttpOnly, Secure, SameSite).
+            # Banking-critical: missing HttpOnly = XSS session takeover.
+            findings.extend(_check_http_cookie_flags(svc))
         if svc.service == "ssh" or svc.port == 22 or svc.port == 2222:
             findings.extend(_check_ssh(svc, args.ssh, args.ssh_password))
         if svc.service in (
