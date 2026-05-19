@@ -153,11 +153,17 @@ def invoke_kryon(prompt: str, timeout: int = _DEFAULT_WALL_BUDGET_SECONDS) -> st
     smoke tests."""
     if os.environ.get("KRYON_BENCH_DRY_RUN") == "1":
         return os.environ.get("KRYON_BENCH_FIXTURE_TRANSCRIPT", "")
+    # F202.Y — explicit utf-8 encoding + errors='replace'. Sin esto, en
+    # Windows subprocess.run usa cp1252 por default y revienta con
+    # UnicodeDecodeError cuando el container Kryon emite UTF-8 (emojis,
+    # quotes Unicode, narration LLM en español, etc).
     proc = subprocess.run(
         ["docker", "exec", "-i", "kryon", "kryon"],
         input=prompt + "\n/exit\n",
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=timeout,
     )
     return proc.stdout + "\n" + proc.stderr

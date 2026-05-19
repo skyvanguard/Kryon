@@ -176,10 +176,13 @@ def invoke_kryon(prompt: str, timeout: int = 600) -> str:
         # Smoke-test path — caller injects a fixture via env var.
         return os.environ.get("KRYON_BENCH_FIXTURE_TRANSCRIPT", "")
 
+    # F202.Y — utf-8 + errors='replace' fix Windows cp1252 decode crash.
     proc = subprocess.run(
         ["docker", "exec", "-i", "kryon", "kryon"],
         input=prompt + "\n/exit\n",
-        capture_output=True, text=True, timeout=timeout,
+        capture_output=True, text=True,
+        encoding="utf-8", errors="replace",
+        timeout=timeout,
     )
     return proc.stdout + "\n" + proc.stderr
 
