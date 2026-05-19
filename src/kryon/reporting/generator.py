@@ -135,13 +135,21 @@ class ReportGenerator:
         return html
 
     async def to_pdf(self, html: str) -> bytes:
-        """Convert HTML report to PDF using weasyprint."""
+        """Convert HTML report to PDF using weasyprint.
+
+        F202.X — also catches OSError (Windows missing GTK3 runtime).
+        """
         try:
             from weasyprint import HTML
 
             return HTML(string=html).write_pdf()
         except ImportError:
             raise ImportError("weasyprint is required for PDF generation. Install with: pip install kryon[reporting]")
+        except OSError as exc:
+            raise RuntimeError(
+                f"WeasyPrint native deps missing ({exc}). On Windows install GTK3 runtime: "
+                "https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases"
+            ) from exc
 
     def _render_template(self, **kwargs: str) -> str:
         """Render the base HTML template with string.Template (no jinja2 dep)."""

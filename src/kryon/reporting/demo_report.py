@@ -338,15 +338,50 @@ def render_demo_report(
         html_path.write_text(html_doc, encoding="utf-8")
         paths["html"] = html_path
 
+    # F202.X — KRYON_SKIP_PDF=1 short-circuit. Util en operador Windows
+    # sin GTK3 runtime para evitar el warning ruidoso en cada engage.
+    import os as _os
+
+    if write_pdf and _os.environ.get("KRYON_SKIP_PDF", "").strip().lower() in ("1", "true", "yes"):
+        write_pdf = False
+        paths["pdf_skipped"] = Path("KRYON_SKIP_PDF=1 set; HTML + JSON only")
+
     if write_pdf:
+        # F202.X — WeasyPrint en Windows requiere GTK3 runtime DLLs
+        # (libgobject-2.0-0, pango, cairo, fontconfig) que no vienen con
+        # `pip install weasyprint`. Sin las DLLs, el import dispara OSError
+        # NO ImportError — el except ImportError no lo capturaba y rompia
+        # toda la Fase 6 del engage. Capturamos ambos + cualquier fallo
+        # en write_pdf (pango font discovery puede fallar tambien).
+        # HTML + JSON ya estan escritos antes de llegar aca, asi que la
+        # engagement no se pierde — solo el PDF falta.
         try:
             from weasyprint import HTML  # type: ignore
         except ImportError:
-            paths["pdf_error"] = Path("install the 'reporting' extra: pip install 'kryon[reporting]'")
+            paths["pdf_error"] = Path(
+                "install the 'reporting' extra: pip install 'kryon[reporting]'"
+            )
+        except OSError as e:
+            # Most common: Windows + no GTK runtime installed.
+            paths["pdf_error"] = Path(
+                f"WeasyPrint native deps missing ({e}). "
+                "On Windows: install GTK3 runtime from "
+                "https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases "
+                "OR set KRYON_SKIP_PDF=1 to silence. HTML + JSON reports were generated."
+            )
         else:
             pdf_path = out_dir / f"{stem}.pdf"
-            HTML(string=html_doc).write_pdf(str(pdf_path))
-            paths["pdf"] = pdf_path
+            try:
+                HTML(string=html_doc).write_pdf(str(pdf_path))
+                paths["pdf"] = pdf_path
+            except (OSError, Exception) as e:  # noqa: BLE001
+                # write_pdf can fail mid-render on font discovery, missing
+                # locales, or any of the GTK pipeline pieces that imported
+                # OK but choke at runtime.
+                paths["pdf_error"] = Path(
+                    f"WeasyPrint render failed ({type(e).__name__}: {e}). "
+                    "HTML + JSON reports were generated successfully."
+                )
 
     # Side-effect: drop the raw findings JSON alongside for audit.
     json_path = out_dir / f"{stem}.findings.json"

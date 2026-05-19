@@ -433,10 +433,17 @@ def render_multi_framework_pdf(
 
     Returns the output path. Raises ImportError if weasyprint is missing.
     """
+    # F202.X — WeasyPrint on Windows raises OSError (not ImportError)
+    # when GTK3 runtime is missing. Surface both with actionable hints.
     try:
         from weasyprint import HTML  # type: ignore
     except ImportError as exc:
         raise ImportError("weasyprint is required for PDF output; install with `pip install weasyprint`") from exc
+    except OSError as exc:
+        raise RuntimeError(
+            f"WeasyPrint native deps missing ({exc}). On Windows install GTK3 runtime: "
+            "https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases"
+        ) from exc
 
     html_str = render_multi_framework_html(framework_results, **kwargs)
     HTML(string=html_str).write_pdf(output_path)

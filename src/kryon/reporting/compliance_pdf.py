@@ -389,9 +389,15 @@ def render_pdf(
     )
     html_path = output_path.with_suffix(".html")
     html_path.write_text(html_body, encoding="utf-8")
+    # F202.X — WeasyPrint Windows GTK3 DLLs missing -> OSError, no
+    # ImportError. Caller assumes "PDF or raise" contract, asi que
+    # re-raisar pero con mensaje claro y manteniendo el HTML escrito.
     try:
         from weasyprint import HTML  # type: ignore
-    except ImportError:
+    except (ImportError, OSError):
         raise
-    HTML(string=html_body).write_pdf(str(output_path))
+    try:
+        HTML(string=html_body).write_pdf(str(output_path))
+    except (OSError, Exception):  # noqa: BLE001
+        raise
     return output_path
