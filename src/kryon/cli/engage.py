@@ -3403,6 +3403,17 @@ _DVR_BODY_MARKERS = (
     "tvt.net.cn",  # TVT cloud
     "isapi/",  # Hikvision ISAPI URL path
     "/cgi-bin/magicbox.cgi",  # Dahua web API path (compared lowercase)
+    # F201.A.B — Hikvision modern firmware login URLs (POC Britimp
+    # TORRE_USR .2 + .250 2026-05-19). Banner anonimizado pero el JS
+    # del root redirige a `/doc/page/login.asp` o `./doc/page/login.htm`
+    # con timestamp anti-cache — patron diagnostico de Hikvision DVR
+    # / NVR / IP camera con firmware 2020+. Server header tambien suele
+    # ser "Webs" (Goahead WebServer embebido, comun en Hikvision).
+    "/doc/page/login.asp",  # Hikvision DVR login path (POC .2)
+    "/doc/page/login.htm",  # Hikvision NVR alt
+    "doc/page/wizard",  # Hikvision setup wizard URL
+    "server: webs",  # Goahead WebServer signature (en HTTP headers
+                     # extraidos como parte del body fetch)
 )
 
 # F201.A — Port combinations that are diagnostic of DVR/NVR appliances.
@@ -3415,6 +3426,12 @@ _DVR_PORT_COMBOS: tuple[frozenset[int], ...] = (
     frozenset({554, 37778}),  # Dahua DVR alt
     frozenset({554, 8000}),  # Hikvision SDK port + RTSP
     frozenset({554, 8200}),  # Axis VAPIX
+    # F201.A.B — POC Britimp TORRE_USR .2: 80 + 8000 (HTTP + Hikvision
+    # SDK port, sin RTSP visible — RTSP filtrado por firewall pero el
+    # SDK abierto al data plane). Combinacion suficiente para
+    # clasificar como DVR sin requerir 554.
+    frozenset({80, 8000}),  # HTTP + Hikvision SDK
+    frozenset({443, 8000}),  # HTTPS + Hikvision SDK
 )
 
 
