@@ -1219,6 +1219,135 @@ def _check_dns_cache_snoop(svc: DiscoveredService) -> Finding | None:
     )
 
 
+# F202.E — DNSSEC validation status check (CWE-345).
+# DNSSEC adds cryptographic signatures over DNS records so the resolver
+# can prove the answer hasn't been tampered with. A resolver may:
+#   - "support" DNSSEC (forward signatures, set AD flag from upstream)
+#     yet NOT actually validate them itself.
+#   - have validation explicitly disabled (Microsoft DNS pre-2016,
+#     BIND with `dnssec-validation no;`, Unbound without validator).
+#
+# Without validation, the resolver accepts spoofed answers that claim
+# the zone is unsigned even when it isn't. Kaminsky-style cache
+# poisoning + MITM (rogue Wi-Fi, compromised ISP) become viable
+# against any client behind this resolver.
+#
+# Probe technique: query Verisign's `dnssec-failed.org` (a domain that
+# intentionally serves invalid DNSSEC signatures). A validating
+# resolver MUST return SERVFAIL; a non-validating resolver happily
+# returns the IP records.
+
+_DNSSEC_TEST_DOMAIN = "dnssec-failed.org"
+
+_DNSSEC_VALID_MARKERS = (
+    "server failed",  # nslookup phrasing when SERVFAIL is returned
+    "servfail",
+    "broken",
+    "no answer",
+    "dnssec validation failed",
+)
+
+_DNSSEC_INCONCLUSIVE_MARKERS = (
+    "no response",
+    "request timed out",
+    "timed out",
+    "communications error",
+    "non-existent domain",  # zone might be temporarily down
+    "nxdomain",
+    "couldn't get address",
+)
+
+
+def _check_dnssec_validation(svc: DiscoveredService) -> Finding | None:
+    """F202.E — Probe a recursor for DNSSEC validation.
+
+    Methodology:
+      1. Query `dnssec-failed.org` (broken-by-design DNSSEC).
+      2. If we get SERVFAIL -> validation works -> no finding.
+      3. If we get a non-loopback IPv4 answer -> NO validation ->
+         flag MEDIUM CWE-345.
+      4. If we get timeout / NXDOMAIN -> can't determine -> no
+         finding (avoid false positive when network blocks the
+         probe).
+    """
+    if svc.state != "open" or svc.port != 53:
+        return None
+
+    try:
+        proc = subprocess.run(
+            ["nslookup", _DNSSEC_TEST_DOMAIN, svc.host],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except Exception:  # noqa: BLE001
+        return None
+
+    out = proc.stdout + "\n" + proc.stderr
+    out_lower = out.lower()
+
+    # GOOD outcome — validation works.
+    if any(m in out_lower for m in _DNSSEC_VALID_MARKERS):
+        return None
+
+    # INCONCLUSIVE — probe couldn't be performed cleanly.
+    if any(m in out_lower for m in _DNSSEC_INCONCLUSIVE_MARKERS):
+        return None
+
+    # Look for non-loopback IPv4 answers. If present, the resolver
+    # returned the broken-DNSSEC zone records -> validation OFF.
+    addrs = re.findall(r"\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b", proc.stdout)
+    external = [
+        a for a in addrs
+        if a != svc.host
+        and not a.startswith("127.")
+        and not a.startswith("0.")
+    ]
+    if not external:
+        return None
+
+    return Finding(
+        cwe="CWE-345",
+        severity="MEDIUM",
+        host=f"{svc.host}:{svc.port}",
+        rule_id="dnssec-validation-disabled",
+        message=(
+            f"DNS recursor {svc.host}:53 NO valida DNSSEC: resolvio "
+            f"{_DNSSEC_TEST_DOMAIN} (Verisign domain con firma rota a "
+            f"proposito) a {external[0]}. Un recursor con validacion "
+            "habilitada habria retornado SERVFAIL. Vulnerable a "
+            "cache poisoning + MITM injection."
+        ),
+        evidence=(
+            f"nslookup {_DNSSEC_TEST_DOMAIN} {svc.host} retorno IP(s) "
+            f"cuando deberia retornar SERVFAIL: {', '.join(external[:3])}"
+        ),
+        remediation=(
+            "Habilitar validacion DNSSEC en el recursor:\n"
+            "  - Microsoft DNS (W2016+): Set-DnsServerSetting "
+            "-EnableDnsSec $true. Verificar tambien que los Trust "
+            "Anchors esten actualizados (Get-DnsServerTrustAnchor).\n"
+            "  - BIND: options { dnssec-validation auto; }; (default "
+            "desde 9.16+). Con `auto` el resolver usa los root trust "
+            "anchors built-in.\n"
+            "  - Unbound: server: module-config: \"validator iterator\" "
+            "+ auto-trust-anchor-file (default /var/lib/unbound/root.key).\n"
+            "  - Knot Resolver: trust_anchors.add_file('root.key') o "
+            "trust_anchors.set_insecure() solo para zonas problematicas.\n"
+            "Impacto: sin validacion, atacante MITM (red interna, ISP "
+            "comprometido, rogue Wi-Fi adyacente al recursor) puede "
+            "inyectar respuestas falsas via Kaminsky-style cache "
+            "poisoning. Records sensibles: MX (email phishing), banking "
+            "domains (man-in-the-middle de portales), SaaS endpoints "
+            "(token harvesting). NIST 800-81-2 lo recomienda como baseline.\n"
+            "Verificar post-fix: nslookup dnssec-failed.org <host> debe "
+            "retornar 'Server failed' (SERVFAIL)."
+        ),
+        severity_rank=_SEV_RANK["MEDIUM"],
+    )
+
+
 # F200.B — Web server EOL table. Keep `min_supported` conservative
 # (a few versions above the minor with a notable CVE). When the
 # scanner banner reports a lower version, flag HIGH with the CVE list.
@@ -3144,6 +3273,13 @@ def run_engage(args: argparse.Namespace) -> int:
             snoop_finding = _check_dns_cache_snoop(svc)
             if snoop_finding:
                 findings.append(snoop_finding)
+            # F202.E — DNSSEC validation status. Query dnssec-failed.org
+            # (Verisign broken-DNSSEC test domain). Validating resolver
+            # MUST return SERVFAIL; resolver that returns the IP is
+            # vulnerable to cache poisoning + MITM injection.
+            dnssec_finding = _check_dnssec_validation(svc)
+            if dnssec_finding:
+                findings.append(dnssec_finding)
 
     findings.sort(key=lambda f: f.severity_rank)
     console.print(f"  [yellow]{len(findings)}[/yellow] hallazgos detectados")
