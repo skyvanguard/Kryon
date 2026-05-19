@@ -2152,6 +2152,76 @@ def _check_ssh(svc: DiscoveredService, ssh_target: str | None, ssh_password: str
     return findings
 
 
+# F202.N — BGP (Border Gateway Protocol) exposure detector (CWE-200 + CWE-306).
+# Surfaced by POC Britimp BASE .203.1: router edge con TCP/179 abierto al
+# data plane. Banking impact: si el peer auth (MD5 / TCP-AO) no esta
+# activo Y el firewall no restringe :179 a los IPs de peers BGP
+# autorizados, atacante puede iniciar sesion BGP falsa e inyectar
+# rutas (BGP hijack) → redirigir trafico bancario, MITM portales.
+# Severidad MEDIUM (banner grab no confirma si auth esta o no — la
+# remediation siempre apunta a TCP-AO + ACL + prefix-list).
+
+
+def _check_bgp_exposure(svc: "DiscoveredService") -> "Finding | None":
+    """F202.N — Detect BGP TCP/179 exposed to data plane.
+
+    BGP routers expose TCP/179 only to authorized peers in a
+    well-configured environment. Visibility from the data plane (where
+    workloads / users live) is a banking-relevant gap:
+      - Without TCP-AO / MD5 auth: attacker can attempt BGP session
+        hijack with crafted OPEN messages.
+      - Without prefix-list inbound: even with auth, malicious peer
+        announcement of arbitrary prefixes redirects bank traffic.
+    The check itself is read-only — TCP connect only, no BGP OPEN
+    message sent (banca-safe).
+    """
+    if svc.state != "open" or svc.port != 179:
+        return None
+
+    return Finding(
+        cwe="CWE-200",
+        severity="MEDIUM",
+        host=f"{svc.host}:{svc.port}",
+        rule_id="bgp-exposed-data-plane",
+        message=(
+            f"BGP (TCP/179) accesible en {svc.host}:{svc.port} desde el "
+            "data plane. Si el firewall no restringe :179 a peers BGP "
+            "autorizados y el peer auth (TCP-AO / MD5) no esta activo, "
+            "atacante puede iniciar sesion BGP falsa o spoofear "
+            "anuncios de prefijos."
+        ),
+        evidence=(
+            f"nmap detecto puerto 179/tcp open en {svc.host}. "
+            f"Banner: {svc.product or '(suprimido / tcpwrapped)'}"
+        ),
+        remediation=(
+            "Banking-mandatory hardening BGP:\n"
+            "  - **TCP-AO / RFC 5925** (recomendado) o MD5 / RFC 2385 "
+            "para autenticar cada sesion peer:\n"
+            "    Cisco IOS:  neighbor X password 7 <secret>\n"
+            "                neighbor X ao keychain <keychain>\n"
+            "    Juniper:    set protocols bgp group X authentication-key <md5>\n"
+            "    FortiGate:  config router bgp / neighbor X / set password X\n"
+            "    MikroTik:   /routing bgp peer set X password=<secret>\n"
+            "  - **prefix-list inbound** para limitar prefijos aceptados:\n"
+            "    neighbor X prefix-list IN-ALLOW in\n"
+            "    Evita inyeccion de rutas arbitrarias.\n"
+            "  - **ACL TCP/179**: el firewall debe DENY :179 desde TODO "
+            "salvo IPs de peers autorizados (lista corta — normalmente "
+            "1-3 IPs del ISP o nodos BGP internos).\n"
+            "  - **RPKI ROV** (Route Origin Validation) para validar "
+            "anuncios externos contra el RIR.\n"
+            "  - Banca-LATAM: verificar que sesiones eBGP a ISP tienen "
+            "TODO lo anterior + GTSM (TTL 255) cuando los peers estan "
+            "directamente conectados (RFC 5082).\n"
+            "Verify post-fix: desde IP no-peer, `nc -zv <host> 179` "
+            "debe retornar timeout (no connection refused — refused "
+            "expone que :179 esta corriendo)."
+        ),
+        severity_rank=_SEV_RANK["MEDIUM"],
+    )
+
+
 # F199.O — Per-engine metadata for the database-exposed check. Maps the
 # (service name, port) pair to the proper rule_id / human label /
 # vendor-specific remediation snippet. Keeps the generic _check_database
@@ -3991,6 +4061,12 @@ def run_engage(args: argparse.Namespace) -> int:
             update_finding = _check_dns_dynamic_update(svc)
             if update_finding:
                 findings.append(update_finding)
+        # F202.N — BGP (TCP/179) exposed to data plane. Read-only TCP
+        # connect probe; no BGP OPEN sent. Banca-safe.
+        if svc.service == "bgp" or svc.port == 179:
+            bgp_finding = _check_bgp_exposure(svc)
+            if bgp_finding:
+                findings.append(bgp_finding)
 
     findings.sort(key=lambda f: f.severity_rank)
     console.print(f"  [yellow]{len(findings)}[/yellow] hallazgos detectados")
