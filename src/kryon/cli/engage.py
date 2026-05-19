@@ -2152,6 +2152,159 @@ def _check_ssh(svc: DiscoveredService, ssh_target: str | None, ssh_password: str
     return findings
 
 
+# F202.Q — SMB anonymous share enumeration detector (CWE-200 + CWE-548).
+# Surfaced POC Britimp .200.26 mediavault: smbclient -L -N anonymous
+# login successful + share name visible (`rpa-teisa`). Aunque el tree-
+# connect quedo denied (file access protected), la disclosure del
+# nombre del share revelo cliente Britimp (TEISA). Banking-relevant:
+# nombres de shares suelen revelar clientes / proyectos / sistemas
+# internos -> vector de pivot post-credential-compromise.
+#
+# Severidad: LOW por default (info disclosure menor). MEDIUM cuando
+# share name matchea keywords sensitive (banking / payment / customer
+# / prod / rpa).
+
+_SMB_FAILURE_MARKERS = (
+    "connection refused",
+    "no route to host",
+    "session setup failed",
+    "logon failure",
+    "access denied",
+)
+
+# Keywords en share names que elevan severidad a MEDIUM
+_SMB_SENSITIVE_KEYWORDS = (
+    "bank", "banco", "payment", "pago", "swift",
+    "rpa", "automation",
+    "prod", "production",
+    "customer", "cliente",
+    "backup", "bkp",
+    "vault", "secret",
+    "finance", "finanzas",
+    "core",
+)
+
+
+def _check_smb_anonymous_shares(svc: "DiscoveredService") -> "Finding | None":
+    """F202.Q — Probe SMB :445 for anonymous share listing.
+
+    Read-only: `smbclient -L //host -N` lists share names without
+    needing credentials. File access is a separate operation that we
+    do NOT perform — solo la enumeracion del share-list es banca-safe.
+
+    Returns Finding when:
+      - Anonymous login succeeds AND
+      - At least one non-IPC$ share name is listed.
+    Severidad LOW por default; MEDIUM cuando share name matchea
+    keywords sensitive (banking / payment / customer / etc).
+    """
+    if svc.state != "open" or svc.port != 445:
+        return None
+
+    try:
+        proc = subprocess.run(
+            ["smbclient", "-L", f"//{svc.host}", "-N",
+             "--option=client min protocol=SMB2"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except FileNotFoundError:
+        # smbclient missing in operator host — graceful skip
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+
+    out = proc.stdout + "\n" + proc.stderr
+    out_lower = out.lower()
+
+    if any(m in out_lower for m in _SMB_FAILURE_MARKERS) and "anonymous login successful" not in out_lower:
+        return None
+
+    if "anonymous login successful" not in out_lower:
+        return None
+
+    # Parse share names from output:
+    #   Sharename       Type      Comment
+    #   ---------       ----      -------
+    #   rpa-teisa       Disk
+    #   IPC$            IPC       IPC Service
+    shares: list[str] = []
+    in_share_section = False
+    for line in proc.stdout.splitlines():
+        if "Sharename" in line and "Type" in line:
+            in_share_section = True
+            continue
+        if "---------" in line:
+            continue
+        if in_share_section:
+            stripped = line.strip()
+            if not stripped:
+                in_share_section = False
+                continue
+            parts = stripped.split()
+            if len(parts) >= 2:
+                name = parts[0]
+                if name != "IPC$" and not name.endswith("$"):
+                    shares.append(name)
+
+    if not shares:
+        return None
+
+    sensitive_hits = [
+        s for s in shares
+        if any(kw in s.lower() for kw in _SMB_SENSITIVE_KEYWORDS)
+    ]
+    severity = "MEDIUM" if sensitive_hits else "LOW"
+
+    shares_str = ", ".join(shares[:5])
+    if len(shares) > 5:
+        shares_str += f", + {len(shares) - 5} more"
+
+    return Finding(
+        cwe="CWE-200",
+        severity=severity,
+        host=f"{svc.host}:{svc.port}",
+        rule_id="smb-anonymous-list",
+        message=(
+            f"SMB en {svc.host}:445 permite anonymous login para listar "
+            f"share names ({len(shares)} share(s) visibles: {shares_str})."
+            + (
+                f" {len(sensitive_hits)} share(s) revelan funcion sensible "
+                "(banking / RPA / customer / prod) — pre-attack recon vector."
+                if sensitive_hits
+                else ""
+            )
+        ),
+        evidence=(
+            f"smbclient -L //{svc.host} -N retorno:\n"
+            f"  Anonymous login successful\n"
+            f"  Shares: {', '.join(shares)}"
+        ),
+        remediation=(
+            "Deshabilitar enumeracion anonymous de shares:\n"
+            "  - **Linux Samba** (smb.conf [global]):\n"
+            "      restrict anonymous = 2\n"
+            "      map to guest = Never\n"
+            "      guest account = nobody (NO root!)\n"
+            "      lanman auth = no\n"
+            "      ntlm auth = no\n"
+            "  - **Windows**: Group Policy > Security Settings > Local "
+            "Policies > Security Options:\n"
+            "      \"Network access: Do not allow anonymous enumeration of "
+            "SAM accounts and shares\" = Enabled\n"
+            "      \"Network access: Restrict anonymous access to Named "
+            "Pipes and Shares\" = Enabled\n"
+            "Impacto banking: share names suelen revelar clientes, "
+            "proyectos, fileservers internos. Aun cuando file-access "
+            "esta protegido (tree-connect denied), la disclosure del "
+            "share-list es info-leak pre-attack."
+        ),
+        severity_rank=_SEV_RANK[severity],
+    )
+
+
 # F202.N — BGP (Border Gateway Protocol) exposure detector (CWE-200 + CWE-306).
 # Surfaced by POC Britimp BASE .203.1: router edge con TCP/179 abierto al
 # data plane. Banking impact: si el peer auth (MD5 / TCP-AO) no esta
@@ -4165,6 +4318,12 @@ def run_engage(args: argparse.Namespace) -> int:
             bgp_finding = _check_bgp_exposure(svc)
             if bgp_finding:
                 findings.append(bgp_finding)
+        # F202.Q — SMB anonymous share listing. smbclient -L -N (read-
+        # only enumeration, no file access). Banca-safe.
+        if svc.service in ("microsoft-ds", "netbios-ssn") or svc.port == 445:
+            smb_finding = _check_smb_anonymous_shares(svc)
+            if smb_finding:
+                findings.append(smb_finding)
 
     findings.sort(key=lambda f: f.severity_rank)
     console.print(f"  [yellow]{len(findings)}[/yellow] hallazgos detectados")
