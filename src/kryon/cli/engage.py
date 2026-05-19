@@ -2000,6 +2000,14 @@ _DEVICE_FAMILIES: list[tuple[str, list[str], tuple[str, ...], str]] = [
     # F199.P — activated. Surfaced by POC .8 (UniFi Controller on :8443
     # was mis-classified as FortiGate by the old port-only rule).
     ("unifi", ["kryon.compliance.checks.unifi"], ("UNF-",), "UniFi"),
+    # F201.A — DVR / IP camera / NVR (Hikvision / Dahua / Axis / TVT).
+    # Surfaced by POC .12: a Hikvision NVR running on Windows was tagged
+    # `windows` + `windows_ad` and got 24 CIS FPs because the OS is vendor
+    # firmware (you cannot apply registry policies to an NVR). No
+    # deterministic checks yet — F197 ships dvr_recon/onvif_probe tools
+    # and the dvr-audit playbook (recon-only). The family entry exists so
+    # `dvr` survives appliance disambiguation and Windows CIS doesn't fire.
+    ("dvr", [], ("DVR-",), "DVR / IP camera / NVR (Hikvision / Dahua / Axis)"),
 ]
 
 
@@ -2022,6 +2030,60 @@ _BMC_BANNER_MARKERS = (
 )
 
 
+# F201.A — DVR / IP camera / NVR vendor markers (banner OR HTTP body).
+# Hikvision NVRs and Dahua DVRs run vendor firmware on top of Windows or
+# Linux; classifying them as a generic OS family fires irrelevant CIS
+# checks because the operator cannot apply registry policies or edit
+# sshd_config on a sealed appliance.
+_DVR_BANNER_MARKERS = (
+    "hikvision",  # Hikvision DVR/NVR
+    "dahua",  # Dahua DVR/NVR
+    "dahuasecurity",  # Dahua web banner
+    "dvrip",  # DVR-over-IP generic
+    "ip camera",  # generic
+    "axis communications",  # Axis cameras
+    "vivotek",  # Vivotek cameras
+    "tvt nvr",  # TVT (Shenzhen TVT Digital)
+    "swann",  # Swann DVRs
+    "tiandy",  # Tiandy DVRs
+    "uniview",  # Uniview NVRs
+    "tp-link tapo",  # TP-Link Tapo camera
+    "onvif",  # ONVIF service banner
+    "realserver",  # Real Networks RTSP (Hikvision uses port 7070 + this)
+)
+
+# F201.A — Body markers (HTTP root content). Hikvision web consoles ship a
+# CSP header allowlisting `*.hikvision.com`, the Dahua console embeds
+# `dahuasecurity.com` references. These are stable across firmware
+# versions and survive whitelabel rebranding (the JS still hits the
+# vendor CDN).
+_DVR_BODY_MARKERS = (
+    "hikvision.com",  # Hikvision CSP / DDNS
+    "dahuasecurity.com",  # Dahua CSP / DDNS
+    "dahuatech.com",  # Dahua legacy domain
+    "hcwebcontrol",  # Hikvision ActiveX/JS plugin
+    "vpwebcontrol",  # Hikvision VP web plugin
+    "ezviz.com",  # Hikvision cloud subsidiary
+    "axis-communications.com",  # Axis cloud
+    "uniview.com",  # Uniview cloud
+    "tvt.net.cn",  # TVT cloud
+    "isapi/",  # Hikvision ISAPI URL path
+    "/cgi-bin/magicbox.cgi",  # Dahua web API path (compared lowercase)
+)
+
+# F201.A — Port combinations that are diagnostic of DVR/NVR appliances.
+# RTSP (554/tcp) alone is too generic (any media server can expose it).
+# But 554 + 7070 is the canonical Hikvision combo; 554 + 37777 is Dahua.
+_DVR_PORT_COMBOS: tuple[frozenset[int], ...] = (
+    frozenset({554, 7070}),  # Hikvision RTSP + Real Networks RTSP
+    frozenset({554, 7070, 8081}),  # Hikvision NVR full
+    frozenset({554, 37777}),  # Dahua DVR
+    frozenset({554, 37778}),  # Dahua DVR alt
+    frozenset({554, 8000}),  # Hikvision SDK port + RTSP
+    frozenset({554, 8200}),  # Axis VAPIX
+)
+
+
 def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
     """Heuristic: classify a target into one or more device families based
     on banners and canonical management ports. Returns a list of family
@@ -2035,8 +2097,11 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
             families.append(fam)
 
     has_ssh = False
+    open_ports: set[int] = set()
     for s in services:
         product = (s.product or "").lower()
+        if s.state == "open":
+            open_ports.add(s.port)
         # Proxmox VE — detect by banner (pve-api-daemon / Proxmox) OR
         # by canonical web port 8006. Port 3128 alone is NOT enough:
         # Squid proxy, Tinyproxy, and other HTTP proxies also use 3128.
@@ -2082,6 +2147,13 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
         # Federation port 17988 if present.
         if any(m in product for m in _BMC_BANNER_MARKERS) or s.port in (623, 17988, 17990, 17993):
             _add("bmc")
+        # F201.A — DVR / IP camera / NVR. Banner-based detection first
+        # (Hikvision/Dahua/Axis sometimes leak vendor strings in HTTP
+        # server / RTSP banner). Port-combo detection below covers the
+        # common case where the banner is anonymized (Hikvision ships
+        # `Server: -` by default).
+        if any(m in product for m in _DVR_BANNER_MARKERS):
+            _add("dvr")
         # F200.A — Apache Tomcat. Triggered by Coyote/Tomcat banner OR
         # AJP port 8009. Note: 8080 alone is NOT enough (many non-Tomcat
         # apps run on 8080 — Tomcat-specific check needs the banner).
@@ -2095,6 +2167,36 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
         if s.port == 22 and s.state == "open":
             has_ssh = True
 
+    # F201.A — DVR detection by port combo. Hikvision NVR/DVR typically
+    # exposes 554/tcp (RTSP) + 7070/tcp (Real Networks RTSP) + optional
+    # 8081/tcp; Dahua DVRs use 554 + 37777. Banner is the strong signal,
+    # but Hikvision anonymizes its HTTP banner so port-combo is the
+    # only fallback when the body fetch hasn't run yet.
+    if "dvr" not in families:
+        for combo in _DVR_PORT_COMBOS:
+            if combo.issubset(open_ports):
+                _add("dvr")
+                break
+
+    # F201.A — DVR detection by HTTP body markers (Hikvision CSP). The
+    # body fetch is cheap (one curl against :80 or :443), runs only when
+    # we still haven't classified the host. Catches the case where
+    # banner is `Server: -` and the port combo is partial.
+    if "dvr" not in families:
+        for s in services:
+            if s.state != "open" or s.port not in (80, 443, 8080, 8081):
+                continue
+            scheme = "https" if s.port in (443, 8443) else "http"
+            url = f"{scheme}://{s.host}:{s.port}/"
+            try:
+                _code, body = _http_get(url, timeout_s=4)
+            except Exception:
+                continue
+            body_lower = body.lower()
+            if any(m in body_lower for m in _DVR_BODY_MARKERS):
+                _add("dvr")
+                break
+
     if has_ssh:
         # Only auto-add 'linux' when there's no appliance / non-Linux
         # signature already in the family list. Proxmox IS Linux
@@ -2106,9 +2208,21 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
         # F199.I added 'windows' / 'windows_ad' so OpenSSH-for-Windows
         # hosts (sshd.exe shipped with Windows Server 2019+) don't
         # spuriously add 'linux' on top of windows_ad.
-        appliance_families = {"fortigate", "bmc", "windows", "windows_ad"}
+        # F201.A added 'dvr' — Hikvision NVRs running on Windows or
+        # Linux still expose SSH but the OS is sealed vendor firmware.
+        appliance_families = {"fortigate", "bmc", "windows", "windows_ad", "dvr"}
         if not any(f in appliance_families for f in families):
             _add("linux")
+
+    # F201.A — when DVR is detected, scrub windows + windows_ad. NVRs
+    # frequently run a Hikvision-customized Windows under the hood
+    # (SMB/RPC/RDP are open) but Windows CIS / AD policies do NOT apply
+    # to a sealed appliance — registry edits, GPO, audit logging are
+    # all locked down by the vendor. Same rationale as BMC.
+    if "dvr" in families:
+        for fam in ("windows", "windows_ad"):
+            if fam in families:
+                families.remove(fam)
 
     return families
 
