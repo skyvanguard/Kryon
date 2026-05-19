@@ -615,6 +615,115 @@ def _check_python_simplehttp_exposed(svc: DiscoveredService) -> Finding | None:
     )
 
 
+# F202.A — DNS open resolver detection.
+# Surfaced by Britimp POC .205 (Domain Controller britimp.com.py): the
+# DNS server responded to recursive queries from the operator VPN for
+# external domains (google.com resolved successfully). If the perimeter
+# firewall allows UDP/53 from internet to this server, it becomes a
+# DNS amplification DDoS reflector (response >> query, ~50x factor).
+# From inside the network we cannot prove external reachability, so
+# the finding is MEDIUM and the remediation points to ACL review at
+# both the DNS service and the perimeter firewall.
+_DNS_EXTERNAL_PROBE = "google.com"
+
+_DNS_FAILURE_MARKERS = (
+    "non-existent domain",
+    "nxdomain",
+    "server failed",
+    "refused",
+    "no response",
+    "request timed out",
+    "can't find",
+    "timed out",
+)
+
+_RFC1918_PREFIXES: tuple[str, ...] = (
+    "10.",
+    "192.168.",
+    "127.",
+    "169.254.",
+) + tuple(f"172.{n}." for n in range(16, 32))
+
+
+def _is_external_ipv4(ip: str, target_host: str) -> bool:
+    """Return True when `ip` is NOT in RFC1918 / loopback / link-local
+    AND not the DNS server itself. F202.A helper.
+    """
+    if ip == target_host:
+        return False
+    return not any(ip.startswith(p) for p in _RFC1918_PREFIXES)
+
+
+def _check_dns_open_resolver(svc: DiscoveredService) -> Finding | None:
+    """F202.A — Probe a DNS server for recursion on external names.
+
+    A correctly configured internal DNS either disables recursion for
+    external clients entirely (BIND `allow-recursion`) or refuses to
+    forward to upstream when the query is for a domain it isn't
+    authoritative for. Microsoft DNS on AD DCs has recursion ON by
+    default and the operator must scope it via ACL or perimeter.
+
+    Method: nslookup an external domain (`google.com` — extremely
+    unlikely to be a zone on the internal DNS). If we get a public
+    IPv4 back, recursion is happening on our behalf and the only
+    thing standing between this server and internet is the firewall.
+    """
+    if svc.state != "open" or svc.port != 53:
+        return None
+
+    try:
+        proc = subprocess.run(
+            ["nslookup", _DNS_EXTERNAL_PROBE, svc.host],
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+    except Exception:
+        return None
+
+    out = (proc.stdout + "\n" + proc.stderr).lower()
+    if any(m in out for m in _DNS_FAILURE_MARKERS):
+        return None
+
+    addrs = re.findall(r"\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b", proc.stdout)
+    external = [a for a in addrs if _is_external_ipv4(a, svc.host)]
+    if not external:
+        return None
+
+    return Finding(
+        cwe="CWE-406",
+        severity="MEDIUM",
+        host=f"{svc.host}:{svc.port}",
+        rule_id="dns-open-resolver",
+        message=(
+            f"DNS server {svc.host}:53 acepta queries recursivas de clientes arbitrarios "
+            f"(resolvio {_DNS_EXTERNAL_PROBE} -> {external[0]})."
+        ),
+        evidence=(
+            f"nslookup {_DNS_EXTERNAL_PROBE} {svc.host} resolvio IP(s) externa(s): "
+            f"{', '.join(external[:3])}"
+        ),
+        remediation=(
+            "Restringir recursion a subnets internas y revisar perimetro.\n"
+            "  - Microsoft DNS: dnsmgmt.msc > Properties > Advanced > "
+            "'Disable recursion (also disables forwarders)' o usar "
+            "Set-DnsServerRecursionScope -Name '.' -EnableRecursion $false y "
+            "habilitarlo solo por scope con ACL.\n"
+            "  - BIND: views { internal { match-clients { 10.0.0.0/8; "
+            "172.16.0.0/12; 192.168.0.0/16; }; recursion yes; }; "
+            "external { match-clients { any; }; recursion no; }; };\n"
+            "  - Unbound: access-control: 0.0.0.0/0 refuse + "
+            "access-control: <internal_subnet> allow_recursive\n"
+            "Perimetro: firewall DEBE bloquear UDP/53 + TCP/53 desde "
+            "internet hacia este DNS salvo que sea publico autoritativo. "
+            "Sin esa restriccion el servidor funciona como amplificador "
+            "DNS para ataques DDoS (factor ~50x con queries ANY o DNSSEC)."
+        ),
+        severity_rank=_SEV_RANK["MEDIUM"],
+    )
+
+
 # F200.B — Web server EOL table. Keep `min_supported` conservative
 # (a few versions above the minor with a notable CVE). When the
 # scanner banner reports a lower version, flag HIGH with the CVE list.
@@ -2515,6 +2624,14 @@ def run_engage(args: argparse.Namespace) -> int:
             findings.extend(_check_ssh(svc, args.ssh, args.ssh_password))
         if svc.service in ("mysql", "postgresql", "mongodb", "redis") or svc.port in (3306, 33060, 5432, 27017, 6379):
             findings.extend(_check_mysql(svc))
+        # F202.A — DNS open resolver. Surfaced by .205 (DC britimp.com.py
+        # responded to recursive queries from the operator VPN). If the
+        # perimeter firewall allows UDP/53 from internet, this is an
+        # amplification DDoS vector.
+        if svc.service == "domain" or svc.port == 53:
+            dns_finding = _check_dns_open_resolver(svc)
+            if dns_finding:
+                findings.append(dns_finding)
 
     findings.sort(key=lambda f: f.severity_rank)
     console.print(f"  [yellow]{len(findings)}[/yellow] hallazgos detectados")
