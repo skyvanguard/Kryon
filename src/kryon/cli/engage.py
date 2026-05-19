@@ -476,6 +476,11 @@ def _http_get(url: str, *, timeout_s: int = 5) -> tuple[int, str]:
     Uses `-k` to accept self-signed TLS — audit tooling must reach
     the service even when the cert is invalid (very common for
     internal admin panels, password managers, BMC web UIs).
+    F202.M (POC Britimp .106 2026-05-19): use `--compressed` so curl
+    auto-decompresses gzip/deflate/br responses. Without it, hosts
+    that return `Content-Encoding: gzip` come back as binary bytes
+    that never match the text-based body markers (Hikvision
+    login.asp, Vaultwarden title, password-manager signatures, etc).
     Returns (0, '') on any error so callers can degrade gracefully.
     """
     try:
@@ -484,6 +489,7 @@ def _http_get(url: str, *, timeout_s: int = 5) -> tuple[int, str]:
                 "curl",
                 "-sS",
                 "-k",
+                "--compressed",
                 "--max-time",
                 str(timeout_s),
                 "-w",
