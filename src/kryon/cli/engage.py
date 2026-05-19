@@ -2152,6 +2152,213 @@ def _check_ssh(svc: DiscoveredService, ssh_target: str | None, ssh_password: str
     return findings
 
 
+# F202.R — SIEM agent activity check (CWE-778 — Insufficient Logging).
+# Surfaced POC Britimp 2026-05-19: VM-Ubuntu-Wazuh (VM 101 en cluster
+# Proxmox) STOPPED. El SIEM Wazuh esta deployed pero apagado → blind
+# spot total de eventos seguridad. Sin SIEM activo:
+#   - No detection de auth failures (brute force invisible)
+#   - No detection de file integrity changes (rootkit invisible)
+#   - No detection de anomalous network flows
+#   - No incident response triggered
+# Banking-CRITICAL: PCI-DSS Req 10 (logging + monitoring), SOC2 CC7.2
+# (continuous monitoring), BCP Paraguay SIB regulaciones.
+#
+# Check requiere SSH al host. Severidad:
+#   - CRITICAL: Wazuh installed pero agent inactive (worst case — false
+#     sense of security)
+#   - HIGH: No SIEM agent en absoluto (no monitoring infrastructure)
+#   - MEDIUM: Otro SIEM activo (filebeat/auditd/osquery) pero sin
+#     Wazuh — config heterogenea
+#   - No finding: Wazuh active OR (auditd + filebeat + remote syslog)
+
+_SIEM_PACKAGES_TO_CHECK = (
+    "wazuh-agent",  # Wazuh OSSEC fork — top SIEM en LATAM banca
+    "filebeat",     # Elastic Beats log shipper
+    "auditd",       # Linux audit daemon — base de cualquier SIEM
+    "osquery",      # Facebook osquery
+    "rsyslog",      # Remote syslog (mejor que nada)
+    "syslog-ng",    # Alternative syslog
+)
+
+
+def _check_siem_activity(
+    host: str,
+    ssh_target: str | None,
+    ssh_key: str | None,
+    ssh_password: str | None,
+) -> "Finding | None":
+    """F202.R — Check SIEM agent + audit daemon activity on a Linux host.
+
+    Requires SSH access. Without creds, returns None (no false claim).
+    Read-only: `systemctl is-active <svc>` + `test -d /var/ossec`.
+    Banca-safe.
+    """
+    if not ssh_target:
+        return None
+
+    user, _, host_port = ssh_target.partition("@")
+    host_only, _, port_str = host_port.partition(":")
+    host_only = host_only or host
+    port = port_str or "22"
+
+    def _remote(cmd: str) -> str:
+        base = [
+            "ssh",
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null",
+            "-o", "BatchMode=yes",
+            "-o", "ConnectTimeout=10",
+            "-p", port,
+        ]
+        if ssh_key:
+            base.extend(["-i", ssh_key])
+        base.append(f"{user}@{host_only}")
+        env = None
+        if ssh_password:
+            env = {**os.environ, "SSHPASS": ssh_password}
+            base = ["sshpass", "-e"] + base
+        try:
+            r = subprocess.run(
+                base + [cmd], capture_output=True, text=True,
+                timeout=20, check=False, env=env,
+            )
+            return r.stdout
+        except Exception:  # noqa: BLE001
+            return ""
+
+    probe_cmd = (
+        "for svc in " + " ".join(_SIEM_PACKAGES_TO_CHECK) + "; do "
+        "  status=$(systemctl is-active $svc 2>/dev/null || echo missing); "
+        "  echo \"$svc=$status\"; "
+        "done; "
+        "echo \"ossec_dir=$(test -d /var/ossec && echo yes || echo no)\"; "
+        "echo \"wazuh_dir=$(test -d /var/ossec/etc && echo yes || echo no)\""
+    )
+
+    output = _remote(probe_cmd)
+    if not output.strip():
+        return None  # SSH failed silently — graceful skip
+
+    statuses: dict[str, str] = {}
+    for line in output.splitlines():
+        if "=" in line:
+            k, v = line.split("=", 1)
+            statuses[k.strip()] = v.strip()
+
+    if not statuses:
+        return None
+
+    wazuh_active = statuses.get("wazuh-agent") == "active"
+    wazuh_installed = (
+        statuses.get("wazuh-agent") in ("inactive", "failed", "activating")
+        or statuses.get("ossec_dir") == "yes"
+        or statuses.get("wazuh_dir") == "yes"
+    )
+    filebeat_active = statuses.get("filebeat") == "active"
+    auditd_active = statuses.get("auditd") == "active"
+    osquery_active = statuses.get("osquery") == "active"
+    rsyslog_active = statuses.get("rsyslog") == "active" or statuses.get("syslog-ng") == "active"
+
+    other_siem_active = filebeat_active or osquery_active
+
+    # CASO 1: Wazuh installed pero agent inactive — el peor caso, falsa
+    # sensacion de seguridad ("tenemos SIEM!" pero apagado).
+    if wazuh_installed and not wazuh_active:
+        return Finding(
+            cwe="CWE-778",
+            severity="CRITICAL",
+            host=f"{user}@{host_only}",
+            rule_id="siem-wazuh-installed-inactive",
+            message=(
+                f"Host {host_only} tiene Wazuh agent INSTALADO pero "
+                f"INACTIVE (estado: {statuses.get('wazuh-agent', 'unknown')}). "
+                "Blind spot total de eventos seguridad — falsa sensacion "
+                "de monitoring."
+            ),
+            evidence=(
+                f"systemctl is-active wazuh-agent = "
+                f"{statuses.get('wazuh-agent')}\n"
+                f"/var/ossec exists: {statuses.get('ossec_dir')}\n"
+                f"Other SIEM: filebeat={statuses.get('filebeat')}, "
+                f"auditd={statuses.get('auditd')}, "
+                f"osquery={statuses.get('osquery')}"
+            ),
+            remediation=(
+                "Re-activar Wazuh agent:\n"
+                "  systemctl enable --now wazuh-agent\n"
+                "  systemctl status wazuh-agent\n"
+                "Verificar conectividad al manager:\n"
+                "  grep -E '<server>' /var/ossec/etc/ossec.conf\n"
+                "  nc -zv <manager_ip> 1514\n"
+                "Si el manager esta down (VM-Wazuh STOPPED en cluster) "
+                "encender la VM primero. Causa raiz comun: Wazuh manager "
+                "moved/migrated y agents quedaron apuntando a IP vieja.\n"
+                "Compliance impact: PCI-DSS Req 10.5 (proteccion de logs), "
+                "10.7 (retention 1 ano), SOC2 CC7.2 (continuous monitoring), "
+                "BCP Paraguay SIB Cap. 8 (audit trail). Wazuh inactive "
+                "implica todos esos controles fallan."
+            ),
+            severity_rank=_SEV_RANK["CRITICAL"],
+        )
+
+    # CASO 2: Nada de SIEM — host sin monitoring infrastructure
+    if not wazuh_active and not other_siem_active and not auditd_active:
+        return Finding(
+            cwe="CWE-778",
+            severity="HIGH",
+            host=f"{user}@{host_only}",
+            rule_id="siem-no-agent",
+            message=(
+                f"Host {host_only} no tiene ningun SIEM agent corriendo "
+                "(no Wazuh, no Filebeat, no Osquery, no auditd). Sin "
+                "logging/monitoring centralizado."
+            ),
+            evidence=f"Daemon status: {statuses}",
+            remediation=(
+                "Instalar SIEM agent. Para banca-LATAM se recomienda Wazuh:\n"
+                "  curl -so wazuh-agent.deb https://packages.wazuh.com/...\n"
+                "  WAZUH_MANAGER='<mgr_ip>' dpkg -i wazuh-agent.deb\n"
+                "  systemctl enable --now wazuh-agent\n"
+                "Como minimo (banca-safe baseline):\n"
+                "  apt install auditd rsyslog\n"
+                "  systemctl enable --now auditd rsyslog\n"
+                "  + configurar remote syslog hacia el SIEM central."
+            ),
+            severity_rank=_SEV_RANK["HIGH"],
+        )
+
+    # CASO 3: Wazuh active OR auditd + remote syslog activos — OK
+    if wazuh_active:
+        return None
+    if auditd_active and rsyslog_active:
+        return None
+
+    # CASO 4: SIEM heterogeneo (filebeat sin wazuh, o auditd solo) —
+    # MEDIUM info. Operationally menos optimo que un stack unificado.
+    return Finding(
+        cwe="CWE-778",
+        severity="MEDIUM",
+        host=f"{user}@{host_only}",
+        rule_id="siem-heterogeneous",
+        message=(
+            f"Host {host_only} tiene SIEM heterogeneo. Active: "
+            + ", ".join(
+                name for name, status in statuses.items()
+                if status == "active"
+            )
+            + ". Faltan: Wazuh OR (auditd + rsyslog remoto)."
+        ),
+        evidence=f"Daemon status: {statuses}",
+        remediation=(
+            "Unificar stack SIEM. Si la flota usa Wazuh manager, "
+            "instalar wazuh-agent para que el host envie eventos al "
+            "mismo manager central. Sino, validar que filebeat/osquery "
+            "tengan output configurado a un Elastic/Splunk central."
+        ),
+        severity_rank=_SEV_RANK["MEDIUM"],
+    )
+
+
 # F202.Q — SMB anonymous share enumeration detector (CWE-200 + CWE-548).
 # Surfaced POC Britimp .200.26 mediavault: smbclient -L -N anonymous
 # login successful + share name visible (`rpa-teisa`). Aunque el tree-
@@ -4324,6 +4531,20 @@ def run_engage(args: argparse.Namespace) -> int:
             smb_finding = _check_smb_anonymous_shares(svc)
             if smb_finding:
                 findings.append(smb_finding)
+
+    # F202.R — SIEM agent activity check (CWE-778). Per-host, requires
+    # SSH creds. Surfaced POC Britimp: Wazuh VM apagado -> agents
+    # quedan installed pero inactive en hosts del cluster. Read-only:
+    # `systemctl is-active wazuh-agent filebeat auditd ...`. Banca-safe.
+    if args.ssh:
+        siem_finding = _check_siem_activity(
+            host=target,
+            ssh_target=args.ssh,
+            ssh_key=args.ssh_key,
+            ssh_password=args.ssh_password,
+        )
+        if siem_finding:
+            findings.append(siem_finding)
 
     findings.sort(key=lambda f: f.severity_rank)
     console.print(f"  [yellow]{len(findings)}[/yellow] hallazgos detectados")
