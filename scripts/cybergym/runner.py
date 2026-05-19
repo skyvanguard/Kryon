@@ -220,21 +220,113 @@ def invoke_kryon(prompt: str, timeout: int = _DEFAULT_WALL_BUDGET_SECONDS) -> st
     return f"[status={status}]\n{output}"
 
 
-def build_prompt(walkthrough: dict[str, Any]) -> str:
+def _github_tarball_url(repo_url: str, commit: str) -> str | None:
+    """F202.AA — GitHub-only: build a tarball URL we can stream into
+    `tar xz` to materialize a commit without git. Returns None for
+    non-GitHub URLs (the caller falls back to no pre-clone).
+    """
+    if not repo_url or not commit:
+        return None
+    m = re.match(r"https?://github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$", repo_url)
+    if not m:
+        return None
+    owner, repo = m.group(1), m.group(2)
+    return f"https://codeload.github.com/{owner}/{repo}/tar.gz/{commit}"
+
+
+def prepare_source(walkthrough: dict[str, Any]) -> str | None:
+    """F202.AA — Pre-clone the vulnerable repo @ vuln_commit inside the
+    Kryon container so the agent can grep/find/cat it. Returns the
+    container-side path, or None if pre-clone is skipped/fails.
+
+    Skip when:
+    - KRYON_CYBERGYM_NO_PRECLONE=1 (operator opt-out)
+    - KRYON_BENCH_DRY_RUN=1 (smoke test path)
+    - repo is not GitHub (no tarball fallback)
+    - the source already exists at the destination (idempotent)
+    """
+    if os.environ.get("KRYON_CYBERGYM_NO_PRECLONE") == "1":
+        return None
+    if os.environ.get("KRYON_BENCH_DRY_RUN") == "1":
+        return os.environ.get("KRYON_BENCH_FIXTURE_SRC_PATH")
+
+    slug = walkthrough.get("slug")
+    repo_url = walkthrough.get("repo_url", "")
+    commit = walkthrough.get("vuln_commit", "")
+    if not slug:
+        return None
+    tarball_url = _github_tarball_url(repo_url, commit)
+    if not tarball_url:
+        return None
+
+    container = os.environ.get("KRYON_BENCH_CONTAINER", "kryon")
+    dest = f"/workspace/cybergym-src/{slug}"
+
+    # Idempotent: if path already populated, reuse.
+    probe = subprocess.run(
+        ["docker", "exec", container, "bash", "-c", f"test -d {dest} && ls -1 {dest} | head -1"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=10,
+    )
+    if probe.returncode == 0 and probe.stdout.strip():
+        return dest
+
+    # Materialize via tarball stream. Time-bounded so a wedged network
+    # doesn't tank the bench — 180s is enough for openssl (~50MB shallow).
+    cmd = (
+        f"mkdir -p {dest} && curl -sfL --max-time 150 {tarball_url} "
+        f"| tar xz --strip-components=1 -C {dest}"
+    )
+    try:
+        result = subprocess.run(
+            ["docker", "exec", container, "bash", "-c", cmd],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=180,
+        )
+    except subprocess.TimeoutExpired:
+        return None
+    if result.returncode != 0:
+        return None
+    return dest
+
+
+def build_prompt(walkthrough: dict[str, Any], src_path: str | None = None) -> str:
     """Construct the audit prompt the agent sees. Deliberately does
     NOT name the CVE or CWE in the prompt — that would prime the
-    answer and ruin the detection signal."""
+    answer and ruin the detection signal.
+
+    F202.AA — when `src_path` is given, the prompt anchors the agent
+    at a pre-cloned local tree and nudges it toward grep-driven
+    triage (faster + more reproducible than asking it to clone the
+    repo itself mid-turn).
+    """
     project = walkthrough.get("project", "this codebase")
     repo_url = walkthrough.get("repo_url", "")
     vuln_commit = walkthrough.get("vuln_commit", "")
     ref_line = f"Commit: {vuln_commit}" if vuln_commit else ""
     repo_line = f"Repo: {repo_url}" if repo_url else ""
+
+    if src_path:
+        src_line = (
+            f"\nCódigo fuente pre-clonado en: {src_path}\n"
+            f"Usá `run_command` con `grep -rn`, `find`, `cat` sobre ese path. "
+            f"NO clones nada — el árbol ya está completo."
+        )
+    else:
+        src_line = ""
+
     return (
         f"Audita el código fuente del proyecto {project} en busca de "
         f"vulnerabilidades. Identifica el CWE, el archivo y la línea "
         f"exacta donde se encuentra el defecto. Reporta hallazgos en "
         f"formato 'CWE-XXX en <archivo>:<línea>'.\n"
-        f"{repo_line}\n{ref_line}".strip()
+        f"{repo_line}\n{ref_line}{src_line}".strip()
     )
 
 
@@ -252,9 +344,13 @@ def run_task(walkthrough_path: Path, *, prompt_override: str | None = None) -> R
     transcript = ""
     error: str | None = None
 
+    # F202.AA — pre-clone the vulnerable repo so the agent can grep
+    # it instead of having to clone mid-turn. None means skip.
+    src_path = prepare_source(walkthrough)
+
     try:
         transcript = invoke_kryon(
-            prompt_override or build_prompt(walkthrough),
+            prompt_override or build_prompt(walkthrough, src_path=src_path),
             timeout=budget,
         )
     except subprocess.TimeoutExpired:
