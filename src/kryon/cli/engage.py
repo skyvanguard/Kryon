@@ -3465,17 +3465,53 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
         # Windows AD — only AD-specific ports trigger this family.
         # F202.I (POC Britimp 2026-05-18 .101): 135 + 139 + 445 were
         # in this list previously, but those are open on EVERY Windows
-        # server / workstation. The result was 9 AD-* compliance FPs
-        # fired against .101 (a member server with RDP + IIS:8080,
-        # confirmed no Kerberos, no LDAP, no GC).
+        # server / workstation. Result: 9 AD-* compliance FPs fired
+        # against .101 (member server, no Kerberos, no LDAP, no GC).
         # AD-specific ports:
         #   88   Kerberos KDC
         #   389  LDAP
         #   636  LDAPS
         #   3268 Global Catalog
         #   3269 Global Catalog SSL
+        # F202.I.B (POC Britimp 2026-05-18 .10 PBX): the host had
+        # OpenLDAP on :389 (for Asterisk auth) + MIT krb5 setup —
+        # nmap reports "OpenLDAP 2.2.X - 2.3.X" in product. Port 389
+        # alone triggered windows_ad and 9 AD-* FPs fired against a
+        # Linux PBX. AD CIS controls (Domain Password Policy, KRBTGT
+        # rotation, SMB Signing, LAPS) do NOT apply to OpenLDAP /
+        # MIT krb5 / Heimdal.
+        # Banner discrimination: if the product on an AD-port reveals
+        # a non-AD KDC / directory server, SKIP windows_ad for that
+        # service. Real AD will say "Microsoft Windows Active
+        # Directory LDAP" or "Microsoft Windows Kerberos".
+        non_ad_directory_markers = (
+            "openldap",
+            "389-ds",  # 389 Directory Server (Red Hat)
+            "freeipa",  # FreeIPA — Linux IPA, NOT Windows AD
+            "samba",  # only when not "samba ad dc" — see below
+            "apache directory",
+            "opendj",
+            "novell edirectory",
+            "ibm tivoli directory",
+            "oracle directory",
+        )
+        non_ad_kerberos_markers = (
+            "mit krb5",
+            "mit kerberos",
+            "heimdal",
+            "shishi",
+        )
+        # FreeIPA / Samba-AD ARE AD-compatible — banner contains
+        # "samba ad dc" or "ipa". Don't blanket-suppress them.
+        is_non_ad_directory = (
+            any(m in product for m in non_ad_directory_markers)
+            and "samba ad" not in product
+            and "ipa" not in product
+        )
+        is_non_ad_kdc = any(m in product for m in non_ad_kerberos_markers)
         if s.port in (88, 389, 636, 3268, 3269):
-            _add("windows_ad")
+            if not (is_non_ad_directory or is_non_ad_kdc):
+                _add("windows_ad")
         # Asterisk / VoIP — SIP 5060/5061, AMI 5038, ARI 8088/8089
         if "asterisk" in product or s.port in (5060, 5061, 5038, 8088, 8089):
             _add("asterisk")
