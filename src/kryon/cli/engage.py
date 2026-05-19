@@ -1753,7 +1753,7 @@ _DC_DRIFT_PORT_INFERENCE: tuple[tuple[str, int, str], ...] = (
 )
 
 
-def _is_domain_controller_host(findings: list["Finding"]) -> bool:
+def _is_domain_controller_host(findings: list[Finding]) -> bool:
     """F202.H helper — heuristic: a host is treated as a DC when its
     findings include >=1 AD-* rule (from Phase 2b windows_ad checks).
     The AD compliance pack only fires when the engage detected
@@ -1762,14 +1762,14 @@ def _is_domain_controller_host(findings: list["Finding"]) -> bool:
     return any(f.rule_id.startswith("AD-") for f in findings)
 
 
-def _rule_ids_present(findings: list["Finding"]) -> set[str]:
+def _rule_ids_present(findings: list[Finding]) -> set[str]:
     """Convenience: deduplicated set of rule_ids that appear on a host."""
     return {f.rule_id for f in findings}
 
 
 def diff_dc_dns_posture(
-    host_findings: dict[str, list["Finding"]],
-) -> list["Finding"]:
+    host_findings: dict[str, list[Finding]],
+) -> list[Finding]:
     """F202.H — Compare DNS posture (and a few service-presence
     indicators) across all detected DCs of the input host set.
     Returns one Finding per asymmetric configuration item.
@@ -1791,7 +1791,7 @@ def diff_dc_dns_posture(
       - `rule_id` = `"dc-drift-<original_rule>"`
       - `cwe` = `"CWE-1188"`
     """
-    dc_hosts: dict[str, list["Finding"]] = {
+    dc_hosts: dict[str, list[Finding]] = {
         host: findings
         for host, findings in host_findings.items()
         if _is_domain_controller_host(findings)
@@ -1799,7 +1799,7 @@ def diff_dc_dns_posture(
     if len(dc_hosts) < 2:
         return []
 
-    drift_findings: list["Finding"] = []
+    drift_findings: list[Finding] = []
     rule_sets: dict[str, set[str]] = {host: _rule_ids_present(findings) for host, findings in dc_hosts.items()}
 
     # 1. DNS-rule drift
@@ -1930,15 +1930,15 @@ _PROXMOX_DRIFT_SERVICE_RULES: tuple[tuple[str, int, str], ...] = (
 )
 
 
-def _is_proxmox_host(findings: list["Finding"]) -> bool:
+def _is_proxmox_host(findings: list[Finding]) -> bool:
     """F202.O helper — heuristica: host es Proxmox si tiene >=1 rule
     PVE-* (de Phase 2b proxmox checks)."""
     return any(f.rule_id.startswith("PVE-") for f in findings)
 
 
 def diff_proxmox_cluster_posture(
-    host_findings: dict[str, list["Finding"]],
-) -> list["Finding"]:
+    host_findings: dict[str, list[Finding]],
+) -> list[Finding]:
     """F202.O — Compare Proxmox VE posture cross-cluster nodes.
 
     Similar a F202.H (DC drift) pero para cluster Proxmox. Detecta:
@@ -1952,7 +1952,7 @@ def diff_proxmox_cluster_posture(
     debe ser invocada por orchestration externa con findings agregados
     de multiples engages contra los nodos del cluster.
     """
-    pve_hosts: dict[str, list["Finding"]] = {
+    pve_hosts: dict[str, list[Finding]] = {
         host: findings
         for host, findings in host_findings.items()
         if _is_proxmox_host(findings)
@@ -1960,7 +1960,7 @@ def diff_proxmox_cluster_posture(
     if len(pve_hosts) < 2:
         return []
 
-    drift_findings: list["Finding"] = []
+    drift_findings: list[Finding] = []
     rule_sets: dict[str, set[str]] = {
         host: {f.rule_id for f in findings}
         for host, findings in pve_hosts.items()
@@ -2394,7 +2394,7 @@ def _check_siem_activity(
     ssh_target: str | None,
     ssh_key: str | None,
     ssh_password: str | None,
-) -> "Finding | None":
+) -> Finding | None:
     """F202.R — Check SIEM agent + audit daemon activity on a Linux host.
 
     Requires SSH access. Without creds, returns None (no false claim).
@@ -2602,7 +2602,7 @@ _SMB_SENSITIVE_KEYWORDS = (
 )
 
 
-def _check_smb_anonymous_shares(svc: "DiscoveredService") -> "Finding | None":
+def _check_smb_anonymous_shares(svc: DiscoveredService) -> Finding | None:
     """F202.Q — Probe SMB :445 for anonymous share listing.
 
     Read-only: `smbclient -L //host -N` lists share names without
@@ -2733,7 +2733,7 @@ def _check_smb_anonymous_shares(svc: "DiscoveredService") -> "Finding | None":
 # remediation siempre apunta a TCP-AO + ACL + prefix-list).
 
 
-def _check_bgp_exposure(svc: "DiscoveredService") -> "Finding | None":
+def _check_bgp_exposure(svc: DiscoveredService) -> Finding | None:
     """F202.N — Detect BGP TCP/179 exposed to data plane.
 
     BGP routers expose TCP/179 only to authorized peers in a
