@@ -42,6 +42,7 @@ import logging
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import time
 from dataclasses import asdict, dataclass, field
@@ -86,13 +87,18 @@ def _build_engage_nmap_cmd(target: str) -> list[str]:
     caller can run with `shell=False`, eliminating command-injection
     risk when env vars (KRYON_NMAP_TIMING etc.) are operator-controlled
     via CI/CD pipelines or wrapper scripts.
+
+    F202.S.C Windows fix: resolve nmap to absolute path via shutil.which
+    because shell=False on Windows doesn't resolve `nmap` (without .exe
+    suffix) from PATH.
     """
     # -Pn: skip host discovery. Required when the target firewall
     # filters ICMP (typical for hardened hosts and PVE behind FortiGate).
     # -sT: TCP connect scan. Default -sV picks -sS (raw SYN) which needs
     # Npcap/raw sockets — unavailable on Windows hosts without admin
     # install. -sT works as a non-privileged user on every platform.
-    cmd: list[str] = ["nmap", "-Pn", "-sT", "-sV"]
+    nmap_bin = shutil.which("nmap") or "nmap"
+    cmd: list[str] = [nmap_bin, "-Pn", "-sT", "-sV"]
 
     timing_env = os.environ.get("KRYON_NMAP_TIMING", "").strip()
     timing_flag = f"-T{timing_env.lstrip('T')}" if timing_env else "-T4"
