@@ -43,6 +43,7 @@ import os
 import re
 import shlex
 import subprocess
+import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1554,6 +1555,131 @@ def _check_reverse_dns_enum(svc: DiscoveredService) -> Finding | None:
             "renombre incluso si el reverse zone va a quedar restringido."
         ),
         severity_rank=_SEV_RANK[severity],
+    )
+
+
+# F202.G — DNS dynamic update without TSIG auth (CWE-345 + CWE-284).
+# RFC 2136 defines the UPDATE opcode that lets clients add / modify /
+# delete records remotely. RFC 2845 (TSIG) and RFC 3645 (GSS-TSIG)
+# secure it; without them, anyone with TCP/UDP 53 reachable can:
+#   - inject `evil.britimp.com.py A <attacker_ip>` -> phishing infra
+#   - rewrite MX -> intercept email
+#   - delete critical records -> DoS
+#   - create CNAME chains -> subdomain takeover
+#
+# Probe technique: build a NO-OP UPDATE (delete a record that doesn't
+# exist) using dnspython. Observe the RCODE:
+#   - NOERROR (0) -> server processed the UPDATE -> finding HIGH
+#   - REFUSED (5) -> auth disabled or required   -> no finding
+#   - NOTAUTH (9) -> TSIG required               -> no finding
+#   - any other  -> conservative no finding
+#
+# Banca-safe: the test record uses a long random label that won't
+# collide with anything real, AND the action is a delete-of-nothing
+# (no-op in terms of zone state). dnspython is a soft dependency —
+# if not installed, the check skips silently.
+
+
+def _check_dns_dynamic_update(svc: DiscoveredService) -> Finding | None:
+    """F202.G — Probe whether the DNS server accepts UPDATE messages
+    without TSIG auth.
+    """
+    if svc.state != "open" or svc.port != 53:
+        return None
+
+    try:
+        import dns.exception
+        import dns.query
+        import dns.rcode
+        import dns.rdatatype
+        import dns.update
+    except ImportError:
+        # dnspython not available -> skip silently (graceful
+        # degradation, same pattern as F202.D with dig missing).
+        return None
+
+    # Use the same zone-discovery helper as F202.B. We need a real
+    # zone name to formulate the UPDATE — bogus zone names get
+    # FORMERR / NOTAUTH and yield no signal.
+    zones = _derive_dns_zone_candidates(svc.host)
+    if not zones:
+        return None
+
+    accepted_zones: list[str] = []
+    for zone in zones[:2]:  # cap attempts to keep latency bounded
+        # Skip reverse zones — UPDATE on in-addr.arpa is more
+        # operationally sensitive (PTR records), and even though we
+        # do delete-of-nothing it's cleaner to stay out of reverse.
+        if "in-addr.arpa" in zone:
+            continue
+
+        update = dns.update.UpdateMessage(zone)
+        # Long random label so we never hit a real record.
+        test_label = (
+            f"kryon-rfc2136-noop-probe-{int(time.time())}"
+        )
+        update.delete(test_label, dns.rdatatype.TXT)
+
+        try:
+            response = dns.query.udp(update, svc.host, timeout=4)
+        except (dns.exception.Timeout, OSError):
+            continue
+        except Exception:  # noqa: BLE001
+            continue
+
+        rcode = response.rcode()
+
+        # NOERROR means the server actually processed the UPDATE
+        # message. With auth required (TSIG / GSS-TSIG / ACL) we'd
+        # have gotten REFUSED or NOTAUTH instead.
+        if rcode == dns.rcode.NOERROR:
+            accepted_zones.append(zone)
+
+    if not accepted_zones:
+        return None
+
+    zones_str = ", ".join(accepted_zones)
+    return Finding(
+        cwe="CWE-345",
+        severity="HIGH",
+        host=f"{svc.host}:{svc.port}",
+        rule_id="dns-dynamic-update-open",
+        message=(
+            f"DNS server {svc.host}:53 acepta UPDATE messages (RFC 2136) "
+            f"sin TSIG / GSS-TSIG auth para zona(s): {zones_str}. "
+            "Atacante puede inyectar A / MX / CNAME records sin "
+            "credenciales -> phishing infra, mail interception, "
+            "subdomain takeover."
+        ),
+        evidence=(
+            f"UDP/53 dns.update.UpdateMessage(<zone>) con "
+            f"delete(kryon-rfc2136-noop-probe-*, TXT) retorno "
+            f"RCODE=NOERROR (0) para: {zones_str}. Un servidor con "
+            f"auth habilitada habria retornado REFUSED (5) o NOTAUTH (9)."
+        ),
+        remediation=(
+            "Requerir TSIG / GSS-TSIG para todo dynamic update:\n"
+            "  - Microsoft DNS (AD-integrated): dnsmgmt.msc > zone > "
+            "Properties > General > Dynamic updates: cambiar de "
+            "'Nonsecure and secure' a 'Secure only' (requiere GSS-TSIG / "
+            "Kerberos auth contra el DC). Validar con "
+            "Get-DnsServerZone | Select Name,DynamicUpdate.\n"
+            "  - BIND: zone \"example.com\" { type master; "
+            "allow-update { key dhcp-key; }; }; + definir TSIG key "
+            "compartida con DHCP server, NUNCA `allow-update { any; };`.\n"
+            "  - PowerDNS: api-key required + disable-syslog en "
+            "endpoints publicos.\n"
+            "Alternativa para zonas que NO necesitan dynamic update "
+            "(la mayoria de las zonas de produccion): bloquear el "
+            "UPDATE opcode entirely en el firewall a nivel L7 (Suricata "
+            "regla: dns.opcode == 5 -> drop) y deshabilitar update en el "
+            "DNS engine.\n"
+            "Impacto financiero: en banking, un UPDATE no autenticado "
+            "permite reescribir el MX de britimp.com.py hacia atacante -> "
+            "intercept de mail con tokens 2FA, fraude bancario por "
+            "phishing infra dentro del dominio legitimo."
+        ),
+        severity_rank=_SEV_RANK["HIGH"],
     )
 
 
@@ -3496,6 +3622,13 @@ def run_engage(args: argparse.Namespace) -> int:
             ptr_finding = _check_reverse_dns_enum(svc)
             if ptr_finding:
                 findings.append(ptr_finding)
+            # F202.G — RFC 2136 dynamic UPDATE without TSIG / GSS-TSIG.
+            # Banking impact: MX rewrite / phishing infra / mail
+            # interception. Probe is a no-op delete (record doesn't
+            # exist); zone state is never modified.
+            update_finding = _check_dns_dynamic_update(svc)
+            if update_finding:
+                findings.append(update_finding)
 
     findings.sort(key=lambda f: f.severity_rank)
     console.print(f"  [yellow]{len(findings)}[/yellow] hallazgos detectados")
