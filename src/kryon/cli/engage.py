@@ -3370,8 +3370,19 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
         # Tomcat-like 8080+8443 combo.
         if "unifi" in product or "ubiquiti" in product or "unifi-controller" in product:
             _add("unifi")
-        # Windows AD (LDAP 389, LDAPS 636, Kerberos 88, SMB 445, RPC EPM 135)
-        if s.port in (88, 135, 389, 445, 636, 3268, 3269):
+        # Windows AD — only AD-specific ports trigger this family.
+        # F202.I (POC Britimp 2026-05-18 .101): 135 + 139 + 445 were
+        # in this list previously, but those are open on EVERY Windows
+        # server / workstation. The result was 9 AD-* compliance FPs
+        # fired against .101 (a member server with RDP + IIS:8080,
+        # confirmed no Kerberos, no LDAP, no GC).
+        # AD-specific ports:
+        #   88   Kerberos KDC
+        #   389  LDAP
+        #   636  LDAPS
+        #   3268 Global Catalog
+        #   3269 Global Catalog SSL
+        if s.port in (88, 389, 636, 3268, 3269):
             _add("windows_ad")
         # Asterisk / VoIP — SIP 5060/5061, AMI 5038, ARI 8088/8089
         if "asterisk" in product or s.port in (5060, 5061, 5038, 8088, 8089):
