@@ -6,6 +6,7 @@ triggers:
   ports: []
   file_extensions: [".java", ".py", ".cs", ".rb", ".php", ".go", ".js", ".ts", ".kt", ".scala"]
   keywords:
+    - "cwe-352"
     - "csrf"
     - "cross-site request forgery"
     - "xsrf"
@@ -19,7 +20,7 @@ triggers:
     - "csrfprotect"
     - "csrf_exempt"
     - "synchronizer token"
-priority: 17
+priority: 5
 required_tools:
   - run_command
 ---

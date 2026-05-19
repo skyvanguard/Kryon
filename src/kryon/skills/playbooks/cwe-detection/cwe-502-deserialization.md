@@ -6,6 +6,7 @@ triggers:
   ports: []
   file_extensions: [".java", ".py", ".cs", ".rb", ".php"]
   keywords:
+    - "cwe-502"
     - "deserialization"
     - "deserialisation"
     - "untrusted data"
@@ -23,7 +24,7 @@ triggers:
     - "logging-log4j2"
     - "java"
     - "spring"
-priority: 18
+priority: 5
 required_tools:
   - run_command
 ---
@@ -61,8 +62,9 @@ ctx.lookup(userControlledString);  // <-- CWE-502 sink
 DirContext.lookup(uri);
 NamingManager.getURLContext(...).lookup(...);
 
-// Logging frameworks
-JndiLookup.lookup(name);  // log4j-core JndiLookup.java
+// Logging frameworks (any logger that does JNDI lookups on
+// user-controlled strings)
+JndiLookup.lookup(name);
 ```
 
 ### Python

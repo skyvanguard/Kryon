@@ -6,6 +6,7 @@ triggers:
   ports: []
   file_extensions: [".c", ".cpp", ".cc", ".cxx", ".h", ".hpp"]
   keywords:
+    - "cwe-125"
     - "out-of-bounds read"
     - "oob read"
     - "buffer over-read"
@@ -24,7 +25,7 @@ triggers:
     - "openssl"
     - "tls"
     - "dtls"
-priority: 18
+priority: 5
 required_tools:
   - run_command
 ---

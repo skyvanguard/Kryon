@@ -6,6 +6,7 @@ triggers:
   ports: []
   file_extensions: [".java", ".py", ".cs", ".rb", ".php", ".go", ".js", ".ts", ".kt", ".scala"]
   keywords:
+    - "cwe-918"
     - "ssrf"
     - "server-side request forgery"
     - "url fetch"
@@ -22,7 +23,7 @@ triggers:
     - "imdsv1"
     - "imdsv2"
     - "internal network"
-priority: 18
+priority: 5
 required_tools:
   - run_command
 ---

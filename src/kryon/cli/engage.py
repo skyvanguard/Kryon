@@ -3697,23 +3697,68 @@ def _invoke_agent_deepening(
     # the detected families and re-rank skills. Done in a try/except
     # so that any failure here falls back to whatever skills the agent
     # was built with — never block the engagement on a swap miss.
-    if families:
+    #
+    # F202.AD — extend intent with keywords derived from the actual
+    # findings + open services so CWE-detection skills (XSS, SQLi,
+    # CSRF, SSRF, auth) activate when relevant. Without this, only
+    # device-family skills (proxmox, fortigate) get loaded, so a
+    # webapp-heavy target never triggers cwe-79-xss/cwe-89-sqli even
+    # though those families are right there in the findings.
+    if families or findings:
         try:
             from kryon.skills.loader import SkillLoader
             from kryon.skills.unified_agent import update_agent_skills
 
             loader = getattr(agent, "_skill_loader", None) or SkillLoader()
-            # families like "proxmox", "fortigate", "linux", "windows_ad"
-            # come from `_detect_device_families`. We feed them as both
-            # tech hints (so triggers matching `tech: ["proxmox"]` fire)
-            # and as keywords in the user intent string (so triggers
-            # matching `keywords: ["fortigate"]` fire too).
-            profile = {"tech": list(families)}
-            intent = " ".join(families) + " audit"
+            profile = {"tech": list(families or [])}
+
+            # Derive keywords from findings + open services. Use
+            # rule_ids and CWEs as hints — the cwe-* skills already
+            # have triggers like 'cookie samesite', 'cwe-352', etc.
+            #
+            # F202.AD — explicit rule_id → cwe-id mapping. The CWE
+            # of a finding often points at the CAUSE not the
+            # CLASSIFICATION skill we want loaded. E.g. a cookie
+            # finding has cwe='CWE-1004' but the skill we want is
+            # cwe-352-csrf. So we map rule_id keywords directly to
+            # the cwe-N skill IDs that handle those classification
+            # families.
+            extra_kw: list[str] = []
+            for f in findings or []:
+                rid = (f.rule_id or "").lower()
+                cwe = (f.cwe or "").lower()
+                # http-* findings -> webapp + classification skills
+                if rid.startswith("http-") or "http" in rid:
+                    extra_kw.extend(["webapp", "http", "web vulnerability",
+                                     "cwe-79", "cwe-89", "cwe-22"])
+                if "cookie" in rid or "samesite" in rid or "csrf" in cwe:
+                    extra_kw.extend(["cookie", "csrf", "samesite", "cwe-352"])
+                if "ssh" in rid or "auth" in rid or "password" in rid or "credential" in rid:
+                    extra_kw.extend(["auth", "authentication", "ssh", "cwe-287"])
+                if "mysql" in rid or "postgres" in rid or "mongo" in rid or "redis" in rid:
+                    extra_kw.extend(["sqli", "sql injection", "database",
+                                     "cwe-89", "cwe-918"])
+                if "admin-open" in rid or "weak-pass" in rid or "default-cred" in rid:
+                    extra_kw.append("cwe-287")
+                # F202.AD — propagate CWE id itself for direct skill match.
+                if cwe.startswith("cwe-"):
+                    extra_kw.append(cwe)
+
+            # Dedup but preserve order; loader.match treats user_msg
+            # as a single string for keyword scanning.
+            seen: set[str] = set()
+            uniq_kw = [k for k in extra_kw if not (k in seen or seen.add(k))]
+
+            intent_parts = list(families or []) + uniq_kw + ["audit"]
+            intent = " ".join(intent_parts).strip()
+
             new_skills = loader.match(profile=profile, user_msg=intent)
             if new_skills:
                 update_agent_skills(agent, new_skills)
-                console.print(f"  [dim]skills swapped: {[s.name for s in new_skills][:5]} (families={families})[/dim]")
+                console.print(
+                    f"  [dim]skills swapped: {[s.name for s in new_skills][:6]} "
+                    f"(families={families}, +{len(uniq_kw)} kw from findings)[/dim]"
+                )
         except Exception as exc:  # pragma: no cover — runtime only
             console.print(f"  [yellow]skill swap skipped: {exc}[/yellow]")
 

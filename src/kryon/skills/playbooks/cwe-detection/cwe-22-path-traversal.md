@@ -6,6 +6,7 @@ triggers:
   ports: []
   file_extensions: [".java", ".py", ".cs", ".rb", ".php", ".go", ".js", ".ts", ".kt", ".scala"]
   keywords:
+    - "cwe-22"
     - "path traversal"
     - "directory traversal"
     - "lfi"
@@ -23,7 +24,7 @@ triggers:
     - "file.read"
     - "readfile"
     - "downloadfile"
-priority: 18
+priority: 5
 required_tools:
   - run_command
 ---

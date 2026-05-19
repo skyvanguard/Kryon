@@ -6,6 +6,7 @@ triggers:
   ports: []
   file_extensions: [".java", ".py", ".cs", ".rb", ".php", ".go", ".js", ".ts", ".kt", ".sh"]
   keywords:
+    - "cwe-78"
     - "command injection"
     - "os command injection"
     - "shell injection"
@@ -21,7 +22,7 @@ triggers:
     - "shell_exec"
     - "passthru"
     - "child_process"
-priority: 18
+priority: 5
 required_tools:
   - run_command
 ---

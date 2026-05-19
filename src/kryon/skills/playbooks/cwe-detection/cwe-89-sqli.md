@@ -6,6 +6,7 @@ triggers:
   ports: []
   file_extensions: [".java", ".py", ".cs", ".rb", ".php", ".go", ".js", ".ts", ".kt", ".scala", ".sql"]
   keywords:
+    - "cwe-89"
     - "sqli"
     - "sql injection"
     - "sql-injection"
@@ -21,7 +22,7 @@ triggers:
     - "union select"
     - "boolean blind"
     - "time-based blind"
-priority: 18
+priority: 5
 required_tools:
   - run_command
 ---

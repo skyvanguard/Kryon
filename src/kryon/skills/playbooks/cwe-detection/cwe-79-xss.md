@@ -6,6 +6,7 @@ triggers:
   ports: []
   file_extensions: [".java", ".py", ".cs", ".rb", ".php", ".go", ".js", ".ts", ".jsx", ".tsx", ".html", ".jsp", ".erb", ".vue"]
   keywords:
+    - "cwe-79"
     - "xss"
     - "cross-site scripting"
     - "cross site scripting"
@@ -22,7 +23,7 @@ triggers:
     - "dom-based xss"
     - "html injection"
     - "javascript injection"
-priority: 18
+priority: 5
 required_tools:
   - run_command
 ---

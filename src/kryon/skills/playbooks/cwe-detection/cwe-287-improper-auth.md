@@ -6,6 +6,7 @@ triggers:
   ports: []
   file_extensions: [".java", ".py", ".cs", ".rb", ".php", ".go", ".js", ".ts", ".kt", ".scala"]
   keywords:
+    - "cwe-287"
     - "improper authentication"
     - "authentication bypass"
     - "auth bypass"
@@ -20,7 +21,7 @@ triggers:
     - "default credential"
     - "weak password"
     - "credential stuffing"
-priority: 18
+priority: 5
 required_tools:
   - run_command
 ---

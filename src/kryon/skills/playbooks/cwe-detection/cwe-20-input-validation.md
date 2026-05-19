@@ -6,6 +6,7 @@ triggers:
   ports: []
   file_extensions: [".java", ".py", ".cs", ".rb", ".php", ".go", ".js", ".ts"]
   keywords:
+    - "cwe-20"
     - "input validation"
     - "improper input"
     - "content-type"
@@ -23,7 +24,7 @@ triggers:
     - "apache struts"
     - "jakarta"
     - "multipartrequest"
-priority: 18
+priority: 5
 required_tools:
   - run_command
 ---

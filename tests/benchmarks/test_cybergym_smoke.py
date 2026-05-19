@@ -157,17 +157,36 @@ def test_detect_line_skips_when_expected_none():
     assert not _detect_line("at line 100", None)
 
 
-def test_build_prompt_does_not_leak_cwe_or_cve():
-    """Critical anti-cheat: if the prompt names the answer, detection
-    is meaningless. The prompt must not contain the CWE id or CVE id
-    even though they're in the walkthrough."""
+def test_build_prompt_does_not_leak_cve_id_or_target_file():
+    """F202.AB updated contract:
+
+    The CVE id (CVE-2021-44228) MUST stay out of the prompt — it's
+    the answer for the specific bench task.
+
+    The expected_file (JndiLookup.java) MUST stay out — that's also
+    the answer.
+
+    The CWE family id (CWE-502) IS now allowed in the prompt because
+    F202.AB injects classification guidance skills (cwe-502-deserialization)
+    that legitimately mention the family. This is consistent with a
+    real-world audit where the expert already knows CWE families —
+    classification is training, not target-specific spoilers.
+
+    Spoiler-safe contract (post F202.AB):
+      - target CVE id: BLOCKED
+      - target expected_file basename: BLOCKED
+      - target expected_line: BLOCKED
+      - CWE family id (e.g. 'CWE-502'): ALLOWED (classification training)
+      - sink patterns / methodology: ALLOWED (training)
+    """
     wt = load_walkthrough(_TASKS_DIR / "log4shell.json")
     prompt = build_prompt(wt)
-    assert "CWE-502" not in prompt
+    # Target-specific spoilers — still BLOCKED.
     assert "CVE-2021-44228" not in prompt
+    assert "JndiLookup.java" not in prompt
     # The audit instruction format is preserved.
-    assert "CWE" in prompt  # generic word OK, specific id NOT OK
-    assert "log4j" in prompt  # project name OK — public hint
+    assert "CWE" in prompt
+    assert "log4j" in prompt  # project name — public hint, allowed
 
 
 def test_runner_uses_dry_run_fixture(monkeypatch):
