@@ -724,6 +724,196 @@ def _check_dns_open_resolver(svc: DiscoveredService) -> Finding | None:
     )
 
 
+# F202.B — DNS zone transfer (AXFR) detection.
+# CWE-200 (info disclosure) + CWE-668 (exposure to wrong sphere). A
+# successful AXFR from an arbitrary client exposes the FULL list of
+# A / AAAA / SRV / TXT / MX records — a complete map of the internal
+# environment including hostnames, IPs, mail servers, SPF/DMARC, and
+# any custom TXT secrets the operator embedded. AXFR runs over TCP/53.
+#
+# Severity HIGH (not CRITICAL because no auth bypass), but the recon
+# value to an attacker is huge — the rest of the engagement gets
+# trivialized once they have the zone.
+
+
+# Record-type tokens that indicate a successful zone dump.
+_AXFR_RECORD_TYPE_RE = re.compile(
+    r"\b(SOA|NS|A|AAAA|MX|CNAME|TXT|PTR|SRV)\b",
+    re.IGNORECASE,
+)
+
+# Failure markers across dig + nslookup output.
+_AXFR_FAILURE_MARKERS = (
+    "transfer failed",
+    "; transfer failed",
+    "communications error",
+    "query refused",
+    "refused.",
+    "; refused",
+    "connection refused",
+    "denied",
+    "operation refused",
+    "request timed out",
+    "no answer",
+    "couldn't get address",
+    "host not found",
+    "no records",
+)
+
+
+def _derive_dns_zone_candidates(host: str) -> list[str]:
+    """F202.B helper — derive candidate zone names to attempt AXFR on.
+
+    Strategy:
+      1. PTR query: ask the target for its own PTR record. If it
+         returns `dc01.britimp.com.py.` we extract `britimp.com.py`.
+      2. Reverse zone: build the in-addr.arpa zone from the target IP
+         (e.g. 172.18.201.205 -> `201.18.172.in-addr.arpa`).
+      3. Common AD suffixes — `localdomain`, `local`.
+
+    Returns ordered candidates (PTR-derived first, reverse second).
+    Deduplicated, lowercased.
+    """
+    candidates: list[str] = []
+
+    # 1. PTR lookup on the DNS server itself.
+    try:
+        proc = subprocess.run(
+            ["nslookup", host, host],
+            capture_output=True,
+            text=True,
+            timeout=6,
+            check=False,
+        )
+        # PTR response line looks like:
+        #   Name:    dc01.britimp.com.py
+        # Strip the leftmost label (hostname) to derive the zone.
+        for line in proc.stdout.splitlines():
+            m = re.search(r"^\s*Name\s*:\s*(\S+)", line, re.IGNORECASE)
+            if not m:
+                continue
+            full = m.group(1).rstrip(".").lower()
+            labels = full.split(".")
+            if len(labels) >= 2:
+                zone = ".".join(labels[1:])
+                if zone and zone not in candidates:
+                    candidates.append(zone)
+    except Exception:  # noqa: BLE001
+        pass
+
+    # 2. Reverse in-addr.arpa zone.
+    octets = host.split(".")
+    if len(octets) == 4 and all(o.isdigit() for o in octets):
+        rev = f"{octets[2]}.{octets[1]}.{octets[0]}.in-addr.arpa"
+        if rev not in candidates:
+            candidates.append(rev)
+
+    return candidates
+
+
+def _try_axfr(host: str, zone: str) -> tuple[bool, str]:
+    """F202.B helper — attempt AXFR for `zone` against `host`. Returns
+    (success, evidence_snippet).
+
+    Tries `dig` first (richer output, structured), falls back to
+    `nslookup -type=AXFR` (universally available on Windows). Both
+    are read-only DNS queries — no side effects on the target.
+    """
+    commands = (
+        ["dig", "+time=4", "+tries=1", f"@{host}", "AXFR", zone],
+        ["nslookup", "-type=AXFR", zone, host],
+    )
+
+    for cmd in commands:
+        try:
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=12,
+                check=False,
+            )
+        except Exception:  # noqa: BLE001
+            continue
+
+        out = proc.stdout + "\n" + proc.stderr
+        out_lower = out.lower()
+
+        if any(m in out_lower for m in _AXFR_FAILURE_MARKERS):
+            continue
+
+        # Count record-type-bearing lines. >=3 distinct records is the
+        # threshold: SOA + at least 2 non-SOA entries is a real zone
+        # dump, not an isolated SOA query reply.
+        record_lines = [
+            ln for ln in proc.stdout.splitlines() if _AXFR_RECORD_TYPE_RE.search(ln)
+        ]
+        if len(record_lines) >= 3:
+            snippet = "\n".join(record_lines[:6])
+            return True, snippet
+
+    return False, ""
+
+
+def _check_dns_zone_transfer(svc: DiscoveredService) -> Finding | None:
+    """F202.B — Probe a DNS server for AXFR exposure.
+
+    Discovers candidate zones from the server's own PTR + the reverse
+    in-addr.arpa zone, then attempts AXFR on each. Bails out on any
+    failure marker (refused / denied / timeout). Reports HIGH when at
+    least one zone transfers successfully with >=3 records.
+    """
+    if svc.state != "open" or svc.port != 53:
+        return None
+
+    zones = _derive_dns_zone_candidates(svc.host)
+    if not zones:
+        return None
+
+    transferable: list[tuple[str, str]] = []
+    for zone in zones[:4]:  # cap attempts to keep latency bounded
+        ok, snippet = _try_axfr(svc.host, zone)
+        if ok:
+            transferable.append((zone, snippet))
+
+    if not transferable:
+        return None
+
+    leaked_zones = ", ".join(z for z, _ in transferable[:3])
+    evidence_blocks = "\n\n".join(
+        f"Zone {zone}:\n{snippet}" for zone, snippet in transferable[:2]
+    )
+
+    return Finding(
+        cwe="CWE-200",
+        severity="HIGH",
+        host=f"{svc.host}:{svc.port}",
+        rule_id="dns-axfr-allowed",
+        message=(
+            f"DNS server {svc.host}:53 permite AXFR (zone transfer) "
+            f"sin restriccion para zona(s): {leaked_zones}. Expone el "
+            "mapa completo de hostnames, IPs, SPF/DMARC y TXT records "
+            "internos a cualquier cliente con TCP/53 alcanzable."
+        ),
+        evidence=evidence_blocks[:1200],
+        remediation=(
+            "Restringir AXFR a servidores secundarios autorizados unicamente.\n"
+            "  - Microsoft DNS: dnsmgmt.msc > <zona> > Properties > Zone "
+            "Transfers > 'Only to servers listed on the Name Servers tab' "
+            "o 'Only to the following servers' con IPs explicitas.\n"
+            "  - BIND: zone \"example.com\" { allow-transfer { 10.0.0.5; "
+            "10.0.0.6; }; }; (vacio = deny por default desde 9.4+).\n"
+            "  - Unbound: no aplica (Unbound es solo recursor; AXFR "
+            "no esta soportado).\n"
+            "Perimetro: firewall DEBE bloquear TCP/53 desde internet hacia "
+            "este DNS salvo secondaries autorizados.\n"
+            "Post-remediation verify: dig @<host> AXFR <zona> debe retornar "
+            "'Transfer failed' o 'communications error end of file'."
+        ),
+        severity_rank=_SEV_RANK["HIGH"],
+    )
+
+
 # F200.B — Web server EOL table. Keep `min_supported` conservative
 # (a few versions above the minor with a notable CVE). When the
 # scanner banner reports a lower version, flag HIGH with the CVE list.
@@ -2632,6 +2822,12 @@ def run_engage(args: argparse.Namespace) -> int:
             dns_finding = _check_dns_open_resolver(svc)
             if dns_finding:
                 findings.append(dns_finding)
+            # F202.B — DNS zone transfer (AXFR). Runs on the same gate;
+            # exposes full zone records (hostnames, SPF/DMARC, TXT
+            # secrets) when unrestricted.
+            axfr_finding = _check_dns_zone_transfer(svc)
+            if axfr_finding:
+                findings.append(axfr_finding)
 
     findings.sort(key=lambda f: f.severity_rank)
     console.print(f"  [yellow]{len(findings)}[/yellow] hallazgos detectados")
