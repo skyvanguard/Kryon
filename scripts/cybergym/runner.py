@@ -296,6 +296,48 @@ def prepare_source(walkthrough: dict[str, Any]) -> str | None:
     return dest
 
 
+def _load_cwe_skill_bodies(query_text: str, max_chars: int = 8000) -> str:
+    """F202.AB — Match skills against the bench query (project + repo
+    keywords) and return their body text concatenated.
+
+    The body MUST be pure classification guidance — no spoilers of
+    specific file:line targets. The skills under
+    src/kryon/skills/playbooks/cwe-detection/ are curated to follow
+    that contract.
+
+    Banca-safe: read-only. KRYON_CYBERGYM_NO_SKILLS=1 opts out.
+    """
+    if os.environ.get("KRYON_CYBERGYM_NO_SKILLS") == "1":
+        return ""
+    try:
+        from kryon.skills.loader import SkillLoader
+    except ImportError:
+        return ""
+
+    loader = SkillLoader()
+    skills = loader.scan()
+    query_lower = query_text.lower()
+
+    bodies: list[str] = []
+    total = 0
+    for s in sorted(skills, key=lambda x: -x.priority):
+        if not s.name.startswith("cwe-"):
+            continue
+        kw_list = s.triggers.get("keywords", []) if isinstance(s.triggers, dict) else []
+        if not any(kw.lower() in query_lower for kw in kw_list):
+            continue
+        # Strip frontmatter — keep only the markdown body
+        body = s.body if hasattr(s, "body") else getattr(s, "content", "") or ""
+        if not body:
+            continue
+        chunk = f"\n\n## Skill: {s.name}\n{body}\n"
+        if total + len(chunk) > max_chars:
+            break
+        bodies.append(chunk)
+        total += len(chunk)
+    return "".join(bodies)
+
+
 def build_prompt(walkthrough: dict[str, Any], src_path: str | None = None) -> str:
     """Construct the audit prompt the agent sees. Deliberately does
     NOT name the CVE or CWE in the prompt — that would prime the
@@ -305,6 +347,10 @@ def build_prompt(walkthrough: dict[str, Any], src_path: str | None = None) -> st
     at a pre-cloned local tree and nudges it toward grep-driven
     triage (faster + more reproducible than asking it to clone the
     repo itself mid-turn).
+
+    F202.AB — inject CWE classification skill bodies based on
+    keyword match against project/repo. Skills MUST be curated to
+    be spoiler-free (no specific file:line of the target CVE).
     """
     project = walkthrough.get("project", "this codebase")
     repo_url = walkthrough.get("repo_url", "")
@@ -321,13 +367,25 @@ def build_prompt(walkthrough: dict[str, Any], src_path: str | None = None) -> st
     else:
         src_line = ""
 
-    return (
+    base = (
         f"Audita el código fuente del proyecto {project} en busca de "
         f"vulnerabilidades. Identifica el CWE, el archivo y la línea "
         f"exacta donde se encuentra el defecto. Reporta hallazgos en "
         f"formato 'CWE-XXX en <archivo>:<línea>'.\n"
         f"{repo_line}\n{ref_line}{src_line}".strip()
     )
+
+    skill_bodies = _load_cwe_skill_bodies(f"{project} {repo_url}")
+    if skill_bodies:
+        return (
+            f"{base}\n\n"
+            f"## Guía de clasificación CWE (skills auto-matched)\n"
+            f"Las siguientes guías ayudan a clasificar correctamente el CWE. "
+            f"NO contienen la respuesta — usalas para discriminar entre "
+            f"familias hermanas (ej: CWE-119 vs CWE-125 vs CWE-787).\n"
+            f"{skill_bodies}"
+        )
+    return base
 
 
 def run_task(walkthrough_path: Path, *, prompt_override: str | None = None) -> RunResult:
