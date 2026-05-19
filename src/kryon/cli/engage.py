@@ -1863,6 +1863,179 @@ def diff_dc_dns_posture(
     return drift_findings
 
 
+# F202.O — Proxmox cluster config drift detector (CWE-1188).
+# Surfaced POC Britimp 2026-05-19: cluster `britimp-cluster` con 3
+# nodos Proxmox VE (.115 proxmox2, .200 pve-britimp, .222 pve-torre-
+# prod) corriendo 3 versiones DIFERENTES (9.1.4, 8.4.16, 9.1.8). El
+# .200 quedo aislado del cluster por incompatibilidad de version. Solo
+# 2 nodos en quorum = single point of failure cluster-wide.
+#
+# Banking impact:
+#   - Mixed-version cluster: features cluster operations incompatibles
+#     (HA, live migration, ceph) — comportamiento impredecible.
+#   - Single point of failure: si cae cualquier nodo en quorum, el
+#     cluster ENTERO se cae (no failover automatico).
+#   - Hallazgos diferenciales por nodo: workload "accidental" unico
+#     por host (Node.js Express en .115, python http.server en .200)
+#     indica falta de gestion centralizada de workload.
+
+# Rule IDs Proxmox que deben ser IDENTICOS cross-cluster.
+# Cada entry: (rule_id, drift_severity, label)
+_PROXMOX_CLUSTER_DRIFT_RULES: tuple[tuple[str, str, str], ...] = (
+    ("PVE-1.2", "HIGH", "2FA enforcement para usuarios admin"),
+    ("PVE-2.1", "HIGH", "Cluster quorum / fencing"),
+    ("PVE-3.1", "HIGH", "Backup retention + verification"),
+    ("PVE-4.1", "HIGH", "SSL/TLS certificate validity"),
+    ("PVE-5.1", "MEDIUM", "Subscription / repository config"),
+    ("PVE-6.1", "MEDIUM", "Quorum tie-breaker en cluster impar"),
+    ("PVE-7.1", "MEDIUM", "Audit log retention"),
+    ("PVE-8.1", "MEDIUM", "Remote syslog config"),
+    ("sshd-permit-root-login", "CRITICAL", "PermitRootLogin (cluster-wide ssh hardening)"),
+    ("python-simplehttp-directory-listing", "CRITICAL", "python http.server (workload accidental)"),
+)
+
+# Servicios "no estandar" en un host hypervisor (cuyo trabajo es solo
+# correr VMs/LXC). Si UN host del cluster expone algo unico que los
+# otros no, indica workload no aislado.
+_PROXMOX_DRIFT_SERVICE_RULES: tuple[tuple[str, int, str], ...] = (
+    ("http-plaintext", 8080, "Workload HTTP en :8080 (hypervisor no debe alojar apps)"),
+    ("http-plaintext", 8888, "Workload HTTP en :8888 (probable python -m http.server)"),
+    ("http-xpoweredby", 8080, "Node.js Express en hypervisor"),
+)
+
+
+def _is_proxmox_host(findings: list["Finding"]) -> bool:
+    """F202.O helper — heuristica: host es Proxmox si tiene >=1 rule
+    PVE-* (de Phase 2b proxmox checks)."""
+    return any(f.rule_id.startswith("PVE-") for f in findings)
+
+
+def diff_proxmox_cluster_posture(
+    host_findings: dict[str, list["Finding"]],
+) -> list["Finding"]:
+    """F202.O — Compare Proxmox VE posture cross-cluster nodes.
+
+    Similar a F202.H (DC drift) pero para cluster Proxmox. Detecta:
+      - Rule drift: PVE checks que fallan en algunos nodos pero no
+        en otros (config drift Ansible)
+      - Service drift: workload accidental en hypervisor host (un
+        nodo expone un servicio que otros no — anti-pattern de
+        virtualization)
+
+    Input: `{host_ip: [Finding]}`. Como F202.H, es una funcion pura;
+    debe ser invocada por orchestration externa con findings agregados
+    de multiples engages contra los nodos del cluster.
+    """
+    pve_hosts: dict[str, list["Finding"]] = {
+        host: findings
+        for host, findings in host_findings.items()
+        if _is_proxmox_host(findings)
+    }
+    if len(pve_hosts) < 2:
+        return []
+
+    drift_findings: list["Finding"] = []
+    rule_sets: dict[str, set[str]] = {
+        host: {f.rule_id for f in findings}
+        for host, findings in pve_hosts.items()
+    }
+
+    # 1. Rule drift cross-nodes
+    for rule_id, drift_severity, label in _PROXMOX_CLUSTER_DRIFT_RULES:
+        with_rule = [host for host, rules in rule_sets.items() if rule_id in rules]
+        without_rule = [host for host, rules in rule_sets.items() if rule_id not in rules]
+        if with_rule and without_rule:
+            drift_findings.append(
+                Finding(
+                    cwe="CWE-1188",
+                    severity=drift_severity,
+                    host=f"cluster-drift:{'+'.join(sorted(pve_hosts.keys()))}",
+                    rule_id=f"pve-cluster-drift-{rule_id}",
+                    message=(
+                        f"Cluster Proxmox drift: '{label}' presente en "
+                        f"{', '.join(sorted(with_rule))} pero ausente en "
+                        f"{', '.join(sorted(without_rule))}. Config no "
+                        "uniforme cross-nodes — feature behavior "
+                        "impredecible + potencial split-brain."
+                    ),
+                    evidence=(
+                        f"Rule `{rule_id}` triggered en: "
+                        f"{', '.join(sorted(with_rule))}\n"
+                        f"NO triggered en: {', '.join(sorted(without_rule))}"
+                    ),
+                    remediation=(
+                        f"Sincronizar configuracion '{label}' en TODOS "
+                        "los nodos del cluster:\n"
+                        "  - Comparar config con `pvecm status` + "
+                        "`pveversion -v` en cada nodo.\n"
+                        "  - Aplicar mismo Ansible/Salt playbook a todos "
+                        "los nodos del cluster (NO solo a uno).\n"
+                        "  - `pvecm nodes` debe mostrar TODOS los nodos "
+                        "con misma version PVE major.\n"
+                        "  - Para upgrades coordinados: rolling update "
+                        "(pvecm expected + apt upgrade + reboot rolling).\n"
+                        "Trampa comun POC Britimp: VM-Wazuh STOPPED en "
+                        "cluster + python http.server en .200 + Node.js "
+                        "Express en .115 = workload accidental NO "
+                        "controlado por config management central."
+                    ),
+                    severity_rank=_SEV_RANK[drift_severity],
+                )
+            )
+
+    # 2. PVE version drift (special: extract version from first PVE
+    # rule's evidence). Si los nodos tienen versiones distintas, flag
+    # como drift independientemente de qué rule_ids fallaron.
+    versions_per_host: dict[str, str] = {}
+    for host, findings in pve_hosts.items():
+        for f in findings:
+            if "pve-manager" in (f.evidence or "").lower() or "pveversion" in (f.evidence or "").lower():
+                import re as _re
+                m = _re.search(r"pve-manager/(\d+\.\d+\.\d+)", f.evidence or "")
+                if m:
+                    versions_per_host[host] = m.group(1)
+                    break
+
+    unique_versions = set(versions_per_host.values())
+    if len(unique_versions) > 1:
+        drift_findings.append(
+            Finding(
+                cwe="CWE-1188",
+                severity="HIGH",
+                host=f"cluster-drift:{'+'.join(sorted(pve_hosts.keys()))}",
+                rule_id="pve-cluster-drift-version",
+                message=(
+                    f"Cluster Proxmox con {len(unique_versions)} versiones "
+                    "PVE distintas — incompatibilidad cluster operations "
+                    "(HA / live migration / ceph). Risk de split-brain."
+                ),
+                evidence="\n".join(
+                    f"  {host}: pve-manager/{ver}"
+                    for host, ver in sorted(versions_per_host.items())
+                ),
+                remediation=(
+                    "Unificar version PVE cross-cluster:\n"
+                    "  1. Identificar nodo target (mas reciente).\n"
+                    "  2. Backup cluster config (/etc/pve/) before upgrade.\n"
+                    "  3. Rolling upgrade del cluster:\n"
+                    "     a. Migrar VMs / LXCs fuera del nodo target.\n"
+                    "     b. apt update && apt dist-upgrade en el nodo.\n"
+                    "     c. Reboot.\n"
+                    "     d. Repetir con siguiente nodo.\n"
+                    "  4. Para upgrades major (8.x -> 9.x): seguir guia "
+                    "oficial https://pve.proxmox.com/wiki/Upgrade_from_8_to_9.\n"
+                    "Trampa comun: 'me funciona, no toco'. Mantener cluster "
+                    "con versiones distintas indefinidamente lleva a fallar "
+                    "live migration + HA, y eventualmente el nodo viejo "
+                    "queda aislado del corosync."
+                ),
+                severity_rank=_SEV_RANK["HIGH"],
+            )
+        )
+
+    return drift_findings
+
+
 # F200.B — Web server EOL table. Keep `min_supported` conservative
 # (a few versions above the minor with a notable CVE). When the
 # scanner banner reports a lower version, flag HIGH with the CVE list.
