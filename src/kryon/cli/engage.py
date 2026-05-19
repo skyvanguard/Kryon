@@ -3418,6 +3418,18 @@ _DEVICE_FAMILIES: list[tuple[str, list[str], tuple[str, ...], str]] = [
     # and the dvr-audit playbook (recon-only). The family entry exists so
     # `dvr` survives appliance disambiguation and Windows CIS doesn't fire.
     ("dvr", [], ("DVR-",), "DVR / IP camera / NVR (Hikvision / Dahua / Axis)"),
+    # F202.P — Network multi-function printer (Kyocera / HP / Lexmark /
+    # Brother / Canon / Xerox / Konica Minolta / Ricoh). Surfaced by POC
+    # Britimp .200.249: Kyocera MFP en data center segment con banner
+    # `Server: KM-MFP-http/V0.0.1` + path `/wlmesp/`. Originalmente
+    # mis-classifico como "host con Cockpit + Prometheus" porque :9090
+    # + :9100 estan abiertos — pero :9100 es JetDirect (raw print), no
+    # node_exporter; y :9090 es admin web de la impresora, no Cockpit.
+    # Banking-relevant: MFP procesa documentos sensibles (recibos,
+    # reportes, internal docs) y firmware viejo tiene CVEs Kyocera /
+    # HP / Lexmark (admin bypass + cred storage en config files
+    # accesible sin auth).
+    ("printer", [], ("MFP-",), "Network printer / MFP (Kyocera / HP / Lexmark / Brother / Canon)"),
 ]
 
 
@@ -3508,6 +3520,60 @@ _DVR_PORT_COMBOS: tuple[frozenset[int], ...] = (
     # clasificar como DVR sin requerir 554.
     frozenset({80, 8000}),  # HTTP + Hikvision SDK
     frozenset({443, 8000}),  # HTTPS + Hikvision SDK
+)
+
+
+# F202.P — Network printer banner markers (HTTP Server header).
+# Surfaced by POC Britimp .200.249 — `Server: KM-MFP-http` + path
+# `/wlmesp/`. Kyocera is the most common in LATAM banca; HP/Lexmark/
+# Brother round out the top 4. Banking-relevant CVEs:
+#   - CVE-2022-29856 Lexmark cred disclosure
+#   - CVE-2022-1026 HP firmware tampering
+#   - CVE-2021-36165 Kyocera default admin
+_PRINTER_BANNER_MARKERS = (
+    "km-mfp",  # Kyocera Mita MFP (POC Britimp .200.249)
+    "kyocera",  # Kyocera generic
+    "ecosys",  # Kyocera ECOSYS series
+    "taskalfa",  # Kyocera TASKalfa
+    "hp-chai",  # HP ChaiSOE (LaserJet)
+    "hp http server",  # HP LaserJet generic
+    "lexmark",  # Lexmark
+    "brother",  # Brother
+    "canon http server",  # Canon imageRUNNER
+    "xerox",  # Xerox WorkCentre
+    "konica minolta",  # Konica Minolta bizhub
+    "ricoh",  # Ricoh Aficio
+    "samsung sps",  # Samsung Printer SyncThru
+    "epson",  # Epson WorkForce
+    "sharp mfp",  # Sharp MX series
+    "oce",  # Oce ColorWave
+    "jetdirect",  # HP JetDirect explicit
+)
+
+# F202.P — HTTP body / path markers diagnostic of MFP web admin
+_PRINTER_BODY_MARKERS = (
+    "/wlmesp/",  # Kyocera/Olivetti (POC Britimp .200.249)
+    "/web/guest/en/websys/",  # Sharp MX-series
+    "/webconfig",  # Brother / HP common
+    "/hp/device/webaccess",  # HP LaserJet admin
+    "/cgi-bin/syncthru",  # Samsung SyncThru
+    "command center",  # Kyocera Command Center RX
+    "printer status",  # generic
+    "lexmark embedded web server",
+    "ricoh smart device monitor",
+)
+
+# F202.P — Port combinations. JetDirect :9100 is the strongest signal
+# (raw print port, almost exclusively used by printers). Combined with
+# any web port confirms an MFP.
+_PRINTER_PORT_COMBOS: tuple[frozenset[int], ...] = (
+    frozenset({80, 9100}),   # HTTP admin + JetDirect raw print
+    frozenset({443, 9100}),  # HTTPS admin + JetDirect
+    frozenset({80, 9100, 9220}),  # + IPP (printer)
+    frozenset({80, 631}),    # IPP / CUPS print server
+    frozenset({443, 631}),
+    frozenset({80, 515}),    # LPD print queue
+    frozenset({9100, 9220, 9290}),  # all jetdirect variants
 )
 
 
@@ -3628,6 +3694,10 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
         # `Server: -` by default).
         if any(m in product for m in _DVR_BANNER_MARKERS):
             _add("dvr")
+        # F202.P — Network printer / MFP. Banner check first (Kyocera
+        # KM-MFP, HP-ChaiSOE, Lexmark, Brother, Canon, Xerox, etc.).
+        if any(m in product for m in _PRINTER_BANNER_MARKERS):
+            _add("printer")
         # F200.A — Apache Tomcat. Triggered by Coyote/Tomcat banner OR
         # AJP port 8009. Note: 8080 alone is NOT enough (many non-Tomcat
         # apps run on 8080 — Tomcat-specific check needs the banner).
@@ -3671,6 +3741,31 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
                 _add("dvr")
                 break
 
+    # F202.P — Network printer / MFP detection.
+    # Port-combo first (JetDirect :9100 + web port = strong signal).
+    if "printer" not in families:
+        for combo in _PRINTER_PORT_COMBOS:
+            if combo.issubset(open_ports):
+                _add("printer")
+                break
+
+    # F202.P — Body marker fallback (HTTP root contains
+    # /wlmesp/, /webconfig, Lexmark embedded web server, etc).
+    if "printer" not in families:
+        for s in services:
+            if s.state != "open" or s.port not in (80, 443, 8080, 9090):
+                continue
+            scheme = "https" if s.port in (443, 8443) else "http"
+            url = f"{scheme}://{s.host}:{s.port}/"
+            try:
+                _code, body = _http_get(url, timeout_s=4)
+            except Exception:
+                continue
+            body_lower = body.lower()
+            if any(m in body_lower for m in _PRINTER_BODY_MARKERS):
+                _add("printer")
+                break
+
     if has_ssh:
         # Only auto-add 'linux' when there's no appliance / non-Linux
         # signature already in the family list. Proxmox IS Linux
@@ -3684,7 +3779,10 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
         # spuriously add 'linux' on top of windows_ad.
         # F201.A added 'dvr' — Hikvision NVRs running on Windows or
         # Linux still expose SSH but the OS is sealed vendor firmware.
-        appliance_families = {"fortigate", "bmc", "windows", "windows_ad", "dvr"}
+        # F202.P added 'printer' — MFPs sometimes run embedded Linux
+        # with SSH for service tech access, but the OS is sealed vendor
+        # firmware (cannot apply CIS Linux hardening).
+        appliance_families = {"fortigate", "bmc", "windows", "windows_ad", "dvr", "printer"}
         if not any(f in appliance_families for f in families):
             _add("linux")
 
