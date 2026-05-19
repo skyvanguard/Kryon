@@ -24,35 +24,46 @@ import pytest
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-@pytest.mark.parametrize(
-    "runner_path",
-    [
-        _REPO_ROOT / "scripts" / "cybergym" / "runner.py",
-        _REPO_ROOT / "scripts" / "htb_bench" / "runner.py",
-    ],
-)
-def test_bench_runner_uses_utf8_encoding(runner_path):
-    """Verify the `docker exec ... kryon` invocation passes
-    encoding='utf-8' AND errors='replace' so the bench survives
-    Windows cp1252 + UTF-8 transcripts.
+def test_htb_bench_runner_uses_utf8_encoding():
+    """F202.Y — htb_bench still uses `docker exec ... kryon` for the
+    interactive REPL contract (htb-style targets). Verify the
+    subprocess.run call passes encoding='utf-8' + errors='replace'
+    so Windows cp1252 default doesn't kill the bench on UTF-8
+    transcripts.
     """
+    runner_path = _REPO_ROOT / "scripts" / "htb_bench" / "runner.py"
+    assert runner_path.exists(), f"{runner_path} not found"
+    src = runner_path.read_text(encoding="utf-8")
+    docker_idx = src.find('"docker", "exec"')
+    assert docker_idx != -1, "docker exec invocation not found"
+    window = src[docker_idx : docker_idx + 800]
+    assert 'encoding="utf-8"' in window
+    assert 'errors="replace"' in window
+
+
+def test_cybergym_runner_uses_rest_api():
+    """F202.Z — cybergym pivoted away from `docker exec` REPL to the
+    REST API (POST /api/v1/runs) because the CLI requires a
+    subcommand and the stdin pipe deadlocked. Guard that the runner
+    invokes urllib + the runs endpoint instead of subprocess docker
+    exec — the latter is a regression path.
+    """
+    runner_path = _REPO_ROOT / "scripts" / "cybergym" / "runner.py"
     assert runner_path.exists(), f"{runner_path} not found"
     src = runner_path.read_text(encoding="utf-8")
 
-    # Find the subprocess.run call that shells out to the kryon container.
-    # We look for the docker exec ... kryon pattern and verify the
-    # encoding+errors kwargs appear within ~500 chars of it.
-    docker_idx = src.find('"docker", "exec"')
-    assert docker_idx != -1, "docker exec invocation not found"
+    # New REST path is required.
+    assert "/api/v1/runs" in src, "cybergym must POST to /api/v1/runs"
+    assert "X-API-Key" in src, "cybergym must send X-API-Key header"
+    assert "urllib.request" in src, "cybergym must use urllib for HTTP"
 
-    # Window forward to find the closing paren of subprocess.run.
-    window = src[docker_idx : docker_idx + 800]
-    assert 'encoding="utf-8"' in window, (
-        f"Missing encoding='utf-8' in {runner_path.name}. "
-        "subprocess.run defaults to cp1252 on Windows, which breaks "
-        "on UTF-8 transcripts."
-    )
-    assert 'errors="replace"' in window, (
-        f"Missing errors='replace' in {runner_path.name}. "
-        "Without it, a single rogue byte kills the bench mid-run."
-    )
+    # The docker exec pipe is the regression — should not be in
+    # invoke_kryon() any more.
+    invoke_start = src.find("def invoke_kryon(")
+    if invoke_start != -1:
+        # Look only at the invoke_kryon function body (~3 kB).
+        block = src[invoke_start : invoke_start + 3000]
+        assert '"docker", "exec"' not in block, (
+            "cybergym invoke_kryon must not shell out to docker exec — "
+            "use the REST API."
+        )

@@ -148,25 +148,76 @@ def _detect_line(
 
 
 def invoke_kryon(prompt: str, timeout: int = _DEFAULT_WALL_BUDGET_SECONDS) -> str:
-    """Same shape as htb_bench.runner.invoke_kryon — shells out to the
-    kryon container, supports KRYON_BENCH_DRY_RUN=1 fixture mode for
-    smoke tests."""
+    """F202.Z — Invoke Kryon via REST API instead of docker exec REPL.
+
+    The old `docker exec -i kryon kryon` pipe approach assumed Kryon
+    drops into a stdin-driven REPL when no subcommand is given. In
+    practice the CLI requires a subcommand, so the pipe deadlocked
+    until timeout. The REST API (`POST /api/v1/runs`) is the proper
+    non-interactive entry point.
+
+    KRYON_BENCH_DRY_RUN=1 still wins for smoke tests so they don't
+    need a live container.
+
+    Env knobs:
+        KRYON_API_URL      base URL of the Kryon API (default:
+                           http://127.0.0.1:8700)
+        KRYON_API_KEY      API key (required unless server has
+                           KRYON_ALLOW_UNAUTHENTICATED=true)
+        KRYON_BENCH_AGENT  agent_key to invoke (default: vuln_hunter)
+        KRYON_BENCH_MAX_TURNS  override per-task turn cap (default: 5)
+    """
     if os.environ.get("KRYON_BENCH_DRY_RUN") == "1":
         return os.environ.get("KRYON_BENCH_FIXTURE_TRANSCRIPT", "")
-    # F202.Y — explicit utf-8 encoding + errors='replace'. Sin esto, en
-    # Windows subprocess.run usa cp1252 por default y revienta con
-    # UnicodeDecodeError cuando el container Kryon emite UTF-8 (emojis,
-    # quotes Unicode, narration LLM en español, etc).
-    proc = subprocess.run(
-        ["docker", "exec", "-i", "kryon", "kryon"],
-        input=prompt + "\n/exit\n",
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=timeout,
+
+    import json
+    import urllib.error
+    import urllib.request
+
+    api_url = os.environ.get("KRYON_API_URL", "http://127.0.0.1:8700").rstrip("/")
+    api_key = os.environ.get("KRYON_API_KEY", "")
+    agent_key = os.environ.get("KRYON_BENCH_AGENT", "vuln_hunter")
+    max_turns = int(os.environ.get("KRYON_BENCH_MAX_TURNS", "5"))
+
+    payload = json.dumps(
+        {
+            "agent_key": agent_key,
+            "input": prompt,
+            "max_turns": max_turns,
+            "stream": False,
+        }
+    ).encode("utf-8")
+
+    req = urllib.request.Request(
+        f"{api_url}/api/v1/runs",
+        data=payload,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "X-API-Key": api_key,
+        },
     )
-    return proc.stdout + "\n" + proc.stderr
+
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+        return f"[HTTPError {e.code}] {body}"
+    except (TimeoutError, urllib.error.URLError) as e:
+        return f"[TimeoutOrConnError] {e}"
+
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        return body
+
+    # The /runs endpoint returns {output, agent, status, usage}. The
+    # transcript-style detection regexes in scorer expect a flat text
+    # blob, so we synthesize one.
+    output = data.get("output", "") or ""
+    status = data.get("status", "")
+    return f"[status={status}]\n{output}"
 
 
 def build_prompt(walkthrough: dict[str, Any]) -> str:
