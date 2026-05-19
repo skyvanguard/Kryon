@@ -914,6 +914,127 @@ def _check_dns_zone_transfer(svc: DiscoveredService) -> Finding | None:
     )
 
 
+# F202.C — DNS CHAOS class info disclosure.
+# BIND / Unbound / PowerDNS expose debug data through CHAOS class TXT
+# queries by default (must be explicitly suppressed):
+#   - `version.bind` TXT CH       -> server version string (BIND, Unbound)
+#   - `version.server` TXT CH     -> alternative version probe
+#   - `hostname.bind` TXT CH      -> internal hostname (BIND)
+#   - `id.server` TXT CH          -> server identity (RFC 4892, common in
+#                                    anycast / CDN DNS like Cloudflare)
+# Version disclosure feeds CVE matching (e.g. BIND 9.18.x -> CVE-2023-3341
+# stack-exhaust). Hostname/id leaks expose internal infrastructure naming
+# convention. Microsoft DNS does NOT respond to CHAOS class by default —
+# this check primarily catches BIND / Unbound / PowerDNS instances.
+
+_DNS_CHAOS_PROBES: tuple[tuple[str, str], ...] = (
+    ("version.bind", "version del servidor DNS"),
+    ("version.server", "version del servidor (RFC 4892 alternative)"),
+    ("hostname.bind", "hostname interno del DNS"),
+    ("id.server", "server identity (RFC 4892)"),
+)
+
+_DNS_CHAOS_FAILURE_MARKERS = (
+    "non-existent domain",
+    "nxdomain",
+    "server failed",
+    "refused",
+    "no response",
+    "request timed out",
+    "can't find",
+    "timed out",
+    "no answer",
+)
+
+
+def _try_chaos_query(host: str, name: str) -> str | None:
+    """F202.C helper — attempt a CHAOS class TXT query. Returns the TXT
+    value if the server replies, or None on any failure / empty answer.
+    """
+    try:
+        proc = subprocess.run(
+            ["nslookup", "-class=chaos", "-type=txt", name, host],
+            capture_output=True,
+            text=True,
+            timeout=6,
+            check=False,
+        )
+    except Exception:  # noqa: BLE001
+        return None
+
+    out = proc.stdout + "\n" + proc.stderr
+    out_lower = out.lower()
+    if any(m in out_lower for m in _DNS_CHAOS_FAILURE_MARKERS):
+        return None
+
+    # Match `text = "value"` (Windows nslookup) or `name TXT "value"`
+    # (dig-style); we accept the broader regex.
+    m = re.search(r'(?:text|TXT)\s*=?\s*"([^"]+)"', proc.stdout, re.IGNORECASE)
+    if m:
+        value = m.group(1).strip()
+        if value:
+            return value
+    return None
+
+
+def _check_dns_chaos_leak(svc: DiscoveredService) -> Finding | None:
+    """F202.C — Probe a DNS server for CHAOS class info disclosure.
+
+    Tries the four canonical CHAOS TXT probes (version.bind,
+    version.server, hostname.bind, id.server). Reports the leaks with
+    severity MEDIUM when hostname/id is exposed (internal recon
+    payload), LOW when only version is leaked.
+    """
+    if svc.state != "open" or svc.port != 53:
+        return None
+
+    leaks: list[tuple[str, str]] = []
+    for probe_name, _probe_label in _DNS_CHAOS_PROBES:
+        value = _try_chaos_query(svc.host, probe_name)
+        if value:
+            leaks.append((probe_name, value))
+
+    if not leaks:
+        return None
+
+    hostname_leak = any(p in ("hostname.bind", "id.server") for p, _ in leaks)
+    severity = "MEDIUM" if hostname_leak else "LOW"
+
+    evidence_lines = [f"  {probe} CH TXT -> {value}" for probe, value in leaks]
+    evidence = "\n".join(evidence_lines)
+    leaked_probes = ", ".join(probe for probe, _ in leaks)
+
+    return Finding(
+        cwe="CWE-200",
+        severity=severity,
+        host=f"{svc.host}:{svc.port}",
+        rule_id="dns-chaos-leak",
+        message=(
+            f"DNS server {svc.host}:53 responde a queries CHAOS class y "
+            f"revela info debug: {leaked_probes}."
+        ),
+        evidence=evidence[:800],
+        remediation=(
+            "Suprimir respuestas CHAOS class en el motor DNS:\n"
+            "  - BIND named.conf: options { version \"\"; hostname \"\"; "
+            "server-id \"\"; };\n"
+            "  - Unbound: server: hide-version: yes + hide-identity: yes\n"
+            "  - PowerDNS recursor.conf: version-string=anonymous + server-id=disabled\n"
+            "  - Knot Resolver: options.cache_size + nsid module disabled\n"
+            "  - Microsoft DNS: no responde a CHAOS class por default — "
+            "este leak indica que el motor NO es Windows DNS (probable BIND "
+            "u otro abierto en TCP/53).\n"
+            "Aunque el leak parece menor, version disclosure facilita CVE "
+            "matching (ej. BIND 9.18.x -> CVE-2023-3341 stack-exhaust, "
+            "Unbound 1.13.x -> CVE-2021-37207). Hostname/id leaks revelan "
+            "naming convention interna y son recon barato.\n"
+            "Verificar post-fix: nslookup -class=chaos -type=txt version.bind "
+            "<host> debe retornar Refused o NXDOMAIN."
+        ),
+        severity_rank=_SEV_RANK[severity],
+    )
+
+
 # F200.B — Web server EOL table. Keep `min_supported` conservative
 # (a few versions above the minor with a notable CVE). When the
 # scanner banner reports a lower version, flag HIGH with the CVE list.
@@ -2828,6 +2949,12 @@ def run_engage(args: argparse.Namespace) -> int:
             axfr_finding = _check_dns_zone_transfer(svc)
             if axfr_finding:
                 findings.append(axfr_finding)
+            # F202.C — CHAOS class info disclosure (version.bind,
+            # hostname.bind, id.server). BIND / Unbound / PowerDNS
+            # default behavior; Microsoft DNS is immune.
+            chaos_finding = _check_dns_chaos_leak(svc)
+            if chaos_finding:
+                findings.append(chaos_finding)
 
     findings.sort(key=lambda f: f.severity_rank)
     console.print(f"  [yellow]{len(findings)}[/yellow] hallazgos detectados")
