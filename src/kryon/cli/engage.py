@@ -79,29 +79,37 @@ _SEV_RANK = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
 # -----------------------------------------------------------------------------
 
 
-def _build_engage_nmap_cmd(target: str) -> str:
+def _build_engage_nmap_cmd(target: str) -> list[str]:
     """Build the Phase 1 nmap command honoring F196 throttle env.
 
-    The CLI's Phase 1 scan historically used `-T4` hardcoded. F196 lets
-    the operator override timing / min-rate / max-parallelism via env
-    when running banca-safe POCs in business hours, while preserving
-    legacy aggressive defaults when no env is set.
+    F202.S security hardening: returns argv list (not string) so the
+    caller can run with `shell=False`, eliminating command-injection
+    risk when env vars (KRYON_NMAP_TIMING etc.) are operator-controlled
+    via CI/CD pipelines or wrapper scripts.
     """
     # -Pn: skip host discovery. Required when the target firewall
     # filters ICMP (typical for hardened hosts and PVE behind FortiGate).
     # -sT: TCP connect scan. Default -sV picks -sS (raw SYN) which needs
     # Npcap/raw sockets — unavailable on Windows hosts without admin
     # install. -sT works as a non-privileged user on every platform.
+    cmd: list[str] = ["nmap", "-Pn", "-sT", "-sV"]
+
     timing_env = os.environ.get("KRYON_NMAP_TIMING", "").strip()
     timing_flag = f"-T{timing_env.lstrip('T')}" if timing_env else "-T4"
+    cmd.append(timing_flag)
+
+    cmd.extend(["--top-ports", "100"])
 
     min_rate_env = os.environ.get("KRYON_NMAP_MIN_RATE", "").strip()
-    min_rate_extra = f" --min-rate {min_rate_env}" if min_rate_env else ""
+    if min_rate_env:
+        cmd.extend(["--min-rate", min_rate_env])
 
     max_par_env = os.environ.get("KRYON_NMAP_MAX_PARALLELISM", "").strip()
-    max_par_extra = f" --max-parallelism {max_par_env}" if max_par_env else ""
+    if max_par_env:
+        cmd.extend(["--max-parallelism", max_par_env])
 
-    return f"nmap -Pn -sT -sV {timing_flag} --top-ports 100{min_rate_extra}{max_par_extra} -oX - {shlex.quote(target)}"
+    cmd.extend(["-oX", "-", target])
+    return cmd
 
 
 def _extend_timeout_for_throttle(timeout_s: int) -> int:
@@ -170,14 +178,19 @@ def _run_nmap(target: str, *, timeout_s: int = 600) -> str:
         try:
             from kryon.repl.ui.live_progress import run_with_progress
 
-            r = run_with_progress(cmd, timeout_s=timeout_s)
+            # F202.S: run_with_progress accepts only string; build it
+            # via shlex.join (safe quoting) instead of f-string interpolation.
+            cmd_str = shlex.join(cmd)
+            r = run_with_progress(cmd_str, timeout_s=timeout_s)
             return r.stdout
         except Exception as exc:
             logger.warning("live_progress fell back: %s", exc)
     try:
+        # F202.S security hardening: shell=False with argv list
+        # eliminates command-injection via env vars (KRYON_NMAP_*).
         out = subprocess.run(
             cmd,
-            shell=True,
+            shell=False,
             capture_output=True,
             text=True,
             timeout=timeout_s,
@@ -2241,10 +2254,16 @@ def _check_ssh(svc: DiscoveredService, ssh_target: str | None, ssh_password: str
     def _remote(cmd: str) -> str:
         base = [
             "ssh",
+            # F202.S security hardening (POC Britimp audit): accept-new
+            # pins el host fingerprint la primera vez; rechaza si el
+            # fingerprint cambia (MITM detection). NO usar `=no` que
+            # acepta cualquier fingerprint sin warning. Banking-grade.
             "-o",
-            "StrictHostKeyChecking=no",
+            "StrictHostKeyChecking=accept-new",
             "-o",
-            "UserKnownHostsFile=/dev/null",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=10",
             "-p",
             port,
             f"{user}@{host}",
@@ -2377,8 +2396,11 @@ def _check_siem_activity(
     def _remote(cmd: str) -> str:
         base = [
             "ssh",
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "UserKnownHostsFile=/dev/null",
+            # F202.S security hardening (POC Britimp audit review):
+            # accept-new pins fingerprint la primera vez; rechaza si
+            # cambia (MITM detection). NO `=no` que es vulnerable a MITM
+            # en redes bancarias internas con ARP spoofing posible.
+            "-o", "StrictHostKeyChecking=accept-new",
             "-o", "BatchMode=yes",
             "-o", "ConnectTimeout=10",
             "-p", port,
@@ -4922,10 +4944,10 @@ def run_engage(args: argparse.Namespace) -> int:
                     user, _, host = user_host.partition("@")
                     base = [
                         "ssh",
+                        # F202.S security hardening — accept-new pin
+                        # vs MITM en redes internas.
                         "-o",
-                        "StrictHostKeyChecking=no",
-                        "-o",
-                        "UserKnownHostsFile=/dev/null",
+                        "StrictHostKeyChecking=accept-new",
                         "-p",
                         port,
                         f"{user}@{host}",

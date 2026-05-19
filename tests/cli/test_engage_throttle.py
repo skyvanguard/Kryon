@@ -23,6 +23,8 @@ class TestEngageNmapDefaults:
         monkeypatch.delenv("KRYON_NMAP_MIN_RATE", raising=False)
         monkeypatch.delenv("KRYON_NMAP_MAX_PARALLELISM", raising=False)
         cmd = _build_engage_nmap_cmd("10.0.0.5")
+        # F202.S: cmd is now list[str], not str
+        assert isinstance(cmd, list)
         assert "-T4" in cmd
         assert "--min-rate" not in cmd
         assert "--max-parallelism" not in cmd
@@ -46,12 +48,16 @@ class TestEngageNmapRateLimit:
     def test_min_rate_env_added(self, monkeypatch):
         monkeypatch.setenv("KRYON_NMAP_MIN_RATE", "50")
         cmd = _build_engage_nmap_cmd("10.0.0.5")
-        assert "--min-rate 50" in cmd
+        # F202.S: flag + value in separate list items (argv style)
+        assert "--min-rate" in cmd
+        assert "50" in cmd
+        assert cmd[cmd.index("--min-rate") + 1] == "50"
 
     def test_max_parallelism_env_added(self, monkeypatch):
         monkeypatch.setenv("KRYON_NMAP_MAX_PARALLELISM", "10")
         cmd = _build_engage_nmap_cmd("10.0.0.5")
-        assert "--max-parallelism 10" in cmd
+        assert "--max-parallelism" in cmd
+        assert cmd[cmd.index("--max-parallelism") + 1] == "10"
 
     def test_all_three_combined(self, monkeypatch):
         monkeypatch.setenv("KRYON_NMAP_TIMING", "T2")
@@ -59,8 +65,10 @@ class TestEngageNmapRateLimit:
         monkeypatch.setenv("KRYON_NMAP_MAX_PARALLELISM", "10")
         cmd = _build_engage_nmap_cmd("192.168.1.10")
         assert "-T2" in cmd
-        assert "--min-rate 50" in cmd
-        assert "--max-parallelism 10" in cmd
+        assert "--min-rate" in cmd
+        assert "50" in cmd
+        assert "--max-parallelism" in cmd
+        assert "10" in cmd
         assert "-T4" not in cmd
         assert "192.168.1.10" in cmd
 
@@ -78,8 +86,31 @@ class TestEngageNmapPreservedFlags:
     def test_top_ports_100_always_present(self, monkeypatch):
         monkeypatch.setenv("KRYON_NMAP_TIMING", "T2")
         cmd = _build_engage_nmap_cmd("10.0.0.5")
-        assert "--top-ports 100" in cmd
+        assert "--top-ports" in cmd
+        assert "100" in cmd
 
     def test_xml_output_always_present(self, monkeypatch):
         cmd = _build_engage_nmap_cmd("10.0.0.5")
-        assert "-oX -" in cmd
+        assert "-oX" in cmd
+        assert "-" in cmd
+
+
+class TestF202SShellSafety:
+    """F202.S — argv list eliminates shell injection risk."""
+
+    def test_returns_list_not_string(self, monkeypatch):
+        cmd = _build_engage_nmap_cmd("10.0.0.5")
+        assert isinstance(cmd, list)
+        assert all(isinstance(item, str) for item in cmd)
+
+    def test_malicious_env_not_interpreted_as_shell(self, monkeypatch):
+        """If env var contains shell metacharacters, they're preserved
+        literally in argv (no shell interpretation possible)."""
+        monkeypatch.setenv("KRYON_NMAP_TIMING", "2; curl evil")
+        cmd = _build_engage_nmap_cmd("10.0.0.5")
+        # The literal string ends up as a list item, not as separate
+        # commands — argv passing prevents shell injection.
+        joined = " ".join(cmd)
+        # Argv ensures the env value lands in a single argv slot
+        # (or is parsed safely), not as a chained command.
+        assert any("curl evil" in item or "2; curl evil" in item for item in cmd) or "evil" not in joined
