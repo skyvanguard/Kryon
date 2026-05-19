@@ -2195,6 +2195,49 @@ _DATABASE_ENGINES: dict[tuple[str, int], dict[str, str]] = {
             "Bind 127.0.0.1 si no es accedido remotamente."
         ),
     },
+    # F202.J — Microsoft SQL Server (TDS protocol). Surfaced by POC
+    # Britimp .15: ms-sql-s en :1433 expuesto al segmento sin flag —
+    # F199.O cubria solo MySQL/PostgreSQL/MongoDB/Redis. Sin esto
+    # cualquier cliente bancario con SQL Server (core-banking +
+    # reporting comun en stacks Microsoft) quedaba sin deteccion
+    # automatica de DB exposure.
+    ("ms-sql-s", 1433): {
+        "engine": "mssql",
+        "pretty": "Microsoft SQL Server",
+        "remediation": (
+            "Forzar TLS: SQL Server Configuration Manager > Protocols > "
+            "Properties > Force Encryption = Yes + Certificate signed por "
+            "CA interna. Restringir TCP/IP a la VLAN de aplicacion. "
+            "Deshabilitar SQL Browser (1434/UDP) si no se necesita "
+            "named-instance discovery. Auditar logins SA / mixed-mode "
+            "auth — preferir Windows Auth integrada con AD."
+        ),
+    },
+    ("ms-sql", 1433): {
+        "engine": "mssql",
+        "pretty": "Microsoft SQL Server",
+        "remediation": (
+            "Forzar TLS: SQL Server Configuration Manager > Protocols > "
+            "Properties > Force Encryption = Yes + Certificate signed por "
+            "CA interna. Restringir TCP/IP a la VLAN de aplicacion. "
+            "Deshabilitar SQL Browser (1434/UDP) si no se necesita "
+            "named-instance discovery. Auditar logins SA / mixed-mode "
+            "auth — preferir Windows Auth integrada con AD."
+        ),
+    },
+    ("ms-sql-m", 1434): {
+        "engine": "mssql-browser",
+        "pretty": "Microsoft SQL Server Browser",
+        "remediation": (
+            "El SQL Browser service (1434/UDP) expone los nombres de "
+            "instancias y sus puertos dinamicos — recon util pre-attack. "
+            "Deshabilitar via SQL Server Configuration Manager > SQL Server "
+            "Browser > Stop + Disabled startup type, salvo que se necesite "
+            "named-instance discovery desde subnets distintas. Si se "
+            "mantiene, restringirlo via firewall a las subnets de "
+            "aplicacion unicamente."
+        ),
+    },
 }
 
 
@@ -3766,7 +3809,26 @@ def run_engage(args: argparse.Namespace) -> int:
                 findings.append(python_finding)
         if svc.service == "ssh" or svc.port == 22 or svc.port == 2222:
             findings.extend(_check_ssh(svc, args.ssh, args.ssh_password))
-        if svc.service in ("mysql", "postgresql", "mongodb", "redis") or svc.port in (3306, 33060, 5432, 27017, 6379):
+        if svc.service in (
+            "mysql",
+            "postgresql",
+            "mongodb",
+            "redis",
+            # F202.J — Microsoft SQL Server (ms-sql-s = TDS service,
+            # ms-sql = generic, ms-sql-m = Browser UDP/TCP 1434).
+            "ms-sql-s",
+            "ms-sql",
+            "ms-sql-m",
+        ) or svc.port in (
+            3306,
+            33060,
+            5432,
+            27017,
+            6379,
+            # F202.J — TDS 1433 + Browser 1434
+            1433,
+            1434,
+        ):
             findings.extend(_check_mysql(svc))
         # F202.A — DNS open resolver. Surfaced by .205 (DC britimp.com.py
         # responded to recursive queries from the operator VPN). If the
