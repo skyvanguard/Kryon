@@ -2238,6 +2238,55 @@ _DATABASE_ENGINES: dict[tuple[str, int], dict[str, str]] = {
             "aplicacion unicamente."
         ),
     },
+    # F202.K — Oracle Database TNS Listener. Banking-relevant: la mayoria
+    # de los core-banking suites de LATAM (T24, Flexcube, Finacle,
+    # Bantotal) corren sobre Oracle DB. El TNS Listener en :1521 sin
+    # TCPS encryption es el patron mas comun de DB exposure en bancos
+    # con stack Oracle. Severity HIGH por defecto: TNS protocol en
+    # cleartext + el listener historicamente acepta `service_name`
+    # discovery sin auth (TNS Poison / CVE-2012-1675 si no esta
+    # parcheado a 11g+ con COST settings).
+    ("oracle-tns", 1521): {
+        "engine": "oracle",
+        "pretty": "Oracle Database TNS Listener",
+        "remediation": (
+            "Forzar TCPS (TNS sobre TLS): listener.ora -> "
+            "(ADDRESS = (PROTOCOL = TCPS)(HOST = ...)(PORT = 2484)) "
+            "+ sqlnet.ora con SQLNET.ENCRYPTION_SERVER = required, "
+            "SQLNET.CRYPTO_CHECKSUM_SERVER = required. "
+            "Cerrar 1521 plaintext via firewall una vez que las "
+            "applicaciones migren a 2484. "
+            "Hardening del Listener: listener.ora -> "
+            "SECURE_REGISTER_<listener> = (TCPS) + ADMIN_RESTRICTIONS_<listener> = ON "
+            "para bloquear remote SET / SHOW / SHUTDOWN. "
+            "Auditar parche TNS Poison (CVE-2012-1675): requires "
+            "11.2.0.4+ con COST = (PROTOCOL = TCPS) y NO permitir "
+            "SERVICE_NAME registration desde clientes no autenticados. "
+            "Banca-LATAM: restringir Listener a la VLAN de aplicacion "
+            "(NO al segmento de servidores generales) — un compromiso "
+            "lateral basico llega a core-banking sin saltar firewall."
+        ),
+    },
+    ("oracle-tns", 1522): {
+        "engine": "oracle",
+        "pretty": "Oracle Database TNS Listener (alternate port)",
+        "remediation": (
+            "Mismo hardening que TNS Listener default — operador usa "
+            "puerto no-default para reducir scanning automatico, pero "
+            "la superficie es identica. Forzar TCPS, ADMIN_RESTRICTIONS, "
+            "SECURE_REGISTER. VLAN dedicada de DB obligatoria."
+        ),
+    },
+    # tns is the legacy / generic service name some nmap probes return.
+    ("tns", 1521): {
+        "engine": "oracle",
+        "pretty": "Oracle Database TNS Listener",
+        "remediation": (
+            "Ver remediation oracle-tns 1521 — banner detection variant. "
+            "Forzar TCPS + ADMIN_RESTRICTIONS_<listener> = ON. "
+            "Auditar TNS Poison patch (CVE-2012-1675)."
+        ),
+    },
 }
 
 
@@ -3819,6 +3868,10 @@ def run_engage(args: argparse.Namespace) -> int:
             "ms-sql-s",
             "ms-sql",
             "ms-sql-m",
+            # F202.K — Oracle DB TNS Listener (oracle-tns = canonical
+            # nmap name, tns = legacy alias).
+            "oracle-tns",
+            "tns",
         ) or svc.port in (
             3306,
             33060,
@@ -3828,6 +3881,9 @@ def run_engage(args: argparse.Namespace) -> int:
             # F202.J — TDS 1433 + Browser 1434
             1433,
             1434,
+            # F202.K — TNS Listener default + alternate
+            1521,
+            1522,
         ):
             findings.extend(_check_mysql(svc))
         # F202.A — DNS open resolver. Surfaced by .205 (DC britimp.com.py
