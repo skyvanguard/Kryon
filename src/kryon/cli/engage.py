@@ -1683,6 +1683,180 @@ def _check_dns_dynamic_update(svc: DiscoveredService) -> Finding | None:
     )
 
 
+# F202.H — Cross-DC config drift detection.
+# Surfaced by the Britimp POC pilot 2026-05-18 against britimp.com.py:
+# .205 (primary DC) and .5 (secondary DC) belong to the same AD
+# domain but have ASYMMETRIC DNS posture:
+#   - both have dns-open-resolver (consistent bug — sistemico)
+#   - only .205 fails DNSSEC validation; .5 timeouts (probably valid)
+#   - only .5 exposes IIS plaintext :80
+#   - only .5 has SSH-for-Windows :22 + RealServer 7070
+# Asymmetric trust from the client's perspective: depending on which
+# DC the client lands on first, it gets DIFFERENT security guarantees
+# — a poison attack against .205 wouldn't be visible from .5's
+# clients and vice versa.
+# CWE-1188 (Insecure Default Initialization of Resource) — the
+# config was intended to be uniform across replicas, the drift is
+# an operational bug not a deliberate split.
+
+# Rule IDs that should be IDENTICAL across DCs of the same domain.
+# Each entry: (rule_id, severity_if_asymmetric, label)
+_DC_DRIFT_DNS_RULES: tuple[tuple[str, str, str], ...] = (
+    ("dns-open-resolver", "HIGH", "DNS recursion abierta"),
+    ("dns-axfr-allowed", "HIGH", "AXFR / zone transfer"),
+    ("dns-chaos-leak", "MEDIUM", "CHAOS class info disclosure"),
+    ("dns-cache-snoop", "MEDIUM", "Cache snooping (privacy leak)"),
+    ("dnssec-validation-disabled", "HIGH", "DNSSEC validation"),
+    ("dns-reverse-enum", "MEDIUM", "Reverse zone enumeration"),
+    ("dns-dynamic-update-open", "HIGH", "RFC 2136 dynamic UPDATE"),
+)
+
+# Service-level drift indicators (presence of port on one DC but not
+# the other). The check inspects `_DiscoveredService` lists when
+# they're attached to the host-findings dict, OR infers from the
+# host's findings themselves (e.g. http-plaintext implies port 80).
+_DC_DRIFT_PORT_INFERENCE: tuple[tuple[str, int, str], ...] = (
+    ("http-plaintext", 80, "HTTP plaintext"),
+    ("ssh-banner-visible", 22, "SSH habilitado"),
+)
+
+
+def _is_domain_controller_host(findings: list["Finding"]) -> bool:
+    """F202.H helper — heuristic: a host is treated as a DC when its
+    findings include >=1 AD-* rule (from Phase 2b windows_ad checks).
+    The AD compliance pack only fires when the engage detected
+    `windows_ad` family, so it's a reliable proxy.
+    """
+    return any(f.rule_id.startswith("AD-") for f in findings)
+
+
+def _rule_ids_present(findings: list["Finding"]) -> set[str]:
+    """Convenience: deduplicated set of rule_ids that appear on a host."""
+    return {f.rule_id for f in findings}
+
+
+def diff_dc_dns_posture(
+    host_findings: dict[str, list["Finding"]],
+) -> list["Finding"]:
+    """F202.H — Compare DNS posture (and a few service-presence
+    indicators) across all detected DCs of the input host set.
+    Returns one Finding per asymmetric configuration item.
+
+    Input: `{host_ip: [Finding, ...]}` — typically built by a
+    queue processor or ad-hoc script that runs `kryon engage`
+    against multiple hosts of the same segment / domain.
+
+    The function:
+      1. Filters hosts that are DCs (have AD-* findings).
+      2. If <2 DCs, returns [] (no drift to compute).
+      3. For each rule_id in `_DC_DRIFT_DNS_RULES`, compares the
+         set of DCs where the rule fires vs where it doesn't. If
+         partial coverage (asymmetric), emits a drift finding.
+      4. Same for `_DC_DRIFT_PORT_INFERENCE` — service presence.
+
+    The output findings have:
+      - `host` = `"drift:<dc_a>+<dc_b>"`
+      - `rule_id` = `"dc-drift-<original_rule>"`
+      - `cwe` = `"CWE-1188"`
+    """
+    dc_hosts: dict[str, list["Finding"]] = {
+        host: findings
+        for host, findings in host_findings.items()
+        if _is_domain_controller_host(findings)
+    }
+    if len(dc_hosts) < 2:
+        return []
+
+    drift_findings: list["Finding"] = []
+    rule_sets: dict[str, set[str]] = {host: _rule_ids_present(findings) for host, findings in dc_hosts.items()}
+
+    # 1. DNS-rule drift
+    for rule_id, drift_severity, label in _DC_DRIFT_DNS_RULES:
+        with_rule = [host for host, rules in rule_sets.items() if rule_id in rules]
+        without_rule = [host for host, rules in rule_sets.items() if rule_id not in rules]
+        if with_rule and without_rule:
+            drift_findings.append(
+                Finding(
+                    cwe="CWE-1188",
+                    severity=drift_severity,
+                    host=f"drift:{'+'.join(sorted(dc_hosts.keys()))}",
+                    rule_id=f"dc-drift-{rule_id}",
+                    message=(
+                        f"Config drift entre DCs del dominio: '{label}' "
+                        f"presente en {', '.join(sorted(with_rule))} pero "
+                        f"ausente en {', '.join(sorted(without_rule))}. "
+                        "Postura asimetrica de seguridad — clientes reciben "
+                        "garantias distintas segun cual DC les responda."
+                    ),
+                    evidence=(
+                        f"Rule `{rule_id}` triggered on: "
+                        f"{', '.join(sorted(with_rule))}\n"
+                        f"Rule `{rule_id}` NOT triggered on: "
+                        f"{', '.join(sorted(without_rule))}"
+                    ),
+                    remediation=(
+                        "Sincronizar la configuracion DNS entre todos los DCs "
+                        f"del dominio. Para '{label}':\n"
+                        "  - Inspeccionar config con `Get-DnsServerSetting` y "
+                        "`Get-DnsServerRecursionScope` (Microsoft DNS) en ambos "
+                        "DCs y reconciliar.\n"
+                        "  - Para BIND: rsync named.conf entre los hosts o "
+                        "ponerlo en config management (Ansible / Salt / Puppet).\n"
+                        "  - Replicacion AD por si misma NO sincroniza DNS "
+                        "server settings (solo zone data) — los settings son "
+                        "per-host y hay que aplicar GPO o IaC.\n"
+                        "Trampa comun: agregar un secundario DC nuevo con "
+                        "wizard heredando defaults distintos del primario. "
+                        "Cada upgrade major de Windows Server cambia algun "
+                        "default DNS."
+                    ),
+                    severity_rank=_SEV_RANK[drift_severity],
+                )
+            )
+
+    # 2. Port / service inference drift (HTTP plaintext, SSH enabled, etc.)
+    for rule_id, port, label in _DC_DRIFT_PORT_INFERENCE:
+        with_service = [host for host, rules in rule_sets.items() if rule_id in rules]
+        without_service = [host for host, rules in rule_sets.items() if rule_id not in rules]
+        if with_service and without_service:
+            drift_findings.append(
+                Finding(
+                    cwe="CWE-1188",
+                    severity="MEDIUM",
+                    host=f"drift:{'+'.join(sorted(dc_hosts.keys()))}",
+                    rule_id=f"dc-drift-service-{rule_id}",
+                    message=(
+                        f"Config drift entre DCs: '{label}' (puerto {port}) "
+                        f"expuesto en {', '.join(sorted(with_service))} pero "
+                        f"NO en {', '.join(sorted(without_service))}. "
+                        "Superficie de ataque desigual entre replicas."
+                    ),
+                    evidence=(
+                        f"Servicio inferido por rule `{rule_id}` (port "
+                        f"{port}/tcp) detectado en: "
+                        f"{', '.join(sorted(with_service))}\n"
+                        f"No detectado en: {', '.join(sorted(without_service))}"
+                    ),
+                    remediation=(
+                        f"Decidir si el servicio en puerto {port} debe estar "
+                        "expuesto desde TODOS los DCs o NINGUNO:\n"
+                        f"  - Si es operacionalmente necesario, replicar la "
+                        "exposicion + hardening (TLS, ACL, auth) a todos los "
+                        "DCs.\n"
+                        "  - Si no es necesario, deshabilitar el servicio "
+                        "en el DC donde aparece. Para IIS: `Stop-WebAppPool` "
+                        "+ `Set-Service W3SVC -StartupType Disabled`. Para "
+                        "SSH-for-Windows: `Disable-Service sshd`.\n"
+                        "Mantener IaC / GPO para garantizar consistencia "
+                        "en futuras nuevas replicas."
+                    ),
+                    severity_rank=_SEV_RANK["MEDIUM"],
+                )
+            )
+
+    return drift_findings
+
+
 # F200.B — Web server EOL table. Keep `min_supported` conservative
 # (a few versions above the minor with a notable CVE). When the
 # scanner banner reports a lower version, flag HIGH with the CVE list.
