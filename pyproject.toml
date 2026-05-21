@@ -87,7 +87,7 @@ dataflow = [
 ]
 dev = [
     "mypy",
-    "ruff==0.15.13",
+    "ruff==0.15.14",
     "pytest",
     "pytest-asyncio",
     "pytest-mock>=3.14.0",
