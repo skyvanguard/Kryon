@@ -1,7 +1,19 @@
 """F203.C — Reflective Runner: autocrítica forzada cada N turns.
 
 Wrapper sobre `Runner.run` que entre chunks de N turns inyecta una
-"reflection turn" — un user message que fuerza al agent a auto-criticar:
+"reflection turn" — un user message que fuerza al agent a auto-criticar.
+
+Set KRYON_REFLECT_DEBUG=1 to see when reflection turns are injected
+(prints to stdout, useful for debugging the loop).
+
+KNOWN LIMITATION (F203.I): when a chunk exceeds its turn budget
+(MaxTurnsExceeded), the SDK's `Runner.run` raises without returning
+partial results — items of that chunk are lost. Effective rule:
+- reflect_every=5+ for normal investigations (minimal loss)
+- reflect_every=3 forces visible reflections but loses items in
+  chunks that hit max. Use only for debugging reflection behavior.
+- For "many reflections + full item capture", would need F203.K
+  (RunHooks-based per-turn item capture).
 
   1. ¿Qué APRENDÍ que NO sabía?
   2. ¿Qué HIPÓTESIS sigue sin verificar?
@@ -26,6 +38,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -244,6 +257,8 @@ async def run_with_reflection(
             # this exception; instead inject reflection + continue next chunk.
             ename = type(e).__name__
             if "MaxTurns" in ename:
+                if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
+                    print(f"\n🪞 [reflective-runner] chunk hit max_turns at total turn {turns_used} — forcing reflection")
                 logger.info(
                     "reflective runner: chunk hit max_turns at total turn %d — "
                     "injecting reflection and continuing", turns_used,
@@ -287,6 +302,11 @@ async def run_with_reflection(
         new_records = _extract_tool_calls(chunk_items)
         tool_history.extend(new_records)
 
+        if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
+            print(f"\n🪞 [reflective-runner] chunk done: turn={turns_used}, "
+                  f"new_items={len(chunk_items)}, accumulated={len(accumulated_items)}, "
+                  f"tool_calls_total={len(tool_history)}")
+
         # Did the agent finish? (final_output set + no pending tool calls)
         if not _has_pending_tool_calls(result):
             logger.debug("reflective runner: agent finished at turn %d", turns_used)
@@ -318,6 +338,10 @@ async def run_with_reflection(
             last_output_summary=last_output,
             stuck_record=stuck,
         )
+
+        if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
+            print(f"\n🪞 [reflective-runner] injecting reflection turn (turn {turns_used}/"
+                  f"{max_total_turns}, stuck={stuck.tool_name if stuck else 'no'})")
 
         try:
             base_history = result.to_input_list()
