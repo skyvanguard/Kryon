@@ -218,8 +218,19 @@ def update_agent_skills(agent, new_skills: list) -> None:
     # Update tools
     registry = _get_tool_registry()
     skill_tool_names = loader.required_tool_names(new_skills)
-    agent.tools = select_tools(registry, skill_tool_names)
+    forbidden = loader.forbidden_tool_names(new_skills)
+    new_tools = select_tools(registry, skill_tool_names, forbidden_tool_names=forbidden)
 
+    # F203.G — re-apply ambient tools on hot-swap (same contract as
+    # create_unified_agent). Without this, mid-engagement skill swap
+    # silently drops web_fetch_smart/request_skill/tool_search/etc.
+    _ambient_tool_names = ["web_fetch_smart", "request_skill", "tool_search", "duckduckgo_search"]
+    existing_names = {getattr(t, "name", "") for t in new_tools}
+    for name in _ambient_tool_names:
+        if name in registry and name not in existing_names and name not in forbidden:
+            new_tools.append(registry[name])
+
+    agent.tools = new_tools
     agent._active_skills = new_skills  # type: ignore[attr-defined]
     logger.info(
         "Skills hot-swapped: %d skills (%s), %d tools",

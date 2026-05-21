@@ -233,7 +233,38 @@ async def run_with_reflection(
                 max_turns=chunk_size,
                 run_config=run_config,
             )
-        except Exception as e:  # noqa: BLE001 — let caller decide on failures
+        except Exception as e:  # noqa: BLE001 — handle MaxTurnsExceeded specially
+            # MaxTurnsExceeded inside a chunk = "agent wanted to continue beyond
+            # chunk budget". That's expected — the whole point of the reflective
+            # runner is to break up long runs into chunks. We should NOT propagate
+            # this exception; instead inject reflection + continue next chunk.
+            ename = type(e).__name__
+            if "MaxTurns" in ename:
+                logger.info(
+                    "reflective runner: chunk hit max_turns at total turn %d — "
+                    "injecting reflection and continuing", turns_used,
+                )
+                # Bump turns_used by chunk_size so we don't loop forever
+                turns_used += chunk_size
+                if turns_used >= max_total_turns:
+                    break
+                # Inject a "you ran out of chunk budget" reflection and continue.
+                # We don't have a clean result to base history on — fall back to
+                # current_input as-is plus reflection nudge.
+                if isinstance(current_input, list):
+                    base_history = current_input
+                else:
+                    base_history = [{"role": "user", "content": str(current_input)}]
+                reflection_msg = (
+                    f"\n---\n## 🪞 Reflection forced (chunk budget exhausted)\n\n"
+                    f"Ran out of {chunk_size} turns without a final answer. "
+                    f"Pause + decide: (a) emit final summary with what you have, "
+                    f"or (b) pick ONE next decisive tool call (no repetition).\n"
+                )
+                current_input = base_history + [
+                    {"role": "user", "content": reflection_msg}
+                ]
+                continue
             logger.exception("reflective runner chunk failed at turn %d: %s", turns_used, e)
             raise
 
