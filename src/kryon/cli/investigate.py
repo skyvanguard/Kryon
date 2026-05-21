@@ -204,10 +204,27 @@ def run_investigate(args: argparse.Namespace) -> int:
 
     full_prompt = _build_investigate_prompt(prompt, hints, active=active)
     max_turns = args.max_turns
+    reflect_every = args.reflect_every
 
-    console.print(f"[dim]starting ReAct loop (max_turns={max_turns})[/dim]\n")
+    if reflect_every > 0:
+        console.print(
+            f"[dim]starting ReAct loop with reflection every {reflect_every} turns "
+            f"(max_turns={max_turns})[/dim]\n"
+        )
+    else:
+        console.print(f"[dim]starting ReAct loop (max_turns={max_turns}, reflection disabled)[/dim]\n")
 
     async def _run() -> Any:
+        # F203.C — use reflective runner when reflect_every > 0
+        if reflect_every > 0:
+            from kryon.cli.reflective_runner import run_with_reflection
+            return await run_with_reflection(
+                agent,
+                initial_input=full_prompt,
+                reflect_every=reflect_every,
+                max_total_turns=max_turns,
+                run_config=get_run_config(),
+            )
         return await Runner.run(
             agent,
             input=full_prompt,
@@ -281,6 +298,13 @@ def add_investigate_subparser(subparsers) -> argparse.ArgumentParser:
         type=int,
         default=30,
         help="maximum agent turns before stopping (default: 30)",
+    )
+    p.add_argument(
+        "--reflect-every",
+        type=int,
+        default=4,
+        help="F203.C — inject reflection turn every N turns "
+        "(default: 4, 0 = disabled). Forces autocrítica + stuck pattern detection.",
     )
     p.add_argument(
         "--out",

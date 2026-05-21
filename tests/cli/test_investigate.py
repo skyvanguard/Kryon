@@ -174,3 +174,27 @@ class TestArgparseWiring:
 
         args = parser.parse_args(["investigate", "x", "--out", "./reports"])
         assert args.out == "./reports"
+
+    def test_reflect_every_default_is_4(self):
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers(dest="command")
+        add_investigate_subparser(sub)
+
+        args = parser.parse_args(["investigate", "x"])
+        assert args.reflect_every == 4
+
+    def test_reflect_every_can_be_disabled(self):
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers(dest="command")
+        add_investigate_subparser(sub)
+
+        args = parser.parse_args(["investigate", "x", "--reflect-every", "0"])
+        assert args.reflect_every == 0
+
+    def test_reflect_every_custom_value(self):
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers(dest="command")
+        add_investigate_subparser(sub)
+
+        args = parser.parse_args(["investigate", "x", "--reflect-every", "6"])
+        assert args.reflect_every == 6
