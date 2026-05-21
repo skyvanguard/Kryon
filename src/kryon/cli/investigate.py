@@ -245,6 +245,16 @@ def run_investigate(args: argparse.Namespace) -> int:
     console.print("\n[bold green]═══ Resumen de la investigación ═══[/bold green]\n")
     console.print(output)
 
+    # F203.F — Write-through al learning loop (best-effort, no bloquea exit)
+    if not args.no_writeback:
+        try:
+            from kryon.services.investigate_writeback import write_back_from_investigate
+            exp_id = write_back_from_investigate(prompt, hints, result)
+            if exp_id:
+                console.print(f"\n[dim]💾 experience persisted: {exp_id}[/dim]")
+        except Exception as e:  # noqa: BLE001
+            console.print(f"\n[dim]write-back skipped: {e}[/dim]")
+
     # Persist transcript if --out given
     if args.out:
         out_dir = Path(args.out)
@@ -305,6 +315,12 @@ def add_investigate_subparser(subparsers) -> argparse.ArgumentParser:
         default=4,
         help="F203.C — inject reflection turn every N turns "
         "(default: 4, 0 = disabled). Forces autocrítica + stuck pattern detection.",
+    )
+    p.add_argument(
+        "--no-writeback",
+        action="store_true",
+        help="F203.F — skip persisting the run to the learning loop. "
+        "Default: write-back enabled (KRYON_NO_WRITEBACK=1 env also disables).",
     )
     p.add_argument(
         "--out",
