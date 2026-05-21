@@ -3,6 +3,12 @@
 .env.local
 .env.*.local
 
+# F202.AH — historic dev artifacts (archived sprints F7-F17). 56 files,
+# 3+ GB local artifacts (CVE corpora, scan outputs, demo lab data).
+# Untracked from git as of F202.AH cleanup. Kept on disk as reference
+# for the operator but never re-imported.
+scripts/_archive/
+
 # macOS Files
 .DS_Store
 
