@@ -2189,6 +2189,11 @@ def main():
 
     add_engage_subparser(subparsers)
 
+    # --- investigate subcommand (F203.A) — open-ended ReAct loop ---
+    from kryon.cli.investigate import add_investigate_subparser
+
+    add_investigate_subparser(subparsers)
+
     # --- audit-summary subcommand (F129) — cross-engagement aggregator ---
     from kryon.cli.audit_summary import add_audit_summary_subparser
 
@@ -2299,6 +2304,11 @@ def main():
         from kryon.cli.engage import run_engage
 
         sys.exit(run_engage(args))
+
+    if args.command == "investigate":
+        from kryon.cli.investigate import run_investigate
+
+        sys.exit(run_investigate(args))
 
     if args.command == "audit-summary":
         from kryon.cli.audit_summary import run_audit_summary
