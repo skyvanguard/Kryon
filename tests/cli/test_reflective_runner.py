@@ -22,6 +22,7 @@ os.environ.setdefault("OPENAI_API_KEY", "test_key_for_ci_environment")
 import pytest
 
 from kryon.cli.reflective_runner import (
+    ItemCaptureHooks,
     _build_reflection_prompt,
     _extract_tool_calls,
     _has_pending_tool_calls,
@@ -322,3 +323,126 @@ class TestRunWithReflection:
         # Last message in the history must include reflection markers
         last_msg = calls[1][-1]
         assert "Reflection turn" in last_msg.get("content", "")
+
+
+# ---------------------------------------------------------------------------
+# F203.K — ItemCaptureHooks
+# ---------------------------------------------------------------------------
+
+
+class TestItemCaptureHooks:
+    def test_initial_state_empty(self):
+        h = ItemCaptureHooks()
+        assert h.captured_items == []
+        assert h.to_chain() == []
+
+    def test_on_tool_start_appends_entry(self):
+        h = ItemCaptureHooks()
+        tool = SimpleNamespace(name="web_fetch_smart")
+
+        async def _run():
+            await h.on_tool_start(None, None, tool)
+
+        asyncio.run(_run())
+        assert len(h.captured_items) == 1
+        assert h.captured_items[0]["tool"] == "web_fetch_smart"
+        assert h.captured_items[0]["type"] == "tool_call"
+        assert h.captured_items[0]["output_preview"] == ""
+
+    def test_on_tool_end_attaches_output(self):
+        h = ItemCaptureHooks()
+        tool = SimpleNamespace(name="curl_command")
+
+        async def _run():
+            await h.on_tool_start(None, None, tool)
+            await h.on_tool_end(None, None, tool, "HTTP 200 OK")
+
+        asyncio.run(_run())
+        assert h.captured_items[0]["output_preview"] == "HTTP 200 OK"
+
+    def test_multiple_tool_calls(self):
+        h = ItemCaptureHooks()
+        t1 = SimpleNamespace(name="web_fetch_smart")
+        t2 = SimpleNamespace(name="duckduckgo_search")
+
+        async def _run():
+            await h.on_tool_start(None, None, t1)
+            await h.on_tool_end(None, None, t1, "page content")
+            await h.on_tool_start(None, None, t2)
+            await h.on_tool_end(None, None, t2, "search results")
+
+        asyncio.run(_run())
+        chain = h.to_chain()
+        assert len(chain) == 2
+        assert chain[0]["tool"] == "web_fetch_smart"
+        assert chain[0]["output_preview"] == "page content"
+        assert chain[1]["tool"] == "duckduckgo_search"
+        assert chain[1]["output_preview"] == "search results"
+
+    def test_on_agent_end_recorded_separately(self):
+        h = ItemCaptureHooks()
+        tool = SimpleNamespace(name="x")
+
+        async def _run():
+            await h.on_tool_start(None, None, tool)
+            await h.on_tool_end(None, None, tool, "out")
+            await h.on_agent_end(None, None, "final summary")
+
+        asyncio.run(_run())
+        # captured_items has both tool_call and agent_end
+        assert len(h.captured_items) == 2
+        # to_chain() only returns tool_call entries
+        chain = h.to_chain()
+        assert len(chain) == 1
+        assert chain[0]["tool"] == "x"
+
+    def test_output_truncated_at_500_chars(self):
+        h = ItemCaptureHooks()
+        tool = SimpleNamespace(name="big_tool")
+
+        async def _run():
+            await h.on_tool_start(None, None, tool)
+            await h.on_tool_end(None, None, tool, "x" * 1000)
+
+        asyncio.run(_run())
+        assert len(h.captured_items[0]["output_preview"]) == 500
+
+
+class TestHooksIntegrationWithReflectiveRunner:
+    """Verify that capture_hooks attached on the final result so write-back
+    has access via _captured_chain attr."""
+
+    def test_captured_chain_attached_on_early_finish(self):
+        # Simulate one chunk that finishes naturally
+        tool_item = SimpleNamespace(raw_item=SimpleNamespace(name="x", arguments={}))
+        ongoing = _fake_result(turn_count=2, final_output="done", items=[tool_item])
+
+        async def _capture(*args, **kwargs):
+            # Verify hooks were passed
+            assert "hooks" in kwargs
+            hooks = kwargs["hooks"]
+            # Simulate the hooks being invoked during the run (we can't
+            # actually run agents in unit tests, just check wiring).
+            await hooks.on_tool_start(None, None, SimpleNamespace(name="fake_tool"))
+            await hooks.on_tool_end(None, None, SimpleNamespace(name="fake_tool"), "out")
+            return ongoing
+
+        with patch.object(
+            __import__("kryon.sdk.agents.run", fromlist=["Runner"]).Runner,
+            "run",
+            new=AsyncMock(side_effect=_capture),
+        ):
+            result = asyncio.run(
+                run_with_reflection(
+                    agent=object(),
+                    initial_input="hi",
+                    reflect_every=4,
+                    max_total_turns=10,
+                )
+            )
+        # _captured_chain attached on result
+        chain = getattr(result, "_captured_chain", None)
+        assert chain is not None
+        assert len(chain) == 1
+        assert chain[0]["tool"] == "fake_tool"
+        assert chain[0]["output_preview"] == "out"

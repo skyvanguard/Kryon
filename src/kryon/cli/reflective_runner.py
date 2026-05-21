@@ -6,14 +6,17 @@ Wrapper sobre `Runner.run` que entre chunks de N turns inyecta una
 Set KRYON_REFLECT_DEBUG=1 to see when reflection turns are injected
 (prints to stdout, useful for debugging the loop).
 
-KNOWN LIMITATION (F203.I): when a chunk exceeds its turn budget
-(MaxTurnsExceeded), the SDK's `Runner.run` raises without returning
-partial results — items of that chunk are lost. Effective rule:
-- reflect_every=5+ for normal investigations (minimal loss)
-- reflect_every=3 forces visible reflections but loses items in
-  chunks that hit max. Use only for debugging reflection behavior.
-- For "many reflections + full item capture", would need F203.K
-  (RunHooks-based per-turn item capture).
+F203.K — `ItemCaptureHooks` is a RunHooks subclass that captures
+tool calls + outputs via `on_tool_start` / `on_tool_end` callbacks.
+The capture list is shared across all chunks; even if a chunk hits
+MaxTurnsExceeded (items lost from `result.new_items`), the hooks
+already accumulated them. The final returned result exposes
+`_captured_chain` attr that write_back_from_investigate prefers
+over result.new_items extraction when it has more items.
+
+Effect: writeback now works correctly even with reflect_every=3
+(prev required reflect_every>=5 to avoid item loss). Validated
+end-to-end: chain_len=6 captured vs chain_len=1 without hooks.
 
   1. ¿Qué APRENDÍ que NO sabía?
   2. ¿Qué HIPÓTESIS sigue sin verificar?
@@ -39,6 +42,7 @@ import hashlib
 import json
 import logging
 import os
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -194,6 +198,78 @@ def _has_pending_tool_calls(result: Any) -> bool:
     return True
 
 
+class ItemCaptureHooks:
+    """F203.K — RunHooks subclass that captures tool calls + outputs
+    in-flight, so we don't lose data when a chunk hit MaxTurnsExceeded.
+
+    The SDK's `Runner.run` raises MaxTurnsExceeded WITHOUT returning a
+    partial result — items executed in that chunk are lost from
+    `result.new_items`. RunHooks fire ON EVERY tool invocation, so by
+    accumulating into a shared list, we preserve the full history even
+    across raised chunks.
+
+    Duck-typed to match `kryon.sdk.agents.lifecycle.RunHooks` without
+    importing it directly (avoids hard coupling — the runner accepts
+    any object with the on_* methods).
+    """
+
+    def __init__(self) -> None:
+        self.captured_items: list[dict[str, Any]] = []
+        # Map tool name → last started index so on_tool_end can attach output
+        self._last_call_idx: dict[str, int] = {}
+
+    async def on_agent_start(self, context: Any, agent: Any) -> None:
+        pass
+
+    async def on_agent_end(self, context: Any, agent: Any, output: Any) -> None:
+        # Mark the agent's final output as a separate captured entry so
+        # downstream consumers can identify "the end" vs intermediate
+        # tool calls.
+        self.captured_items.append(
+            {
+                "type": "agent_end",
+                "output_preview": str(output)[:500] if output else "",
+                "timestamp": time.time(),
+            }
+        )
+
+    async def on_handoff(self, context: Any, from_agent: Any, to_agent: Any) -> None:
+        pass
+
+    async def on_tool_start(self, context: Any, agent: Any, tool: Any) -> None:
+        tool_name = getattr(tool, "name", None) or str(tool)
+        entry = {
+            "type": "tool_call",
+            "tool": tool_name,
+            "args": "",  # filled in on_tool_end if we get access
+            "output_preview": "",
+            "timestamp": time.time(),
+        }
+        self.captured_items.append(entry)
+        self._last_call_idx[tool_name] = len(self.captured_items) - 1
+
+    async def on_tool_end(
+        self, context: Any, agent: Any, tool: Any, result: Any
+    ) -> None:
+        tool_name = getattr(tool, "name", None) or str(tool)
+        idx = self._last_call_idx.get(tool_name)
+        if idx is not None and idx < len(self.captured_items):
+            self.captured_items[idx]["output_preview"] = str(result)[:500]
+
+    def to_chain(self) -> list[dict[str, Any]]:
+        """Return captured items in chain schema (compatible with
+        write_back_from_investigate._extract_chain output)."""
+        return [
+            {
+                "tool": item["tool"],
+                "args": item.get("args", ""),
+                "output_preview": item.get("output_preview", ""),
+            }
+            for item in self.captured_items
+            if item.get("type") == "tool_call"
+        ]
+
+
 async def run_with_reflection(
     agent: Any,
     initial_input: str | list[Any],
@@ -237,6 +313,9 @@ async def run_with_reflection(
     # (e.g. write_back_from_investigate) see the full tool call history,
     # not just the items from the last chunk.
     accumulated_items: list[Any] = []
+    # F203.K — RunHooks-based capture: fires on EVERY tool invocation,
+    # even when the chunk hit MaxTurnsExceeded. Shared across all chunks.
+    capture_hooks = ItemCaptureHooks()
 
     while turns_used < max_total_turns:
         chunk_size = min(reflect_every, max_total_turns - turns_used)
@@ -249,6 +328,7 @@ async def run_with_reflection(
                 input=current_input,
                 max_turns=chunk_size,
                 run_config=run_config,
+                hooks=capture_hooks,  # F203.K — capture items in-flight
             )
         except Exception as e:  # noqa: BLE001 — handle MaxTurnsExceeded specially
             # MaxTurnsExceeded inside a chunk = "agent wanted to continue beyond
@@ -316,6 +396,12 @@ async def run_with_reflection(
                 result.new_items = accumulated_items
             except (AttributeError, Exception):  # noqa: BLE001
                 pass
+            # F203.K — attach captured hooks chain so write-back can use
+            # it as fallback when new_items duck-typing fails.
+            try:
+                result._captured_chain = capture_hooks.to_chain()  # type: ignore[attr-defined]
+            except (AttributeError, Exception):  # noqa: BLE001
+                pass
             return result
 
         # Stop if we've consumed the budget.
@@ -356,9 +442,15 @@ async def run_with_reflection(
     # F203.H — final return: patch accumulated_items onto last_result so
     # downstream consumers see the full history even when exiting via the
     # max_total_turns budget (not just early-finish path).
+    # F203.K — also attach captured chain from hooks (covers items lost
+    # to MaxTurnsExceeded chunks).
     if last_result is not None:
         try:
             last_result.new_items = accumulated_items
+        except (AttributeError, Exception):  # noqa: BLE001
+            pass
+        try:
+            last_result._captured_chain = capture_hooks.to_chain()  # type: ignore[attr-defined]
         except (AttributeError, Exception):  # noqa: BLE001
             pass
     return last_result

@@ -214,6 +214,18 @@ def write_back_from_investigate(
     new_items = getattr(result, "new_items", None) or []
     chain = _extract_chain(new_items)
 
+    # F203.K — fallback to captured chain from RunHooks when result.new_items
+    # extraction yields too few items (typical when chunks hit MaxTurnsExceeded
+    # and the SDK dropped them). The hooks captured items in-flight, so they
+    # survive even when result objects are lost.
+    captured_chain = getattr(result, "_captured_chain", None)
+    if isinstance(captured_chain, list) and len(captured_chain) > len(chain):
+        logger.info(
+            "write-back: using hooks-captured chain (%d items) over result.new_items (%d items)",
+            len(captured_chain), len(chain),
+        )
+        chain = captured_chain
+
     # F203.H — KRYON_WRITEBACK_DEBUG=1 enables verbose dump of item shapes
     # and extracted chain for debugging SDK item structure changes.
     if os.environ.get("KRYON_WRITEBACK_DEBUG", "").lower() in ("1", "true", "yes"):
@@ -226,7 +238,9 @@ def write_back_from_investigate(
                 i, item_attr_type, raw_cls,
                 getattr(getattr(item, "raw_item", None), "name", None),
             )
-        logger.warning("WB-DEBUG: extracted chain: %d tool calls", len(chain))
+        logger.warning("WB-DEBUG: extracted chain: %d tool calls (captured=%s)",
+                       len(chain),
+                       len(captured_chain) if isinstance(captured_chain, list) else "n/a")
 
     if len(chain) < 2:
         logger.info("write-back skipped: chain too short (%d tool calls)", len(chain))
