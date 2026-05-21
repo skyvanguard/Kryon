@@ -15,6 +15,7 @@ from kryon.tools.knowledge import (
     query_similar_findings,
     recall_similar_experiences,
     record_engagement_findings,
+    request_skill,
     search_vulnerabilities,
 )
 from kryon.tools.reconnaissance.exec_code import execute_code
@@ -43,6 +44,8 @@ RAG_TOOLS_FULL = RAG_TOOLS + [
     list_recent_experiences,
     record_engagement_findings,
     findings_library_stats,
+    # F203.D — on-demand skill discovery / fallback playbook
+    request_skill,
 ]
 
 # AI delegation tool

@@ -21,6 +21,7 @@ from .rag_tools import (
     query_knowledge_base,
     search_vulnerabilities,
 )
+from .request_skill import request_skill
 
 __all__ = [
     "query_knowledge_base",
@@ -34,4 +35,6 @@ __all__ = [
     "record_engagement_findings",
     "query_similar_findings",
     "findings_library_stats",
+    # F203.D — in-turn skill discovery / fallback
+    "request_skill",
 ]

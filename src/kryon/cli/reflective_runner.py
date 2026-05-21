@@ -136,8 +136,11 @@ def _build_reflection_prompt(
             f"\n⚠️ **STUCK PATTERN DETECTED**: invocaste `{stuck_record.tool_name}` "
             f"con args idénticos al menos 2 veces consecutivas.\n"
             f"   args preview: `{stuck_record.args_preview}`\n"
-            f"   → Cambiá de approach. Probá otra tool, otros args, "
-            f"o emití el resumen final si no hay más signal disponible.\n"
+            f"   → Cambiá de approach. Opciones:\n"
+            f"     • Probá otra tool con args distintos.\n"
+            f"     • Invocá `request_skill(topic=...)` para obtener metodología "
+            f"específica (F203.D).\n"
+            f"     • Emití el resumen final si no hay más signal disponible.\n"
         )
 
     return (
@@ -150,7 +153,8 @@ def _build_reflection_prompt(
         f"1. ¿Qué **aprendí** en estos últimos turns que NO sabía antes?\n"
         f"2. ¿Qué **hipótesis** sigue sin verificar?\n"
         f"3. ¿Estoy **progresando** hacia el objetivo? (sí / no / atascado)\n"
-        f"4. ¿Necesito una **skill o tool** que no tengo? (si sí, ¿cuál?)\n"
+        f"4. ¿Necesito una **skill o tool** que no tengo? "
+        f"(si sí, invocá `request_skill(topic='...')` para obtenerla)\n"
         f"5. ¿Debería **PARAR** ahora? (sí / no / por qué)\n\n"
         f"Si decidís parar → emití el resumen final del objetivo del operador.\n"
         f"Si no → continuá con el tool call que aporte MÁS signal nuevo, "
