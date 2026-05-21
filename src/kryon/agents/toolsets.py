@@ -17,6 +17,7 @@ from kryon.tools.knowledge import (
     record_engagement_findings,
     request_skill,
     search_vulnerabilities,
+    tool_search,
 )
 from kryon.tools.reconnaissance.exec_code import execute_code
 from kryon.tools.reconnaissance.run_command import run_command
@@ -46,6 +47,8 @@ RAG_TOOLS_FULL = RAG_TOOLS + [
     findings_library_stats,
     # F203.D — on-demand skill discovery / fallback playbook
     request_skill,
+    # F203.E — autonomous tool discovery (LLM picks tools from inventory)
+    tool_search,
 ]
 
 # AI delegation tool

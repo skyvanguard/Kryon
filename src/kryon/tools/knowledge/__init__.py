@@ -22,6 +22,7 @@ from .rag_tools import (
     search_vulnerabilities,
 )
 from .request_skill import request_skill
+from .tool_search import tool_search
 
 __all__ = [
     "query_knowledge_base",
@@ -37,4 +38,6 @@ __all__ = [
     "findings_library_stats",
     # F203.D — in-turn skill discovery / fallback
     "request_skill",
+    # F203.E — autonomous tool discovery
+    "tool_search",
 ]
