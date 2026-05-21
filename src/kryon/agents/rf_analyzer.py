@@ -1,4 +1,9 @@
-"""
+"""F202.AI status: red-team agent — gated by KRYON_RED_TEAM=true. In
+banca-safe default mode (no env set), imports raise ImportError from
+kryon.tools.command_and_control offensive gate. Kept because the gate is
+the legitimate enforcement point; the file is reachable under explicit
+red-team mode. Not dead code.
+
 RF Analyzer - Radio Frequency Intelligence Unit
 
 Series: RF-Class Spectrum Analysis System

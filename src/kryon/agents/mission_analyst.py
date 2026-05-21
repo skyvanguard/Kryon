@@ -1,4 +1,7 @@
-"""
+"""F202.AI status: legacy v1.x — reachable via /agent mission_analyst only.
+v2.x productive flows (engage/investigate) use unified_agent. Kept because
+discoverable + part of central_core handoff chain. Not dead code.
+
 Mission Analyst - Strategic Use Case and Scenario Planning Unit
 
 Series: Analysis-Class Strategic Documentation System

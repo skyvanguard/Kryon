@@ -1,4 +1,7 @@
-"""
+"""F202.AI status: red-team agent — gated by KRYON_RED_TEAM=true. Same
+contract as rf_analyzer: importable only with explicit red-team mode.
+Not dead code, banca-safe by default.
+
 Signal Repeater - Network Replay and Counteroffensive Unit
 
 Series: Signal-Class Electronic Warfare System

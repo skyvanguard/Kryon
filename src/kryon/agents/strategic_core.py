@@ -1,4 +1,7 @@
-"""
+"""F202.AI status: legacy v1.x — reachable via /agent strategic_core only.
+v2.x productive flows (engage/investigate) use unified_agent. Kept because
+discoverable + part of central_core handoff chain. Not dead code.
+
 Strategic Core - Intelligent Decision Engine
 
 Series: Intelligence-Class Command System

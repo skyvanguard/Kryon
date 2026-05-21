@@ -3,6 +3,19 @@ Central Core - Strategic Command and Control Unit
 
 Pure router: analyzes requests and delegates to the optimal specialist agent.
 Does NOT execute tools directly — only thinks and delegates.
+
+F202.AI status (2026-05): **legacy v1.x routing pattern**. v2.x uses the
+unified Kryon agent (`create_unified_agent`) via `engage` / `investigate`
+flows. Central Core remains reachable via `get_agent_by_name('central_core')`
+or `/agent central_core` REPL command for operators who explicitly want the
+thought-router style. Its lazy_handoff chain references `mission_analyst`,
+`strategic_core` (importable) and `rf_analyzer`, `signal_repeater`,
+`wireless_infiltrator` (red-team-gated). Kept because:
+  - importable in banca-safe default mode (3 of 6 targets cargan)
+  - listed in banner.py + help.py as discoverable agent
+  - removing would also need to clean up handoff entries + UI references
+Audit log kept for clarity. Don't re-flag as dead code unless v2.x removes
+the discovery pathway entirely.
 """
 
 from kryon.agents.base import create_agent
