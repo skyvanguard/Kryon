@@ -220,6 +220,10 @@ async def run_with_reflection(
     turns_used = 0
     tool_history: list[_ToolCallRecord] = []
     last_result: Any = None
+    # F203.H — accumulate new_items across chunks so downstream consumers
+    # (e.g. write_back_from_investigate) see the full tool call history,
+    # not just the items from the last chunk.
+    accumulated_items: list[Any] = []
 
     while turns_used < max_total_turns:
         chunk_size = min(reflect_every, max_total_turns - turns_used)
@@ -274,13 +278,24 @@ async def run_with_reflection(
         turns_used += consumed
         last_result = result
 
+        # F203.H — accumulate new_items so the final returned result reflects
+        # the FULL conversation, not just the last chunk's slice.
+        chunk_items = getattr(result, "new_items", []) or []
+        accumulated_items.extend(chunk_items)
+
         # Update tool call history.
-        new_records = _extract_tool_calls(getattr(result, "new_items", []) or [])
+        new_records = _extract_tool_calls(chunk_items)
         tool_history.extend(new_records)
 
         # Did the agent finish? (final_output set + no pending tool calls)
         if not _has_pending_tool_calls(result):
             logger.debug("reflective runner: agent finished at turn %d", turns_used)
+            # F203.H — patch the accumulated items list onto the returned
+            # result so write-back sees all chunks' tool calls.
+            try:
+                result.new_items = accumulated_items
+            except (AttributeError, Exception):  # noqa: BLE001
+                pass
             return result
 
         # Stop if we've consumed the budget.
@@ -314,6 +329,14 @@ async def run_with_reflection(
             {"role": "user", "content": reflection_msg}
         ]
 
+    # F203.H — final return: patch accumulated_items onto last_result so
+    # downstream consumers see the full history even when exiting via the
+    # max_total_turns budget (not just early-finish path).
+    if last_result is not None:
+        try:
+            last_result.new_items = accumulated_items
+        except (AttributeError, Exception):  # noqa: BLE001
+            pass
     return last_result
 
 

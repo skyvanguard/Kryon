@@ -79,31 +79,46 @@ def _extract_chain(new_items: list[Any]) -> list[dict[str, Any]]:
     Returns a list shaped to match the synthesizer's expected chain
     schema: [{"tool": name, "args": ..., "output_preview": "..."}].
 
-    Duck-typed: tolerant to multiple SDK item shapes.
+    Duck-typed to handle real SDK item shapes:
+    - ToolCallItem: item.type == "tool_call_item", raw_item is
+      ResponseFunctionToolCall with .name/.arguments/.call_id.
+    - ToolCallOutputItem: item.type == "tool_call_output_item",
+      raw_item is dict {"call_id": ..., "output": ..., "type": ...}
+      AND item.output exposes the wrapper output too.
+    - MessageOutputItem: type == "message_output_item" — skip.
     """
+    def _g(obj: Any, key: str, default: Any = None) -> Any:
+        """Get attr OR dict key, since SDK mixes both."""
+        if obj is None:
+            return default
+        v = getattr(obj, key, None)
+        if v is not None:
+            return v
+        if isinstance(obj, dict):
+            return obj.get(key, default)
+        return default
+
     chain: list[dict[str, Any]] = []
     # Map tool_call_id -> chain index for output attachment
     call_id_to_idx: dict[str, int] = {}
 
     for item in new_items:
-        raw = getattr(item, "raw_item", None) or item
+        # F203.H — check the item.type marker first (more reliable than
+        # duck-typing raw_item attrs).
+        item_type = getattr(item, "type", "") or ""
+        raw = getattr(item, "raw_item", None)
 
-        # Tool call: has name + arguments
-        tool_name = None
-        if hasattr(raw, "name") and getattr(raw, "name", None):
-            tool_name = str(raw.name)
-        elif hasattr(raw, "tool_name") and getattr(raw, "tool_name", None):
-            tool_name = str(raw.tool_name)
-
-        if tool_name:
-            args = (
-                getattr(raw, "arguments", None)
-                or getattr(raw, "args", None)
-                or {}
+        # --- Tool call branch ---
+        if item_type == "tool_call_item" or _g(raw, "name"):
+            tool_name = (
+                _g(raw, "name")
+                or _g(raw, "tool_name")
+                or "unknown_tool"
             )
-            call_id = getattr(raw, "call_id", None) or getattr(raw, "id", None) or ""
+            args = _g(raw, "arguments") or _g(raw, "args") or {}
+            call_id = _g(raw, "call_id") or _g(raw, "id") or ""
             entry = {
-                "tool": tool_name,
+                "tool": str(tool_name),
                 "args": str(args)[:500],
                 "output_preview": "",
             }
@@ -112,21 +127,29 @@ def _extract_chain(new_items: list[Any]) -> list[dict[str, Any]]:
                 call_id_to_idx[str(call_id)] = len(chain) - 1
             continue
 
-        # Tool output: attach to most-recent call
-        output = getattr(raw, "output", None) or getattr(raw, "content", None)
-        if output is not None:
-            call_id = getattr(raw, "call_id", None) or getattr(raw, "tool_call_id", None)
-            idx = None
-            if call_id:
-                idx = call_id_to_idx.get(str(call_id))
-            if idx is None and chain:
-                # Fallback: last call without output yet
-                for i in range(len(chain) - 1, -1, -1):
-                    if not chain[i]["output_preview"]:
-                        idx = i
-                        break
-            if idx is not None:
-                chain[idx]["output_preview"] = str(output)[:500]
+        # --- Tool output branch ---
+        if item_type == "tool_call_output_item" or _g(raw, "output") is not None:
+            # Output may be on the wrapper (item.output) OR on raw_item.
+            output = (
+                getattr(item, "output", None)
+                or _g(raw, "output")
+                or _g(raw, "content")
+            )
+            call_id = _g(raw, "call_id") or _g(raw, "tool_call_id")
+            if output is not None:
+                idx = None
+                if call_id:
+                    idx = call_id_to_idx.get(str(call_id))
+                if idx is None and chain:
+                    for i in range(len(chain) - 1, -1, -1):
+                        if not chain[i]["output_preview"]:
+                            idx = i
+                            break
+                if idx is not None:
+                    chain[idx]["output_preview"] = str(output)[:500]
+            continue
+
+        # MessageOutputItem / other → skip (no tool data).
 
     return chain
 
@@ -190,6 +213,21 @@ def write_back_from_investigate(
 
     new_items = getattr(result, "new_items", None) or []
     chain = _extract_chain(new_items)
+
+    # F203.H — KRYON_WRITEBACK_DEBUG=1 enables verbose dump of item shapes
+    # and extracted chain for debugging SDK item structure changes.
+    if os.environ.get("KRYON_WRITEBACK_DEBUG", "").lower() in ("1", "true", "yes"):
+        logger.warning("WB-DEBUG: new_items count: %d", len(new_items))
+        for i, item in enumerate(new_items[:10]):
+            item_attr_type = getattr(item, "type", "?")
+            raw_cls = type(getattr(item, "raw_item", None)).__name__
+            logger.warning(
+                "WB-DEBUG: item[%d] type=%s raw_cls=%s name=%s",
+                i, item_attr_type, raw_cls,
+                getattr(getattr(item, "raw_item", None), "name", None),
+            )
+        logger.warning("WB-DEBUG: extracted chain: %d tool calls", len(chain))
+
     if len(chain) < 2:
         logger.info("write-back skipped: chain too short (%d tool calls)", len(chain))
         return None
