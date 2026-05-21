@@ -67,6 +67,8 @@ def build_tool_registry() -> dict[str, Any]:
         "kryon.tools.reconnaissance.whatweb",
         "kryon.tools.web.nuclei",
         "kryon.tools.web.duckduckgo_search",
+        # F203.B — smart HTTP GET with HTML→markdown extraction
+        "kryon.tools.web.web_fetch_smart",
         # F197 — IoT / DVR fingerprinting (Hikvision / Dahua / ONVIF)
         "kryon.tools.iot.dvr_recon",
         "kryon.tools.iot.onvif_probe",

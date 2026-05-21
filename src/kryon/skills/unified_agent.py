@@ -157,6 +157,20 @@ def create_unified_agent(
     if tools is None:
         tools = select_tools(registry, skill_tool_names, forbidden_tool_names=forbidden)
 
+    # F203.G — ambient tools always present (independent of skill required_tools):
+    #   web_fetch_smart (F203.B) — smart HTTP GET with HTML→markdown
+    #   request_skill (F203.D)   — on-demand skill discovery
+    #   tool_search (F203.E)     — autonomous tool discovery
+    #   duckduckgo_search        — free web search (no API key)
+    # These tools are meta-capabilities: any agentic loop needs them regardless
+    # of the specific skill loaded. select_tools() filters by skill.required_tools
+    # which doesn't include these, so we append them post-hoc.
+    _ambient_tool_names = ["web_fetch_smart", "request_skill", "tool_search", "duckduckgo_search"]
+    existing_names = {getattr(t, "name", "") for t in tools}
+    for name in _ambient_tool_names:
+        if name in registry and name not in existing_names and name not in forbidden:
+            tools.append(registry[name])
+
     logger.info(
         "Unified agent: %d skills loaded (%s), %d tools active",
         len(skills),
