@@ -344,22 +344,31 @@ kryon investigate "active sqli pentest contra https://target" --active
 - **F203.T** — 21 red-team tools cableados bajo `KRYON_RED_TEAM=true`
   gate (api_attacks, browser/Playwright, evasion analytical). Registry
   104 default → 125 con RED_TEAM.
-- **F203.V/W/X/AB** — 6 "explicit-keyword" active skills, priority=3,
-  pre_hook deterministico:
+- **F203.V/W/X/AB/AF/AG** — 14 "explicit-keyword" active skills,
+  priority=3, pre_hook deterministico. Cubre OWASP Top-10 + API + JS-ecosystem:
 
-  | Skill | Keyword trigger | Pre_hook |
-  |-------|-----------------|----------|
-  | web-pentest-sqli-active | "active sqli pentest" | F191 sqlmap 10-endpoint |
-  | web-pentest-xss-active  | "active xss pentest"  | nuclei -tags xss,dast |
-  | web-pentest-idor-active | "active idor pentest" | idor_probe 96 combos |
-  | web-pentest-ssrf-active | "active ssrf pentest" | nuclei -tags ssrf |
-  | web-pentest-rce-active  | "active rce pentest"  | nuclei -tags rce,cmdi |
-  | web-pentest-csrf-active | "active csrf pentest" | curl headers + nuclei csrf,cors |
+  | Skill | Keyword trigger | Pre_hook | CWE root |
+  |-------|-----------------|----------|----------|
+  | web-pentest-sqli-active | "active sqli pentest" | F191 sqlmap 10-endpoint | CWE-89 |
+  | web-pentest-xss-active  | "active xss pentest"  | nuclei -tags xss,dast | CWE-79 |
+  | web-pentest-idor-active | "active idor pentest" | idor_probe 96 combos | CWE-639 |
+  | web-pentest-ssrf-active | "active ssrf pentest" | nuclei -tags ssrf | CWE-918 |
+  | web-pentest-rce-active  | "active rce pentest"  | nuclei -tags rce,cmdi | CWE-78/77 |
+  | web-pentest-csrf-active | "active csrf pentest" | curl headers + nuclei csrf,cors | CWE-352 |
+  | web-pentest-path-traversal-active | "active lfi pentest" | nuclei -tags lfi,traversal | CWE-22 |
+  | web-pentest-deser-active | "active deser pentest" | nuclei -tags deserialization,jndi | CWE-502 |
+  | web-pentest-auth-bypass-active | "active auth bypass pentest" | nuclei -tags auth-bypass,jwt + curl admin endpoints | CWE-287/306 |
+  | web-pentest-file-upload-active | "active file upload pentest" | nuclei -tags file-upload + curl OPTIONS | CWE-434 |
+  | web-pentest-xxe-active | "active xxe pentest" | nuclei -tags xxe,xml | CWE-611 |
+  | web-pentest-nosql-active | "active nosql pentest" / "active mongo injection" | nuclei -tags nosql,injection | CWE-943 |
+  | web-pentest-graphql-active | "active graphql pentest" | nuclei -tags graphql,api + curl endpoint discovery | CWE-200/862 |
+  | web-pentest-prototype-pollution-active | "active prototype pollution pentest" | nuclei -tags prototype-pollution | CWE-1321 |
 
   Estas skills NO activan con keywords genéricos ("sqli", "xss",
-  "idor"). Solo con la frase explícita "active X pentest" (o equivalentes:
-  "fire X probe", "pentest activo X"). Aprendizaje F203.U: pre_hooks
-  costosos en skills de keyword amplio regressionan el bench wall budget.
+  "idor", "xxe", "graphql"). Solo con la frase explícita
+  "active X pentest" (o equivalentes: "fire X probe", "pentest activo X").
+  Aprendizaje F203.U: pre_hooks costosos en skills de keyword amplio
+  regressionan el bench wall budget (33% → 0% pwn rate observado).
 - **F203.Z.B** — pre_hooks integration en `investigate.py`. Antes solo
   `engage._run_phase` invocaba pre_hooks; ahora `maybe_run_pre_hooks`
   también corre desde `kryon investigate` (necesario para que las
@@ -373,8 +382,13 @@ kryon investigate "active sqli pentest contra https://target" --active
   conocidos. `docker compose -f docker/vulnerable-lab/docker-compose.yml up`.
   Scoreboard via `scripts/lab_scoreboard.py --transcript X --target {web,ssh,db,juice_shop}`.
 - **HTB walkthroughs** — `tests/benchmarks/htb_style/walkthroughs/*.json`
-  con expected chains. 4 ready (dvwa-sqli-low pending), 30 total.
-  CLI: `python -m scripts.htb_bench.cli --all --platform htb --status ready`.
+  con expected chains. **7 ready** (post F203.AH), 30 total. CLI:
+  `python -m scripts.htb_bench.cli --all --platform htb --status ready`.
+  Las 7 ready coinciden 1:1 con las active skills:
+  portswigger-{sqli-where-clause, xss-dom-1, idor-1, os-cmd-1,
+  ssrf-basic, csrf-1, xxe-1} → web-pentest-{sqli, xss, idor, rce,
+  ssrf, csrf, xxe}-active. Bench end-to-end activable con
+  `KRYON_RED_TEAM=true` env.
 - **OWASP Juice Shop** — `docker start juice_shop` (port host 3003 → 3000
   guest). Ground truth de 10 CWEs canonicos (CWE-89/79/639/285/200/22/352/915/1004/319)
   en `scripts/lab_scoreboard.py` target=juice_shop.
