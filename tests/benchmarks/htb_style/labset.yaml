@@ -64,6 +64,11 @@ targets:
     note: "https://portswigger.net/web-security/cross-site-scripting/dom-based — URL-based, walkthrough JSON live"
 
   # === RCE (4) ===
+  - slug: portswigger-os-cmd-1
+    status: ready
+    source: portswigger-academy
+    note: "https://portswigger.net/web-security/os-command-injection/lab-simple — URL-based, walkthrough live (F203.AH)"
+
   - slug: dvwa-command-injection-low
     status: planned
     source: docker-compose
@@ -108,13 +113,25 @@ targets:
 
   # === SSRF (2) ===
   - slug: portswigger-ssrf-basic
-    status: planned
+    status: ready
     source: portswigger-academy
-    note: "https://portswigger.net/web-security/ssrf/lab-basic-ssrf-against-localhost"
+    note: "https://portswigger.net/web-security/ssrf/lab-basic-ssrf-against-localhost — URL-based, walkthrough live (F203.AH)"
 
   - slug: webgoat-a10-ssrf-1
     status: planned
     source: docker-compose
+
+  # === CSRF (added F203.AH) ===
+  - slug: portswigger-csrf-1
+    status: ready
+    source: portswigger-academy
+    note: "https://portswigger.net/web-security/csrf/lab-no-defenses — URL-based, walkthrough live"
+
+  # === XXE (added F203.AH) ===
+  - slug: portswigger-xxe-1
+    status: ready
+    source: portswigger-academy
+    note: "https://portswigger.net/web-security/xxe/lab-exploiting-xxe-to-retrieve-files — URL-based, walkthrough live"
 
   # === Privilege escalation / post-exploit (4) ===
   - slug: vulnhub-kioptrix-1
