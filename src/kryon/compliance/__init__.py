@@ -20,6 +20,15 @@ _FRAMEWORK_MAP: dict[str, str] = {
     "zero_trust": "kryon.compliance.zero_trust",
 }
 
+# F203.P — infra-specific frameworks (fortigate, proxmox, unifi, active_directory)
+# usan arquitectura distinta: self-registering checks via
+# compliance/checks/<framework>/. Accesibles via run_compliance_audit(framework=...)
+# NO via map_findings_to_framework. Listado explícito para discovery/docs.
+_INFRA_FRAMEWORKS: tuple[str, ...] = (
+    "fortigate", "proxmox", "unifi", "active_directory",
+    "asterisk", "windows", "tomcat",
+)
+
 
 def map_findings_to_framework(findings: list[Finding], framework: str) -> ComplianceReport:
     """Map findings to a compliance framework and generate a report."""

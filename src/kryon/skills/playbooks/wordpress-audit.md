@@ -10,6 +10,21 @@ required_tools:
   - run_command
   - search_vulnerabilities
   - nuclei_scan
+pre_hooks:
+  # F203.O — confirma WordPress + REST API users enum + nuclei WP templates.
+  # Banca-safe: rate-limited, read-only enumeration.
+  - tool: run_command
+    args:
+      command: "curl -sI {ctx.target}/wp-login.php 2>&1 | head -10 && echo --- && curl -s '{ctx.target}/?rest_route=/wp/v2/users' 2>&1 | head -120"
+    inject_as: wp_confirm_and_users
+    required: false
+    timeout_s: 30
+  - tool: run_command
+    args:
+      command: "nuclei -u {ctx.target} -tags wordpress -severity critical,high,medium -rate-limit 50 -bulk-size 10 -c 10 -silent -j 2>&1 | head -200"
+    inject_as: nuclei_wordpress
+    required: false
+    timeout_s: 240
 ---
 
 ## WordPress Security Audit

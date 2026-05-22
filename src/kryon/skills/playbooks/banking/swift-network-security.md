@@ -9,6 +9,16 @@ priority: 18
 required_tools:
   - run_command
   - nuclei_scan
+pre_hooks:
+  # F203.O — SWIFT Alliance Access TLS baseline + headers. NO ejecuta
+  # checks CSP reales — solo confirma TLS posture del Alliance Access
+  # endpoint expuesto. Banca-safe: handshake-only, no Auth tokens.
+  - tool: run_command
+    args:
+      command: "echo | openssl s_client -connect {ctx.host}:443 -servername {ctx.host} 2>&1 | grep -E 'Protocol|Cipher|subject=|issuer=|Verify return code' | head -20"
+    inject_as: swift_tls_posture
+    required: false
+    timeout_s: 30
 ---
 
 > **Estado: TEMPLATE — mapea los 32 controles CSP, no los ejecuta.**

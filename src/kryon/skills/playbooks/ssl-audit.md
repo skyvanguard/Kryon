@@ -8,6 +8,21 @@ triggers:
 priority: 30
 required_tools:
   - run_command
+pre_hooks:
+  # F203.O — TLS baseline via openssl s_client (universal, no deps).
+  # Banca-safe: solo handshake + cert inspection, no exploit, no MITM.
+  - tool: run_command
+    args:
+      command: "openssl s_client -connect {ctx.host}:443 -servername {ctx.host} -showcerts </dev/null 2>&1 | head -80"
+    inject_as: ssl_baseline_cert
+    required: false
+    timeout_s: 30
+  - tool: run_command
+    args:
+      command: "echo | openssl s_client -connect {ctx.host}:443 -servername {ctx.host} -tls1 2>&1 | grep -E 'Cipher|Protocol|Verify return code' || echo 'tls1 rejected'"
+    inject_as: ssl_baseline_tls10
+    required: false
+    timeout_s: 15
 ---
 
 ## Auditoría SSL/TLS

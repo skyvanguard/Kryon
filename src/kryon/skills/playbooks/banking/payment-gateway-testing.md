@@ -9,6 +9,21 @@ priority: 18
 required_tools:
   - run_command
   - nuclei_scan
+pre_hooks:
+  # F203.O — payment gateway baseline: TLS + security headers + nuclei
+  # con tags api/oauth2/openapi/payment. Banca-safe: rate-limited, read-only.
+  - tool: run_command
+    args:
+      command: "curl -sI {ctx.target} 2>&1 | head -25 && echo --- && echo | openssl s_client -connect {ctx.host}:443 -servername {ctx.host} 2>&1 | grep -E 'Protocol|Cipher|Verify return code' || true"
+    inject_as: gateway_tls_headers
+    required: false
+    timeout_s: 30
+  - tool: run_command
+    args:
+      command: "nuclei -u {ctx.target} -tags api,oauth2,openapi -severity critical,high -rate-limit 50 -bulk-size 10 -c 10 -silent -j 2>&1 | head -150"
+    inject_as: nuclei_payment_gateway
+    required: false
+    timeout_s: 180
 ---
 
 > **Estado: TEMPLATE — vendor-specific checks aspiracionales.**

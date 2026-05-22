@@ -11,6 +11,22 @@ required_tools:
   - nuclei_scan
   - search_vulnerabilities
   - query_knowledge_base
+pre_hooks:
+  # F203.O — Core banking port fingerprint + TLS baseline. NO ejecuta
+  # T24/Flexcube/Finacle specific checks (template-only). Solo confirma
+  # qué puertos están abiertos + TLS posture del 443. Banca-safe.
+  - tool: run_command
+    args:
+      command: "nmap -Pn -sT -p 1433,1521,3389,1414,5000,5001,2030 -T2 --max-rate 50 {ctx.host} 2>&1 | head -30"
+    inject_as: core_banking_ports
+    required: false
+    timeout_s: 60
+  - tool: run_command
+    args:
+      command: "echo | openssl s_client -connect {ctx.host}:443 -servername {ctx.host} 2>&1 | grep -E 'Protocol|Cipher|Verify return code|subject=' | head -10 || true"
+    inject_as: core_banking_tls_443
+    required: false
+    timeout_s: 20
 ---
 
 > **Estado: TEMPLATE — no validado contra un engagement real.**

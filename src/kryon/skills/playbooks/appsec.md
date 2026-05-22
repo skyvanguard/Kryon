@@ -24,6 +24,16 @@ required_tools:
   - nuclei_scan
   - search_vulnerabilities
   - query_knowledge_base
+pre_hooks:
+  # F203.O — nuclei web vuln baseline via run_command (SSTI guard del
+  # pre_hook spec NO acepta JSON literal en args, por eso usamos shell).
+  # Banca-safe: rate-limit 50, severities high+critical only.
+  - tool: run_command
+    args:
+      command: "nuclei -u {ctx.target} -severity critical,high -rate-limit 50 -bulk-size 10 -c 10 -follow-redirects -silent -j 2>&1 | head -200"
+    inject_as: nuclei_appsec_baseline
+    required: false
+    timeout_s: 180
 ---
 
 ## OWASP Top 10 Checklist
