@@ -90,6 +90,49 @@ KNOWN_INJECTABLE_ENDPOINTS: list[dict[str, str]] = [
         "data": "username=admin&password=admin",
         "content_type": "application/x-www-form-urlencoded",
     },
+    # F203.AM — PortSwigger Web Security Academy lab patterns.
+    # Filter/category/product GET endpoints (classic SQLi via query string).
+    # These match the canonical PortSwigger SQLi labs:
+    #   - /web-security/sql-injection/lab-retrieve-hidden-data → ?category=Gifts
+    #   - /web-security/sql-injection/lab-login-bypass         → /login POST
+    #   - /web-security/sql-injection/lab-where-clause         → ?category=*
+    {
+        "path": "/filter?category=Gifts",
+        "method": "GET",
+    },
+    {
+        "path": "/filter?category=Pets",
+        "method": "GET",
+    },
+    {
+        "path": "/product?productId=1",
+        "method": "GET",
+    },
+    # OS command injection labs (productId+storeId POST)
+    {
+        "path": "/product/stock",
+        "method": "POST",
+        "data": "productId=1&storeId=1",
+        "content_type": "application/x-www-form-urlencoded",
+    },
+    # Classic SQL injection via GET param "id" (DVWA, WebGoat, generic)
+    {
+        "path": "/?id=1",
+        "method": "GET",
+    },
+    {
+        "path": "/items?id=1",
+        "method": "GET",
+    },
+    {
+        "path": "/vulnerabilities/sqli/?id=1&Submit=Submit",
+        "method": "GET",
+    },
+    # WebGoat A03 injection
+    {
+        "path": "/WebGoat/SqlInjection/attack5a?login_count=1&userid=1",
+        "method": "GET",
+    },
 ]
 
 # Status codes that indicate "the server answered — worth probing".
