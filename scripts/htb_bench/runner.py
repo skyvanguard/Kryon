@@ -196,16 +196,32 @@ def invoke_kryon(prompt: str, timeout: int = 600) -> str:
         return proc.stdout + "\n" + proc.stderr
 
     # F203.AK default — kryon investigate path (fires pre_hooks F203.Z.B).
-    # F203.AK.B — uses host venv (`uv run`) because the Docker container
-    # Kryon image was built pre-F203.A; subcommand `investigate` doesn't
-    # exist there. Rebuilding the image is F203.AL candidate.
+    # F203.AL — uses Docker container `kryon` (Kali-based, has nuclei +
+    # sqlmap + curl preinstalled). The image must be rebuilt post-F203
+    # for the `investigate` subcommand to exist.
+    # `KRYON_BENCH_USE_HOST=1` falls back to `uv run kryon investigate`
+    # on the host (skips container, useful for local debugging).
+    import os
+    if os.environ.get("KRYON_BENCH_USE_HOST") == "1":
+        cmd = ["uv", "run", "kryon", "investigate", prompt,
+               "--active", "--max-turns", "10", "--reflect-every", "5"]
+    else:
+        # F203.AL — pass model + RED_TEAM via env. KRYON_MODEL defaults
+        # to kryon-gpt-oss (F189 validated: 18 findings avg vs kryon-14b's
+        # empty `[]` returns for active pentest prompts).
+        bench_model = os.environ.get("KRYON_BENCH_MODEL", "kryon-gpt-oss")
+        cmd = ["docker", "exec",
+               "-e", "KRYON_RED_TEAM=true",
+               "-e", f"KRYON_MODEL={bench_model}",
+               "-e", f"KRYON_TRIAGE_MODEL={bench_model}",
+               "-e", f"KRYON_RAG_MODEL={bench_model}",
+               "-e", f"KRYON_GUARDRAIL_MODEL={bench_model}",
+               "-e", f"KRYON_COMPLIANCE_NARRATOR_MODEL={bench_model}",
+               "kryon",
+               "kryon", "investigate", prompt,
+               "--active", "--max-turns", "10", "--reflect-every", "5"]
     proc = subprocess.run(
-        [
-            "uv", "run", "kryon", "investigate", prompt,
-            "--active",
-            "--max-turns", "10",
-            "--reflect-every", "5",
-        ],
+        cmd,
         capture_output=True, text=True,
         encoding="utf-8", errors="replace",
         timeout=timeout,

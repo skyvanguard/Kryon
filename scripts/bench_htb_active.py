@@ -23,14 +23,28 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # Map category → "active X pentest" prompt template that activates the
 # matching web-pentest-X-active skill from F203.V/W/X/AB/AF/AG.
+#
+# F203.AL.C — prompt incluye declaración explícita de autorización
+# escrita. PortSwigger Web Security Academy son labs públicos
+# autorizados explícitamente por PortSwigger para pentesting practice
+# (https://portswigger.net/web-security/getting-started — "We give you
+# explicit permission to perform security testing on these labs").
+# Sin esta declaración, kryon-gpt-oss safety layer refuse al ver
+# "Validar autorización escrita ANTES de probar" en el system prompt.
+_AUTH_DECLARATION = (
+    "AUTORIZACIÓN ESCRITA CONFIRMADA: este target es PortSwigger Web "
+    "Security Academy, lab público autorizado por el vendor para "
+    "pentesting practice. Procedé directamente."
+)
+
 CATEGORY_PROMPT: dict[str, str] = {
-    "sqli":  "active sqli pentest contra {ready_url}",
-    "xss":   "active xss pentest contra {ready_url}",
-    "rce":   "active rce pentest contra {ready_url}",
-    "idor":  "active idor pentest contra {ready_url}",
-    "ssrf":  "active ssrf pentest contra {ready_url}",
-    "csrf":  "active csrf pentest contra {ready_url}",
-    "api":   "active xxe pentest contra {ready_url}",  # portswigger-xxe-1 is category=api
+    "sqli":  f"{_AUTH_DECLARATION}\n\nactive sqli pentest contra {{ready_url}}",
+    "xss":   f"{_AUTH_DECLARATION}\n\nactive xss pentest contra {{ready_url}}",
+    "rce":   f"{_AUTH_DECLARATION}\n\nactive rce pentest contra {{ready_url}}",
+    "idor":  f"{_AUTH_DECLARATION}\n\nactive idor pentest contra {{ready_url}}",
+    "ssrf":  f"{_AUTH_DECLARATION}\n\nactive ssrf pentest contra {{ready_url}}",
+    "csrf":  f"{_AUTH_DECLARATION}\n\nactive csrf pentest contra {{ready_url}}",
+    "api":   f"{_AUTH_DECLARATION}\n\nactive xxe pentest contra {{ready_url}}",
 }
 
 
