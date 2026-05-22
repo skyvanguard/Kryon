@@ -238,6 +238,62 @@ class TestHybridMode:
 
         assert _format_findings_for_prompt([]) == ""
 
+    def test_ssh_creds_flags_parsed(self):
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers(dest="command")
+        add_investigate_subparser(sub)
+
+        args = parser.parse_args([
+            "investigate", "x", "--ssh-user", "admin",
+            "--ssh-pass", "secret123", "--ssh-key", "/path/to/key",
+        ])
+        assert args.ssh_user == "admin"
+        assert args.ssh_pass == "secret123"
+        assert args.ssh_key == "/path/to/key"
+
+    def test_db_creds_flags_parsed(self):
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers(dest="command")
+        add_investigate_subparser(sub)
+
+        args = parser.parse_args([
+            "investigate", "x", "--db-user", "app", "--db-pass", "pw",
+        ])
+        assert args.db_user == "app"
+        assert args.db_pass == "pw"
+
+    def test_include_dns_smb_flags(self):
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers(dest="command")
+        add_investigate_subparser(sub)
+
+        args = parser.parse_args([
+            "investigate", "x", "--include-dns-checks", "--include-smb-checks",
+        ])
+        assert args.include_dns_checks is True
+        assert args.include_smb_checks is True
+
+    def test_creds_default_empty(self):
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers(dest="command")
+        add_investigate_subparser(sub)
+
+        args = parser.parse_args(["investigate", "x"])
+        assert args.ssh_user == ""
+        assert args.db_user == ""
+        assert args.include_dns_checks is False
+        assert args.include_smb_checks is False
+
+    def test_run_deterministic_phase_accepts_kwargs(self):
+        from kryon.cli.investigate import _run_deterministic_phase
+        # Should not raise — empty URL returns []
+        assert _run_deterministic_phase(
+            "",
+            ssh_user="admin", ssh_password="x", ssh_key="/k",
+            db_user="root", db_password="r",
+            include_dns=True, include_smb=True,
+        ) == []
+
     def test_format_findings_for_prompt_includes_cwe_and_rule(self):
         from kryon.cli.investigate import _format_findings_for_prompt
 

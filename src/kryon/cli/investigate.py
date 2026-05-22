@@ -135,11 +135,35 @@ def _build_investigate_prompt(user_prompt: str, hints: dict[str, Any], active: b
     )
 
 
-def _run_deterministic_phase(url: str) -> list:
-    """F203.M — Hybrid mode: run deterministic checks BEFORE the LLM agent.
+def _safe_call(fn, *args, **kwargs):
+    """Invoke a detector defensively — return [] on any error."""
+    try:
+        r = fn(*args, **kwargs)
+    except Exception:  # noqa: BLE001 — defensive; LLM still runs
+        return []
+    if r is None:
+        return []
+    return r if isinstance(r, list) else [r]
 
-    Parse URL, build DiscoveredService stub, invoke matching engage.py
-    checkers (HTTP / MySQL). Returns list[Finding] from kryon.cli.engage.
+
+def _run_deterministic_phase(
+    url: str,
+    *,
+    ssh_user: str = "",
+    ssh_password: str = "",
+    ssh_key: str = "",
+    db_user: str = "",
+    db_password: str = "",
+    include_dns: bool = False,
+    include_smb: bool = False,
+) -> list:
+    """F203.M/N — Hybrid mode: run deterministic checks BEFORE the LLM agent.
+
+    F203.M (N=0): HTTP/HTTPS + MySQL banner-only checks.
+    F203.N.1:    Python http.server exposed + BGP port detect.
+    F203.N.2:    SSH deep audit (creds-aware) + MySQL deep audit (F202.W).
+    F203.N.3:    DNS battery (zone transfer / chaos / dnssec / open resolver /
+                 reverse enum) + SMB anonymous shares — opt-in via flags.
 
     Skips silently on import/runtime errors — the LLM agent will still run.
     """
@@ -148,9 +172,19 @@ def _run_deterministic_phase(url: str) -> list:
     try:
         from kryon.cli.engage import (
             DiscoveredService,
+            _check_bgp_exposure,
+            _check_dns_chaos_leak,
+            _check_dns_open_resolver,
+            _check_dns_zone_transfer,
+            _check_dnssec_validation,
             _check_http,
             _check_http_cookie_flags,
             _check_mysql,
+            _check_mysql_deep,
+            _check_python_simplehttp_exposed,
+            _check_reverse_dns_enum,
+            _check_smb_anonymous_shares,
+            _check_ssh,
         )
     except ImportError:
         return []
@@ -161,46 +195,102 @@ def _run_deterministic_phase(url: str) -> list:
     if not host:
         return []
 
-    # Resolve port: explicit, then scheme default
     port = parsed.port
     if port is None:
-        if scheme == "https":
-            port = 443
-        elif scheme == "http":
-            port = 80
-        else:
+        defaults = {
+            "https": 443, "http": 80, "ssh": 22, "mysql": 3306,
+            "postgres": 5432, "postgresql": 5432, "redis": 6379,
+            "mongodb": 27017, "dns": 53, "smb": 445, "cifs": 445,
+        }
+        port = defaults.get(scheme)
+        if port is None:
             return []
 
     findings: list = []
-    # HTTP / HTTPS services
+
+    # HTTP / HTTPS
     if scheme in ("http", "https") or port in (80, 443, 8080, 8443, 8000, 8888):
         svc = DiscoveredService(
-            host=host,
-            port=port,
-            state="open",
+            host=host, port=port, state="open",
             service="https" if scheme == "https" or port == 443 else "http",
         )
-        try:
-            findings.extend(_check_http(svc))
-        except Exception:  # noqa: BLE001 — defensive; LLM still runs
-            pass
-        try:
-            findings.extend(_check_http_cookie_flags(svc))
-        except Exception:  # noqa: BLE001
-            pass
+        findings.extend(_safe_call(_check_http, svc))
+        findings.extend(_safe_call(_check_http_cookie_flags, svc))
+        # F203.N.1 — Python http.server directory listing
+        findings.extend(_safe_call(_check_python_simplehttp_exposed, svc))
 
-    # MySQL / Postgres / common DB ports — generic mysql-exposed finding
-    elif port in (3306, 33060, 5432, 27017, 6379, 1433, 1521):
-        svc = DiscoveredService(
-            host=host,
-            port=port,
-            state="open",
-            service="mysql" if port in (3306, 33060) else "database",
-        )
+    # SSH — F203.N.2 creds-aware deep audit
+    elif scheme == "ssh" or port in (22, 2222):
+        svc = DiscoveredService(host=host, port=port, state="open", service="ssh")
+        ssh_target = f"{ssh_user}@{host}" if ssh_user else None
+        # _check_ssh reads KRYON_SSH_PORT / KRYON_SSH_KEY_PATH from env
+        prior_port = os.environ.get("KRYON_SSH_PORT")
+        prior_key = os.environ.get("KRYON_SSH_KEY_PATH")
         try:
-            findings.extend(_check_mysql(svc))
-        except Exception:  # noqa: BLE001
-            pass
+            if port != 22:
+                os.environ["KRYON_SSH_PORT"] = str(port)
+            if ssh_key:
+                os.environ["KRYON_SSH_KEY_PATH"] = ssh_key
+            findings.extend(
+                _safe_call(_check_ssh, svc, ssh_target, ssh_password or None)
+            )
+        finally:
+            if prior_port is None:
+                os.environ.pop("KRYON_SSH_PORT", None)
+            else:
+                os.environ["KRYON_SSH_PORT"] = prior_port
+            if prior_key is None:
+                os.environ.pop("KRYON_SSH_KEY_PATH", None)
+            else:
+                os.environ["KRYON_SSH_KEY_PATH"] = prior_key
+
+    # MySQL / Postgres / common DB ports
+    elif port in (3306, 33060):
+        svc = DiscoveredService(host=host, port=port, state="open", service="mysql")
+        findings.extend(_safe_call(_check_mysql, svc))
+        # F203.N.2 — F202.W deep audit with creds
+        if db_user and db_password:
+            prior_u = os.environ.get("KRYON_DB_USER")
+            prior_p = os.environ.get("KRYON_DB_PASSWORD")
+            try:
+                os.environ["KRYON_DB_USER"] = db_user
+                os.environ["KRYON_DB_PASSWORD"] = db_password
+                findings.extend(_safe_call(_check_mysql_deep, svc))
+            finally:
+                if prior_u is None:
+                    os.environ.pop("KRYON_DB_USER", None)
+                else:
+                    os.environ["KRYON_DB_USER"] = prior_u
+                if prior_p is None:
+                    os.environ.pop("KRYON_DB_PASSWORD", None)
+                else:
+                    os.environ["KRYON_DB_PASSWORD"] = prior_p
+
+    elif port in (5432, 27017, 6379, 1433, 1521):
+        svc = DiscoveredService(host=host, port=port, state="open", service="database")
+        findings.extend(_safe_call(_check_mysql, svc))
+
+    # F203.N.1 — BGP port exposure
+    elif port == 179:
+        svc = DiscoveredService(host=host, port=179, state="open", service="bgp")
+        findings.extend(_safe_call(_check_bgp_exposure, svc))
+
+    # F203.N.3 — DNS opt-in (port 53 OR dns:// scheme)
+    if include_dns and (port == 53 or scheme == "dns"):
+        svc_dns = DiscoveredService(host=host, port=53, state="open", service="dns")
+        for chk in (
+            _check_dns_open_resolver,
+            _check_dns_zone_transfer,
+            _check_dns_chaos_leak,
+            _check_dnssec_validation,
+            _check_reverse_dns_enum,
+        ):
+            findings.extend(_safe_call(chk, svc_dns))
+
+    # F203.N.3 — SMB opt-in (port 445 OR smb:// scheme)
+    if include_smb and (port == 445 or scheme in ("smb", "cifs")):
+        svc_smb = DiscoveredService(host=host, port=445, state="open", service="smb")
+        findings.extend(_safe_call(_check_smb_anonymous_shares, svc_smb))
 
     return findings
 
@@ -313,7 +403,16 @@ def run_investigate(args: argparse.Namespace) -> int:
         if args.url and args.url not in urls_to_check:
             urls_to_check.append(args.url)
         for u in urls_to_check:
-            df = _run_deterministic_phase(u)
+            df = _run_deterministic_phase(
+                u,
+                ssh_user=args.ssh_user,
+                ssh_password=args.ssh_pass,
+                ssh_key=args.ssh_key,
+                db_user=args.db_user,
+                db_password=args.db_pass,
+                include_dns=args.include_dns_checks,
+                include_smb=args.include_smb_checks,
+            )
             if df:
                 deterministic_findings.extend(df)
 
@@ -472,6 +571,43 @@ def add_investigate_subparser(subparsers) -> argparse.ArgumentParser:
         help="F203.M — skip deterministic Phase 2 checks before agent loop. "
         "Default: hybrid mode ON (runs HTTP/MySQL detectors first, inyecta "
         "findings al prompt del agent).",
+    )
+    # F203.N.2 — creds-aware deep audit
+    p.add_argument(
+        "--ssh-user", default="",
+        help="F203.N.2 — SSH user for deep audit (sshd_config / users / banner). "
+        "Without it, only banner-grab finding emitted.",
+    )
+    p.add_argument(
+        "--ssh-pass", default="",
+        help="F203.N.2 — SSH password (alternativa: --ssh-key). Banca-safe: "
+        "passwd se pasa como param, no se persiste a disco.",
+    )
+    p.add_argument(
+        "--ssh-key", default="",
+        help="F203.N.2 — ruta a SSH private key (preferido sobre --ssh-pass).",
+    )
+    p.add_argument(
+        "--db-user", default="",
+        help="F203.N.2 — MySQL user para F202.W deep audit (have_ssl / SHOW "
+        "GRANTS / mysql.user audit).",
+    )
+    p.add_argument(
+        "--db-pass", default="",
+        help="F203.N.2 — MySQL password. Promovido a KRYON_DB_PASSWORD env solo "
+        "durante la fase deterministica.",
+    )
+    # F203.N.3 — opt-in batteries con dependencia externa
+    p.add_argument(
+        "--include-dns-checks", action="store_true",
+        help="F203.N.3 — ejecuta batería DNS (zone transfer, chaos leak, dnssec, "
+        "open resolver, reverse enum) cuando port=53 o scheme=dns://. Requiere "
+        "nslookup/dig en PATH (graceful skip si falta).",
+    )
+    p.add_argument(
+        "--include-smb-checks", action="store_true",
+        help="F203.N.3 — ejecuta SMB anonymous shares (port 445 / smb:// scheme). "
+        "Requiere smbclient en PATH (graceful skip si falta).",
     )
     p.add_argument(
         "--out",
