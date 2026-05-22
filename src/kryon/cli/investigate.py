@@ -439,19 +439,33 @@ def run_investigate(args: argparse.Namespace) -> int:
         console.print(f"[dim]starting ReAct loop (max_turns={max_turns}, reflection disabled)[/dim]\n")
 
     async def _run() -> Any:
+        # F203.Z.B — fire skill-declared pre_hooks BEFORE agent run.
+        # engage.py invokes maybe_run_pre_hooks via _run_phase (F185-C),
+        # but investigate.py was missing this — the F203.V/W/X
+        # web-pentest-{sqli,xss,idor}-active skills had pre_hooks that
+        # never executed. Now they do.
+        agent_input = full_prompt
+        try:
+            from kryon.skills.pre_hook_integration import maybe_run_pre_hooks
+            pre_hook_suffix = await maybe_run_pre_hooks(agent, full_prompt, console)
+            if pre_hook_suffix:
+                agent_input = full_prompt + pre_hook_suffix
+        except Exception as e:  # noqa: BLE001 — pre_hooks must never break the run
+            console.print(f"[yellow]pre_hook integration warning: {e}[/yellow]")
+
         # F203.C — use reflective runner when reflect_every > 0
         if reflect_every > 0:
             from kryon.cli.reflective_runner import run_with_reflection
             return await run_with_reflection(
                 agent,
-                initial_input=full_prompt,
+                initial_input=agent_input,
                 reflect_every=reflect_every,
                 max_total_turns=max_turns,
                 run_config=get_run_config(),
             )
         return await Runner.run(
             agent,
-            input=full_prompt,
+            input=agent_input,
             max_turns=max_turns,
             run_config=get_run_config(),
         )
