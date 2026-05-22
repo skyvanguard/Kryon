@@ -135,13 +135,114 @@ def _build_investigate_prompt(user_prompt: str, hints: dict[str, Any], active: b
     )
 
 
+def _run_deterministic_phase(url: str) -> list:
+    """F203.M — Hybrid mode: run deterministic checks BEFORE the LLM agent.
+
+    Parse URL, build DiscoveredService stub, invoke matching engage.py
+    checkers (HTTP / MySQL). Returns list[Finding] from kryon.cli.engage.
+
+    Skips silently on import/runtime errors — the LLM agent will still run.
+    """
+    from urllib.parse import urlparse
+
+    try:
+        from kryon.cli.engage import (
+            DiscoveredService,
+            _check_http,
+            _check_http_cookie_flags,
+            _check_mysql,
+        )
+    except ImportError:
+        return []
+
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    scheme = (parsed.scheme or "").lower()
+    if not host:
+        return []
+
+    # Resolve port: explicit, then scheme default
+    port = parsed.port
+    if port is None:
+        if scheme == "https":
+            port = 443
+        elif scheme == "http":
+            port = 80
+        else:
+            return []
+
+    findings: list = []
+    # HTTP / HTTPS services
+    if scheme in ("http", "https") or port in (80, 443, 8080, 8443, 8000, 8888):
+        svc = DiscoveredService(
+            host=host,
+            port=port,
+            state="open",
+            service="https" if scheme == "https" or port == 443 else "http",
+        )
+        try:
+            findings.extend(_check_http(svc))
+        except Exception:  # noqa: BLE001 — defensive; LLM still runs
+            pass
+        try:
+            findings.extend(_check_http_cookie_flags(svc))
+        except Exception:  # noqa: BLE001
+            pass
+
+    # MySQL / Postgres / common DB ports — generic mysql-exposed finding
+    elif port in (3306, 33060, 5432, 27017, 6379, 1433, 1521):
+        svc = DiscoveredService(
+            host=host,
+            port=port,
+            state="open",
+            service="mysql" if port in (3306, 33060) else "database",
+        )
+        try:
+            findings.extend(_check_mysql(svc))
+        except Exception:  # noqa: BLE001
+            pass
+
+    return findings
+
+
+def _format_findings_for_prompt(findings: list) -> str:
+    """Render Finding list as markdown block to inject into agent prompt."""
+    if not findings:
+        return ""
+    lines = ["", "## 🔬 Deterministic findings ya detectados (F203.M)", ""]
+    lines.append(
+        "Los siguientes hallazgos YA fueron confirmados por detectores "
+        "deterministicos previos al loop ReAct. **NO los repitas en tu "
+        "resumen final como si fueran tuyos** — son ground truth confirmado. "
+        "Tu trabajo es:"
+    )
+    lines.append("  1. Reconocerlos como inicio de evidencia")
+    lines.append("  2. EXTENDER con findings semánticos que los detectores no ven")
+    lines.append("     (e.g. lógica de negocio, control de acceso, info disclosure)")
+    lines.append("  3. Validar/contextualizar cada uno con un curl adicional si dudás")
+    lines.append("")
+    for f in findings:
+        cwe = getattr(f, "cwe", "?")
+        rule = getattr(f, "rule_id", "?")
+        severity = getattr(f, "severity", "?")
+        host = getattr(f, "host", "?")
+        message = getattr(f, "message", "")
+        lines.append(f"- **{cwe}** ({severity}) · `{rule}` · {host}")
+        if message:
+            lines.append(f"    {message[:200]}")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def run_investigate(args: argparse.Namespace) -> int:
     """Main entry point for `kryon investigate`."""
     from rich.console import Console
 
     console = Console()
 
-    prompt = args.prompt
+    # F203.L — renamed from `prompt` to `query` to avoid dest collision
+    # with the parent CLI's `prompt` positional (which is set to None).
+    prompt = args.query
     if args.url:
         prompt = (
             f"{prompt} (URL declarada explícitamente: {args.url})"
@@ -203,6 +304,30 @@ def run_investigate(args: argparse.Namespace) -> int:
             console.print(f"[yellow]skill swap warning: {e}[/yellow]")
 
     full_prompt = _build_investigate_prompt(prompt, hints, active=active)
+
+    # F203.M — Hybrid mode: run deterministic checks ANTES del agent, inyectar
+    # findings al prompt. Default ON cuando hay URL detectable.
+    deterministic_findings: list = []
+    if not args.no_hybrid:
+        urls_to_check = list(hints.get("urls") or [])
+        if args.url and args.url not in urls_to_check:
+            urls_to_check.append(args.url)
+        for u in urls_to_check:
+            df = _run_deterministic_phase(u)
+            if df:
+                deterministic_findings.extend(df)
+
+        if deterministic_findings:
+            console.print(
+                f"[cyan]🔬 deterministic phase:[/cyan] "
+                f"{len(deterministic_findings)} finding(s) detected before agent loop"
+            )
+            for f in deterministic_findings[:8]:
+                console.print(
+                    f"  [dim]→ {getattr(f, 'cwe', '?')} {getattr(f, 'rule_id', '?')}[/dim]"
+                )
+            full_prompt = full_prompt + _format_findings_for_prompt(deterministic_findings)
+
     max_turns = args.max_turns
     reflect_every = args.reflect_every
 
@@ -242,6 +367,24 @@ def run_investigate(args: argparse.Namespace) -> int:
         return 6
 
     output = getattr(result, "final_output", None) or ""
+
+    # F203.M — Prepend deterministic findings to output so scoreboard
+    # (and any downstream CWE-extraction) sees them. The LLM summary may
+    # or may not include each CWE in prose — explicit deterministic
+    # findings ensure they're in the transcript.
+    if deterministic_findings:
+        det_block_lines = ["## Hallazgos deterministicos (pre-agent F203.M)"]
+        for f in deterministic_findings:
+            cwe = getattr(f, "cwe", "?")
+            rule = getattr(f, "rule_id", "?")
+            severity = getattr(f, "severity", "?")
+            host = getattr(f, "host", "?")
+            message = getattr(f, "message", "")
+            det_block_lines.append(
+                f"- **{cwe}** ({severity}) `{rule}` @ {host}: {message[:200]}"
+            )
+        output = "\n".join(det_block_lines) + "\n\n" + output
+
     console.print("\n[bold green]═══ Resumen de la investigación ═══[/bold green]\n")
     console.print(output)
 
@@ -286,11 +429,12 @@ def add_investigate_subparser(subparsers) -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
-        "prompt",
+        "query",
         nargs="?",
         default="",
         help="natural-language description of what to investigate "
-        "(e.g. 'audita https://eaula.ing.una.py')",
+        "(e.g. 'audita https://eaula.ing.una.py'). "
+        "NOTE: usa positional, no le pongas --query.",
     )
     p.add_argument(
         "--url",
@@ -321,6 +465,13 @@ def add_investigate_subparser(subparsers) -> argparse.ArgumentParser:
         action="store_true",
         help="F203.F — skip persisting the run to the learning loop. "
         "Default: write-back enabled (KRYON_NO_WRITEBACK=1 env also disables).",
+    )
+    p.add_argument(
+        "--no-hybrid",
+        action="store_true",
+        help="F203.M — skip deterministic Phase 2 checks before agent loop. "
+        "Default: hybrid mode ON (runs HTTP/MySQL detectors first, inyecta "
+        "findings al prompt del agent).",
     )
     p.add_argument(
         "--out",

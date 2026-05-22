@@ -149,7 +149,7 @@ class TestArgparseWiring:
 
         args = parser.parse_args(["investigate", "audita example.com"])
         assert args.command == "investigate"
-        assert args.prompt == "audita example.com"
+        assert args.query == "audita example.com"
         assert args.active is False
         assert args.max_turns == 30
         assert args.url == ""
@@ -198,3 +198,65 @@ class TestArgparseWiring:
 
         args = parser.parse_args(["investigate", "x", "--reflect-every", "6"])
         assert args.reflect_every == 6
+
+
+class TestHybridMode:
+    """F203.M — deterministic phase + LLM agent."""
+
+    def test_no_hybrid_flag_default_false(self):
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers(dest="command")
+        add_investigate_subparser(sub)
+
+        args = parser.parse_args(["investigate", "x"])
+        assert args.no_hybrid is False
+
+    def test_no_hybrid_flag_enabled(self):
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers(dest="command")
+        add_investigate_subparser(sub)
+
+        args = parser.parse_args(["investigate", "x", "--no-hybrid"])
+        assert args.no_hybrid is True
+
+    def test_run_deterministic_phase_invalid_url_returns_empty(self):
+        from kryon.cli.investigate import _run_deterministic_phase
+
+        # Garbage URL → no findings, no crash
+        assert _run_deterministic_phase("not-a-url") == []
+        assert _run_deterministic_phase("") == []
+
+    def test_run_deterministic_phase_unsupported_scheme(self):
+        from kryon.cli.investigate import _run_deterministic_phase
+
+        # gopher://, ftp://, file:// — none should produce findings
+        assert _run_deterministic_phase("ftp://x:21/") == []
+        assert _run_deterministic_phase("file:///etc/passwd") == []
+
+    def test_format_findings_for_prompt_empty(self):
+        from kryon.cli.investigate import _format_findings_for_prompt
+
+        assert _format_findings_for_prompt([]) == ""
+
+    def test_format_findings_for_prompt_includes_cwe_and_rule(self):
+        from kryon.cli.investigate import _format_findings_for_prompt
+
+        # Use a SimpleNamespace as a duck-typed Finding stub
+        class FakeFinding:
+            def __init__(self, cwe, rule_id, severity, host, message):
+                self.cwe = cwe
+                self.rule_id = rule_id
+                self.severity = severity
+                self.host = host
+                self.message = message
+
+        findings = [
+            FakeFinding("CWE-319", "http-plaintext", "HIGH", "x:8080", "no tls"),
+            FakeFinding("CWE-1004", "http-cookie-missing-httponly", "MEDIUM", "x:8080", "no flag"),
+        ]
+        text = _format_findings_for_prompt(findings)
+        assert "CWE-319" in text
+        assert "CWE-1004" in text
+        assert "http-plaintext" in text
+        assert "http-cookie-missing-httponly" in text
+        assert "Deterministic findings" in text  # heading present
