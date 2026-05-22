@@ -24,17 +24,11 @@ priority: 5
 required_tools:
   - run_command
   - detect_bola
-pre_hooks:
-  # F203.U — IDOR sequential probe via Python urllib (avoids the
-  # SSTI guard that rejects curl `-w '%{http_code}'` format strings).
-  # Banca-safe: GET-only, rate-limited (0.2s/req), no modification.
-  # Probes ~96 combos (12 paths × 8 IDs) in ~30s.
-  - python: ./idor_probe_hook.py:run
-    args:
-      target: "{ctx.target}"
-    inject_as: idor_sequential_probe
-    required: false
-    timeout_s: 120
+# F203.U.B — pre_hook removed (same reason as cwe-89-sqli): auto-firing
+# 96 HTTP probes consumed the bench wall budget and dropped HTB pwn rate
+# from 33% → 0%. The skill body below still guides the LLM via
+# methodology + curl examples; operator invokes via `kryon investigate`
+# with explicit "idor" keyword + acceptable max_turns budget.
 ---
 
 # CWE-639 — IDOR / BOLA (Insecure Direct Object Reference)
