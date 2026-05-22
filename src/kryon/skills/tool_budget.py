@@ -6,6 +6,7 @@ based on active skills. Caps at max_tools to keep schema tokens under control.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -102,6 +103,33 @@ def build_tool_registry() -> dict[str, Any]:
         "kryon.tools.validation.bas_scenarios",
         "kryon.tools.validation.exploit_validator",
     ]
+
+    # F203.T — red-team tools gated by KRYON_RED_TEAM=true. Banking-default
+    # OFF: these tools can be intrusive (fuzzing, credential brute-force,
+    # JWT cracking) and require written authorization. Operator opt-in via
+    # `export KRYON_RED_TEAM=true` for authorized pentest engagements (Juice
+    # Shop bench, bug bounty con autorización escrita, lab interno).
+    #
+    # NOT included even under RED_TEAM=true (require separate approval):
+    #   - evasion/log_cleaning, anti_forensic, timestomping (destructive in prod)
+    #   - post_exploitation/credential_dumping (intrusive, requires existing access)
+    #   - lateral_movement/{ad_attacks,pivoting,pth_attacks,remote_execution}
+    #     (intrusive lateral movement)
+    if os.environ.get("KRYON_RED_TEAM", "").lower() in ("1", "true", "yes"):
+        _extra_tools.extend([
+            # API attacks — fuzzing, credential testing, JWT analysis
+            "kryon.tools.api_attacks.api_fuzzer",
+            "kryon.tools.api_attacks.ffuf_api",
+            "kryon.tools.api_attacks.hydra",
+            "kryon.tools.api_attacks.jwt_tool",
+            "kryon.tools.api_attacks.medusa",
+            "kryon.tools.api_attacks.wfuzz",
+            # Browser automation (Playwright) — useful for E2E auth flows
+            "kryon.tools.browser.playwright_tools",
+            # Payload prep (analytical, no exec): encoding + obfuscation
+            "kryon.tools.evasion.payload_encoding",
+            "kryon.tools.evasion.traffic_obfuscation",
+        ])
     for mod_path in _extra_tools:
         try:
             import importlib
