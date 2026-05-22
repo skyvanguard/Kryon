@@ -89,6 +89,18 @@ def build_tool_registry() -> dict[str, Any]:
         "kryon.tools.code.semgrep_tool",
         # Structured finding submission — F5.1.d (replaces text-block parsing)
         "kryon.skills.submit_tools",
+        # F203.R — DFIR detection/exploit validation tools.
+        # Banca-safe: validate_detection es analítico (no fire), exploit_validator
+        # respeta el doble gate KRYON_EXPLOIT_FIRE+fire=True; bas_scenarios y
+        # attack_simulator solo emiten plans/scenarios, no ejecutan. coverage_scorer
+        # mapea findings vs MITRE ATT&CK (analítico). detection_generator emite
+        # Sigma/YARA rules (read-only).
+        "kryon.tools.validation.detection_validator",
+        "kryon.tools.validation.detection_generator",
+        "kryon.tools.validation.coverage_scorer",
+        "kryon.tools.validation.attack_simulator",
+        "kryon.tools.validation.bas_scenarios",
+        "kryon.tools.validation.exploit_validator",
     ]
     for mod_path in _extra_tools:
         try:

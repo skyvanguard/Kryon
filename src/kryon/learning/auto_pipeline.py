@@ -34,6 +34,13 @@ from kryon.learning.pattern_detector import (
     ChainCluster,
     detect_recurrent_chains,
 )
+# F203.S — Guide score (relevance + naturalness) as second-axis filter
+# post-CWE-eval. Detects placeholder soup, repeated lines, frontmatter/body
+# mismatches that the technical eval can miss.
+from kryon.learning.guide_scorer import (
+    GUIDE_DEFAULT_THRESHOLD,
+    score_draft,
+)
 from kryon.learning.skill_evaluator import (
     EvalReport,
     evaluate_draft_against_corpus,
@@ -100,8 +107,27 @@ def _write_outputs(
     json_path = subdir / f"{draft.name}.eval.json"
 
     md_path.write_text(draft.to_markdown(), encoding="utf-8")
+
+    # F203.S — enrich the eval sidecar with the Guide score (relevance +
+    # naturalness). Second-axis filter for textual quality issues (placeholder
+    # soup, dup lines, frontmatter/body mismatch) that the technical CWE eval
+    # gate can miss. Pure analytic, no LLM calls.
+    eval_payload = asdict(report)
+    try:
+        guide = score_draft(draft)
+        eval_payload["guide_score"] = {
+            "relevance": round(guide.relevance, 3),
+            "naturalness": round(guide.naturalness, 3),
+            "combined": round(guide.combined, 3),
+            "threshold": GUIDE_DEFAULT_THRESHOLD,
+            "passed_guide": guide.combined >= GUIDE_DEFAULT_THRESHOLD,
+            "reasons": list(guide.reasons),
+        }
+    except Exception as e:  # noqa: BLE001 — guide_scorer must never block writes
+        eval_payload["guide_score"] = {"error": str(e)}
+
     json_path.write_text(
-        json.dumps(asdict(report), indent=2, ensure_ascii=False),
+        json.dumps(eval_payload, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
     return md_path, json_path
