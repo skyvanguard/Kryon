@@ -42,12 +42,19 @@ def test_match_returns_empty_on_noise(loader: SkillLoader) -> None:
 
 
 def test_match_web_intent(loader: SkillLoader) -> None:
-    """ "audita juice shop" should surface a web-pentest-class skill."""
+    """ "audita juice shop" should surface a web/api-security-class skill.
+
+    F203.AD — expanded acceptable names: post-F202.AF imported skills
+    include `api-gateway-aws-waf` and `api-security-owasp-top-10`, both
+    legitimately matched by "owasp" keyword. Either satisfies the
+    intent ("user wants a web pentest playbook").
+    """
     skills = loader.match(user_msg="audita juice shop OWASP")
     names = [s.name for s in skills]
-    assert any("web" in n.lower() or "pentest" in n.lower() or "owasp" in n.lower() for n in names), (
-        f"no web/pentest skill surfaced: {names}"
-    )
+    valid_tokens = ("web", "pentest", "owasp", "api-security", "api-gateway", "waf")
+    assert any(
+        any(tok in n.lower() for tok in valid_tokens) for n in names
+    ), f"no web/api-security/pentest skill surfaced: {names}"
 
 
 # ---------- F77.E — whole-word keyword matching ----------
