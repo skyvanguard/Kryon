@@ -9,6 +9,14 @@
 # for the operator but never re-imported.
 scripts/_archive/
 
+# F203.AP — runtime bench transcripts + ad-hoc debug artifacts
+.kryon/
+cookies.txt
+exploit.py
+sqlmap_test.py
+# Common 0-byte artifacts the operator's curl drops in the repo root
+1000
+
 # macOS Files
 .DS_Store
 
