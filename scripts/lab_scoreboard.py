@@ -40,9 +40,27 @@ from typing import Iterable
 # Ground truth — CWEs PLANTED per target (no inventar, alinear con
 # docker/vulnerable-lab/README.md exactly).
 GROUND_TRUTH: dict[str, set[str]] = {
+    # docker/vulnerable-lab targets (F203.J)
     "web": {"CWE-319", "CWE-1004", "CWE-306", "CWE-200"},
     "ssh": {"CWE-521", "CWE-287", "CWE-250", "CWE-307"},
     "db": {"CWE-319", "CWE-521"},
+    # F203.AA — OWASP Juice Shop canonical CWEs.
+    # Reference: https://pwning.owasp-juice.shop/ + OWASP API security
+    # findings catalogued for the F189 bench. Covers the top vulnerabilities
+    # planted in Juice Shop 14.x without over-claiming (only CWEs that
+    # are deterministically present in the unmodified default build).
+    "juice_shop": {
+        "CWE-89",   # SQLi en /rest/user/login (boolean blind)
+        "CWE-79",   # Reflected/stored XSS en search + comments + 5-star
+        "CWE-639",  # IDOR en /api/Baskets/{id}, /api/Feedbacks/{id}
+        "CWE-285",  # Broken access control (/api/Quantitys, /administration)
+        "CWE-200",  # info disclosure (server tokens, /api/Users emails)
+        "CWE-22",   # Path traversal en /ftp endpoint
+        "CWE-352",  # CSRF en perfil endpoints
+        "CWE-915",  # Mass assignment en profile update
+        "CWE-1004", # Cookies sin HttpOnly
+        "CWE-319",  # HTTP por default (sin TLS termination)
+    },
 }
 
 # Acceptable port mappings to infer target from URL/host
@@ -54,6 +72,9 @@ PORT_TO_TARGET = {
     "22": "ssh",
     "33060": "db",
     "3306": "db",
+    # F203.AA — Juice Shop default port 3000 (host map 3003)
+    "3000": "juice_shop",
+    "3003": "juice_shop",
 }
 
 
