@@ -25,6 +25,19 @@ triggers:
 priority: 5
 required_tools:
   - run_command
+pre_hooks:
+  # F203.U — DAST sqlmap probe via F191 multi-endpoint hook. Cuando el
+  # target es webapp (URL HTTP), pre-fire sqlmap contra una curated list
+  # de endpoints típicamente inyectables (Juice Shop, DVWA, WebGoat,
+  # PortSwigger, common API auth patterns).
+  # Banca-safe: sqlmap con --batch --technique=B --level 2 --risk 2
+  # read-only, timeout 30s/endpoint. NO dump, NO escritura.
+  - python: ./sqlmap_cwe89_hook.py:run
+    args:
+      target: "{ctx.target}"
+    inject_as: sqlmap_multi_endpoint_probe
+    required: false
+    timeout_s: 360
 ---
 
 # CWE-89 — SQL Injection (clasificación SAST)
