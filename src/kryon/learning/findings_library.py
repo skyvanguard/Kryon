@@ -437,6 +437,10 @@ def stats() -> dict[str, Any]:
 
     return {
         "total_findings": total,
+        # F203.AE — alias `total` so existing tests + REPL queries can
+        # use either key. ChromaDB collection.count() is the source of
+        # truth; both keys are kept in sync.
+        "total": total,
         "by_cwe": dict(sorted(by_cwe.items(), key=lambda x: -x[1])[:20]),
         "by_severity": by_severity,
         "distinct_hosts": len(by_host),
@@ -444,8 +448,18 @@ def stats() -> dict[str, Any]:
 
 
 def delete_finding(finding_id: str) -> bool:
+    """Delete a finding by id. Returns True if the id existed, False otherwise.
+
+    F203.AE — ChromaDB's `.delete(ids=[id])` is a no-op for missing ids
+    (no exception raised). We need to distinguish "was deleted" from
+    "was never present", so check existence first via `.get(ids=[id])`.
+    """
+    collection = _get_collection()
     try:
-        _get_collection().delete(ids=[finding_id])
+        existing = collection.get(ids=[finding_id])
+        if not (existing.get("ids") or []):
+            return False
+        collection.delete(ids=[finding_id])
         return True
     except Exception:
         return False
