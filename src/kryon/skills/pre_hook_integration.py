@@ -126,6 +126,12 @@ def format_findings_block(findings: dict[str, str]) -> str:
         "turn, narrate the findings honestly._",
         "",
     ]
+    # F203.AO.B — track whether any pre_hook returned actual evidence.
+    # When all hooks returned empty/whitespace, we'll use the
+    # "continue manually" variant of the imperative suffix (vs the
+    # default "convert each line to JSON" variant). Prevents gpt-oss
+    # from terminating with `[]` when catalog heuristics missed.
+    any_evidence = False
     for inject_as, payload in findings.items():
         parts.append(f"### {inject_as}")
         parts.append("")
@@ -135,13 +141,22 @@ def format_findings_block(findings: dict[str, str]) -> str:
         # is structured JSON we don't want to text-summarize).
         try:
             parsed = json.loads(payload)
-            parts.append(json.dumps(parsed, indent=2, ensure_ascii=False))
+            rendered = json.dumps(parsed, indent=2, ensure_ascii=False)
+            parts.append(rendered)
+            # Non-empty JSON array/object = evidence present.
+            if isinstance(parsed, (list, dict)) and parsed:
+                any_evidence = True
+            elif isinstance(parsed, str) and parsed.strip():
+                any_evidence = True
         except (json.JSONDecodeError, TypeError):
             # F186 — text output goes through the de-noiser + truncator.
-            parts.append(summarize_pre_hook_output(inject_as, payload))
+            compact = summarize_pre_hook_output(inject_as, payload)
+            parts.append(compact)
+            if compact and compact.strip():
+                any_evidence = True
         parts.append("```")
         parts.append("")
-    parts.append(imperative_findings_suffix())
+    parts.append(imperative_findings_suffix(evidence_present=any_evidence))
     return "\n".join(parts)
 
 

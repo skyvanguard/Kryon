@@ -183,13 +183,26 @@ def summarize_pre_hook_output(
     return compact
 
 
-def imperative_findings_suffix() -> str:
+def imperative_findings_suffix(*, evidence_present: bool = True) -> str:
     """Short directive appended after the pre-hook evidence block.
 
-    The block above is the deterministic-tool output. F185.C bench
-    showed the model often *acknowledges* the output without converting
-    it to findings JSON. This suffix forces the conversion.
+    F185.C: cuando el block tiene findings, force el conversion.
+    F203.AO.B: cuando el block está VACÍO (heurística-miss del catalog),
+    NO emitir el "NO re-invocás" prohibitivo — eso causa que el modelo
+    termine con `[]` sin intentar tools manuales. En su lugar, instruirlo
+    a CONTINUAR con tools manuales target-specific.
     """
+    if not evidence_present:
+        return (
+            "\n\n---\n"
+            "**Pre-hook devolvió output VACÍO** (los detectores curated "
+            "no matchearon este target específico). NO interpretes esto "
+            "como 'target limpio'. **DEBÉS continuar** con tools manuales "
+            "target-specific (`run_command` con curl/sqlmap/nuclei contra "
+            "los endpoints reales del target). Solo emití findings JSON "
+            "DESPUÉS de haber ejecutado al menos 3 tool calls manuales. "
+            "NUNCA emitas `[]` directamente.\n"
+        )
     return (
         "\n\n---\n"
         "**ACCIÓN OBLIGATORIA**: convertí CADA línea del bloque "
