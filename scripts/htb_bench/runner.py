@@ -166,20 +166,46 @@ def invoke_kryon(prompt: str, timeout: int = 600) -> str:
     """Invoke Kryon non-interactively against the target. Captures the
     full transcript (stdout + stderr) for chain extraction.
 
-    The MVP shells out to `docker exec -i kryon kryon` and pipes the
-    prompt. If `KRYON_BENCH_DRY_RUN=1`, returns a recorded fixture so
-    smoke tests don't need a live container.
+    F203.AK — switched from REPL (`docker exec -i kryon kryon` + stdin)
+    to `kryon investigate <prompt> --active`. The REPL flow did NOT
+    invoke `maybe_run_pre_hooks` so the F203.V/W/X/AB/AF/AG active
+    skills' pre_hooks never fired (F203.AJ bench: 0/7 pwn rate).
+    `kryon investigate` (F203.Z.B) does fire them, plus respects the
+    --active flag so the system prompt allows active tools.
+
+    `KRYON_BENCH_DRY_RUN=1` returns a recorded fixture for smoke tests
+    so they don't need a live container.
+
+    `KRYON_BENCH_USE_REPL=1` falls back to the legacy REPL invocation
+    (useful for benches that intentionally test the REPL flow).
     """
     import os
 
     if os.environ.get("KRYON_BENCH_DRY_RUN") == "1":
-        # Smoke-test path — caller injects a fixture via env var.
         return os.environ.get("KRYON_BENCH_FIXTURE_TRANSCRIPT", "")
 
-    # F202.Y — utf-8 + errors='replace' fix Windows cp1252 decode crash.
+    if os.environ.get("KRYON_BENCH_USE_REPL") == "1":
+        # Legacy REPL path (F202.Y — utf-8 + errors='replace' fix).
+        proc = subprocess.run(
+            ["docker", "exec", "-i", "kryon", "kryon"],
+            input=prompt + "\n/exit\n",
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+            timeout=timeout,
+        )
+        return proc.stdout + "\n" + proc.stderr
+
+    # F203.AK default — kryon investigate path (fires pre_hooks F203.Z.B).
+    # F203.AK.B — uses host venv (`uv run`) because the Docker container
+    # Kryon image was built pre-F203.A; subcommand `investigate` doesn't
+    # exist there. Rebuilding the image is F203.AL candidate.
     proc = subprocess.run(
-        ["docker", "exec", "-i", "kryon", "kryon"],
-        input=prompt + "\n/exit\n",
+        [
+            "uv", "run", "kryon", "investigate", prompt,
+            "--active",
+            "--max-turns", "10",
+            "--reflect-every", "5",
+        ],
         capture_output=True, text=True,
         encoding="utf-8", errors="replace",
         timeout=timeout,

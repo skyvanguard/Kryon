@@ -227,6 +227,13 @@ def run(ctx: dict[str, Any]) -> str:
     if not target:
         return "[F191] no target provided in ctx"
 
+    # F203.AK.C — build_turn_ctx.target may come without a URL scheme
+    # (e.g. "portswigger.net/path" extracted from prompt). sqlmap and
+    # urllib both reject schemeless URLs. Default to https:// if no
+    # scheme, since active pentest skills should never use plain HTTP.
+    if not target.startswith(("http://", "https://")):
+        target = "https://" + target
+
     results: list[dict] = []
     for endpoint in KNOWN_INJECTABLE_ENDPOINTS:
         url = f"{target}{endpoint['path']}"
