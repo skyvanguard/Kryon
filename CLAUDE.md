@@ -293,6 +293,104 @@ KRYON_NUCLEI_CONCURRENCY=          # F195: override nuclei_scan default concurre
                                    # Banca-safe: 10.
 ```
 
+## `kryon investigate` — open-ended ReAct loop (F203)
+
+Además de `kryon engage` (compliance-driven, plan-based) y `kryon repl`,
+v2.x tiene `kryon investigate` (F203.A): un entry point ReAct
+("Observation → Reflection → Decision → Action → Verification") para
+queries open-ended tipo "audita esta URL" o "qué CVEs aplican a nginx 1.18".
+
+```bash
+# Default passive mode (banca-safe, solo web_fetch_smart + RAG queries)
+kryon investigate "audita https://target.com"
+kryon investigate --url https://target.com
+kryon investigate ./local/path/   # SAST exploratorio sobre código local
+
+# Active mode (requiere autorización escrita del target)
+kryon investigate "active sqli pentest contra https://target" --active
+```
+
+### Stack F203
+
+- **F203.A** — `kryon investigate` CLI entry point.
+- **F203.B** — `web_fetch_smart` tool: GET-only HTTP, max 500KB, max 3
+  redirects, HTML→markdown extraction (script/style stripping). Banca-safe.
+- **F203.C** — `ReflectiveRunner`: inyecta turn de auto-crítica cada N
+  turns (default 4). Detecta stuck patterns ("re-invocando misma tool 3x")
+  y rompe el loop antes de gastar wall-budget.
+- **F203.D** — `request_skill(topic)` tool: skill discovery on-demand
+  cuando el agent decide que necesita methodology no cargada.
+- **F203.E** — `tool_search(query)` tool: agent puede descubrir tools
+  no cableadas en su current registry (RAG-style discovery).
+- **F203.F** — writeback al learning loop al cerrar la run (mismo path
+  que `auto_extract` post-engage).
+- **F203.M (Hybrid mode)** — `_run_deterministic_phase(url)` corre
+  detectors deterministicos (engage.py `_check_http` / `_check_mysql`
+  etc.) ANTES del LLM agent. Findings se inyectan al prompt como
+  "ground truth confirmado, el LLM extiende con semanticos".
+  - Web bench: recall 25% → 100% (4/4 CWEs ground truth)
+- **F203.N** — wire de TODOS los detectores deterministicos de engage
+  (11 detectors: HTTP, cookies, MySQL, SSH, BGP, Python simplehttp,
+  DNS battery opt-in, SMB anon shares opt-in). Flags: `--ssh-user/pass/key`,
+  `--db-user/pass`, `--include-dns-checks`, `--include-smb-checks`.
+- **F203.O** — pre_hooks deterministicos en 6 skills: `ssl-audit`,
+  `appsec`, `wordpress-audit`, `banking/{core-banking,swift-network,payment-gateway}`.
+- **F203.R** — 15 DFIR/validation tools cableados al registry
+  (validate_detection, validate_finding, validate_rce, validate_sqli,
+  validate_xss, validate_auth_bypass, calculate_mitre_coverage, etc).
+- **F203.S** — `guide_scorer.score_draft()` wired al `auto_pipeline`:
+  sidecar `.eval.json` ahora incluye `guide_score` (relevance +
+  naturalness), threshold 0.6.
+- **F203.T** — 21 red-team tools cableados bajo `KRYON_RED_TEAM=true`
+  gate (api_attacks, browser/Playwright, evasion analytical). Registry
+  104 default → 125 con RED_TEAM.
+- **F203.V/W/X/AB** — 6 "explicit-keyword" active skills, priority=3,
+  pre_hook deterministico:
+
+  | Skill | Keyword trigger | Pre_hook |
+  |-------|-----------------|----------|
+  | web-pentest-sqli-active | "active sqli pentest" | F191 sqlmap 10-endpoint |
+  | web-pentest-xss-active  | "active xss pentest"  | nuclei -tags xss,dast |
+  | web-pentest-idor-active | "active idor pentest" | idor_probe 96 combos |
+  | web-pentest-ssrf-active | "active ssrf pentest" | nuclei -tags ssrf |
+  | web-pentest-rce-active  | "active rce pentest"  | nuclei -tags rce,cmdi |
+  | web-pentest-csrf-active | "active csrf pentest" | curl headers + nuclei csrf,cors |
+
+  Estas skills NO activan con keywords genéricos ("sqli", "xss",
+  "idor"). Solo con la frase explícita "active X pentest" (o equivalentes:
+  "fire X probe", "pentest activo X"). Aprendizaje F203.U: pre_hooks
+  costosos en skills de keyword amplio regressionan el bench wall budget.
+- **F203.Z.B** — pre_hooks integration en `investigate.py`. Antes solo
+  `engage._run_phase` invocaba pre_hooks; ahora `maybe_run_pre_hooks`
+  también corre desde `kryon investigate` (necesario para que las
+  active skills F203.V-AB funcionen).
+- **F203.Y** — dead code cleanup real: -15 archivos en `src/kryon/tools/`
+  con 0 references anywhere (script: `scripts/dead_code_audit.py`).
+
+### Bench harnesses
+
+- **docker/vulnerable-lab** — 3 containers planted (web/ssh/db) con CWEs
+  conocidos. `docker compose -f docker/vulnerable-lab/docker-compose.yml up`.
+  Scoreboard via `scripts/lab_scoreboard.py --transcript X --target {web,ssh,db,juice_shop}`.
+- **HTB walkthroughs** — `tests/benchmarks/htb_style/walkthroughs/*.json`
+  con expected chains. 4 ready (dvwa-sqli-low pending), 30 total.
+  CLI: `python -m scripts.htb_bench.cli --all --platform htb --status ready`.
+- **OWASP Juice Shop** — `docker start juice_shop` (port host 3003 → 3000
+  guest). Ground truth de 10 CWEs canonicos (CWE-89/79/639/285/200/22/352/915/1004/319)
+  en `scripts/lab_scoreboard.py` target=juice_shop.
+- **CyberGym SAST** — `python -m scripts.cybergym.cli` corre heartbleed
+  + log4shell + struts2-ognl como SAST contra source pre-cloned.
+
+### Configuración default de investigate (banca-safe vs active)
+
+| Modo | Flag | Tools accesibles | Pre_hooks ejecutan |
+|------|------|------------------|--------------------|
+| **PASSIVE** (default) | sin --active | web_fetch_smart, RAG queries, DNS lookup | Solo los hybrid-mode deterministicos (F203.M, no las active skills) |
+| **ACTIVE** | `--active` | + nmap, nuclei, sqlmap, etc. | TODOS (incluyendo F203.V-AB explicit-keyword skills) |
+
+Para tools red-team (jwt_crack, hydra, ffuf, playwright_test_xss):
+`KRYON_RED_TEAM=true` env var adicional.
+
 ## Multi-target POC workflow (F196)
 
 Para POCs sobre un segmento entero (no un solo host), el flujo
