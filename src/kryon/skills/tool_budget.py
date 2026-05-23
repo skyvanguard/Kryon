@@ -109,6 +109,12 @@ def build_tool_registry() -> dict[str, Any]:
         # (sin license / API key). Banca-safe: read-only para
         # repeater/history; active_scan respeta scope del operator.
         "kryon.tools.appsec.burp_tools",
+        # F203.BC — Kali tool wrappers (binaries installed pero antes
+        # solo accesibles via run_command genérico). Wrappers @function_tool
+        # con schema explicito + args canónicos para mejor LLM guidance.
+        # Banca-safe: read-only enumeration / scanning. Para uso intrusivo
+        # operator debe pasar args explicitos.
+        "kryon.tools.reconnaissance.kali_wrappers",
     ]
 
     # F203.T — red-team tools gated by KRYON_RED_TEAM=true. Banking-default
