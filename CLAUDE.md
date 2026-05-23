@@ -375,6 +375,15 @@ kryon investigate "active sqli pentest contra https://target" --active
   active skills F203.V-AB funcionen).
 - **F203.Y** — dead code cleanup real: -15 archivos en `src/kryon/tools/`
   con 0 references anywhere (script: `scripts/dead_code_audit.py`).
+- **F203.AO.B** — `imperative_findings_suffix(evidence_present)` bifurcado.
+  Antes: el suffix imperativo `"NO re-invocás nuclei/sqlmap"` aplicaba
+  siempre, incluso cuando el pre_hook devolvía vacío → gpt-oss terminaba
+  con `[]` sin intentar tools manuales (HTB bench 0/7 pre-fix). Ahora:
+  cuando ningún pre_hook devuelve evidencia (JSON `[]`/`{}` empty o
+  string vacío), el suffix muta a `"DEBÉS continuar con tools manuales,
+  NUNCA emitas []"`. Bench HTB n=7 post-fix: **4/7 PWN (57%)** —
+  SQLi/XSS/RCE/XXE pwned con chain_match=100% via `web_fetch_smart` +
+  `run_command` después del pre_hook empty.
 
 ### Bench harnesses
 
