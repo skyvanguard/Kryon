@@ -102,6 +102,13 @@ def build_tool_registry() -> dict[str, Any]:
         "kryon.tools.validation.attack_simulator",
         "kryon.tools.validation.bas_scenarios",
         "kryon.tools.validation.exploit_validator",
+        # F203.BB — Burp Suite Pro REST API tools (instalado en Kali
+        # container v2026.3.2). 3 @function_tool: burp_send_to_repeater,
+        # burp_active_scan, burp_proxy_history. Fallback automático a
+        # mitmproxy embebido (F50) cuando Burp Pro no está disponible
+        # (sin license / API key). Banca-safe: read-only para
+        # repeater/history; active_scan respeta scope del operator.
+        "kryon.tools.appsec.burp_tools",
     ]
 
     # F203.T — red-team tools gated by KRYON_RED_TEAM=true. Banking-default
