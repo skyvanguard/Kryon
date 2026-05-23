@@ -269,10 +269,31 @@ def run_target(walkthrough_path: Path, *, prompt_template: str | None = None) ->
             os.environ.get("KRYON_BENCH_TIMEOUT")
             or walkthrough.get("wall_budget_seconds", 600)
         )
+        # F203.AY — inject walkthrough.notes y expected_chain rationale
+        # como context hint para el agent. Sin esto, el agent prueba
+        # caminos genéricos (curl /login, /api, /search) en lugar del
+        # chain canónico del lab (e.g. PortSwigger CSRF requires POST
+        # /my-account/change-email con session cookie).
+        # Activable via env KRYON_BENCH_NO_NOTES=1 (opt-out para tests
+        # de baseline sin hints).
+        ready_url = walkthrough["source"].get("ready_url", "")
         prompt = (prompt_template or "Audita este target: {ready_url}").format(
-            ready_url=walkthrough["source"].get("ready_url", ""),
+            ready_url=ready_url,
             slug=slug,
         )
+
+        # F203.AY → F203.AZ: only inject walkthrough.notes (high-level
+        # lab description), NOT expected_chain (which was too prescriptive
+        # and caused SQLi/RCE regressions when the model followed the
+        # exact rationale text literally without proper encoding).
+        if os.environ.get("KRYON_BENCH_NO_NOTES") != "1":
+            notes = walkthrough.get("notes", "").strip()
+            if notes:
+                prompt = (
+                    prompt
+                    + f"\n\n## Context hint (walkthrough.notes)\n\n{notes}"
+                )
+
         transcript = invoke_kryon(prompt, timeout=budget)
 
         flag_match = check_flag(transcript, walkthrough["flag_pattern"])
