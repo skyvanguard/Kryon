@@ -87,6 +87,12 @@ services:
     image: ollama/ollama:latest
     container_name: kryon-ollama
     restart: unless-stopped
+    environment:
+      # F203.AW — keep model loaded indefinidamente para evitar
+      # cold-start de 30-60s entre bench targets. Default ollama 5min
+      # causaba kryon_timeout en HTB n=7 cuando el restart del kryon
+      # container desalojaba gpt-oss del GPU.
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-24h}
     volumes:
       - ollama-models:/root/.ollama
     # Expose to host for CLI access (use 11435 if host Ollama occupies 11434)

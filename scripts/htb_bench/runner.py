@@ -16,6 +16,7 @@ itself doesn't print. The CLI / reporter consume the result.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import time
@@ -259,7 +260,15 @@ def run_target(walkthrough_path: Path, *, prompt_template: str | None = None) ->
                 error=error,
             )
 
-        budget = walkthrough.get("wall_budget_seconds", 600)
+        # F203.AW — walkthrough budget default 600s funcionaba con modelo
+        # pre-warmed. Despues de un container restart, ollama unload del
+        # gpt-oss model agregaba 30-60s cold-start por target → timeouts.
+        # KRYON_BENCH_TIMEOUT env override (sec) para benches en frio o
+        # cuando se necesita más margen.
+        budget = int(
+            os.environ.get("KRYON_BENCH_TIMEOUT")
+            or walkthrough.get("wall_budget_seconds", 600)
+        )
         prompt = (prompt_template or "Audita este target: {ready_url}").format(
             ready_url=walkthrough["source"].get("ready_url", ""),
             slug=slug,
