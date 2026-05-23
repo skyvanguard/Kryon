@@ -285,3 +285,98 @@ def test_imperative_suffix_contains_action_verb():
 def test_imperative_suffix_short():
     """Must stay short so it doesn't drown the actual evidence."""
     assert len(imperative_findings_suffix()) <= 800
+
+
+# ---------------------------------------------------------------------------
+# F203.AO.B — evidence_present bifurcation
+# ---------------------------------------------------------------------------
+
+
+def test_imperative_suffix_evidence_present_default_true() -> None:
+    """Default behaviour (F185.C) emits the 'NO re-invocás' directive
+    para forzar conversion de cada línea a finding JSON."""
+    suf = imperative_findings_suffix()  # default evidence_present=True
+    assert "ACCIÓN OBLIGATORIA" in suf
+    assert "NO re-invocás" in suf
+    assert "convertí CADA línea" in suf
+
+
+def test_imperative_suffix_evidence_absent_says_continue_manually() -> None:
+    """F203.AO.B: cuando pre_hook devolvió empty, NO emitir el
+    'NO re-invocás' prohibitivo (causa que gpt-oss termine con []).
+    En su lugar instruir CONTINUAR con tools manuales."""
+    suf = imperative_findings_suffix(evidence_present=False)
+    assert "VACÍO" in suf or "vacío" in suf
+    assert "DEBÉS continuar" in suf or "continúa" in suf.lower()
+    assert "tools manuales" in suf
+    assert "NUNCA emitas `[]`" in suf
+    # Critical: el prohibitivo "NO re-invocás" debe DESAPARECER cuando
+    # no hay evidence — eso es lo que estaba bloqueando al agent.
+    assert "NO re-invocás" not in suf
+
+
+def test_imperative_suffix_evidence_absent_short() -> None:
+    """Even when evidence is absent, the suffix should stay short."""
+    assert len(imperative_findings_suffix(evidence_present=False)) <= 800
+
+
+def test_format_findings_block_empty_payload_uses_no_evidence_variant() -> None:
+    """End-to-end: cuando TODOS los pre_hooks retornan empty, el bloque
+    final debe contener el suffix variant de evidence_absent."""
+    from kryon.skills.pre_hook_integration import format_findings_block
+
+    # All hooks returned empty strings
+    block = format_findings_block({
+        "sqlmap_multi_endpoint_probe": "",
+        "nuclei_xss_battery": "",
+    })
+    # Si el block está completamente vacío, NO debe haber suffix.
+    # Pero el current behaviour es: format_findings_block returns "" si
+    # findings dict está vacío. Para findings con keys but empty values,
+    # el block tiene el header + las secciones vacías + el suffix de
+    # "no evidence".
+    assert "VACÍO" in block or "vacío" in block
+    assert "NUNCA emitas" in block
+    assert "ACCIÓN OBLIGATORIA" not in block
+
+
+def test_format_findings_block_real_evidence_uses_default_variant() -> None:
+    """End-to-end: con evidence real en al menos un hook, el suffix
+    default (NO re-invocás) se usa.
+
+    Usa `deterministic_compliance_findings` con JSON parseable (path
+    estable — no depende del nuclei summarizer que filtra formatos
+    no-estándar)."""
+    from kryon.skills.pre_hook_integration import format_findings_block
+
+    payload = '[{"cwe": "CWE-79", "severity": "high", "host": "x.example.com", "rule_id": "xss-reflected", "message": "Reflected XSS", "evidence": "<svg>"}]'
+    block = format_findings_block({
+        "deterministic_compliance_findings": payload,
+        "sqlmap_multi_endpoint_probe": "",
+    })
+    assert "ACCIÓN OBLIGATORIA" in block
+    assert "NO re-invocás" in block
+    assert "NUNCA emitas" not in block
+
+
+def test_format_findings_block_json_empty_array_treated_as_no_evidence() -> None:
+    """JSON `[]` (e.g. compliance audit con 0 findings) cuenta como
+    NO evidence — el agent debe seguir buscando."""
+    from kryon.skills.pre_hook_integration import format_findings_block
+
+    block = format_findings_block({
+        "deterministic_compliance_findings": "[]",
+    })
+    # JSON parses to empty list → no evidence → 'continúa manualmente'
+    assert "VACÍO" in block or "vacío" in block
+
+
+def test_format_findings_block_json_non_empty_treated_as_evidence() -> None:
+    """JSON con findings reales → evidence present → variant default."""
+    from kryon.skills.pre_hook_integration import format_findings_block
+
+    payload = '[{"cwe": "CWE-89", "severity": "high", "host": "x", "rule_id": "y", "message": "z", "evidence": "w"}]'
+    block = format_findings_block({
+        "deterministic_compliance_findings": payload,
+    })
+    assert "ACCIÓN OBLIGATORIA" in block
