@@ -398,6 +398,15 @@ kryon investigate "active sqli pentest contra https://target" --active
   ssrf-basic, csrf-1, xxe-1} → web-pentest-{sqli, xss, idor, rce,
   ssrf, csrf, xxe}-active. Bench end-to-end activable con
   `KRYON_RED_TEAM=true` env.
+- **F203.BA — HTB bench fidelity (reasoning ≠ real exploit)**: el
+  `ready_url` apunta a la docs page de PortSwigger (`portswigger.net/
+  web-security/...`), NO al lab dinámico (que requiere PortSwigger
+  Academy login + session). Los `flag_pattern` lenient (`Congratulations|
+  carlos.*password|document.write`) matchean texto de la docs o del
+  reasoning del modelo, NO proof-of-exploit. Pwn rate 4/7 reproducible
+  mide **capacidad de reasoning sobre la documentation**, no exploit
+  vivo. Para bench de exploit real → docker/vulnerable-lab (lab live)
+  o Juice Shop (port 3003, container local).
 - **OWASP Juice Shop** — `docker start juice_shop` (port host 3003 → 3000
   guest). Ground truth de 10 CWEs canonicos (CWE-89/79/639/285/200/22/352/915/1004/319)
   en `scripts/lab_scoreboard.py` target=juice_shop.
