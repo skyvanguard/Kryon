@@ -82,16 +82,17 @@ def run(ctx: dict[str, Any]) -> str:
                 lines.append(f"| {url} | ERROR | - | {type(e).__name__} |")
             time.sleep(_INTER_REQUEST_S)
 
+    # F203.AS — return EMPTY string when no interesting candidates,
+    # so format_findings_block treats it as evidence_absent and triggers
+    # the "DEBÉS continuar con tools manuales" suffix instead of the
+    # default "NO re-invocás" (which causes gpt-oss to terminate with
+    # a single LOW-severity finding and skip the real exploit chain).
+    if not interesting:
+        return ""
+
     lines.append("")
-    if interesting:
-        lines.append(f"### Interesting (potential CWE-639): {len(interesting)}")
-        for it in interesting[:10]:
-            lines.append(f"- {it}")
-    else:
-        lines.append(
-            "### No 200-OK responses on standard ID paths — IDOR less likely via "
-            "this naive enumeration. Operator should still test with authenticated "
-            "session cookies + foreign IDs from a different user."
-        )
+    lines.append(f"### Interesting (potential CWE-639): {len(interesting)}")
+    for it in interesting[:10]:
+        lines.append(f"- {it}")
 
     return "\n".join(lines)

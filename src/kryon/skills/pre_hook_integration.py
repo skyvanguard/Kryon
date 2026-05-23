@@ -38,6 +38,37 @@ logger = logging.getLogger(__name__)
 # `ctx.host` without the operator having to set KRYON_TARGET_HOST.
 _HOST_RE = re.compile(r"\b((?:\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9][\w\-.]*\.[a-zA-Z]{2,})\b")
 
+# F203.AS — markers that indicate REAL evidence (a concrete finding) vs
+# enumeration noise (a scan that ran but didn't find anything). Without
+# this distinction, gpt-oss treats curl header dumps as authoritative
+# findings and terminates with severity=INFO entries instead of
+# exploring the real exploit chain manually.
+_EVIDENCE_MARKERS = re.compile(
+    r"(?:"
+    r"\bCWE-\d+\b|"                        # CWE-89, CWE-639, etc.
+    r"\b(?:VULNERABLE|exploitable|exploited)\b|"
+    r"\binjection point\b|\binjection found\b|"
+    r"sqlmap identified|"
+    r"\[critical\]|\[high\]|\[medium\]|"   # nuclei severity tags (no word-boundary)
+    r"\bmatched\b|"
+    r"interesting \([a-z ]+\):\s*[1-9]|"   # idor_probe "Interesting (potential CWE-X): N"
+    r"candidate \(200 OK on foreign"       # idor candidate confirmed
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_real_evidence(payload: str) -> bool:
+    """F203.AS — distinguir evidence concreta de enumeration noise.
+
+    Curl `Set-Cookie:` dumps, OPTIONS preflight headers, idor_probe
+    tables sin candidates → noise. Sólo cuenta como evidence si
+    contiene markers de finding REAL (CWE-N, VULNERABLE, [high], etc.).
+    """
+    if not payload:
+        return False
+    return _EVIDENCE_MARKERS.search(payload) is not None
+
 
 def build_tool_callables_from_agent(agent: Any) -> dict[str, ToolCallable]:
     """Extract `{tool_name: raw_python_callable}` from agent.tools.
@@ -152,7 +183,14 @@ def format_findings_block(findings: dict[str, str]) -> str:
             # F186 — text output goes through the de-noiser + truncator.
             compact = summarize_pre_hook_output(inject_as, payload)
             parts.append(compact)
-            if compact and compact.strip():
+            # F203.AS — text payload solo cuenta como evidence si tiene
+            # markers de finding REAL (no enumeration noise). curl
+            # `Set-Cookie:` headers o `===path===` separators son
+            # informational, NO findings concretos. Evidence markers
+            # claros: "CWE-", "VULNERABLE", "Injection", "matched",
+            # "exploited", "interesting". Sin esos markers, el text
+            # se trata como informational → modelo continúa.
+            if compact and _looks_like_real_evidence(compact):
                 any_evidence = True
         parts.append("```")
         parts.append("")

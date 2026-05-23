@@ -380,3 +380,55 @@ def test_format_findings_block_json_non_empty_treated_as_evidence() -> None:
         "deterministic_compliance_findings": payload,
     })
     assert "ACCIÓN OBLIGATORIA" in block
+
+
+# ---------------------------------------------------------------------------
+# F203.AS — text payload evidence discrimination
+# ---------------------------------------------------------------------------
+
+
+def test_looks_like_real_evidence_with_cwe_marker() -> None:
+    from kryon.skills.pre_hook_integration import _looks_like_real_evidence
+    assert _looks_like_real_evidence("Found CWE-89 SQLi at /login")
+    assert _looks_like_real_evidence("[critical] /admin exposed")
+    assert _looks_like_real_evidence("[high] reflected XSS")
+    assert _looks_like_real_evidence("sqlmap identified the following injection point")
+    assert _looks_like_real_evidence("Interesting (potential CWE-639): 3")
+
+
+def test_looks_like_real_evidence_rejects_enumeration_noise() -> None:
+    from kryon.skills.pre_hook_integration import _looks_like_real_evidence
+    # curl headers dump
+    assert not _looks_like_real_evidence(
+        "Set-Cookie: SESSION=abc; HttpOnly\nServer: nginx\nX-Frame-Options: SAMEORIGIN"
+    )
+    # OPTIONS preflight
+    assert not _looks_like_real_evidence(
+        "HTTP/1.1 200 OK\nAccess-Control-Allow-Origin: *"
+    )
+    # idor_probe table sin candidates (post F203.AS retorna "" pero
+    # legacy callers podrían retornar table sin "Interesting (potential
+    # CWE-639):" line).
+    assert not _looks_like_real_evidence(
+        "| /users/1 | 404 | 0 |  |\n| /users/2 | 404 | 0 |  |"
+    )
+    # Empty
+    assert not _looks_like_real_evidence("")
+
+
+def test_format_findings_block_text_without_evidence_markers_uses_continue_variant() -> None:
+    """Text-only pre_hook output sin markers de evidence real (curl
+    headers, OPTIONS preflight) → suffix "DEBÉS continuar"."""
+    from kryon.skills.pre_hook_integration import format_findings_block
+
+    block = format_findings_block({
+        "csrf_posture_baseline": (
+            "Set-Cookie: SESSION=abc; SameSite=Lax\n"
+            "X-Frame-Options: SAMEORIGIN\n"
+            "Content-Security-Policy: default-src 'self'\n"
+        ),
+    })
+    # No markers → tratar como no-evidence → continuar manually
+    assert "VACÍO" in block or "vacío" in block
+    assert "NUNCA emitas" in block
+    assert "ACCIÓN OBLIGATORIA" not in block
