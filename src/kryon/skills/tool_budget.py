@@ -115,6 +115,9 @@ def build_tool_registry() -> dict[str, Any]:
         # Banca-safe: read-only enumeration / scanning. Para uso intrusivo
         # operator debe pasar args explicitos.
         "kryon.tools.reconnaissance.kali_wrappers",
+        # F203.BD Group 1 — banca-safe recon/RE wrappers (no RED_TEAM gate).
+        # masscan/tcpdump/dnsrecon/amass/sublist3r/radare2. Read-only.
+        "kryon.tools.reconnaissance.kali_recon",
     ]
 
     # F203.T — red-team tools gated by KRYON_RED_TEAM=true. Banking-default
@@ -142,6 +145,11 @@ def build_tool_registry() -> dict[str, Any]:
             # Payload prep (analytical, no exec): encoding + obfuscation
             "kryon.tools.evasion.payload_encoding",
             "kryon.tools.evasion.traffic_obfuscation",
+            # F203.BD Group 2 — RED_TEAM-gated AD/exploit Kali tools.
+            # evil-winrm, impacket-{secretsdump,psexec,GetUserSPNs},
+            # responder (analyze-only default), bloodhound-python,
+            # msfvenom. Todos requieren creds previas o hardware.
+            "kryon.tools.lateral_movement.kali_redteam",
         ])
     for mod_path in _extra_tools:
         try:
