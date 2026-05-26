@@ -234,6 +234,89 @@ _PROSE_PLAN_MIN_LEN = 200
 _PROSE_PLAN_FILTER_ENABLED = os.getenv("KRYON_STRIP_PROSE_PLANS", "true").lower() != "false"
 
 
+def _safe_model_dump(obj: Any) -> dict[str, Any]:
+    """FASE 11.H — duck-typed ``model_dump()`` replacement.
+
+    Ollama's OpenAI-compatible API sometimes returns
+    ``response.choices[0].message`` as a ``types.SimpleNamespace``
+    (not a Pydantic model) when tool calls land in non-standard
+    response shapes. Calling ``.model_dump()`` on that raises
+    ``AttributeError: 'types.SimpleNamespace' object has no attribute
+    '__pydantic_extra__'`` and crashes the whole turn.
+
+    Pyrat bench (2026-05-26) hit this immediately after the model
+    confirmed the Python REPL foothold via ``kryon-probe``, which
+    bricked the post-foothold introspection chain.
+
+    Fallback order:
+      1. ``obj.model_dump()``         — Pydantic models (canonical path)
+      2. ``vars(obj)``                — SimpleNamespace + plain objects
+      3. ``dict(obj)``                — Mapping-like (covers some
+                                        litellm wrappers)
+      4. ``{"_repr": repr(obj)}``     — last resort so we never crash
+    """
+    try:
+        dump = getattr(obj, "model_dump", None)
+        if callable(dump):
+            return dump()
+    except Exception:  # noqa: BLE001 — fall through to less-strict path
+        pass
+    try:
+        return dict(vars(obj))
+    except TypeError:
+        pass
+    try:
+        return dict(obj)
+    except (TypeError, ValueError):
+        pass
+    return {"_repr": repr(obj)}
+
+
+def _patch_response_usage_for_litellm(response: Any) -> None:
+    """FASE 11.H — inject ``output_tokens_details`` so LiteLLM's
+    standard-logging path can pydantic-validate the usage dict.
+
+    LiteLLM ``ResponseAPIUsage`` (pydantic v2) treats
+    ``output_tokens_details`` as a required field, but Ollama's
+    OpenAI-compatible API returns usage as
+    ``{"prompt_tokens": N, "completion_tokens": M, "total_tokens":
+    N+M, "input_tokens": N, "output_tokens": M}`` — no _details
+    subfields. Every turn emitted two noisy ValidationError tracebacks
+    to stderr (cosmetic but drowns real signal in the bench logs).
+
+    Inject the minimal shape LiteLLM expects so the validator passes.
+    Best-effort: never raise.
+    """
+    try:
+        usage = getattr(response, "usage", None)
+        if usage is None:
+            return
+        # dict-shaped usage (Ollama path)
+        if isinstance(usage, dict):
+            usage.setdefault(
+                "output_tokens_details",
+                {"reasoning_tokens": 0},
+            )
+            usage.setdefault(
+                "input_tokens_details",
+                {"cached_tokens": 0},
+            )
+            return
+        # object-shaped usage (Pydantic model from OpenAI direct)
+        if not hasattr(usage, "output_tokens_details"):
+            try:
+                usage.output_tokens_details = {"reasoning_tokens": 0}
+            except Exception:  # noqa: BLE001 — frozen pydantic, skip
+                pass
+        if not hasattr(usage, "input_tokens_details"):
+            try:
+                usage.input_tokens_details = {"cached_tokens": 0}
+            except Exception:  # noqa: BLE001
+                pass
+    except Exception:  # noqa: BLE001 — never let this crash the run
+        pass
+
+
 def _is_prose_plan_contamination(content: str) -> bool:
     """Return True when an assistant *text-only* message exhibits the
     prose-plan failure mode (markdown-formatted tool calls as narrative).
@@ -944,7 +1027,7 @@ class OpenAIChatCompletionsModel(Model):
             if _debug.DONT_LOG_MODEL_DATA:
                 logger.debug("Received model response")
             else:
-                logger.debug(f"LLM resp:\n{json.dumps(response.choices[0].message.model_dump(), indent=2)}\n")
+                logger.debug(f"LLM resp:\n{json.dumps(_safe_model_dump(response.choices[0].message), indent=2, default=str)}\n")
 
             # Ollama fallback: parse tool calls from text content when the model
             # outputs them as JSON in the message body instead of proper tool_calls
@@ -1402,8 +1485,15 @@ class OpenAIChatCompletionsModel(Model):
                 if response.usage or input_tokens > 0
                 else Usage()
             )
+            # FASE 11.H — patch the response.usage before any logging
+            # path so LiteLLM's pydantic v2 validator stops emitting
+            # ValidationError tracebacks on every turn (output_tokens_
+            # details / input_tokens_details fields missing from Ollama).
+            _patch_response_usage_for_litellm(response)
             if tracing.include_data():
-                span_generation.span_data.output = [response.choices[0].message.model_dump()]
+                # _safe_model_dump survives Ollama's types.SimpleNamespace
+                # message shape that the canonical model_dump() crashes on.
+                span_generation.span_data.output = [_safe_model_dump(response.choices[0].message)]
             span_generation.span_data.usage = {
                 "input_tokens": usage.input_tokens,
                 "output_tokens": usage.output_tokens,
@@ -2648,7 +2738,11 @@ class OpenAIChatCompletionsModel(Model):
                     # Note: Content is now displayed during streaming, no need to show it again here
 
                 if tracing.include_data():
-                    span_generation.span_data.output = [final_response.model_dump()]
+                    # FASE 11.H — same duck-typing safeguard as the
+                    # non-streaming path. Streaming aggregation builds
+                    # ``final_response`` from chunks; in some Ollama
+                    # response shapes it's also a SimpleNamespace.
+                    span_generation.span_data.output = [_safe_model_dump(final_response)]
 
                 span_generation.span_data.usage = {
                     "input_tokens": input_tokens,
