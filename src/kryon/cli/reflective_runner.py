@@ -53,6 +53,15 @@ logger = logging.getLogger(__name__)
 _DEFAULT_REFLECT_EVERY = 4
 # Stuck threshold: 2 identical (tool_name, args_hash) consecutive triggers warning.
 _DEFAULT_STUCK_THRESHOLD = 2
+# F203.AX — intra-turn degeneracy detector. Catches n-gram repetition
+# WITHIN a single reasoning block (Harmony analysis channel), which the
+# turn-level _is_stuck can't see because no tool_call is emitted while
+# the model spins in the loop. Observed empirically with gpt-oss-20b
+# under reasoning_effort=medium against ambiguous tool outputs (e.g.
+# smbclient -L returning only headers): the model repeats the same
+# 10-50 word line 100+ times before the chunk's max_tokens cuts it off.
+_DEFAULT_DEGEN_NGRAM_SIZE = 8
+_DEFAULT_DEGEN_MIN_REPEATS = 4
 
 
 @dataclass(frozen=True)
@@ -142,6 +151,7 @@ def _build_reflection_prompt(
     tool_history: list[_ToolCallRecord],
     last_output_summary: str,
     stuck_record: _ToolCallRecord | None,
+    degen_pattern: str | None = None,
 ) -> str:
     """Compose the reflection user-message injected between chunks."""
     # Top distinct tools (most recent up to 6)
@@ -161,8 +171,34 @@ def _build_reflection_prompt(
             f"     • Emití el resumen final si no hay más signal disponible.\n"
         )
 
+    # F203.AX — intra-turn degeneracy block. Goes ABOVE the normal
+    # reflection because the model needs to break the loop before any
+    # reasoning continues. Phrased as a hard directive — empirical
+    # tests with soft phrasing showed the model rationalizing the loop.
+    degen_block = ""
+    if degen_pattern:
+        preview = degen_pattern[:200]
+        degen_block = (
+            f"\n🚨🚨🚨 **INTRA-TURN DEGENERACY DETECTED** 🚨🚨🚨\n\n"
+            f"Tu razonamiento anterior REPITIÓ la siguiente secuencia "
+            f"{_DEFAULT_DEGEN_MIN_REPEATS}+ veces:\n"
+            f"   `{preview}`\n\n"
+            f"**ESTO ES UN LOOP DEGENERADO. PARÁ DE REPETIR.**\n\n"
+            f"Hacé EXACTAMENTE UNA de estas dos cosas:\n"
+            f"  (A) **EMITÍ EL RESUMEN FINAL AHORA** con lo que tenés — "
+            f"  enumerá los hallazgos concretos observados hasta aquí, sin "
+            f"  esperar más datos.\n"
+            f"  (B) **Una única nueva tool call** con args DISTINTOS a todo "
+            f"  lo que ya hiciste. NO `smbclient -L` otra vez. NO `nmap` "
+            f"  otra vez. Probá `nxc ldap`, `ldapsearch -x -b dc=...`, "
+            f"  `GetNPUsers.py`, o `bloodhound-python` si todavía no los usaste.\n\n"
+            f"NO ESCRIBAS más reasoning sobre el output que ya viste. "
+            f"NO digas 'maybe' / 'already' / 'not' otra vez.\n"
+        )
+
     return (
         f"\n---\n## 🪞 Reflection turn (turn {turns_used}/{total_turns_cap})\n\n"
+        f"{degen_block}"
         f"Tools recientes usadas: {recent_tools or 'ninguna'}\n"
         f"Última observación (preview):\n```\n{last_output_summary[:500]}\n```\n"
         f"{stuck_block}\n"
@@ -178,6 +214,90 @@ def _build_reflection_prompt(
         f"Si no → continuá con el tool call que aporte MÁS signal nuevo, "
         f"NO repitas tools ya invocadas con los mismos args.\n"
     )
+
+
+def _detect_intra_turn_degeneracy(
+    text: str,
+    *,
+    ngram_size: int = _DEFAULT_DEGEN_NGRAM_SIZE,
+    min_repeats: int = _DEFAULT_DEGEN_MIN_REPEATS,
+) -> str | None:
+    """Detect tight n-gram repetition within a single reasoning/output block.
+
+    Operates on the raw text of one or more ModelResponses concatenated.
+    Returns the offending n-gram (joined string) if degeneracy detected,
+    None otherwise.
+
+    Why this exists (F203.AX): the turn-level `_is_stuck` only fires when
+    consecutive tool calls have identical (name, args_hash). gpt-oss-20b
+    can degenerate INSIDE a single chunk, repeating a line of reasoning
+    100+ times without ever emitting another tool_call. By the time the
+    chunk's max_tokens kicks in, thousands of tokens are wasted and the
+    next chunk has no good signal to act on. This detector catches it
+    post-chunk so the reflective runner can inject an explicit
+    "STOP REPEATING" reflection instead of normal cadence.
+
+    Tuning rationale:
+      ngram_size=8: long enough to skip common short phrases ("we need
+        to") while still catching the multi-line repetitions seen in
+        empirical degeneracy logs.
+      min_repeats=4: a 32-word block repeated 4 times = ~128 wasted
+        tokens. Lower threshold risks false positives on legitimate
+        enumeration narration ("found user X. found user Y. ...").
+    """
+    if not text:
+        return None
+    words = text.split()
+    if len(words) < ngram_size * min_repeats:
+        return None
+
+    from collections import Counter
+    ngrams = [
+        " ".join(words[i : i + ngram_size])
+        for i in range(len(words) - ngram_size + 1)
+    ]
+    if not ngrams:
+        return None
+    counts = Counter(ngrams)
+    most_common, count = counts.most_common(1)[0]
+    if count >= min_repeats:
+        return most_common
+    return None
+
+
+def _extract_chunk_text(result: Any) -> str:
+    """Concatenate the textual content of all ModelResponses in a chunk.
+
+    Used by the intra-turn degeneracy detector. Covers two shapes:
+      (a) `raw_responses` list of ModelResponse-like objects with
+          `.message.content` (OpenAI chat completion shape).
+      (b) `final_output` fallback when raw_responses is empty / opaque.
+
+    Handles both string content and structured (list of dict) content
+    used by some SDK versions.
+    """
+    parts: list[str] = []
+    raw = getattr(result, "raw_responses", None) or []
+    for r in raw:
+        msg = getattr(r, "message", None) or r
+        content = getattr(msg, "content", None)
+        if content is None:
+            continue
+        if isinstance(content, str):
+            parts.append(content)
+        elif isinstance(content, list):
+            for item in content:
+                if isinstance(item, dict):
+                    text = item.get("text") or item.get("content")
+                    if isinstance(text, str):
+                        parts.append(text)
+                elif isinstance(item, str):
+                    parts.append(item)
+    if not parts:
+        fo = getattr(result, "final_output", None)
+        if fo:
+            parts.append(str(fo))
+    return "\n".join(parts)
 
 
 def _has_pending_tool_calls(result: Any) -> bool:
@@ -417,12 +537,39 @@ async def run_with_reflection(
         except Exception:  # noqa: BLE001
             last_output = ""
 
+        # F203.AX — intra-turn degeneracy check. Runs over the FULL chunk
+        # text (all ModelResponses concatenated), not just final_output.
+        # If detected, the reflection prompt is upgraded to a hard
+        # "STOP REPEATING" directive. Independent of stuck-pattern
+        # (which only fires across tool_calls).
+        degen_pattern: str | None = None
+        try:
+            chunk_text = _extract_chunk_text(result)
+            degen_pattern = _detect_intra_turn_degeneracy(chunk_text)
+        except Exception as e:  # noqa: BLE001
+            logger.debug("intra-turn degeneracy probe failed: %s", e)
+
+        if degen_pattern:
+            logger.warning(
+                "F203.AX intra-turn degeneracy detected at turn %d: %r",
+                turns_used,
+                degen_pattern[:120],
+            )
+            if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in (
+                "1", "true", "yes"
+            ):
+                print(
+                    f"\n🚨 [reflective-runner] INTRA-TURN DEGENERACY at turn "
+                    f"{turns_used}: pattern={degen_pattern[:80]!r}"
+                )
+
         reflection_msg = _build_reflection_prompt(
             turns_used=turns_used,
             total_turns_cap=max_total_turns,
             tool_history=tool_history,
             last_output_summary=last_output,
             stuck_record=stuck,
+            degen_pattern=degen_pattern,
         )
 
         if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
@@ -463,4 +610,6 @@ __all__ = [
     "_is_stuck",
     "_hash_args",
     "_ToolCallRecord",
+    "_detect_intra_turn_degeneracy",
+    "_extract_chunk_text",
 ]

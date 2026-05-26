@@ -105,6 +105,15 @@ def run_compliance_audit(
         "unifi": "unifi",
         "ubnt": "unifi",
         "ubiquiti": "unifi",
+        "asterisk": "asterisk",
+        "voip": "asterisk",
+        "freepbx": "asterisk",
+        "windows": "windows",
+        "win": "windows",
+        "windows-server": "windows",
+        "tomcat": "tomcat",
+        "apache-tomcat": "tomcat",
+        "coyote": "tomcat",
         "all": "all",
     }
     fw_key = fw_alias.get((framework or "pci-dss").lower())
