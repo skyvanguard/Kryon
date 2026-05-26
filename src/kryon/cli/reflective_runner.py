@@ -58,6 +58,9 @@ from kryon.intelligence.fact_extractor import (
     ExtractedFacts,
     extract_facts,
 )
+from kryon.intelligence.tool_templates import (
+    format_templates_for_recent_tools,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -313,6 +316,18 @@ def _build_reflection_prompt(
         else:
             next_action_block = rendered
 
+    # FASE 5 — canonical tool invocation templates. Sister to G5: where
+    # G5 (anti-pattern hints) surfaces in facts.hints AFTER a misfire,
+    # this block surfaces the right flag set BEFORE the next call.
+    # Driven by ``tool_history`` so it only mentions tools the model
+    # has actually been using.
+    templates_block = ""
+    try:
+        recent_args = [r.args_preview for r in tool_history[-8:]]
+        templates_block = format_templates_for_recent_tools(recent_args)
+    except Exception:  # noqa: BLE001 — best-effort, never bubble
+        templates_block = ""
+
     # G7 (FASE 4) — stall block. Emitted when the planner has been
     # repeating the same recommendation for N reflection turns AND
     # ExtractedFacts hasn't moved. Goes right BELOW the operator
@@ -346,6 +361,7 @@ def _build_reflection_prompt(
         f"{degen_block}"
         f"{facts_block}"
         f"{next_action_block}"
+        f"{templates_block}"
         f"Tools recientes usadas: {recent_tools or 'ninguna'}\n"
         f"Última observación (preview):\n```\n{last_output_summary[:500]}\n```\n"
         f"{stuck_block}\n"

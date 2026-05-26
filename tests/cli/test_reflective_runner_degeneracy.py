@@ -623,6 +623,99 @@ def test_reflection_prompt_omits_stall_block_when_not_detected() -> None:
     assert "STALL DETECTED" not in prompt
 
 
+# ---------------------------------------------------------------------------
+# FASE 5 — tool_templates block in reflection prompt
+# ---------------------------------------------------------------------------
+
+
+def test_reflection_prompt_includes_templates_block_for_recent_tools() -> None:
+    """When tool_history has entries that match canonical templates,
+    the reflection prompt must surface the ``🛠️ Canonical tool
+    invocations`` block with the right flags."""
+    from kryon.cli.reflective_runner import _ToolCallRecord
+
+    history = [
+        _ToolCallRecord(
+            tool_name="run_command",
+            args_hash="abc",
+            args_preview="nc 10.0.0.1 8000",
+        ),
+    ]
+    prompt = _build_reflection_prompt(
+        turns_used=4,
+        total_turns_cap=30,
+        tool_history=history,
+        last_output_summary="",
+        stuck_record=None,
+        degen_pattern=None,
+        extracted_facts=None,
+        next_action=None,
+    )
+    assert "Canonical tool invocations" in prompt
+    assert "**nc**" in prompt
+    assert "-q 1" in prompt
+
+
+def test_reflection_prompt_omits_templates_block_when_no_known_tools() -> None:
+    """Unrelated history → no templates block (don't pollute the
+    prompt with an empty header)."""
+    from kryon.cli.reflective_runner import _ToolCallRecord
+
+    history = [
+        _ToolCallRecord(
+            tool_name="run_command",
+            args_hash="abc",
+            args_preview="some-random-binary --x",
+        ),
+    ]
+    prompt = _build_reflection_prompt(
+        turns_used=4,
+        total_turns_cap=30,
+        tool_history=history,
+        last_output_summary="",
+        stuck_record=None,
+        degen_pattern=None,
+        extracted_facts=None,
+        next_action=None,
+    )
+    assert "Canonical tool invocations" not in prompt
+
+
+def test_reflection_prompt_templates_block_appears_below_next_action() -> None:
+    """Ordering invariant: facts + planner recommendation come ABOVE
+    the canonical templates reference (which is a passive cheat-sheet,
+    not a directive)."""
+    from kryon.cli.reflective_runner import _ToolCallRecord
+    from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
+
+    history = [
+        _ToolCallRecord(
+            tool_name="run_command",
+            args_hash="abc",
+            args_preview="nc 10.0.0.1 8000",
+        ),
+    ]
+    rec = NextActionRecommendation(
+        tool="run_command",
+        args="nc -q 1 -w 5 10.0.0.1 8000",
+        rationale="example",
+        confidence=0.6,  # low so it goes below facts
+    )
+    prompt = _build_reflection_prompt(
+        turns_used=4,
+        total_turns_cap=30,
+        tool_history=history,
+        last_output_summary="",
+        stuck_record=None,
+        degen_pattern=None,
+        extracted_facts=None,
+        next_action=rec,
+    )
+    rec_idx = prompt.index("Next action recommendation")
+    templates_idx = prompt.index("Canonical tool invocations")
+    assert rec_idx < templates_idx
+
+
 def test_reflection_prompt_substitutes_target_host_from_facts() -> None:
     """G4 placeholder substitution: when ExtractedFacts.hosts is
     populated, the ``<target>`` placeholder in the planner's args
