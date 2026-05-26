@@ -61,6 +61,7 @@ from kryon.intelligence.fact_extractor import (
 from kryon.intelligence.planner_runtime import (
     clear_current_state as _clear_planner_state,
     drain_planner_subcalls as _drain_planner_subcalls,
+    init_planner_subcall_log as _init_planner_subcall_log,
     set_current_state as _set_planner_state,
 )
 from kryon.intelligence.tool_templates import (
@@ -1029,6 +1030,22 @@ async def run_with_reflection(
             )
         except Exception as e:  # noqa: BLE001
             logger.debug("planner runtime state pre-set failed: %s", e)
+
+        # FASE 11.M — prime the sub-call log to an empty list in the
+        # CURRENT context so the executor (which may run in a child
+        # asyncio task whose ContextVar writes don't propagate back)
+        # sees a list ref it can append to without calling
+        # ``ContextVar.set``. The first bench iteration of FASE 11.M
+        # (Robots bench 20) had record_planner_subcall calling
+        # ``_subcall_log.set()`` from inside the executor's task,
+        # which produced a child-private view the runner never saw —
+        # zero sub-call records made it into tool_history. Priming
+        # to ``[]`` here, combined with the in-place-only mutation
+        # invariant on the executor side, fixes the propagation.
+        try:
+            _init_planner_subcall_log()
+        except Exception as e:  # noqa: BLE001
+            logger.debug("planner subcall log init failed: %s", e)
 
         try:
             result = await Runner.run(

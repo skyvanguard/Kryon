@@ -107,13 +107,31 @@ def record_planner_subcall(args: str) -> None:
     silently ignored — a ``_was_invoked(prior_args, "")`` check
     would match anything, so we never want an empty entry in the
     log.
+
+    Critical invariant: this function MUST NOT call
+    ``_subcall_log.set()`` because the executor often runs in a
+    child asyncio task whose ContextVar writes don't propagate back
+    to the parent (the reflective runner). The runner is expected
+    to have called ``init_planner_subcall_log`` before its
+    ``Runner.run`` invocation, so ``buf`` here is the SAME list
+    object the runner will drain. Appends mutate that list in-place
+    and are visible to the parent.
+
+    If ``buf`` is somehow ``None`` (e.g. tool invoked outside a
+    reflective run for tests), we still create an isolated list and
+    accept that those entries won't be drained — better than
+    crashing.
     """
     if not args or not args.strip():
         return
     buf = _subcall_log.get()
     if buf is None:
-        buf = []
+        # Standalone path (no reflective runner around us). Set the
+        # ContextVar so subsequent appends in the SAME context still
+        # accumulate, even if the parent never reads them.
+        buf = [args]
         _subcall_log.set(buf)
+        return
     buf.append(args)
 
 
@@ -126,17 +144,42 @@ def drain_planner_subcalls() -> list[str]:
     ``prior_tool_args``).
 
     Returns an empty list when the log was never touched in this
-    task. Always resets the buffer to ``[]`` so two consecutive
-    drains return ``[entries], []``.
+    task. Always clears the buffer (in-place mutation, NOT
+    ``ContextVar.set``) so two consecutive drains return
+    ``[entries], []``. In-place mutation is required because
+    ``ContextVar.set`` from inside a child task (e.g. the executor)
+    doesn't propagate back to the parent — see
+    ``init_planner_subcall_log`` for the matching initialization
+    invariant.
     """
     buf = _subcall_log.get()
     if buf is None:
         return []
     drained = list(buf)
-    # Replace with a fresh empty list rather than mutating in place —
-    # avoids surprising any caller that captured the same list ref.
-    _subcall_log.set([])
+    # Mutate the existing list in-place rather than replacing the ref
+    # via ContextVar.set — the executor's child-task view holds the
+    # same ref, and a .set() here would only swap the parent's view.
+    buf.clear()
     return drained
+
+
+def init_planner_subcall_log() -> None:
+    """Initialize the per-task sub-call log to an empty list.
+
+    Called by ``run_with_reflection`` BEFORE each ``Runner.run`` call
+    so the executor (which may live in a child asyncio task) sees a
+    fully-initialized list ref. The executor then only ever appends
+    to that list (never calls ``.set``), so the parent's view stays
+    in sync.
+
+    Without this priming step, the executor's ``record_planner_
+    subcall`` would call ``_subcall_log.set([new_list])`` on first
+    invocation in a child task, and the parent never sees that
+    list — appends land in the child's private view and disappear
+    when the child task ends. This was the regression Bench Robots
+    M (2026-05-26) exhibited.
+    """
+    _subcall_log.set([])
 
 
 __all__ = [
@@ -147,4 +190,5 @@ __all__ = [
     "get_current_state_or_default",
     "record_planner_subcall",
     "drain_planner_subcalls",
+    "init_planner_subcall_log",
 ]
