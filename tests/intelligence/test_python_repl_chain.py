@@ -289,9 +289,14 @@ def test_f3_netcat_still_fires_without_python_signal() -> None:
     )
     rec = plan_next_action(facts, [], "")
     assert rec is not None
-    # F3 emits the bare ``echo 'help' | nc`` probe.
-    assert "echo -e 'help" in rec.args
-    # NOT the F7 chain marker.
+    # FASE 11.G — F3 now emits the same ``print("kryon-probe")`` probe
+    # directly, jumping straight to a REPL confirm instead of routing
+    # through a ``help`` send that produces no socket output. The two
+    # rules differ in their preconditions (hint phrasing vs Python
+    # syntax error), not in the probe command.
+    assert 'print("kryon-probe")' in rec.args
+    assert "nc -w 5" in rec.args
+    # NOT the F7 chain marker comment.
     assert "python_repl_confirm" not in rec.args
 
 
