@@ -44,6 +44,7 @@ import logging
 import os
 import re
 import time
+from collections import deque
 from dataclasses import dataclass
 from typing import Any
 
@@ -74,6 +75,73 @@ _DEFAULT_STUCK_THRESHOLD = 2
 # 10-50 word line 100+ times before the chunk's max_tokens cuts it off.
 _DEFAULT_DEGEN_NGRAM_SIZE = 8
 _DEFAULT_DEGEN_MIN_REPEATS = 4
+
+# G7 (FASE 4) — stall detector window. Across this many consecutive
+# reflection turns we check whether the planner kept emitting the same
+# recommendation AND the ExtractedFacts signature didn't move. Both
+# conditions together mean: the model is not following the planner
+# AND new tool calls produced no new structured intel — i.e. it's
+# spinning. Default 3 = three reflection turns with no progress
+# before we emit a STALL block to the prompt.
+_DEFAULT_STALL_THRESHOLD = 3
+
+
+def _facts_signature(facts: Any) -> str:
+    """Compact signature of an ExtractedFacts snapshot used by the
+    stall detector to tell "facts moved" from "no progress". Counts
+    high-value fields only — turn-by-turn version/hint changes are
+    not enough to claim progress on their own."""
+    if facts is None:
+        return ""
+    return (
+        f"u={len(getattr(facts, 'users', ()))}"
+        f"_h={len(getattr(facts, 'hashes', ()))}"
+        f"_c={len(getattr(facts, 'creds', ()))}"
+        f"_s={len(getattr(facts, 'shares', ()))}"
+        f"_d={len(getattr(facts, 'domains', ()))}"
+    )
+
+
+def _recommendation_signature(rec: Any) -> str:
+    """Hashable signature of a NextActionRecommendation for the stall
+    detector. Compares tool + args (truncated to 200 chars to absorb
+    benign variation like a target IP substitution)."""
+    if rec is None:
+        return ""
+    tool = getattr(rec, "tool", "") or ""
+    args = (getattr(rec, "args", "") or "")[:200]
+    return f"{tool}|{args}"
+
+
+def _is_stall(
+    recent_recs: deque,
+    prev_facts_sig: str,
+    current_facts_sig: str,
+    threshold: int = _DEFAULT_STALL_THRESHOLD,
+) -> bool:
+    """G7 — true when the planner has emitted the same non-empty
+    recommendation ``threshold`` times in a row AND the facts haven't
+    moved between the first and last of those reflections.
+
+    Conservative: bail out (False) unless we have a clear repeat AND a
+    clear absence of progress. Both signals individually can be
+    legitimate — a single repeat could be a brief retry; facts being
+    static for one turn could be a transport hiccup. Together they're
+    diagnostic.
+    """
+    if len(recent_recs) < threshold:
+        return False
+    first = recent_recs[0]
+    if not first:  # empty recommendation slots don't count as a stall
+        return False
+    if any(r != first for r in recent_recs):
+        return False
+    # Facts moved between the prior signature snapshot and now? If so
+    # the model IS making progress despite repeating the recommendation
+    # — don't flag stall.
+    if prev_facts_sig != current_facts_sig:
+        return False
+    return True
 
 
 @dataclass(frozen=True)
@@ -166,6 +234,7 @@ def _build_reflection_prompt(
     degen_pattern: str | None = None,
     extracted_facts: ExtractedFacts | None = None,
     next_action: NextActionRecommendation | None = None,
+    stall_detected: bool = False,
 ) -> str:
     """Compose the reflection user-message injected between chunks."""
     # Top distinct tools (most recent up to 6)
@@ -244,9 +313,36 @@ def _build_reflection_prompt(
         else:
             next_action_block = rendered
 
+    # G7 (FASE 4) — stall block. Emitted when the planner has been
+    # repeating the same recommendation for N reflection turns AND
+    # ExtractedFacts hasn't moved. Goes right BELOW the operator
+    # directive (which the model is failing to follow) so the directive
+    # context is still fresh when the stall warning lands.
+    stall_block = ""
+    if stall_detected:
+        stall_block = (
+            "\n🛑🛑🛑 **STALL DETECTED — model is not following the directive** 🛑🛑🛑\n\n"
+            "You've been re-issuing the same kind of probe for "
+            f"{_DEFAULT_STALL_THRESHOLD}+ reflection turns and no new "
+            "structured intel has appeared in ExtractedFacts. This "
+            "means: either you keep emitting variants of the wrong "
+            "tool call (look at the OPERATOR DIRECTIVE above and "
+            "copy it EXACTLY this time), or the target is genuinely "
+            "unreachable / not exploitable through this path.\n\n"
+            "Hard ask for THIS reflection turn:\n"
+            "  (A) **Copy the OPERATOR DIRECTIVE verbatim** as your "
+            "next tool call. No flag iteration, no path variation. "
+            "Letter-for-letter copy.\n"
+            "  (B) If you genuinely believe (A) cannot work, **emit "
+            "the final summary now** with: (1) what you tried, (2) "
+            "what each attempt returned, (3) the specific reason "
+            "the directive cannot apply. Operator will decide next.\n"
+        )
+
     return (
         f"\n---\n## 🪞 Reflection turn (turn {turns_used}/{total_turns_cap})\n\n"
         f"{next_action_top}"
+        f"{stall_block}"
         f"{degen_block}"
         f"{facts_block}"
         f"{next_action_block}"
@@ -566,6 +662,13 @@ async def run_with_reflection(
     # the picture coherent across the chunked run.
     accumulated_facts: ExtractedFacts = _EMPTY_FACTS
 
+    # G7 (FASE 4) — stall detector state. Tracks the last N
+    # recommendations the planner emitted plus the facts signature at
+    # the start of the window so we can tell "model isn't following
+    # directive" from "model is making progress despite the repeat".
+    recent_recs_window: deque = deque(maxlen=_DEFAULT_STALL_THRESHOLD)
+    prev_facts_sig_for_stall: str = ""
+
     while turns_used < max_total_turns:
         chunk_size = min(reflect_every, max_total_turns - turns_used)
         if chunk_size <= 0:
@@ -795,6 +898,45 @@ async def run_with_reflection(
                 f"confidence={next_action.confidence:.2f}"
             )
 
+        # G7 (FASE 4) — update stall window AFTER the planner has
+        # produced (or not produced) this chunk's recommendation. The
+        # check fires only when the deque is full of identical entries
+        # AND the facts signature hasn't moved since the window opened.
+        rec_sig = _recommendation_signature(next_action)
+        recent_recs_window.append(rec_sig)
+        current_facts_sig = _facts_signature(accumulated_facts)
+        if len(recent_recs_window) == 1:
+            # First entry — snapshot the facts signature so future
+            # stall checks can compare against it.
+            prev_facts_sig_for_stall = current_facts_sig
+        stall_detected = _is_stall(
+            recent_recs_window,
+            prev_facts_sig_for_stall,
+            current_facts_sig,
+        )
+        if stall_detected:
+            logger.warning(
+                "G7 stall detected at turn %d: same recommendation %d "
+                "turns + no facts change", turns_used, _DEFAULT_STALL_THRESHOLD,
+            )
+            if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in (
+                "1", "true", "yes"
+            ):
+                print(
+                    f"\n🛑 [reflective-runner] STALL DETECTED at turn "
+                    f"{turns_used} — recommendation repeated "
+                    f"{_DEFAULT_STALL_THRESHOLD}x, facts sig stuck at "
+                    f"{prev_facts_sig_for_stall!r}"
+                )
+            # After firing once, reset the window so we don't spam the
+            # warning every subsequent chunk while the operator decides.
+            recent_recs_window.clear()
+            prev_facts_sig_for_stall = current_facts_sig
+        elif current_facts_sig != prev_facts_sig_for_stall:
+            # Facts moved → window is no longer interesting for stall
+            # purposes. Reset baseline so a future repeat starts fresh.
+            prev_facts_sig_for_stall = current_facts_sig
+
         if degen_pattern:
             logger.warning(
                 "F203.AX intra-turn degeneracy detected at turn %d: %r",
@@ -818,6 +960,7 @@ async def run_with_reflection(
             degen_pattern=degen_pattern,
             extracted_facts=accumulated_facts,
             next_action=next_action,
+            stall_detected=stall_detected,
         )
 
         if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
@@ -860,5 +1003,9 @@ __all__ = [
     "_ToolCallRecord",
     "_detect_intra_turn_degeneracy",
     "_extract_chunk_text",
+    "_chunk_text_from_capture",
     "_extract_facts_from_chunk",
+    "_facts_signature",
+    "_recommendation_signature",
+    "_is_stall",
 ]

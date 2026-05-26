@@ -170,6 +170,99 @@ class ExtractedFacts:
 EMPTY = ExtractedFacts()
 
 
+# G5 (FASE 4) — anti-pattern detector for tool invocations.
+#
+# When the model issues a tool with subtly-wrong flags (nc without -q,
+# ldapsearch without an objectClass filter, curl without --max-time)
+# the call usually still "succeeds" syntactically but produces output
+# that hangs the chunk or floods the model. Surfacing each anti-pattern
+# as a structured hint in the next reflection turn nudges the planner
+# and the model toward the correct flag set without overriding what
+# they're trying to do.
+#
+# Each entry is ``(name, predicate_regex, hint_phrase)`` — predicate
+# matches against the tool invocation string. Keep predicates tight so
+# legitimate variants (e.g. ``nc -l -q 1 …`` server-side) don't trip
+# the no-q-flag rule.
+_INVOCATION_ANTI_PATTERNS: tuple[tuple[str, "re.Pattern[str]", str], ...] = (
+    (
+        "nc-no-timeout-flags",
+        re.compile(
+            # nc invocations missing both -q and -w. Match cmd start so
+            # ``echo … | nc target port`` triggers but a piped ``echo``
+            # body containing the literal "nc" doesn't.
+            r"(?:^|[;&|]\s*)nc\s+(?!-[a-zA-Z]*[qw])[^\s|;&]+\s+\d+",
+            re.IGNORECASE,
+        ),
+        "nc invocation lacks -q/-w timeout flags — connection will "
+        "hang until subprocess timeout. Use ``nc -q 1 -w 5 <host> "
+        "<port>`` (close 1s after EOF, total 5s cap).",
+    ),
+    (
+        "ldapsearch-no-filter",
+        re.compile(
+            # ldapsearch with -b but no parenthesised LDAP filter and
+            # no -s base. Without the filter the query dumps the whole
+            # subtree (300+ lines on a typical AD), which micro_compact
+            # truncates to noise.
+            r"\bldapsearch\b(?![^\n]*\(objectClass=)(?![^\n]*-s\s+base)[^\n]*-b\s+",
+            re.IGNORECASE,
+        ),
+        "ldapsearch without an objectClass filter dumps the whole "
+        "subtree (300+ lines typical). Refine with "
+        "``(objectClass=user)`` and request only sAMAccountName for a "
+        "clean user list.",
+    ),
+    (
+        "curl-no-max-time",
+        re.compile(
+            r"\bcurl\b(?![^\n]*--max-time)(?![^\n]*-m\s+\d)[^\n]*https?://",
+            re.IGNORECASE,
+        ),
+        "curl invocation has no ``--max-time`` — a slow target can "
+        "hang the subprocess past run_command's 300s default. Add "
+        "``--max-time 10`` (or ``-m 10``) for HTTP probes.",
+    ),
+    (
+        "getnpusers-no-outputfile",
+        re.compile(
+            r"\bGetNPUsers(?:\.py)?\b(?![^\n]*-outputfile)",
+            re.IGNORECASE,
+        ),
+        "GetNPUsers without ``-outputfile`` writes hashes to stdout "
+        "only. Add ``-outputfile /tmp/asrep_hashes.txt`` so the next "
+        "step can pipe them to hashcat.",
+    ),
+    (
+        "hashcat-no-show",
+        re.compile(
+            # hashcat run that has no --show and no -m mode flag is
+            # almost always a misfire (interactive prompt). The flag
+            # combo we care about is "running but not showing".
+            r"\bhashcat\b(?![^\n]*--show)(?![^\n]*-m\s+\d)[^\n]*\.txt",
+            re.IGNORECASE,
+        ),
+        "hashcat run without ``--show`` and without ``-m <mode>`` is "
+        "missing the mode (asrep=18200, tgs=13100, ntlm=1000). Either "
+        "set the mode + wordlist, or pass ``--show`` to display "
+        "already-cracked entries from the potfile.",
+    ),
+)
+
+
+def _detect_invocation_anti_patterns(invocation: str) -> tuple[str, ...]:
+    """G5 — scan a tool invocation string for the canonical
+    anti-patterns. Return their hint phrases (deduplicated, sorted)
+    so the next reflection turn can surface remediation."""
+    if not invocation:
+        return ()
+    found: list[str] = []
+    for _name, pattern, hint in _INVOCATION_ANTI_PATTERNS:
+        if pattern.search(invocation):
+            found.append(hint)
+    return tuple(sorted(set(found)))
+
+
 def _dedup_sorted(items: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(sorted({i for i in items if i}))
 
@@ -565,31 +658,56 @@ def extract_facts(tool_invocation: str, output: str) -> ExtractedFacts:
     if not output:
         return EMPTY
     haystack = (tool_invocation or "").lower()
+
+    # G5 (FASE 4) — anti-pattern hints come from the invocation string
+    # itself, independent of the parser's output. They surface in
+    # facts.hints so the next reflection turn can nudge the model
+    # toward the correct flag set without overriding what it's doing.
+    anti_pattern_hints = _detect_invocation_anti_patterns(tool_invocation or "")
+
     for needle, parser in _DISPATCH:
         if needle in haystack:
-            return parser(output)
+            parsed = parser(output)
+            if anti_pattern_hints:
+                parsed = parsed.merge(
+                    ExtractedFacts(hints=anti_pattern_hints)
+                )
+            return parsed
     # Content-based dispatch fallback. Each signature must be specific
     # enough that mismatching is unlikely; order is most-distinctive first.
+    # All branches merge anti_pattern_hints so the structured intel stays
+    # consistent regardless of which parser fired.
+    def _attach_hints(parsed: ExtractedFacts) -> ExtractedFacts:
+        if anti_pattern_hints:
+            return parsed.merge(ExtractedFacts(hints=anti_pattern_hints))
+        return parsed
+
     head = output[:400].lower()
     if "dn:" in head and ("samaccountname" in head or "namingcontext" in head):
-        return _parse_ldapsearch(output)
+        return _attach_hints(_parse_ldapsearch(output))
     if "sharename" in head and "type" in head and "comment" in head:
-        return _parse_smbclient_shares(output)
+        return _attach_hints(_parse_smbclient_shares(output))
     if "starting nmap" in head or re.search(r"\d{1,5}/tcp\s+open", output[:800]):
-        return _parse_nmap(output)
+        return _attach_hints(_parse_nmap(output))
     if "impacket" in head and "krb5asrep" in output[:1000].lower():
-        return _parse_impacket_getnpusers(output)
+        return _attach_hints(_parse_impacket_getnpusers(output))
     if "impacket" in head and "krb5tgs" in output[:1000].lower():
-        return _parse_impacket_getuserspns(output)
+        return _attach_hints(_parse_impacket_getuserspns(output))
     if _NTLM_PAIR_RE.search(output[:2000]):
-        return _parse_secretsdump(output)
+        return _attach_hints(_parse_secretsdump(output))
     if "$krb5" in output and ("$krb5asrep$" in output or "$krb5tgs$" in output):
         # Could be hashcat --show output too; cheap disambiguator: ":Password"
         # style trailing crack tail wins for hashcat. Otherwise treat as a
         # generic hash dump (covered by _parse_generic).
         if re.search(r"\$krb5(?:asrep|tgs)\$.*:[A-Za-z0-9!@#$%^&*_-]{4,}$", output, re.MULTILINE):
-            return _parse_hashcat(output)
-    return _parse_generic(output)
+            parsed = _parse_hashcat(output)
+            if anti_pattern_hints:
+                parsed = parsed.merge(ExtractedFacts(hints=anti_pattern_hints))
+            return parsed
+    generic = _parse_generic(output)
+    if anti_pattern_hints:
+        generic = generic.merge(ExtractedFacts(hints=anti_pattern_hints))
+    return generic
 
 
 __all__ = [

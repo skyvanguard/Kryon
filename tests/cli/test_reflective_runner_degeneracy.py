@@ -20,12 +20,17 @@ catches this. These tests pin its behavior against:
 
 from __future__ import annotations
 
+from collections import deque
+
 from kryon.cli.reflective_runner import (
     _build_reflection_prompt,
     _chunk_text_from_capture,
     _detect_intra_turn_degeneracy,
     _extract_chunk_text,
     _extract_facts_from_chunk,
+    _facts_signature,
+    _is_stall,
+    _recommendation_signature,
 )
 from kryon.intelligence.fact_extractor import ExtractedFacts
 
@@ -491,6 +496,131 @@ def test_reflection_prompt_high_confidence_directive_appears_above_everything() 
     # The directive must be ABOVE facts AND above the recent-tools line.
     assert directive_idx < facts_idx
     assert directive_idx < tools_idx
+
+
+# ---------------------------------------------------------------------------
+# G7 (FASE 4) — stall detector
+# ---------------------------------------------------------------------------
+
+
+def test_facts_signature_changes_when_users_grow() -> None:
+    a = ExtractedFacts(users=("alice",))
+    b = ExtractedFacts(users=("alice", "bob"))
+    assert _facts_signature(a) != _facts_signature(b)
+
+
+def test_facts_signature_unchanged_when_only_hints_added() -> None:
+    """Hints/versions don't count as progress — the signature pins on
+    high-value fields only (users, hashes, creds, shares, domains)."""
+    a = ExtractedFacts(users=("alice",))
+    b = ExtractedFacts(users=("alice",), hints=("new hint",))
+    assert _facts_signature(a) == _facts_signature(b)
+
+
+def test_facts_signature_none_is_empty_string() -> None:
+    assert _facts_signature(None) == ""
+
+
+def test_recommendation_signature_truncates_long_args() -> None:
+    from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
+
+    rec_a = NextActionRecommendation(
+        tool="run_command", args="x" * 1000, rationale="r"
+    )
+    rec_b = NextActionRecommendation(
+        tool="run_command", args="x" * 1000 + "different", rationale="r"
+    )
+    # First 200 chars identical → signatures match (benign drift in
+    # tail doesn't count as a new recommendation).
+    assert _recommendation_signature(rec_a) == _recommendation_signature(rec_b)
+
+
+def test_recommendation_signature_none_is_empty_string() -> None:
+    assert _recommendation_signature(None) == ""
+
+
+def test_is_stall_fires_on_3_identical_recommendations_no_facts_change() -> None:
+    """Canonical stall: three reflection turns in a row, same
+    recommendation, no facts progress between them."""
+    window = deque(maxlen=3)
+    rec_sig = "run_command|GetNPUsers.py -no-pass thm.local/"
+    for _ in range(3):
+        window.append(rec_sig)
+    assert _is_stall(window, "u=2_h=0_c=0_s=0_d=1", "u=2_h=0_c=0_s=0_d=1") is True
+
+
+def test_is_stall_clears_when_facts_progress() -> None:
+    """Even with 3 identical recommendations, if facts moved we ARE
+    progressing — don't flag a stall."""
+    window = deque(maxlen=3)
+    rec_sig = "run_command|GetNPUsers.py -no-pass thm.local/"
+    for _ in range(3):
+        window.append(rec_sig)
+    assert _is_stall(
+        window,
+        "u=2_h=0_c=0_s=0_d=1",  # before
+        "u=2_h=1_c=0_s=0_d=1",  # after — hashes grew
+    ) is False
+
+
+def test_is_stall_requires_window_to_be_full() -> None:
+    """Only one entry in the window — can't conclude anything about
+    repetition. Stall should be False."""
+    window = deque(maxlen=3)
+    window.append("run_command|GetNPUsers ...")
+    assert _is_stall(window, "u=1", "u=1") is False
+
+
+def test_is_stall_empty_recommendations_dont_count() -> None:
+    """If the planner emitted no recommendation (all empty strings),
+    we have nothing to stall on. False."""
+    window = deque(maxlen=3)
+    for _ in range(3):
+        window.append("")
+    assert _is_stall(window, "u=0", "u=0") is False
+
+
+def test_is_stall_requires_all_window_entries_identical() -> None:
+    """Two of three identical, one different → no stall."""
+    window = deque(maxlen=3)
+    window.append("run_command|A")
+    window.append("run_command|B")
+    window.append("run_command|A")
+    assert _is_stall(window, "u=0", "u=0") is False
+
+
+def test_reflection_prompt_includes_stall_block_when_detected() -> None:
+    """The stall block surfaces explicit (A)/(B) directive: copy the
+    operator directive verbatim, or emit final summary."""
+    prompt = _build_reflection_prompt(
+        turns_used=8,
+        total_turns_cap=30,
+        tool_history=[],
+        last_output_summary="",
+        stuck_record=None,
+        degen_pattern=None,
+        extracted_facts=None,
+        next_action=None,
+        stall_detected=True,
+    )
+    assert "STALL DETECTED" in prompt
+    assert "Copy the OPERATOR DIRECTIVE verbatim" in prompt
+    assert "emit the final summary" in prompt.lower()
+
+
+def test_reflection_prompt_omits_stall_block_when_not_detected() -> None:
+    prompt = _build_reflection_prompt(
+        turns_used=4,
+        total_turns_cap=30,
+        tool_history=[],
+        last_output_summary="",
+        stuck_record=None,
+        degen_pattern=None,
+        extracted_facts=None,
+        next_action=None,
+        stall_detected=False,
+    )
+    assert "STALL DETECTED" not in prompt
 
 
 def test_reflection_prompt_substitutes_target_host_from_facts() -> None:

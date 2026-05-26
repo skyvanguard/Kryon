@@ -249,6 +249,102 @@ def test_web_fetch_smart_defaults_port_443_when_https() -> None:
     assert 443 in ports
 
 
+# ---------------------------------------------------------------------------
+# G5 (FASE 4) — anti-pattern hints on tool invocations
+# ---------------------------------------------------------------------------
+
+
+def test_nc_without_timeout_flags_emits_anti_pattern_hint() -> None:
+    """nc invocation without -q or -w should surface a hint reminding
+    the model that the subprocess will hang."""
+    sample = "(UNKNOWN) [10.0.0.1] 8000 (?) open"
+    facts = extract_facts("nc 10.0.0.1 8000", sample)
+    assert any("nc invocation lacks -q/-w" in h for h in facts.hints)
+
+
+def test_nc_with_q_flag_does_not_emit_anti_pattern() -> None:
+    """``nc -q 1 -w 5 target port`` is the correct form — no hint."""
+    sample = "(UNKNOWN) [10.0.0.1] 8000 (?) open"
+    facts = extract_facts("nc -q 1 -w 5 10.0.0.1 8000", sample)
+    assert not any("timeout flags" in h for h in facts.hints)
+
+
+def test_nc_inside_echo_pipe_still_detected() -> None:
+    """``echo 'foo' | nc target port`` should still trip the
+    no-timeout-flag rule when nc lacks -q/-w."""
+    sample = "(UNKNOWN) [10.0.0.1] 8000 (?) open"
+    facts = extract_facts(
+        "echo 'help' | nc 10.0.0.1 8000",
+        sample,
+    )
+    assert any("nc invocation lacks" in h for h in facts.hints)
+
+
+def test_ldapsearch_without_filter_emits_anti_pattern_hint() -> None:
+    """ldapsearch -b without an objectClass filter should warn that
+    it'll dump the whole subtree."""
+    sample = (
+        "# extended LDIF\ndn: CN=foo,DC=corp,DC=local\n"
+        "sAMAccountName: foo"
+    )
+    facts = extract_facts(
+        "ldapsearch -x -H ldap://target -b 'DC=corp,DC=local'",
+        sample,
+    )
+    assert any("objectClass filter" in h for h in facts.hints)
+
+
+def test_ldapsearch_with_filter_does_not_emit_anti_pattern() -> None:
+    sample = "# extended LDIF\ndn: ...\nsAMAccountName: foo"
+    facts = extract_facts(
+        "ldapsearch -x -H ldap://target -b 'DC=corp,DC=local' -s sub '(objectClass=user)'",
+        sample,
+    )
+    assert not any("objectClass filter" in h for h in facts.hints)
+
+
+def test_curl_without_max_time_emits_anti_pattern_hint() -> None:
+    facts = extract_facts(
+        "curl http://target.example/path",
+        "<html>...</html>",
+    )
+    assert any("--max-time" in h for h in facts.hints)
+
+
+def test_curl_with_max_time_does_not_emit_anti_pattern() -> None:
+    facts = extract_facts(
+        "curl --max-time 10 http://target.example/path",
+        "<html>...</html>",
+    )
+    assert not any("--max-time" in h for h in facts.hints)
+
+
+def test_getnpusers_without_outputfile_emits_anti_pattern_hint() -> None:
+    facts = extract_facts(
+        "GetNPUsers.py -no-pass -dc-ip 1.2.3.4 thm.local/",
+        "Impacket v0.10\n$krb5asrep$23$alice@THM.LOCAL:abc:def",
+    )
+    assert any("-outputfile" in h for h in facts.hints)
+
+
+def test_anti_pattern_hints_dont_interfere_with_parser_output() -> None:
+    """The G5 hints should be MERGED on top of whatever the per-tool
+    parser extracted — not replace it."""
+    sample = (
+        "# extended LDIF\n"
+        "dn: CN=alice,CN=Users,DC=corp,DC=local\n"
+        "sAMAccountName: alice\n"
+    )
+    facts = extract_facts(
+        "ldapsearch -x -H ldap://target -b 'DC=corp,DC=local'",
+        sample,
+    )
+    # Parser still extracted users + domain.
+    assert "alice" in facts.users
+    # Anti-pattern hint also fired.
+    assert any("objectClass filter" in h for h in facts.hints)
+
+
 def test_web_fetch_smart_picks_up_ctf_hints() -> None:
     """Pyrat-style: the body contains the hint that the model kept
     missing across the run. Surfacing it in the prompt should
