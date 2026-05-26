@@ -217,16 +217,36 @@ def _build_reflection_prompt(
     if extracted_facts is not None and not extracted_facts.is_empty():
         facts_block = extracted_facts.render_for_prompt() + "\n"
 
-    # FASE 2 (G3) — render concrete next-action recommendation when the
-    # planner had enough signal to emit one. Goes BELOW the facts block
-    # so the model reads the structured intel that justifies the
-    # recommendation BEFORE the recommendation itself.
+    # FASE 2 (G3) + FASE 3 (G4) — render concrete next-action recommendation
+    # when the planner had enough signal to emit one.
+    #
+    # G4 ordering fix: HIGH-confidence directives go to the very top of
+    # the reflection message (above degen, facts, everything). The Pyrat
+    # run #10 showed that even with the recommendation present the model
+    # would prefer its own debugging chain when the block was buried
+    # below other content. Position 1 + hard-imperative phrasing forces
+    # the model to read it before any other context can re-anchor its
+    # reasoning. LOW-confidence stays below facts (its softer phrasing
+    # respects the model's discretion).
     next_action_block = ""
+    next_action_top = ""
     if next_action is not None:
-        next_action_block = _render_planner(next_action) + "\n"
+        # G4: substitute <target> placeholder with the first concrete host
+        # we extracted (typically from web_fetch_smart final_url). When no
+        # host is known yet the placeholder stays — the model can still
+        # fill it from context.
+        target_host = ""
+        if extracted_facts is not None and extracted_facts.hosts:
+            target_host = extracted_facts.hosts[0]
+        rendered = _render_planner(next_action, target_host=target_host) + "\n"
+        if next_action.confidence >= 0.85:
+            next_action_top = rendered
+        else:
+            next_action_block = rendered
 
     return (
         f"\n---\n## 🪞 Reflection turn (turn {turns_used}/{total_turns_cap})\n\n"
+        f"{next_action_top}"
         f"{degen_block}"
         f"{facts_block}"
         f"{next_action_block}"
@@ -621,12 +641,33 @@ async def run_with_reflection(
                 facts_block_mt = ""
                 if not accumulated_facts.is_empty():
                     facts_block_mt = accumulated_facts.render_for_prompt() + "\n"
+
+                # G4: high-confidence planner output goes ABOVE everything
+                # on the MaxTurns path too — same rationale as the normal
+                # branch (Pyrat run #10 showed the model ignoring a buried
+                # directive). Substitute target placeholder with the first
+                # known host so the invocation reads as concrete, not
+                # template.
+                next_action_top_mt = ""
                 next_action_block_mt = ""
                 if next_action_mt is not None:
-                    next_action_block_mt = _render_planner(next_action_mt) + "\n"
+                    target_host_mt = (
+                        accumulated_facts.hosts[0]
+                        if accumulated_facts.hosts
+                        else ""
+                    )
+                    rendered_mt = (
+                        _render_planner(next_action_mt, target_host=target_host_mt)
+                        + "\n"
+                    )
+                    if next_action_mt.confidence >= 0.85:
+                        next_action_top_mt = rendered_mt
+                    else:
+                        next_action_block_mt = rendered_mt
 
                 reflection_msg = (
                     f"\n---\n## 🪞 Reflection forced (chunk budget exhausted)\n\n"
+                    f"{next_action_top_mt}"
                     f"{facts_block_mt}"
                     f"{next_action_block_mt}"
                     f"Ran out of {chunk_size} turns without a final answer. "

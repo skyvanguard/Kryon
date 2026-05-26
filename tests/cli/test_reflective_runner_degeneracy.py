@@ -291,9 +291,10 @@ def test_reflection_prompt_facts_block_appears_above_recent_tools() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_reflection_prompt_includes_next_action_when_present() -> None:
-    """A populated NextActionRecommendation must surface as a
-    ``🎯 Next action recommendation`` block in the prompt."""
+def test_reflection_prompt_includes_high_confidence_directive_block() -> None:
+    """A high-confidence NextActionRecommendation surfaces as an
+    ``OPERATOR DIRECTIVE`` block (G4 rephrasing). The exact tool
+    invocation must be present so the model can copy it."""
     from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
 
     rec = NextActionRecommendation(
@@ -312,8 +313,34 @@ def test_reflection_prompt_includes_next_action_when_present() -> None:
         extracted_facts=None,
         next_action=rec,
     )
-    assert "Next action recommendation" in prompt
+    assert "OPERATOR DIRECTIVE" in prompt
     assert "hashcat -m 18200" in prompt
+
+
+def test_reflection_prompt_includes_low_confidence_soft_block() -> None:
+    """Low-confidence NextActionRecommendation surfaces with softer
+    ``Next action recommendation`` phrasing — not as a hard directive."""
+    from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
+
+    rec = NextActionRecommendation(
+        tool="run_command",
+        args="nmap -A target",
+        rationale="example",
+        confidence=0.6,
+    )
+    prompt = _build_reflection_prompt(
+        turns_used=4,
+        total_turns_cap=30,
+        tool_history=[],
+        last_output_summary="",
+        stuck_record=None,
+        degen_pattern=None,
+        extracted_facts=None,
+        next_action=rec,
+    )
+    assert "Next action recommendation" in prompt
+    assert "OPERATOR DIRECTIVE" not in prompt
+    assert "nmap -A target" in prompt
 
 
 def test_reflection_prompt_omits_next_action_when_planner_returned_none() -> None:
@@ -401,10 +428,10 @@ def test_chunk_text_from_capture_skips_items_without_output() -> None:
     assert "actual output here" in reconstructed
 
 
-def test_reflection_prompt_next_action_appears_below_facts_block() -> None:
-    """Ordering invariant: facts (justification) MUST come above the
-    recommendation (action) so the model reads the evidence before the
-    instruction."""
+def test_reflection_prompt_low_confidence_next_action_appears_below_facts() -> None:
+    """Ordering invariant for LOW-confidence: facts (justification)
+    above recommendation (softer suggestion). Lets the model weigh
+    evidence before considering the soft suggestion."""
     from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
 
     facts = ExtractedFacts(users=("alice",), domains=("thm.local",))
@@ -412,7 +439,7 @@ def test_reflection_prompt_next_action_appears_below_facts_block() -> None:
         tool="run_command",
         args="GetNPUsers.py -no-pass thm.local/",
         rationale="users and domain present",
-        confidence=0.9,
+        confidence=0.6,  # LOW
     )
     prompt = _build_reflection_prompt(
         turns_used=4,
@@ -427,3 +454,68 @@ def test_reflection_prompt_next_action_appears_below_facts_block() -> None:
     facts_idx = prompt.index("Facts extracted so far")
     rec_idx = prompt.index("Next action recommendation")
     assert facts_idx < rec_idx
+
+
+# ---------------------------------------------------------------------------
+# G4 (FASE 3) — high-confidence planner directive goes to position 1
+# ---------------------------------------------------------------------------
+
+
+def test_reflection_prompt_high_confidence_directive_appears_above_everything() -> None:
+    """G4 ordering fix: HIGH-confidence (>=0.85) ``OPERATOR DIRECTIVE``
+    block must precede every other section — facts, degen, stuck, the
+    reflection title. Buried below other content the model ignored it
+    in the Pyrat run #10 transcript."""
+    from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
+
+    facts = ExtractedFacts(users=("alice",), domains=("thm.local",))
+    rec = NextActionRecommendation(
+        tool="run_command",
+        args="GetNPUsers.py -no-pass thm.local/",
+        rationale="users + domain",
+        confidence=0.9,  # HIGH
+    )
+    prompt = _build_reflection_prompt(
+        turns_used=4,
+        total_turns_cap=30,
+        tool_history=[],
+        last_output_summary="",
+        stuck_record=None,
+        degen_pattern=None,
+        extracted_facts=facts,
+        next_action=rec,
+    )
+    directive_idx = prompt.index("OPERATOR DIRECTIVE")
+    facts_idx = prompt.index("Facts extracted so far")
+    tools_idx = prompt.index("Tools recientes usadas")
+    # The directive must be ABOVE facts AND above the recent-tools line.
+    assert directive_idx < facts_idx
+    assert directive_idx < tools_idx
+
+
+def test_reflection_prompt_substitutes_target_host_from_facts() -> None:
+    """G4 placeholder substitution: when ExtractedFacts.hosts is
+    populated, the ``<target>`` placeholder in the planner's args
+    must be replaced with the first known host in the rendered prompt."""
+    from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
+
+    facts = ExtractedFacts(hosts=("10.67.190.8",))
+    rec = NextActionRecommendation(
+        tool="run_command",
+        args="nc -q 1 -w 5 <target> 8000",
+        rationale="basic connection hint",
+        confidence=0.9,
+    )
+    prompt = _build_reflection_prompt(
+        turns_used=4,
+        total_turns_cap=30,
+        tool_history=[],
+        last_output_summary="",
+        stuck_record=None,
+        degen_pattern=None,
+        extracted_facts=facts,
+        next_action=rec,
+    )
+    assert "10.67.190.8" in prompt
+    # No literal ``<target>`` should survive when a host is known.
+    assert "<target>" not in prompt
