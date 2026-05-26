@@ -47,6 +47,11 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from kryon.intelligence.exploit_chain_planner import (
+    NextActionRecommendation,
+    plan_next_action,
+    render_for_prompt as _render_planner,
+)
 from kryon.intelligence.fact_extractor import (
     EMPTY as _EMPTY_FACTS,
     ExtractedFacts,
@@ -160,6 +165,7 @@ def _build_reflection_prompt(
     stuck_record: _ToolCallRecord | None,
     degen_pattern: str | None = None,
     extracted_facts: ExtractedFacts | None = None,
+    next_action: NextActionRecommendation | None = None,
 ) -> str:
     """Compose the reflection user-message injected between chunks."""
     # Top distinct tools (most recent up to 6)
@@ -211,10 +217,19 @@ def _build_reflection_prompt(
     if extracted_facts is not None and not extracted_facts.is_empty():
         facts_block = extracted_facts.render_for_prompt() + "\n"
 
+    # FASE 2 (G3) — render concrete next-action recommendation when the
+    # planner had enough signal to emit one. Goes BELOW the facts block
+    # so the model reads the structured intel that justifies the
+    # recommendation BEFORE the recommendation itself.
+    next_action_block = ""
+    if next_action is not None:
+        next_action_block = _render_planner(next_action) + "\n"
+
     return (
         f"\n---\n## 🪞 Reflection turn (turn {turns_used}/{total_turns_cap})\n\n"
         f"{degen_block}"
         f"{facts_block}"
+        f"{next_action_block}"
         f"Tools recientes usadas: {recent_tools or 'ninguna'}\n"
         f"Última observación (preview):\n```\n{last_output_summary[:500]}\n```\n"
         f"{stuck_block}\n"
@@ -279,6 +294,34 @@ def _detect_intra_turn_degeneracy(
     if count >= min_repeats:
         return most_common
     return None
+
+
+def _chunk_text_from_capture(capture_hooks: Any) -> str:
+    """B9 (FASE 2) — reconstruct a chunk-text string from ItemCaptureHooks
+    when the SDK didn't return a usable ``result`` object (MaxTurnsExceeded
+    branch).
+
+    The hook records ``(tool, output_preview)`` for every tool invocation
+    that fired inside the chunk. We render each as a ``▸ <tool>`` marker
+    line + the captured preview so the same ``_extract_facts_from_chunk``
+    splitter logic works on the reconstructed text.
+
+    Without this, B9: when chunks hit max_turns repeatedly (common with
+    gpt-oss-20b reasoning), the fact extractor + planner never ran and
+    the model kept iterating blind. With this, both fire from
+    captured-output reconstruction even on the unhappy path.
+    """
+    parts: list[str] = []
+    items = getattr(capture_hooks, "captured_items", None) or []
+    for item in items:
+        if item.get("type") != "tool_call":
+            continue
+        tool_name = item.get("tool", "")
+        output_preview = item.get("output_preview", "")
+        if not tool_name or not output_preview:
+            continue
+        parts.append(f"\n▸ {tool_name}\n{output_preview}")
+    return "".join(parts)
 
 
 def _extract_chunk_text(result: Any) -> str:
@@ -540,8 +583,52 @@ async def run_with_reflection(
                     base_history = current_input
                 else:
                     base_history = [{"role": "user", "content": str(current_input)}]
+
+                # B9 (FASE 2) — even on the MaxTurnsExceeded path the chunk
+                # may have produced useful tool outputs (captured by
+                # ItemCaptureHooks). Reconstruct the chunk text from
+                # capture_hooks and run the SAME extract+plan pipeline so
+                # the reflection injects facts + next-action regardless of
+                # whether the chunk exited cleanly or hit max_turns.
+                try:
+                    mt_chunk_text = _chunk_text_from_capture(capture_hooks)
+                    if mt_chunk_text:
+                        chunk_facts_mt = _extract_facts_from_chunk(mt_chunk_text)
+                        accumulated_facts = accumulated_facts.merge(chunk_facts_mt)
+                except Exception as ee:  # noqa: BLE001
+                    logger.debug("MaxTurns extract path failed: %s", ee)
+
+                next_action_mt: NextActionRecommendation | None = None
+                try:
+                    prior_args_mt = [r.args_preview for r in tool_history]
+                    next_action_mt = plan_next_action(
+                        accumulated_facts,
+                        prior_tool_args=prior_args_mt,
+                        intent="",
+                    )
+                except Exception as ee:  # noqa: BLE001
+                    logger.debug("MaxTurns planner path failed: %s", ee)
+
+                if os.environ.get(
+                    "KRYON_REFLECT_DEBUG", ""
+                ).lower() in ("1", "true", "yes"):
+                    print(
+                        f"\n🪞 [reflective-runner] MaxTurns-path intel: "
+                        f"facts_empty={accumulated_facts.is_empty()} "
+                        f"next_action={'yes' if next_action_mt else 'no'}"
+                    )
+
+                facts_block_mt = ""
+                if not accumulated_facts.is_empty():
+                    facts_block_mt = accumulated_facts.render_for_prompt() + "\n"
+                next_action_block_mt = ""
+                if next_action_mt is not None:
+                    next_action_block_mt = _render_planner(next_action_mt) + "\n"
+
                 reflection_msg = (
                     f"\n---\n## 🪞 Reflection forced (chunk budget exhausted)\n\n"
+                    f"{facts_block_mt}"
+                    f"{next_action_block_mt}"
                     f"Ran out of {chunk_size} turns without a final answer. "
                     f"Pause + decide: (a) emit final summary with what you have, "
                     f"or (b) pick ONE next decisive tool call (no repetition).\n"
@@ -641,6 +728,32 @@ async def run_with_reflection(
                 f"hints={len(accumulated_facts.hints)}"
             )
 
+        # FASE 2 (G3) — run the planner over (facts, tool_history) and
+        # let it emit a concrete next-action recommendation. The rules
+        # are conservative (each abstains without enough signal), so a
+        # ``None`` here is the common case in early chunks — the
+        # reflection prompt simply doesn't include the recommendation
+        # block when there's nothing solid to recommend.
+        next_action: NextActionRecommendation | None = None
+        try:
+            prior_args = [r.args_preview for r in tool_history]
+            next_action = plan_next_action(
+                accumulated_facts,
+                prior_tool_args=prior_args,
+                intent="",
+            )
+        except Exception as e:  # noqa: BLE001 — planner failure must not break the chunk
+            logger.debug("exploit_chain_planner probe failed: %s", e)
+
+        if next_action is not None and os.environ.get(
+            "KRYON_REFLECT_DEBUG", ""
+        ).lower() in ("1", "true", "yes"):
+            print(
+                f"\n🎯 [reflective-runner] next_action at turn {turns_used}: "
+                f"{next_action.tool}({next_action.args[:80]}...) "
+                f"confidence={next_action.confidence:.2f}"
+            )
+
         if degen_pattern:
             logger.warning(
                 "F203.AX intra-turn degeneracy detected at turn %d: %r",
@@ -663,6 +776,7 @@ async def run_with_reflection(
             stuck_record=stuck,
             degen_pattern=degen_pattern,
             extracted_facts=accumulated_facts,
+            next_action=next_action,
         )
 
         if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):

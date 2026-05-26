@@ -280,8 +280,21 @@ async def run_command(command: str = "", interactive: bool = False, session_id: 
             "masscan",
             "subfinder",
         )
+        # B7 (FASE 2) — quick network probes that hang waiting for input
+        # if invoked wrong. Observed in THM Pyrat run #7: `nc target 8000`
+        # without ``-q 0`` or input redirection kept the run_command
+        # subprocess hanging for 25+ min before the 300s default would
+        # eventually kill it (which it didn't, because the nc child
+        # process detached from the killed parent). Tighter timeout +
+        # the first token check keeps these from poisoning a whole chunk.
+        # Caller can still opt into longer waits with ``interactive=True``
+        # which routes through the session manager with its own lifecycle.
+        first_token = cmd_lower.strip().split(" ", 1)[0].split("/")[-1]
+        quick_network_tools = {"nc", "ncat", "netcat", "telnet", "socat"}
         if any(t in cmd_lower for t in long_tools):
             timeout = 900
+        elif first_token in quick_network_tools:
+            timeout = 60
         else:
             timeout = 300
 

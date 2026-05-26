@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from kryon.cli.reflective_runner import (
     _build_reflection_prompt,
+    _chunk_text_from_capture,
     _detect_intra_turn_degeneracy,
     _extract_chunk_text,
     _extract_facts_from_chunk,
@@ -283,3 +284,146 @@ def test_reflection_prompt_facts_block_appears_above_recent_tools() -> None:
     facts_idx = prompt.index("Facts extracted so far")
     tools_idx = prompt.index("Tools recientes usadas")
     assert facts_idx < tools_idx
+
+
+# ---------------------------------------------------------------------------
+# FASE 2 (G3) — exploit_chain_planner integration in reflection prompt
+# ---------------------------------------------------------------------------
+
+
+def test_reflection_prompt_includes_next_action_when_present() -> None:
+    """A populated NextActionRecommendation must surface as a
+    ``🎯 Next action recommendation`` block in the prompt."""
+    from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
+
+    rec = NextActionRecommendation(
+        tool="run_command",
+        args="hashcat -m 18200 hashes.txt rockyou.txt",
+        rationale="hashes present, no creds yet",
+        confidence=0.9,
+    )
+    prompt = _build_reflection_prompt(
+        turns_used=4,
+        total_turns_cap=30,
+        tool_history=[],
+        last_output_summary="",
+        stuck_record=None,
+        degen_pattern=None,
+        extracted_facts=None,
+        next_action=rec,
+    )
+    assert "Next action recommendation" in prompt
+    assert "hashcat -m 18200" in prompt
+
+
+def test_reflection_prompt_omits_next_action_when_planner_returned_none() -> None:
+    prompt = _build_reflection_prompt(
+        turns_used=4,
+        total_turns_cap=30,
+        tool_history=[],
+        last_output_summary="",
+        stuck_record=None,
+        degen_pattern=None,
+        extracted_facts=None,
+        next_action=None,
+    )
+    assert "Next action recommendation" not in prompt
+
+
+# ---------------------------------------------------------------------------
+# B9 (FASE 2) — MaxTurns-path also extracts facts + plans next action
+# ---------------------------------------------------------------------------
+
+
+def test_chunk_text_from_capture_reconstructs_text_from_hooks() -> None:
+    """The capture-based reconstruction must produce text that the same
+    ``_extract_facts_from_chunk`` splitter can parse — same ``▸`` marker
+    shape that the normal renderer uses."""
+
+    class _StubHooks:
+        captured_items = [
+            {
+                "type": "tool_call",
+                "tool": "run_command",
+                "output_preview": (
+                    "dn: CN=alice,CN=Users,DC=corp,DC=local\n"
+                    "sAMAccountName: alice\n"
+                    "defaultNamingContext: DC=corp,DC=local"
+                ),
+            },
+            {
+                "type": "tool_call",
+                "tool": "run_command",
+                "output_preview": (
+                    "        Sharename       Type      Comment\n"
+                    "        ---------       ----      -------\n"
+                    "        ADMIN$          Disk      Remote Admin"
+                ),
+            },
+            {"type": "agent_end", "output_preview": "summary"},  # filtered out
+        ]
+
+    reconstructed = _chunk_text_from_capture(_StubHooks())
+    # Must contain the ▸ marker shape so the splitter routes blocks.
+    assert "▸ run_command" in reconstructed
+    # And the same splitter must extract the user + share from the
+    # reconstructed text.
+    facts = _extract_facts_from_chunk(reconstructed)
+    assert "alice" in facts.users
+    assert "corp.local" in facts.domains
+    assert "ADMIN$" in facts.shares
+
+
+def test_chunk_text_from_capture_handles_empty_hooks() -> None:
+    class _Empty:
+        captured_items = []
+
+    assert _chunk_text_from_capture(_Empty()) == ""
+
+
+def test_chunk_text_from_capture_skips_items_without_output() -> None:
+    """tool_start with no output yet → don't emit empty ▸ blocks that
+    would dilute the dispatch."""
+
+    class _Hooks:
+        captured_items = [
+            {"type": "tool_call", "tool": "run_command", "output_preview": ""},
+            {
+                "type": "tool_call",
+                "tool": "run_command",
+                "output_preview": "actual output here",
+            },
+        ]
+
+    reconstructed = _chunk_text_from_capture(_Hooks())
+    # Exactly one ▸ marker (the one with output).
+    assert reconstructed.count("▸ run_command") == 1
+    assert "actual output here" in reconstructed
+
+
+def test_reflection_prompt_next_action_appears_below_facts_block() -> None:
+    """Ordering invariant: facts (justification) MUST come above the
+    recommendation (action) so the model reads the evidence before the
+    instruction."""
+    from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
+
+    facts = ExtractedFacts(users=("alice",), domains=("thm.local",))
+    rec = NextActionRecommendation(
+        tool="run_command",
+        args="GetNPUsers.py -no-pass thm.local/",
+        rationale="users and domain present",
+        confidence=0.9,
+    )
+    prompt = _build_reflection_prompt(
+        turns_used=4,
+        total_turns_cap=30,
+        tool_history=[],
+        last_output_summary="",
+        stuck_record=None,
+        degen_pattern=None,
+        extracted_facts=facts,
+        next_action=rec,
+    )
+    facts_idx = prompt.index("Facts extracted so far")
+    rec_idx = prompt.index("Next action recommendation")
+    assert facts_idx < rec_idx

@@ -205,7 +205,7 @@ krbtgt:502:aad3b435b51404eeaad3b435b51404ee:abcdef0123456789abcdef0123456789:::
 
 def test_web_fetch_smart_extracts_server_version() -> None:
     sample = (
-        '{"status": 200, "final_url": "http://x", '
+        '{"status": 200, "final_url": "http://x.example/", '
         '"headers": {"server": "Microsoft-IIS/10.0", "x-powered-by": "ASP.NET"}, '
         '"body_md": "..."}'
     )
@@ -214,12 +214,48 @@ def test_web_fetch_smart_extracts_server_version() -> None:
     assert versions.get("Microsoft-IIS") == "10.0"
 
 
+def test_web_fetch_smart_extracts_host_and_port_from_url() -> None:
+    """The planner's netcat-on-hint rule needs ``services`` populated
+    with a non-22 port. Pyrat-style web_fetch_smart capture gives us
+    the URL — pull host + port from it so downstream rules can fire."""
+    sample = (
+        '{"status": 200, "final_url": "http://10.67.190.8:8000/", '
+        '"headers": {"server": "SimpleHTTP/0.6 Python/3.11.2"}, '
+        '"body_md": "Try a more basic connection"}'
+    )
+    facts = extract_facts("web_fetch_smart", sample)
+    assert "10.67.190.8" in facts.hosts
+    ports = {p for p, _ in facts.services}
+    assert 8000 in ports
+
+
+def test_web_fetch_smart_defaults_port_80_when_url_has_no_port() -> None:
+    sample = (
+        '{"status": 200, "final_url": "http://target.example/path", '
+        '"body_md": "..."}'
+    )
+    facts = extract_facts("web_fetch_smart", sample)
+    ports = {p for p, _ in facts.services}
+    assert 80 in ports
+
+
+def test_web_fetch_smart_defaults_port_443_when_https() -> None:
+    sample = (
+        '{"status": 200, "final_url": "https://target.example/", '
+        '"body_md": "..."}'
+    )
+    facts = extract_facts("web_fetch_smart", sample)
+    ports = {p for p, _ in facts.services}
+    assert 443 in ports
+
+
 def test_web_fetch_smart_picks_up_ctf_hints() -> None:
     """Pyrat-style: the body contains the hint that the model kept
     missing across the run. Surfacing it in the prompt should
     materially change the next move."""
     sample = (
-        '{"status": 200, "body_md": "Try a more basic connection — '
+        '{"status": 200, "final_url": "http://target:8000/", '
+        '"body_md": "Try a more basic connection — '
         'this is not HTTP."}'
     )
     facts = extract_facts("web_fetch_smart http://target:8000", sample)

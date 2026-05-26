@@ -39,7 +39,8 @@ _NTLM_PAIR_RE = re.compile(
 _IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 # Generic FQDN — letters/digits/dashes separated by dots, 2+ labels.
 _FQDN_RE = re.compile(r"\b[a-zA-Z][a-zA-Z0-9-]*(?:\.[a-zA-Z][a-zA-Z0-9-]*){1,}\b")
-# CTF-style hint phrases that the model commonly misses in HTTP bodies.
+# CTF-style hint phrases that the model commonly misses in HTTP bodies
+# AND in tool output that signals what kind of service is listening.
 # Keep this list short and high-signal — every entry should be something
 # that, when echoed back to the model, materially changes its next move.
 _CTF_HINT_PHRASES = (
@@ -52,6 +53,16 @@ _CTF_HINT_PHRASES = (
     "hint:",
     "flag{",
     "flag.txt",
+    # Pyrat-style: the server eval()s input and emits Python errors when
+    # the input isn't valid Python. The model on its own keeps treating
+    # this as a shell / nc problem; surfacing it as a hint makes the
+    # next planner pass / next reasoning turn route correctly to a
+    # Python payload like ``__import__("os").system("id")``.
+    "invalid syntax",
+    "syntaxerror",
+    "nameerror",
+    "is not defined",
+    "traceback (most recent call last)",
 )
 
 
@@ -439,21 +450,50 @@ def _parse_secretsdump(output: str) -> ExtractedFacts:
 
 def _parse_web_fetch_smart(output: str) -> ExtractedFacts:
     """web_fetch_smart returns a JSON dict. Extract server header
-    versions + scan body for CTF-style hint phrases.
+    versions, the URL's host/port as a (host, service) facts pair so
+    downstream planner rules can target it, plus CTF-style hint phrases
+    in the body.
     """
     versions: list[tuple[str, str]] = []
     hints: list[str] = []
+    services: list[tuple[int, str]] = []
+    hosts: list[str] = []
 
     # Server header. The fetch returns JSON, but we only need a couple
     # of fields — parse permissively.
-    m = re.search(r'"server"\s*:\s*"([^"]+)"', output, re.IGNORECASE)
-    if m:
-        server = m.group(1)
+    server_match = re.search(r'"server"\s*:\s*"([^"]+)"', output, re.IGNORECASE)
+    if server_match:
+        server = server_match.group(1)
         parts = server.split("/", 1)
         if len(parts) == 2:
             versions.append((parts[0], parts[1]))
         else:
             versions.append((server, ""))
+
+    # Surface the fetched URL's host + port as facts. Without this the
+    # planner can't fire rules that target "the service we just probed"
+    # (e.g. the netcat-on-hint rule needs ``services`` populated).
+    url_match = re.search(r'"final_url"\s*:\s*"([^"]+)"', output, re.IGNORECASE)
+    if not url_match:
+        url_match = re.search(r'"url"\s*:\s*"([^"]+)"', output, re.IGNORECASE)
+    if url_match:
+        u = url_match.group(1)
+        host_port = re.search(r"https?://([^/:]+)(?::(\d+))?", u, re.IGNORECASE)
+        if host_port:
+            host = host_port.group(1)
+            port_str = host_port.group(2)
+            hosts.append(host)
+            if port_str:
+                port = int(port_str)
+            else:
+                # Default ports for http(s) so the planner still has signal.
+                port = 443 if u.lower().startswith("https://") else 80
+            # The server name from the header (if known) doubles as the
+            # service label; otherwise tag generically.
+            svc_label = ""
+            if versions:
+                svc_label = versions[0][0].lower()
+            services.append((port, svc_label or "http"))
 
     # Hints — case-insensitive substring scan.
     lower = output.lower()
@@ -464,6 +504,8 @@ def _parse_web_fetch_smart(output: str) -> ExtractedFacts:
     return ExtractedFacts(
         versions=_dedup_sorted_pairs(tuple(versions)),
         hints=_dedup_sorted(tuple(hints)),
+        services=_dedup_sorted_pairs_int(tuple(services)),
+        hosts=_dedup_sorted(tuple(hosts)),
     )
 
 
@@ -511,6 +553,12 @@ def extract_facts(tool_invocation: str, output: str) -> ExtractedFacts:
     We do a case-insensitive substring match against the dispatch table
     so e.g. "nxc smb 10.0.0.1 -u guest" routes to ``_parse_nxc``.
 
+    When the invocation is opaque (e.g. captured from ItemCaptureHooks
+    as a bare ``run_command`` without the inner command), we fall back
+    to a content-based dispatch: look at the first ~400 chars of the
+    output for unmistakable per-tool signatures (LDIF ``dn:`` prefix,
+    smbclient ``Sharename`` header, etc.) and route accordingly.
+
     Unknown tools fall through to ``_parse_generic`` which scrapes the
     high-signal patterns (krb5 hashes, NTLM dumps, CTF hints).
     """
@@ -520,6 +568,27 @@ def extract_facts(tool_invocation: str, output: str) -> ExtractedFacts:
     for needle, parser in _DISPATCH:
         if needle in haystack:
             return parser(output)
+    # Content-based dispatch fallback. Each signature must be specific
+    # enough that mismatching is unlikely; order is most-distinctive first.
+    head = output[:400].lower()
+    if "dn:" in head and ("samaccountname" in head or "namingcontext" in head):
+        return _parse_ldapsearch(output)
+    if "sharename" in head and "type" in head and "comment" in head:
+        return _parse_smbclient_shares(output)
+    if "starting nmap" in head or re.search(r"\d{1,5}/tcp\s+open", output[:800]):
+        return _parse_nmap(output)
+    if "impacket" in head and "krb5asrep" in output[:1000].lower():
+        return _parse_impacket_getnpusers(output)
+    if "impacket" in head and "krb5tgs" in output[:1000].lower():
+        return _parse_impacket_getuserspns(output)
+    if _NTLM_PAIR_RE.search(output[:2000]):
+        return _parse_secretsdump(output)
+    if "$krb5" in output and ("$krb5asrep$" in output or "$krb5tgs$" in output):
+        # Could be hashcat --show output too; cheap disambiguator: ":Password"
+        # style trailing crack tail wins for hashcat. Otherwise treat as a
+        # generic hash dump (covered by _parse_generic).
+        if re.search(r"\$krb5(?:asrep|tgs)\$.*:[A-Za-z0-9!@#$%^&*_-]{4,}$", output, re.MULTILINE):
+            return _parse_hashcat(output)
     return _parse_generic(output)
 
 
