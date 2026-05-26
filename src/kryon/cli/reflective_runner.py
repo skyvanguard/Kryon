@@ -694,6 +694,21 @@ async def run_with_reflection(
         if chunk_size <= 0:
             break
 
+        # FASE 6 — set the planner ContextVar BEFORE the chunk runs so
+        # any ``execute_planner_directive`` invocation the model makes
+        # during this chunk has live state to read. Previously this was
+        # set only AFTER each chunk completed, which meant the tool
+        # returned ``[NO RUNTIME]`` on the very first invocation (the
+        # state hadn't been written yet). Bug surfaced empirically in
+        # the Pyrat run #15b log.
+        try:
+            _set_planner_state(
+                accumulated_facts,
+                [r.args_preview for r in tool_history],
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.debug("planner runtime state pre-set failed: %s", e)
+
         try:
             result = await Runner.run(
                 agent,

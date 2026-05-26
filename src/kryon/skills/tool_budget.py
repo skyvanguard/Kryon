@@ -21,6 +21,13 @@ ALWAYS_INCLUDE = {
     "search_vulnerabilities",
     "add_to_memory_semantic",
     "query_memory",
+    # FASE 6 — the OPERATOR DIRECTIVE block tells the model to call
+    # ``execute_planner_directive()`` as its next tool. Without this
+    # entry the tool-budget selector can drop the function_tool when
+    # the active skill set doesn't reference it by name, leaving the
+    # model with a directive pointing at a tool that doesn't exist
+    # (the agent then refuses with "tool not available"). Pin it.
+    "execute_planner_directive",
 }
 
 

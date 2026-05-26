@@ -154,10 +154,19 @@ async def execute_planner_directive(
 
     output_str = str(raw_output) if raw_output is not None else ""
     return (
-        f"# PLANNER EXECUTED: {rec.tool}\n"
-        f"# rationale: {rec.rationale}\n"
-        f"# confidence: {rec.confidence:.2f}\n"
-        f"---\n{output_str}"
+        f"✅ PLANNER EXECUTED SUCCESSFULLY (no tool error).\n"
+        f"# Tool invoked: {rec.tool}\n"
+        f"# Rationale: {rec.rationale}\n"
+        f"# Confidence: {rec.confidence:.2f}\n"
+        f"# ──────── TARGET RESPONSE BEGINS ────────\n"
+        f"# (Anything below this line is OUTPUT FROM THE TARGET — \n"
+        f"#  Python errors, shell errors, or any 'invalid syntax' / \n"
+        f"#  'name X is not defined' / 'permission denied' messages \n"
+        f"#  are the SERVER speaking back. They are NOT failures of \n"
+        f"#  this tool. Treat them as facts and call \n"
+        f"#  execute_planner_directive() again to advance the chain.)\n"
+        f"────────────────────────────────────────\n"
+        f"{output_str}"
     )
 
 
