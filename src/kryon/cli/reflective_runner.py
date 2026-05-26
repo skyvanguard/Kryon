@@ -58,6 +58,10 @@ from kryon.intelligence.fact_extractor import (
     ExtractedFacts,
     extract_facts,
 )
+from kryon.intelligence.planner_runtime import (
+    clear_current_state as _clear_planner_state,
+    set_current_state as _set_planner_state,
+)
 from kryon.intelligence.tool_templates import (
     format_templates_for_recent_tools,
 )
@@ -835,6 +839,12 @@ async def run_with_reflection(
                 result._captured_chain = capture_hooks.to_chain()  # type: ignore[attr-defined]
             except (AttributeError, Exception):  # noqa: BLE001
                 pass
+            # FASE 6 — clear the planner ContextVar so a leaked state
+            # doesn't feed a later run in the same task. Best-effort.
+            try:
+                _clear_planner_state()
+            except Exception:  # noqa: BLE001
+                pass
             return result
 
         # Stop if we've consumed the budget.
@@ -895,8 +905,8 @@ async def run_with_reflection(
         # reflection prompt simply doesn't include the recommendation
         # block when there's nothing solid to recommend.
         next_action: NextActionRecommendation | None = None
+        prior_args = [r.args_preview for r in tool_history]
         try:
-            prior_args = [r.args_preview for r in tool_history]
             next_action = plan_next_action(
                 accumulated_facts,
                 prior_tool_args=prior_args,
@@ -904,6 +914,17 @@ async def run_with_reflection(
             )
         except Exception as e:  # noqa: BLE001 — planner failure must not break the chunk
             logger.debug("exploit_chain_planner probe failed: %s", e)
+
+        # FASE 6 — refresh the runtime ContextVar so the
+        # ``execute_planner_directive`` function_tool can re-run the
+        # planner against the same state without re-parsing the chat
+        # history. The tool reads this in the NEXT chunk's tool-use
+        # loop; updating here means each chunk's directives reflect
+        # the freshest facts and history.
+        try:
+            _set_planner_state(accumulated_facts, prior_args)
+        except Exception as e:  # noqa: BLE001 — best-effort, never bubble
+            logger.debug("planner runtime state set failed: %s", e)
 
         if next_action is not None and os.environ.get(
             "KRYON_REFLECT_DEBUG", ""
@@ -1007,6 +1028,12 @@ async def run_with_reflection(
             last_result._captured_chain = capture_hooks.to_chain()  # type: ignore[attr-defined]
         except (AttributeError, Exception):  # noqa: BLE001
             pass
+    # FASE 6 — release the planner ContextVar on the
+    # max-total-turns exit path too. Mirrors the early-return branch.
+    try:
+        _clear_planner_state()
+    except Exception:  # noqa: BLE001
+        pass
     return last_result
 
 

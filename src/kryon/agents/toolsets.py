@@ -22,8 +22,14 @@ from kryon.tools.knowledge import (
 from kryon.tools.reconnaissance.exec_code import execute_code
 from kryon.tools.reconnaissance.run_command import run_command
 
+# FASE 6 — programmatic execution mode: lets the model delegate the
+# next tool invocation to the planner instead of having to copy a
+# (possibly long / base64'd / shell-escaped) directive by hand. Reads
+# the live planner-runtime ContextVar set by run_with_reflection.
+from kryon.tools.intelligence.planner_executor import execute_planner_directive
+
 # Core execution tools — every agent that runs commands needs these
-CORE_TOOLS = [run_command, execute_code]
+CORE_TOOLS = [run_command, execute_code, execute_planner_directive]
 
 # RAG knowledge base tools — basic set for most agents
 # recall_similar_experiences is included here so EVERY agent that does
