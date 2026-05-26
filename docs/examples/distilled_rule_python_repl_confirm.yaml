@@ -1,0 +1,59 @@
+# FASE 9.A — example distilled rule.
+#
+# Copy this file to ``~/.kryon/distilled_rules/`` (or set
+# ``KRYON_DISTILLED_RULES_DIR=/path/to/your/rules`` and drop it there)
+# to extend the planner without touching Python code.
+#
+# This particular file is the FASE 7
+# ``_rule_confirm_python_repl_with_print`` ported to YAML — useful as a
+# concrete template when you're writing your own distilled rule for a
+# novel exploit class.
+#
+# Sequencing tip: prefix the filename with a numeric ordering hint
+# (e.g. ``10_first.yaml``, ``99_fallback.yaml``) since the loader
+# walks the directory lexicographically.
+
+name: confirm_python_repl_yaml_distilled
+confidence: 0.92
+
+# Predicates — ALL must hold for the rule to fire.
+when:
+  # Fire when ANY of these hints landed in ExtractedFacts.hints.
+  # The five strings below are the canonical Python REPL signatures
+  # surfaced by nmap probes / by sending garbage to the listener.
+  hints_any_of:
+    - "invalid syntax"
+    - "syntaxerror"
+    - "is not defined"
+    - "nameerror"
+    - "source code string cannot contain null bytes"
+  # Require a non-22 port in ExtractedFacts.services. The first
+  # non-22 port we find substitutes ``{port}`` in the args template.
+  services_have_non_ssh_port: true
+  # Don't re-fire once we've already sent the probe — the
+  # ``kryon-probe`` token appearing in any prior_tool_args entry
+  # is the rule's "already done" marker.
+  not_invoked_before:
+    - "kryon-probe"
+
+# What to emit when the predicates pass. ``tool`` MUST be a tool the
+# agent has registered (``run_command`` is the safe bet for shell
+# probes). ``args`` is the literal invocation, with placeholders:
+#   - ``<target>``   left as a literal; the reflective runner
+#                    substitutes the concrete host later.
+#   - ``{port}``     filled from facts.services (non-22 port).
+#   - ``{domain}``   filled from facts.domains (when domains_present).
+#   - ``{user}`` /
+#     ``{password}`` filled from facts.creds (when creds_present).
+emit:
+  tool: run_command
+  args: |
+    # python_repl_confirm — does the service exec() input?
+    echo 'print("kryon-probe")' | nc -q 1 -w 5 <target> {port}
+  rationale: |
+    nmap or a probe surfaced Python NameError / SyntaxError /
+    null-byte messages — those come from CPython's compile()+exec()
+    boundary. Sending ``print('kryon-probe')`` confirms exec() if the
+    server echoes the string. From there the next step is
+    introspection (sys.modules['__main__']) or direct RCE via
+    os.popen().
