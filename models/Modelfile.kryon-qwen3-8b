@@ -1,0 +1,45 @@
+# FASE 10 — Kryon-Qwen3-8B specialist candidate (alternativa a kryon-gpt-oss)
+#
+# Why this exists: 15 bench runs against THM Pyrat / Operation Endgame
+# showed gpt-oss-20b ceils at 2-stage chains under output ambiguity
+# (FASES 1-8 documentation). Qwen3-8B Thinking scored notably higher on
+# the benchmarks that matter for agentic pentest:
+#   - Tau2-Bench (multi-turn tool use): Qwen3.5-4B 79.9 vs gpt-oss-120b 67.8
+#   - BFCL-v3 (function calling):       Qwen3 71.9 vs gpt-oss ~67-68
+#   - GPQA Diamond (reasoning):         Qwen3 ~78 vs gpt-oss-20b ~71.5
+# Trade-off: gpt-oss-20b wins AIME math (98.7 vs ~92) and has 131K
+# context vs Qwen3's 33K — neither matters for our use case.
+#
+# Apache 2.0, ~5 GB VRAM at q4 (vs 11 GB for kryon-gpt-oss) — leaves
+# 6+ GB free for parallel training/embedding/etc.
+
+FROM qwen3:8b
+
+# Match the kryon-gpt-oss parameter discipline so the comparison is fair.
+# num_ctx 16384 = 5× the working-set ceiling observed in F170 Juice Shop
+# bench (~1.3K tokens). Frees memory for KV cache + embeddings.
+PARAMETER num_ctx 16384
+PARAMETER num_predict 4096
+
+# Temperature 0.3 — same rationale as kryon-gpt-oss (F179): agentic
+# pentest needs reproducible findings, 0.3 keeps variance low while
+# leaving enough diversity for alt-path exploration when a tool fails.
+# Qwen3 thinking-mode default is 0.6; we override to match gpt-oss
+# calibration so bench results are comparable.
+PARAMETER temperature 0.3
+
+# Qwen3-recommended sampling for thinking-mode reliability:
+# top_p 0.95, top_k 20, min_p 0 (from Qwen3 model card).
+PARAMETER top_p 0.95
+PARAMETER top_k 20
+PARAMETER min_p 0
+
+# Qwen3 reasoning ON by default — thinking traces emit <think></think>
+# tags that the SDK's reasoning parser picks up just like Harmony
+# channels (validated F162 path works for both).
+# To disable thinking for a specific call use ``/no_think`` in the
+# system prompt or ``enable_thinking=False`` via the chat API.
+
+# Stop tokens — Qwen3 native tokens (model card).
+PARAMETER stop "<|im_end|>"
+PARAMETER stop "<|endoftext|>"
