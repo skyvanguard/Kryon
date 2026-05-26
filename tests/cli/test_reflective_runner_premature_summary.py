@@ -336,3 +336,168 @@ def test_premature_block_appears_above_facts_block() -> None:
     premature_idx = prompt.index("PREMATURE SUMMARY")
     facts_idx = prompt.index("Facts extracted so far")
     assert premature_idx < facts_idx
+
+
+# ---------------------------------------------------------------------------
+# FASE 11.E — evaluate_final_for_premature
+# ---------------------------------------------------------------------------
+#
+# Gap discovered in Pyrat bench (2026-05-26): the FASE 11.B detector fires
+# only during reflection cadence (between chunks). When the agent emits a
+# summary as ``final_output`` (agent finished), the existing code path
+# returns the result immediately — the detector never runs. The model can
+# therefore bypass the safeguard by labeling its premature summary as the
+# final answer instead of intermediate reasoning.
+#
+# Fix: ``_evaluate_final_for_premature(text, ...)`` is the gate that runs
+# in the agent-finished path. Same predicate logic as the intermediate
+# detector, plus a ``rejection_count`` parameter so the runner doesn't
+# loop forever on a genuinely-stuck model.
+
+
+def test_evaluate_final_premature_rejects_first_time() -> None:
+    """A first-attempt premature final must be rejected so the runner
+    can inject reflection + continue the loop instead of returning."""
+    from kryon.cli.reflective_runner import _evaluate_final_for_premature
+
+    should_reject, msg = _evaluate_final_for_premature(
+        "📌 Resumen Ejecutivo\n1. CWE-200 (HIGH)...",
+        tool_calls_in_chunk=1,
+        has_foothold=False,
+        rejection_count=0,
+    )
+    assert should_reject is True
+    assert msg  # non-empty rejection message
+    assert "PREMATURE FINAL" in msg.upper()
+
+
+def test_evaluate_final_allows_when_legitimate() -> None:
+    """No summary marker → not premature → don't reject."""
+    from kryon.cli.reflective_runner import _evaluate_final_for_premature
+
+    should_reject, msg = _evaluate_final_for_premature(
+        "The target is unreachable. All probes timed out.",
+        tool_calls_in_chunk=1,
+        has_foothold=False,
+        rejection_count=0,
+    )
+    assert should_reject is False
+    assert msg == ""
+
+
+def test_evaluate_final_allows_when_foothold_present() -> None:
+    """Summary AFTER foothold (creds/uid=/hash) is legitimate."""
+    from kryon.cli.reflective_runner import _evaluate_final_for_premature
+
+    should_reject, _ = _evaluate_final_for_premature(
+        "📌 Resumen Ejecutivo\n1. RCE confirmed via cmd injection...",
+        tool_calls_in_chunk=2,
+        has_foothold=True,
+        rejection_count=0,
+    )
+    assert should_reject is False
+
+
+def test_evaluate_final_allows_when_enough_tool_calls() -> None:
+    """≥3 tool calls in the final chunk means the model genuinely
+    explored → summary legitimate even without foothold."""
+    from kryon.cli.reflective_runner import _evaluate_final_for_premature
+
+    should_reject, _ = _evaluate_final_for_premature(
+        "📌 Resumen Ejecutivo\n1. Findings...",
+        tool_calls_in_chunk=5,
+        has_foothold=False,
+        rejection_count=0,
+    )
+    assert should_reject is False
+
+
+def test_evaluate_final_lets_through_after_max_rejections() -> None:
+    """After max_rejections (default 2), the runner must let the
+    summary through to avoid an infinite reject→retry→reject loop.
+    A genuinely-stuck model would keep emitting summary; eventually
+    the operator needs to see SOMETHING."""
+    from kryon.cli.reflective_runner import _evaluate_final_for_premature
+
+    # rejection_count == max → allow through
+    should_reject, _ = _evaluate_final_for_premature(
+        "📌 Resumen Ejecutivo\nFindings...",
+        tool_calls_in_chunk=1,
+        has_foothold=False,
+        rejection_count=2,
+        max_rejections=2,
+    )
+    assert should_reject is False
+
+
+def test_evaluate_final_lets_through_after_custom_max() -> None:
+    """Operator can tighten max_rejections for high-budget runs."""
+    from kryon.cli.reflective_runner import _evaluate_final_for_premature
+
+    should_reject, _ = _evaluate_final_for_premature(
+        "📌 Resumen Ejecutivo\nFindings...",
+        tool_calls_in_chunk=1,
+        has_foothold=False,
+        rejection_count=1,
+        max_rejections=1,  # tighter cap
+    )
+    assert should_reject is False
+
+
+def test_evaluate_final_rejects_until_max() -> None:
+    """At rejection_count < max, keep rejecting. Boundary check."""
+    from kryon.cli.reflective_runner import _evaluate_final_for_premature
+
+    # rejection_count == 1, max == 2 → still reject
+    should_reject, _ = _evaluate_final_for_premature(
+        "📌 Resumen Ejecutivo\nFindings...",
+        tool_calls_in_chunk=1,
+        has_foothold=False,
+        rejection_count=1,
+        max_rejections=2,
+    )
+    assert should_reject is True
+
+
+def test_evaluate_final_rejection_msg_includes_attempt_counter() -> None:
+    """The rejection message must show ``intento N/MAX`` so the model
+    sees how many chances are left — anchors the urgency."""
+    from kryon.cli.reflective_runner import _evaluate_final_for_premature
+
+    _, msg = _evaluate_final_for_premature(
+        "📌 Resumen Ejecutivo\nFindings...",
+        tool_calls_in_chunk=1,
+        has_foothold=False,
+        rejection_count=0,
+        max_rejections=2,
+    )
+    assert "1/2" in msg or "intento 1" in msg.lower()
+
+
+def test_evaluate_final_rejection_msg_demands_three_hypotheses() -> None:
+    """Same structural demand as the intermediate FASE 11.B block —
+    forces the model to generate alternatives, not just retry."""
+    from kryon.cli.reflective_runner import _evaluate_final_for_premature
+
+    _, msg = _evaluate_final_for_premature(
+        "📌 Resumen Ejecutivo\nFindings...",
+        tool_calls_in_chunk=1,
+        has_foothold=False,
+        rejection_count=0,
+    )
+    assert "3 hipótesis" in msg.lower() or "tres hipótesis" in msg.lower()
+
+
+def test_evaluate_final_empty_text_does_not_crash() -> None:
+    """Defensive: empty / None final_output should return (False, '')
+    without raising."""
+    from kryon.cli.reflective_runner import _evaluate_final_for_premature
+
+    should_reject, msg = _evaluate_final_for_premature(
+        "",
+        tool_calls_in_chunk=0,
+        has_foothold=False,
+        rejection_count=0,
+    )
+    assert should_reject is False
+    assert msg == ""

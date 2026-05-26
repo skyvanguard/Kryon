@@ -269,6 +269,15 @@ def _has_foothold(facts: ExtractedFacts) -> bool:
     return False
 
 
+# FASE 11.E — max times the runner will reject a premature final_output
+# before letting it through. Default 2 strikes the balance: enough
+# chances for the model to actually try alternatives (the FASE 11.B
+# reflection prompt demands 3 hypotheses), but bounded so a genuinely-
+# stuck model doesn't loop forever and the operator always sees SOME
+# output. Override via ``KRYON_PREMATURE_MAX_REJECTIONS`` if needed.
+_DEFAULT_PREMATURE_MAX_REJECTIONS = 2
+
+
 def _detect_premature_summary(
     chunk_text: str,
     *,
@@ -296,6 +305,75 @@ def _detect_premature_summary(
     if tool_calls_in_chunk >= threshold_tool_calls:
         return False
     return any(marker in chunk_text for marker in _PREMATURE_SUMMARY_MARKERS)
+
+
+def _evaluate_final_for_premature(
+    final_output_text: str,
+    *,
+    tool_calls_in_chunk: int,
+    has_foothold: bool,
+    rejection_count: int,
+    max_rejections: int = _DEFAULT_PREMATURE_MAX_REJECTIONS,
+    threshold_tool_calls: int = _DEFAULT_PREMATURE_THRESHOLD,
+) -> tuple[bool, str]:
+    """FASE 11.E — gate the agent-finished path against premature summaries.
+
+    Same predicate logic as ``_detect_premature_summary`` (summary marker
+    + few tool calls + no foothold), plus a ``rejection_count``-bounded
+    loop control so a genuinely-stuck model can't trap the runner in an
+    infinite reject→retry→reject cycle.
+
+    Returns a 2-tuple:
+      - should_reject (bool): True means the caller should NOT return
+        the result, inject the second-element message into the next
+        reflection turn, and continue the chunk loop instead.
+      - reflection_text (str): the imperative block to inject when
+        rejecting; empty string when not rejecting.
+
+    Why this exists: the Pyrat bench (2026-05-26) showed the model
+    bypassing the FASE 11.B detector by emitting "Resumen Ejecutivo" as
+    the agent's final_output instead of as intermediate reasoning. The
+    pre-existing code path returned the result before the detector
+    could see it. This gate closes that loophole.
+    """
+    # Cap reached — let the final through to avoid spinning forever.
+    # The operator always sees SOMETHING even if it's premature; better
+    # than a hung run.
+    if rejection_count >= max_rejections:
+        return False, ""
+
+    is_premature = _detect_premature_summary(
+        final_output_text,
+        tool_calls_in_chunk=tool_calls_in_chunk,
+        has_foothold=has_foothold,
+        threshold_tool_calls=threshold_tool_calls,
+    )
+    if not is_premature:
+        return False, ""
+
+    attempt = rejection_count + 1
+    msg = (
+        f"\n🛑🛑🛑 **PREMATURE FINAL_OUTPUT REJECTED** (intento "
+        f"{attempt}/{max_rejections}) 🛑🛑🛑\n\n"
+        "Emitiste un resumen ejecutivo como respuesta final, pero NO "
+        "exploraste lo suficiente: pocos tool calls, sin foothold "
+        "confirmado (no creds, no hashes, no uid=, no shell prompt).\n\n"
+        "**Tu resumen fue rechazado por el runner.** Tenés que probar "
+        "alternativas antes de cerrar la run.\n\n"
+        "Hard ask para este turn:\n"
+        "  1. Generá **3 hipótesis** distintas sobre por qué la última "
+        "respuesta del target fue ambigua / vacía / con error. "
+        "(NO repitas las hipótesis del razonamiento previo.)\n"
+        "  2. Para cada hipótesis, formulá UN tool call concreto que la "
+        "probaría (línea exacta, no narres).\n"
+        "  3. Ejecutá la hipótesis más prometedora AHORA con un tool "
+        "call. NO emitas otro resumen sin confirmar RCE / creds / dump "
+        "de DB / foothold equivalente.\n\n"
+        f"Te quedan {max_rejections - attempt} intentos antes de que el "
+        "runner deje pasar tu resumen igual. Usá este turn para hacer "
+        "una probe real, no para reformular el mismo resumen.\n"
+    )
+    return True, msg
 
 
 def _is_stall(
@@ -904,6 +982,21 @@ async def run_with_reflection(
     operator_input_requested: bool = False
     operator_input_summary: str = ""
 
+    # FASE 11.E — number of times the agent-finished path rejected a
+    # premature final_output and forced reflection. Bounded by
+    # _DEFAULT_PREMATURE_MAX_REJECTIONS (override via env). Counter
+    # increments on each rejection; once it reaches the cap, the next
+    # premature final is allowed through to avoid an infinite loop.
+    premature_rejection_count: int = 0
+    _max_rejections_env = os.environ.get("KRYON_PREMATURE_MAX_REJECTIONS", "")
+    try:
+        premature_max_rejections = (
+            int(_max_rejections_env) if _max_rejections_env
+            else _DEFAULT_PREMATURE_MAX_REJECTIONS
+        )
+    except ValueError:
+        premature_max_rejections = _DEFAULT_PREMATURE_MAX_REJECTIONS
+
     while turns_used < max_total_turns:
         chunk_size = min(reflect_every, max_total_turns - turns_used)
         if chunk_size <= 0:
@@ -1056,6 +1149,67 @@ async def run_with_reflection(
 
         # Did the agent finish? (final_output set + no pending tool calls)
         if not _has_pending_tool_calls(result):
+            # FASE 11.E — before returning, check whether this
+            # "finished" answer is actually a premature summary trying
+            # to bypass the FASE 11.B reflection-cadence detector. If
+            # so AND we haven't exhausted the rejection budget, inject
+            # a hard rejection reflection and continue the chunk loop
+            # instead of returning. Otherwise (legitimate finish OR
+            # budget exhausted) follow the normal return path.
+            final_output_text = ""
+            try:
+                fo = getattr(result, "final_output", None)
+                final_output_text = str(fo) if fo else ""
+            except Exception:  # noqa: BLE001
+                final_output_text = ""
+
+            should_reject_final, reject_msg = (False, "")
+            try:
+                should_reject_final, reject_msg = _evaluate_final_for_premature(
+                    final_output_text,
+                    tool_calls_in_chunk=len(new_records),
+                    has_foothold=_has_foothold(accumulated_facts),
+                    rejection_count=premature_rejection_count,
+                    max_rejections=premature_max_rejections,
+                )
+            except Exception as e:  # noqa: BLE001 — never let the gate crash the run
+                logger.debug("FASE 11.E final-output gate failed: %s", e)
+
+            if should_reject_final:
+                premature_rejection_count += 1
+                logger.warning(
+                    "FASE 11.E premature final_output rejected at turn %d "
+                    "(rejection=%d/%d) — forcing reflection turn",
+                    turns_used,
+                    premature_rejection_count,
+                    premature_max_rejections,
+                )
+                if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in (
+                    "1", "true", "yes"
+                ):
+                    print(
+                        f"\n🛑 [reflective-runner] PREMATURE FINAL REJECTED "
+                        f"at turn {turns_used} "
+                        f"(rejection {premature_rejection_count}/"
+                        f"{premature_max_rejections}) — injecting "
+                        f"reflection + continuing"
+                    )
+                # Re-anchor input on the chunk's conversation history
+                # (so the rejection reflection lands on top of whatever
+                # the model just emitted) and continue the chunk loop.
+                try:
+                    base_history = result.to_input_list()
+                except Exception:  # noqa: BLE001
+                    base_history = [
+                        {"role": "user", "content": str(current_input)}
+                    ]
+                current_input = base_history + [
+                    {"role": "user", "content": reject_msg}
+                ]
+                # Do NOT return — continue the while loop so the model
+                # gets another chunk to try alternatives.
+                continue
+
             logger.debug("reflective runner: agent finished at turn %d", turns_used)
             # F203.H — patch the accumulated items list onto the returned
             # result so write-back sees all chunks' tool calls.
@@ -1374,4 +1528,5 @@ __all__ = [
     "_build_operator_input_request",
     "_detect_premature_summary",
     "_has_foothold",
+    "_evaluate_final_for_premature",
 ]
