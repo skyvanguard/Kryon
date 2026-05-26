@@ -261,6 +261,58 @@ _FOOTHOLD_HINT_REGEXES = (
 )
 
 
+# FASE 11.N — recon-class threshold. CTFs that hinge on directory
+# brute-force (gobuster cascade) and SSH bruteforce (hydra) chain
+# through more tool calls than eval-class (REPL probe → exec).
+# Bump the premature-summary threshold to give cascade rules room
+# to land before the model's summary gets accepted.
+_RECON_CLASS_PREMATURE_THRESHOLD = 5
+
+
+def _count_real_tool_calls(records: list[_ToolCallRecord]) -> int:
+    """FASE 11.N — count tool calls that represent NEW model-issued
+    exploration, excluding synthetic ``planner_subcall`` records.
+
+    The runner inserts ``planner_subcall`` records into tool_history
+    so cascade rules' abstain checks can see the inner args of
+    ``execute_planner_directive``. But those records reflect work
+    the planner did *inside* the executor — they're not new probes
+    the model picked. Counting them toward the premature-summary
+    threshold lets a model that invoked ``execute_planner_directive``
+    twice (each emitting one synthetic record) emit a summary as if
+    it had done 4 explorations when it really did 2.
+
+    Returns the count of records whose ``tool_name`` is NOT
+    ``planner_subcall``.
+    """
+    return sum(1 for r in records if r.tool_name != "planner_subcall")
+
+
+def _resolve_threshold_for_class(facts: ExtractedFacts) -> int:
+    """FASE 11.N — pick the premature-summary threshold based on
+    detected target class. Recon-class targets (web CTFs with
+    robots.txt disallow hints) need more tool calls to chain
+    through; eval-class targets (REPL ECHO confirmation) reach
+    foothold with fewer.
+
+    Class signal: presence of any ``disallow:<path>`` hint in
+    ExtractedFacts.hints. That hint shape comes from
+    fact_extractor's robots.txt parser (FASE 11.K) and uniquely
+    identifies recon-class targets.
+
+    Returns:
+      _RECON_CLASS_PREMATURE_THRESHOLD (5) for recon-class targets,
+      _DEFAULT_PREMATURE_THRESHOLD (3) otherwise.
+    """
+    has_disallow_hints = any(
+        h.lower().startswith("disallow:")
+        for h in facts.hints
+    )
+    if has_disallow_hints:
+        return _RECON_CLASS_PREMATURE_THRESHOLD
+    return _DEFAULT_PREMATURE_THRESHOLD
+
+
 def _has_foothold(facts: ExtractedFacts) -> bool:
     """True when the agent has materially cracked past recon.
 
@@ -1247,12 +1299,19 @@ async def run_with_reflection(
 
             should_reject_final, reject_msg = (False, "")
             try:
+                # FASE 11.N — count REAL tool calls (excluding synthetic
+                # planner_subcall records) + pick class-appropriate
+                # threshold so recon-class chains (5+ calls expected)
+                # don't terminate as early as eval-class chains (3+).
+                _real_count_final = _count_real_tool_calls(new_records)
+                _threshold_final = _resolve_threshold_for_class(accumulated_facts)
                 should_reject_final, reject_msg = _evaluate_final_for_premature(
                     final_output_text,
-                    tool_calls_in_chunk=len(new_records),
+                    tool_calls_in_chunk=_real_count_final,
                     has_foothold=_has_foothold(accumulated_facts),
                     rejection_count=premature_rejection_count,
                     max_rejections=premature_max_rejections,
+                    threshold_tool_calls=_threshold_final,
                 )
             except Exception as e:  # noqa: BLE001 — never let the gate crash the run
                 logger.debug("FASE 11.E final-output gate failed: %s", e)
@@ -1371,12 +1430,19 @@ async def run_with_reflection(
         # the model exit on a half-baked "Resumen Ejecutivo".
         premature_summary_detected = False
         try:
-            tool_calls_in_chunk = len(new_records)
+            # FASE 11.N — real count (no planner_subcall) + class
+            # threshold so recon-class targets aren't flagged premature
+            # at 3 calls (the eval-class floor).
+            tool_calls_in_chunk = _count_real_tool_calls(new_records)
             chunk_has_foothold = _has_foothold(accumulated_facts)
+            threshold_tool_calls_for_chunk = _resolve_threshold_for_class(
+                accumulated_facts,
+            )
             premature_summary_detected = _detect_premature_summary(
                 chunk_text,
                 tool_calls_in_chunk=tool_calls_in_chunk,
                 has_foothold=chunk_has_foothold,
+                threshold_tool_calls=threshold_tool_calls_for_chunk,
             )
         except Exception as e:  # noqa: BLE001 — never break the chunk on a probe
             logger.debug("premature-summary detector failed: %s", e)
@@ -1611,4 +1677,6 @@ __all__ = [
     "_detect_premature_summary",
     "_has_foothold",
     "_evaluate_final_for_premature",
+    "_count_real_tool_calls",
+    "_resolve_threshold_for_class",
 ]

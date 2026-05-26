@@ -508,6 +508,92 @@ def test_evaluate_final_rejection_msg_demands_three_hypotheses() -> None:
     assert "3 hipótesis" in msg.lower() or "tres hipótesis" in msg.lower()
 
 
+def test_count_real_tool_calls_excludes_planner_subcall() -> None:
+    """FASE 11.N — planner_subcall synthetic records (created by the
+    reflective runner from the executor's sub-call log) shouldn't
+    count toward the ``tool_calls_in_chunk`` threshold. They represent
+    work the planner did INSIDE the executor, not new model-issued
+    exploration. Counting them inflates the count and lets the model
+    emit summaries after fewer real probes than the operator
+    intended."""
+    from kryon.cli.reflective_runner import (
+        _ToolCallRecord,
+        _count_real_tool_calls,
+    )
+
+    records = [
+        _ToolCallRecord(tool_name="web_fetch_smart", args_hash="a", args_preview="..."),
+        _ToolCallRecord(tool_name="execute_planner_directive", args_hash="b", args_preview=""),
+        _ToolCallRecord(tool_name="planner_subcall", args_hash="c", args_preview="gobuster ..."),
+        _ToolCallRecord(tool_name="planner_subcall", args_hash="d", args_preview="gobuster ..."),
+        _ToolCallRecord(tool_name="run_command", args_hash="e", args_preview="curl ..."),
+    ]
+    # 5 total records, 3 real (web_fetch + execute_planner_directive + run_command)
+    assert _count_real_tool_calls(records) == 3
+
+
+def test_count_real_tool_calls_empty_list() -> None:
+    from kryon.cli.reflective_runner import _count_real_tool_calls
+
+    assert _count_real_tool_calls([]) == 0
+
+
+def test_count_real_tool_calls_all_synthetic() -> None:
+    """Edge case: chunk where ONLY planner_subcall records exist
+    (model invoked execute_planner_directive but no other tools).
+    Real count should be 0 — those subcalls came from the planner,
+    not from the model's own probes."""
+    from kryon.cli.reflective_runner import (
+        _ToolCallRecord,
+        _count_real_tool_calls,
+    )
+
+    records = [
+        _ToolCallRecord(tool_name="planner_subcall", args_hash="a", args_preview="x"),
+        _ToolCallRecord(tool_name="planner_subcall", args_hash="b", args_preview="y"),
+    ]
+    assert _count_real_tool_calls(records) == 0
+
+
+def test_resolve_threshold_recon_class_with_disallow_hints() -> None:
+    """FASE 11.N — recon-class CTFs (web bruteforce / disallow path
+    chain) need more tool calls than eval-class to chain through to
+    foothold (gobuster → cascade → cred discovery → hydra → ssh).
+    With ``disallow:`` hints present, the threshold goes from 3 to
+    5 so cascade rules have room to land before a legit summary."""
+    from kryon.cli.reflective_runner import _resolve_threshold_for_class
+
+    facts = ExtractedFacts(hints=("disallow:/admin",))
+    assert _resolve_threshold_for_class(facts) == 5
+
+
+def test_resolve_threshold_eval_class_default() -> None:
+    """No disallow hints (e.g. Pyrat REPL eval target) → keep the
+    default threshold of 3."""
+    from kryon.cli.reflective_runner import _resolve_threshold_for_class
+
+    facts = ExtractedFacts(hints=("invalid syntax",))
+    assert _resolve_threshold_for_class(facts) == 3
+
+
+def test_resolve_threshold_empty_facts_keeps_default() -> None:
+    from kryon.cli.reflective_runner import _resolve_threshold_for_class
+
+    assert _resolve_threshold_for_class(ExtractedFacts()) == 3
+
+
+def test_resolve_threshold_multiple_disallow_hints_recon_class() -> None:
+    """Multiple disallow hints — still recon-class, threshold 5."""
+    from kryon.cli.reflective_runner import _resolve_threshold_for_class
+
+    facts = ExtractedFacts(
+        hints=("disallow:/admin", "disallow:/secret", "invalid syntax"),
+    )
+    # Even with a mix of hints, the presence of disallow signals
+    # recon-class behavior.
+    assert _resolve_threshold_for_class(facts) == 5
+
+
 def test_evaluate_final_empty_text_does_not_crash() -> None:
     """Defensive: empty / None final_output should return (False, '')
     without raising."""
