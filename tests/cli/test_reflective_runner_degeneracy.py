@@ -21,9 +21,12 @@ catches this. These tests pin its behavior against:
 from __future__ import annotations
 
 from kryon.cli.reflective_runner import (
+    _build_reflection_prompt,
     _detect_intra_turn_degeneracy,
     _extract_chunk_text,
+    _extract_facts_from_chunk,
 )
+from kryon.intelligence.fact_extractor import ExtractedFacts
 
 
 def test_detects_real_degeneracy_sample_from_endgame_run() -> None:
@@ -157,3 +160,126 @@ def test_extract_chunk_text_handles_structured_content() -> None:
     out = _extract_chunk_text(_Result())
     assert "structured part one" in out
     assert "structured part two" in out
+
+
+# ---------------------------------------------------------------------------
+# FASE 1 (G1+G2) — _extract_facts_from_chunk + reflection prompt rendering
+# ---------------------------------------------------------------------------
+
+
+def test_extract_facts_from_chunk_handles_empty_string() -> None:
+    facts = _extract_facts_from_chunk("")
+    assert facts.is_empty()
+
+
+def test_extract_facts_from_chunk_parses_ldapsearch_block() -> None:
+    """A chunk with a real-shaped ldapsearch invocation marker should
+    route the LDIF block to the ldapsearch parser and surface users +
+    domain."""
+    chunk = """\
+We need to enumerate users now.
+
+▸ run_command  ldapsearch -x -H ldap://10.64.170.128 -b dc=thm,dc=local
+dn: CN=Administrator,CN=Users,DC=thm,DC=local
+sAMAccountName: Administrator
+userPrincipalName: administrator@thm.local
+
+dn: CN=alice,CN=Users,DC=thm,DC=local
+sAMAccountName: alice
+
+dn:
+defaultNamingContext: DC=thm,DC=local
+"""
+    facts = _extract_facts_from_chunk(chunk)
+    assert "Administrator" in facts.users
+    assert "alice" in facts.users
+    assert "thm.local" in facts.domains
+
+
+def test_extract_facts_from_chunk_merges_multiple_tool_blocks() -> None:
+    """Multiple ▸-marked blocks in the same chunk should merge: nmap
+    services + smbclient shares both visible after extraction."""
+    chunk = """\
+▸ nmap 10.0.0.1
+PORT      STATE SERVICE
+22/tcp    open  ssh
+445/tcp   open  microsoft-ds
+
+▸ run_command  smbclient -L //10.0.0.1 -N
+        Sharename       Type      Comment
+        ---------       ----      -------
+        ADMIN$          Disk      Remote Admin
+        IPC$            IPC       Remote IPC
+"""
+    facts = _extract_facts_from_chunk(chunk)
+    ports = {p for p, _ in facts.services}
+    assert {22, 445}.issubset(ports)
+    assert "ADMIN$" in facts.shares
+    assert "IPC$" in facts.shares
+
+
+def test_extract_facts_from_chunk_picks_up_hint_phrases_from_reasoning() -> None:
+    """CTF-style hint phrases that appear in the model's reasoning
+    (not in a tool output block) should still surface via the
+    whole-chunk generic pass."""
+    chunk = (
+        "The server keeps saying 'Try a more basic connection' on every "
+        "endpoint we hit. Maybe try netcat raw?"
+    )
+    facts = _extract_facts_from_chunk(chunk)
+    assert "try a more basic connection" in facts.hints
+
+
+def test_reflection_prompt_includes_extracted_facts_block_when_present() -> None:
+    facts = ExtractedFacts(
+        users=("alice", "bob"),
+        domains=("thm.local",),
+        services=((445, "smb"),),
+    )
+    prompt = _build_reflection_prompt(
+        turns_used=4,
+        total_turns_cap=30,
+        tool_history=[],
+        last_output_summary="",
+        stuck_record=None,
+        degen_pattern=None,
+        extracted_facts=facts,
+    )
+    assert "Facts extracted so far" in prompt
+    assert "alice, bob" in prompt
+    assert "thm.local" in prompt
+    assert "445/smb" in prompt
+
+
+def test_reflection_prompt_omits_facts_block_when_empty() -> None:
+    """Empty / None ExtractedFacts → no facts block (don't pollute the
+    prompt with empty headers)."""
+    prompt = _build_reflection_prompt(
+        turns_used=4,
+        total_turns_cap=30,
+        tool_history=[],
+        last_output_summary="",
+        stuck_record=None,
+        degen_pattern=None,
+        extracted_facts=ExtractedFacts(),
+    )
+    assert "Facts extracted so far" not in prompt
+
+
+def test_reflection_prompt_facts_block_appears_above_recent_tools() -> None:
+    """Ordering invariant: facts block must come BEFORE the 'Tools
+    recientes usadas' line, so the model reads the structured intel
+    before any reasoning about tool history."""
+    facts = ExtractedFacts(users=("alice",))
+    prompt = _build_reflection_prompt(
+        turns_used=4,
+        total_turns_cap=30,
+        tool_history=[],
+        last_output_summary="",
+        stuck_record=None,
+        degen_pattern=None,
+        extracted_facts=facts,
+    )
+    facts_idx = prompt.index("Facts extracted so far")
+    tools_idx = prompt.index("Tools recientes usadas")
+    assert facts_idx < tools_idx

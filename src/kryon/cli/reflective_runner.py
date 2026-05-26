@@ -42,9 +42,16 @@ import hashlib
 import json
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass
 from typing import Any
+
+from kryon.intelligence.fact_extractor import (
+    EMPTY as _EMPTY_FACTS,
+    ExtractedFacts,
+    extract_facts,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +159,7 @@ def _build_reflection_prompt(
     last_output_summary: str,
     stuck_record: _ToolCallRecord | None,
     degen_pattern: str | None = None,
+    extracted_facts: ExtractedFacts | None = None,
 ) -> str:
     """Compose the reflection user-message injected between chunks."""
     # Top distinct tools (most recent up to 6)
@@ -196,9 +204,17 @@ def _build_reflection_prompt(
             f"NO digas 'maybe' / 'already' / 'not' otra vez.\n"
         )
 
+    # FASE 1 (G1+G2) — render structured facts block when present. Goes
+    # BELOW the degeneracy block but ABOVE the generic reflection so the
+    # model reads facts before reasoning about next steps.
+    facts_block = ""
+    if extracted_facts is not None and not extracted_facts.is_empty():
+        facts_block = extracted_facts.render_for_prompt() + "\n"
+
     return (
         f"\n---\n## 🪞 Reflection turn (turn {turns_used}/{total_turns_cap})\n\n"
         f"{degen_block}"
+        f"{facts_block}"
         f"Tools recientes usadas: {recent_tools or 'ninguna'}\n"
         f"Última observación (preview):\n```\n{last_output_summary[:500]}\n```\n"
         f"{stuck_block}\n"
@@ -298,6 +314,51 @@ def _extract_chunk_text(result: Any) -> str:
         if fo:
             parts.append(str(fo))
     return "\n".join(parts)
+
+
+# Regex that splits a Kryon chunk text on per-tool invocation markers.
+# Each tool call renders as a line starting with the "▸" marker followed
+# by the tool name + args. The output of that call sits between markers,
+# so splitting on the marker isolates ``(invocation_line, output)`` pairs
+# for the fact extractor to dispatch on.
+#
+# ``(?:^|\n)`` not plain ``\n`` so we still catch the first invocation
+# when it sits at the very start of the chunk (no leading newline).
+_TOOL_MARKER_RE = re.compile(r"(?:^|\n)▸\s+", flags=re.UNICODE)
+
+
+def _extract_facts_from_chunk(chunk_text: str) -> ExtractedFacts:
+    """FASE 1 (G1+G2) — pull structured facts from one chunk's text.
+
+    The chunk text concatenates the model's reasoning AND tool outputs
+    as they appeared in the rendered transcript. The renderer marks each
+    tool invocation with the "▸" prefix, so we split on that marker and
+    dispatch each (tool_invocation_line, output_block) pair to the
+    per-tool parser. We also do a single generic pass over the whole
+    text to pick up high-signal patterns (krb5 hashes, CTF hints) that
+    may sit in the reasoning rather than in a tool-output block.
+
+    Returns an accumulated ``ExtractedFacts`` for the chunk. Caller
+    merges into the cross-chunk accumulator.
+    """
+    if not chunk_text:
+        return _EMPTY_FACTS
+
+    # Whole-chunk generic pass first — picks up hints/hashes that the
+    # model may have echoed in its reasoning even if no tool produced
+    # them directly.
+    accum = extract_facts("", chunk_text)
+
+    blocks = _TOOL_MARKER_RE.split(chunk_text)
+    # blocks[0] is text before the first marker — already covered by
+    # the generic pass above. Skip it.
+    for block in blocks[1:]:
+        first_line, _, rest = block.partition("\n")
+        if not rest:
+            continue
+        accum = accum.merge(extract_facts(first_line, rest))
+
+    return accum
 
 
 def _has_pending_tool_calls(result: Any) -> bool:
@@ -436,6 +497,11 @@ async def run_with_reflection(
     # F203.K — RunHooks-based capture: fires on EVERY tool invocation,
     # even when the chunk hit MaxTurnsExceeded. Shared across all chunks.
     capture_hooks = ItemCaptureHooks()
+    # FASE 1 (G1+G2) — cross-chunk structured intel accumulator. The
+    # model "forgets" what tools previously revealed when reflection
+    # turns get long; injecting this block into every reflection keeps
+    # the picture coherent across the chunked run.
+    accumulated_facts: ExtractedFacts = _EMPTY_FACTS
 
     while turns_used < max_total_turns:
         chunk_size = min(reflect_every, max_total_turns - turns_used)
@@ -543,11 +609,37 @@ async def run_with_reflection(
         # "STOP REPEATING" directive. Independent of stuck-pattern
         # (which only fires across tool_calls).
         degen_pattern: str | None = None
+        chunk_text = ""
         try:
             chunk_text = _extract_chunk_text(result)
             degen_pattern = _detect_intra_turn_degeneracy(chunk_text)
         except Exception as e:  # noqa: BLE001
             logger.debug("intra-turn degeneracy probe failed: %s", e)
+
+        # FASE 1 (G1+G2) — extract structured facts from this chunk and
+        # merge into the cross-chunk accumulator. The render of this
+        # accumulator gets injected into the reflection prompt below so
+        # the model always sees "what we know" in structured form rather
+        # than having to reconstruct it from a truncated transcript.
+        try:
+            chunk_facts = _extract_facts_from_chunk(chunk_text)
+            accumulated_facts = accumulated_facts.merge(chunk_facts)
+        except Exception as e:  # noqa: BLE001
+            logger.debug("fact extraction probe failed: %s", e)
+
+        if (
+            not accumulated_facts.is_empty()
+            and os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes")
+        ):
+            print(
+                f"\n📊 [reflective-runner] facts at turn {turns_used}: "
+                f"users={len(accumulated_facts.users)} "
+                f"shares={len(accumulated_facts.shares)} "
+                f"hashes={len(accumulated_facts.hashes)} "
+                f"domains={len(accumulated_facts.domains)} "
+                f"creds={len(accumulated_facts.creds)} "
+                f"hints={len(accumulated_facts.hints)}"
+            )
 
         if degen_pattern:
             logger.warning(
@@ -570,6 +662,7 @@ async def run_with_reflection(
             last_output_summary=last_output,
             stuck_record=stuck,
             degen_pattern=degen_pattern,
+            extracted_facts=accumulated_facts,
         )
 
         if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
@@ -612,4 +705,5 @@ __all__ = [
     "_ToolCallRecord",
     "_detect_intra_turn_degeneracy",
     "_extract_chunk_text",
+    "_extract_facts_from_chunk",
 ]
