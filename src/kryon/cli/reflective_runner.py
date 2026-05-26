@@ -205,6 +205,99 @@ def _recommendation_signature(rec: Any) -> str:
     return f"{tool}|{args}"
 
 
+# FASE 11.B — premature summary detector. Pyrat bench B (qwen3-8b)
+# emitted "📌 Resumen Ejecutivo" after only 3 tool calls and without
+# confirming foothold. This catches that failure mode so the
+# reflection turn can demand 3 hypotheses + a concrete next probe
+# instead of letting the model give up.
+_PREMATURE_SUMMARY_MARKERS = (
+    # Spanish — the most common shape observed in qwen3-8b output.
+    "Resumen Ejecutivo",
+    "Resumen ejecutivo",
+    "RESUMEN EJECUTIVO",
+    "Resumen de la investigación",
+    "Resumen de la Investigación",
+    "Resumen Final",
+    "Hallazgos:",
+    "📋 Hallazgos",
+    "Conclusión",
+    "Conclusiones",
+    # English — some skills are EN-only.
+    "Executive Summary",
+    "Investigation Summary",
+    "## Findings",
+    # Decorative variants observed in older runs.
+    "═══ Resumen",
+)
+# Default threshold for "this chunk explored enough to justify a
+# summary". 3 tool calls is the empirical floor: any less means the
+# model saw at most 1-2 distinct probe results, which isn't enough
+# to claim "no exploitable surface".
+_DEFAULT_PREMATURE_THRESHOLD = 3
+# Shell-prompt / foothold markers we look for inside facts.hints.
+# Compiled once so the detector stays cheap to call.
+_FOOTHOLD_HINT_REGEXES = (
+    # Linux command exec evidence (id / whoami / getent).
+    re.compile(r"\buid=\d+\b"),
+    re.compile(r"\bgid=\d+\b"),
+    # Shell prompt landed (user@host: or root@host:#).
+    re.compile(r"\b(?:root|admin|administrator|www-data|nobody)@"),
+    # Windows shell prompt.
+    re.compile(r"[A-Z]:\\(?:Windows|Users|Program Files)", re.IGNORECASE),
+)
+
+
+def _has_foothold(facts: ExtractedFacts) -> bool:
+    """True when the agent has materially cracked past recon.
+
+    Foothold = creds confirmed, hashes extracted, or shell-prompt
+    evidence in hints. Knowing usernames or open ports alone is NOT
+    foothold (that's recon, which doesn't justify ending an active
+    pentest run).
+
+    Conservative on purpose — false positives here would re-open the
+    premature-summary loophole the detector is trying to close.
+    """
+    if facts.creds:
+        return True
+    if facts.hashes:
+        return True
+    for hint in facts.hints:
+        for rx in _FOOTHOLD_HINT_REGEXES:
+            if rx.search(hint):
+                return True
+    return False
+
+
+def _detect_premature_summary(
+    chunk_text: str,
+    *,
+    tool_calls_in_chunk: int,
+    has_foothold: bool,
+    threshold_tool_calls: int = _DEFAULT_PREMATURE_THRESHOLD,
+) -> bool:
+    """True when the model emitted an executive-summary marker without
+    enough exploration evidence to justify ending the run.
+
+    Three predicates must ALL hold:
+      1. A summary marker appears anywhere in the chunk text.
+      2. The chunk produced fewer than ``threshold_tool_calls`` tool
+         calls (model gave up before exploring).
+      3. ``has_foothold`` is False (no creds/hashes/shell yet).
+
+    Any one missing → not premature. Catches the qwen3-8b "give up at
+    turn 3" failure without false-positiving legitimate post-exploitation
+    summaries.
+    """
+    if not chunk_text:
+        return False
+    if has_foothold:
+        return False
+    if tool_calls_in_chunk >= threshold_tool_calls:
+        return False
+    return any(marker in chunk_text for marker in _PREMATURE_SUMMARY_MARKERS)
+
+
 def _is_stall(
     recent_recs: deque,
     prev_facts_sig: str,
@@ -327,6 +420,7 @@ def _build_reflection_prompt(
     extracted_facts: ExtractedFacts | None = None,
     next_action: NextActionRecommendation | None = None,
     stall_detected: bool = False,
+    premature_summary_detected: bool = False,
 ) -> str:
     """Compose the reflection user-message injected between chunks."""
     # Top distinct tools (most recent up to 6)
@@ -443,9 +537,38 @@ def _build_reflection_prompt(
             "the directive cannot apply. Operator will decide next.\n"
         )
 
+    # FASE 11.B — premature-summary block. Goes ABOVE facts because the
+    # model just demonstrated it's NOT reading the facts at the bottom
+    # of the prompt (otherwise it wouldn't have summarized). Mirrors
+    # the imperative tone of the degeneracy + stall blocks — empirical
+    # tests with soft phrasing let the model rationalize the early
+    # exit. Hard directive: "NO TERMINES" + 3-hypothesis demand.
+    premature_block = ""
+    if premature_summary_detected:
+        premature_block = (
+            "\n🛑🛑🛑 **PREMATURE SUMMARY DETECTED** 🛑🛑🛑\n\n"
+            "Emitiste un 'Resumen Ejecutivo' / 'Hallazgos' / 'Conclusión' "
+            "después de muy pocos tool calls y SIN haber confirmado "
+            "foothold real (no hay creds, hashes, uid=, ni shell prompt "
+            "en los facts extraídos).\n\n"
+            "**NO TERMINES AÚN. El target todavía no fue probado de "
+            "verdad.**\n\n"
+            "Hard ask para este turn:\n"
+            "  1. Generá **3 hipótesis** distintas sobre por qué la última "
+            "respuesta del target fue ambigua / vacía / con error.\n"
+            "  2. Para cada hipótesis, formulá UN tool call concreto que "
+            "la probaría (no narres — escribí la línea exacta).\n"
+            "  3. Ejecutá la hipótesis más prometedora AHORA. NO regreses "
+            "al resumen hasta confirmar RCE, creds, dump de DB, o foothold "
+            "equivalente.\n\n"
+            "Recordá: el objetivo del operator pidió pentest activo, no "
+            "recon pasivo. Un resumen prematuro = run perdida.\n"
+        )
+
     return (
         f"\n---\n## 🪞 Reflection turn (turn {turns_used}/{total_turns_cap})\n\n"
         f"{next_action_top}"
+        f"{premature_block}"
         f"{stall_block}"
         f"{degen_block}"
         f"{facts_block}"
@@ -1005,6 +1128,40 @@ async def run_with_reflection(
                 f"hints={len(accumulated_facts.hints)}"
             )
 
+        # FASE 11.B — premature-summary detector. Operates on this
+        # chunk's text + this chunk's tool-call count + cross-chunk
+        # foothold evidence. Surfaces an imperative reflection block
+        # demanding 3 hypotheses + a concrete probe instead of letting
+        # the model exit on a half-baked "Resumen Ejecutivo".
+        premature_summary_detected = False
+        try:
+            tool_calls_in_chunk = len(new_records)
+            chunk_has_foothold = _has_foothold(accumulated_facts)
+            premature_summary_detected = _detect_premature_summary(
+                chunk_text,
+                tool_calls_in_chunk=tool_calls_in_chunk,
+                has_foothold=chunk_has_foothold,
+            )
+        except Exception as e:  # noqa: BLE001 — never break the chunk on a probe
+            logger.debug("premature-summary detector failed: %s", e)
+
+        if premature_summary_detected:
+            logger.warning(
+                "FASE 11.B premature summary detected at turn %d "
+                "(tool_calls_in_chunk=%d, has_foothold=%s)",
+                turns_used,
+                len(new_records),
+                _has_foothold(accumulated_facts),
+            )
+            if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in (
+                "1", "true", "yes"
+            ):
+                print(
+                    f"\n🛑 [reflective-runner] PREMATURE SUMMARY at turn "
+                    f"{turns_used} — model emitted summary marker after "
+                    f"{len(new_records)} tool calls without foothold"
+                )
+
         # FASE 2 (G3) — run the planner over (facts, tool_history) and
         # let it emit a concrete next-action recommendation. The rules
         # are conservative (each abstains without enough signal), so a
@@ -1148,6 +1305,7 @@ async def run_with_reflection(
             extracted_facts=accumulated_facts,
             next_action=next_action,
             stall_detected=stall_detected,
+            premature_summary_detected=premature_summary_detected,
         )
 
         if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
@@ -1214,4 +1372,6 @@ __all__ = [
     "_recommendation_signature",
     "_is_stall",
     "_build_operator_input_request",
+    "_detect_premature_summary",
+    "_has_foothold",
 ]

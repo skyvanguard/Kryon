@@ -205,6 +205,32 @@ Two execution modes:
     nikto + sqlmap pre_hooks, broader reasoning budget, evasion
     modules. Use only against targets the operator has written
     authorization for.
+- **FASE 11 — qwen3-8b dual-profile (alternative to gpt-oss-20b)**:
+  Pyrat bench (2026-05-26) compared kryon-gpt-oss (11 GB VRAM, plain
+  reasoning) vs kryon-qwen3-8b (5-9 GB VRAM, `<think>` blocks). Trade-
+  off: qwen3-8b reasons better but quits early at turn 3 with a
+  "Resumen Ejecutivo"; gpt-oss-20b is more persistent but loops in
+  confusion. The FASE 11 stack (.A num_ctx 24K + .B premature-summary
+  detector + .C few-shot chains in active skills + .D dual Modelfile)
+  closes the early-quit gap WITHOUT fine-tuning.
+  - **`kryon-qwen3-8b`** (Modelfile `models/Modelfile.kryon-qwen3-8b`):
+    banca-safe sampler (`temperature 0.3`, `num_ctx 24576`,
+    `num_predict 8192`). Use for compliance + audit when reproducibility
+    matters. ~9 GB VRAM total (model + KV), 2.5 GB headroom for
+    nuclei/embed concurrent.
+  - **`kryon-qwen3-8b-active`** (Modelfile `Modelfile.kryon-qwen3-8b-active`):
+    same base + same context, ONLY change is `temperature 0.6` (Qwen3
+    model card's thinking-mode recommended value — diversifies the 3
+    hypotheses inside `<think>` block, complementing the few-shot
+    chains in FASE 11.C). Use ONLY against authorized active-pentest
+    targets:
+    ```bash
+    KRYON_MODEL=kryon-qwen3-8b-active
+    KRYON_RED_TEAM=true
+    KRYON_PHASE_TURNS=10
+    ```
+    NEVER use this profile against a banking client — temperature 0.6
+    breaks reproducibility for audit deliverables.
 - **LiteLLM without `[proxy]`** — uvloop is not supported on Windows; do not re-add the proxy extra to `pyproject.toml`.
 - **`openinference-instrumentation-openai`** is Python-version-gated (`< 3.14`) under the `tracing` extra.
 - **Optional extras**: `voice`, `viz`, `tracing`, `rag`, `server`, `tui`, `reporting`, `orchestration`, `dev`.

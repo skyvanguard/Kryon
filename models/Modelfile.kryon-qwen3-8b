@@ -15,11 +15,37 @@
 
 FROM qwen3:8b
 
-# Match the kryon-gpt-oss parameter discipline so the comparison is fair.
-# num_ctx 16384 = 5× the working-set ceiling observed in F170 Juice Shop
-# bench (~1.3K tokens). Frees memory for KV cache + embeddings.
-PARAMETER num_ctx 16384
-PARAMETER num_predict 4096
+# FASE 11.A — num_ctx 24K (sweet spot between 16K truncation vs 32K
+# VRAM-ceiling). Empirically measured on RTX 5070 Ti Laptop 12 GB:
+#
+#   num_ctx  | model + KV cache  | headroom for embeddings + system
+#   ---------|-------------------|----------------------------------
+#   16K      | 7.8 GB            | 3.4 GB ✓ comfortable
+#   24K      | ~9.0 GB           | 2.2 GB ✓ sweet spot (this row)
+#   32K      | 10.8 GB           | 1.4 GB ⚠ tight (no second model)
+#   65K YaRN | ~14 GB            | ❌ doesn't fit
+#
+# Important — what does NOT consume VRAM (common confusion):
+#   - nuclei, sqlmap, nmap, curl, etc. are CPU/RAM Go/Python binaries,
+#     zero GPU usage. They don't compete for this budget.
+#   - nomic-embed-text DOES use VRAM (~600 MB) — counted in the
+#     "headroom" column above.
+#   - Hot-swapping a second model (e.g. compact-model for context
+#     trimming) consumes its full footprint; the 2.2 GB headroom at
+#     24K is just enough for a 3-4B Q4 model alongside.
+#
+# The Pyrat bench showed qwen3-8b @ 16K hitting <think> truncation
+# around the 3rd tool call (forcing premature "Resumen Ejecutivo"
+# exits). 24K is 1.5× the observed working set and leaves a second
+# model + nomic-embed-text concurrent runs comfortable.
+# Qwen3-8B native context is 32768 (no YaRN needed at this size).
+PARAMETER num_ctx 24576
+# FASE 11.A — num_predict 8K (doubled from 4096). The Pyrat bench
+# showed qwen3-8b emitting 2-3K of <think> reasoning per turn; 4096
+# was getting truncated mid-hypothesis, forcing the model to commit to
+# half-formed plans. 8192 lets the thinking-mode pipeline fully render
+# without truncation pressure.
+PARAMETER num_predict 8192
 
 # Temperature 0.3 — same rationale as kryon-gpt-oss (F179): agentic
 # pentest needs reproducible findings, 0.3 keeps variance low while
