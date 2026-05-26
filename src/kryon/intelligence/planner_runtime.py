@@ -41,7 +41,7 @@ _DEFAULT_STATE = PlannerRuntimeState(facts=EMPTY, prior_tool_args=())
 # by the reflective runner" — the tool then refuses to execute (the
 # planner needs facts + history to make sense, and without them it
 # would emit the empty-state recommendation every time).
-_current_state: ContextVar["PlannerRuntimeState | None"] = ContextVar(
+_current_state: ContextVar[PlannerRuntimeState | None] = ContextVar(
     "kryon_planner_runtime_state", default=None,
 )
 
@@ -65,7 +65,7 @@ def clear_current_state() -> None:
     _current_state.set(None)
 
 
-def get_current_state() -> "PlannerRuntimeState | None":
+def get_current_state() -> PlannerRuntimeState | None:
     """Read the per-task runtime snapshot. Returns ``None`` when no
     reflective run is in flight."""
     return _current_state.get()
@@ -79,10 +79,72 @@ def get_current_state_or_default() -> PlannerRuntimeState:
     return state if state is not None else _DEFAULT_STATE
 
 
+# FASE 11.M — sub-call append/drain log.
+#
+# When ``execute_planner_directive`` runs a tool internally (gobuster,
+# nuclei, sqlmap, ...), the reflective runner's ``tool_history`` only
+# sees the ``execute_planner_directive`` wrapper invocation — not the
+# args of the underlying command. That breaks ``_was_invoked``
+# substring checks in planner rules (cascade gobuster, port pivot,
+# etc.) since they look for strings like ``common.txt`` or
+# ``gobuster`` that only ever appear in the inner args.
+#
+# The executor appends each inner args string here; the runner drains
+# the log at each reflection boundary and merges them into the
+# ``tool_history`` it passes to the planner. Same ContextVar pattern
+# as the state snapshot above (per-task isolation, no globals).
+_subcall_log: ContextVar[list[str] | None] = ContextVar(
+    "kryon_planner_subcall_log",
+    default=None,
+)
+
+
+def record_planner_subcall(args: str) -> None:
+    """Append a sub-call args string to the per-task log.
+
+    Called by ``execute_planner_directive`` after the underlying
+    ``run_command_async`` returns. Empty/whitespace strings are
+    silently ignored — a ``_was_invoked(prior_args, "")`` check
+    would match anything, so we never want an empty entry in the
+    log.
+    """
+    if not args or not args.strip():
+        return
+    buf = _subcall_log.get()
+    if buf is None:
+        buf = []
+        _subcall_log.set(buf)
+    buf.append(args)
+
+
+def drain_planner_subcalls() -> list[str]:
+    """Read + clear the per-task sub-call log.
+
+    Called by ``run_with_reflection`` at the start of each chunk's
+    post-processing so the entries land in the next reflection's
+    ``tool_history`` (and therefore the next planner pass's
+    ``prior_tool_args``).
+
+    Returns an empty list when the log was never touched in this
+    task. Always resets the buffer to ``[]`` so two consecutive
+    drains return ``[entries], []``.
+    """
+    buf = _subcall_log.get()
+    if buf is None:
+        return []
+    drained = list(buf)
+    # Replace with a fresh empty list rather than mutating in place —
+    # avoids surprising any caller that captured the same list ref.
+    _subcall_log.set([])
+    return drained
+
+
 __all__ = [
     "PlannerRuntimeState",
     "set_current_state",
     "clear_current_state",
     "get_current_state",
     "get_current_state_or_default",
+    "record_planner_subcall",
+    "drain_planner_subcalls",
 ]

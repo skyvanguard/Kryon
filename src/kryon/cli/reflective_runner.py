@@ -60,6 +60,7 @@ from kryon.intelligence.fact_extractor import (
 )
 from kryon.intelligence.planner_runtime import (
     clear_current_state as _clear_planner_state,
+    drain_planner_subcalls as _drain_planner_subcalls,
     set_current_state as _set_planner_state,
 )
 from kryon.intelligence.tool_templates import (
@@ -1076,6 +1077,25 @@ async def run_with_reflection(
                 except Exception as ee:  # noqa: BLE001
                     logger.debug("MaxTurns extract path failed: %s", ee)
 
+                # FASE 11.M — drain sub-call log on the MaxTurns path too,
+                # so cascade rules see the inner args of any planner
+                # directives that fired before the chunk's budget ran
+                # out. Without this, MaxTurns chunks would leave the
+                # subcalls in the buffer to be picked up on the NEXT
+                # chunk's drain — by then the rule abstain check is
+                # out-of-sync with what the planner emits.
+                try:
+                    subcall_args_mt = _drain_planner_subcalls()
+                    for sub_args in subcall_args_mt:
+                        synthetic_mt = _ToolCallRecord(
+                            tool_name="planner_subcall",
+                            args_hash=_hash_args(sub_args),
+                            args_preview=sub_args[:200],
+                        )
+                        tool_history.append(synthetic_mt)
+                except Exception as ee:  # noqa: BLE001
+                    logger.debug("MaxTurns subcall drain failed: %s", ee)
+
                 next_action_mt: NextActionRecommendation | None = None
                 try:
                     prior_args_mt = [r.args_preview for r in tool_history]
@@ -1153,6 +1173,39 @@ async def run_with_reflection(
         # Update tool call history.
         new_records = _extract_tool_calls(chunk_items)
         tool_history.extend(new_records)
+
+        # FASE 11.M — drain the sub-call log populated by
+        # ``execute_planner_directive`` and merge those entries into
+        # ``tool_history`` as synthetic ``planner_subcall`` records.
+        # Without this, ``_was_invoked(prior_args, "common.txt")``
+        # checks in planner rules never matched, because the wrapper
+        # invocation in tool_history was always ``execute_planner_
+        # directive`` — never the inner args of the underlying
+        # ``run_command``. Bench Robots (2026-05-26) showed the
+        # cascade rule for big.txt failing to fire for this exact
+        # reason. The synthetic records are flagged with a stable
+        # tool_name so downstream consumers can tell them apart.
+        try:
+            subcall_args_list = _drain_planner_subcalls()
+        except Exception as e:  # noqa: BLE001
+            logger.debug("planner sub-call drain failed: %s", e)
+            subcall_args_list = []
+        for sub_args in subcall_args_list:
+            synthetic = _ToolCallRecord(
+                tool_name="planner_subcall",
+                args_hash=_hash_args(sub_args),
+                args_preview=sub_args[:200],
+            )
+            tool_history.append(synthetic)
+            new_records.append(synthetic)
+        if subcall_args_list and os.environ.get(
+            "KRYON_REFLECT_DEBUG", ""
+        ).lower() in ("1", "true", "yes"):
+            print(
+                f"\n🔗 [reflective-runner] merged "
+                f"{len(subcall_args_list)} planner sub-call(s) into "
+                f"tool_history (FASE 11.M)"
+            )
 
         if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
             print(f"\n🪞 [reflective-runner] chunk done: turn={turns_used}, "

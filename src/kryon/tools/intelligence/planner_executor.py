@@ -88,7 +88,10 @@ async def execute_planner_directive(
     # planner / runtime + run_command_async pull in big chunks of
     # the SDK that we don't need just to register the tool.
     from kryon.intelligence.exploit_chain_planner import plan_next_action
-    from kryon.intelligence.planner_runtime import get_current_state
+    from kryon.intelligence.planner_runtime import (
+        get_current_state,
+        record_planner_subcall,
+    )
     from kryon.tools.common import run_command_async as _run_cmd_async
 
     state = get_current_state()
@@ -130,6 +133,17 @@ async def execute_planner_directive(
         args = args.replace("<target>", state.facts.hosts[0])
 
     call_id = str(uuid.uuid4())[:8]
+    # FASE 11.M — record the inner args string in the per-task
+    # sub-call log BEFORE running. Recording before-execution
+    # (rather than after) means rules that check ``_was_invoked``
+    # in subsequent reflection turns see the directive even if the
+    # subprocess fails or hangs at the timeout. Without this, a
+    # transport-error retry loop would never have the abstain
+    # check fire and the cascade rules would never advance.
+    try:
+        record_planner_subcall(args)
+    except Exception as exc:  # noqa: BLE001 — never let logging break the run
+        logger.debug("record_planner_subcall failed: %s", exc)
     try:
         raw_output = await _run_cmd_async(
             args,

@@ -83,3 +83,86 @@ def test_state_facts_field_is_passthrough_not_copied() -> None:
     assert state is not None
     assert state.facts is facts
     clear_current_state()
+
+
+# ---------------------------------------------------------------------------
+# FASE 11.M — sub-call exposure
+# ---------------------------------------------------------------------------
+#
+# When ``execute_planner_directive`` runs a tool internally (e.g. fires a
+# ``run_command gobuster ...`` after reading the planner's directive),
+# the reflective runner's ``tool_history`` doesn't see the underlying
+# command — only the wrapper invocation. That breaks rule abstain checks
+# that key off the inner args (e.g. ``_was_invoked(prior_args, "common.txt")``).
+#
+# Fix: a small per-task append/drain log so the executor can record the
+# args it ran and the runner can merge them into ``tool_history`` at
+# the next reflection boundary.
+
+
+def test_subcall_log_empty_by_default() -> None:
+    """No record_planner_subcall calls → drain returns []."""
+    from kryon.intelligence.planner_runtime import drain_planner_subcalls
+
+    drain_planner_subcalls()  # clear any leftover from sibling tests
+    assert drain_planner_subcalls() == []
+
+
+def test_record_and_drain_returns_args_in_order() -> None:
+    """Multiple recorded sub-calls drain in insertion order."""
+    from kryon.intelligence.planner_runtime import (
+        drain_planner_subcalls,
+        record_planner_subcall,
+    )
+
+    drain_planner_subcalls()  # clear
+    record_planner_subcall("gobuster dir -u http://t/a -w common.txt")
+    record_planner_subcall("gobuster dir -u http://t/b -w common.txt")
+    drained = drain_planner_subcalls()
+    assert len(drained) == 2
+    assert "/a" in drained[0]
+    assert "/b" in drained[1]
+
+
+def test_drain_clears_the_buffer() -> None:
+    """Second consecutive drain must be empty — the runner reads-
+    and-clears each reflection boundary."""
+    from kryon.intelligence.planner_runtime import (
+        drain_planner_subcalls,
+        record_planner_subcall,
+    )
+
+    drain_planner_subcalls()
+    record_planner_subcall("some-cmd --flag")
+    assert drain_planner_subcalls() == ["some-cmd --flag"]
+    assert drain_planner_subcalls() == []
+
+
+def test_record_after_drain_starts_fresh_buffer() -> None:
+    """Drain shouldn't leave the buffer in a state that rejects
+    further appends — record after drain must accumulate normally."""
+    from kryon.intelligence.planner_runtime import (
+        drain_planner_subcalls,
+        record_planner_subcall,
+    )
+
+    drain_planner_subcalls()
+    record_planner_subcall("first")
+    drain_planner_subcalls()  # clear
+    record_planner_subcall("second")
+    assert drain_planner_subcalls() == ["second"]
+
+
+def test_record_handles_empty_args_string() -> None:
+    """Defensive — empty/whitespace args should not crash but also
+    shouldn't pollute the log (downstream `_was_invoked` substring
+    checks would silently match the empty string against anything)."""
+    from kryon.intelligence.planner_runtime import (
+        drain_planner_subcalls,
+        record_planner_subcall,
+    )
+
+    drain_planner_subcalls()
+    record_planner_subcall("")
+    record_planner_subcall("   ")
+    assert drain_planner_subcalls() == []
