@@ -63,6 +63,20 @@ _CTF_HINT_PHRASES = (
     "nameerror",
     "is not defined",
     "traceback (most recent call last)",
+    # FASE 7 (G8) — additional Python-REPL signals observed in Pyrat
+    # nmap fingerprints. These come from CPython's compile() / exec()
+    # boundary and uniquely identify "service runs untrusted text
+    # through the interpreter" — a stronger signal than the generic
+    # SyntaxError because it pinpoints compile() specifically.
+    "source code string cannot contain null bytes",
+    # FASE 7 — git "dubious ownership" → known retry pattern of
+    # copying the repo to a writable dir owned by the current user.
+    # Surfacing this makes the next planner pass emit the bypass.
+    "detected dubious ownership",
+    # FASE 7 — generic filesystem-denied signal. Surfacing it lets
+    # the planner suggest indirect-read paths (introspection, /proc
+    # tricks, world-readable backup copies).
+    "[errno 13] permission denied",
 )
 
 
