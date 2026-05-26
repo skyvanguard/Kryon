@@ -39,6 +39,14 @@ _NTLM_PAIR_RE = re.compile(
 _IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 # Generic FQDN — letters/digits/dashes separated by dots, 2+ labels.
 _FQDN_RE = re.compile(r"\b[a-zA-Z][a-zA-Z0-9-]*(?:\.[a-zA-Z][a-zA-Z0-9-]*){1,}\b")
+# FASE 11.K — robots.txt Disallow directive. Case-insensitive, flexible
+# whitespace. Captures the path (group 1). Stops at newline / ``\n`` /
+# end-of-string so multi-directive blocks tokenize cleanly. ``\\n`` is
+# captured too because web_fetch_smart returns the body JSON-escaped.
+_DISALLOW_PATH_RE = re.compile(
+    r"disallow\s*:\s*(\S+?)(?=\\n|\n|\"|$)",
+    re.IGNORECASE,
+)
 # CTF-style hint phrases that the model commonly misses in HTTP bodies
 # AND in tool output that signals what kind of service is listening.
 # Keep this list short and high-signal — every entry should be something
@@ -615,6 +623,20 @@ def _parse_web_fetch_smart(output: str) -> ExtractedFacts:
     for phrase in _CTF_HINT_PHRASES:
         if phrase in lower:
             hints.append(phrase)
+
+    # FASE 11.K — robots.txt Disallow parsing. When the fetched URL
+    # ends in ``/robots.txt`` (or the body shape matches), pull each
+    # disallowed path out as a structured ``disallow:<path>`` hint.
+    # The planner's recon-class rules pivot on this signal to emit
+    # gobuster / ffuf directives at the model.
+    if "/robots.txt" in output.lower() or "disallow:" in output.lower():
+        for m in _DISALLOW_PATH_RE.finditer(output):
+            path = m.group(1).strip()
+            # Skip the catch-all ``/`` (blocks everything, not a useful
+            # gobuster target) and empty paths.
+            if not path or path == "/":
+                continue
+            hints.append(f"disallow:{path}")
 
     return ExtractedFacts(
         versions=_dedup_sorted_pairs(tuple(versions)),

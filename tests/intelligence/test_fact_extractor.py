@@ -345,6 +345,68 @@ def test_anti_pattern_hints_dont_interfere_with_parser_output() -> None:
     assert any("objectClass filter" in h for h in facts.hints)
 
 
+def test_web_fetch_smart_parses_robots_disallow_paths() -> None:
+    """FASE 11.K — when web_fetch_smart returns a robots.txt body
+    with ``Disallow:`` directives, each path must surface as a
+    structured hint so the planner can fire a gobuster directive
+    against it.
+
+    THM Robots-style bench (2026-05-26): the robots.txt revealed
+    three Asimov-themed disallow paths but the model only narrated
+    them in <think>, never invoking gobuster. Surfacing them as
+    ``disallow:<path>`` hints gives the planner a stable signal to
+    pivot on.
+    """
+    sample = (
+        '{"status": 200, "final_url": "http://target/robots.txt", '
+        '"body_md": "User-agent: *\\nDisallow: /harming/humans\\n'
+        'Disallow: /ignoring/human/orders\\nDisallow: /harm/to/self"}'
+    )
+    facts = extract_facts("web_fetch_smart http://target/robots.txt", sample)
+    assert "disallow:/harming/humans" in facts.hints
+    assert "disallow:/ignoring/human/orders" in facts.hints
+    assert "disallow:/harm/to/self" in facts.hints
+
+
+def test_web_fetch_smart_robots_disallow_normalizes_case() -> None:
+    """Some robots.txt files use lowercase or weird spacing —
+    normalize so the planner's match still hits."""
+    sample = (
+        '{"status": 200, "final_url": "http://t/robots.txt", '
+        '"body_md": "User-agent: *\\ndisallow:   /admin\\n'
+        'DISALLOW: /secret"}'
+    )
+    facts = extract_facts("web_fetch_smart http://t/robots.txt", sample)
+    assert "disallow:/admin" in facts.hints
+    assert "disallow:/secret" in facts.hints
+
+
+def test_web_fetch_smart_skips_allow_directives() -> None:
+    """Only ``Disallow:`` paths count — ``Allow:`` paths are
+    intentionally exposed by the operator and aren't the
+    high-signal hint we want."""
+    sample = (
+        '{"status": 200, "final_url": "http://t/robots.txt", '
+        '"body_md": "Allow: /public\\nDisallow: /admin"}'
+    )
+    facts = extract_facts("web_fetch_smart http://t/robots.txt", sample)
+    assert "disallow:/admin" in facts.hints
+    assert "disallow:/public" not in facts.hints
+    assert "allow:/public" not in facts.hints
+
+
+def test_web_fetch_smart_disallow_root_path_skipped() -> None:
+    """``Disallow: /`` blocks everything and isn't useful as a
+    gobuster target — skip it to avoid noise."""
+    sample = (
+        '{"status": 200, "final_url": "http://t/robots.txt", '
+        '"body_md": "Disallow: /\\nDisallow: /admin"}'
+    )
+    facts = extract_facts("web_fetch_smart http://t/robots.txt", sample)
+    assert "disallow:/admin" in facts.hints
+    assert "disallow:/" not in facts.hints
+
+
 def test_web_fetch_smart_picks_up_ctf_hints() -> None:
     """Pyrat-style: the body contains the hint that the model kept
     missing across the run. Surfacing it in the prompt should
