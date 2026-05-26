@@ -345,6 +345,54 @@ def test_anti_pattern_hints_dont_interfere_with_parser_output() -> None:
     assert any("objectClass filter" in h for h in facts.hints)
 
 
+def test_web_fetch_smart_detects_vhost_from_location_redirect() -> None:
+    """FASE 11.O.2 — when a 302 redirect's Location header points to
+    a hostname different from the host we requested, that hostname is
+    a virtual host. Capture it as a ``vhost:<hostname>`` hint so the
+    planner can emit a curl-with-Host-header directive.
+
+    Robots THM (2026-05-26) had every PHP endpoint redirecting to
+    ``Location: http://robots.thm/...`` even though we'd fetched
+    ``10.67.138.59``. Without the vhost hint the model fetched the
+    redirect target which returned 403; with the hint + Host header
+    the real PHP app surfaces."""
+    sample = (
+        '{"status": 302, "final_url": "http://10.67.138.59/login.php", '
+        '"headers": {"location": "http://robots.thm/login.php"}, '
+        '"body_md": ""}'
+    )
+    facts = extract_facts(
+        "web_fetch_smart http://10.67.138.59/login.php", sample,
+    )
+    assert "vhost:robots.thm" in facts.hints
+
+
+def test_web_fetch_smart_vhost_ignores_same_host_redirects() -> None:
+    """Internal redirects to the SAME hostname/IP are not vhosts —
+    those are just routing changes. The hint should ONLY fire when
+    the Location host differs from where we requested."""
+    sample = (
+        '{"status": 302, "final_url": "http://10.67.138.59/old", '
+        '"headers": {"location": "http://10.67.138.59/new"}}'
+    )
+    facts = extract_facts(
+        "web_fetch_smart http://10.67.138.59/old", sample,
+    )
+    assert not any(h.startswith("vhost:") for h in facts.hints)
+
+
+def test_web_fetch_smart_vhost_strips_port_from_hostname() -> None:
+    """``Location: http://robots.thm:80/x`` and
+    ``Location: http://robots.thm/x`` should produce the same vhost
+    hint — strip port for the Host header value."""
+    sample = (
+        '{"status": 302, "final_url": "http://10.67.138.59/x", '
+        '"headers": {"location": "http://robots.thm:80/x"}}'
+    )
+    facts = extract_facts("web_fetch_smart http://10.67.138.59/x", sample)
+    assert "vhost:robots.thm" in facts.hints
+
+
 def test_web_fetch_smart_parses_robots_disallow_paths() -> None:
     """FASE 11.K — when web_fetch_smart returns a robots.txt body
     with ``Disallow:`` directives, each path must surface as a

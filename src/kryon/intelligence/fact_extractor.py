@@ -47,6 +47,15 @@ _DISALLOW_PATH_RE = re.compile(
     r"disallow\s*:\s*(\S+?)(?=\\n|\n|\"|$)",
     re.IGNORECASE,
 )
+# FASE 11.O.2 — HTTP ``Location:`` header value. Used to detect
+# vhost redirects (302 to ``http://otherhost/...``). Captures the
+# host portion of the URL (group 1), strips port and path. Case-
+# insensitive header name; accepts JSON-encoded shapes too where
+# the value is wrapped in quotes.
+_LOCATION_HEADER_RE = re.compile(
+    r'"?location"?\s*:?\s*"?https?://([^/:"\s]+)',
+    re.IGNORECASE,
+)
 # CTF-style hint phrases that the model commonly misses in HTTP bodies
 # AND in tool output that signals what kind of service is listening.
 # Keep this list short and high-signal — every entry should be something
@@ -637,6 +646,32 @@ def _parse_web_fetch_smart(output: str) -> ExtractedFacts:
             if not path or path == "/":
                 continue
             hints.append(f"disallow:{path}")
+
+    # FASE 11.O.2 — virtual host detection from 302/301 redirects.
+    # When the server returns ``Location: http://OTHER_HOST/...`` for
+    # a request we sent to ``IP/path``, that OTHER_HOST is a virtual
+    # host the server expects in the ``Host:`` header. Robots THM
+    # bench (2026-05-26) had every PHP endpoint redirecting to
+    # ``http://robots.thm/...`` while a plain GET against the IP
+    # returned 403 — the vhost was the unlock.
+    #
+    # Strategy: scan ``Location`` headers in the JSON response. If
+    # the Location host is a non-IP hostname (``robots.thm``,
+    # ``intranet``, etc.) AND it differs from any host already in
+    # ``hosts`` (the IP we requested), emit ``vhost:HOST`` as a hint.
+    # IP-to-IP redirects are routing changes, not vhost signals.
+    for loc_match in _LOCATION_HEADER_RE.finditer(output):
+        loc_host = loc_match.group(1).lower()
+        if not loc_host:
+            continue
+        # Skip raw IP redirects — those are routing changes, not vhosts.
+        if re.fullmatch(r"\d{1,3}(?:\.\d{1,3}){3}", loc_host):
+            continue
+        # Skip if the Location host matches the host we already
+        # extracted from the request URL (same-host internal redirect).
+        if hosts and loc_host in (h.lower() for h in hosts):
+            continue
+        hints.append(f"vhost:{loc_host}")
 
     return ExtractedFacts(
         versions=_dedup_sorted_pairs(tuple(versions)),
