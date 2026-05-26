@@ -92,6 +92,91 @@ _DEFAULT_DEGEN_MIN_REPEATS = 4
 # before we emit a STALL block to the prompt.
 _DEFAULT_STALL_THRESHOLD = 3
 
+# FASE 8.B — operator-pair fallback. After this many CONSECUTIVE stall
+# events the runner abandons the agent loop and surfaces a structured
+# ``REQUEST_OPERATOR_INPUT`` summary so a human can take over via the
+# REPL. The threshold is intentionally low (2) because by the time
+# G7 fires once we already had three identical recommendations + no
+# facts progress — two firings in a row means we're genuinely stuck
+# and continuing wastes the run budget.
+_DEFAULT_OPERATOR_PAIR_STALL_TRIGGER = 2
+
+
+def _build_operator_input_request(
+    facts: ExtractedFacts,
+    next_action: NextActionRecommendation | None,
+    recent_tool_history: list[_ToolCallRecord],
+    turns_used: int,
+) -> str:
+    """FASE 8.B — render the ``REQUEST_OPERATOR_INPUT`` summary that
+    replaces the run's final answer when the runner detects the
+    agent is genuinely stuck (G7 stall fired ≥
+    _DEFAULT_OPERATOR_PAIR_STALL_TRIGGER chunks in a row).
+
+    The summary is markdown so the REPL can render it cleanly. It
+    surfaces:
+      - The planner's current directive (what the model SHOULD have
+        run but didn't)
+      - The ExtractedFacts snapshot (what we know so far)
+      - The last 5 tool invocations (where the model drifted)
+      - Concrete next-action suggestions the operator can copy
+
+    The operator can then run the suggested command manually via
+    the REPL or pivot to a different strategy.
+    """
+    parts: list[str] = [
+        "\n🚨 **REQUEST_OPERATOR_INPUT** — agent stuck, human needed.\n",
+        f"After {turns_used} turns the planner kept emitting the same "
+        "high-confidence directive but the model wouldn't follow it "
+        f"and ExtractedFacts didn't move for "
+        f"{_DEFAULT_OPERATOR_PAIR_STALL_TRIGGER} consecutive stall "
+        "windows. Continuing the autonomous loop wastes the budget. "
+        "Take over manually via the REPL.\n",
+    ]
+    if next_action is not None:
+        parts.append("\n## 🎯 Planner's last directive (run this if you agree)\n")
+        parts.append(f"**Tool**: ``{next_action.tool}``\n")
+        # Truncate args to keep the summary compact — full args are
+        # in the history anyway.
+        args_preview = next_action.args[:600]
+        if len(next_action.args) > 600:
+            args_preview += "..."
+        parts.append(f"**Invocation**:\n```\n{args_preview}\n```\n")
+        parts.append(f"**Rationale**: {next_action.rationale}\n")
+        parts.append(f"**Confidence**: {next_action.confidence:.2f}\n")
+    else:
+        parts.append(
+            "\n## 🎯 Planner has no recommendation for the current state\n\n"
+            "The chain of rules abstained on the current ExtractedFacts. "
+            "Either the target's class of exploit isn't covered by any "
+            "encoded rule, or the current intel is too sparse to "
+            "commit. Manual recon is the next move.\n"
+        )
+
+    if not facts.is_empty():
+        parts.append("\n## 📊 Facts known so far\n")
+        parts.append(facts.render_for_prompt())
+
+    if recent_tool_history:
+        parts.append("\n## 🔧 Last tool invocations (where the agent drifted)\n")
+        for r in recent_tool_history[-5:]:
+            preview = (r.args_preview or "")[:120]
+            parts.append(f"- ``{r.tool_name}``: ``{preview}``")
+
+    parts.append(
+        "\n\n## ▶️ Suggested manual moves\n"
+        "1. Run the planner directive above by hand and re-engage with "
+        "``kryon investigate --resume`` once new intel is in.\n"
+        "2. Open a shell into the container "
+        "(``docker exec -it kryon bash``) and probe the target "
+        "directly — the structured facts are ready for you to act on.\n"
+        "3. If the target's exploit class isn't in any encoded rule, "
+        "consider adding a new rule under "
+        "``kryon.intelligence.exploit_chain_planner`` (the next CTF "
+        "with this pattern will then plan automatically).\n"
+    )
+    return "\n".join(parts)
+
 
 def _facts_signature(facts: Any) -> str:
     """Compact signature of an ExtractedFacts snapshot used by the
@@ -688,6 +773,13 @@ async def run_with_reflection(
     # directive" from "model is making progress despite the repeat".
     recent_recs_window: deque = deque(maxlen=_DEFAULT_STALL_THRESHOLD)
     prev_facts_sig_for_stall: str = ""
+    # FASE 8.B — count consecutive stall events. When we've fired the
+    # stall block ``_DEFAULT_OPERATOR_PAIR_STALL_TRIGGER`` times in a
+    # row without facts moving, the runner abandons the loop and
+    # surfaces a REQUEST_OPERATOR_INPUT summary so a human takes over.
+    consecutive_stall_count: int = 0
+    operator_input_requested: bool = False
+    operator_input_summary: str = ""
 
     while turns_used < max_total_turns:
         chunk_size = min(reflect_every, max_total_turns - turns_used)
@@ -971,6 +1063,7 @@ async def run_with_reflection(
                 "G7 stall detected at turn %d: same recommendation %d "
                 "turns + no facts change", turns_used, _DEFAULT_STALL_THRESHOLD,
             )
+            consecutive_stall_count += 1
             if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in (
                 "1", "true", "yes"
             ):
@@ -978,16 +1071,58 @@ async def run_with_reflection(
                     f"\n🛑 [reflective-runner] STALL DETECTED at turn "
                     f"{turns_used} — recommendation repeated "
                     f"{_DEFAULT_STALL_THRESHOLD}x, facts sig stuck at "
-                    f"{prev_facts_sig_for_stall!r}"
+                    f"{prev_facts_sig_for_stall!r} "
+                    f"(consecutive_stalls={consecutive_stall_count}/"
+                    f"{_DEFAULT_OPERATOR_PAIR_STALL_TRIGGER})"
                 )
-            # After firing once, reset the window so we don't spam the
-            # warning every subsequent chunk while the operator decides.
+            # FASE 8.B — when consecutive stalls cross the operator-
+            # pair trigger, the autonomous loop genuinely can't make
+            # progress. Build a REQUEST_OPERATOR_INPUT summary and
+            # break the loop. The summary becomes the run's final
+            # answer (replacing whatever the agent was going to emit).
+            if consecutive_stall_count >= _DEFAULT_OPERATOR_PAIR_STALL_TRIGGER:
+                logger.warning(
+                    "FASE 8.B operator-pair fallback firing at turn %d "
+                    "after %d consecutive stalls — emitting "
+                    "REQUEST_OPERATOR_INPUT and breaking the loop",
+                    turns_used, consecutive_stall_count,
+                )
+                if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in (
+                    "1", "true", "yes"
+                ):
+                    print(
+                        f"\n🚨 [reflective-runner] OPERATOR-PAIR FALLBACK "
+                        f"at turn {turns_used} — REQUEST_OPERATOR_INPUT"
+                    )
+                try:
+                    operator_input_summary = _build_operator_input_request(
+                        accumulated_facts,
+                        next_action,
+                        tool_history,
+                        turns_used,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.debug(
+                        "operator-pair summary build failed: %s", e
+                    )
+                    operator_input_summary = (
+                        "REQUEST_OPERATOR_INPUT — agent stuck. "
+                        "Inspect ExtractedFacts + history manually."
+                    )
+                operator_input_requested = True
+                break
+            # After firing once (but below the operator trigger), reset
+            # the window so we don't spam the warning every subsequent
+            # chunk while the consecutive-stall counter accrues.
             recent_recs_window.clear()
             prev_facts_sig_for_stall = current_facts_sig
         elif current_facts_sig != prev_facts_sig_for_stall:
             # Facts moved → window is no longer interesting for stall
             # purposes. Reset baseline so a future repeat starts fresh.
+            # Also reset the consecutive-stall counter: progress
+            # means the operator-pair trigger should start over.
             prev_facts_sig_for_stall = current_facts_sig
+            consecutive_stall_count = 0
 
         if degen_pattern:
             logger.warning(
@@ -1043,6 +1178,18 @@ async def run_with_reflection(
             last_result._captured_chain = capture_hooks.to_chain()  # type: ignore[attr-defined]
         except (AttributeError, Exception):  # noqa: BLE001
             pass
+        # FASE 8.B — when the operator-pair fallback fired we replace
+        # the run's final_output with the structured REQUEST_OPERATOR_
+        # INPUT summary so downstream (kryon investigate's final
+        # reporter) surfaces it instead of whatever partial state the
+        # agent left behind. The summary is markdown ready for the
+        # REPL to render.
+        if operator_input_requested:
+            try:
+                last_result.final_output = operator_input_summary  # type: ignore[attr-defined]
+                last_result._operator_input_requested = True  # type: ignore[attr-defined]
+            except (AttributeError, Exception):  # noqa: BLE001
+                pass
     # FASE 6 — release the planner ContextVar on the
     # max-total-turns exit path too. Mirrors the early-return branch.
     try:
@@ -1066,4 +1213,5 @@ __all__ = [
     "_facts_signature",
     "_recommendation_signature",
     "_is_stall",
+    "_build_operator_input_request",
 ]

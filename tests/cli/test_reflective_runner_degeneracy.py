@@ -23,6 +23,7 @@ from __future__ import annotations
 from collections import deque
 
 from kryon.cli.reflective_runner import (
+    _build_operator_input_request,
     _build_reflection_prompt,
     _chunk_text_from_capture,
     _detect_intra_turn_degeneracy,
@@ -31,6 +32,7 @@ from kryon.cli.reflective_runner import (
     _facts_signature,
     _is_stall,
     _recommendation_signature,
+    _ToolCallRecord,
 )
 from kryon.intelligence.fact_extractor import ExtractedFacts
 
@@ -714,6 +716,105 @@ def test_reflection_prompt_templates_block_appears_below_next_action() -> None:
     rec_idx = prompt.index("Next action recommendation")
     templates_idx = prompt.index("Canonical tool invocations")
     assert rec_idx < templates_idx
+
+
+# ---------------------------------------------------------------------------
+# FASE 8.B — operator-pair REQUEST_OPERATOR_INPUT summary
+# ---------------------------------------------------------------------------
+
+
+def test_operator_input_summary_includes_planner_directive_when_present() -> None:
+    """When the planner has a recommendation, the summary surfaces
+    the exact tool + args + rationale + confidence so the operator
+    can decide whether to run it manually."""
+    from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
+
+    rec = NextActionRecommendation(
+        tool="run_command",
+        args="echo 'print(\"kryon-probe\")' | nc -q 1 -w 5 target 8000",
+        rationale="confirm Python REPL exec()",
+        confidence=0.92,
+    )
+    summary = _build_operator_input_request(
+        ExtractedFacts(hints=("invalid syntax",)),
+        rec,
+        [],
+        turns_used=12,
+    )
+    assert "REQUEST_OPERATOR_INPUT" in summary
+    assert "run_command" in summary
+    assert "kryon-probe" in summary
+    assert "confirm Python REPL exec()" in summary
+    assert "0.92" in summary
+    assert "12 turns" in summary
+
+
+def test_operator_input_summary_handles_no_planner_directive() -> None:
+    """When the planner emitted no recommendation, the summary explains
+    that explicitly (instead of crashing or rendering an empty box)."""
+    summary = _build_operator_input_request(
+        ExtractedFacts(),
+        None,
+        [],
+        turns_used=8,
+    )
+    assert "REQUEST_OPERATOR_INPUT" in summary
+    assert "no recommendation" in summary.lower()
+    assert "Manual recon" in summary
+
+
+def test_operator_input_summary_includes_facts_block_when_present() -> None:
+    """ExtractedFacts contents render so the operator inherits the
+    structured intel the agent collected before getting stuck."""
+    facts = ExtractedFacts(
+        users=("alice", "bob"),
+        domains=("thm.local",),
+        hints=("invalid syntax",),
+    )
+    summary = _build_operator_input_request(facts, None, [], turns_used=6)
+    assert "Facts known so far" in summary
+    assert "alice, bob" in summary
+    assert "thm.local" in summary
+
+
+def test_operator_input_summary_includes_last_tool_invocations() -> None:
+    """The summary shows the last 5 tool calls so the operator sees
+    WHERE the agent drifted (matters when triaging novel failures)."""
+    history = [
+        _ToolCallRecord(
+            tool_name="run_command",
+            args_hash="abc",
+            args_preview=f"nc -q 1 -w 5 target {p}",
+        )
+        for p in range(8000, 8008)
+    ]
+    summary = _build_operator_input_request(
+        ExtractedFacts(),
+        None,
+        history,
+        turns_used=20,
+    )
+    # Only the LAST 5 should be rendered (8000-8002 cropped, 8003-8007
+    # kept).
+    assert "8007" in summary
+    assert "8003" in summary
+    assert "8000" not in summary  # cropped
+
+
+def test_operator_input_summary_lists_concrete_next_moves() -> None:
+    """The closing 'Suggested manual moves' section must list at least
+    three concrete options (run-by-hand, docker shell, encode-new-rule).
+    Downstream documentation greps for those headings."""
+    summary = _build_operator_input_request(
+        ExtractedFacts(),
+        None,
+        [],
+        turns_used=5,
+    )
+    assert "Suggested manual moves" in summary
+    assert "kryon investigate --resume" in summary
+    assert "docker exec" in summary
+    assert "exploit_chain_planner" in summary
 
 
 def test_reflection_prompt_substitutes_target_host_from_facts() -> None:

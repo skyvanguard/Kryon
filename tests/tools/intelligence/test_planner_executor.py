@@ -140,7 +140,7 @@ async def test_high_confidence_recommendation_executes_via_subprocess(
 
     fn = _raw_fn(execute_planner_directive)
     out = await fn()
-    assert "# PLANNER EXECUTED:" in out
+    assert "PLANNER EXECUTED SUCCESSFULLY" in out
     assert "OK — connected and closed" in out
     # The host substitution must have replaced ``<target>`` with the
     # value from ExtractedFacts.hosts.
@@ -251,5 +251,5 @@ async def test_lower_floor_argument_allows_softer_recommendations(
     set_current_state(ExtractedFacts(hosts=("1.2.3.4",)), ())
     fn = _raw_fn(execute_planner_directive)
     out = await fn(confidence_floor=0.5)
-    assert "# PLANNER EXECUTED:" in out
+    assert "PLANNER EXECUTED SUCCESSFULLY" in out
     assert "executed" in out

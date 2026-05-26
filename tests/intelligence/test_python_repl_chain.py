@@ -255,6 +255,46 @@ def test_explore_lateral_skips_when_not_low_priv() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_f7_confirm_wins_over_f3_netcat_when_python_signal_present() -> None:
+    """FASE 8.A precedence: when both ``"basic connection"`` AND a
+    Python REPL signal (``"invalid syntax"`` / NameError) are in
+    hints, the F7 ``_rule_confirm_python_repl_with_print`` MUST fire
+    instead of the F3 ``_rule_netcat_raw_on_basic_connection_hint``.
+
+    This was the blocker in Pyrat run #15c: the F3 rule burned the
+    recommendation slot first, leaving the F7 incremental chain
+    unreachable across the rest of the run.
+    """
+    facts = ExtractedFacts(
+        hints=("try a more basic connection", "invalid syntax"),
+        services=((8000, "http-alt"),),
+    )
+    rec = plan_next_action(facts, [], "")
+    assert rec is not None
+    # F7 emits the ``python_repl_confirm`` marker comment + the
+    # ``kryon-probe`` token. F3 would emit a bare ``echo 'help' | nc``.
+    assert "python_repl_confirm" in rec.args
+    assert "kryon-probe" in rec.args
+    # And NOT the F3 payload.
+    assert "echo -e 'help" not in rec.args
+
+
+def test_f3_netcat_still_fires_without_python_signal() -> None:
+    """Negative control: when ONLY the ``basic connection`` hint is
+    present (no Python REPL signal), F3 should still fire. We don't
+    want the abstention to over-trigger."""
+    facts = ExtractedFacts(
+        hints=("try a more basic connection",),
+        services=((8000, "http-alt"),),
+    )
+    rec = plan_next_action(facts, [], "")
+    assert rec is not None
+    # F3 emits the bare ``echo 'help' | nc`` probe.
+    assert "echo -e 'help" in rec.args
+    # NOT the F7 chain marker.
+    assert "python_repl_confirm" not in rec.args
+
+
 def test_chain_advances_stage_by_stage() -> None:
     """Walk the chain forward across simulated reflection turns and
     confirm each new bit of prior_args / facts advances the planner
