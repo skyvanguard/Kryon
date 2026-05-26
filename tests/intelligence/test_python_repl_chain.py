@@ -112,17 +112,27 @@ def test_introspect_fires_after_repl_confirmed_and_perm_denied() -> None:
     assert "__main__" in rec.args
 
 
-def test_introspect_skips_without_perm_denied_signal() -> None:
-    """If we can read the script file directly, no need for the
-    in-memory module dump."""
+def test_introspect_fires_after_repl_confirmation() -> None:
+    """FASE 11.I — relaxed precondition. Pyrat bench (2026-05-26)
+    showed the original ``permission_denied`` requirement blocked the
+    chain: the model rarely emits a ``cat /script.py`` probe between
+    REPL confirmation and introspection, so the rule never advanced
+    and the planner kept emitting the same ``kryon-probe`` directive.
+
+    New behavior: introspection fires as soon as the REPL is confirmed
+    (kryon-probe in prior_args). ``sys.modules['__main__']`` is
+    informative regardless of file permissions — it exposes the
+    loaded module's globals directly.
+    """
     facts = ExtractedFacts(
         hints=("is not defined",),
         services=((8000, "http-alt"),),
     )
-    prior = ["echo 'print(\"kryon-probe\")' | nc -q 1 -w 5 target 8000"]
+    prior = ['printf \'print("kryon-probe")\\n\' | nc -w 5 target 8000']
     rec = plan_next_action(facts, prior, "")
-    # Permission-denied signal missing → introspection abstains.
-    assert rec is None or "python_repl_introspect" not in rec.args
+    assert rec is not None
+    assert "python_repl_introspect" in rec.args
+    assert "sys.modules" in rec.args
 
 
 def test_introspect_skips_when_already_invoked() -> None:
