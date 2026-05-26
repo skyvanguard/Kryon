@@ -43,8 +43,23 @@ _FQDN_RE = re.compile(r"\b[a-zA-Z][a-zA-Z0-9-]*(?:\.[a-zA-Z][a-zA-Z0-9-]*){1,}\b
 # whitespace. Captures the path (group 1). Stops at newline / ``\n`` /
 # end-of-string so multi-directive blocks tokenize cleanly. ``\\n`` is
 # captured too because web_fetch_smart returns the body JSON-escaped.
+#
+# FASE 11.O.4 — flexible separator between ``Disallow:`` and the path.
+# The display renderer in the reflective runner wraps tool output with
+# border chars (``│``) when the line gets too long, which splits the
+# string ``Disallow: /harming/humans`` across two visual lines:
+#   ``│ "body_text": "Disallow:   │``
+#   ``│ /harming/humans\nDisallow: /ignoring/human/orders\n..."} │``
+# The first ``/harming/humans`` then loses its ``Disallow:`` prefix on
+# the same line. The fix: allow ANY non-path characters (border chars,
+# spaces, newlines) between the ``Disallow:`` keyword and the path's
+# leading slash. ``\S+?`` keeps the path itself slash-anchored.
 _DISALLOW_PATH_RE = re.compile(
-    r"disallow\s*:\s*(\S+?)(?=\\n|\n|\"|$)",
+    # Path chars: anything except whitespace, backslash (excludes the
+    # ``\n`` escape in JSON-encoded bodies), and quote (excludes the
+    # JSON string terminator). Without these exclusions the regex
+    # greedily ate ``/\nDisallow:`` as one capture.
+    r"disallow\s*:[\s│|]*(/[^\s\\\"]+)",
     re.IGNORECASE,
 )
 # FASE 11.O.2 — HTTP ``Location:`` header value. Used to detect
