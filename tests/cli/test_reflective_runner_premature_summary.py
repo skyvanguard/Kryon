@@ -224,6 +224,26 @@ def test_has_foothold_admin_in_windows_prompt() -> None:
     assert _has_foothold(facts) is True
 
 
+def test_has_foothold_kryon_probe_echo_marker() -> None:
+    """FASE 11.J — when the planner's foothold-confirm directive
+    succeeds, the server echoes ``kryon-probe`` back through the
+    socket. That IS foothold (remote end executes our code) — same
+    class of control as a shell prompt. Pyrat bench 7 (2026-05-26)
+    proved the model goes on to invoke ``os.system("id")`` over the
+    same socket immediately after."""
+    facts = ExtractedFacts(hints=("kryon-probe",))
+    assert _has_foothold(facts) is True
+
+
+def test_has_foothold_kryon_probe_in_longer_hint() -> None:
+    """The marker must be detected even when wrapped in surrounding
+    text from the model's narration."""
+    facts = ExtractedFacts(
+        hints=("the server echoed kryon-probe back, confirming repl",),
+    )
+    assert _has_foothold(facts) is True
+
+
 def test_no_foothold_when_only_users_known() -> None:
     """Knowing usernames is recon, not foothold."""
     facts = ExtractedFacts(users=("alice", "bob"))

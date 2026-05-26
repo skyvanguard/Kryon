@@ -23,7 +23,7 @@ Banca-safe: pure functions, no I/O, no network, no LLM calls.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable
 
 # Krb5 ticket/AS-REP signatures (impacket and standalone). The character
@@ -77,6 +77,14 @@ _CTF_HINT_PHRASES = (
     # the planner suggest indirect-read paths (introspection, /proc
     # tricks, world-readable backup copies).
     "[errno 13] permission denied",
+    # FASE 11.J — REPL echo marker. When the planner's foothold-confirm
+    # directive ``printf 'print("kryon-probe")\n' | nc ...`` succeeds,
+    # the remote eval()/exec() echoes ``kryon-probe`` back to the
+    # socket. Capturing this as a hint lets ``_has_foothold`` in the
+    # reflective runner recognise we already cracked past recon, so
+    # downstream gates (premature-summary detector + final rejection)
+    # stop firing on legitimate summaries that follow the RCE chain.
+    "kryon-probe",
 )
 
 
@@ -103,7 +111,7 @@ class ExtractedFacts:
     versions: tuple[tuple[str, str], ...] = ()
     hints: tuple[str, ...] = ()
 
-    def merge(self, other: "ExtractedFacts") -> "ExtractedFacts":
+    def merge(self, other: ExtractedFacts) -> ExtractedFacts:
         """Return a new ExtractedFacts combining both, deduped + sorted.
 
         Sorting gives stable diffing in tests and a predictable
@@ -198,7 +206,7 @@ EMPTY = ExtractedFacts()
 # matches against the tool invocation string. Keep predicates tight so
 # legitimate variants (e.g. ``nc -l -q 1 …`` server-side) don't trip
 # the no-q-flag rule.
-_INVOCATION_ANTI_PATTERNS: tuple[tuple[str, "re.Pattern[str]", str], ...] = (
+_INVOCATION_ANTI_PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "nc-no-timeout-flags",
         re.compile(

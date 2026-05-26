@@ -244,6 +244,18 @@ _FOOTHOLD_HINT_REGEXES = (
     re.compile(r"\b(?:root|admin|administrator|www-data|nobody)@"),
     # Windows shell prompt.
     re.compile(r"[A-Z]:\\(?:Windows|Users|Program Files)", re.IGNORECASE),
+    # FASE 11.J — Python REPL echo evidence. When the planner directive
+    # ``printf 'print("kryon-probe")\n' | nc ...`` succeeds, the server
+    # writes ``kryon-probe`` back to the socket. That IS foothold (the
+    # remote end is executing arbitrary code we send) — same class of
+    # control as a shell prompt. Pyrat bench 7 (2026-05-26) proved the
+    # detector was treating this as "no foothold" because no shell
+    # prompt landed, but the model had already gone on to invoke
+    # ``os.system("id")`` over the same socket. Marker the REPL echo
+    # so downstream gates (premature-summary, final rejection) treat
+    # this as real foothold and don't fire on legitimate summaries
+    # that follow the RCE chain.
+    re.compile(r"\bkryon-probe\b"),
 )
 
 
