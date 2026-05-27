@@ -175,3 +175,54 @@ def test_run_includes_robots_txt_body_inline_when_present(robots_server) -> None
     out = run({"target": f"http://127.0.0.1:{robots_server}"})
     # The body block should be present (we render robots.txt fully).
     assert "User-agent:" in out
+
+
+# ---------------------------------------------------------------------------
+# FASE 11.T.2 — prominent action items for disallow paths
+# ---------------------------------------------------------------------------
+#
+# Bench Robots run #1 with FASE 11.T showed the model receiving the
+# pre_hook output and DESPITE seeing the disallow paths, narrating
+# "web_common_paths didn't return anything" and skipping straight to
+# whatweb. The fix is to make the disallow paths IMPOSSIBLE to ignore:
+# explicit imperative + action items + 🚨 markers at the top.
+
+
+def test_run_surfaces_disallow_paths_as_explicit_action_items(robots_server) -> None:
+    """When /robots.txt yields Disallow entries, the output must list
+    them as concrete `curl <target><path>` action items near the top —
+    not just inline inside the body block. The model's reasoning loop
+    needs to see CONCRETE NEXT MOVES, not just data."""
+    out = run({"target": f"http://127.0.0.1:{robots_server}"})
+    # KEY FINDING header for disallow paths.
+    assert "KEY FINDING" in out
+    # Each disallow path appears as a concrete action item.
+    target_url = f"http://127.0.0.1:{robots_server}"
+    assert f"{target_url}/post/" in out
+    assert f"{target_url}/harm/to/self/" in out
+    assert f"{target_url}/admin/" in out
+    # Imperative directive present.
+    assert "ACCIÓN OBLIGATORIA" in out or "curl" in out
+
+
+def test_run_disallow_action_items_appear_before_404_noise(robots_server) -> None:
+    """The KEY FINDING block must come BEFORE the non-existent 404
+    list — model reads top-down and the 404 noise was burying the
+    actionable signal."""
+    out = run({"target": f"http://127.0.0.1:{robots_server}"})
+    key_idx = out.find("KEY FINDING")
+    nonex_idx = out.find("Non-existent")
+    if nonex_idx != -1:
+        assert key_idx != -1
+        assert key_idx < nonex_idx, "KEY FINDING block must precede 404 noise"
+
+
+def test_run_no_disallow_section_when_robots_txt_missing() -> None:
+    """If /robots.txt isn't served (404 / error / no disallow entries),
+    we MUST NOT emit a misleading KEY FINDING header. The block is
+    conditional on actual disallow content."""
+    # Use an unreachable target so no probe succeeds.
+    out = run({"target": "http://10.255.255.1"})
+    assert "KEY FINDING" not in out, (
+        "should not claim disallow finding when /robots.txt absent"
+    )

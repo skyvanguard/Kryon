@@ -54,9 +54,13 @@ _COMMON_PATHS: tuple[str, ...] = (
     "/wp-login.php",
 )
 
-_PER_PATH_TIMEOUT_S = 4.0
+_PER_PATH_TIMEOUT_S = 6.0
 _MAX_BODY_PREVIEW = 800  # chars per path
-_WALL_CLOCK_S = 22.0
+# FASE 11.T.2 — bumped from 22s to 45s. Bench Robots showed the
+# helper getting partial results (110 chars instead of 404) when
+# nuclei was running concurrently in the same engagement; the
+# wall-clock budget cut off ~half the probes. 45s leaves margin.
+_WALL_CLOCK_S = 45.0
 _ROBOTS_BODY_MAX_LINES = 30
 
 
@@ -149,22 +153,59 @@ def run(ctx: dict[str, Any]) -> str:
     nonexistent = [r for r in results if r[1] == 404]
     errored = [r for r in results if r[1] == -1]
 
-    lines: list[str] = [f"# Web common paths probe — {target}"]
+    lines: list[str] = [f"# 🎯 DETERMINISTIC RECON — Web common paths against {target}"]
 
     if not interesting:
         lines.append(
-            f"No interesting paths discovered "
-            f"(404: {len(nonexistent)}, errored: {len(errored)} of {len(_COMMON_PATHS)} probed)."
+            f"\nAll {len(_COMMON_PATHS)} probed paths returned 404 or errored."
+            f" The target may be locked down or behind WAF/auth. "
+            f"(404: {len(nonexistent)}, errored: {len(errored)})."
         )
         return "\n".join(lines)
+
+    # Extract any /robots.txt disallow entries up-front so the model
+    # sees them in the first 3 lines (FASE 11.T.2 — Bench Robots
+    # showed qwen3-8b ignoring buried content). Disallow paths are
+    # the highest-value finding this probe can produce.
+    robots_disallow_paths: list[str] = []
+    for path, status, _, body in interesting:
+        if path == "/robots.txt" and status == 200 and body:
+            for body_line in body.splitlines():
+                stripped = body_line.strip()
+                if stripped.lower().startswith("disallow:"):
+                    value = stripped.split(":", 1)[1].strip()
+                    if value:
+                        robots_disallow_paths.append(value)
+            break
+
+    if robots_disallow_paths:
+        lines.append("")
+        lines.append("## 🚨 KEY FINDING — /robots.txt exposes Disallow paths")
+        lines.append("")
+        lines.append(
+            "**These paths are intentionally hidden from crawlers but "
+            "publicly accessible. They are the FIRST place to investigate "
+            "on a recon CTF / web pentest.**"
+        )
+        lines.append("")
+        for path in robots_disallow_paths:
+            lines.append(f"- `{target}{path}` ← investigate with curl / gobuster")
+        lines.append("")
+        lines.append(
+            "**ACCIÓN OBLIGATORIA**: emití un `run_command curl` "
+            "contra CADA Disallow path antes de cerrar este turn. "
+            "Si alguno retorna 200 con HTML, enumerá su contenido "
+            "con `gobuster dir -u {target}<path> -w common.txt -x php,html,txt`."
+        )
+        lines.append("")
 
     lines.append(f"## Interesting paths ({len(interesting)})")
     for path, status, size, body in interesting:
         lines.append(f"- [{status}] {path}  ({size} bytes)")
         if path == "/robots.txt" and body and body.strip():
-            # Always inline /robots.txt — the disallow paths are the
-            # entire point of this probe, and the fact_extractor
-            # downstream depends on the literal ``Disallow:`` lines.
+            # Inline /robots.txt full body — the fact_extractor's
+            # _DISALLOW_PATH_RE picks up these literal lines downstream
+            # to populate facts.disallow_paths for the planner rules.
             lines.append("  ```")
             for body_line in body.splitlines()[:_ROBOTS_BODY_MAX_LINES]:
                 lines.append(f"  {body_line}")
