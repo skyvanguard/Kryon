@@ -20,10 +20,16 @@ read-only accessors.
 
 from __future__ import annotations
 
+import logging
+import os
 from contextvars import ContextVar
 from dataclasses import dataclass
 
 from kryon.intelligence.fact_extractor import EMPTY, ExtractedFacts
+
+logger = logging.getLogger(__name__)
+
+_DEFAULT_DIRECTIVE_CONFIDENCE_THRESHOLD = 0.92
 
 
 @dataclass(frozen=True)
@@ -182,6 +188,73 @@ def init_planner_subcall_log() -> None:
     _subcall_log.set([])
 
 
+# FASE 11.Q — high-confidence directive detection for SDK-level
+# ``tool_choice="required"`` forcing. Resolves the sampling-variance
+# bottleneck where qwen3-8b-active emits the directive's narrated tool
+# call only ~30% of runs even when the OPERATOR DIRECTIVE block is in
+# the reflection turn. Forcing ``tool_choice="required"`` for that
+# specific model call closes the gap.
+#
+# Banca-safe: read-only inspection of the per-task state. Returns False
+# when no reflective run is in flight, when no rule fires, or when the
+# confidence is below threshold. Wrapped in a try/except so a planner
+# rule bug never bubbles up into the SDK call path.
+
+
+def has_high_confidence_directive(threshold: float | None = None) -> bool:
+    """Return True when the planner would emit a directive with
+    confidence ≥ ``threshold`` against the current per-task state.
+
+    Used by the SDK to decide whether to force ``tool_choice="required"``
+    for the next model call so the model can't sample-its-way out of
+    invoking ``execute_planner_directive``.
+
+    Args:
+        threshold: minimum confidence to count as "high". Defaults to
+            ``KRYON_PLANNER_DIRECTIVE_THRESHOLD`` env (parsed as float),
+            falling back to 0.92 — the same cutoff
+            ``render_for_prompt`` uses to escalate the prompt block.
+
+    Returns False when:
+      - no reflective run is in flight (state is None);
+      - the planner returns None (no rule fires);
+      - the rec's confidence is below threshold;
+      - any exception bubbles up from rule evaluation (logged at debug).
+    """
+    if threshold is None:
+        env_value = os.environ.get("KRYON_PLANNER_DIRECTIVE_THRESHOLD")
+        if env_value:
+            try:
+                threshold = float(env_value)
+            except ValueError:
+                threshold = _DEFAULT_DIRECTIVE_CONFIDENCE_THRESHOLD
+        else:
+            threshold = _DEFAULT_DIRECTIVE_CONFIDENCE_THRESHOLD
+
+    state = _current_state.get()
+    if state is None:
+        return False
+
+    # Import inside the function to avoid a circular import at module
+    # load (planner_runtime is imported by the SDK, and the SDK is
+    # imported by the planner module's distillation loader path).
+    try:
+        from kryon.intelligence.exploit_chain_planner import plan_next_action
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("exploit_chain_planner unavailable: %s", exc)
+        return False
+
+    try:
+        rec = plan_next_action(state.facts, list(state.prior_tool_args))
+    except Exception as exc:  # noqa: BLE001 — never propagate to SDK
+        logger.debug("plan_next_action raised in directive probe: %s", exc)
+        return False
+
+    if rec is None:
+        return False
+    return rec.confidence >= threshold
+
+
 __all__ = [
     "PlannerRuntimeState",
     "set_current_state",
@@ -191,4 +264,5 @@ __all__ = [
     "record_planner_subcall",
     "drain_planner_subcalls",
     "init_planner_subcall_log",
+    "has_high_confidence_directive",
 ]

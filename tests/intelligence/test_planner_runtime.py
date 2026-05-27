@@ -166,3 +166,204 @@ def test_record_handles_empty_args_string() -> None:
     record_planner_subcall("")
     record_planner_subcall("   ")
     assert drain_planner_subcalls() == []
+
+
+# ---------------------------------------------------------------------------
+# FASE 11.Q — high-confidence directive probe for SDK tool_choice forcing
+# ---------------------------------------------------------------------------
+#
+# ``has_high_confidence_directive`` is the seam the SDK uses to decide
+# whether to upgrade ``tool_choice`` to ``"required"`` for the next
+# model call. The invariants matter because the SDK calls it on every
+# turn — a single misbehavior (raising, mutating state, returning True
+# when there's no run) would either break the chunked loop or force
+# tool calls when there's nothing to plan against.
+
+
+def test_has_high_conf_directive_returns_false_when_no_run_in_flight(
+    monkeypatch,
+) -> None:
+    """No reflective run → no state → no directive. Hard-rule: never
+    force tool_choice when the SDK is being driven by code that didn't
+    register a run (e.g. unit tests, dashboard call paths)."""
+    from kryon.intelligence.planner_runtime import has_high_confidence_directive
+
+    clear_current_state()
+    assert has_high_confidence_directive() is False
+
+
+def test_has_high_conf_directive_returns_false_when_planner_emits_none(
+    monkeypatch,
+) -> None:
+    """State exists but no rule fires (empty facts) → planner returns
+    None → False."""
+    from kryon.intelligence.planner_runtime import has_high_confidence_directive
+
+    set_current_state(EMPTY, ())
+    try:
+        assert has_high_confidence_directive() is False
+    finally:
+        clear_current_state()
+
+
+def test_has_high_conf_directive_true_when_rec_above_threshold(
+    monkeypatch,
+) -> None:
+    """When ``plan_next_action`` returns a rec with confidence above
+    the threshold, the probe says True."""
+    from kryon.intelligence import planner_runtime as pr
+    from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
+
+    fake_rec = NextActionRecommendation(
+        tool="run_command",
+        args="curl http://target",
+        rationale="test",
+        confidence=0.95,
+    )
+
+    def _fake_plan(*_args, **_kwargs):
+        return fake_rec
+
+    monkeypatch.setattr(
+        "kryon.intelligence.exploit_chain_planner.plan_next_action",
+        _fake_plan,
+    )
+
+    set_current_state(EMPTY, ("nmap -sV 10.0.0.1",))
+    try:
+        assert pr.has_high_confidence_directive() is True
+    finally:
+        clear_current_state()
+
+
+def test_has_high_conf_directive_false_when_rec_below_threshold(
+    monkeypatch,
+) -> None:
+    """A rec at 0.80 (default rule confidence) must NOT trigger the
+    SDK forcing. Only ≥ 0.92 directives — the same cutoff
+    ``render_for_prompt`` uses for the imperative OPERATOR DIRECTIVE
+    phrasing."""
+    from kryon.intelligence import planner_runtime as pr
+    from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
+
+    low_rec = NextActionRecommendation(
+        tool="run_command",
+        args="curl http://target",
+        rationale="test",
+        confidence=0.80,
+    )
+
+    monkeypatch.setattr(
+        "kryon.intelligence.exploit_chain_planner.plan_next_action",
+        lambda *_a, **_k: low_rec,
+    )
+
+    set_current_state(EMPTY, ("nmap -sV 10.0.0.1",))
+    try:
+        assert pr.has_high_confidence_directive() is False
+    finally:
+        clear_current_state()
+
+
+def test_has_high_conf_directive_honors_env_threshold(monkeypatch) -> None:
+    """Operator can lower the cutoff via env (active pentest profile
+    where confidence-0.85 directives still beat the model's free
+    sampling). Default stays 0.92 for banca-safe."""
+    from kryon.intelligence import planner_runtime as pr
+    from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
+
+    mid_rec = NextActionRecommendation(
+        tool="run_command",
+        args="curl http://target",
+        rationale="test",
+        confidence=0.85,
+    )
+
+    monkeypatch.setattr(
+        "kryon.intelligence.exploit_chain_planner.plan_next_action",
+        lambda *_a, **_k: mid_rec,
+    )
+
+    set_current_state(EMPTY, ())
+    monkeypatch.setenv("KRYON_PLANNER_DIRECTIVE_THRESHOLD", "0.80")
+    try:
+        assert pr.has_high_confidence_directive() is True
+    finally:
+        clear_current_state()
+
+
+def test_has_high_conf_directive_explicit_threshold_overrides_env(
+    monkeypatch,
+) -> None:
+    """The ``threshold`` argument always wins over env — useful for
+    SDK call paths that want a stricter local cutoff."""
+    from kryon.intelligence import planner_runtime as pr
+    from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
+
+    rec = NextActionRecommendation(
+        tool="run_command",
+        args="curl http://target",
+        rationale="test",
+        confidence=0.85,
+    )
+
+    monkeypatch.setattr(
+        "kryon.intelligence.exploit_chain_planner.plan_next_action",
+        lambda *_a, **_k: rec,
+    )
+
+    set_current_state(EMPTY, ())
+    monkeypatch.setenv("KRYON_PLANNER_DIRECTIVE_THRESHOLD", "0.50")
+    try:
+        # Explicit threshold of 0.90 trumps env 0.50 — 0.85 < 0.90 → False
+        assert pr.has_high_confidence_directive(threshold=0.90) is False
+    finally:
+        clear_current_state()
+
+
+def test_has_high_conf_directive_returns_false_when_planner_raises(
+    monkeypatch,
+) -> None:
+    """A planner-rule crash must NOT bubble into the SDK call path.
+    Return False, log at debug — the SDK falls through to its normal
+    tool_choice handling."""
+    from kryon.intelligence import planner_runtime as pr
+
+    def _boom(*_a, **_k):
+        raise RuntimeError("simulated rule crash")
+
+    monkeypatch.setattr(
+        "kryon.intelligence.exploit_chain_planner.plan_next_action",
+        _boom,
+    )
+
+    set_current_state(EMPTY, ())
+    try:
+        assert pr.has_high_confidence_directive() is False
+    finally:
+        clear_current_state()
+
+
+def test_has_high_conf_directive_handles_invalid_env_threshold(
+    monkeypatch,
+) -> None:
+    """Garbled env value (e.g. ``foo``) must fall back to the 0.92
+    default, not crash. Operator misconfiguration shouldn't break the
+    SDK loop."""
+    from kryon.intelligence import planner_runtime as pr
+    from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
+
+    rec_above = NextActionRecommendation(
+        tool="run_command", args="x", rationale="t", confidence=0.95
+    )
+    monkeypatch.setattr(
+        "kryon.intelligence.exploit_chain_planner.plan_next_action",
+        lambda *_a, **_k: rec_above,
+    )
+    set_current_state(EMPTY, ())
+    monkeypatch.setenv("KRYON_PLANNER_DIRECTIVE_THRESHOLD", "not-a-float")
+    try:
+        # 0.95 ≥ 0.92 default → True even though env is garbled
+        assert pr.has_high_confidence_directive() is True
+    finally:
+        clear_current_state()

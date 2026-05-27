@@ -341,6 +341,51 @@ def _should_reset_counter_for_user(content: Any) -> bool:
     return not any(stripped.startswith(p) for p in _SYNTHETIC_USER_PREFIXES)
 
 
+_DIRECTIVE_FORCE_TRUTHY = {"1", "true", "yes", "on"}
+
+
+def _should_force_directive_tool_choice(
+    has_tools: bool, effective_tool_choice: Any
+) -> bool:
+    """FASE 11.Q — decide whether the next model call should be upgraded
+    to ``tool_choice="required"`` because the planner has a
+    high-confidence directive ready.
+
+    Pure decision helper so the SDK call site stays a single ``if`` and
+    the branch is unit-testable without touching the real Ollama path.
+
+    Returns True only when ALL hold:
+      * the request actually has tools (otherwise ``required`` is invalid);
+      * the effective choice isn't already ``"required"`` (no-op);
+      * ``KRYON_FORCE_DIRECTIVE_TOOL_CHOICE`` env is truthy (default off
+        for banca-safe compliance audits);
+      * ``has_high_confidence_directive()`` reports a rec ≥ threshold.
+
+    The probe import is local to keep planner_runtime out of the SDK's
+    module-load graph (avoids a circular at install time). Any
+    exception in the probe is swallowed at debug — the SDK loop must
+    never be broken by a planner glitch.
+    """
+    if not has_tools:
+        return False
+    if effective_tool_choice == "required":
+        return False
+    env_value = os.environ.get("KRYON_FORCE_DIRECTIVE_TOOL_CHOICE", "false")
+    if env_value.lower() not in _DIRECTIVE_FORCE_TRUTHY:
+        return False
+    try:
+        from kryon.intelligence.planner_runtime import (
+            has_high_confidence_directive,
+        )
+
+        return bool(has_high_confidence_directive())
+    except Exception as exc:  # noqa: BLE001 — never break SDK loop
+        logger.debug(
+            "FASE 11.Q directive probe failed; falling back: %s", exc
+        )
+        return False
+
+
 # Global registry to track active model instances
 # This allows us to access instance-based histories for commands like /history
 import contextvars
@@ -3838,6 +3883,19 @@ class OpenAIChatCompletionsModel(Model):
         # and exhausted after ~8 calls, leaving later turns unforced).
         _force_tool_turns = int(os.environ.get("KRYON_FORCE_TOOL_TURNS", "8"))
         if has_tools and self._turn_llm_calls <= _force_tool_turns:
+            effective_tool_choice = "required"
+        # FASE 11.Q — even after the per-turn budget runs out, the
+        # planner may still surface a high-confidence directive (≥0.92)
+        # in the reflection block. The Robots bench (2026-05-26) showed
+        # qwen3-8b-active emits the directive's narrated tool call only
+        # ~30% of runs with temp 0.6 sampling — the rest of the time it
+        # generates text instead. Forcing ``tool_choice="required"`` for
+        # exactly those calls closes the variance gap without converting
+        # every late turn into a forced tool call (the planner's abstain
+        # check stays the guard against over-firing). Gated by env so
+        # banca-safe (compliance) audits opt out by default; active
+        # pentest profiles set ``KRYON_FORCE_DIRECTIVE_TOOL_CHOICE=true``.
+        if _should_force_directive_tool_choice(has_tools, effective_tool_choice):
             effective_tool_choice = "required"
         if effective_tool_choice is not None and effective_tool_choice is not NOT_GIVEN:
             ollama_supported_params["tool_choice"] = effective_tool_choice

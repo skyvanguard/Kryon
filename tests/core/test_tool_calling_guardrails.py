@@ -216,3 +216,126 @@ class TestEffectiveToolChoiceCapture:
         # rec_training_data can fall back to model_settings.tool_choice.
         assert hasattr(model, "_last_effective_tool_choice")
         assert model._last_effective_tool_choice is None
+
+
+# ---------------------------------------------------------------------------
+# FASE 11.Q — directive-driven tool_choice="required" forcing
+# ---------------------------------------------------------------------------
+#
+# The decision helper lives at module scope so we can unit-test the
+# branch without bringing up the full Ollama HTTP path. The Robots
+# bench (2026-05-26) showed qwen3-8b-active sampling its way out of
+# emitting the directive's narrated tool call ~70% of runs even with
+# the OPERATOR DIRECTIVE block in the reflection turn. Forcing
+# tool_choice on exactly the turn the planner says "this is the only
+# move" closes that variance gap.
+
+
+class TestDirectiveToolChoiceForcing:
+    def test_returns_false_when_no_tools(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """No tools → tool_choice="required" is invalid; never force."""
+        from kryon.sdk.agents.models.openai_chatcompletions import (
+            _should_force_directive_tool_choice,
+        )
+
+        monkeypatch.setenv("KRYON_FORCE_DIRECTIVE_TOOL_CHOICE", "true")
+        assert _should_force_directive_tool_choice(has_tools=False, effective_tool_choice="auto") is False
+
+    def test_returns_false_when_already_required(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """No-op when caller already chose ``required``."""
+        from kryon.sdk.agents.models.openai_chatcompletions import (
+            _should_force_directive_tool_choice,
+        )
+
+        monkeypatch.setenv("KRYON_FORCE_DIRECTIVE_TOOL_CHOICE", "true")
+        assert _should_force_directive_tool_choice(has_tools=True, effective_tool_choice="required") is False
+
+    def test_returns_false_when_env_off(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Default banca-safe behavior — env unset → never force."""
+        from kryon.sdk.agents.models.openai_chatcompletions import (
+            _should_force_directive_tool_choice,
+        )
+
+        monkeypatch.delenv("KRYON_FORCE_DIRECTIVE_TOOL_CHOICE", raising=False)
+        assert _should_force_directive_tool_choice(has_tools=True, effective_tool_choice="auto") is False
+
+    def test_returns_false_when_env_explicitly_false(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from kryon.sdk.agents.models.openai_chatcompletions import (
+            _should_force_directive_tool_choice,
+        )
+
+        monkeypatch.setenv("KRYON_FORCE_DIRECTIVE_TOOL_CHOICE", "false")
+        assert _should_force_directive_tool_choice(has_tools=True, effective_tool_choice="auto") is False
+
+    def test_returns_true_when_env_on_and_probe_true(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The hot path: env on + planner has high-conf rec → force."""
+        from kryon.sdk.agents.models.openai_chatcompletions import (
+            _should_force_directive_tool_choice,
+        )
+
+        monkeypatch.setenv("KRYON_FORCE_DIRECTIVE_TOOL_CHOICE", "true")
+        monkeypatch.setattr(
+            "kryon.intelligence.planner_runtime.has_high_confidence_directive",
+            lambda *_a, **_k: True,
+        )
+        assert _should_force_directive_tool_choice(has_tools=True, effective_tool_choice="auto") is True
+
+    def test_returns_false_when_env_on_but_probe_false(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Env on but planner has nothing to say → don't force.
+        Otherwise every turn becomes a forced tool call, which destroys
+        the model's free-reasoning ability outside the directive case."""
+        from kryon.sdk.agents.models.openai_chatcompletions import (
+            _should_force_directive_tool_choice,
+        )
+
+        monkeypatch.setenv("KRYON_FORCE_DIRECTIVE_TOOL_CHOICE", "true")
+        monkeypatch.setattr(
+            "kryon.intelligence.planner_runtime.has_high_confidence_directive",
+            lambda *_a, **_k: False,
+        )
+        assert _should_force_directive_tool_choice(has_tools=True, effective_tool_choice="auto") is False
+
+    def test_returns_false_when_probe_raises(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A planner-rule crash MUST NOT propagate into the SDK call
+        path — fall back to whatever tool_choice the caller already had."""
+        from kryon.sdk.agents.models.openai_chatcompletions import (
+            _should_force_directive_tool_choice,
+        )
+
+        def _boom(*_a, **_k):
+            raise RuntimeError("simulated planner crash")
+
+        monkeypatch.setenv("KRYON_FORCE_DIRECTIVE_TOOL_CHOICE", "true")
+        monkeypatch.setattr(
+            "kryon.intelligence.planner_runtime.has_high_confidence_directive",
+            _boom,
+        )
+        assert _should_force_directive_tool_choice(has_tools=True, effective_tool_choice="auto") is False
+
+    def test_accepts_various_truthy_env_values(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Operator-friendly env parsing — ``1``, ``true``, ``yes``,
+        ``on`` all enable. Case-insensitive."""
+        from kryon.sdk.agents.models.openai_chatcompletions import (
+            _should_force_directive_tool_choice,
+        )
+
+        monkeypatch.setattr(
+            "kryon.intelligence.planner_runtime.has_high_confidence_directive",
+            lambda *_a, **_k: True,
+        )
+        for value in ("1", "true", "TRUE", "yes", "Yes", "on", "ON"):
+            monkeypatch.setenv("KRYON_FORCE_DIRECTIVE_TOOL_CHOICE", value)
+            assert (
+                _should_force_directive_tool_choice(has_tools=True, effective_tool_choice="auto")
+                is True
+            ), f"value {value!r} should enable forcing"
