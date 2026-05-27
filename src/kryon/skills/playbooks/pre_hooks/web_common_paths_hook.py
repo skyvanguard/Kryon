@@ -30,7 +30,9 @@ turns.
 from __future__ import annotations
 
 import concurrent.futures
+import hashlib
 import logging
+import os
 import re
 import urllib.error
 import urllib.parse
@@ -208,6 +210,116 @@ def _probe_with_vhost(target: str, path: str, vhost: str) -> tuple[int, int, str
         return (-1, 0, f"[error] {exc}")
 
 
+# FASE 11.W — default credentials probe list. Limited to common
+# CTF / default-install combos. NOT a wordlist brute-force; we only
+# need to flag the LOW-HANGING fruit (admin/admin etc.). Operator
+# can extend via KRYON_W_CREDS_LIST env (comma-separated user:pass).
+_DEFAULT_CREDS: tuple[tuple[str, str], ...] = (
+    ("admin", "admin"),
+    ("admin", "password"),
+    ("admin", "12345"),
+    ("root", "root"),
+    ("test", "test"),
+)
+_CREDS_PROBE_TIMEOUT_S = 8.0
+_CREDS_BODY_SAMPLE = 2000  # bytes of body to hash for diff comparison
+
+
+def _resolve_creds_list() -> tuple[tuple[str, str], ...]:
+    """Return the credential combos to probe. Operator override via
+    ``KRYON_W_CREDS_LIST`` env (``admin:admin,root:root``). Empty
+    list disables the probe entirely."""
+    raw = os.environ.get("KRYON_W_CREDS_LIST", "").strip()
+    if not raw:
+        return _DEFAULT_CREDS
+    combos: list[tuple[str, str]] = []
+    for chunk in raw.split(","):
+        chunk = chunk.strip()
+        if ":" not in chunk:
+            continue
+        u, p = chunk.split(":", 1)
+        combos.append((u.strip(), p.strip()))
+    return tuple(combos) if combos else _DEFAULT_CREDS
+
+
+def _body_signature(body: str) -> str:
+    """Stable hash of a response body's leading sample. Used to
+    compare creds-probe responses against an empty-creds baseline —
+    any hash change is a signal worth flagging."""
+    sample = (body or "")[:_CREDS_BODY_SAMPLE].encode("utf-8", errors="replace")
+    return hashlib.sha1(sample).hexdigest()[:10]
+
+
+def _post_form_with_creds(
+    target: str,
+    action_url: str,
+    vhost: str,
+    username_field: str,
+    password_field: str,
+    extra_fields: list[str],
+    username: str,
+    password: str,
+) -> tuple[int, int, str, str]:
+    """POST credentials to the login form. Returns
+    (status, body_size, set_cookie, body_preview).
+
+    ``action_url`` is the literal value from the form's ``action``
+    attribute. If relative (starts with ``/``), we join with the
+    target. Empty action means "post to the same URL" — we cannot
+    know the original URL here, caller passes it as action_url.
+    """
+    # Build POST body. Include every input field, set the chosen
+    # user/pass + any extra fields (like ``login``) as the field
+    # name (the form's submit button name).
+    payload_fields = {username_field: username, password_field: password}
+    for extra in extra_fields:
+        if extra not in payload_fields:
+            payload_fields[extra] = extra  # e.g. login=login
+    body = urllib.parse.urlencode(payload_fields).encode()
+
+    # Resolve URL.
+    if action_url.startswith(("http://", "https://")):
+        url = action_url
+    elif action_url.startswith("/"):
+        url = target.rstrip("/") + action_url
+    else:
+        # Relative path or empty — caller should have set action_url
+        # to the form's URL itself if action was "" (HTML default).
+        url = target.rstrip("/") + "/" + action_url
+
+    req = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={
+            "User-Agent": "Kryon/web-paths-probe",
+            "Host": vhost,
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+    )
+    try:
+        with _NO_REDIRECT_OPENER.open(req, timeout=_CREDS_PROBE_TIMEOUT_S) as resp:
+            raw = resp.read(_MAX_BODY_PREVIEW * 4)
+            body_str = raw.decode("utf-8", errors="replace")
+            cookie = resp.headers.get("Set-Cookie", "") or ""
+            return (resp.status, len(body_str), cookie, body_str)
+    except urllib.error.HTTPError as exc:
+        body_str = ""
+        try:
+            raw = exc.read(_MAX_BODY_PREVIEW * 4)
+            body_str = raw.decode("utf-8", errors="replace")
+        except Exception:  # noqa: BLE001
+            pass
+        cookie = exc.headers.get("Set-Cookie", "") if exc.headers else ""
+        # Redirects ARE the signal we want for successful login.
+        location = exc.headers.get("Location", "") if exc.headers else ""
+        if exc.code in (301, 302, 307, 308) and location:
+            body_str = f"[Location: {location}]\n{body_str}"
+        return (exc.code, len(body_str), cookie, body_str)
+    except Exception as exc:  # noqa: BLE001
+        return (-1, 0, "", f"[error] {exc}")
+
+
 def _detect_login_form(html: str) -> dict[str, Any]:
     """FASE 11.V — find <form> + <input name=...> in an HTML body.
 
@@ -228,6 +340,41 @@ def _detect_login_form(html: str) -> dict[str, Any]:
         "method": (method_match.group(1) if method_match else "GET").upper(),
         "inputs": inputs,
     }
+
+
+def _guess_user_pass_fields(inputs: list[str]) -> tuple[str, str, list[str]]:
+    """FASE 11.W — heuristic to pick username + password fields from
+    a form's input list. Falls back to first/second input when names
+    are non-standard.
+
+    Returns ``(username_field, password_field, extra_fields)``.
+    Empty strings on either field signal "couldn't guess" — caller
+    should skip the creds probe in that case.
+    """
+    if not inputs:
+        return ("", "", [])
+    username_field = ""
+    password_field = ""
+    extras: list[str] = []
+    for name in inputs:
+        low = name.lower()
+        if not username_field and any(k in low for k in ("user", "email", "login", "uname")):
+            username_field = name
+            continue
+        if not password_field and any(k in low for k in ("pass", "pwd")):
+            password_field = name
+            continue
+        extras.append(name)
+    # Fallbacks for non-standard naming.
+    if not username_field and inputs:
+        username_field = inputs[0]
+    if not password_field:
+        for n in inputs:
+            if n != username_field and "pass" not in n.lower():
+                # Pick first non-user input as password (best effort).
+                password_field = n
+                break
+    return (username_field, password_field, extras)
 
 
 def _interest_key(row: tuple[str, int, int, str]) -> tuple[int, int]:
@@ -438,6 +585,50 @@ def run(ctx: dict[str, Any]) -> str:
         )
         lines.append("")
 
+        # FASE 11.W — auto-probe default credentials against each
+        # discovered login form. Gated by env to keep banca-safe
+        # default (no active POSTs unless operator opts in).
+        creds_results: list[
+            tuple[str, str, str, int, str, str, str]
+        ] = []  # (path, vhost, u, status, body_size_str, cookie, body_preview)
+        baseline_sig = ""
+        baseline_status = 0
+        if (
+            login_forms
+            and os.environ.get("KRYON_W_CREDS_PROBE", "false").lower()
+            in {"1", "true", "yes", "on"}
+        ):
+            combos = _resolve_creds_list()
+            for path, vhost, _status, body, form in login_forms[:1]:
+                # Baseline: hash of the form body we already have.
+                baseline_sig = _body_signature(body)
+                inputs = form.get("inputs", [])
+                user_f, pass_f, extras = _guess_user_pass_fields(inputs)
+                if not user_f or not pass_f:
+                    continue
+                action = form.get("action") or path
+                # Empty action means "post to same URL".
+                if not action:
+                    action = path
+                for username, password in combos:
+                    status, size, cookie, preview = _post_form_with_creds(
+                        target=target,
+                        action_url=action,
+                        vhost=vhost,
+                        username_field=user_f,
+                        password_field=pass_f,
+                        extra_fields=extras,
+                        username=username,
+                        password=password,
+                    )
+                    creds_results.append(
+                        (path, vhost, f"{username}:{password}", status, str(size), cookie, preview)
+                    )
+                    if not baseline_status:
+                        # First probe acts as our baseline status — if
+                        # later probes deviate we surface them.
+                        baseline_status = status
+
         if login_forms:
             # FASE 11.V.2 — frame as FINDING (not as action), so the
             # orchestrator's "convert each line to JSON" instruction
@@ -483,6 +674,67 @@ def run(ctx: dict[str, Any]) -> str:
                     "ser público o restricted."
                 )
             lines.append("")
+            # FASE 11.W — render creds-probe results inline so the
+            # model sees the diff signal next to the form discovery.
+            if creds_results:
+                # Find combos that diverged from baseline (status or hash).
+                divergent: list[tuple[str, str, str, int, str, str, str]] = []
+                for r in creds_results:
+                    _path, _vhost, _combo, status, _sz, cookie, body = r
+                    sig = _body_signature(body)
+                    diverges = (
+                        status != baseline_status
+                        or (sig != baseline_sig and status != -1)
+                        or "session" in cookie.lower()
+                        or "auth" in cookie.lower()
+                        or "token" in cookie.lower()
+                    )
+                    if diverges:
+                        divergent.append(r)
+
+                lines.append("")
+                lines.append(
+                    "### 🏆 DEFAULT CREDS PROBE — auto-tested 5 combos"
+                )
+                lines.append("")
+                if divergent:
+                    lines.append(
+                        "**🚨 DIFFERENTIAL RESPONSE detected — report as "
+                        "HIGH severity finding `DEFAULT_CREDS_DIFFERENTIAL`**"
+                    )
+                    lines.append("")
+                    for _path, vhost, combo, status, sz, cookie, body in divergent:
+                        cookie_short = cookie.split(";")[0] if cookie else "(none)"
+                        loc = ""
+                        if body.startswith("[Location:"):
+                            loc = body.split("\n", 1)[0]
+                        lines.append(
+                            f"- **combo**: `{combo}` → status {status}, "
+                            f"body {sz} bytes, cookie `{cookie_short}` "
+                            f"{loc}"
+                        )
+                    lines.append("")
+                    lines.append(
+                        "- **finding**: `DEFAULT_CREDS_DIFFERENTIAL_RESPONSE` "
+                        "(CWE-521 weak credentials, severity HIGH)"
+                    )
+                    lines.append(
+                        "- **evidence**: combos above diverged from the "
+                        "empty-creds baseline. Cookie / status / body shape "
+                        "changed → server distinguishes valid from invalid "
+                        "creds for that combo. Manual confirmation: "
+                        f"`curl -i -X POST -H 'Host: {login_forms[0][1]}' "
+                        f"-d '...' http://<ip>...`"
+                    )
+                else:
+                    lines.append(
+                        "_All 5 default combos returned the same status/body "
+                        "hash as the empty-creds baseline. The login form "
+                        "appears hardened against trivial guessing. Report "
+                        "as `LOGIN_HARDENED_AGAINST_DEFAULT_CREDS` (LOW)._"
+                    )
+                lines.append("")
+
             lines.append(
                 "_Optional follow-up tools (NOT required for findings JSON; "
                 "useful only si querés escalar)_:"

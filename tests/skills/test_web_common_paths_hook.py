@@ -481,6 +481,172 @@ def test_run_login_form_block_framed_as_finding_not_action(vhost_server) -> None
     assert "Optional follow-up" in out or "optional" in out.lower()
 
 
+# ---------------------------------------------------------------------------
+# FASE 11.W — default credentials probe
+# ---------------------------------------------------------------------------
+#
+# After FASE 11.V discovers a login form via vhost, the natural next
+# step is to test default credentials. The model couldn't reliably
+# emit a vhost-aware POST despite the form details being in the
+# prompt, so we automate the first 5 combos deterministically.
+#
+# Banca-safe: gated by KRYON_W_CREDS_PROBE=true (default off).
+# Limited combo list (admin/admin, admin/password, root/root,
+# test/test, admin/12345). NO wordlist brute-force.
+# Detection: differential response — if the body length / status /
+# cookies change vs the empty-creds baseline, that's a signal.
+
+
+@pytest.fixture
+def creds_server():
+    """Mock server with vhost-gated login form + default-creds
+    acceptance. Mirrors the Robots THM lab structure:
+
+      GET /robots.txt → Disallow: /login.php
+      GET /login.php (no Host header) → 302 to vhost
+      GET /login.php (Host: vhost.local) → 200 form
+      POST /login.php Host: vhost.local user=admin pass=admin → 302
+      POST /login.php Host: vhost.local other creds → 200 same form
+
+    The creds probe path requires vhost detection upstream — same as
+    the real-world bench scenario."""
+
+    class _Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *_args, **_kwargs) -> None:
+            return
+
+        def _serve_form(self) -> None:
+            body = (
+                b"<!DOCTYPE html><html><body>"
+                b'<form method="POST" action="/login.php">'
+                b'<input type="text" name="username">'
+                b'<input type="password" name="password">'
+                b'<input type="submit" name="login">'
+                b"</form></body></html>"
+            )
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self) -> None:
+            host_header = self.headers.get("Host", "")
+            if "vhost.local" in host_header:
+                # Vhost mode: serve real content.
+                if self.path == "/login.php":
+                    self._serve_form()
+                    return
+                self.send_response(404)
+                self.end_headers()
+                return
+            # IP mode: redirect login.php to vhost.
+            if self.path == "/robots.txt":
+                body = b"User-agent: *\nDisallow: /login.php\n"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if self.path in ("/login.php", "/login.php/"):
+                self.send_response(302)
+                self.send_header("Location", "http://vhost.local/login.php")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            self.send_response(404)
+            self.end_headers()
+
+        def do_POST(self) -> None:
+            host_header = self.headers.get("Host", "")
+            length = int(self.headers.get("Content-Length", "0"))
+            body = self.rfile.read(length).decode()
+            if "vhost.local" not in host_header:
+                # Without vhost header, refuse cleanly.
+                self.send_response(403)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            if "username=admin&password=admin" in body:
+                # Successful login → 302 to /dashboard.
+                self.send_response(302)
+                self.send_header("Location", "/dashboard")
+                self.send_header("Set-Cookie", "session=admin-token; HttpOnly")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            # Failed login → same form back.
+            self._serve_form()
+
+    httpd = socketserver.TCPServer(("127.0.0.1", 0), _Handler)
+    port = httpd.server_address[1]
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield port
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_run_skips_creds_probe_when_env_off(creds_server, monkeypatch) -> None:
+    """Banca-safe default — no creds probe unless KRYON_W_CREDS_PROBE=true.
+
+    The string "admin/admin" appears as an example in the FASE 11.U
+    hint text even when the probe is off — only the dedicated probe
+    section must be absent. We assert the section header is not in
+    the output."""
+    monkeypatch.delenv("KRYON_W_CREDS_PROBE", raising=False)
+    out = run({"host": f"http://127.0.0.1:{creds_server}"})
+    assert "DEFAULT CREDS PROBE" not in out
+    assert "DEFAULT_CREDS_DIFFERENTIAL" not in out
+
+
+def test_run_runs_creds_probe_when_env_on(creds_server, monkeypatch) -> None:
+    """With KRYON_W_CREDS_PROBE=true, the helper probes 5 default
+    combos against the discovered login form."""
+    monkeypatch.setenv("KRYON_W_CREDS_PROBE", "true")
+    out = run({"host": f"http://127.0.0.1:{creds_server}"})
+    # The probe section must appear.
+    assert "DEFAULT CREDS" in out or "default creds" in out.lower()
+
+
+def test_run_creds_probe_detects_differential_response(
+    creds_server, monkeypatch
+) -> None:
+    """admin/admin is the only winning combo on the mock — its
+    response must be flagged with differential status (302 vs the
+    200 baseline)."""
+    monkeypatch.setenv("KRYON_W_CREDS_PROBE", "true")
+    out = run({"host": f"http://127.0.0.1:{creds_server}"})
+    # admin/admin combo recognized.
+    assert "admin" in out
+    # Status diff: 302 should appear (the winning response).
+    assert "302" in out
+
+
+def test_run_creds_probe_emits_finding_shape(
+    creds_server, monkeypatch
+) -> None:
+    """Discovered creds must emit as HIGH/CRITICAL finding with
+    a clear rule_id the model can convert to JSON directly."""
+    monkeypatch.setenv("KRYON_W_CREDS_PROBE", "true")
+    out = run({"host": f"http://127.0.0.1:{creds_server}"})
+    # Finding shape: rule_id + CWE + severity.
+    assert "DEFAULT_CREDS" in out or "default_creds" in out.lower()
+    # CWE-521 (weak password) or CWE-798 (hardcoded creds) typical.
+    assert "CWE-521" in out or "CWE-798" in out
+
+
+def test_run_no_creds_probe_when_no_form_found(monkeypatch) -> None:
+    """If no login form was discovered, creds probe must NOT run
+    (would just hit 404s)."""
+    monkeypatch.setenv("KRYON_W_CREDS_PROBE", "true")
+    out = run({"host": "http://10.255.255.1"})
+    assert "DEFAULT CREDS" not in out
+
+
 def test_run_no_vhost_section_when_no_redirects() -> None:
     """Targets that don't emit cross-host redirects must NOT trigger
     the vhost section (false positive risk)."""
