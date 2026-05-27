@@ -1,6 +1,8 @@
 """Command execution functions for different environments (local, CTF, SSH, Docker)."""
 
+import logging
 import os
+import signal as _signal
 import subprocess  # nosec B404
 import time
 import uuid
@@ -15,6 +17,61 @@ from kryon.util import (
     stop_active_timer,
     stop_idle_timer,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _kill_process_group(process) -> None:
+    """FASE 11.R — kill the spawned process AND every descendant.
+
+    ``process.kill()`` only signals the immediate child (the shell).
+    On Bench Robots (2026-05-27) the shell got the SIGKILL but its
+    perl grandchild (``nikto.pl``) was reparented to init and kept
+    the stdout pipe open — leaking memory, holding the agent's
+    readline loop hostage, and racking up wall-clock.
+
+    Requires the process to have been spawned with
+    ``start_new_session=True`` so its pid equals its process-group id.
+    Falls back to plain ``process.kill()`` on platforms without
+    ``killpg`` (Windows). Swallows ``ProcessLookupError`` because the
+    common case during timeout cleanup is "process already exited
+    between wait_for and the kill call."
+    """
+    pid = getattr(process, "pid", None)
+    if pid is None:
+        return
+    try:
+        if hasattr(os, "killpg"):
+            os.killpg(pid, _signal.SIGKILL)
+        else:
+            process.kill()
+    except (ProcessLookupError, PermissionError) as exc:
+        logger.debug("kill_process_group: process %s already gone or denied: %s", pid, exc)
+        try:
+            process.kill()
+        except Exception:  # noqa: BLE001 — last-resort, never bubble
+            pass
+
+
+async def _drain_and_kill(process, timeout: float = 5.0) -> None:
+    """Kill the process group then wait briefly for reap.
+
+    Used by the timeout paths in ``_run_local_async`` so the
+    ``subprocess.TimeoutExpired`` is raised AFTER the kernel actually
+    reaped the descendants — otherwise the next bench turn races a
+    zombie and the agent prompt waits on a child that "exists but is
+    dead."
+    """
+    import asyncio as _asyncio
+
+    _kill_process_group(process)
+    try:
+        await _asyncio.wait_for(process.wait(), timeout=timeout)
+    except _asyncio.TimeoutError:
+        # Reaper didn't catch it — escalate. Most likely a defunct
+        # state we can't help. Log and move on; the caller already
+        # decided to raise TimeoutExpired anyway.
+        logger.debug("process %s did not reap within %.1fs after killpg", process.pid, timeout)
 
 
 def _run_ctf(ctf, command, stdout=False, timeout=300, workspace_dir=None, stream=False):
@@ -152,12 +209,18 @@ async def _run_local_async(
             # Initialize/use the call_id for this streaming session
             call_id = start_tool_streaming(tool_name, tool_args, call_id, token_info)
 
-            # Start the async process
+            # Start the async process — FASE 11.R: own process group so
+            # the timeout path can kill descendants atomically. Windows
+            # doesn't support start_new_session; fall back to legacy.
+            _subprocess_kwargs = {}
+            if hasattr(os, "setsid"):
+                _subprocess_kwargs["start_new_session"] = True
             process = await asyncio.create_subprocess_shell(
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=target_dir,
+                **_subprocess_kwargs,
             )
 
             # Begin collecting output
@@ -177,8 +240,33 @@ async def _run_local_async(
             progress_parser = get_parser_for_command(command)
             progress_state = ProgressState(tool_name=tool_name)
 
-            # Stream stdout in real-time
-            async for line in process.stdout:
+            # FASE 11.R — wall-clock guard on the stdout loop. The
+            # original ``async for line in process.stdout`` had NO
+            # timeout: a child that holds the pipe but writes nothing
+            # (Bench Robots nikto/perl orphan case) blocked the loop
+            # forever. We poll readline with the REMAINING wall budget
+            # so a silent child still raises TimeoutExpired inside
+            # ``timeout`` seconds total.
+            deadline = asyncio.get_event_loop().time() + timeout
+            while True:
+                now = asyncio.get_event_loop().time()
+                remaining = deadline - now
+                if remaining <= 0:
+                    await _drain_and_kill(process)
+                    raise subprocess.TimeoutExpired(command, timeout)
+                try:
+                    line = await asyncio.wait_for(
+                        process.stdout.readline(), timeout=remaining
+                    )
+                except asyncio.TimeoutError as e:
+                    await _drain_and_kill(process)
+                    raise subprocess.TimeoutExpired(command, timeout) from e
+
+                if not line:
+                    # EOF — process either finished or closed its stdout.
+                    # The wait_for below will pick up the actual return code.
+                    break
+
                 line_str = line.decode("utf-8", errors="replace")
 
                 # Add to output collection
@@ -201,12 +289,17 @@ async def _run_local_async(
                     )
                     buffer_size = 0
 
-            # Wait for process to complete with timeout
+            # Wait for process to complete with timeout — at this point
+            # stdout EOF has fired, so wait() should return promptly.
+            # The remaining-budget guard still applies for the edge
+            # case where the child closed stdout but kept its zombie
+            # state alive (rare but observable on docker exec exits).
+            now = asyncio.get_event_loop().time()
+            remaining = max(deadline - now, 0.0)
             try:
-                return_code = await asyncio.wait_for(process.wait(), timeout=timeout)
+                return_code = await asyncio.wait_for(process.wait(), timeout=remaining or 1.0)
             except asyncio.TimeoutError as e:
-                process.kill()
-                await process.wait()
+                await _drain_and_kill(process)
                 raise subprocess.TimeoutExpired(command, timeout) from e
 
             process_execution_time = time.time() - process_start_time
@@ -236,19 +329,24 @@ async def _run_local_async(
 
             return final_output
         else:
-            # Standard non-streaming async execution
+            # Standard non-streaming async execution — FASE 11.R:
+            # same process-group treatment as the streaming branch,
+            # so a timeout in parallel mode also kills descendants.
+            _subprocess_kwargs = {}
+            if hasattr(os, "setsid"):
+                _subprocess_kwargs["start_new_session"] = True
             process = await asyncio.create_subprocess_shell(
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=target_dir,
+                **_subprocess_kwargs,
             )
 
             try:
                 stdout_data, stderr_data = await asyncio.wait_for(process.communicate(), timeout=timeout)
             except asyncio.TimeoutError as e:
-                process.kill()
-                await process.wait()
+                await _drain_and_kill(process)
                 raise subprocess.TimeoutExpired(command, timeout) from e
 
             # Decode output
