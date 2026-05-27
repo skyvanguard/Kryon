@@ -54,6 +54,25 @@ _COMMON_PATHS: tuple[str, ...] = (
     "/wp-login.php",
 )
 
+# FASE 11.U — sub-paths probed UNDER each Disallow path discovered
+# in /robots.txt. Curated to cover the common assets behind a hidden
+# directory on recon CTFs and real-world web servers: directory
+# listing (trailing slash), default index files, auth surfaces, and
+# common CMS / app entry points.
+_DISALLOW_SUBPATHS: tuple[str, ...] = (
+    "",            # the disallow path itself (directory listing)
+    "/",           # with trailing slash (forces dir listing if mod_autoindex)
+    "/index.php",
+    "/index.html",
+    "/login.php",
+    "/admin.php",
+    "/register.php",
+    "/config.php",
+    "/upload.php",
+    "/dashboard.php",
+)
+_MAX_DISALLOW_PATHS_TO_ENUMERATE = 5
+
 _PER_PATH_TIMEOUT_S = 12.0
 _MAX_BODY_PREVIEW = 800  # chars per path
 # FASE 11.T.3 — bumped further from 45s to 90s + per-path 6s → 12s.
@@ -66,12 +85,30 @@ _WALL_CLOCK_S = 90.0
 _ROBOTS_BODY_MAX_LINES = 30
 
 
+# FASE 11.U.2 — custom opener that captures 301/302 status WITHOUT
+# following the redirect. The default urllib follows redirects which
+# loses the original status code; against Robots THM, /harm/to/self
+# returns 302 → robots.thm (external host) which then fails DNS,
+# making the probe look like a transport error rather than a redirect.
+# We want the 302 itself so the model knows the path EXISTS and is
+# protected by a redirect (typical CMS auth gate).
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
+        return None  # do not follow
+
+
+_NO_REDIRECT_OPENER = urllib.request.build_opener(_NoRedirectHandler())
+
+
 def _probe_path(base: str, path: str) -> tuple[str, int, int, str]:
     """Returns (path, status_code, body_size, body_preview).
 
     Status code -1 signals a transport-level error (DNS / refused /
     timeout). The error string lands in body_preview so we can surface
     it in the output without crashing the whole probe.
+
+    Redirects (301/302/307/308) are reported AS-IS — we do not follow.
+    See ``_NoRedirectHandler`` for rationale (Robots THM bug).
     """
     url = base + path
     req = urllib.request.Request(
@@ -80,18 +117,27 @@ def _probe_path(base: str, path: str) -> tuple[str, int, int, str]:
         headers={"User-Agent": "Kryon/web-paths-probe"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=_PER_PATH_TIMEOUT_S) as resp:
+        with _NO_REDIRECT_OPENER.open(req, timeout=_PER_PATH_TIMEOUT_S) as resp:
             body = resp.read(_MAX_BODY_PREVIEW)
             body_str = body.decode("utf-8", errors="replace")
             return (path, resp.status, len(body_str), body_str)
     except urllib.error.HTTPError as exc:
         # HTTPError IS a response — capture status and body.
+        # FASE 11.U.2: 301/302/307/308 raise HTTPError when the
+        # NoRedirectHandler returns None; we want to preserve their
+        # Location header in the preview so the model knows where the
+        # redirect points (often reveals the vhost or auth path).
         body_str = ""
         try:
             raw = exc.read(_MAX_BODY_PREVIEW)
             body_str = raw.decode("utf-8", errors="replace")
         except Exception:  # noqa: BLE001 — body may be unavailable
             pass
+        # Append Location header for redirects (highly informative).
+        if exc.code in (301, 302, 307, 308):
+            location = exc.headers.get("Location", "")
+            if location:
+                body_str = f"[Location: {location}]\n{body_str}"
         return (path, exc.code, len(body_str), body_str)
     except Exception as exc:  # noqa: BLE001 — never crash the whole probe
         return (path, -1, 0, f"[error] {exc}")
@@ -194,6 +240,49 @@ def run(ctx: dict[str, Any]) -> str:
                         robots_disallow_paths.append(value)
             break
 
+    # FASE 11.U — chain-enumerate sub-paths under each Disallow entry.
+    # The bench Robots T.4 result showed the model surfacing disallow
+    # paths as findings but never probing them. The model needs LIVE
+    # hits (200) at the top of the output to pivot. This step runs a
+    # second wave of probes against the disallow paths the FIRST wave
+    # discovered.
+    live_subpath_hits: list[tuple[str, int, int, str]] = []
+    if robots_disallow_paths:
+        # Cap to avoid 50+ probes against a target with a long
+        # robots.txt. Top N are typically the most relevant on CTFs.
+        disallow_targets = robots_disallow_paths[:_MAX_DISALLOW_PATHS_TO_ENUMERATE]
+        chain_probes: list[str] = []
+        for disallow in disallow_targets:
+            base_path = disallow.rstrip("/")
+            for sub in _DISALLOW_SUBPATHS:
+                full = base_path + sub
+                if full and full not in chain_probes:
+                    chain_probes.append(full)
+
+        chain_results: list[tuple[str, int, int, str]] = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+            chain_futures = {
+                ex.submit(_probe_path, target, p): p for p in chain_probes
+            }
+            try:
+                for fut in concurrent.futures.as_completed(
+                    chain_futures, timeout=_WALL_CLOCK_S
+                ):
+                    try:
+                        chain_results.append(fut.result())
+                    except Exception as exc:  # noqa: BLE001
+                        path = chain_futures[fut]
+                        chain_results.append((path, -1, 0, f"[error] {exc}"))
+            except concurrent.futures.TimeoutError:
+                logger.debug("disallow-chain wall-clock hit at %ss", _WALL_CLOCK_S)
+
+        # Keep only paths that returned actionable status (200 / 3xx /
+        # 401 / 403). 404s under disallow are noise; errors are
+        # transport noise.
+        live_subpath_hits = [
+            r for r in chain_results if r[1] in (200, 301, 302, 307, 308, 401, 403)
+        ]
+
     if robots_disallow_paths:
         lines.append("")
         lines.append("## 🚨 KEY FINDING — /robots.txt exposes Disallow paths")
@@ -207,6 +296,47 @@ def run(ctx: dict[str, Any]) -> str:
         for path in robots_disallow_paths:
             lines.append(f"- `{target}{path}` ← investigate with curl / gobuster")
         lines.append("")
+
+    if live_subpath_hits:
+        # FASE 11.U — surface live sub-paths discovered under the
+        # disallow entries. These are the actual exploitation
+        # surfaces (login forms, admin panels, config files).
+        lines.append("## 🔥 DISALLOW PATH ENUMERATION — LIVE sub-paths discovered")
+        lines.append("")
+        lines.append(
+            "**Auto-probed sub-paths under each Disallow entry. The "
+            "following returned a non-404 status — these are LIVE "
+            "exploitation surfaces. Pivot HERE before re-scanning the "
+            "root URL.**"
+        )
+        lines.append("")
+        # Sort: 200 first, then 3xx, then 403, then 401.
+        live_subpath_hits.sort(key=_interest_key)
+        for path, status, size, _body in live_subpath_hits:
+            lines.append(f"- [{status}] `{target}{path}` ({size} bytes)")
+        lines.append("")
+        lines.append(
+            "**ACCIÓN OBLIGATORIA**: para cada path 200 con HTML, emití "
+            "`run_command curl -s {target}<path>` para ver el body real. "
+            "Si encontrás un login form, intentá credenciales por defecto "
+            "(admin/admin, admin/password) Y revisá el body por hints "
+            "(comentarios HTML, hidden inputs, JS vars). Si encontrás "
+            "config/upload endpoints, probá LFI/RCE."
+        )
+        lines.append("")
+    elif robots_disallow_paths:
+        # FASE 11.U — when we tried but nothing came back, tell the
+        # model that explicitly so it doesn't try the same probes
+        # manually (wasting context).
+        lines.append(
+            "_Tried 10 sub-paths under each Disallow entry "
+            "(/login.php, /admin.php, /index.php, etc.) — none returned 200. "
+            "The disallow paths may need brute-force enumeration with "
+            "gobuster against a larger wordlist._"
+        )
+        lines.append("")
+
+    if robots_disallow_paths:
         lines.append(
             "**ACCIÓN OBLIGATORIA**: emití un `run_command curl` "
             "contra CADA Disallow path antes de cerrar este turn. "

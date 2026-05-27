@@ -38,7 +38,12 @@ from kryon.skills.playbooks.pre_hooks.web_common_paths_hook import run
 def robots_server():
     """Mini HTTP server that mimics the Robots THM lab: serves
     ``/robots.txt`` with disallow paths, 404s for most other paths,
-    plus a 200 on ``/admin`` for variety."""
+    plus a 200 on ``/admin`` for variety.
+
+    FASE 11.U: also serves ``/harm/to/self/login.php`` and
+    ``/harm/to/self/`` (directory listing) so the chain-enumeration
+    step can find them. This mirrors what the real lab exposes
+    behind the /harm/to/self disallow entry."""
 
     class _Handler(http.server.BaseHTTPRequestHandler):
         # Silence the test output.
@@ -64,6 +69,23 @@ def robots_server():
                 self.send_header("Content-Type", "text/html")
                 self.end_headers()
                 self.wfile.write(b"<html>admin login</html>")
+                return
+            # FASE 11.U — disallow chain enumeration targets
+            if self.path == "/harm/to/self/":
+                body = b"<html><h1>Index of /harm/to/self/</h1><a href='login.php'>login.php</a></html>"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if self.path == "/harm/to/self/login.php":
+                body = b"<html><body><form>Username:<input name=u><input type=submit></form></body></html>"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
                 return
             self.send_response(404)
             self.end_headers()
@@ -263,3 +285,65 @@ def test_run_handles_both_missing_gracefully() -> None:
     """Neither host nor target → graceful skip, not crash."""
     out = run({"host": "", "target": ""})
     assert "no target" in out.lower() or "[" in out
+
+
+# ---------------------------------------------------------------------------
+# FASE 11.U — disallow path chain enumeration
+# ---------------------------------------------------------------------------
+#
+# Bench Robots T.4 (2026-05-27) achieved PARTIAL with 9 findings —
+# model consumed the KEY FINDING block and emitted findings for each
+# Disallow path. But it never CURLED those paths to discover the
+# real assets (login.php / admin.php / register.php). The chain
+# stopped at "disallow paths exist" instead of progressing to
+# "disallow paths contain login.php".
+#
+# FASE 11.U closes the gap by extending web_common_paths_hook to
+# auto-probe sub-paths under each Disallow entry: ``<disallow>/``,
+# ``<disallow>/login.php``, ``<disallow>/admin.php``, etc. Live hits
+# (200) get surfaced as new findings at the top of the output.
+
+
+def test_run_enumerates_subpaths_under_disallow(robots_server) -> None:
+    """The mock server hides /harm/to/self/login.php behind the
+    /harm/to/self disallow entry. The chain step must discover it
+    and surface the 200 in the output."""
+    out = run({"host": f"http://127.0.0.1:{robots_server}"})
+    # The auto-probed sub-path should appear as a LIVE finding.
+    assert "/harm/to/self/login.php" in out
+    # Marked as live (200).
+    assert "200" in out
+
+
+def test_run_enumeration_includes_directory_listing(robots_server) -> None:
+    """When the disallow path itself responds 200 (directory
+    listing), surface it — that's a separate finding from
+    sub-files."""
+    out = run({"host": f"http://127.0.0.1:{robots_server}"})
+    assert "/harm/to/self/" in out
+
+
+def test_run_enumeration_section_has_imperative_action(robots_server) -> None:
+    """The chain-enum section must include explicit follow-up
+    commands so the model knows what to do with the live hits
+    (curl the form, brute-force, sqlmap, etc.)."""
+    out = run({"host": f"http://127.0.0.1:{robots_server}"})
+    # Output must contain the chain-enum header so model knows
+    # this is a separate section from the initial probe.
+    assert "DISALLOW PATH ENUMERATION" in out or "/harm/to/self/login.php" in out
+
+
+def test_run_chain_enumeration_completes_within_budget(robots_server) -> None:
+    """The full probe (common paths + disallow chain) must stay
+    within ~60s wall-clock against a fast local server."""
+    start = time.monotonic()
+    run({"host": f"http://127.0.0.1:{robots_server}"})
+    elapsed = time.monotonic() - start
+    assert elapsed < 60.0, f"chain enum took {elapsed:.2f}s; budget regression"
+
+
+def test_run_no_chain_section_when_no_disallow_paths() -> None:
+    """If /robots.txt didn't yield disallow paths, the chain
+    enumeration section must NOT appear (would just spam 404s)."""
+    out = run({"host": "http://10.255.255.1"})  # unreachable
+    assert "DISALLOW PATH ENUMERATION" not in out
