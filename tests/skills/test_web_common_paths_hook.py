@@ -1,0 +1,177 @@
+"""FASE 11.T — web common paths pre_hook tests.
+
+The Bench Robots run (2026-05-27) confirmed our infra (Q+R+S) handles
+the SDK / subprocess / message-list edge cases but the agent still
+NEVER consulted ``/robots.txt`` — the very path the lab hides flags
+behind. The model just emitted ``whatweb + curl -I`` against the
+root and gave up.
+
+FASE 11.T closes that gap with a deterministic pre_hook that probes
+a curated list of well-known paths and injects the findings into the
+first reflection turn. The model doesn't get to "decide" whether to
+check /robots.txt; the answer is already in the conversation.
+
+Tests pin:
+1. The helper returns a structured report when /robots.txt is served.
+2. ``Disallow:`` entries appear verbatim in the output (so the
+   ``fact_extractor`` can pick them up via the existing
+   ``_DISALLOW_PATH_RE``).
+3. Empty ctx target → graceful skip, no crash.
+4. All-404 target → "no interesting paths" summary, not silence.
+5. Wall-clock bound: even against a server that hangs every request,
+   the helper returns within ~30s (per-path timeout × small N).
+"""
+
+from __future__ import annotations
+
+import http.server
+import socketserver
+import threading
+import time
+
+import pytest
+
+from kryon.skills.playbooks.pre_hooks.web_common_paths_hook import run
+
+
+@pytest.fixture
+def robots_server():
+    """Mini HTTP server that mimics the Robots THM lab: serves
+    ``/robots.txt`` with disallow paths, 404s for most other paths,
+    plus a 200 on ``/admin`` for variety."""
+
+    class _Handler(http.server.BaseHTTPRequestHandler):
+        # Silence the test output.
+        def log_message(self, *_args, **_kwargs) -> None:
+            return
+
+        def do_GET(self) -> None:
+            if self.path == "/robots.txt":
+                body = (
+                    "User-agent: *\n"
+                    "Disallow: /post/\n"
+                    "Disallow: /harm/to/self/\n"
+                    "Disallow: /admin/\n"
+                ).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if self.path == "/admin":
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.end_headers()
+                self.wfile.write(b"<html>admin login</html>")
+                return
+            self.send_response(404)
+            self.end_headers()
+
+    httpd = socketserver.TCPServer(("127.0.0.1", 0), _Handler)
+    port = httpd.server_address[1]
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield port
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_run_reports_robots_txt_disallow_entries_verbatim(robots_server) -> None:
+    """Critical invariant: the fact_extractor downstream relies on
+    matching ``Disallow:`` lines in the reflection turn. The pre_hook
+    MUST emit those lines verbatim — not summarized, not truncated
+    mid-path — so the existing parser keeps working."""
+    out = run({"target": f"http://127.0.0.1:{robots_server}"})
+    assert "Disallow: /post/" in out
+    assert "Disallow: /harm/to/self/" in out
+    assert "Disallow: /admin/" in out
+
+
+def test_run_lists_interesting_paths_first(robots_server) -> None:
+    """``/robots.txt`` (200) + ``/admin`` (200) should appear in the
+    'interesting' section above the 404 noise."""
+    out = run({"target": f"http://127.0.0.1:{robots_server}"})
+    # Interesting block must come before the non-existent block.
+    interesting_idx = out.find("Interesting paths")
+    nonexistent_idx = out.find("Non-existent")
+    assert interesting_idx != -1, "missing 'Interesting paths' section"
+    if nonexistent_idx != -1:
+        assert interesting_idx < nonexistent_idx
+    assert "/robots.txt" in out
+    assert "/admin" in out
+
+
+def test_run_handles_empty_target() -> None:
+    """No target → short graceful skip message, not a crash."""
+    out = run({})
+    assert isinstance(out, str)
+    assert "no target" in out.lower()
+
+
+def test_run_handles_missing_ctx_target_key() -> None:
+    out = run({"client_name": "bench-thm"})
+    assert "no target" in out.lower()
+
+
+def test_run_normalizes_target_without_scheme(robots_server) -> None:
+    """Operator can pass ``127.0.0.1:port`` without ``http://`` — the
+    helper must add the scheme rather than crash on urllib parse."""
+    out = run({"target": f"127.0.0.1:{robots_server}"})
+    assert "Disallow: /post/" in out
+
+
+def test_run_target_with_trailing_slash_normalizes(robots_server) -> None:
+    """``http://host/`` and ``http://host`` must produce identical
+    probes — no double-slash in the URLs."""
+    out_with_slash = run({"target": f"http://127.0.0.1:{robots_server}/"})
+    out_no_slash = run({"target": f"http://127.0.0.1:{robots_server}"})
+    # Both must have surfaced /robots.txt — exact equality of the
+    # output isn't guaranteed (status codes shouldn't change but
+    # ordering of concurrent results may differ slightly).
+    assert "Disallow: /post/" in out_with_slash
+    assert "Disallow: /post/" in out_no_slash
+
+
+def test_run_completes_within_wall_clock_budget(robots_server) -> None:
+    """Total wall-clock for the probe MUST stay under 25s even on a
+    well-behaved server. The bench loop budget allows ~30s for the
+    pre_hook; anything longer regresses the bench."""
+    start = time.monotonic()
+    run({"target": f"http://127.0.0.1:{robots_server}"})
+    elapsed = time.monotonic() - start
+    assert elapsed < 25.0, f"web_common_paths took {elapsed:.2f}s; budget regression"
+
+
+def test_run_handles_unreachable_target() -> None:
+    """Unroutable target → return within budget (per-path timeout
+    kicks in) and emit an output saying no interesting paths."""
+    # 10.255.255.1 is reserved; should refuse fast / time out fast.
+    start = time.monotonic()
+    out = run({"target": "http://10.255.255.1"})
+    elapsed = time.monotonic() - start
+    assert elapsed < 25.0, f"unreachable target hang: {elapsed:.2f}s"
+    assert isinstance(out, str)
+    # Either a "no interesting" summary or per-path errors — both
+    # acceptable as long as we returned a string.
+
+
+def test_run_emits_well_formed_markdown_header(robots_server) -> None:
+    """The output starts with a markdown H1 naming the target — the
+    reflection-prompt renderer relies on this for the section title."""
+    out = run({"target": f"http://127.0.0.1:{robots_server}"})
+    assert out.startswith("# "), f"missing markdown header: {out[:60]!r}"
+    # Target URL should appear in the header (helps the model anchor
+    # findings to the right host when multiple targets are probed).
+    assert "127.0.0.1" in out.splitlines()[0]
+
+
+def test_run_includes_robots_txt_body_inline_when_present(robots_server) -> None:
+    """The /robots.txt body is the entire point of this probe —
+    not just the status code. The helper must inline the body so the
+    fact_extractor's _DISALLOW_PATH_RE picks it up downstream."""
+    out = run({"target": f"http://127.0.0.1:{robots_server}"})
+    # The body block should be present (we render robots.txt fully).
+    assert "User-agent:" in out

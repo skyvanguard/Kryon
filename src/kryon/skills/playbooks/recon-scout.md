@@ -38,6 +38,17 @@ required_tools:
   - duckduckgo_search
   - recall_similar_experiences
   - reflect_on_hypothesis
+pre_hooks:
+  # FASE 11.T — web common paths discovery (deterministic recon
+  # baseline). Probes /robots.txt, /.git/config, /.env, /admin,
+  # /login, /api, etc. Injects findings so the model can't omit
+  # well-known paths the way it did against Robots THM (where it
+  # never consulted /robots.txt despite the lab hiding flags there).
+  # Banca-safe: pure GET, no payloads, wall-clock-bounded helper.
+  - python: ./pre_hooks/web_common_paths_hook.py:run
+    inject_as: web_common_paths
+    required: false
+    timeout_s: 30
 ---
 
 ## STOP CONDITION
