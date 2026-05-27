@@ -69,6 +69,11 @@ services:
     cap_add:
       - NET_RAW
       - NET_ADMIN
+      # FASE 11.O.5 — py-spy needs ptrace to attach to running PIDs
+      # for live stack-trace dumps when the agent hangs in CPU loop.
+      # Diagnostic-only; banca-safe (no privilege escalation surface
+      # beyond what ptrace already provides; same process tree).
+      - SYS_PTRACE
     devices:
       - /dev/net/tun:/dev/net/tun
     networks:
