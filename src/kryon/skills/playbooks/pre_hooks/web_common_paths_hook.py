@@ -439,37 +439,71 @@ def run(ctx: dict[str, Any]) -> str:
         lines.append("")
 
         if login_forms:
-            lines.append("### 🔐 LOGIN FORM(S) DISCOVERED")
+            # FASE 11.V.2 — frame as FINDING (not as action), so the
+            # orchestrator's "convert each line to JSON" instruction
+            # picks it up cleanly. Bench V showed the model
+            # interpreting "ACCIÓN OBLIGATORIA: emití curl" as "the
+            # pre_hook did its job, my job is to execute curl" and
+            # then returning [] when its single non-vhost curl
+            # didn't find new vulns. Framing as a finding with
+            # CWE/severity makes it a natural JSON entry, with the
+            # follow-up tools listed as optional remediation_command.
+            lines.append("### 🔐 HIDDEN LOGIN FORM — report as HIGH severity finding")
             lines.append("")
             for path, vhost, status, _body, form in login_forms:
                 action = form.get("action") or path
                 method = form.get("method") or "POST"
                 inputs = form.get("inputs", [])
                 lines.append(
-                    f"- **`{target}{path}`** (vhost `{vhost}`, status {status})"
+                    f"- **finding**: `LOGIN_FORM_VHOST_EXPOSED` "
+                    f"(CWE-200 + CWE-287, severity HIGH)"
                 )
                 lines.append(
-                    f"  - form action=`{action}` method=`{method}`"
+                    f"  - **host**: `{target}{path}`"
                 )
                 lines.append(
-                    f"  - input fields: {', '.join(f'`{i}`' for i in inputs)}"
+                    f"  - **vhost**: `{vhost}` (DNS-unresolvable, accessed via Host header)"
+                )
+                lines.append(
+                    f"  - **form**: action=`{action}` method=`{method}` "
+                    f"inputs={', '.join(f'`{i}`' for i in inputs)}"
+                )
+                lines.append(
+                    "  - **message**: Login form hidden behind vhost; only "
+                    "accessible with `Host: <vhost>` header. Bypasses normal "
+                    "discovery."
+                )
+                lines.append(
+                    f"  - **evidence**: `_probe_with_vhost` returned 200 con "
+                    f"form fields {inputs} para Host header `{vhost}`."
+                )
+                lines.append(
+                    "  - **remediation_command**: revisar el redirect "
+                    "/etc/apache2/sites-enabled/, considerá si el vhost debe "
+                    "ser público o restricted."
                 )
             lines.append("")
             lines.append(
-                "**ACCIÓN OBLIGATORIA**: el login form es la exploitation "
-                f"surface. Emití `run_command curl -s -X {method} "
-                f"-H 'Host: {vhost_findings[0][1]}' "
-                f"-d 'username=admin&password=admin' http://<ip>{login_forms[0][0]}` "
-                "para probar credenciales por defecto. Si el response cambia "
-                "(redirect vs. mismo form), es una pista de auth válido. "
-                "Para brute-force masivo, `hydra -L users.txt -P rockyou.txt "
-                f"http-post-form '{login_forms[0][0]}:username=^USER^&password=^PASS^"
-                f"&login=login:F=incorrect' -H 'Host: {vhost_findings[0][1]}'`. "
-                "También considerá sqlmap contra el form con "
-                f"`sqlmap --data 'username=admin&password=test' -u "
-                f"http://<ip>{login_forms[0][0]} --headers='Host: "
-                f"{vhost_findings[0][1]}' --batch`."
+                "_Optional follow-up tools (NOT required for findings JSON; "
+                "useful only si querés escalar)_:"
             )
+            for _p, vhost, _s, _b, form in login_forms[:1]:
+                action = form.get("action") or login_forms[0][0]
+                method = form.get("method") or "POST"
+                lines.append(
+                    f"- default creds probe: `run_command curl -s -X {method} "
+                    f"-H 'Host: {vhost}' -d 'username=admin&password=admin' "
+                    f"http://<ip>{action}`"
+                )
+                lines.append(
+                    f"- brute-force: `hydra -L users.txt -P rockyou.txt "
+                    f"http-post-form '{action}:username=^USER^&password=^PASS^"
+                    f"&login=login:F=incorrect' -H 'Host: {vhost}'`"
+                )
+                lines.append(
+                    f"- sqlmap: `sqlmap --data 'username=admin&password=test' "
+                    f"-u http://<ip>{action} --headers='Host: {vhost}' --batch`"
+                )
             lines.append("")
 
         if ok_responses:

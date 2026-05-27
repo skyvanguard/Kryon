@@ -465,6 +465,22 @@ def test_run_emits_brute_force_action_when_form_found(vhost_server) -> None:
     assert "hydra" in out.lower() or "sqlmap" in out.lower() or "brute" in out.lower() or "curl" in out.lower()
 
 
+def test_run_login_form_block_framed_as_finding_not_action(vhost_server) -> None:
+    """FASE 11.V.2 — Bench V regression showed the model reading
+    'ACCIÓN OBLIGATORIA: emití curl' as 'execute, don't report' and
+    returning []. The block must be framed as a FINDING (with CWE,
+    severity, message, evidence) so the orchestrator picks it up
+    as JSON. Follow-up tools listed as optional remediation."""
+    out = run({"host": f"http://127.0.0.1:{vhost_server}"})
+    # Finding shape markers — model must see CWE + severity hint.
+    assert "CWE-" in out
+    assert "HIGH" in out
+    # Rule id label present.
+    assert "LOGIN_FORM_VHOST_EXPOSED" in out or "VHOST_EXPOSED" in out
+    # Follow-up tools framed as OPTIONAL (not OBLIGATORIO).
+    assert "Optional follow-up" in out or "optional" in out.lower()
+
+
 def test_run_no_vhost_section_when_no_redirects() -> None:
     """Targets that don't emit cross-host redirects must NOT trigger
     the vhost section (false positive risk)."""
