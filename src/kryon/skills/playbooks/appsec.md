@@ -43,7 +43,7 @@ pre_hooks:
   - python: ./pre_hooks/web_common_paths_hook.py:run
     inject_as: web_common_paths
     required: false
-    timeout_s: 30
+    timeout_s: 100
 ---
 
 ## OWASP Top 10 Checklist

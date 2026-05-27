@@ -432,3 +432,70 @@ def test_format_findings_block_text_without_evidence_markers_uses_continue_varia
     assert "VACÍO" in block or "vacío" in block
     assert "NUNCA emitas" in block
     assert "ACCIÓN OBLIGATORIA" not in block
+
+
+# ---------------------------------------------------------------------------
+# FASE 11.T.3 — web_common_paths KEY FINDING + Disallow markers
+# ---------------------------------------------------------------------------
+#
+# Bench Robots T.2 run showed the FASE 11.T pre_hook output reaching
+# the conversation_input but the model verbalizing "web_common_paths
+# didn't return anything" because the imperative_findings_suffix(
+# evidence_present=False) variant was firing — the output didn't
+# match _EVIDENCE_MARKERS. T.3 adds the markers that recognize the
+# web_common_paths shape as legitimate evidence.
+
+
+def test_looks_like_real_evidence_accepts_key_finding_marker() -> None:
+    """Output from FASE 11.T web_common_paths_hook starts with
+    '## 🚨 KEY FINDING — /robots.txt exposes Disallow paths' — the
+    detector must recognize this as evidence so the imperative suffix
+    flips to the 'convert each line' variant."""
+    from kryon.skills.pre_hook_integration import _looks_like_real_evidence
+
+    output = (
+        "# 🎯 DETERMINISTIC RECON — Web common paths against http://10.0.0.1\n"
+        "## 🚨 KEY FINDING — /robots.txt exposes Disallow paths\n"
+        "- http://10.0.0.1/admin/\n"
+    )
+    assert _looks_like_real_evidence(output)
+
+
+def test_looks_like_real_evidence_accepts_disallow_lines() -> None:
+    """Even without the KEY FINDING header (e.g. older format), a
+    /robots.txt body with literal 'Disallow:' lines is unambiguous
+    evidence for recon CTF flow."""
+    from kryon.skills.pre_hook_integration import _looks_like_real_evidence
+
+    output = (
+        "Robots.txt content:\n"
+        "User-agent: *\n"
+        "Disallow: /harm/to/self\n"
+        "Disallow: /admin/\n"
+    )
+    assert _looks_like_real_evidence(output)
+
+
+def test_format_findings_block_web_common_paths_uses_action_variant() -> None:
+    """End-to-end: a realistic web_common_paths_hook output must yield
+    the 'ACCIÓN OBLIGATORIA' suffix (evidence present), NOT the
+    'continúa manually' fallback (evidence absent)."""
+    from kryon.skills.pre_hook_integration import format_findings_block
+
+    web_paths_output = (
+        "# 🎯 DETERMINISTIC RECON — Web common paths against http://target\n"
+        "## 🚨 KEY FINDING — /robots.txt exposes Disallow paths\n"
+        "- `http://target/admin/` ← investigate with curl / gobuster\n"
+        "- `http://target/harm/to/self` ← investigate with curl / gobuster\n"
+        "**ACCIÓN OBLIGATORIA**: emití un run_command curl contra CADA path\n"
+        "## Interesting paths (2)\n"
+        "- [200] /robots.txt  (82 bytes)\n"
+        "  Disallow: /admin/\n"
+        "  Disallow: /harm/to/self\n"
+    )
+    block = format_findings_block({"web_common_paths": web_paths_output})
+    # Evidence-present variant: 'ACCIÓN OBLIGATORIA' suffix.
+    assert "ACCIÓN OBLIGATORIA" in block
+    # Must NOT use the 'continúa manually' fallback that says output is empty.
+    assert "VACÍO" not in block
+    assert "NUNCA emitas" not in block

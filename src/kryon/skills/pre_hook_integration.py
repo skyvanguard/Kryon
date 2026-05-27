@@ -43,6 +43,13 @@ _HOST_RE = re.compile(r"\b((?:\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9][\w\-.]*\.[a-zA-Z]
 # this distinction, gpt-oss treats curl header dumps as authoritative
 # findings and terminates with severity=INFO entries instead of
 # exploring the real exploit chain manually.
+#
+# FASE 11.T.3 — added "KEY FINDING" + "Disallow:" markers so the
+# FASE 11.T web_common_paths pre_hook output counts as evidence. Bench
+# Robots showed the model reading the "Pre-hook devolvió output VACÍO"
+# imperative suffix and verbalizing "web_common_paths didn't return
+# anything" even when the block contained a /robots.txt finding with
+# 3 disallow paths. Was a false-negative in evidence detection.
 _EVIDENCE_MARKERS = re.compile(
     r"(?:"
     r"\bCWE-\d+\b|"                        # CWE-89, CWE-639, etc.
@@ -52,9 +59,11 @@ _EVIDENCE_MARKERS = re.compile(
     r"\[critical\]|\[high\]|\[medium\]|"   # nuclei severity tags (no word-boundary)
     r"\bmatched\b|"
     r"interesting \([a-z ]+\):\s*[1-9]|"   # idor_probe "Interesting (potential CWE-X): N"
-    r"candidate \(200 OK on foreign"       # idor candidate confirmed
+    r"candidate \(200 OK on foreign|"      # idor candidate confirmed
+    r"KEY FINDING|"                        # FASE 11.T web_common_paths section
+    r"^\s*Disallow:\s*/"                   # /robots.txt body line (recon CTF marker)
     r")",
-    re.IGNORECASE,
+    re.IGNORECASE | re.MULTILINE,
 )
 
 

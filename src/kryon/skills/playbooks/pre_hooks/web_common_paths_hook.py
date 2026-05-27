@@ -54,13 +54,15 @@ _COMMON_PATHS: tuple[str, ...] = (
     "/wp-login.php",
 )
 
-_PER_PATH_TIMEOUT_S = 6.0
+_PER_PATH_TIMEOUT_S = 12.0
 _MAX_BODY_PREVIEW = 800  # chars per path
-# FASE 11.T.2 — bumped from 22s to 45s. Bench Robots showed the
-# helper getting partial results (110 chars instead of 404) when
-# nuclei was running concurrently in the same engagement; the
-# wall-clock budget cut off ~half the probes. 45s leaves margin.
-_WALL_CLOCK_S = 45.0
+# FASE 11.T.3 — bumped further from 45s to 90s + per-path 6s → 12s.
+# Bench Robots T.2 (concurrent with nuclei + over OpenVPN) showed even
+# /robots.txt erroring out — only 185-char output came through with
+# "All 14 probed paths returned 404 or errored". Network latency over
+# VPN + concurrency starves urllib. 12s/path × 14 paths sequential
+# would be 168s; with max_workers=8 concurrency, ~25s realistic.
+_WALL_CLOCK_S = 90.0
 _ROBOTS_BODY_MAX_LINES = 30
 
 
