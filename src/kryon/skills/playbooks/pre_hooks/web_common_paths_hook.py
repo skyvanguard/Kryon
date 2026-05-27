@@ -121,15 +121,29 @@ def _interest_key(row: tuple[str, int, int, str]) -> tuple[int, int]:
 
 
 def run(ctx: dict[str, Any]) -> str:
-    """Probe well-known paths against ``ctx['target']``.
+    """Probe well-known paths against the target URL.
+
+    Resolution order for the target URL:
+      1. ``ctx['host']`` — populated from ``KRYON_TARGET_HOST`` env by
+         ``build_turn_ctx``. This is the authoritative value when the
+         engage CLI is running (``engage.py:_run_phase`` sets the env
+         right before each phase's pre_hooks).
+      2. ``ctx['target']`` — fallback, populated by hostname regex
+         scan over the user input. UNRELIABLE because the regex can
+         match incidental tokens like ``user.txt`` from a recon
+         objective ("find user.txt and root.txt") — Bench Robots
+         (2026-05-27) hit this exact false-positive and every probe
+         hit http://user.txt/... → all errored.
 
     Returns a markdown-formatted summary. Empty / missing target
     yields a one-line skip message (not a crash). All transport
     errors are captured per-path; the probe never raises.
     """
-    target = (ctx.get("target") or "").strip().rstrip("/")
+    # FASE 11.T.4 — prefer ctx['host'] (env-backed, authoritative) over
+    # ctx['target'] (regex-detected, brittle).
+    target = (ctx.get("host") or ctx.get("target") or "").strip().rstrip("/")
     if not target:
-        return "[web-common-paths] no target in ctx"
+        return "[web-common-paths] no target in ctx (neither host nor target set)"
 
     # Operator may pass bare host:port — normalize to URL.
     if not (target.startswith("http://") or target.startswith("https://")):

@@ -226,3 +226,40 @@ def test_run_no_disallow_section_when_robots_txt_missing() -> None:
     assert "KEY FINDING" not in out, (
         "should not claim disallow finding when /robots.txt absent"
     )
+
+
+# ---------------------------------------------------------------------------
+# FASE 11.T.4 — ctx resolution priority (host > target)
+# ---------------------------------------------------------------------------
+#
+# Bench Robots run #3 surfaced the worst-case false-positive of
+# ``build_turn_ctx``: the user input "find user.txt and root.txt
+# flags" caused ``_HOST_RE`` to match ``user.txt`` as a hostname and
+# populate ``ctx['target'] = 'user.txt'``. The helper then probed
+# http://user.txt/... and every path errored. The env-backed
+# ``ctx['host']`` is reliable; we must prefer it.
+
+
+def test_run_prefers_ctx_host_over_ctx_target(robots_server) -> None:
+    """When ctx has both host (env-backed, correct) and target
+    (regex-detected, wrong), the helper MUST use host."""
+    out = run({
+        "host": f"http://127.0.0.1:{robots_server}",  # correct
+        "target": "user.txt",  # false positive from "find user.txt"
+    })
+    # Should hit the real server, not http://user.txt
+    assert "Disallow: /post/" in out
+    assert "KEY FINDING" in out
+
+
+def test_run_falls_back_to_target_when_host_empty(robots_server) -> None:
+    """Older call sites that only pass ``target`` (no host key) must
+    still work — backward compat."""
+    out = run({"target": f"http://127.0.0.1:{robots_server}"})
+    assert "Disallow: /post/" in out
+
+
+def test_run_handles_both_missing_gracefully() -> None:
+    """Neither host nor target → graceful skip, not crash."""
+    out = run({"host": "", "target": ""})
+    assert "no target" in out.lower() or "[" in out
