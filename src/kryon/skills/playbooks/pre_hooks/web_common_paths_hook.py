@@ -31,11 +31,20 @@ from __future__ import annotations
 
 import concurrent.futures
 import logging
+import re
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# FASE 11.V — extract <form> + <input> field names from HTML body.
+# Permissive regex (no HTML parsing dependency); covers the common
+# shapes used by CTF login forms and real-world PHP apps.
+_INPUT_NAME_RE = re.compile(r'<input[^>]*\bname\s*=\s*[\'"]([^\'"]+)[\'"]', re.IGNORECASE)
+_FORM_ACTION_RE = re.compile(r'<form[^>]*\baction\s*=\s*[\'"]([^\'"]+)[\'"]', re.IGNORECASE)
+_FORM_METHOD_RE = re.compile(r'<form[^>]*\bmethod\s*=\s*[\'"]([^\'"]+)[\'"]', re.IGNORECASE)
 
 _COMMON_PATHS: tuple[str, ...] = (
     "/robots.txt",
@@ -141,6 +150,84 @@ def _probe_path(base: str, path: str) -> tuple[str, int, int, str]:
         return (path, exc.code, len(body_str), body_str)
     except Exception as exc:  # noqa: BLE001 — never crash the whole probe
         return (path, -1, 0, f"[error] {exc}")
+
+
+def _extract_vhost_from_location(body_preview: str, target: str) -> str:
+    """FASE 11.V — pull the vhost out of a redirect's Location header.
+
+    Our ``_probe_path`` prepends ``[Location: http://host/path]\\n`` to
+    the body when a redirect status was captured. We parse that line
+    and return the host part IFF it differs from the target's host.
+    Same-host redirects (e.g. /path → /path/) aren't vhost tricks; we
+    only care when the server is steering us to a different name.
+    """
+    m = re.match(r"^\[Location:\s*([^\]]+)\]", body_preview)
+    if not m:
+        return ""
+    location = m.group(1).strip()
+    try:
+        loc_host = urllib.parse.urlparse(location).hostname or ""
+        target_host = urllib.parse.urlparse(target).hostname or ""
+    except Exception:  # noqa: BLE001
+        return ""
+    if loc_host and loc_host.lower() != target_host.lower():
+        return loc_host
+    return ""
+
+
+def _probe_with_vhost(target: str, path: str, vhost: str) -> tuple[int, int, str]:
+    """FASE 11.V — GET ``target + path`` with ``Host: vhost`` header.
+
+    Returns (status, body_size, body_preview). Used as the second
+    probe in the vhost-trick scenario: the IP responds 302 →
+    http://vhost/..., DNS doesn't resolve vhost, but the IP DOES
+    serve the real content when given the right Host header.
+    """
+    req = urllib.request.Request(
+        target + path,
+        method="GET",
+        headers={
+            "User-Agent": "Kryon/web-paths-probe",
+            "Host": vhost,
+        },
+    )
+    try:
+        with _NO_REDIRECT_OPENER.open(req, timeout=_PER_PATH_TIMEOUT_S) as resp:
+            body = resp.read(_MAX_BODY_PREVIEW * 4)  # bigger body for form parsing
+            body_str = body.decode("utf-8", errors="replace")
+            return (resp.status, len(body_str), body_str)
+    except urllib.error.HTTPError as exc:
+        body_str = ""
+        try:
+            raw = exc.read(_MAX_BODY_PREVIEW * 4)
+            body_str = raw.decode("utf-8", errors="replace")
+        except Exception:  # noqa: BLE001
+            pass
+        return (exc.code, len(body_str), body_str)
+    except Exception as exc:  # noqa: BLE001
+        return (-1, 0, f"[error] {exc}")
+
+
+def _detect_login_form(html: str) -> dict[str, Any]:
+    """FASE 11.V — find <form> + <input name=...> in an HTML body.
+
+    Returns ``{}`` when no form-shaped markup is found. Otherwise a
+    dict with the form's action, method, and a list of input names.
+    Used to flag login surfaces in the vhost probe output so the
+    model gets a ready-to-brute-force summary.
+    """
+    if not html or "<form" not in html.lower():
+        return {}
+    inputs = _INPUT_NAME_RE.findall(html)
+    if not inputs:
+        return {}
+    action_match = _FORM_ACTION_RE.search(html)
+    method_match = _FORM_METHOD_RE.search(html)
+    return {
+        "action": action_match.group(1) if action_match else "",
+        "method": (method_match.group(1) if method_match else "GET").upper(),
+        "inputs": inputs,
+    }
 
 
 def _interest_key(row: tuple[str, int, int, str]) -> tuple[int, int]:
@@ -296,6 +383,102 @@ def run(ctx: dict[str, Any]) -> str:
         for path in robots_disallow_paths:
             lines.append(f"- `{target}{path}` ← investigate with curl / gobuster")
         lines.append("")
+
+    # FASE 11.V — detect cross-host redirects (vhost trick) in the
+    # chain results. The Robots THM lab redirects /harm/to/self/* to
+    # http://robots.thm/... which DNS can't resolve; the only way to
+    # see the real content is to probe the IP with Host: robots.thm.
+    vhost_findings: list[tuple[str, str, int, str, dict[str, Any]]] = []
+    if live_subpath_hits:
+        # Detect a single vhost from any redirect Location header.
+        detected_vhost = ""
+        for _path, status, _size, body in live_subpath_hits:
+            if status in (301, 302, 307, 308):
+                candidate = _extract_vhost_from_location(body, target)
+                if candidate:
+                    detected_vhost = candidate
+                    break
+        if detected_vhost:
+            # Re-probe each redirect path with the vhost Host header.
+            # Cap at ~6 paths to stay within wall-clock budget.
+            redirect_paths = [
+                p for p, s, _, _ in live_subpath_hits
+                if s in (301, 302, 307, 308)
+            ][:6]
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+                vhost_futures = {
+                    ex.submit(_probe_with_vhost, target, p, detected_vhost): p
+                    for p in redirect_paths
+                }
+                for fut in concurrent.futures.as_completed(
+                    vhost_futures, timeout=_WALL_CLOCK_S
+                ):
+                    p = vhost_futures[fut]
+                    try:
+                        status, size, body = fut.result()
+                    except Exception as exc:  # noqa: BLE001
+                        status, size, body = -1, 0, f"[error] {exc}"
+                    form = _detect_login_form(body)
+                    vhost_findings.append((p, detected_vhost, status, body, form))
+
+    # FASE 11.V — render the vhost block BEFORE the chain enum block
+    # because the vhost finding is the highest-leverage signal in the
+    # whole output (it's the actual exploitation surface, not just a
+    # redirect that needs follow-up).
+    if vhost_findings:
+        login_forms = [vf for vf in vhost_findings if vf[4]]
+        ok_responses = [vf for vf in vhost_findings if vf[2] == 200 and not vf[4]]
+
+        lines.append(f"## 🎯 VHOST DETECTED — `{vhost_findings[0][1]}`")
+        lines.append("")
+        lines.append(
+            f"**The target's redirects point to vhost `{vhost_findings[0][1]}` "
+            "(not DNS-resolvable). Probing the target IP with "
+            f"`Host: {vhost_findings[0][1]}` header reveals real content.**"
+        )
+        lines.append("")
+
+        if login_forms:
+            lines.append("### 🔐 LOGIN FORM(S) DISCOVERED")
+            lines.append("")
+            for path, vhost, status, _body, form in login_forms:
+                action = form.get("action") or path
+                method = form.get("method") or "POST"
+                inputs = form.get("inputs", [])
+                lines.append(
+                    f"- **`{target}{path}`** (vhost `{vhost}`, status {status})"
+                )
+                lines.append(
+                    f"  - form action=`{action}` method=`{method}`"
+                )
+                lines.append(
+                    f"  - input fields: {', '.join(f'`{i}`' for i in inputs)}"
+                )
+            lines.append("")
+            lines.append(
+                "**ACCIÓN OBLIGATORIA**: el login form es la exploitation "
+                f"surface. Emití `run_command curl -s -X {method} "
+                f"-H 'Host: {vhost_findings[0][1]}' "
+                f"-d 'username=admin&password=admin' http://<ip>{login_forms[0][0]}` "
+                "para probar credenciales por defecto. Si el response cambia "
+                "(redirect vs. mismo form), es una pista de auth válido. "
+                "Para brute-force masivo, `hydra -L users.txt -P rockyou.txt "
+                f"http-post-form '{login_forms[0][0]}:username=^USER^&password=^PASS^"
+                f"&login=login:F=incorrect' -H 'Host: {vhost_findings[0][1]}'`. "
+                "También considerá sqlmap contra el form con "
+                f"`sqlmap --data 'username=admin&password=test' -u "
+                f"http://<ip>{login_forms[0][0]} --headers='Host: "
+                f"{vhost_findings[0][1]}' --batch`."
+            )
+            lines.append("")
+
+        if ok_responses:
+            lines.append("### Other 200 responses via vhost")
+            for path, _vhost, status, body, _form in ok_responses:
+                lines.append(f"- [{status}] `{target}{path}` ({len(body)} bytes)")
+                preview = body[:160].replace("\n", " ").replace("\r", "")
+                lines.append(f"  preview: {preview!r}")
+            lines.append("")
 
     if live_subpath_hits:
         # FASE 11.U — surface live sub-paths discovered under the

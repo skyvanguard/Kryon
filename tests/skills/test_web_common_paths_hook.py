@@ -347,3 +347,126 @@ def test_run_no_chain_section_when_no_disallow_paths() -> None:
     enumeration section must NOT appear (would just spam 404s)."""
     out = run({"host": "http://10.255.255.1"})  # unreachable
     assert "DISALLOW PATH ENUMERATION" not in out
+
+
+# ---------------------------------------------------------------------------
+# FASE 11.V — vhost detection + login form discovery
+# ---------------------------------------------------------------------------
+#
+# Bench Robots T.4/U showed the lab redirecting /harm/to/self/login.php
+# (302) → http://robots.thm/harm/to/self/login.php (vhost). robots.thm
+# doesn't resolve via DNS; the only way to reach the real login form
+# is to send the IP + Host: robots.thm header. The lab's classic
+# "vhost trick" — invisible to a plain curl, fatal to recon flows
+# that don't follow up on Location headers with vhost substitution.
+#
+# FASE 11.V auto-detects the vhost from Location headers in redirect
+# responses and probes with the Host header. The resulting HTML
+# body gets parsed for <form> + <input> fields so the model gets a
+# ready-to-brute-force surface in the prompt.
+
+
+@pytest.fixture
+def vhost_server():
+    """Mock server that mimics the Robots THM vhost trick:
+    /login redirects to a vhost-only host, and only responds with
+    the login form when given Host: vhost.local."""
+
+    class _Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *_args, **_kwargs) -> None:
+            return
+
+        def do_GET(self) -> None:
+            host_header = self.headers.get("Host", "")
+            # Vhost mode: serve the login form.
+            if "vhost.local" in host_header:
+                if self.path == "/login.php":
+                    body = (
+                        b"<!DOCTYPE html><html><body>"
+                        b'<form method="POST" action="/login.php">'
+                        b'<input type="text" name="username">'
+                        b'<input type="password" name="password">'
+                        b'<input type="submit" name="login">'
+                        b"</form></body></html>"
+                    )
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                self.send_response(404)
+                self.end_headers()
+                return
+            # IP mode: redirect login.php to vhost.
+            if self.path == "/robots.txt":
+                body = b"User-agent: *\nDisallow: /login.php\n"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if self.path == "/login.php":
+                self.send_response(302)
+                self.send_header("Location", "http://vhost.local/login.php")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            self.send_response(404)
+            self.end_headers()
+
+    httpd = socketserver.TCPServer(("127.0.0.1", 0), _Handler)
+    port = httpd.server_address[1]
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield port
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_run_detects_vhost_from_redirect_location(vhost_server) -> None:
+    """When a chain-enum probe returns 302 with Location pointing to
+    a different hostname, the helper must extract that vhost and
+    surface it as a finding."""
+    out = run({"host": f"http://127.0.0.1:{vhost_server}"})
+    # The vhost must appear in the output.
+    assert "vhost.local" in out
+    # Marked clearly as VHOST hint.
+    assert "VHOST" in out or "vhost" in out.lower()
+
+
+def test_run_probes_vhost_with_host_header(vhost_server) -> None:
+    """After detecting the vhost, the helper must do a second probe
+    with the Host header and surface the resulting HTML body (which
+    is the actual login form)."""
+    out = run({"host": f"http://127.0.0.1:{vhost_server}"})
+    # The body must reveal the form discovered via vhost probe.
+    assert 'name="username"' in out or "username" in out.lower()
+
+
+def test_run_extracts_form_field_names(vhost_server) -> None:
+    """Form input field names are the high-value extraction — the
+    model needs them verbatim to construct brute-force payloads."""
+    out = run({"host": f"http://127.0.0.1:{vhost_server}"})
+    # Both username and password input names must appear.
+    assert "username" in out
+    assert "password" in out
+
+
+def test_run_emits_brute_force_action_when_form_found(vhost_server) -> None:
+    """A discovered login form must surface as an actionable block
+    with explicit follow-up (hydra / sqlmap / manual curl)."""
+    out = run({"host": f"http://127.0.0.1:{vhost_server}"})
+    assert "LOGIN FORM" in out or "login form" in out.lower()
+    # Some imperative directive to use the form.
+    assert "hydra" in out.lower() or "sqlmap" in out.lower() or "brute" in out.lower() or "curl" in out.lower()
+
+
+def test_run_no_vhost_section_when_no_redirects() -> None:
+    """Targets that don't emit cross-host redirects must NOT trigger
+    the vhost section (false positive risk)."""
+    out = run({"host": "http://10.255.255.1"})
+    assert "VHOST" not in out
