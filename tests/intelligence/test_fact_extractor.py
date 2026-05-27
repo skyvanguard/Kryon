@@ -345,6 +345,58 @@ def test_anti_pattern_hints_dont_interfere_with_parser_output() -> None:
     assert any("objectClass filter" in h for h in facts.hints)
 
 
+def test_web_fetch_smart_detects_php_app_pages_from_gobuster_output() -> None:
+    """FASE 11.P.1 — when gobuster output (or any tool output) reveals
+    PHP app entry points like ``login.php`` / ``register.php`` /
+    ``admin.php`` / ``upload.php`` / ``index.php`` / ``config.php``,
+    surface each as a ``discovered:<file>`` hint so the planner's
+    auth-chain rules can pivot on the signal.
+
+    Robots THM manual recon showed ``/harm/to/self/`` contained
+    ``admin.php login.php register.php config.php index.php`` — these
+    are the canonical CTF web-app entry points and each implies a
+    distinct exploitation path."""
+    sample = (
+        "Found admin.php (Status: 302)\n"
+        "Found login.php (Status: 302)\n"
+        "Found register.php (Status: 302)\n"
+        "Found config.php (Status: 302)\n"
+        "Found index.php (Status: 302)\n"
+    )
+    facts = extract_facts(
+        "gobuster dir -u http://target/harm/to/self -w common.txt",
+        sample,
+    )
+    assert "discovered:login.php" in facts.hints
+    assert "discovered:register.php" in facts.hints
+    assert "discovered:admin.php" in facts.hints
+    # config.php typically holds credentials; capture too
+    assert "discovered:config.php" in facts.hints
+
+
+def test_web_fetch_smart_detects_upload_php_separately() -> None:
+    """``upload.php`` opens a different exploitation path (file-upload
+    webshell) so we want it surfaced even if other PHP pages aren't
+    present in the same output."""
+    sample = "Found upload.php (Status: 200)\n"
+    facts = extract_facts("gobuster dir ... -w big.txt", sample)
+    assert "discovered:upload.php" in facts.hints
+
+
+def test_web_fetch_smart_discovered_skips_static_assets() -> None:
+    """css/js/static asset filenames shouldn't pollute the hint set
+    (they don't enable any exploitation path)."""
+    sample = (
+        "Found style.css (Status: 200)\n"
+        "Found app.js (Status: 200)\n"
+        "Found login.php (Status: 302)\n"  # only this counts
+    )
+    facts = extract_facts("gobuster dir ...", sample)
+    assert "discovered:login.php" in facts.hints
+    assert "discovered:style.css" not in facts.hints
+    assert "discovered:app.js" not in facts.hints
+
+
 def test_web_fetch_smart_detects_vhost_from_location_redirect() -> None:
     """FASE 11.O.2 — when a 302 redirect's Location header points to
     a hostname different from the host we requested, that hostname is

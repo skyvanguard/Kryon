@@ -662,6 +662,22 @@ def _parse_web_fetch_smart(output: str) -> ExtractedFacts:
                 continue
             hints.append(f"disallow:{path}")
 
+    # FASE 11.P.1 — discovered PHP app entry points. When gobuster /
+    # ffuf / web_fetch_smart surface ``login.php``, ``register.php``,
+    # ``admin.php``, ``config.php``, ``index.php``, ``upload.php``,
+    # emit one ``discovered:<file>`` hint per file so the planner's
+    # auth-chain rules can pivot. Skip static assets (.css/.js/img)
+    # — those don't enable exploitation paths.
+    _PHP_APP_ENTRY_POINTS = (
+        "login.php", "register.php", "admin.php", "upload.php",
+        "config.php", "index.php", "logout.php", "dashboard.php",
+        "profile.php", "api.php",
+    )
+    lower_output = output.lower()
+    for entry in _PHP_APP_ENTRY_POINTS:
+        if entry in lower_output:
+            hints.append(f"discovered:{entry}")
+
     # FASE 11.O.2 — virtual host detection from 302/301 redirects.
     # When the server returns ``Location: http://OTHER_HOST/...`` for
     # a request we sent to ``IP/path``, that OTHER_HOST is a virtual
@@ -735,6 +751,18 @@ def _parse_generic(output: str) -> ExtractedFacts:
             if re.fullmatch(r"\d{1,3}(?:\.\d{1,3}){3}", loc_host):
                 continue
             hints.append(f"vhost:{loc_host}")
+
+    # FASE 11.P.1 — discovered PHP app entry points (generic pass).
+    # Same predicate as the web_fetch_smart-specific path so gobuster
+    # / dirb / nuclei outputs surface the auth chain signals too.
+    _PHP_ENTRY = (
+        "login.php", "register.php", "admin.php", "upload.php",
+        "config.php", "index.php", "logout.php", "dashboard.php",
+        "profile.php", "api.php",
+    )
+    for entry in _PHP_ENTRY:
+        if entry in lower:
+            hints.append(f"discovered:{entry}")
 
     return ExtractedFacts(
         hashes=_dedup_sorted(tuple(hashes)),
