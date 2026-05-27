@@ -701,12 +701,40 @@ def _parse_generic(output: str) -> ExtractedFacts:
     krb5 hashes, NTLM dumps, and CTF hint phrases. Conservative — does
     NOT extract IPs/FQDNs blindly, those produce more noise than signal
     when fired against arbitrary text.
+
+    FASE 11.O.6 — also runs the robots.txt Disallow parser here. The
+    reflective runner's whole-chunk pass invokes ``extract_facts('',
+    chunk_text)`` with an empty tool_invocation; that dispatches to
+    THIS function rather than the web_fetch_smart-specific parser
+    where the Disallow logic originally lived. Result: the planner
+    saw zero ``disallow:`` hints because nothing routed the text
+    through the parser. Mirroring the parse here closes the gap.
     """
     hashes: list[str] = list(_KRB5_RE.findall(output))
     hashes.extend(_NTLM_PAIR_RE.findall(output))
 
     lower = output.lower()
     hints = [p for p in _CTF_HINT_PHRASES if p in lower]
+
+    # FASE 11.O.6 — robots.txt Disallow detection in the generic
+    # whole-chunk pass. Same predicate + parser as the web_fetch_smart
+    # path; duplicate match suppression happens in _dedup_sorted.
+    if "/robots.txt" in lower or "disallow:" in lower:
+        for m in _DISALLOW_PATH_RE.finditer(output):
+            path = m.group(1).strip()
+            if not path or path == "/":
+                continue
+            hints.append(f"disallow:{path}")
+    # FASE 11.O.6 — same coverage for vhost redirects on the generic
+    # pass (Location: http://OTHER/... heuristic).
+    if "location" in lower and "http" in lower:
+        for loc_match in _LOCATION_HEADER_RE.finditer(output):
+            loc_host = loc_match.group(1).lower()
+            if not loc_host:
+                continue
+            if re.fullmatch(r"\d{1,3}(?:\.\d{1,3}){3}", loc_host):
+                continue
+            hints.append(f"vhost:{loc_host}")
 
     return ExtractedFacts(
         hashes=_dedup_sorted(tuple(hashes)),
