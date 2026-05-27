@@ -120,21 +120,24 @@ def fix_message_list(messages):  # pylint: disable=R0914,R0915,R0912
     Returns:
         List[dict]: Sanitized list of messages with invalid tool calls
                    and empty messages removed.
-    """
-    # Deep-copy to ensure we don't modify the input
-    sanitized_messages = []
 
-    # First, truncate all tool call IDs to 40 characters throughout the messages
-    # This ensures consistency for providers like DeepSeek that have strict ID matching
+    FASE 11.S — rewritten to O(n). The previous implementation used a
+    while-loop with a nested ``enumerate`` linear search (~line 230)
+    to locate the assistant matching each out-of-sequence tool
+    message. On Bench Robots (2026-05-27) the engage main thread sat
+    14+ minutes at 49% CPU inside that O(n²) hot path once the
+    history accumulated nikto/whatweb/nuclei tool outputs plus the
+    qwen3-8b-active reasoning blocks. The new algorithm builds the
+    result in a single linear pass driven by pre-computed dicts.
+    """
+    # Stage 1: sanitize tool_call_id lengths (deep-copy to avoid
+    # mutating caller's input).
+    sanitized = []
     for msg in messages:
         msg_copy = msg.copy()
-
-        # Truncate tool_call_id in tool messages
         if msg_copy.get("role") == "tool" and msg_copy.get("tool_call_id"):
             if len(msg_copy["tool_call_id"]) > 40:
                 msg_copy["tool_call_id"] = msg_copy["tool_call_id"][:40]
-
-        # Truncate IDs in assistant tool_calls
         if msg_copy.get("role") == "assistant" and msg_copy.get("tool_calls"):
             tool_calls_copy = []
             for tc in msg_copy["tool_calls"]:
@@ -143,243 +146,125 @@ def fix_message_list(messages):  # pylint: disable=R0914,R0915,R0912
                     tc_copy["id"] = tc_copy["id"][:40]
                 tool_calls_copy.append(tc_copy)
             msg_copy["tool_calls"] = tool_calls_copy
+        sanitized.append(msg_copy)
 
-        sanitized_messages.append(msg_copy)
-
-    # Now process the messages with truncated IDs
-    processed_messages = []
-    tool_call_map = {}  # Map from tool_call_id to (assistant_idx, tool_idx)
-
-    for _i, msg in enumerate(sanitized_messages):
-        # Skip empty messages (considered empty if 'content' is None or only whitespace)
-        if msg.get("role") in ["user", "system"] and (
+    # Stage 2: drop empty user messages; keep empty system as "".
+    # Track assistant messages by tool_id and queue tool responses
+    # that arrive before their assistant by buffering them keyed on
+    # tool_id. We DO NOT emit anything yet — first we need to know
+    # which assistants exist so we can decide how to handle orphan
+    # tool messages (and avoid the O(n²) "find assistant" search).
+    cleaned = []
+    for msg in sanitized:
+        if msg.get("role") in ("user", "system") and (
             msg.get("content") is None or not str(msg.get("content", "")).strip()
         ):
-            # Special case: if it's a system message, set content to empty string instead of skipping
             if msg.get("role") == "system":
-                # Replace None with empty string
                 msg["content"] = ""
-                processed_messages.append(msg)
-            # Skip empty user messages entirely
+                cleaned.append(msg)
+            # Empty user messages are dropped entirely (matches legacy).
             continue
+        cleaned.append(msg)
 
-        # Add valid messages to our processed list first
-        processed_messages.append(msg)
-
-        # Now track tool calls and tool messages for pairing
+    # Build an O(1) lookup: tool_id -> tool_name from any assistant
+    # message that advertises that tool_call_id. Used to label
+    # synthetic tool responses correctly when we have to insert one.
+    assistant_tool_names = {}
+    for msg in cleaned:
         if msg.get("role") == "assistant" and msg.get("tool_calls"):
             for tc in msg["tool_calls"]:
-                if tc.get("id"):
-                    tool_id = tc.get("id")
-                    if tool_id not in tool_call_map:
-                        tool_call_map[tool_id] = {
-                            "assistant_idx": len(processed_messages) - 1,
-                            "tool_idx": None,
-                        }
+                tool_id = tc.get("id")
+                if not tool_id:
+                    continue
+                fn = tc.get("function") or {}
+                assistant_tool_names.setdefault(tool_id, fn.get("name") or "unknown_function")
 
+    # Collect tool responses keyed by tool_id. If the same id appears
+    # twice (LLM retry, replayed history), prefer the LAST one — same
+    # tie-break as the legacy code, which updated tool_idx on each
+    # encounter without dedup.
+    tool_responses = {}
+    for msg in cleaned:
         if msg.get("role") == "tool" and msg.get("tool_call_id"):
+            tool_responses[msg["tool_call_id"]] = msg
+
+    # Stage 3: emit the final list. For each non-tool message:
+    #   - emit it as-is
+    #   - if it's an assistant with tool_calls, immediately emit each
+    #     matching tool response (consuming from tool_responses); if a
+    #     tool_call has no response, synthesize one
+    # For each tool message: skip — it has already been emitted with
+    # its assistant. If the tool's id had no matching assistant
+    # anywhere in the history, synthesize a stub assistant + emit the
+    # tool message right after.
+    final = []
+    consumed_tool_ids = set()
+    for msg in cleaned:
+        role = msg.get("role")
+        if role == "tool":
             tool_id = msg.get("tool_call_id")
-            if tool_id in tool_call_map:
-                tool_call_map[tool_id]["tool_idx"] = len(processed_messages) - 1
-            else:
-                # Tool response without a matching tool call - create a synthetic pair
-                # by adding a dummy assistant message with a tool_call
-                assistant_msg = {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        {
-                            "id": tool_id,
-                            "type": "function",
-                            "function": {"name": "unknown_function", "arguments": "{}"},
-                        }
-                    ],
-                }
-                # Insert the assistant message *before* the tool message
-                processed_messages.insert(len(processed_messages) - 1, assistant_msg)
-                # Update mapping
-                tool_call_map[tool_id] = {
-                    "assistant_idx": len(processed_messages) - 2,
-                    "tool_idx": len(processed_messages) - 1,
-                }
-
-    # Second pass - ensure correct sequence (tool messages must directly follow their assistant messages)
-    # This fixes the error "messages with role 'tool' must be a response to a preceeding message with 'tool_calls'"
-    i = 0
-    while i < len(processed_messages):
-        msg = processed_messages[i]
-
-        # Check if this is a tool message that might be out of sequence
-        if msg.get("role") == "tool" and msg.get("tool_call_id"):
-            tool_id = msg.get("tool_call_id")
-
-            # If this isn't the first message, check if the previous message is a matching assistant message
-            if i > 0:
-                prev_msg = processed_messages[i - 1]
-
-                # Check if the previous message is an assistant message with matching tool_call_id
-                is_valid_sequence = (
-                    prev_msg.get("role") == "assistant"
-                    and prev_msg.get("tool_calls")
-                    and any(tc.get("id") == tool_id for tc in prev_msg.get("tool_calls", []))
-                )
-
-                if not is_valid_sequence:
-                    # Find the assistant message with this tool_call_id
-                    assistant_idx = None
-                    for j, assistant_msg in enumerate(processed_messages):
-                        if (
-                            assistant_msg.get("role") == "assistant"
-                            and assistant_msg.get("tool_calls")
-                            and any(tc.get("id") == tool_id for tc in assistant_msg.get("tool_calls", []))
-                        ):
-                            assistant_idx = j
-                            break
-
-                    # If we found a matching assistant message, move this tool message right after it
-                    if assistant_idx is not None:
-                        # Remember to save the tool message
-                        tool_msg = processed_messages.pop(i)
-
-                        # Insert right after the assistant message
-                        processed_messages.insert(assistant_idx + 1, tool_msg)
-
-                        # Adjust i to account for the move
-                        if assistant_idx < i:
-                            # We moved the message backward, so i should point to the next message
-                            # which is now at position i (since we removed a message before it)
-                            continue
-                        else:
-                            # We moved the message forward, so i should now point to the message
-                            # that is now at position i
-                            continue
-                    else:
-                        # No matching assistant message found - create one
-                        assistant_msg = {
-                            "role": "assistant",
-                            "content": None,
-                            "tool_calls": [
-                                {
-                                    "id": tool_id,
-                                    "type": "function",
-                                    "function": {"name": "unknown_function", "arguments": "{}"},
-                                }
-                            ],
-                        }
-
-                        # Insert the assistant message before the tool message
-                        processed_messages.insert(i, assistant_msg)
-
-                        # Skip past both messages
-                        i += 2
-                        continue
-            else:
-                # This tool message is at index 0, which means there's no preceding assistant message
-                # Create a dummy assistant message
-                assistant_msg = {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        {
-                            "id": tool_id,
-                            "type": "function",
-                            "function": {"name": "unknown_function", "arguments": "{}"},
-                        }
-                    ],
-                }
-
-                # Insert the assistant message before the tool message
-                processed_messages.insert(0, assistant_msg)
-
-                # Skip past both messages
-                i += 2
+            if tool_id in consumed_tool_ids:
+                # Already attached to its assistant earlier.
                 continue
+            if tool_id not in assistant_tool_names:
+                # Orphan tool — synthesize stub assistant + emit.
+                stub_assistant = {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": tool_id,
+                            "type": "function",
+                            "function": {"name": "unknown_function", "arguments": "{}"},
+                        }
+                    ],
+                }
+                final.append(stub_assistant)
+                final.append(msg)
+                consumed_tool_ids.add(tool_id)
+            # If assistant exists but we hit the tool first (out of
+            # order), drop this stray — when we reach the assistant we
+            # will re-emit a fresh copy from tool_responses keyed on
+            # the same id. consumed_tool_ids stops re-emission later.
+            continue
 
-        # Move to the next message
-        i += 1
+        final.append(msg)
+        if role == "assistant" and msg.get("tool_calls"):
+            for tc in msg["tool_calls"]:
+                tool_id = tc.get("id")
+                if not tool_id:
+                    continue
+                if tool_id in consumed_tool_ids:
+                    continue
+                tool_msg = tool_responses.get(tool_id)
+                if tool_msg is None:
+                    # Synthesize tool response for the call.
+                    fn = tc.get("function") or {}
+                    tool_name = fn.get("name") or "unknown_function"
+                    tool_msg = {
+                        "role": "tool",
+                        "tool_call_id": tool_id,
+                        "content": f"Auto-generated response for {tool_name}",
+                    }
+                final.append(tool_msg)
+                consumed_tool_ids.add(tool_id)
 
-    # Final validation - ensure all tool calls have responses
-    for tool_id, indices in list(tool_call_map.items()):
-        if indices["tool_idx"] is None:
-            # Tool call without a response - create a synthetic tool message
-            assistant_idx = indices["assistant_idx"]
-            assistant_msg = processed_messages[assistant_idx]
-
-            # Find the relevant tool call
-            tool_name = "unknown_function"
-            for tc in assistant_msg["tool_calls"]:
-                if tc.get("id") == tool_id:
-                    if tc.get("function") and tc["function"].get("name"):
-                        tool_name = tc["function"]["name"]
-                    break
-
-            # Create an automatic tool response message
-            tool_msg = {
-                "role": "tool",
-                "tool_call_id": tool_id,
-                "content": f"Auto-generated response for {tool_name}",
-            }
-
-            # Insert immediately after the assistant message
-            if assistant_idx + 1 < len(processed_messages):
-                # Insert at the position after assistant
-                processed_messages.insert(assistant_idx + 1, tool_msg)
-            else:
-                # Just append if we're at the end
-                processed_messages.append(tool_msg)
-
-            # Update the map to note that this tool call now has a response
-            tool_call_map[tool_id]["tool_idx"] = assistant_idx + 1
-
-    # Ensure messages have non-null content (required by some providers)
-    for msg in processed_messages:
-        # For assistant messages with tool_calls, content can be None
+    # Stage 4: enforce non-null content where providers reject null,
+    # and ensure tool messages always have non-empty content. Same
+    # contract as the legacy code.
+    for msg in final:
         if msg.get("role") == "assistant" and msg.get("tool_calls"):
-            # Assistant messages with tool calls can have None content - this is valid
-            pass
-        elif msg.get("role") != "tool" and msg.get("content") is None and not msg.get("tool_calls"):
-            # For non-tool messages without tool_calls, ensure content is not None
-            msg["content"] = ""
-
-        # For tool messages, ensure content is never null or empty
+            # Assistant messages with tool calls may legitimately have
+            # content=None; leave them alone.
+            continue
         if msg.get("role") == "tool":
             if msg.get("content") is None or msg.get("content") == "":
                 msg["content"] = f"Tool response for {msg.get('tool_call_id', 'unknown')}"
+            continue
+        if msg.get("content") is None and not msg.get("tool_calls"):
+            msg["content"] = ""
 
-    # Special case for Claude: ensure strict alternating pattern between assistant tool_calls and tool results
-    # If multiple consecutive assistant messages with tool_calls exist, interleave them with tool responses
-    i = 0
-    while i < len(processed_messages) - 1:
-        current_msg = processed_messages[i]
-        next_msg = processed_messages[i + 1]
-
-        # When current message is assistant with tool_calls and next message is NOT a tool response
-        if (
-            current_msg.get("role") == "assistant"
-            and current_msg.get("tool_calls")
-            and (next_msg.get("role") != "tool" or not next_msg.get("tool_call_id"))
-        ):
-            # Get the first tool call ID
-            tool_id = current_msg["tool_calls"][0].get("id", "unknown")
-            tool_name = "unknown_function"
-            if current_msg["tool_calls"][0].get("function"):
-                tool_name = current_msg["tool_calls"][0]["function"].get("name", "unknown_function")
-
-            # Create a tool result message
-            tool_msg = {
-                "role": "tool",
-                "tool_call_id": tool_id,
-                "content": f"Auto-generated response for {tool_name}",
-            }
-
-            # Insert the tool message after the current assistant message
-            processed_messages.insert(i + 1, tool_msg)
-
-            # Skip over the newly inserted message
-            i += 2
-        else:
-            i += 1
-    return processed_messages
+    return final
 
 
 def get_language_from_code_block(lang_identifier):
