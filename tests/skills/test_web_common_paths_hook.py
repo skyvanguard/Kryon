@@ -169,12 +169,16 @@ def test_run_completes_within_wall_clock_budget(robots_server) -> None:
 
 def test_run_handles_unreachable_target() -> None:
     """Unroutable target → return within budget (per-path timeout
-    kicks in) and emit an output saying no interesting paths."""
+    kicks in) and emit an output saying no interesting paths.
+
+    Budget: 35s leaves room for the 3s baseline + the 12s per-path
+    main wave timeout × max_workers=8 concurrency. The original bug
+    case (T.4) hung for 17+ minutes."""
     # 10.255.255.1 is reserved; should refuse fast / time out fast.
     start = time.monotonic()
     out = run({"target": "http://10.255.255.1"})
     elapsed = time.monotonic() - start
-    assert elapsed < 25.0, f"unreachable target hang: {elapsed:.2f}s"
+    assert elapsed < 35.0, f"unreachable target hang: {elapsed:.2f}s"
     assert isinstance(out, str)
     # Either a "no interesting" summary or per-path errors — both
     # acceptable as long as we returned a string.
@@ -645,6 +649,97 @@ def test_run_no_creds_probe_when_no_form_found(monkeypatch) -> None:
     monkeypatch.setenv("KRYON_W_CREDS_PROBE", "true")
     out = run({"host": "http://10.255.255.1"})
     assert "DEFAULT CREDS" not in out
+
+
+# ---------------------------------------------------------------------------
+# FASE 11.X — SPA detection (Single-Page App false-positive guard)
+# ---------------------------------------------------------------------------
+#
+# Smoke test contra Juice Shop reveló que SPAs (Angular/React/etc.)
+# sirven `index.html` para TODA ruta no-API. Resultado: el helper
+# marcaba 14 paths "interesting" todos retornando el mismo HTML — un
+# false-positive masivo que tank-ea la señal/ruido.
+#
+# Fix: baseline probe a / al inicio. Si N paths comparten el body
+# hash con /, marcar como "SPA collapse" y filtrarlos como noise.
+# Solo paths con body distinto al baseline cuentan como interesting.
+
+
+@pytest.fixture
+def spa_server():
+    """Mock server simulating an SPA: serves the same index.html
+    body for every path except /robots.txt (real content) and
+    /api/v1 (returns 500). Mimics Juice Shop / Angular behavior."""
+
+    _SPA_INDEX = (
+        b"<!doctype html><html><head><title>SPA</title></head>"
+        b'<body><div id="app">Loading...</div></body></html>'
+    )
+
+    class _Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *_args, **_kwargs) -> None:
+            return
+
+        def do_GET(self) -> None:
+            if self.path == "/robots.txt":
+                body = b"User-agent: *\nDisallow: /api/secret\n"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if self.path.startswith("/api/v1"):
+                self.send_response(500)
+                self.end_headers()
+                return
+            # SPA: index.html for everything else.
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Length", str(len(_SPA_INDEX)))
+            self.end_headers()
+            self.wfile.write(_SPA_INDEX)
+
+    httpd = socketserver.TCPServer(("127.0.0.1", 0), _Handler)
+    port = httpd.server_address[1]
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield port
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_run_detects_spa_pattern(spa_server) -> None:
+    """When 5+ paths return the same body hash as /, the helper
+    must flag this as SPA and NOT count them as interesting."""
+    out = run({"host": f"http://127.0.0.1:{spa_server}"})
+    assert "SPA" in out or "single-page" in out.lower()
+
+
+def test_run_filters_spa_collapsed_paths_from_interesting(spa_server) -> None:
+    """SPA-collapsed paths (same body as /) must NOT appear in the
+    Interesting paths section. The signal/noise ratio dies otherwise."""
+    out = run({"host": f"http://127.0.0.1:{spa_server}"})
+    # /robots.txt has REAL content (Disallow line) — must still appear.
+    assert "/robots.txt" in out
+    assert "Disallow: /api/secret" in out
+    # The Interesting paths header must not list /admin /login /sitemap.xml etc.
+    # When SPA collapse is active, the count should be small (just /robots.txt).
+    # We check the canonical "## Interesting paths (1)" header.
+    assert "Interesting paths (1)" in out or "Interesting paths (2)" in out, (
+        "SPA filter should leave at most 1-2 truly-interesting paths "
+        f"(robots.txt + maybe a non-collapsed 500), got: {out[:500]}"
+    )
+
+
+def test_run_no_spa_section_for_non_spa_target(robots_server) -> None:
+    """Robots THM mock is NOT an SPA (paths return different bodies).
+    The SPA banner must NOT appear for it."""
+    out = run({"host": f"http://127.0.0.1:{robots_server}"})
+    assert "SPA collapse" not in out
+    assert "single-page application" not in out.lower()
 
 
 def test_run_no_vhost_section_when_no_redirects() -> None:

@@ -429,6 +429,33 @@ def run(ctx: dict[str, Any]) -> str:
     if not (target.startswith("http://") or target.startswith("https://")):
         target = f"http://{target}"
 
+    # FASE 11.X — baseline probe of `/` first. Used to detect SPAs
+    # (Single-Page Apps) that serve index.html for every non-API
+    # route, which produces a wave of false-positive 200s. Juice
+    # Shop smoke test caught this: 14 paths "interesting" all
+    # serving the same Angular HTML.
+    #
+    # Baseline uses a SHORT timeout (3s) — if the target is
+    # unreachable, we don't want to burn the full per-path budget
+    # before falling through to the main probe wave.
+    baseline_status, baseline_body = -1, ""
+    try:
+        req = urllib.request.Request(
+            target + "/",
+            method="GET",
+            headers={"User-Agent": "Kryon/web-paths-probe"},
+        )
+        with _NO_REDIRECT_OPENER.open(req, timeout=3.0) as resp:
+            baseline_status = resp.status
+            baseline_body = resp.read(_MAX_BODY_PREVIEW).decode(
+                "utf-8", errors="replace"
+            )
+    except urllib.error.HTTPError as exc:
+        baseline_status = exc.code
+    except Exception as exc:  # noqa: BLE001 — baseline failure is non-fatal
+        logger.debug("baseline / probe failed: %s", exc)
+    baseline_sig = _body_signature(baseline_body) if baseline_status == 200 else ""
+
     results: list[tuple[str, int, int, str]] = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
         futures = {ex.submit(_probe_path, target, p): p for p in _COMMON_PATHS}
@@ -445,11 +472,50 @@ def run(ctx: dict[str, Any]) -> str:
 
     results.sort(key=_interest_key)
 
-    interesting = [r for r in results if r[1] not in (404, -1)]
+    # FASE 11.X — SPA collapse detection. A 200 path with the same
+    # body hash as `/` is the SPA returning index.html, not a real
+    # asset. Filter these to a separate bucket so the model sees
+    # only signal in Interesting paths.
+    spa_collapsed: list[tuple[str, int, int, str]] = []
+    interesting_raw = [r for r in results if r[1] not in (404, -1)]
+    if baseline_sig:
+        spa_collapsed = [
+            r for r in interesting_raw
+            if r[1] == 200 and _body_signature(r[3]) == baseline_sig
+        ]
+        interesting = [r for r in interesting_raw if r not in spa_collapsed]
+    else:
+        interesting = interesting_raw
     nonexistent = [r for r in results if r[1] == 404]
     errored = [r for r in results if r[1] == -1]
+    # SPA banner threshold — 5+ collapsed paths is a strong signal.
+    spa_detected = len(spa_collapsed) >= 5
 
     lines: list[str] = [f"# 🎯 DETERMINISTIC RECON — Web common paths against {target}"]
+
+    if spa_detected:
+        # FASE 11.X — SPA detected. Surface this loudly so the model
+        # doesn't waste tool calls re-probing fake "interesting" paths.
+        # The detection itself is a useful piece of recon info.
+        collapsed_paths = ", ".join(p for p, _, _, _ in spa_collapsed)
+        lines.append("")
+        lines.append("## ⚠️  SPA COLLAPSE DETECTED — target serves index.html for all routes")
+        lines.append("")
+        lines.append(
+            f"**{len(spa_collapsed)} paths returned the same body as `/` "
+            "(byte-for-byte hash match) — this is a single-page application "
+            "(Angular / React / Vue), not real exposure. The Interesting "
+            "paths section below filters these out.**"
+        )
+        lines.append("")
+        lines.append(f"- collapsed paths (filtered): {collapsed_paths}")
+        lines.append("")
+        lines.append(
+            "_For SPA targets, real recon needs the API layer: try "
+            "`/api/`, `/api/v1/`, `/swagger.json`, `/openapi.json`, "
+            "or check the JS bundle for endpoint references._"
+        )
+        lines.append("")
 
     if not interesting:
         lines.append(
