@@ -51,7 +51,7 @@ Top-level layout: `src/kryon/` (package), `tests/` (mirrors package layout), `do
 - **`playbooks/`** — 67 markdown files with YAML frontmatter, three subdirectories:
   - **`(core)` 11 skills**: recon-scout, pentest, vuln-hunter, wordpress-audit, appsec, forensics, ctf-master, ssl-audit, server-hardening, safe-modification, rollback-recovery
   - **`imported/` 28 skills**: From `mukul975/Anthropic-Cybersecurity-Skills` (Apache 2.0, MITRE ATT&CK mapped). SQL injection, SSRF, JWT attacks, HTTP smuggling, AD attacks, cloud attacks, forensics, etc.
-  - **`banking/` 8 skills**: Custom for financial clients. pci-dss-audit, core-banking-assessment, mobile-banking-audit, atm-security, payment-gateway-testing, fraud-detection, swift-network-security, open-banking-api.
+  - **`banking/` skills**: Custom for financial clients. pci-dss-audit, core-banking-assessment, mobile-banking-audit, atm-security, payment-gateway-testing, fraud-detection, swift-network-security, open-banking-api, cis-controls-v8.1.
 
 **Critical**: Skills are **the primary way to add functionality** in v2.x. Do not create new Python agent files unless absolutely necessary. Prefer writing a `.md` playbook.
 
@@ -95,7 +95,7 @@ Two execution modes:
   - `/experiences` (list/show/search/close) — manage learning
   - `/flush`, `/compact`, `/memory`, `/agent`, etc.
 - **`knowledge/`** — RAG. ExploitDB, NVD, GitHub writeups + ChromaDB with Ollama embeddings.
-- **`compliance/`** — 9 frameworks (PCI-DSS, HIPAA, SOC2, NIST 800-53, ISO 27001, GDPR, OWASP, CIS, MITRE ATT&CK).
+- **`compliance/`** — frameworks (PCI-DSS, HIPAA, SOC2, NIST 800-53, ISO 27001, GDPR, OWASP, **CIS Controls v8.1**, MITRE ATT&CK). CIS Controls v8.1 (153 safeguards / 18 controls) live in `compliance/cis_controls.py` (catalog loaded from `cis/catalog/cis_controls_v8.1.yaml`, validated 18/18 vs the PDF's IG tables) + `cis/cis_controls_crosswalk.py` (deterministic AUTO coverage derived from existing checks; governance safeguards reported MANUAL). Audit via `run_compliance_audit(framework="cis-controls")`. Distinct from the per-OS CIS *Benchmarks* under `cis/frameworks/`.
 
 ### Important cross-cutting rules
 
@@ -542,6 +542,7 @@ turnkey product. For internal development purposes, the honest status is:
 | `voip-asterisk-audit.md` | **production-capable (F198)** | Asterisk / FreePBX audit. 8 checks deterministicos (VOIP-1.1..VOIP-3.3) cableados a `run_compliance_audit(framework="asterisk")`: anonymous register / AMI default secret / allowguest / alwaysauthreject / AMI WAN exposure / SRTP / SIP-TLS / version currency. Tool nueva `asterisk_discover` (SIP OPTIONS + AMI banner). Reproducibility hash estable. Targets: PBX Britimp TORRE-VOIP 172.18.202.0/24 + futuros engagements VoIP. |
 | `windows-server-audit.md` | **production-capable (F199)** | Windows Server + workstation audit via WinRM (F36 runner). 15 checks deterministicos (WIN-1.1..WIN-4.2) cableados a `run_compliance_audit(framework="windows")`: SMBv1 / LSA Protection / Print Spooler en DC (PrintNightmare) / Defender RTP / firewall dominio / BitLocker / LLMNR / WSUS internet / GPO refresh / LAPS / audit policy / RDP NLA / UAC / Remote Registry / EDR detection. Pre-requisito: WinRM habilitado (puerto 5985/5986). Targets: Britimp USR segments + cualquier Windows Server en SVR. |
 | `tomcat-audit.md` | **production-capable (F200.A)** | Apache Tomcat audit. 8 checks deterministicos (TOMCAT-1.1..TOMCAT-2.4) cableados a `run_compliance_audit(framework="tomcat")`: version EOL (Tomcat 7/8 sin patches) / AJP 8009 Ghostcat CVE-2020-1938 / Manager + Host Manager exposure / error page version leak / Server header disclosure / /docs + /examples deployed. Tool nueva `tomcat_recon` (version + endpoints + AJP probe). Read-only HTTP/TCP probes, sin SSH. Override puerto via `KRYON_TOMCAT_PORT`. Surfaceado en POC Britimp contra .11 (Tomcat 7.0.34 EOL marzo 2021). |
+| `cis-controls-v8.1.md` | **production-capable (subset AUTO) + template (governance/MANUAL)** | CIS Critical Security Controls v8.1 (18 controles / 153 salvaguardas). Catálogo extraído del PDF oficial español y validado 18/18 contra las tablas de IG (`scripts/extract_cis_controls_v81.py` → `cis/catalog/cis_controls_v8.1.yaml`; incluye función **Govern** ×25 e **Documentation** asset ×23). `run_compliance_audit(framework="cis-controls")` corre el crosswalk (`cis/cis_controls_crosswalk.py`): ~32 salvaguardas técnicas se derivan AUTO de los checks existentes (PCI/AD/FGT/PVE/UNF/WIN/TOMCAT/VOIP/OT, fail-closed) en 12 de los 18 controles; el resto (gobierno/proceso: controles 1, 2, 14, 15, 17, 18) se reporta MANUAL (evidencia de entrevista/documental, nunca PASS automático). PDF via `generate_compliance_pdf(framework="cis-controls")`. Distinto de los CIS *Benchmarks* per-OS en `cis/frameworks/`. |
 
 **What Kryon actually runs end-to-end today**: local-network compliance
 sweep (PCI-DSS + CIS + Proxmox + AD + FortiGate + Unifi) → multi-framework

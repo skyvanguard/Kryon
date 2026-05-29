@@ -25,7 +25,7 @@ async def list_frameworks() -> dict:
         {"id": "iso_27001", "name": "ISO 27001:2022", "controls": 35},
         {"id": "dora", "name": "DORA", "controls": 20},
         {"id": "nis2", "name": "NIS2 Directive", "controls": 18},
-        {"id": "cis_controls", "name": "CIS Controls v8", "controls": 20},
+        {"id": "cis_controls", "name": "CIS Controls v8.1", "controls": 18, "safeguards": 153},
         {"id": "cmmc", "name": "CMMC 2.0 Level 2", "controls": 25},
         {"id": "zero_trust", "name": "Zero Trust Assessment", "controls": 24},
     ]

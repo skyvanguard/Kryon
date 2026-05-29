@@ -211,6 +211,12 @@ _FRAMEWORK_INFO = {
         "scope_es": "9 controles LDAP/LDAPS, Kerberos, privilegios, SMB, logging",
         "scope_en": "9 controls covering LDAP/LDAPS, Kerberos, privileges, SMB, logging",
     },
+    "cis-controls": {
+        "title_es": "Auditoría CIS Critical Security Controls v8.1",
+        "title_en": "CIS Critical Security Controls v8.1 Audit",
+        "scope_es": "153 salvaguardas (18 controles) — AUTO vía crosswalk + MANUAL (gobierno/proceso)",
+        "scope_en": "153 safeguards (18 controls) — AUTO via crosswalk + MANUAL (governance/process)",
+    },
     "all": {
         "title_es": "Auditoría de cumplimiento integral — Kryon",
         "title_en": "Kryon Full Compliance Audit",

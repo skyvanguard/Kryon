@@ -8,7 +8,13 @@ from kryon.intelligence.models import Finding
 
 
 class ComplianceControl(BaseModel):
-    """A single compliance control/requirement."""
+    """A single compliance control/requirement.
+
+    The trailing optional fields (``implementation_group`` ..
+    ``verdict_mode``) were added for CIS Controls v8.1 and carry no meaning
+    for frameworks that don't populate them — they stay at their defaults
+    so every pre-existing control list keeps working unchanged.
+    """
 
     id: str
     title: str
@@ -16,6 +22,12 @@ class ComplianceControl(BaseModel):
     category: str
     testing_procedures: list[str] = []
     expected_evidence: list[str] = []
+    # CIS Controls v8.1 metadata (optional; default-empty for other frameworks)
+    implementation_group: int | None = None  # 1, 2 or 3 (lowest IG that includes it)
+    security_function: str = ""  # Govern | Identify | Protect | Detect | Respond | Recover
+    asset_type: str = ""  # Devices | Software | Data | Users | Network | Documentation
+    safeguard: str = ""  # dotted safeguard id, e.g. "5.4" (== id for CIS)
+    verdict_mode: str = "manual"  # "auto" (derived from a deterministic check) | "manual"
 
 
 class ControlEvidence(BaseModel):

@@ -52,6 +52,45 @@ _FRAMEWORK_PREFIX = {
 }
 
 
+def _run_cis_controls_audit(
+    host: str,
+    ssh_user: str,
+    ssh_key_path: str,
+    ssh_port: int,
+) -> str:
+    """CIS Controls v8.1 crosswalk audit (F-CISC).
+
+    Runs every deterministic check once and aggregates the results onto the
+    153 CIS v8.1 safeguards. Safeguards with a mapped check come back AUTO
+    (PASS/FAIL/N/A); governance/process safeguards come back MANUAL — the
+    agent must NOT present a MANUAL safeguard as if it were auto-verified.
+    """
+    try:
+        from kryon.compliance.checks.base import CheckContext
+        from kryon.compliance.cis.cis_controls_crosswalk import audit_cis_controls
+    except ImportError as exc:
+        return json.dumps({"error": f"compliance module not loadable: {exc}"})
+
+    ctx = CheckContext(
+        host=host or "localhost",
+        ssh_user=ssh_user,
+        ssh_key_path=ssh_key_path,
+        ssh_port=ssh_port,
+    )
+    report = audit_cis_controls(ctx)
+    # Surface AUTO findings first (FAILs lead), keep MANUAL out of the noisy list.
+    auto = [s for s in report["safeguards"] if s["verdict_mode"] == "auto"]
+    auto.sort(key=lambda s: {"FAIL": 0, "ERROR": 1, "N/A": 2, "PASS": 3}.get(s["verdict"], 4))
+    report["auto_findings"] = auto
+    report["next_step_hint"] = (
+        "AUTO safeguards are machine-verified; MANUAL safeguards (governance, "
+        "training, IR, service-provider mgmt) require interview/document evidence "
+        "— do NOT claim they passed. For a PDF, run generate_compliance_pdf "
+        "with framework='cis-controls'."
+    )
+    return json.dumps(report, ensure_ascii=False)
+
+
 @function_tool(strict_mode=False)
 def run_compliance_audit(
     host: str = "localhost",
@@ -80,8 +119,11 @@ def run_compliance_audit(
         ssh_user: SSH user for remote audits. Empty = run on host directly.
         ssh_key_path: Path to SSH key. Empty = default key resolution.
         ssh_port: SSH port, default 22.
-        framework: Currently only "pci-dss-v4" supported. Reserved for F16
-            multi-framework expansion.
+        framework: One of "pci-dss" | "proxmox" | "ad" | "fortigate" | "unifi"
+            | "asterisk" | "windows" | "tomcat" | "all". Pass "cis-controls"
+            (aka "cisc") for the CIS Controls v8.1 crosswalk audit: every
+            deterministic check is aggregated onto the 153 v8.1 safeguards
+            (AUTO), and governance/process safeguards are reported as MANUAL.
 
     Returns:
         JSON string with hash, host, summary, findings list. The agent
@@ -116,12 +158,18 @@ def run_compliance_audit(
         "coyote": "tomcat",
         "all": "all",
     }
+    # CIS Controls v8.1 is not a prefix filter — it crosswalks ALL deterministic
+    # checks onto the 153 safeguards (auto) and reports the rest as manual.
+    _CIS_CONTROLS_ALIASES = {"cis-controls", "cis-controls-v8.1", "cisc", "cis8", "cis8.1", "cis-v8.1"}
+    if (framework or "").lower() in _CIS_CONTROLS_ALIASES:
+        return _run_cis_controls_audit(host, ssh_user, ssh_key_path, ssh_port)
+
     fw_key = fw_alias.get((framework or "pci-dss").lower())
     if fw_key is None:
         return json.dumps(
             {
                 "error": f"unknown framework {framework!r}",
-                "available": sorted(fw_alias.keys()),
+                "available": sorted(set(fw_alias) | _CIS_CONTROLS_ALIASES),
             }
         )
     prefixes = _FRAMEWORK_PREFIX.get(fw_key, ())
@@ -198,6 +246,111 @@ def _default_out_path(framework: str, host: str) -> str:
     return str(reports_dir / f"kryon_{framework}_{safe_host}_{ts}.pdf")
 
 
+def _cis_safeguards_to_results(safeguards: list[dict], host: str) -> list[dict]:
+    """Adapt crosswalk safeguards to the compliance_pdf result-dict shape.
+
+    MANUAL safeguards render as N/A (not auto-assessed) with an explicit
+    remediation note, so the PDF never implies a governance control was
+    machine-verified.
+    """
+    results: list[dict] = []
+    for s in safeguards:
+        manual = s["verdict_mode"] == "manual"
+        verdict = "N/A" if manual else s["verdict"]
+        ev = "; ".join(f"{e['check_id']}={e['verdict']}" for e in s["evidence_checks"])
+        results.append(
+            {
+                "control_id": s["id"],
+                "control_title": s["title"],
+                "section": f"Control {s['control']} — {s['category']} [IG{s['implementation_group']}/{s['security_function']}]",
+                "verdict": verdict,
+                "severity": "INFO" if manual else ("HIGH" if verdict == "FAIL" else "LOW"),
+                "host": host,
+                "evidence_command": "" if manual else f"crosswalk: {ev}",
+                "evidence_stdout": ev,
+                "evidence_stderr": "",
+                "evidence_parsed": {"verdict_mode": s["verdict_mode"], "asset_type": s["asset_type"]},
+                "remediation_static": (
+                    "Requiere evidencia manual (entrevista / revisión documental): "
+                    "safeguard de gobierno/proceso, no auditable automáticamente."
+                    if manual
+                    else ""
+                ),
+            }
+        )
+    return results
+
+
+def _run_cis_controls_pdf(
+    *,
+    host: str,
+    out_path: str,
+    skip_llm_narrative: bool,
+    client_name: str,
+    ssh_user: str,
+    ssh_key_path: str,
+    ssh_port: int,
+    render_pdf,
+) -> str:
+    """Render the CIS Controls v8.1 crosswalk audit as a PDF."""
+    import os
+    from pathlib import Path
+
+    from kryon.compliance.checks.base import CheckContext
+    from kryon.compliance.cis.cis_controls_crosswalk import audit_cis_controls
+
+    if not out_path:
+        out_path = _default_out_path("cis-controls", host or "localhost")
+    ctx = CheckContext(
+        host=host or "localhost",
+        ssh_user=ssh_user or os.environ.get("KRYON_SSH_USER", "").strip(),
+        ssh_key_path=ssh_key_path or os.environ.get("KRYON_SSH_KEY", "").strip(),
+        ssh_port=int(ssh_port) if ssh_port else int(os.environ.get("KRYON_SSH_PORT", "22") or 22),
+    )
+    report = audit_cis_controls(ctx)
+    results_dicts = _cis_safeguards_to_results(report["safeguards"], ctx.host)
+
+    narratives: dict[str, dict[str, str]] = {}
+    if not skip_llm_narrative:
+        try:
+            from kryon.reporting.compliance_narrator import narrate_all
+
+            # Only narrate AUTO findings — manual safeguards have nothing to narrate.
+            narratives = narrate_all([r for r in results_dicts if r["verdict"] != "N/A"])
+        except Exception:
+            narratives = {}
+
+    out = Path(out_path)
+    effective_client = client_name or os.environ.get("KRYON_CLIENT_NAME", "").strip()
+    try:
+        render_pdf(
+            results_dicts,
+            repro_hash=report["repro_hash"],
+            host=ctx.host,
+            output_path=out,
+            narratives=narratives,
+            framework="cis-controls",
+            client_name=effective_client,
+        )
+        pdf_path = str(out)
+    except ImportError:
+        pdf_path = ""
+
+    return json.dumps(
+        {
+            "host": ctx.host,
+            "framework": "CIS Controls v8.1",
+            "checks_run": report["checks_run"],
+            "summary": report["summary"],
+            "repro_hash": report["repro_hash"],
+            "pdf_path": pdf_path,
+            "html_path": str(out.with_suffix(".html")),
+            "narrated": bool(narratives),
+        },
+        ensure_ascii=False,
+    )
+
+
 def _run_compliance_pdf(
     host: str = "localhost",
     out_path: str = "",
@@ -235,6 +388,19 @@ def _run_compliance_pdf(
         from kryon.reporting.compliance_pdf import render_pdf
     except ImportError as exc:
         return json.dumps({"error": f"reporting module not loadable: {exc}"})
+
+    # CIS Controls v8.1: crosswalk path (not a prefix filter).
+    if (framework or "").lower() in {"cis-controls", "cis-controls-v8.1", "cisc", "cis8", "cis8.1", "cis-v8.1"}:
+        return _run_cis_controls_pdf(
+            host=host,
+            out_path=out_path,
+            skip_llm_narrative=skip_llm_narrative,
+            client_name=client_name,
+            ssh_user=ssh_user,
+            ssh_key_path=ssh_key_path,
+            ssh_port=ssh_port,
+            render_pdf=render_pdf,
+        )
 
     fw_key = (framework or "all").lower()
     prefixes = _FRAMEWORK_PREFIX.get(fw_key)
