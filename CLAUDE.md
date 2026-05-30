@@ -96,6 +96,11 @@ Two execution modes:
   - `/flush`, `/compact`, `/memory`, `/agent`, etc.
 - **`knowledge/`** — RAG. ExploitDB, NVD, GitHub writeups + ChromaDB with Ollama embeddings.
 - **`compliance/`** — frameworks (PCI-DSS, HIPAA, SOC2, NIST 800-53, ISO 27001, GDPR, OWASP, **CIS Controls v8.1**, MITRE ATT&CK). CIS Controls v8.1 (153 safeguards / 18 controls) live in `compliance/cis_controls.py` (catalog loaded from `cis/catalog/cis_controls_v8.1.yaml`, validated 18/18 vs the PDF's IG tables) + `cis/cis_controls_crosswalk.py` (deterministic AUTO coverage derived from existing checks; governance safeguards reported MANUAL). Audit via `run_compliance_audit(framework="cis-controls")`. Distinct from the per-OS CIS *Benchmarks* under `cis/frameworks/`.
+- **`intelligence/`** — Threat-intel + the **reflective intel pipeline** (FASE 1/2/6) that closes the THM-bench pwn gap. Three pure, banca-safe modules thread structured offensive context through the reflective loop so the model pipelines a chain instead of re-issuing broad queries:
+  - **F1 — `fact_extractor.py`**: regex-parses the FULL tool output (before `micro_compact` truncates it to ~3-9 lines) into `ExtractedFacts` (users, domains, hashes, IPs, FQDNs). Injected into every reflection turn so the model can enumerate what it would otherwise never see.
+  - **F2 — `exploit_chain_planner.py` (G3)**: ordered rules over `ExtractedFacts` + tool history; each rule encodes one canonical offensive step (e.g. users + domain → `GetNPUsers.py -no-pass`) and emits a concrete `NextActionRecommendation` (exact tool + args) injected as "🎯 Next action recommendation". FASE 11.P added auth-chain + privesc rules. Rules abstain unless their precondition is expressible from facts alone (conservative). FASE 9.A loads distilled YAML rules lazily.
+  - **F6 — `planner_runtime.py`**: `ContextVar` bridge so the `execute_planner_directive` function_tool (called from the LLM tool loop) can reach the `accumulated_facts`/`tool_history` that live inside `run_with_reflection`. FASE 11.Q forces `tool_choice="required"` when directive confidence ≥ 0.92.
+  - Other modules: `mitre.py`/`mitre_navigator.py` (ATT&CK layers), `cve_enrichment.py`, `ioc.py`, `threat_feeds.py`, `tool_templates.py`, `graph_formatter.py`, `distillation.py`.
 
 ### Important cross-cutting rules
 
@@ -111,82 +116,17 @@ Two execution modes:
   `sdk/agents/models/openai_chatcompletions.py` to make tool calling
   reliable with local models (tool name normalization, hallucination
   tolerance, schema fix, tool_choice forcing, F162 Harmony parser).
-- **gpt-oss Harmony stack (F162-F170)**:
-  - F162: `sdk/agents/models/harmony_parser.py` translates Harmony
-    `<|channel|>... to=NAMESPACE.FUNC ...<|message|>{...}<|call|>` tool
-    calls to OpenAI ``tool_calls`` arrays (Ollama doesn't do it for us).
-  - F163: `models/Modelfile.kryon-gpt-oss` ships the official Harmony
-    template (TypeScript signatures + developer message) so the model
-    respects real tool names instead of inventing `whatweb(host,port)`.
-  - F166: reasoning models (gpt-oss, R1, o1/o3, deepseek-r1,
-    Foundation-Sec-Reasoning) auto-bump per-phase `max_turns` from 5 to 8
-    via `is_reasoning_model()` in `tools/autonomous/pentest_planner.py`.
-    Override with `KRYON_PHASE_TURNS=<int>`.
-  - F167: `Reasoning: low` is the in-template default for `kryon-gpt-oss`
-    (canonical Harmony defaults to medium). Operator can override
-    per-request via the Ollama `think_level` parameter.
-  - F164: scan-cache decorator now skips failure outputs (binary missing,
-    `[KRYON_TOOL_ERROR]`, empty), so one failed run doesn't poison the
-    12-hour cache. Same commit pins nuclei v3.8.0 in `Dockerfile.kali`
-    and downloads templates at build time.
-  - F171: `kryon update-cve-cache --year YYYY|--years A-B|--all`
-    populates `~/.kryon/nvd_cache/cves.txt`. With
-    `KRYON_CVE_CACHE_REQUIRED=true`, F151 filters out hallucinated CVE
-    IDs that pass format check but were never published.
-- **gpt-oss anti-FP + active-detection stack (F178-F189)** —
-  the F178-F189 sprint took the F170 bench (10 findings but 1 disguised
-  CVE FP, single SATISFIED) to F189's reproducible 3/3 SATISFIED with
-  avg=18 findings, 0 FPs, and 2/3 runs emitting CWE-89 real SQLi via
-  sqlmap pre_hook.
-  - F178/F179: `Modelfile.kryon-gpt-oss` parameters tuned to
-    `num_ctx 16384` + `temperature 0.3`. The F170 bench peaked at
-    `ctx 4% OK`, so 16K is 5× the working-set ceiling and frees
-    ~0.5 GB VRAM (94% → 85% usage, 12% → 8% CPU spillover).
-    `temperature 0.3` collapses run-to-run variance (n=3 with
-    temp 1.0 = σ 2.83 → temp 0.3 = σ 0.0).
-  - F180+F180.B+F181.C: `kryon.validation.cve_applicability` is wired
-    into `_parse_agent_findings` and drops CVEs whose
-    products don't apply to the target stack. Known lab targets get a
-    curated host hint (juice_shop → node.js, dvwa → php, webgoat →
-    java) that's authoritative over narration tokens — closes the
-    self-confirmation loop where a JAMon CVE message would feed
-    `jamon` back into the stack.
-  - F183: `kryon.validation.finding_applicability` extends the gate to
-    non-CVE-shaped rule_ids. After F180+F181.C the model started
-    relabelling the JAMon FP as `WEB-XSS-001` to bypass the CVE-only
-    filter; F183 scans `message`+`evidence` for product keywords
-    (jamon, struts, log4j, ...) and drops the FP regardless of
-    rule_id shape. `KRYON_FINDING_APPLICABILITY=false` to disable.
-  - F185-F185.C: `pre_hooks:` wired into `engage.py:_run_phase`
-    (previously only fired from the REPL flow). Each phase now
-    re-matches skills against `phase_name + objective + target` and
-    runs the matched skills' pre-hooks before the LLM. `vuln-hunter`
-    keywords broadened to include `sqli`, `xss`, `rce`, `find`,
-    `injection`, etc. so the bench objective `find SQLi or XSS or
-    RCE` actually activates the skill.
-  - F186-F186.B: `kryon.skills.pre_hook_output_processor` de-noises
-    nuclei (severity-prioritized top-N) and nikto v2.6 (bracketed-id
-    `+ [NNNNNN] /path:` regex) output before it reaches the model.
-    Plus an imperative Spanish suffix: *"ACCIÓN OBLIGATORIA:
-    convertí CADA línea ... NO re-invocás nuclei/nikto/sqlmap."*
-    Forced the model to convert evidence instead of re-running tools.
-  - F187-F187.B: `vuln-hunter` ships three pre_hooks today:
-    `nuclei_scan(critical,high,medium)` + `nikto -Tuning x6 -maxtime 60`
-    + `sqlmap` via the Python escape hatch
-    (`./pre_hooks/sqlmap_rest_login_hook.py:run`). The Python form is
-    required because the declarative `tool: run_command` argument
-    validator (SSTI-guarded) rejects `{...}` literals — sqlmap's
-    JSON POST body `{"email":"test","password":"test"}` tripped it.
-    On Juice Shop the sqlmap hook detects the JSON `email` parameter
-    as boolean-based blind SQLi against SQLite in ~25s, model emits
-    CWE-89 finding.
-  - F184: `KRYON_REASONING_EFFORT` env (`low|medium|high`) propagates
-    to `model_settings.reasoning_effort` via `sdk/agents/run.py`. F189
-    bench proved that `medium` reasoning is only contraproductive when
-    the model has to DECIDE which tools to invoke. With pre_hooks
-    deterministicos (F185-F187), the model only converts evidence and
-    medium reasoning helps that conversion — n=3 went from 2/3 → 3/3
-    SATISFIED + CWE-89 from 1/3 → 2/3.
+- **gpt-oss Harmony stack (F162-F171)** — what makes tool-calling reliable on the local gpt-oss model:
+  - **Harmony parser** `sdk/agents/models/harmony_parser.py` (F162): translates Harmony `<|channel|>... to=NAMESPACE.FUNC ...<|message|>{...}<|call|>` tool calls to OpenAI `tool_calls` arrays (Ollama doesn't).
+  - **Modelfile** `models/Modelfile.kryon-gpt-oss` (F163): ships the official Harmony template (TS signatures + developer message) so the model uses real tool names instead of inventing `whatweb(host,port)`. `Reasoning: low` is the in-template default (F167; override via Ollama `think_level`).
+  - **Reasoning-model heuristics**: `is_reasoning_model()` in `tools/autonomous/pentest_planner.py` auto-bumps per-phase `max_turns` 5→8 (F166, override `KRYON_PHASE_TURNS`). Scan-cache decorator skips failure outputs so a failed run doesn't poison the 12h cache (F164; nuclei v3.8.0 pinned in `Dockerfile.kali`).
+  - **CVE hallucination guard** (F151/F171): `kryon update-cve-cache --all` populates `~/.kryon/nvd_cache/cves.txt`; with `KRYON_CVE_CACHE_REQUIRED=true`, findings whose CVE ID was never published are dropped.
+- **gpt-oss anti-FP + active-detection stack (F178-F189)** — took the bench from 1 disguised CVE FP / single SATISFIED to reproducible 3/3 SATISFIED, avg 18 findings, 0 FPs, CWE-89 SQLi via sqlmap pre_hook. Key pieces:
+  - **Tuned Modelfile** (F178/F179): `num_ctx 16384` + `temperature 0.3` — collapses run-to-run variance (σ 2.83 → 0.0) and frees ~0.5 GB VRAM.
+  - **Applicability gates**: `kryon.validation.cve_applicability` (F180, env `KRYON_CVE_APPLICABILITY`) drops CVEs whose products don't match the target stack; lab targets get an authoritative host hint (juice_shop→node, dvwa→php, webgoat→java). `kryon.validation.finding_applicability` (F183, env `KRYON_FINDING_APPLICABILITY`) extends the gate to non-CVE rule_ids by scanning `message`+`evidence` for product keywords (catches the FP relabelled as `WEB-XSS-001`). Both wired into `_parse_agent_findings`.
+  - **pre_hooks in engage** (F185): `pre_hooks:` now fire from `engage.py:_run_phase` (re-matching skills per phase), not just the REPL; `vuln-hunter` keywords broadened (sqli/xss/rce/find/injection). `pre_hook_output_processor` (F186) de-noises nuclei/nikto output + appends an imperative suffix forcing the model to convert evidence instead of re-running tools.
+  - **vuln-hunter pre_hooks** (F187): `nuclei_scan` + `nikto -Tuning x6` + `sqlmap` (Python escape hatch `./pre_hooks/sqlmap_rest_login_hook.py:run` — the declarative validator rejects sqlmap's `{...}` JSON body). Detects Juice Shop JSON `email` boolean-blind SQLi in ~25s.
+  - **Reasoning effort** (F184): `KRYON_REASONING_EFFORT` propagates to `model_settings.reasoning_effort` via `sdk/agents/run.py`. `medium` helps *evidence conversion* (with pre_hooks active) but causes CoT loops when the model must DECIDE which tools to invoke.
 - **Engagement configuration profiles (banca-safe vs active pentest)**:
   - **Default (banca-safe / compliance audits)**: keep Modelfile
     defaults — `Reasoning: low`, `KRYON_PHASE_TURNS` unset (auto 8 for
@@ -231,6 +171,28 @@ Two execution modes:
     ```
     NEVER use this profile against a banking client — temperature 0.6
     breaks reproducibility for audit deliverables.
+  - **FASE 11.P-X (bench pwn-gap + runtime hardening)**: the
+    `intelligence/` reflective pipeline (11.P/Q, see Architecture) plus
+    11.R (`run_command` wall-clock timeout + process-group kill in
+    `tools/common/_executors.py`), 11.S (`util/message_utils.py`
+    `fix_message_list` O(n²)→O(n)), 11.T-U (web-common-paths +
+    disallow-path pre_hook in `appsec`/`recon-scout`), 11.V-W
+    (vhost detection + login-form discovery via Host header + default-
+    creds probe), 11.X (SPA-collapse detector — Juice Shop FP guard).
+- **`kryon-foundation-sec` — security-specialized reasoning model** (vuln-research line):
+  Foundation-Sec-8B-Reasoning (Cisco, Llama-3.1-8B base, ~5.1B-token security
+  corpus; matches Llama-70B on security benches at 8B). Modelfile
+  `models/Modelfile.kryon-foundation-sec` bases `FROM` a slash-free local alias
+  `foundation-sec-reasoning-base` (the install script pulls
+  `hf.co/fdtn-ai/Foundation-Sec-8B-Reasoning-Q8_0-GGUF` ~8.5 GB Q8_0 then
+  `ollama cp`s it — a slash in `FROM` makes ollama fail create). Fits 12 GB at
+  16K ctx. Install: `scripts/install_kryon_foundation_sec.sh` (streams the
+  Modelfile via stdin, NOT `docker cp` — on Windows a docker-cp'd Modelfile is
+  rejected by `ollama create` despite byte-identical content). Reasoning-class
+  (auto turn-cap bump + F153 strict/grounding + 0.6 effective temp via
+  `is_reasoning_model()` → `foundation-sec` marker). Primary use: source-review
+  / CVE-discovery research (see memory `project_zeroday_research_goal`), not the
+  default banca-safe audit model.
 - **LiteLLM without `[proxy]`** — uvloop is not supported on Windows; do not re-add the proxy extra to `pyproject.toml`.
 - **`openinference-instrumentation-openai`** is Python-version-gated (`< 3.14`) under the `tracing` extra.
 - **Optional extras**: `voice`, `viz`, `tracing`, `rag`, `server`, `tui`, `reporting`, `orchestration`, `dev`.
@@ -255,68 +217,39 @@ KRYON_REASONING_EFFORT=            # F184: low|medium|high override of the
                                    # ships 'low'). Use 'medium' ONLY when
                                    # pre_hooks are active (F185+); without
                                    # them medium causes CoT loops (see F184).
-KRYON_CVE_CACHE_REQUIRED=          # F151+F171: 'true' drops findings whose CVE
-                                   # rule_id is NOT in ~/.kryon/nvd_cache/cves.txt.
-                                   # Populate with: kryon update-cve-cache --all
-KRYON_CVE_APPLICABILITY=           # F173/F180: 'false' disables the
-                                   # tech-stack/CVE-product applicability gate.
-                                   # Default (unset) = enabled — drops CVEs
-                                   # whose products don't match target stack
-                                   # (e.g. JAMon JSP CVE on Node.js target).
-KRYON_FINDING_APPLICABILITY=       # F183: 'false' disables the non-CVE
-                                   # applicability gate (scans message+evidence
-                                   # for product mentions; drops e.g. a
-                                   # WEB-XSS-001 finding citing JAMonAdmin.jsp
-                                   # on a Node.js host). Default = enabled.
-KRYON_DEBUG_PARSE=                 # F181.C: 'true' writes one JSONL line per
-                                   # finding-parse decision to
-                                   # .kryon/debug/parse_<engagement>.jsonl
-                                   # for post-mortem of FP escape paths.
-KRYON_AGENT_TYPE=kryon             # Use unified agent (v2.x)
+KRYON_CVE_CACHE_REQUIRED=          # F151/F171: 'true' drops findings whose CVE id is NOT in
+                                   # ~/.kryon/nvd_cache/cves.txt (populate: kryon update-cve-cache --all)
+KRYON_CVE_APPLICABILITY=           # F180: 'false' disables the CVE-product applicability gate.
+                                   # Default enabled — drops CVEs not matching target stack.
+KRYON_FINDING_APPLICABILITY=       # F183: 'false' disables the non-CVE applicability gate
+                                   # (scans message+evidence for product mentions). Default enabled.
+KRYON_DEBUG_PARSE=                 # F181.C: 'true' writes one JSONL line per finding-parse
+                                   # decision to .kryon/debug/parse_<engagement>.jsonl
+KRYON_AGENT_TYPE=kryon             # Unified agent (v2.x)
 KRYON_UNIFIED=true
 KRYON_FORCE_TOOL_TURNS=8           # Force tool use first N turns (Ollama reliability)
 KRYON_MEMORY=true
 KRYON_STREAM=false                 # Non-streaming REPL (stable)
 KRYON_EMBEDDING_MODEL=nomic-embed-text
-KRYON_TOOL_BUDGET=static           # F84.7: 'itr' enables per-turn embedding-based tool selection.
-                                   # Default 'static' = banca-safe legacy skill-driven selection.
-                                   # Build the index first: python -m scripts.build_itr_index
-KRYON_BOLA_FIRE=                   # F87.2: 'true' enables live HTTP probes in detect_bola tool.
-                                   # Default unset = dry-run only (no network traffic). Operator
-                                   # MUST also pass fire=True in the tool call — both gates required.
-KRYON_GRAPHQL_FIRE=                # F87.3: 'true' enables live HTTP probes in graphql_recon tool.
-                                   # Same double-gate as KRYON_BOLA_FIRE. Default unset = dry-run.
-KRYON_FAPI_FIRE=                   # F87.4: 'true' enables live fetch of OpenID Connect Discovery
-                                   # documents in validate_fapi tool. Same double-gate. Default
-                                   # unset = pass discovery JSON via mode='from_json' (air-gap path).
-KRYON_RETEST_FIRE=                 # F88: 'true' enables live HTTP in retest_finding tool
-                                   # (HackerOne Retester pattern). Same double-gate as F87.
-KRYON_RETEST_ALLOW_MUTATIONS=      # F88: 'true' opts in to replay POST/PUT/PATCH/DELETE
-                                   # findings. Default GET-only — avoids accidental re-submission
-                                   # of mutation-side findings (e.g. a transfer endpoint).
-KRYON_BRAND_FIRE=                  # F90.1: 'true' enables live DNS resolution in typosquat_scan
-                                   # tool. Same double-gate as F87/F88. Default unset = generate
-                                   # candidates only (pure, no network).
-KRYON_NMAP_TIMING=                 # F195/F196: override nmap timing (T0..T5).
-                                   # F195 cubre el function_tool del LLM
-                                   # (tools/reconnaissance/nmap.py). F196 extiende
-                                   # la misma var al CLI directo: engage._run_nmap
-                                   # y discovery.assets.discover_subnet (los dos
-                                   # tenian -T4 hardcoded). Banca-safe / POC en
-                                   # horario laboral: T2. Caller-supplied -T flag
-                                   # in args= always wins (F195); el CLI hace
-                                   # override duro si el env esta seteado (F196).
-KRYON_NMAP_MIN_RATE=               # F195/F196: override --min-rate. F195 en
-                                   # function_tool, F196 en engage CLI + discover
-                                   # subnet. Banca-safe: 50.
-KRYON_NMAP_MAX_PARALLELISM=        # F195/F196: --max-parallelism. Banca-safe: 10.
-KRYON_NUCLEI_RATE_LIMIT=           # F195: override nuclei_scan default rate_limit=150.
-                                   # Banca-safe: 50. Only applies if the caller
-                                   # left the function-tool default in place.
-KRYON_NUCLEI_BULK_SIZE=            # F195: override nuclei_scan default bulk_size=25.
-                                   # Banca-safe: 10.
-KRYON_NUCLEI_CONCURRENCY=          # F195: override nuclei_scan default concurrency=25.
-                                   # Banca-safe: 10.
+KRYON_TOOL_BUDGET=static           # F84.7: 'itr' = per-turn embedding-based tool selection
+                                   # (build index first: python -m scripts.build_itr_index).
+                                   # Default 'static' = banca-safe skill-driven selection.
+# Double-gated live-probe tools (F87/F88/F90): both the env var AND fire=True in the tool
+# call are required; default unset = dry-run / candidates-only (no network).
+KRYON_BOLA_FIRE=                   # detect_bola live HTTP probes
+KRYON_GRAPHQL_FIRE=                # graphql_recon live HTTP probes
+KRYON_FAPI_FIRE=                   # validate_fapi live OIDC discovery fetch (else mode='from_json')
+KRYON_RETEST_FIRE=                 # retest_finding live HTTP (HackerOne Retester pattern)
+KRYON_RETEST_ALLOW_MUTATIONS=      # 'true' opts in to replay POST/PUT/PATCH/DELETE (default GET-only)
+KRYON_BRAND_FIRE=                  # typosquat_scan live DNS resolution
+# Scan throttling (F195 = LLM function_tools, F196 = engage CLI + discover_subnet).
+# Banca-safe POC values shown; caller-supplied -T in args= always wins (F195).
+KRYON_NMAP_TIMING=                 # nmap -T0..T5. Banca-safe: T2 (both had -T4 hardcoded)
+KRYON_NMAP_MIN_RATE=               # nmap --min-rate. Banca-safe: 50
+KRYON_NMAP_MAX_PARALLELISM=        # nmap --max-parallelism. Banca-safe: 10
+KRYON_NUCLEI_RATE_LIMIT=           # nuclei_scan rate_limit (default 150). Banca-safe: 50
+KRYON_NUCLEI_BULK_SIZE=            # nuclei_scan bulk_size (default 25). Banca-safe: 10
+KRYON_NUCLEI_CONCURRENCY=          # nuclei_scan concurrency (default 25). Banca-safe: 10
 ```
 
 ## `kryon investigate` — open-ended ReAct loop (F203)
@@ -336,42 +269,14 @@ kryon investigate ./local/path/   # SAST exploratorio sobre código local
 kryon investigate "active sqli pentest contra https://target" --active
 ```
 
-### Stack F203
+### Stack F203 (key pieces)
 
-- **F203.A** — `kryon investigate` CLI entry point.
-- **F203.B** — `web_fetch_smart` tool: GET-only HTTP, max 500KB, max 3
-  redirects, HTML→markdown extraction (script/style stripping). Banca-safe.
-- **F203.C** — `ReflectiveRunner`: inyecta turn de auto-crítica cada N
-  turns (default 4). Detecta stuck patterns ("re-invocando misma tool 3x")
-  y rompe el loop antes de gastar wall-budget.
-- **F203.D** — `request_skill(topic)` tool: skill discovery on-demand
-  cuando el agent decide que necesita methodology no cargada.
-- **F203.E** — `tool_search(query)` tool: agent puede descubrir tools
-  no cableadas en su current registry (RAG-style discovery).
-- **F203.F** — writeback al learning loop al cerrar la run (mismo path
-  que `auto_extract` post-engage).
-- **F203.M (Hybrid mode)** — `_run_deterministic_phase(url)` corre
-  detectors deterministicos (engage.py `_check_http` / `_check_mysql`
-  etc.) ANTES del LLM agent. Findings se inyectan al prompt como
-  "ground truth confirmado, el LLM extiende con semanticos".
-  - Web bench: recall 25% → 100% (4/4 CWEs ground truth)
-- **F203.N** — wire de TODOS los detectores deterministicos de engage
-  (11 detectors: HTTP, cookies, MySQL, SSH, BGP, Python simplehttp,
-  DNS battery opt-in, SMB anon shares opt-in). Flags: `--ssh-user/pass/key`,
-  `--db-user/pass`, `--include-dns-checks`, `--include-smb-checks`.
-- **F203.O** — pre_hooks deterministicos en 6 skills: `ssl-audit`,
-  `appsec`, `wordpress-audit`, `banking/{core-banking,swift-network,payment-gateway}`.
-- **F203.R** — 15 DFIR/validation tools cableados al registry
-  (validate_detection, validate_finding, validate_rce, validate_sqli,
-  validate_xss, validate_auth_bypass, calculate_mitre_coverage, etc).
-- **F203.S** — `guide_scorer.score_draft()` wired al `auto_pipeline`:
-  sidecar `.eval.json` ahora incluye `guide_score` (relevance +
-  naturalness), threshold 0.6.
-- **F203.T** — 21 red-team tools cableados bajo `KRYON_RED_TEAM=true`
-  gate (api_attacks, browser/Playwright, evasion analytical). Registry
-  104 default → 125 con RED_TEAM.
-- **F203.V/W/X/AB/AF/AG** — 14 "explicit-keyword" active skills,
-  priority=3, pre_hook deterministico. Cubre OWASP Top-10 + API + JS-ecosystem:
+- **Entry + tools** (F203.A/B/D/E): `kryon investigate` CLI; `web_fetch_smart` (GET-only HTTP, ≤500KB, ≤3 redirects, HTML→markdown — banca-safe); on-demand `request_skill(topic)` + `tool_search(query)` for RAG-style skill/tool discovery.
+- **`ReflectiveRunner`** (F203.C): injects a self-critique turn every N turns (default 4), detects stuck patterns (same tool 3×) and breaks the loop before burning wall-budget. Writeback to the learning loop on close (F203.F).
+- **Hybrid mode** (F203.M/N): `_run_deterministic_phase(url)` runs the engage deterministic detectors (11: HTTP, cookies, MySQL, SSH, BGP, simplehttp, DNS opt-in, SMB anon opt-in) BEFORE the LLM, injecting findings as confirmed ground truth (web bench recall 25%→100%). Flags `--ssh-user/pass/key`, `--db-user/pass`, `--include-dns-checks`, `--include-smb-checks`.
+- **Wired registries**: pre_hooks in 6 deterministic skills (F203.O); 15 DFIR/validation tools — `validate_{detection,finding,rce,sqli,xss,auth_bypass}`, `calculate_mitre_coverage`, … (F203.R); 21 red-team tools behind `KRYON_RED_TEAM=true` (registry 104→125, F203.T). `guide_scorer.score_draft()` feeds `auto_pipeline` (`.eval.json` `guide_score`, threshold 0.6, F203.S).
+- **`imperative_findings_suffix(evidence_present)`** (F203.AO.B): when no pre_hook returns evidence, the suffix flips from "NO re-invocás nuclei/sqlmap" to "DEBÉS continuar con tools manuales, NUNCA emitas []". Fixed gpt-oss returning `[]` on empty pre_hooks (HTB bench 0/7 → 4/7 PWN via `web_fetch_smart`+`run_command`).
+- **Explicit-keyword active skills** (F203.V/W/X/AB/AF/AG) — 14 skills, priority=3, deterministic pre_hook. Cover OWASP Top-10 + API + JS-ecosystem:
 
   | Skill | Keyword trigger | Pre_hook | CWE root |
   |-------|-----------------|----------|----------|
@@ -390,26 +295,12 @@ kryon investigate "active sqli pentest contra https://target" --active
   | web-pentest-graphql-active | "active graphql pentest" | nuclei -tags graphql,api + curl endpoint discovery | CWE-200/862 |
   | web-pentest-prototype-pollution-active | "active prototype pollution pentest" | nuclei -tags prototype-pollution | CWE-1321 |
 
-  Estas skills NO activan con keywords genéricos ("sqli", "xss",
-  "idor", "xxe", "graphql"). Solo con la frase explícita
-  "active X pentest" (o equivalentes: "fire X probe", "pentest activo X").
-  Aprendizaje F203.U: pre_hooks costosos en skills de keyword amplio
-  regressionan el bench wall budget (33% → 0% pwn rate observado).
-- **F203.Z.B** — pre_hooks integration en `investigate.py`. Antes solo
-  `engage._run_phase` invocaba pre_hooks; ahora `maybe_run_pre_hooks`
-  también corre desde `kryon investigate` (necesario para que las
-  active skills F203.V-AB funcionen).
-- **F203.Y** — dead code cleanup real: -15 archivos en `src/kryon/tools/`
-  con 0 references anywhere (script: `scripts/dead_code_audit.py`).
-- **F203.AO.B** — `imperative_findings_suffix(evidence_present)` bifurcado.
-  Antes: el suffix imperativo `"NO re-invocás nuclei/sqlmap"` aplicaba
-  siempre, incluso cuando el pre_hook devolvía vacío → gpt-oss terminaba
-  con `[]` sin intentar tools manuales (HTB bench 0/7 pre-fix). Ahora:
-  cuando ningún pre_hook devuelve evidencia (JSON `[]`/`{}` empty o
-  string vacío), el suffix muta a `"DEBÉS continuar con tools manuales,
-  NUNCA emitas []"`. Bench HTB n=7 post-fix: **4/7 PWN (57%)** —
-  SQLi/XSS/RCE/XXE pwned con chain_match=100% via `web_fetch_smart` +
-  `run_command` después del pre_hook empty.
+  Estas skills NO activan con keywords genéricos ("sqli", "xss", "idor",
+  "xxe", "graphql"); solo con la frase explícita "active X pentest" (o
+  "fire X probe", "pentest activo X"). Aprendizaje F203.U: pre_hooks
+  costosos en skills de keyword amplio regressionan el bench wall budget
+  (33% → 0% pwn). `maybe_run_pre_hooks` también corre desde `kryon
+  investigate` (F203.Z.B), necesario para que estas active skills disparen.
 
 ### Bench harnesses
 
@@ -438,6 +329,9 @@ kryon investigate "active sqli pentest contra https://target" --active
   en `scripts/lab_scoreboard.py` target=juice_shop.
 - **CyberGym SAST** — `python -m scripts.cybergym.cli` corre heartbleed
   + log4shell + struts2-ognl como SAST contra source pre-cloned.
+- **Vulhub walkthroughs** — `tests/benchmarks/vulhub/walkthroughs/*.json`
+  (nuevo, WIP): expected chains contra los labs de `vulhub/vulhub`. Primer
+  caso `struts2-s2-001.json`. Mismo formato JSON que el HTB bench.
 
 ### Configuración default de investigate (banca-safe vs active)
 
