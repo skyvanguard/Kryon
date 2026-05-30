@@ -1,0 +1,11 @@
+# Kryon-Foundation-Sec: Cisco Foundation-Sec-8B-Reasoning, Llama-3.1-8B base.
+# Security reasoning model for the vuln-research line. Rationale + pull/alias
+# steps: scripts/install_kryon_foundation_sec.sh and CLAUDE.md.
+
+FROM foundation-sec-reasoning-base:latest
+PARAMETER num_ctx 16384
+PARAMETER num_predict 4096
+PARAMETER temperature 0.3
+PARAMETER top_p 0.9
+PARAMETER stop "<|eot_id|>"
+PARAMETER stop "<|end_of_text|>"
