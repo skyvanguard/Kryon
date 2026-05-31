@@ -30,6 +30,18 @@ ALWAYS_INCLUDE = {
     "execute_planner_directive",
 }
 
+# RAG/memory tools — apagadas salvo KRYON_MEMORY=true. Aún aparecen en el
+# `required_tools` de varios playbooks (appsec, ctf-master, dvr-audit, …);
+# este set las filtra de forma CENTRAL en select_tools sin tener que editar
+# cada .md. El RAG quedó apagado (corpus infrautilizado, sin embeddings/Ollama).
+RAG_TOOLS = {
+    "query_knowledge_base",
+    "search_vulnerabilities",
+    "recall_similar_experiences",
+    "add_to_memory_semantic",
+    "query_memory",
+}
+
 
 def build_tool_registry() -> dict[str, Any]:
     """Import ALL tools from toolsets and index them by name.
@@ -195,6 +207,10 @@ def select_tools(
     """
     selected_names = set(ALWAYS_INCLUDE)
     selected_names.update(skill_tool_names)
+    # RAG apagado salvo opt-in explícito: filtra las RAG tools aunque algún
+    # playbook las pida en required_tools (apaga el RAG de forma central).
+    if os.environ.get("KRYON_MEMORY", "").strip().lower() != "true":
+        selected_names -= RAG_TOOLS
     if forbidden_tool_names:
         selected_names -= set(forbidden_tool_names)
 

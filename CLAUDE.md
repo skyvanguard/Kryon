@@ -330,8 +330,6 @@ kryon queue process \
 el modo single-host. El flujo `discover --queue-add` → `queue process`
 es la unica via correcta para barrer un segmento.
 
-Wrapper completo del POC: `scripts/poc_britimp_segmento.sh`.
-
 ## Docker / K8s
 
 - `docker/docker-compose.kali.yml` + `docker/docker-compose.override.yml` is the dev stack (Kali + llama-server + Kryon).

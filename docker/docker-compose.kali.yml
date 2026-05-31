@@ -112,7 +112,7 @@ services:
       - -m
       - /models/qwen36-35b-a3b-q4kxl.gguf
       - --n-cpu-moe
-      - "99"
+      - "30"
       - -ngl
       - "99"
       - -fa

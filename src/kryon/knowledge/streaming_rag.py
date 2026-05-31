@@ -68,7 +68,7 @@ class StreamingRAGEngine:
         return {
             "api_key": os.getenv("OPENAI_API_KEY", ""),
             "base_url": os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-            "model": os.getenv("KRYON_RAG_MODEL", os.getenv("KRYON_MODEL", "gpt-4o")),
+            "model": os.getenv("KRYON_RAG_MODEL", os.getenv("KRYON_MODEL", "Kryon-MOE-35B")),
         }
 
     async def query_stream(self, question: str, top_k: int = 5, source_filter: str | None = None) -> AsyncIterator[str]:
@@ -154,7 +154,7 @@ class StreamingRAGEngine:
                 base_url=self.llm_config["base_url"],
             )
             stream = await client.chat.completions.create(
-                model=self.llm_config.get("model", "gpt-4o"),
+                model=self.llm_config.get("model", "Kryon-MOE-35B"),
                 messages=[
                     {"role": "system", "content": "You are KRYON, an advanced cybersecurity AI assistant."},
                     {"role": "user", "content": prompt},

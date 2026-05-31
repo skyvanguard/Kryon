@@ -21,7 +21,7 @@ from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
 from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel
 
-model = os.getenv("KRYON_MODEL", "gpt-4o")
+model = os.getenv("KRYON_MODEL", "Kryon-MOE-35B")
 
 # Create OpenAI client with fallback API key to prevent initialization errors
 api_key = os.getenv("OPENAI_API_KEY", "not-set")
@@ -61,7 +61,7 @@ EXTRACTION PROTOCOL:
 REMEMBER: Precision is critical. Extract ONLY the flag, nothing else.
 ═══════════════════════════════════════════════════════════════════════""",
     model=OpenAIChatCompletionsModel(
-        model="gpt-4o" if os.getenv("KRYON_MODEL", "gpt-4o") == "o3-mini" else model,
+        model="gpt-4o" if os.getenv("KRYON_MODEL", "Kryon-MOE-35B") == "o3-mini" else model,
         openai_client=AsyncOpenAI(
             api_key=api_key,
             base_url=os.getenv("OPENAI_BASE_URL"),

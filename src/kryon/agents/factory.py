@@ -47,7 +47,7 @@ def create_generic_agent_factory(
 
         if not model_name:
             # Third priority: global KRYON_MODEL
-            model_name = os.environ.get("KRYON_MODEL", "gpt-4o")
+            model_name = os.environ.get("KRYON_MODEL", "Kryon-MOE-35B")
 
         api_key = os.getenv("OPENAI_API_KEY", "not-set")
         # CRITICAL: AsyncOpenAI without base_url defaults to OpenAI's

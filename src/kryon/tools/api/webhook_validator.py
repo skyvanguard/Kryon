@@ -689,7 +689,7 @@ def analyze_webhook(
     )
 
     # Sort: CRITICAL first, then HIGH, MEDIUM, LOW, INFO.
-    severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+    from kryon.util.severity import SEVERITY_RANK as severity_order
     findings.sort(key=lambda f: severity_order.get(f.severity, 99))
 
     return WebhookAnalysis(

@@ -477,7 +477,7 @@ def run_kryon_cli(
     idle_time = 0
     # Use legacy_windows=False on Windows to enable proper UTF-8 Unicode rendering
     console = Console(legacy_windows=False) if sys.platform == "win32" else Console()
-    last_model = os.getenv("KRYON_MODEL", "gpt-4o")
+    last_model = os.getenv("KRYON_MODEL", "Kryon-MOE-35B")
     last_agent_type = os.getenv("KRYON_AGENT_TYPE", "kryon")
     parallel_count = int(os.getenv("KRYON_PARALLEL", "1"))
     use_initial_prompt = initial_prompt is not None
@@ -587,7 +587,7 @@ def run_kryon_cli(
             idle_start_time = time.time()
 
             # Check if model has changed and update if needed
-            current_model = os.getenv("KRYON_MODEL", "gpt-4o")
+            current_model = os.getenv("KRYON_MODEL", "Kryon-MOE-35B")
             # Check for agent-specific model override
             agent_specific_model = os.getenv(f"KRYON_{last_agent_type.upper()}_MODEL")
             if agent_specific_model:
@@ -1114,7 +1114,7 @@ def run_kryon_cli(
                             custom_name = f"{agent_display_name} #{idx}"
 
                             # Determine model
-                            model_to_use = config.model or os.getenv("KRYON_MODEL", "gpt-4o")
+                            model_to_use = config.model or os.getenv("KRYON_MODEL", "Kryon-MOE-35B")
 
                             # Create and store the instance
                             # No shared_message_history - each agent gets its own isolated copy
@@ -1171,7 +1171,7 @@ def run_kryon_cli(
                                 custom_name = agent_display_name
 
                             # Determine which model to use
-                            model_to_use = config.model or os.getenv("KRYON_MODEL", "gpt-4o")
+                            model_to_use = config.model or os.getenv("KRYON_MODEL", "Kryon-MOE-35B")
 
                             # Create agent instance with the determined model
                             # Each agent gets its own isolated history from PARALLEL_ISOLATION
@@ -1193,7 +1193,7 @@ def run_kryon_cli(
                         AGENT_MANAGER.set_parallel_agent(agent_id, instance_agent, agent_display_name)
 
                         # Ensure the model is properly set for the agent and all handoff agents
-                        model_to_use = config.model or os.getenv("KRYON_MODEL", "gpt-4o")
+                        model_to_use = config.model or os.getenv("KRYON_MODEL", "Kryon-MOE-35B")
                         if model_to_use:
                             update_agent_models_recursively(instance_agent, model_to_use)
 
@@ -2451,7 +2451,7 @@ def main():
 
         base_url = os.getenv("OPENAI_BASE_URL", "")
         provider = "Groq" if "groq" in base_url.lower() else "Ollama" if "localhost" in base_url else "OpenAI"
-        model = os.getenv("KRYON_MODEL", "gpt-4o")
+        model = os.getenv("KRYON_MODEL", "Kryon-MOE-35B")
         print(color(f"Provider: {provider} ({model})", fg="cyan"))
         print(color(f"Target: {args.target}", fg="cyan"))
         print(color(f"Profile: {args.profile} | Max time: {args.max_time}h | Stealth: {args.stealth}", fg="cyan"))
@@ -2543,7 +2543,7 @@ def main():
     # Ensure the agent and all its handoff agents use the current model
     # Skip when using Claude Code CLI — RunConfig handles the model via ClaudeCodeProvider
     if not os.getenv("KRYON_CLAUDE_CODE", "").lower() == "true":
-        current_model = os.getenv("KRYON_MODEL", "gpt-4o")
+        current_model = os.getenv("KRYON_MODEL", "Kryon-MOE-35B")
         update_agent_models_recursively(agent, current_model)
 
     # Seed knowledge base on first run (fast no-op if already populated)

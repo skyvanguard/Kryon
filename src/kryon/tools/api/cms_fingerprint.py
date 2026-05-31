@@ -616,6 +616,6 @@ def analyze_fingerprint(obs: FingerprintObservation) -> FingerprintAnalysis:
     findings.extend(_detect_extended(obs))
     findings.extend(_detect_via_cookies(obs))
     findings = _dedupe(findings)
-    severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+    from kryon.util.severity import SEVERITY_RANK as severity_order
     findings.sort(key=lambda f: (severity_order.get(f.severity, 99), f.rule_id))
     return FingerprintAnalysis(url=obs.url, findings=tuple(findings))

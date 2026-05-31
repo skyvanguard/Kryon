@@ -445,7 +445,7 @@ def analyze_cors_response(
     findings.extend(_check_long_preflight_cache(max_age))
     findings.extend(_check_acao_present_at_all(allow_origin, response.request_origin))
 
-    severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+    from kryon.util.severity import SEVERITY_RANK as severity_order
     findings.sort(key=lambda f: severity_order.get(f.severity, 99))
 
     return CORSAnalysis(

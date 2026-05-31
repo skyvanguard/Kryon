@@ -623,7 +623,7 @@ def analyze_security_headers(response: HTTPResponse) -> SecurityHeadersAnalysis:
     findings.extend(_check_cross_origin(response))
     findings.extend(_check_info_leaks(response))
 
-    severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+    from kryon.util.severity import SEVERITY_RANK as severity_order
     findings.sort(key=lambda f: (severity_order.get(f.severity, 99), f.rule_id))
 
     return SecurityHeadersAnalysis(

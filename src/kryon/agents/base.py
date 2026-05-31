@@ -22,7 +22,7 @@ def get_default_model() -> OpenAIChatCompletionsModel:
     provider's key.
     """
     return OpenAIChatCompletionsModel(
-        model=os.getenv("KRYON_MODEL", "gpt-4o"),
+        model=os.getenv("KRYON_MODEL", "Kryon-MOE-35B"),
         openai_client=AsyncOpenAI(
             api_key=os.getenv("OPENAI_API_KEY", "not-set"),
             base_url=os.getenv("OPENAI_BASE_URL"),

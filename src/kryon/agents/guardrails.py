@@ -280,7 +280,7 @@ def _get_injection_detector_agent():
             # Falls back to KRYON_MODEL only if the dedicated env is unset.
             _guardrail_model = os.getenv(
                 "KRYON_GUARDRAIL_MODEL",
-                os.getenv("KRYON_MODEL", "gpt-4o-mini"),
+                os.getenv("KRYON_MODEL", "Kryon-MOE-35B"),
             )
             _injection_detector_agent = Agent(
                 name="Prompt Injection Detector",

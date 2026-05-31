@@ -60,7 +60,7 @@ async def _ping_llm() -> ReadinessCheck:
             kwargs["api_base"] = base_url
             kwargs["api_key"] = os.environ.get("OPENAI_API_KEY", "llama")
         else:
-            kwargs["model"] = "gpt-4o-mini"
+            kwargs["model"] = "Kryon-MOE-35B"
         try:
             import litellm
 
