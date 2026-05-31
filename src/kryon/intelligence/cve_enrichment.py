@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from pathlib import Path
 
@@ -27,6 +28,13 @@ class CVEEnricher:
         """Full enrichment pipeline for a single CVE."""
         detail = CVEDetail(cve_id=cve_id)
 
+        nvd = await self.get_nvd_detail(cve_id)
+        detail.description = nvd.get("description", "")
+        detail.cvss_score = nvd.get("cvss_score")
+        detail.cvss_vector = nvd.get("cvss_vector")
+        detail.cpe_affected = nvd.get("cpe_affected", [])
+        detail.references = nvd.get("references", [])
+
         epss_score, epss_pct = await self.get_epss(cve_id)
         detail.epss_score = epss_score
         detail.epss_percentile = epss_pct
@@ -36,6 +44,56 @@ class CVEEnricher:
         detail.exploit_available = len(detail.exploit_refs) > 0
 
         return detail
+
+    async def get_nvd_detail(self, cve_id: str) -> dict:
+        """Query NVD API 2.0 for description, CVSS, CPE, references.
+
+        Live fetch (no static corpus). Honors ``NVD_API_KEY`` env (raises the
+        rate limit 5→50 req/30s). Best-effort: returns {} on any failure.
+        """
+        out: dict = {}
+        try:
+            import httpx
+
+            headers = {}
+            key = os.environ.get("NVD_API_KEY", "").strip()
+            if key:
+                headers["apiKey"] = key
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(
+                    "https://services.nvd.nist.gov/rest/json/cves/2.0",
+                    params={"cveId": cve_id},
+                    headers=headers,
+                )
+                resp.raise_for_status()
+                vulns = resp.json().get("vulnerabilities", [])
+                if not vulns:
+                    return out
+                cve = vulns[0].get("cve", {})
+                for d in cve.get("descriptions", []):
+                    if d.get("lang") == "en":
+                        out["description"] = d.get("value", "")
+                        break
+                metrics = cve.get("metrics", {})
+                for mkey in ("cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
+                    if metrics.get(mkey):
+                        cd = metrics[mkey][0].get("cvssData", {})
+                        out["cvss_score"] = cd.get("baseScore")
+                        out["cvss_vector"] = cd.get("vectorString")
+                        break
+                cpes: list[str] = []
+                for conf in cve.get("configurations", []):
+                    for node in conf.get("nodes", []):
+                        for m in node.get("cpeMatch", []):
+                            if m.get("criteria"):
+                                cpes.append(m["criteria"])
+                out["cpe_affected"] = cpes[:20]
+                out["references"] = [
+                    r.get("url", "") for r in cve.get("references", []) if r.get("url")
+                ][:10]
+        except Exception:
+            logger.debug("NVD lookup failed for %s", cve_id, exc_info=True)
+        return out
 
     async def enrich_batch(self, cve_ids: list[str]) -> list[CVEDetail]:
         """Batch enrichment with rate limiting."""

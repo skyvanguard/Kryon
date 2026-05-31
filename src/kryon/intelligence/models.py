@@ -40,6 +40,7 @@ class CVEDetail(BaseModel):
     """Enriched CVE information."""
 
     cve_id: str
+    description: str = ""
     cvss_score: float | None = None
     cvss_vector: str | None = None
     epss_score: float | None = None

@@ -23,8 +23,10 @@ from .rag_tools import (
 )
 from .request_skill import request_skill
 from .tool_search import tool_search
+from .cve_intel import cve_intel
 
 __all__ = [
+    "cve_intel",
     "query_knowledge_base",
     "search_vulnerabilities",
     "get_exploit_techniques",
