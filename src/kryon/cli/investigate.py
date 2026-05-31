@@ -309,6 +309,30 @@ def _run_deterministic_phase(
     return findings
 
 
+def _run_source_review_phase(code_path: str, *, max_files: int = 25) -> list:
+    """Mythos-style source review over a local code tree.
+
+    Runs the file-by-file reasoning review (intelligence.source_review)
+    with the security model and returns engage.Finding objects so they
+    inject into the agent prompt + output exactly like the URL-based
+    deterministic phase. Skips silently on any error — the LLM agent
+    still runs.
+    """
+    try:
+        from kryon.intelligence.source_review import OllamaReviewer, review_tree
+    except ImportError:
+        return []
+
+    root = Path(code_path).expanduser()
+    if not root.exists():
+        return []
+    try:
+        result = review_tree(root, reviewer=OllamaReviewer(), max_files=max_files)
+    except Exception:  # noqa: BLE001 — defensive; LLM agent still runs
+        return []
+    return [f.to_engage_finding() for f in result.findings]
+
+
 def _format_findings_for_prompt(findings: list) -> str:
     """Render Finding list as markdown block to inject into agent prompt."""
     if not findings:
@@ -412,7 +436,17 @@ def run_investigate(args: argparse.Namespace) -> int:
     # F203.M — Hybrid mode: run deterministic checks ANTES del agent, inyectar
     # findings al prompt. Default ON cuando hay URL detectable.
     deterministic_findings: list = []
-    if not args.no_hybrid:
+    if not args.no_hybrid and hints.get("mode") == "code_sast" and hints.get("code_path"):
+        # Mythos-style source review for local code trees.
+        console.print(
+            f"[cyan]🔬 source-review phase:[/cyan] {hints['code_path']} "
+            f"(max {args.sast_max_files} files, model "
+            f"{os.environ.get('KRYON_SOURCE_REVIEW_MODEL', 'kryon-foundation-sec')})"
+        )
+        sr = _run_source_review_phase(hints["code_path"], max_files=args.sast_max_files)
+        if sr:
+            deterministic_findings.extend(sr)
+    if not args.no_hybrid and hints.get("mode") != "code_sast":
         urls_to_check = list(hints.get("urls") or [])
         if args.url and args.url not in urls_to_check:
             urls_to_check.append(args.url)
@@ -598,7 +632,15 @@ def add_investigate_subparser(subparsers) -> argparse.ArgumentParser:
         action="store_true",
         help="F203.M — skip deterministic Phase 2 checks before agent loop. "
         "Default: hybrid mode ON (runs HTTP/MySQL detectors first, inyecta "
-        "findings al prompt del agent).",
+        "findings al prompt del agent). For code paths, also skips the "
+        "Mythos-style source-review phase.",
+    )
+    p.add_argument(
+        "--sast-max-files",
+        type=int,
+        default=25,
+        help="source-review: max files sent to the model per run (triage "
+        "ranks by sink-density; default 25). Only applies to local code paths.",
     )
     # F203.N.2 — creds-aware deep audit
     p.add_argument(

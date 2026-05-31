@@ -1,7 +1,7 @@
 # =============================================================================
 # KRYON - Kali Linux Pentesting Stack
 # =============================================================================
-# Full offensive security environment with local LLM (Ollama + GPU).
+# Full offensive security environment with local LLM (llama.cpp + GPU).
 #
 # Usage:
 #   docker compose -f docker/docker-compose.kali.yml build
@@ -12,7 +12,7 @@
 #   docker exec -it kryon python -m kryon          # REPL
 #   docker exec -it kryon bash                     # Kali shell
 #   docker exec -it -u root kryon bash             # Root shell (VPN, etc.)
-#   docker exec -it kryon-ollama ollama pull dolphin-mistral:7b
+#   curl http://localhost:8081/v1/models           # llama-server (LLM principal)
 #
 # VPN for CTFs:
 #   docker exec -u root -d kryon openvpn --config /workspace/htb.ovpn
@@ -34,16 +34,22 @@ services:
     env_file:
       - .env.docker
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-ollama}
-      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://ollama:11434/v1}
-      - OLLAMA=${OLLAMA:-true}
-      - KRYON_MODEL=${KRYON_MODEL:-kryon-14b}
+      # LLM principal: llama.cpp (llama-server) con el MoE Kryon-MOE-35B.
+      # NOTA: este bloque environment PISA a env_file (.env.docker) para
+      # estas vars — los defaults de acá son la fuente de verdad efectiva.
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-llama}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://llama-server:8080/v1}
+      # Modo LLM local (parsers robustos + usage patch). Reemplaza al flag OLLAMA.
+      - KRYON_LOCAL_LLM=${KRYON_LOCAL_LLM:-true}
+      - KRYON_MODEL=${KRYON_MODEL:-Kryon-MOE-35B}
+      # Modelos locales necesitan forzar tool-calling los primeros N turnos.
+      - KRYON_FORCE_TOOL_TURNS=${KRYON_FORCE_TOOL_TURNS:-8}
       - KRYON_DEBUG=${KRYON_DEBUG:-0}
       - KRYON_GUARDRAILS=${KRYON_GUARDRAILS:-true}
       - KRYON_MAX_TURNS=${KRYON_MAX_TURNS:-50}
       - KRYON_STREAM=${KRYON_STREAM:-false}
-      # Knowledge auto-updater (seeds NVD, ExploitDB, GitHub daily)
-      - KRYON_AUTO_UPDATE=${KRYON_AUTO_UPDATE:-true}
+      # RAG apagado — auto-updater desactivado (ya no se siembra el corpus).
+      - KRYON_AUTO_UPDATE=${KRYON_AUTO_UPDATE:-false}
       # Claude Code CLI backend — configured in .env.docker
       # KRYON_CLAUDE_CODE and KRYON_CLAUDE_MODEL come from env_file
     volumes:
@@ -80,33 +86,75 @@ services:
       - kryon-mgmt
       - kryon-pentest
     depends_on:
-      ollama:
+      llama-server:
         condition: service_started
     stdin_open: true
     tty: true
 
   # ---------------------------------------------------------------------------
-  # Ollama — Local LLM with GPU passthrough
+  # llama-server — LLM principal (llama.cpp) — reemplaza a Ollama para inferencia
   # ---------------------------------------------------------------------------
-  ollama:
-    image: ollama/ollama:latest
-    container_name: kryon-ollama
+  # Sirve el MoE Qwen3.6-35B-A3B (UD-Q4_K_XL) con expertos en CPU/RAM
+  # (--n-cpu-moe 99) y attention en GPU (-ngl 99): ~3.4 GB VRAM. --jinja
+  # habilita tool-calling OpenAI-compat (validado Fase 0).
+  #
+  # IMPORTANTE — VRAM 12 GB: solo UN llama-server a la vez. Si corrés el
+  # contenedor externo `hermes-llamacpp` (otro proyecto, mismo GGUF), pará
+  # uno de los dos o habrá OOM.
+  #
+  # El GGUF (21 GB) se reusa del volume externo `hermes-llamacpp-cache`
+  # (montado read-only) para no re-descargar.
+  llama-server:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: kryon-llama
     restart: unless-stopped
-    environment:
-      # F203.AW — keep model loaded indefinidamente para evitar
-      # cold-start de 30-60s entre bench targets. Default ollama 5min
-      # causaba kryon_timeout en HTB n=7 cuando el restart del kryon
-      # container desalojaba gpt-oss del GPU.
-      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-24h}
+    command:
+      - -m
+      - /models/qwen36-35b-a3b-q4kxl.gguf
+      - --n-cpu-moe
+      - "30"
+      - -ngl
+      - "99"
+      - -fa
+      - "on"
+      - --cache-type-k
+      - q4_0
+      - --cache-type-v
+      - q4_0
+      - -c
+      - "40960"
+      - -n
+      - "8000"
+      # Sampling banca-safe (temp 0.3 vs 0.6 del perfil active de hermes).
+      - --temp
+      - "0.3"
+      - --top-p
+      - "0.95"
+      - --top-k
+      - "20"
+      - --min-p
+      - "0"
+      - --presence-penalty
+      - "1.0"
+      - --parallel
+      - "1"
+      - --jinja
+      - -a
+      - Kryon-MOE-35B
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
     volumes:
-      - ollama-models:/root/.ollama
-    # Expose to host for CLI access (use 11435 if host Ollama occupies 11434)
+      - hermes-llamacpp-cache:/models:ro
+    # Puerto host 8081 para CLI/debug (hermes-llamacpp ocupa 8080 en el host).
+    # Kryon lo alcanza por red interna: http://llama-server:8080/v1
     ports:
-      - "127.0.0.1:${OLLAMA_HOST_PORT:-11435}:11434"
+      - "127.0.0.1:${LLAMA_HOST_PORT:-8081}:8080"
     deploy:
       resources:
         limits:
-          memory: 8G
+          memory: 12G
         reservations:
           devices:
             - driver: nvidia
@@ -190,13 +238,15 @@ volumes:
     driver: local
   kryon-cache:
     driver: local
-  ollama-models:
-    driver: local
+  # GGUF del MoE (21 GB) — creado por el contenedor externo hermes-llamacpp
+  # (docker run). Se reusa read-only para no re-descargar.
+  hermes-llamacpp-cache:
+    external: true
 
 # =============================================================================
 # Networks
 # =============================================================================
-# mgmt:    Kryon <-> Ollama (internal comms)
+# mgmt:    Kryon <-> llama-server (internal comms)
 # pentest: Kryon <-> targets (isolated, no LLM access)
 # =============================================================================
 networks:

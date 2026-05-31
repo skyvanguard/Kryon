@@ -700,7 +700,7 @@ def analyze_tls_profile(profile: TLSProfile) -> TLSAnalysis:
     findings.extend(_check_key_and_signature(profile))
     findings.extend(_check_certificate(profile))
 
-    severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+    from kryon.util.severity import SEVERITY_RANK as severity_order
     findings.sort(key=lambda f: (severity_order.get(f.severity, 99), f.rule_id))
 
     return TLSAnalysis(

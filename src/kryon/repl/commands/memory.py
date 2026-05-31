@@ -1153,7 +1153,7 @@ Model: {get_compact_model() or os.environ.get("KRYON_MODEL", "gpt-4")}
         from kryon.repl.commands.compact import get_compact_model, get_custom_prompt
 
         # Create summary agent
-        model_name = get_compact_model() or os.environ.get("KRYON_MODEL", "gpt-4o")
+        model_name = get_compact_model() or os.environ.get("KRYON_MODEL", "Kryon-MOE-35B")
 
         # Use custom prompt if set, otherwise use default
         custom_prompt = get_custom_prompt()

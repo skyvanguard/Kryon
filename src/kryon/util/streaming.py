@@ -1400,7 +1400,7 @@ def update_agent_streaming_content(context, text_delta, token_stats=None):
                     footer_stats.append(" | Session: ", style="dim")
                     footer_stats.append(f"${session_total_cost:.4f}", style="bold magenta")
 
-                model_name = context.get("model", os.environ.get("KRYON_MODEL", "gpt-4o"))
+                model_name = context.get("model", os.environ.get("KRYON_MODEL", "Kryon-MOE-35B"))
                 context_pct = input_tokens / get_model_input_tokens(model_name) * 100
                 if context_pct < 50:
                     indicator = "OK"
@@ -1479,7 +1479,7 @@ def finish_agent_streaming(context, final_stats=None):
 
             model_name = context.get("model", "")
             if not isinstance(model_name, str):
-                model_name = os.environ.get("KRYON_MODEL", "gpt-4o-mini")
+                model_name = os.environ.get("KRYON_MODEL", "Kryon-MOE-35B")
 
             if (
                 interaction_input_tokens is not None
@@ -2094,7 +2094,7 @@ def finish_tool_streaming(tool_name, args, output, call_id, execution_info=None,
         interaction_cost = token_info.get("interaction_cost", 0)
 
         if not interaction_cost and input_tokens > 0:
-            model_name = token_info.get("model", os.environ.get("KRYON_MODEL", "gpt-4o-mini"))
+            model_name = token_info.get("model", os.environ.get("KRYON_MODEL", "Kryon-MOE-35B"))
             interaction_cost = calculate_model_cost(model_name, input_tokens, output_tokens)
 
         if input_tokens > 0:

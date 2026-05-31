@@ -348,17 +348,6 @@ def test_write_sarif_propagates_kwargs(tmp_path):
 # =====================================================================
 
 
-def test_tool_inline_mode_returns_sarif_string():
-    """When output_path is empty, the tool returns the SARIF JSON
-    directly so the agent can pipe it into another tool."""
-    from kryon.reporting.sarif_tool import emit_sarif as wrapped
-
-    # The @function_tool decorator wraps the callable in an SDK shim;
-    # for unit tests we exercise the underlying logic via the imports.
-    # Verify the function exists with the expected metadata.
-    assert hasattr(wrapped, "name") or callable(wrapped)
-
-
 def test_tool_file_mode_summary_shape(tmp_path):
     """Verify the summary dict the tool returns in file mode is
     well-shaped (run/result/rule counts)."""

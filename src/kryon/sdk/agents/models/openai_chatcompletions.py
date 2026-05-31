@@ -145,8 +145,8 @@ if TYPE_CHECKING:
 litellm.suppress_debug_info = True
 
 if (
-    os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "gpt-4o")) == "o3-mini"
-    or os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "gpt-4o")) == "gemini-1.5-pro"
+    os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "Kryon-MOE-35B")) == "o3-mini"
+    or os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "Kryon-MOE-35B")) == "gemini-1.5-pro"
 ):
     litellm.drop_params = True
 
@@ -627,8 +627,12 @@ class OpenAIChatCompletionsModel(Model):
     ) -> None:
         self.model = model
         self._client = openai_client
-        # Check if we're using OLLAMA models
-        self.is_ollama = os.getenv("OLLAMA") is not None and os.getenv("OLLAMA").lower() != "false"
+        # "Local LLM mode": robust tool-call parsers + litellm usage patch for
+        # llama.cpp / local OpenAI-compat endpoints. KRYON_LOCAL_LLM is the
+        # current flag; OLLAMA kept for backward compat. Attribute name
+        # (is_ollama) left unchanged to avoid churn across this file.
+        _local = os.getenv("KRYON_LOCAL_LLM") or os.getenv("OLLAMA")
+        self.is_ollama = _local is not None and _local.lower() != "false"
         self.empty_content_error_shown = False
 
         # Track interaction counter and token totals for cli display
@@ -1382,7 +1386,7 @@ class OpenAIChatCompletionsModel(Model):
                 # Fix Google Gemini OpenAI compatibility issues.
                 # When using the OpenAI-compatible API to call tools with Google Gemini
                 # tool_call.id is returned as an empty string.
-                if "openai/gemini" in os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "gpt-4o")):
+                if "openai/gemini" in os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "Kryon-MOE-35B")):
                     for tool_call in assistant_msg.tool_calls:
                         if tool_call.id is None or tool_call.id == "":
                             tool_call.id = uuid.uuid4().hex[:16]

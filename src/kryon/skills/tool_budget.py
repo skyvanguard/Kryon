@@ -11,16 +11,16 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# These tools are ALWAYS included regardless of skill selection
+# These tools are ALWAYS included regardless of skill selection.
+# RAG/memory tools (recall_similar_experiences, query_knowledge_base,
+# search_vulnerabilities, add_to_memory_semantic, query_memory) fueron
+# removidas: el RAG quedó apagado (corpus 94% duplicado, query_knowledge_base
+# con 0 invocaciones reales, search_vulnerabilities siempre count:0). Sin RAG
+# no hay dependencia de embeddings/Ollama.
 ALWAYS_INCLUDE = {
     "run_command",
     "execute_code",
     "nmap",
-    "recall_similar_experiences",
-    "query_knowledge_base",
-    "search_vulnerabilities",
-    "add_to_memory_semantic",
-    "query_memory",
     # FASE 6 — the OPERATOR DIRECTIVE block tells the model to call
     # ``execute_planner_directive()`` as its next tool. Without this
     # entry the tool-budget selector can drop the function_tool when
@@ -28,6 +28,18 @@ ALWAYS_INCLUDE = {
     # model with a directive pointing at a tool that doesn't exist
     # (the agent then refuses with "tool not available"). Pin it.
     "execute_planner_directive",
+}
+
+# RAG/memory tools — apagadas salvo KRYON_MEMORY=true. Aún aparecen en el
+# `required_tools` de varios playbooks (appsec, ctf-master, dvr-audit, …);
+# este set las filtra de forma CENTRAL en select_tools sin tener que editar
+# cada .md. El RAG quedó apagado (corpus infrautilizado, sin embeddings/Ollama).
+RAG_TOOLS = {
+    "query_knowledge_base",
+    "search_vulnerabilities",
+    "recall_similar_experiences",
+    "add_to_memory_semantic",
+    "query_memory",
 }
 
 
@@ -178,7 +190,11 @@ def build_tool_registry() -> dict[str, Any]:
 def select_tools(
     registry: dict[str, Any],
     skill_tool_names: set[str],
-    max_tools: int = 30,
+    # Cap de tools registradas. Bajado 30→15: los schemas de tools eran ~48%
+    # del prompt (~6.3K tok). Con el MoE re-procesando el prompt cada turno,
+    # menos tools = menos latencia. ALWAYS_INCLUDE + 4 ambient tools se suman
+    # aparte, así que el total efectivo ronda ~19.
+    max_tools: int = 15,
     forbidden_tool_names: set[str] | None = None,
 ) -> list[Any]:
     """Select tool objects from the registry based on skill requirements.
@@ -191,6 +207,10 @@ def select_tools(
     """
     selected_names = set(ALWAYS_INCLUDE)
     selected_names.update(skill_tool_names)
+    # RAG apagado salvo opt-in explícito: filtra las RAG tools aunque algún
+    # playbook las pida en required_tools (apaga el RAG de forma central).
+    if os.environ.get("KRYON_MEMORY", "").strip().lower() != "true":
+        selected_names -= RAG_TOOLS
     if forbidden_tool_names:
         selected_names -= set(forbidden_tool_names)
 

@@ -27,6 +27,8 @@ from __future__ import annotations
 import os
 from dataclasses import asdict, dataclass
 
+from kryon.util.model_class import is_reasoning_model
+
 
 @dataclass(frozen=True)
 class EngagementPolicy:
@@ -81,22 +83,8 @@ class EngagementPolicy:
 # ---------------------------------------------------------------------------
 
 
-# Substrings that mark a model as "reasoning" (chain-of-thought heavy).
-# Match is case-insensitive and substring-based so variants
-# (e.g. ``kryon-r1-14b:latest``, ``deepseek-r1:14b``) all match.
-_REASONING_MARKERS: tuple[str, ...] = (
-    "r1-",
-    "-r1",
-    "deepseek-r1",
-    "reasoning",
-)
-
-
-def is_reasoning_model(model: str) -> bool:
-    if not model:
-        return False
-    m = model.lower()
-    return any(marker in m for marker in _REASONING_MARKERS)
+# is_reasoning_model + REASONING_MARKERS viven en kryon.util.model_class
+# (fuente única, importado arriba) y se re-exportan vía policy/__init__.
 
 
 # ---------------------------------------------------------------------------

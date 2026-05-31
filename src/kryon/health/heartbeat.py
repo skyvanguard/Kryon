@@ -133,8 +133,10 @@ def _check_heartbeat(threshold_minutes: int) -> HealthCheckResult:
 
 
 def _check_ollama_reachable() -> HealthCheckResult:
-    """Probe ``OLLAMA_HOST`` (or default) ``/api/tags``. Best-effort
-    — degraded reachability shouldn't crash doctor."""
+    """Probe the *embeddings* endpoint (``KRYON_EMBEDDING_BASE_URL`` →
+    Ollama ``/api/tags``). The main LLM moved to llama-server (see
+    ``_check_llm_reachable``); Ollama now only serves embeddings.
+    Best-effort — degraded reachability shouldn't crash doctor."""
     host = os.environ.get("KRYON_EMBEDDING_BASE_URL", "").strip()
     if not host:
         host = os.environ.get("OLLAMA_HOST", "http://localhost:11434").strip()
@@ -145,9 +147,32 @@ def _check_ollama_reachable() -> HealthCheckResult:
         req = urllib.request.Request(url, method="GET")
         with urllib.request.urlopen(req, timeout=3) as resp:
             ok = 200 <= resp.status < 300
-            return HealthCheckResult(name="ollama", ok=ok, detail=f"{url} → {resp.status}")
+            return HealthCheckResult(name="ollama(embeddings)", ok=ok, detail=f"{url} → {resp.status}")
     except (urllib.error.URLError, urllib.error.HTTPError, OSError) as exc:
-        return HealthCheckResult(name="ollama", ok=False, detail=f"{url}: {exc}")
+        return HealthCheckResult(name="ollama(embeddings)", ok=False, detail=f"{url}: {exc}")
+
+
+def _check_llm_reachable() -> HealthCheckResult:
+    """Probe the main LLM endpoint (``OPENAI_BASE_URL`` → ``/v1/models``).
+    Works for llama-server, Ollama's ``/v1`` shim and any OpenAI-compatible
+    provider. Best-effort — degraded reachability shouldn't crash doctor."""
+    base = os.environ.get("OPENAI_BASE_URL", "").strip()
+    if not base:
+        return HealthCheckResult(name="llm", ok=False, detail="OPENAI_BASE_URL unset")
+    if not base.startswith("http"):
+        base = f"http://{base}"
+    # OPENAI_BASE_URL conventionally ends in /v1 → append /models.
+    url = base.rstrip("/") + "/models"
+    try:
+        req = urllib.request.Request(url, method="GET")
+        api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+        if api_key:
+            req.add_header("Authorization", f"Bearer {api_key}")
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            ok = 200 <= resp.status < 300
+            return HealthCheckResult(name="llm", ok=ok, detail=f"{url} → {resp.status}")
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError) as exc:
+        return HealthCheckResult(name="llm", ok=False, detail=f"{url}: {exc}")
 
 
 def _check_env(env_var: str, *, expected: str = "") -> HealthCheckResult:
@@ -178,6 +203,9 @@ def run_doctor(
 
     # Env sanity.
     checks.append(_check_env("KRYON_MODEL"))
+
+    # Main LLM (llama-server / OpenAI-compatible) reachability.
+    checks.append(_check_llm_reachable())
 
     # F177 — CVE cache health.
     checks.append(_check_cve_cache())

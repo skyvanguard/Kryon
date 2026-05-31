@@ -614,7 +614,7 @@ class ParallelCommand(Command):
             console.print("[yellow]No parallel configurations to override[/yellow]")
             return False
 
-        global_model = os.getenv("KRYON_MODEL", "gpt-4o")
+        global_model = os.getenv("KRYON_MODEL", "Kryon-MOE-35B")
         count = 0
 
         for config in PARALLEL_CONFIGS:
