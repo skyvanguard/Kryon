@@ -11,16 +11,16 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# These tools are ALWAYS included regardless of skill selection
+# These tools are ALWAYS included regardless of skill selection.
+# RAG/memory tools (recall_similar_experiences, query_knowledge_base,
+# search_vulnerabilities, add_to_memory_semantic, query_memory) fueron
+# removidas: el RAG quedó apagado (corpus 94% duplicado, query_knowledge_base
+# con 0 invocaciones reales, search_vulnerabilities siempre count:0). Sin RAG
+# no hay dependencia de embeddings/Ollama.
 ALWAYS_INCLUDE = {
     "run_command",
     "execute_code",
     "nmap",
-    "recall_similar_experiences",
-    "query_knowledge_base",
-    "search_vulnerabilities",
-    "add_to_memory_semantic",
-    "query_memory",
     # FASE 6 — the OPERATOR DIRECTIVE block tells the model to call
     # ``execute_planner_directive()`` as its next tool. Without this
     # entry the tool-budget selector can drop the function_tool when
@@ -178,7 +178,11 @@ def build_tool_registry() -> dict[str, Any]:
 def select_tools(
     registry: dict[str, Any],
     skill_tool_names: set[str],
-    max_tools: int = 30,
+    # Cap de tools registradas. Bajado 30→15: los schemas de tools eran ~48%
+    # del prompt (~6.3K tok). Con el MoE re-procesando el prompt cada turno,
+    # menos tools = menos latencia. ALWAYS_INCLUDE + 4 ambient tools se suman
+    # aparte, así que el total efectivo ronda ~19.
+    max_tools: int = 15,
     forbidden_tool_names: set[str] | None = None,
 ) -> list[Any]:
     """Select tool objects from the registry based on skill requirements.

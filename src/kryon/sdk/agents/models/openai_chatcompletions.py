@@ -627,8 +627,12 @@ class OpenAIChatCompletionsModel(Model):
     ) -> None:
         self.model = model
         self._client = openai_client
-        # Check if we're using OLLAMA models
-        self.is_ollama = os.getenv("OLLAMA") is not None and os.getenv("OLLAMA").lower() != "false"
+        # "Local LLM mode": robust tool-call parsers + litellm usage patch for
+        # llama.cpp / local OpenAI-compat endpoints. KRYON_LOCAL_LLM is the
+        # current flag; OLLAMA kept for backward compat. Attribute name
+        # (is_ollama) left unchanged to avoid churn across this file.
+        _local = os.getenv("KRYON_LOCAL_LLM") or os.getenv("OLLAMA")
+        self.is_ollama = _local is not None and _local.lower() != "false"
         self.empty_content_error_shown = False
 
         # Track interaction counter and token totals for cli display

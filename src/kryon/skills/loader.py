@@ -358,6 +358,11 @@ class SkillLoader:
         self,
         profile: dict[str, Any] | None = None,
         user_msg: str = "",
+        # Cap de tokens de skill bodies inyectados al prompt. Se mantiene en 6000:
+        # bajarlo a 3500 dejaba afuera skills primarias grandes (web-pentest ~3.7K,
+        # proxmox-audit) y el match devolvía []. El recorte real del prompt debe
+        # venir de adelgazar esos bodies (con bench antes/después), no del cap.
+        # El ahorro seguro ya se tomó en select_tools (max_tools 30→15).
         budget_tokens: int = 6000,
         *,
         ranking: str | None = None,

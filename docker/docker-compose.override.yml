@@ -50,17 +50,6 @@ services:
       - default
       - ctfnet
 
-  ollama:
-    deploy:
-      resources:
-        limits:
-          memory: 20G
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-
   # ---------------------------------------------------------------------------
   # Joern — CPGQL data-flow server (F7). Optional profile.
   # Enable with: docker compose --profile dataflow up -d

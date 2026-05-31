@@ -94,105 +94,73 @@ Two execution modes:
   - `/skill` (list/show/search/import/reload) — manage playbooks
   - `/experiences` (list/show/search/close) — manage learning
   - `/flush`, `/compact`, `/memory`, `/agent`, etc.
-- **`knowledge/`** — RAG. ExploitDB, NVD, GitHub writeups + ChromaDB with Ollama embeddings.
+- **`knowledge/`** — RAG (**APAGADO** por default — ver cross-cutting rules). ExploitDB, NVD, GitHub writeups + ChromaDB. Embeddings locales vía sentence-transformers si se reactiva.
 - **`compliance/`** — frameworks (PCI-DSS, HIPAA, SOC2, NIST 800-53, ISO 27001, GDPR, OWASP, **CIS Controls v8.1**, MITRE ATT&CK). CIS Controls v8.1 (153 safeguards / 18 controls) live in `compliance/cis_controls.py` (catalog loaded from `cis/catalog/cis_controls_v8.1.yaml`, validated 18/18 vs the PDF's IG tables) + `cis/cis_controls_crosswalk.py` (deterministic AUTO coverage derived from existing checks; governance safeguards reported MANUAL). Audit via `run_compliance_audit(framework="cis-controls")`. Distinct from the per-OS CIS *Benchmarks* under `cis/frameworks/`.
 - **`intelligence/`** — Threat-intel + the **reflective intel pipeline** (FASE 1/2/6) that closes the THM-bench pwn gap. Three pure, banca-safe modules thread structured offensive context through the reflective loop so the model pipelines a chain instead of re-issuing broad queries:
   - **F1 — `fact_extractor.py`**: regex-parses the FULL tool output (before `micro_compact` truncates it to ~3-9 lines) into `ExtractedFacts` (users, domains, hashes, IPs, FQDNs). Injected into every reflection turn so the model can enumerate what it would otherwise never see.
   - **F2 — `exploit_chain_planner.py` (G3)**: ordered rules over `ExtractedFacts` + tool history; each rule encodes one canonical offensive step (e.g. users + domain → `GetNPUsers.py -no-pass`) and emits a concrete `NextActionRecommendation` (exact tool + args) injected as "🎯 Next action recommendation". FASE 11.P added auth-chain + privesc rules. Rules abstain unless their precondition is expressible from facts alone (conservative). FASE 9.A loads distilled YAML rules lazily.
   - **F6 — `planner_runtime.py`**: `ContextVar` bridge so the `execute_planner_directive` function_tool (called from the LLM tool loop) can reach the `accumulated_facts`/`tool_history` that live inside `run_with_reflection`. FASE 11.Q forces `tool_choice="required"` when directive confidence ≥ 0.92.
+  - **`source_review.py` — Mythos-style source-review harness** (vuln-research line). Points a reasoning model (default `Kryon-MOE-35B`) at a local code tree and reviews it file-by-file by pure reasoning (like Anthropic's Mythos on Firefox: 271 vulns, no fuzzing), then expands via *variant analysis* (found a sink once → grep the tree, review those sites too). Orchestration is pure/testable (enumerate → triage-by-sink-density → review top-N → variant-expand → dedup → rank); the LLM is isolated behind the injectable `Reviewer` interface (`LocalReviewer`, OpenAI-compat). Findings convert to `engage.Finding` (`needs_verification=True`). Wired into `kryon investigate <code_path>` (code_sast hybrid phase) with `--sast-max-files`. Verified live: flagged CWE-78 + CWE-89 in a demo file in ~25s. `KRYON_SOURCE_REVIEW_MODEL` overrides the model.
   - Other modules: `mitre.py`/`mitre_navigator.py` (ATT&CK layers), `cve_enrichment.py`, `ioc.py`, `threat_feeds.py`, `tool_templates.py`, `graph_formatter.py`, `distillation.py`.
 
 ### Important cross-cutting rules
 
-- **Ollama-first**: Two production models are available. The default for new
-  engagements is **`kryon-gpt-oss`** (F162-F170, OpenAI gpt-oss-20b Q4_K_M
-  ~10.8 GB + the official Harmony chat template). It detected 9 real
-  findings + 1 false positive on the OWASP Juice Shop bench (SATISFIED in
-  225s) vs `kryon-14b`'s 1 INFO placeholder (NOT_MET in 215s) under the
-  same F165-F168 stack. The fallback is **`kryon-14b`** (Modelfile: `FROM
-  qwen3:14b` + `num_ctx 32768` + `num_predict 4096`) for cases where
-  `gpt-oss` reasoning is too verbose or the operator wants tighter
-  determinism. Both fit in 12 GB VRAM. Many fixes live in
-  `sdk/agents/models/openai_chatcompletions.py` to make tool calling
-  reliable with local models (tool name normalization, hallucination
-  tolerance, schema fix, tool_choice forcing, F162 Harmony parser).
-- **gpt-oss Harmony stack (F162-F171)** — what makes tool-calling reliable on the local gpt-oss model:
-  - **Harmony parser** `sdk/agents/models/harmony_parser.py` (F162): translates Harmony `<|channel|>... to=NAMESPACE.FUNC ...<|message|>{...}<|call|>` tool calls to OpenAI `tool_calls` arrays (Ollama doesn't).
-  - **Modelfile** `models/Modelfile.kryon-gpt-oss` (F163): ships the official Harmony template (TS signatures + developer message) so the model uses real tool names instead of inventing `whatweb(host,port)`. `Reasoning: low` is the in-template default (F167; override via Ollama `think_level`).
-  - **Reasoning-model heuristics**: `is_reasoning_model()` in `tools/autonomous/pentest_planner.py` auto-bumps per-phase `max_turns` 5→8 (F166, override `KRYON_PHASE_TURNS`). Scan-cache decorator skips failure outputs so a failed run doesn't poison the 12h cache (F164; nuclei v3.8.0 pinned in `Dockerfile.kali`).
-  - **CVE hallucination guard** (F151/F171): `kryon update-cve-cache --all` populates `~/.kryon/nvd_cache/cves.txt`; with `KRYON_CVE_CACHE_REQUIRED=true`, findings whose CVE ID was never published are dropped.
-- **gpt-oss anti-FP + active-detection stack (F178-F189)** — took the bench from 1 disguised CVE FP / single SATISFIED to reproducible 3/3 SATISFIED, avg 18 findings, 0 FPs, CWE-89 SQLi via sqlmap pre_hook. Key pieces:
-  - **Tuned Modelfile** (F178/F179): `num_ctx 16384` + `temperature 0.3` — collapses run-to-run variance (σ 2.83 → 0.0) and frees ~0.5 GB VRAM.
-  - **Applicability gates**: `kryon.validation.cve_applicability` (F180, env `KRYON_CVE_APPLICABILITY`) drops CVEs whose products don't match the target stack; lab targets get an authoritative host hint (juice_shop→node, dvwa→php, webgoat→java). `kryon.validation.finding_applicability` (F183, env `KRYON_FINDING_APPLICABILITY`) extends the gate to non-CVE rule_ids by scanning `message`+`evidence` for product keywords (catches the FP relabelled as `WEB-XSS-001`). Both wired into `_parse_agent_findings`.
-  - **pre_hooks in engage** (F185): `pre_hooks:` now fire from `engage.py:_run_phase` (re-matching skills per phase), not just the REPL; `vuln-hunter` keywords broadened (sqli/xss/rce/find/injection). `pre_hook_output_processor` (F186) de-noises nuclei/nikto output + appends an imperative suffix forcing the model to convert evidence instead of re-running tools.
-  - **vuln-hunter pre_hooks** (F187): `nuclei_scan` + `nikto -Tuning x6` + `sqlmap` (Python escape hatch `./pre_hooks/sqlmap_rest_login_hook.py:run` — the declarative validator rejects sqlmap's `{...}` JSON body). Detects Juice Shop JSON `email` boolean-blind SQLi in ~25s.
-  - **Reasoning effort** (F184): `KRYON_REASONING_EFFORT` propagates to `model_settings.reasoning_effort` via `sdk/agents/run.py`. `medium` helps *evidence conversion* (with pre_hooks active) but causes CoT loops when the model must DECIDE which tools to invoke.
-- **Engagement configuration profiles (banca-safe vs active pentest)**:
-  - **Default (banca-safe / compliance audits)**: keep Modelfile
-    defaults — `Reasoning: low`, `KRYON_PHASE_TURNS` unset (auto 8 for
-    reasoning models, 5 for instruct), pre_hooks fire only for
-    vuln-hunter-activated phases (won't fire for pure compliance
-    runs).
-  - **Active pentest (authorized targets: Juice Shop / DVWA / WebGoat
-    / bug bounty with written authorization)**:
+- **Runtime — llama.cpp local (no Ollama)**: el LLM principal corre en el
+  servicio `llama-server` (`ghcr.io/ggml-org/llama.cpp:server-cuda`) del
+  `docker/docker-compose.kali.yml`, sirviendo **`Kryon-MOE-35B`**
+  (Qwen3.6-35B-A3B MoE, UD-Q4_K_XL, 21 GB). Flags clave: `--n-cpu-moe 99
+  -ngl 99` (expertos→RAM, attention→GPU ≈ **3.4-4 GB VRAM**), `--jinja`
+  (tool-calling OpenAI-compat, validado end-to-end), `--temp 0.3`
+  (banca-safe). El GGUF se reusa del volume externo `hermes-llamacpp-cache`
+  (`:ro`). **Solo un llama-server a la vez en 12 GB VRAM** — parar el
+  contenedor externo `hermes-llamacpp` (proyecto hermes-agent, mismo GGUF)
+  si está activo, o habrá OOM. Config efectiva: el bloque `environment:`
+  del compose (`OPENAI_BASE_URL=http://llama-server:8080/v1`,
+  `KRYON_MODEL=Kryon-MOE-35B`, `KRYON_LOCAL_LLM=true`) **pisa** a
+  `.env.docker`. Modelos secundarios (triage/narrator/RAG) caen al principal.
+
+- **Tool-calling local**: muchos fixes en
+  `sdk/agents/models/openai_chatcompletions.py` (normalización de nombres,
+  tolerancia a alucinación, schema fix, `tool_choice` forcing). El MoE emite
+  `tool_calls` nativos vía `--jinja`; el fallback JSON-in-content queda como
+  red de seguridad, activado por `KRYON_LOCAL_LLM=true` (reemplaza al viejo
+  flag `OLLAMA`; también habilita el usage-patch de litellm). `KRYON_FORCE_TOOL_TURNS=8`
+  fuerza tool-use los primeros N turnos. `is_reasoning_model()` (marker `moe`)
+  auto-sube el cap de turnos por fase 5→8 (`tools/autonomous/pentest_planner.py`,
+  override `KRYON_PHASE_TURNS`).
+
+- **RAG / embeddings APAGADO**: el RAG estaba infrautilizado (corpus 94%
+  duplicado, `query_knowledge_base` con 0 llamadas reales, queries devolvían
+  ruido). Las tools `query_knowledge_base` / `search_vulnerabilities` /
+  `recall_similar_experiences` se quitaron de `ALWAYS_INCLUDE`
+  (`skills/tool_budget.py`); `KRYON_MEMORY` y `KRYON_AUTO_UPDATE` en `false`.
+  Sin `KRYON_EMBEDDING_BASE_URL` no hay dependencia de Ollama. `embeddings.py`
+  puede correr 100% local con `sentence-transformers` (MiniLM 384-dim) si se
+  reactiva — implicaría re-indexar (nomic era 768-dim).
+
+- **CVE hallucination guard + applicability gates**: `kryon update-cve-cache
+  --all` puebla `~/.kryon/nvd_cache/cves.txt`; con `KRYON_CVE_CACHE_REQUIRED=true`
+  se descartan findings cuyo CVE ID nunca se publicó (F151/F171). Las gates
+  `kryon.validation.cve_applicability` (`KRYON_CVE_APPLICABILITY`) y
+  `finding_applicability` (`KRYON_FINDING_APPLICABILITY`) descartan CVEs/findings
+  que no matchean el stack del target (lab hints: juice_shop→node, dvwa→php,
+  webgoat→java). Ambas cableadas en `_parse_agent_findings`.
+
+- **Perfiles de engagement**:
+  - **Banca-safe (default / compliance)**: `--temp 0.3`, `KRYON_PHASE_TURNS`
+    sin setear (auto 8 reasoning / 5 instruct), pre_hooks solo en fases
+    vuln-hunter. Reproducibilidad por hash.
+  - **Active pentest** (targets autorizados: Juice Shop / DVWA / WebGoat /
+    bug bounty **con autorización escrita**):
     ```bash
-    KRYON_MODEL=kryon-gpt-oss
-    KRYON_REASONING_EFFORT=medium
-    KRYON_PHASE_TURNS=10
-    KRYON_RED_TEAM=true
-    ```
-    This unlocks the full F185-F189 active-detection stack: nuclei +
-    nikto + sqlmap pre_hooks, broader reasoning budget, evasion
-    modules. Use only against targets the operator has written
-    authorization for.
-- **FASE 11 — qwen3-8b dual-profile (alternative to gpt-oss-20b)**:
-  Pyrat bench (2026-05-26) compared kryon-gpt-oss (11 GB VRAM, plain
-  reasoning) vs kryon-qwen3-8b (5-9 GB VRAM, `<think>` blocks). Trade-
-  off: qwen3-8b reasons better but quits early at turn 3 with a
-  "Resumen Ejecutivo"; gpt-oss-20b is more persistent but loops in
-  confusion. The FASE 11 stack (.A num_ctx 24K + .B premature-summary
-  detector + .C few-shot chains in active skills + .D dual Modelfile)
-  closes the early-quit gap WITHOUT fine-tuning.
-  - **`kryon-qwen3-8b`** (Modelfile `models/Modelfile.kryon-qwen3-8b`):
-    banca-safe sampler (`temperature 0.3`, `num_ctx 24576`,
-    `num_predict 8192`). Use for compliance + audit when reproducibility
-    matters. ~9 GB VRAM total (model + KV), 2.5 GB headroom for
-    nuclei/embed concurrent.
-  - **`kryon-qwen3-8b-active`** (Modelfile `Modelfile.kryon-qwen3-8b-active`):
-    same base + same context, ONLY change is `temperature 0.6` (Qwen3
-    model card's thinking-mode recommended value — diversifies the 3
-    hypotheses inside `<think>` block, complementing the few-shot
-    chains in FASE 11.C). Use ONLY against authorized active-pentest
-    targets:
-    ```bash
-    KRYON_MODEL=kryon-qwen3-8b-active
     KRYON_RED_TEAM=true
     KRYON_PHASE_TURNS=10
     ```
-    NEVER use this profile against a banking client — temperature 0.6
-    breaks reproducibility for audit deliverables.
-  - **FASE 11.P-X (bench pwn-gap + runtime hardening)**: the
-    `intelligence/` reflective pipeline (11.P/Q, see Architecture) plus
-    11.R (`run_command` wall-clock timeout + process-group kill in
-    `tools/common/_executors.py`), 11.S (`util/message_utils.py`
-    `fix_message_list` O(n²)→O(n)), 11.T-U (web-common-paths +
-    disallow-path pre_hook in `appsec`/`recon-scout`), 11.V-W
-    (vhost detection + login-form discovery via Host header + default-
-    creds probe), 11.X (SPA-collapse detector — Juice Shop FP guard).
-- **`kryon-foundation-sec` — security-specialized reasoning model** (vuln-research line):
-  Foundation-Sec-8B-Reasoning (Cisco, Llama-3.1-8B base, ~5.1B-token security
-  corpus; matches Llama-70B on security benches at 8B). Modelfile
-  `models/Modelfile.kryon-foundation-sec` bases `FROM` a slash-free local alias
-  `foundation-sec-reasoning-base` (the install script pulls
-  `hf.co/fdtn-ai/Foundation-Sec-8B-Reasoning-Q8_0-GGUF` ~8.5 GB Q8_0 then
-  `ollama cp`s it — a slash in `FROM` makes ollama fail create). Fits 12 GB at
-  16K ctx. Install: `scripts/install_kryon_foundation_sec.sh` (streams the
-  Modelfile via stdin, NOT `docker cp` — on Windows a docker-cp'd Modelfile is
-  rejected by `ollama create` despite byte-identical content). Reasoning-class
-  (auto turn-cap bump + F153 strict/grounding + 0.6 effective temp via
-  `is_reasoning_model()` → `foundation-sec` marker). Primary use: source-review
-  / CVE-discovery research (see memory `project_zeroday_research_goal`), not the
-  default banca-safe audit model.
+    Desbloquea el stack de detección activa: nuclei + nikto + sqlmap pre_hooks
+    (`pre_hook_output_processor` de-noisa la salida y fuerza conversión de
+    evidencia), broader reasoning budget, módulos de evasión. Solo contra
+    targets con autorización escrita.
+
 - **LiteLLM without `[proxy]`** — uvloop is not supported on Windows; do not re-add the proxy extra to `pyproject.toml`.
 - **`openinference-instrumentation-openai`** is Python-version-gated (`< 3.14`) under the `tracing` extra.
 - **Optional extras**: `voice`, `viz`, `tracing`, `rag`, `server`, `tui`, `reporting`, `orchestration`, `dev`.
@@ -205,51 +173,34 @@ Two execution modes:
 Runtime config via env vars (see `docker/.env.docker`):
 
 ```bash
-KRYON_MODEL=kryon-gpt-oss          # F170 default: gpt-oss-20b Q4_K_M (10.8 GB)
-                                   # 10 findings on Juice Shop bench (SATISFIED in 225s)
-                                   # Fallback: kryon-14b (Qwen3-14B dense)
-KRYON_PHASE_TURNS=                 # F166: override per-phase turn cap (default
-                                   # 8 for reasoning models / 5 for instruct).
-                                   # Set 10 for active-pentest profiles.
-KRYON_REASONING_EFFORT=            # F184: low|medium|high override of the
-                                   # Modelfile's Reasoning: setting. Default
-                                   # (unset) = Modelfile value (kryon-gpt-oss
-                                   # ships 'low'). Use 'medium' ONLY when
-                                   # pre_hooks are active (F185+); without
-                                   # them medium causes CoT loops (see F184).
-KRYON_CVE_CACHE_REQUIRED=          # F151/F171: 'true' drops findings whose CVE id is NOT in
-                                   # ~/.kryon/nvd_cache/cves.txt (populate: kryon update-cve-cache --all)
-KRYON_CVE_APPLICABILITY=           # F180: 'false' disables the CVE-product applicability gate.
-                                   # Default enabled — drops CVEs not matching target stack.
-KRYON_FINDING_APPLICABILITY=       # F183: 'false' disables the non-CVE applicability gate
-                                   # (scans message+evidence for product mentions). Default enabled.
-KRYON_DEBUG_PARSE=                 # F181.C: 'true' writes one JSONL line per finding-parse
-                                   # decision to .kryon/debug/parse_<engagement>.jsonl
+KRYON_MODEL=Kryon-MOE-35B          # MoE Qwen3.6-35B-A3B vía llama-server (llama.cpp)
+KRYON_LOCAL_LLM=true               # endpoint local OpenAI-compat: parsers robustos + usage patch
+KRYON_FORCE_TOOL_TURNS=8           # forzar tool-use los primeros N turnos (LLM local)
+KRYON_PHASE_TURNS=                 # F166: override cap turnos/fase (auto 8 reasoning / 5 instruct)
+KRYON_REASONING_EFFORT=            # F184: low|medium|high. 'medium' ayuda conversión de evidencia
+                                   # con pre_hooks activos; sin ellos causa CoT loops.
+KRYON_CVE_CACHE_REQUIRED=          # F151/F171: 'true' descarta findings con CVE id no publicado
+                                   # (poblar: kryon update-cve-cache --all)
+KRYON_CVE_APPLICABILITY=           # F180: 'false' desactiva gate CVE-producto (default on)
+KRYON_FINDING_APPLICABILITY=       # F183: 'false' desactiva gate de findings non-CVE (default on)
+KRYON_DEBUG_PARSE=                 # F181.C: 'true' loguea cada decisión de finding-parse a JSONL
 KRYON_AGENT_TYPE=kryon             # Unified agent (v2.x)
 KRYON_UNIFIED=true
-KRYON_FORCE_TOOL_TURNS=8           # Force tool use first N turns (Ollama reliability)
-KRYON_MEMORY=true
-KRYON_STREAM=false                 # Non-streaming REPL (stable)
-KRYON_EMBEDDING_MODEL=nomic-embed-text
-KRYON_TOOL_BUDGET=static           # F84.7: 'itr' = per-turn embedding-based tool selection
-                                   # (build index first: python -m scripts.build_itr_index).
-                                   # Default 'static' = banca-safe skill-driven selection.
-# Double-gated live-probe tools (F87/F88/F90): both the env var AND fire=True in the tool
-# call are required; default unset = dry-run / candidates-only (no network).
-KRYON_BOLA_FIRE=                   # detect_bola live HTTP probes
-KRYON_GRAPHQL_FIRE=                # graphql_recon live HTTP probes
-KRYON_FAPI_FIRE=                   # validate_fapi live OIDC discovery fetch (else mode='from_json')
-KRYON_RETEST_FIRE=                 # retest_finding live HTTP (HackerOne Retester pattern)
-KRYON_RETEST_ALLOW_MUTATIONS=      # 'true' opts in to replay POST/PUT/PATCH/DELETE (default GET-only)
-KRYON_BRAND_FIRE=                  # typosquat_scan live DNS resolution
-# Scan throttling (F195 = LLM function_tools, F196 = engage CLI + discover_subnet).
-# Banca-safe POC values shown; caller-supplied -T in args= always wins (F195).
-KRYON_NMAP_TIMING=                 # nmap -T0..T5. Banca-safe: T2 (both had -T4 hardcoded)
-KRYON_NMAP_MIN_RATE=               # nmap --min-rate. Banca-safe: 50
-KRYON_NMAP_MAX_PARALLELISM=        # nmap --max-parallelism. Banca-safe: 10
-KRYON_NUCLEI_RATE_LIMIT=           # nuclei_scan rate_limit (default 150). Banca-safe: 50
-KRYON_NUCLEI_BULK_SIZE=            # nuclei_scan bulk_size (default 25). Banca-safe: 10
-KRYON_NUCLEI_CONCURRENCY=          # nuclei_scan concurrency (default 25). Banca-safe: 10
+KRYON_MEMORY=false                 # RAG / experience store apagado
+KRYON_STREAM=false                 # REPL no-streaming (estable)
+KRYON_TOOL_BUDGET=static           # 'itr' = selección de tools por embeddings/turno (build index
+                                   # primero). Default 'static' = skill-driven banca-safe.
+# Double-gated live-probe tools (F87/F88/F90): env var AND fire=True requeridos;
+# default unset = dry-run / candidates-only (sin red).
+KRYON_BOLA_FIRE=  KRYON_GRAPHQL_FIRE=  KRYON_FAPI_FIRE=  KRYON_RETEST_FIRE=  KRYON_BRAND_FIRE=
+KRYON_RETEST_ALLOW_MUTATIONS=      # 'true' opta a replay POST/PUT/PATCH/DELETE (default GET-only)
+# Scan throttling (F195 LLM tools / F196 engage CLI). Banca-safe; -T en args= siempre gana.
+KRYON_NMAP_TIMING=                 # nmap -T0..T5 (banca-safe T2)
+KRYON_NMAP_MIN_RATE=               # nmap --min-rate (banca-safe 50)
+KRYON_NMAP_MAX_PARALLELISM=        # nmap --max-parallelism (banca-safe 10)
+KRYON_NUCLEI_RATE_LIMIT=           # nuclei rate_limit (default 150, banca-safe 50)
+KRYON_NUCLEI_BULK_SIZE=            # nuclei bulk_size (default 25, banca-safe 10)
+KRYON_NUCLEI_CONCURRENCY=          # nuclei concurrency (default 25, banca-safe 10)
 ```
 
 ## `kryon investigate` — open-ended ReAct loop (F203)
@@ -383,9 +334,9 @@ Wrapper completo del POC: `scripts/poc_britimp_segmento.sh`.
 
 ## Docker / K8s
 
-- `docker/docker-compose.kali.yml` + `docker/docker-compose.override.yml` is the dev stack (Kali + Ollama + Kryon).
+- `docker/docker-compose.kali.yml` + `docker/docker-compose.override.yml` is the dev stack (Kali + llama-server + Kryon).
 - `helm/` and `k8s/` hold production manifests.
-- The override adds memory limits (12G kryon, 20G ollama) and removes Claude Code CLI bind mounts.
+- The override adds memory limits (12G kryon) and removes Claude Code CLI bind mounts.
 
 ## Conventions specific to this repo
 

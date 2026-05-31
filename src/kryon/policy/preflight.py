@@ -85,6 +85,7 @@ class EngagementPolicy:
 # Match is case-insensitive and substring-based so variants
 # (e.g. ``kryon-r1-14b:latest``, ``deepseek-r1:14b``) all match.
 _REASONING_MARKERS: tuple[str, ...] = (
+    "moe",  # Kryon-MOE-35B (Qwen3.6-35B-A3B) emits visible <think> CoT
     "r1-",
     "-r1",
     "deepseek-r1",

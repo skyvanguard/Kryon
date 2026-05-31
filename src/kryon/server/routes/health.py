@@ -36,25 +36,35 @@ async def _ping_llm() -> ReadinessCheck:
         if _llm_cache["check"] is not None and (now - _llm_cache["ts"]) < _LLM_CACHE_TTL:  # type: ignore[operator]
             return _llm_cache["check"]  # type: ignore[return-value]
 
-        has_ollama = os.environ.get("OLLAMA", "").lower() == "true"
+        base_url = os.environ.get("OPENAI_BASE_URL", "").strip()
+        # OLLAMA=true now means "local OpenAI-compatible endpoint" (llama-server
+        # or Ollama's /v1 shim) — both are reached via base_url, NOT litellm's
+        # native ollama/ provider (which talks /api/chat and breaks llama-server).
+        has_local = os.environ.get("OLLAMA", "").lower() == "true" or bool(base_url)
         has_openai = bool(os.environ.get("OPENAI_API_KEY"))
         has_anthropic = bool(os.environ.get("ANTHROPIC_API_KEY"))
 
-        if not (has_ollama or has_openai or has_anthropic):
+        if not (has_local or has_openai or has_anthropic):
             check = ReadinessCheck(status="degraded", error="No LLM provider configured")
             _llm_cache.update(check=check, ts=now)
             return check
 
-        model = f"ollama/{os.environ.get('KRYON_MODEL', 'qwen3:8b')}" if has_ollama else "gpt-4o-mini"
+        kwargs: dict[str, object] = {
+            "messages": [{"role": "user", "content": "ping"}],
+            "max_tokens": 1,
+            "timeout": 5,
+        }
+        if base_url:
+            # Generic OpenAI-compatible endpoint (llama-server / Ollama /v1 / DeepSeek).
+            kwargs["model"] = f"openai/{os.environ.get('KRYON_MODEL', 'Kryon-MOE-35B')}"
+            kwargs["api_base"] = base_url
+            kwargs["api_key"] = os.environ.get("OPENAI_API_KEY", "llama")
+        else:
+            kwargs["model"] = "gpt-4o-mini"
         try:
             import litellm
 
-            await litellm.acompletion(
-                model=model,
-                messages=[{"role": "user", "content": "ping"}],
-                max_tokens=1,
-                timeout=5,
-            )
+            await litellm.acompletion(**kwargs)
             check = ReadinessCheck(status="healthy", error=None)
         except Exception as exc:
             check = ReadinessCheck(status="degraded", error=f"LLM ping failed: {exc}")
