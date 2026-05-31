@@ -31,7 +31,7 @@
 
 ## What is KRYON?
 
-KRYON is an **autonomous cybersecurity agent** focused on **compliance audits, authorized pentesting, and incident response** for the **financial-services sector (LATAM/Paraguay)**. It runs **locally** on a 12 GB-VRAM GPU using `gpt-oss-20b` (Q4_K_M, with the official Harmony chat template), so **zero API cost** and **zero data leaving the engagement perimeter**.
+KRYON is an **autonomous cybersecurity agent** focused on **compliance audits, authorized pentesting, and incident response** for the **financial-services sector (LATAM/Paraguay)**. It runs **locally** on a 12 GB-VRAM GPU using `Kryon-MOE-35B` (Qwen3.6-35B-A3B MoE, UD-Q4_K_XL GGUF, served by `llama-server` / llama.cpp), so **zero API cost** and **zero data leaving the engagement perimeter**.
 
 Architecture is **skill-based**: instead of 33 static Python agents, there is one unified "Kryon" agent that dynamically loads **150+ markdown playbooks** based on target profile and operator intent. Critical detection paths run as **deterministic pre-hooks** (nuclei, nikto, sqlmap, fail2ban check, PCI-DSS validators, …) before the LLM ever gets control — the model **narrates evidence, it cannot skip the detector**.
 
@@ -70,8 +70,8 @@ $ kryon investigate "audita https://target.com"
 | API endpoints (FastAPI) | 136 |
 | Compliance frameworks | 9 (PCI-DSS, OWASP, NIST CSF, CIS, MITRE ATT&CK, SWIFT CSP, FAPI, HIPAA, SOC2) |
 | Production-capable audit modules | 7 (PCI-DSS · Proxmox · FortiGate · Unifi · Asterisk · Windows Server · Tomcat) |
-| Default model | `kryon-gpt-oss` (gpt-oss-20b Q4_K_M, 10.8 GB, Harmony) |
-| Fallback model | `kryon-14b` (Qwen3-14B, num_ctx=32K) |
+| Default model | `Kryon-MOE-35B` (Qwen3.6-35B-A3B MoE, UD-Q4_K_XL, ~21 GB GGUF) via llama.cpp |
+| LLM runtime | `llama-server` (llama.cpp), tool-calling via `--jinja` |
 
 ### Core capabilities
 
@@ -81,7 +81,7 @@ $ kryon investigate "audita https://target.com"
 - **CVE applicability gate (F180-F183)** — drops findings whose products do not apply to the target stack (e.g. JAMon-JSP CVE on a Node.js host).
 - **Self-improving loop (F1-F3, F77.G.5)** — every successful engagement writes a draft skill; Wilson-scored selection ranks proven playbooks first; pattern detector clusters chains and auto-synthesizes new skills.
 - **Hybrid mode (F203.M)** — 11 deterministic detectors (HTTP, MySQL, SSH, BGP, cookies, …) run BEFORE the LLM in `investigate`; findings injected as ground truth. Web bench recall: 25% → 100%.
-- **Local-first by design** — gpt-oss-20b on 12 GB VRAM. Zero per-engagement cost. Banking data never leaves the engagement host.
+- **Local-first by design** — Kryon-MOE-35B (Qwen3.6-35B-A3B MoE) via llama.cpp on 12 GB VRAM. Zero per-engagement cost. Banking data never leaves the engagement host.
 - **Banca-safe by default** — passive recon, throttled nmap (`-T2 --min-rate 50`), no live HTTP unless `KRYON_*_FIRE=true` AND `fire=True` argument (double gate).
 - **Safe-modification protocol** — diagnose (read-only) → propose (table + STOP) → backup → apply → verify → rollback on failure.
 
@@ -298,7 +298,7 @@ CWE map override: `~/.kryon/cwe_map.yaml` (template at `docs/examples/cwe_map.ya
       │ services/  context mgmt (micro_compact, session_memory,      │
       │            tool_output_cap, auto_extract)                    │
       │ learning/  ChromaDB experiences + F1/F2/F3 self-improvement  │
-      │ knowledge/ RAG (NVD + ExploitDB + writeups, Ollama embed)    │
+      │ knowledge/ NVD + ExploitDB + writeups (embedding RAG OFF)    │
       │ compliance/ 9 frameworks (PCI-DSS, CIS, SWIFT, …) runners    │
       │ reporting/ PDF/DOCX/HTML, reproducibility hashes (F39)       │
       │ memory/    SQLite store (16 migrations) — engagements, KB    │
@@ -308,9 +308,9 @@ CWE map override: `~/.kryon/cwe_map.yaml` (template at `docs/examples/cwe_map.ya
                        │
                        ▼
               ┌────────────────────────┐
-              │  Ollama (local LLM)    │
-              │  kryon-gpt-oss (def.)  │
-              │  kryon-14b   (fallback)│
+              │ llama-server (llama.cpp)│
+              │  Kryon-MOE-35B          │
+              │  Qwen3.6-35B-A3B MoE    │
               └────────────────────────┘
 ```
 
@@ -346,7 +346,7 @@ CWE map override: `~/.kryon/cwe_map.yaml` (template at `docs/examples/cwe_map.ya
 
 - **Python 3.10+** (managed by [`uv`](https://github.com/astral-sh/uv))
 - **Docker** (Kali Linux + 200+ security tools pre-installed)
-- **GPU recommended**: 12 GB VRAM for `kryon-gpt-oss` (gpt-oss-20b Q4_K_M)
+- **GPU recommended**: 12 GB VRAM for `Kryon-MOE-35B` (Qwen3.6-35B-A3B MoE, UD-Q4_K_XL) via llama.cpp
 - **GitHub CLI** (`gh`) for `/skill import` from upstream catalog
 
 ### Docker deployment (recommended)
@@ -358,21 +358,19 @@ cd Kryon
 # Copy environment template
 cp docker/.env.docker.example docker/.env.docker
 
-# Launch stack (Kali + Ollama + Kryon, GPU passthrough)
+# Launch stack (Kali + llama-server + Kryon, GPU passthrough)
 docker compose -f docker/docker-compose.kali.yml \
                -f docker/docker-compose.override.yml \
                --env-file docker/.env.docker up -d
 
-# Pull production model — gpt-oss-20b Q4_K_M with Harmony chat template (F162)
-docker exec kryon-ollama ollama pull gpt-oss:20b
-docker exec kryon ollama create kryon-gpt-oss -f /workspace/models/Modelfile.kryon-gpt-oss
+# The production model (Kryon-MOE-35B) is served by the `llama-server`
+# service of the compose file — it mounts the Qwen3.6-35B-A3B MoE GGUF
+# (UD-Q4_K_XL, ~21 GB) and exposes an OpenAI-compatible API on :8080
+# with tool-calling enabled via `--jinja`. There is no model-build step:
+# llama.cpp loads the GGUF directly on startup. Verify it is up with:
+docker exec kryon curl -s http://llama-server:8080/v1/models
 
-# Pull fallback (Qwen3-14B)
-docker exec kryon-ollama ollama pull qwen3:14b
-docker exec kryon ollama create kryon-14b -f /workspace/models/Modelfile.kryon-14b
-
-# Pull embedding model for RAG
-docker exec kryon-ollama ollama pull nomic-embed-text
+# (Embedding RAG is OFF by default — see "knowledge/" notes below.)
 
 # (Optional) Populate NVD cache for CVE-applicability gate
 docker exec -it kryon kryon update-cve-cache --all
@@ -387,13 +385,12 @@ docker exec -it kryon kryon
 
 ```bash
 # docker/.env.docker
-KRYON_MODEL=kryon-gpt-oss              # gpt-oss-20b, Harmony, Reasoning: low
+KRYON_MODEL=Kryon-MOE-35B              # Qwen3.6-35B-A3B MoE via llama.cpp
 KRYON_AGENT_TYPE=kryon
 KRYON_UNIFIED=true
-KRYON_FORCE_TOOL_TURNS=8               # Ollama tool-calling reliability
+KRYON_FORCE_TOOL_TURNS=8               # local LLM tool-calling reliability
 KRYON_MEMORY=true
 KRYON_STREAM=false                     # Stable REPL
-KRYON_EMBEDDING_MODEL=nomic-embed-text
 
 # Throttled scanning (banking-friendly during business hours)
 KRYON_NMAP_TIMING=T2
@@ -523,15 +520,13 @@ kryon queue process --concurrency 1 --framework pci_dss --orchestrated --auto-ap
 
 | Provider | Recommended | Config | Notes |
 |----------|-------------|--------|-------|
-| **Ollama (local)** | **`kryon-gpt-oss`** | `KRYON_MODEL=kryon-gpt-oss` | **DEFAULT.** gpt-oss-20b Q4_K_M, ~10.8 GB, Harmony chat template. 9 real findings + 1 FP on Juice Shop bench. |
-| Ollama (local) | `kryon-14b` | `KRYON_MODEL=kryon-14b` | Fallback. Qwen3-14B, num_ctx=32K. Use when gpt-oss reasoning is too verbose. |
-| Ollama (local) | qwen3:8b, deepseek-r1 | — | Smaller alternatives. |
+| **llama.cpp (local)** | **`Kryon-MOE-35B`** | `KRYON_MODEL=Kryon-MOE-35B` | **DEFAULT.** Qwen3.6-35B-A3B MoE, UD-Q4_K_XL, ~21 GB GGUF. Served by `llama-server`, tool-calling via `--jinja`. |
 | OpenAI | GPT-4o, o3 | `OPENAI_API_KEY` | Cloud — banking data leaves perimeter. |
 | Anthropic | Claude Sonnet 4.6 | `ANTHROPIC_API_KEY` | Cloud. |
 | DeepSeek | DeepSeek V3, R1 | `DEEPSEEK_API_KEY` | Cloud. |
 | OpenRouter | 200+ models | `OPENROUTER_API_KEY` | Cloud. |
 
-**Recommended**: `kryon-gpt-oss` (gpt-oss-20b) — local, zero API cost, Harmony tool calling validated for autonomous engagements. Fits 12 GB VRAM with 16 K context. `Reasoning: low` is the in-Modelfile default for banca-safe; bump to `medium` only when pre-hooks are active (F184).
+**Recommended**: `Kryon-MOE-35B` (Qwen3.6-35B-A3B MoE) — local, zero API cost, tool calling via llama.cpp's `--jinja` template. Fits 12 GB VRAM (MoE experts offloaded to CPU, attention on GPU). Banca-safe sampling defaults (`--temp 0.3`) are baked into the `llama-server` command in the compose file.
 
 ---
 
@@ -555,7 +550,7 @@ kryon queue process --concurrency 1 --framework pci_dss --orchestrated --auto-ap
 ## Docker Stack
 
 ```bash
-# Full Kali + Ollama + Kryon
+# Full Kali + llama-server + Kryon
 docker compose -f docker/docker-compose.kali.yml \
                -f docker/docker-compose.override.yml up -d
 
@@ -572,7 +567,7 @@ docker exec -u root -d kryon openvpn --config /workspace/htb.ovpn
 | Container | Purpose | Resources |
 |-----------|---------|-----------|
 | `kryon` | Kali Linux + Python + 200+ security tools | 12 GB RAM |
-| `kryon-ollama` | Local LLM inference, GPU passthrough | 20 GB RAM + 12 GB VRAM |
+| `kryon-llama` | Local LLM inference (llama.cpp `llama-server`), GPU passthrough | 20 GB RAM + 12 GB VRAM |
 | `nginx` (optional) | Reverse proxy with TLS | 256 MB |
 
 ---

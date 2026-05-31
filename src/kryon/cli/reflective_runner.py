@@ -1063,7 +1063,23 @@ async def run_with_reflection(
     except ValueError:
         premature_max_rejections = _DEFAULT_PREMATURE_MAX_REJECTIONS
 
+    # F1.5 — wall-clock budget guard-rail. Protege el saldo (perfil API) y evita
+    # runs colgados: si el loop excede KRYON_WALL_BUDGET_S segundos, aborta limpio
+    # entre chunks. 0/unset = sin límite (comportamiento previo).
+    try:
+        _wall_budget_s = float(os.environ.get("KRYON_WALL_BUDGET_S") or 0)
+    except ValueError:
+        _wall_budget_s = 0.0
+    _loop_start = time.monotonic()
+
     while turns_used < max_total_turns:
+        if _wall_budget_s and (time.monotonic() - _loop_start) > _wall_budget_s:
+            logger.warning(
+                "F1.5 wall-clock budget %.0fs exceeded (turns_used=%d) — aborting loop",
+                _wall_budget_s,
+                turns_used,
+            )
+            break
         chunk_size = min(reflect_every, max_total_turns - turns_used)
         if chunk_size <= 0:
             break
