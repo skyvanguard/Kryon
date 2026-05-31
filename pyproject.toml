@@ -94,7 +94,7 @@ dev = [
     "pytest-cov",
     "coverage>=7.6.12",
     "inline-snapshot>=0.20.7",
-    "playwright==1.59.0",
+    "playwright==1.60.0",
     "httpx>=0.27.0",
 ]
 
