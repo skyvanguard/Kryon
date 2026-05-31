@@ -608,11 +608,16 @@ def add_investigate_subparser(subparsers) -> argparse.ArgumentParser:
         help="enable active probing tools (nmap/nuclei/sqlmap). Requires written "
         "authorization. KRYON_INVESTIGATE_ACTIVE=1 env var also enables.",
     )
+    # F1.5 — respetar KRYON_MAX_TURNS como default del flag (el flag explícito
+    # sigue ganando). Antes investigate ignoraba la env var → corría 30 turnos
+    # siempre, peligroso para el gasto en el perfil API.
+    _mt_env = os.environ.get("KRYON_MAX_TURNS", "").strip()
+    _default_max_turns = int(_mt_env) if _mt_env.isdigit() else 30
     p.add_argument(
         "--max-turns",
         type=int,
-        default=30,
-        help="maximum agent turns before stopping (default: 30)",
+        default=_default_max_turns,
+        help="maximum agent turns before stopping (default: 30, or $KRYON_MAX_TURNS)",
     )
     p.add_argument(
         "--reflect-every",

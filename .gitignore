@@ -135,6 +135,8 @@ celerybeat.pid
 .env
 .env.*
 docker/.env.docker
+# Perfil de config SIN secretos (usa ${DEEPSEEK_API_KEY}) — sí va al repo.
+!docker/.env.offensive
 .venv
 env/
 venv/
