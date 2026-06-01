@@ -21,6 +21,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from kryon.util.severity import severity_rank
+
 # Exploit/finding validators (tools/validation). A call to one of these in the
 # tool chain is what promotes a finding from ALLEGED to VERIFIED.
 _VALIDATION_TOOLS = (
@@ -141,6 +143,14 @@ def _dedup_findings(findings: list[Any]) -> list[Any]:
     return out
 
 
+def _rank_findings(findings: list[Any]) -> list[Any]:
+    """Order findings by severity (CRITICAL → HIGH → MEDIUM → LOW → INFO →
+    unknown), so a critical never reads buried below low-severity noise. Uses
+    the canonical severity_rank; stable sort preserves detection order within
+    a severity tier."""
+    return sorted(findings, key=lambda f: severity_rank(str(getattr(f, "severity", "") or "")))
+
+
 def build_investigate_report(
     *,
     prompt: str,
@@ -151,7 +161,7 @@ def build_investigate_report(
 ) -> str:
     """Render a markdown report separating verified vs alleged findings."""
     validations = _validations_from_chain(chain)
-    deterministic_findings = _dedup_findings(deterministic_findings)
+    deterministic_findings = _rank_findings(_dedup_findings(deterministic_findings))
     output = _clean_agent_output(output)
     lines: list[str] = [
         "# Investigate report",
