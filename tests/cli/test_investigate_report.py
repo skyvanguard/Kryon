@@ -100,3 +100,44 @@ def test_persist_writes_stable_path(monkeypatch, tmp_path):
     assert p.exists()
     assert p.read_text(encoding="utf-8") == "# report"
     assert p.name == "investigate-20260101-000000.md"
+
+
+# ---------------------------------------------------------------------------
+# C — agent output cleanup + finding dedup
+# ---------------------------------------------------------------------------
+from kryon.cli.investigate_report import _clean_agent_output, _dedup_findings  # noqa: E402
+
+
+def test_clean_strips_think_blocks():
+    out = _clean_agent_output("<think>let me reason step by step</think>\nFinal: SQLi found")
+    assert "reason step by step" not in out
+    assert "Final: SQLi found" in out
+
+
+def test_clean_drops_consecutive_duplicate_lines():
+    out = _clean_agent_output("Found XSS on /search\nFound XSS on /search\nFound XSS on /search")
+    assert out.count("Found XSS on /search") == 1
+
+
+def test_clean_collapses_blank_runs():
+    out = _clean_agent_output("a\n\n\n\n\nb")
+    assert "\n\n\n" not in out
+
+
+def test_clean_preserves_real_content():
+    txt = "## Hallazgos\n- CWE-89 en /login\n- CWE-79 en /search"
+    assert _clean_agent_output(txt) == txt
+
+
+def test_dedup_findings_collapses_same_signature():
+    f = _Finding("CWE-89", "HIGH", "10.0.0.1", "SQLi in login")
+    dup = _Finding("CWE-89", "HIGH", "10.0.0.1", "SQLi in login")
+    other = _Finding("CWE-79", "MEDIUM", "10.0.0.1", "XSS in search")
+    out = _dedup_findings([f, dup, other])
+    assert len(out) == 2
+
+
+def test_dedup_keeps_distinct_hosts():
+    a = _Finding("CWE-89", "HIGH", "10.0.0.1", "SQLi")
+    b = _Finding("CWE-89", "HIGH", "10.0.0.2", "SQLi")
+    assert len(_dedup_findings([a, b])) == 2
