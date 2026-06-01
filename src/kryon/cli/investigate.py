@@ -555,9 +555,12 @@ def run_investigate(args: argparse.Namespace) -> int:
     # FLUSHED so it's visible even when piped (non-TTY) — the old single
     # ``console.print`` was lost in pipes and left runs with no artifact.
     try:
-        from kryon.services.investigate_writeback import _extract_chain
+        from kryon.services.investigate_writeback import chain_from_result
 
-        chain = _extract_chain(getattr(result, "new_items", []) or [])
+        # F203.K — extract from new_items with RunHooks-captured fallback, so
+        # the report never claims "Tool calls: 0" while the agent ran recon
+        # (chunks dropped by MaxTurns, or a stuck/crashed run).
+        chain = chain_from_result(result)
     except Exception:  # noqa: BLE001
         chain = []
     from kryon.cli.investigate_report import (

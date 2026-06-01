@@ -33,6 +33,41 @@ def test_validations_ignores_non_validation_tools():
     assert _validations_from_chain(chain) == []
 
 
+def test_negation_not_misread_as_confirmed():
+    """Anti-bluff regression: 'not confirmed' / 'could not be confirmed'
+    must NOT show as ✅ CONFIRMADO (the old `"confirmed" in pl` bug)."""
+    for txt in (
+        "could not be confirmed as exploitable",
+        "the SQLi was not confirmed by sqlmap",
+        "result: unconfirmed",
+    ):
+        chain = [{"tool": "validate_sqli", "output_preview": txt}]
+        assert _validations_from_chain(chain)[0]["status"] == "false_positive", txt
+
+
+def test_structured_verdict_is_authoritative_over_proof_text():
+    """A false_positive verdict whose raw proof text happens to contain the
+    word 'confirmed' must still classify as false_positive."""
+    preview = (
+        '{"validation_status": "false_positive", "exploit_proof": '
+        '"target could be confirmed vulnerable under other conditions"}'
+    )
+    chain = [{"tool": "validate_sqli", "output_preview": preview}]
+    assert _validations_from_chain(chain)[0]["status"] == "false_positive"
+
+
+def test_potential_verdict_maps_to_ran_not_confirmed():
+    preview = '{"validation_status": "potential", "exploit_proof": "is vulnerable maybe"}'
+    chain = [{"tool": "validate_rce", "output_preview": preview}]
+    assert _validations_from_chain(chain)[0]["status"] == "ran"
+
+
+def test_sqlmap_not_injectable_is_false_positive():
+    preview = '{"validation_status": "false_positive", "exploit_proof": "parameter does not appear to be injectable"}'
+    chain = [{"tool": "validate_sqli", "output_preview": preview}]
+    assert _validations_from_chain(chain)[0]["status"] == "false_positive"
+
+
 def test_report_separates_verified_and_alleged():
     det = [_Finding("CWE-89", "HIGH", "10.0.0.1", "SQLi in login form")]
     chain = [

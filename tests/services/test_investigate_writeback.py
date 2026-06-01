@@ -130,6 +130,57 @@ class TestExtractChain:
 
 
 # ---------------------------------------------------------------------------
+# chain_from_result — extract + hooks-captured fallback (F203.K parity)
+# ---------------------------------------------------------------------------
+class TestChainFromResult:
+    def test_uses_new_items_when_present(self):
+        from kryon.services.investigate_writeback import chain_from_result
+
+        call = SimpleNamespace(
+            raw_item=SimpleNamespace(name="curl", arguments={"url": "http://x"})
+        )
+        result = SimpleNamespace(new_items=[call])
+        chain = chain_from_result(result)
+        assert len(chain) == 1
+        assert chain[0]["tool"] == "curl"
+
+    def test_falls_back_to_captured_chain_when_new_items_empty(self):
+        """The stuck/MaxTurns case: new_items dropped, but the RunHooks
+        captured the real tool calls. The report must not claim 0 tool calls."""
+        from kryon.services.investigate_writeback import chain_from_result
+
+        captured = [
+            {"tool": "web_fetch_smart", "args": "{}", "output_preview": "HTTP 200"},
+            {"tool": "run_command", "args": "{}", "output_preview": "root:x:0:0"},
+        ]
+        result = SimpleNamespace(new_items=[], _captured_chain=captured)
+        chain = chain_from_result(result)
+        assert len(chain) == 2
+        assert chain[0]["tool"] == "web_fetch_smart"
+
+    def test_prefers_richer_source(self):
+        """When new_items extraction yields fewer entries than the captured
+        chain, prefer the captured one (it survived dropped chunks)."""
+        from kryon.services.investigate_writeback import chain_from_result
+
+        call = SimpleNamespace(
+            raw_item=SimpleNamespace(name="curl", arguments={})
+        )
+        captured = [
+            {"tool": "a", "args": "", "output_preview": ""},
+            {"tool": "b", "args": "", "output_preview": ""},
+            {"tool": "c", "args": "", "output_preview": ""},
+        ]
+        result = SimpleNamespace(new_items=[call], _captured_chain=captured)
+        assert len(chain_from_result(result)) == 3
+
+    def test_no_captured_attr_is_safe(self):
+        from kryon.services.investigate_writeback import chain_from_result
+
+        assert chain_from_result(SimpleNamespace(new_items=[])) == []
+
+
+# ---------------------------------------------------------------------------
 # _build_profile_from_hints
 # ---------------------------------------------------------------------------
 
