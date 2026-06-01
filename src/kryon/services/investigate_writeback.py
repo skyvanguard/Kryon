@@ -154,6 +154,33 @@ def _extract_chain(new_items: list[Any]) -> list[dict[str, Any]]:
     return chain
 
 
+def chain_from_result(result: Any) -> list[dict[str, Any]]:
+    """Best tool-call chain available from a run result.
+
+    F203.K — extract from ``result.new_items`` first, then fall back to the
+    RunHooks-captured chain (``result._captured_chain``) when the SDK dropped
+    items (chunks that hit MaxTurnsExceeded, or a stuck/crashed run that never
+    produced a clean result). The hooks fire on every tool invocation, so they
+    preserve the real history even when ``new_items`` is empty.
+
+    Shared by the learning write-back AND the investigate report so both agree
+    on what the agent actually ran — otherwise the report could claim
+    "Tool calls: 0" while the agent did real recon.
+    """
+    new_items = getattr(result, "new_items", None) or []
+    chain = _extract_chain(new_items)
+    captured = getattr(result, "_captured_chain", None)
+    if isinstance(captured, list) and len(captured) > len(chain):
+        logger.info(
+            "chain_from_result: using hooks-captured chain (%d items) over "
+            "result.new_items (%d items)",
+            len(captured),
+            len(chain),
+        )
+        chain = captured
+    return chain
+
+
 def _build_profile_from_hints(hints: dict[str, Any]) -> dict[str, Any]:
     """Compose target_profile from intent classification hints."""
     profile: dict[str, Any] = {
@@ -212,19 +239,9 @@ def write_back_from_investigate(
         return None
 
     new_items = getattr(result, "new_items", None) or []
-    chain = _extract_chain(new_items)
-
-    # F203.K — fallback to captured chain from RunHooks when result.new_items
-    # extraction yields too few items (typical when chunks hit MaxTurnsExceeded
-    # and the SDK dropped them). The hooks captured items in-flight, so they
-    # survive even when result objects are lost.
-    captured_chain = getattr(result, "_captured_chain", None)
-    if isinstance(captured_chain, list) and len(captured_chain) > len(chain):
-        logger.info(
-            "write-back: using hooks-captured chain (%d items) over result.new_items (%d items)",
-            len(captured_chain), len(chain),
-        )
-        chain = captured_chain
+    # F203.K — extract + hooks-captured fallback in one place (shared with the
+    # investigate report so both agree on what the agent actually ran).
+    chain = chain_from_result(result)
 
     # F203.H — KRYON_WRITEBACK_DEBUG=1 enables verbose dump of item shapes
     # and extracted chain for debugging SDK item structure changes.
@@ -238,9 +255,10 @@ def write_back_from_investigate(
                 i, item_attr_type, raw_cls,
                 getattr(getattr(item, "raw_item", None), "name", None),
             )
-        logger.warning("WB-DEBUG: extracted chain: %d tool calls (captured=%s)",
+        _cap = getattr(result, "_captured_chain", None)
+        logger.warning("WB-DEBUG: final chain: %d tool calls (captured=%s)",
                        len(chain),
-                       len(captured_chain) if isinstance(captured_chain, list) else "n/a")
+                       len(_cap) if isinstance(_cap, list) else "n/a")
 
     if len(chain) < 2:
         logger.info("write-back skipped: chain too short (%d tool calls)", len(chain))
