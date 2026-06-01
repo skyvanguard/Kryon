@@ -144,6 +144,25 @@ if TYPE_CHECKING:
 # Suppress debug info from litellm
 litellm.suppress_debug_info = True
 
+# On a FAILED call, litellm's failure_handler builds a StandardLoggingObject and
+# runs get_error_information -> format_tb over the exception traceback. With a
+# deep traceback (the agent loop) this pegs the CPU for minutes — the investigate
+# "hang" seen end-to-end was here, not in inference. Kryon uses none of litellm's
+# logging callbacks, so disabling them lets a failed call propagate immediately
+# to our own retry/error handling instead of blocking the event loop.
+litellm.success_callback = []
+litellm.failure_callback = []
+litellm._async_success_callback = []
+litellm._async_failure_callback = []
+litellm.callbacks = []
+litellm.turn_off_message_logging = True
+
+# Let litellm repair the message list to satisfy strict providers (DeepSeek/
+# OpenAI reject an assistant tool_calls message not followed by a tool response
+# for every tool_call_id). Our fix_message_list handles dict-shaped history but
+# misses some object-shaped turns; modify_params is litellm's own repair pass.
+litellm.modify_params = True
+
 if (
     os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "Kryon-MOE-35B")) == "o3-mini"
     or os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "Kryon-MOE-35B")) == "gemini-1.5-pro"
@@ -3136,6 +3155,26 @@ class OpenAIChatCompletionsModel(Model):
             "extra_headers": _HEADERS,
         }
 
+        # litellm needs a provider. For an OpenAI-compatible REMOTE endpoint
+        # (DeepSeek, or any custom OPENAI_BASE_URL), a bare model name like
+        # "deepseek-chat" makes litellm raise BadRequestError "LLM Provider NOT
+        # provided" — and then its failure_handler HANGS formatting the
+        # traceback (root cause of the investigate hang). Prefix with "openai/"
+        # + pass api_base/api_key so litellm uses the generic OpenAI-compatible
+        # handler. Skipped for the local path (self.is_ollama) and for natively
+        # recognised model names (gpt-/o1/o3/claude/gemini).
+        _ll_base = os.environ.get("OPENAI_BASE_URL", "").strip()
+        _ll_model = str(kwargs["model"])
+        if (
+            _ll_base
+            and not self.is_ollama
+            and "/" not in _ll_model
+            and not _ll_model.lower().startswith(("gpt-", "o1", "o3", "claude", "gemini"))
+        ):
+            kwargs["model"] = f"openai/{_ll_model}"
+            kwargs.setdefault("api_base", _ll_base)
+            kwargs.setdefault("api_key", os.environ.get("OPENAI_API_KEY", "") or "sk-noauth")
+
         # Determine provider based on model string
         model_str = str(kwargs["model"]).lower()
 
@@ -3773,6 +3812,14 @@ class OpenAIChatCompletionsModel(Model):
                 return response, stream_obj
             else:
                 # Standard OpenAI handling for non-streaming
+                if os.environ.get("KRYON_DUMP_MESSAGES"):
+                    try:
+                        import json as _json
+
+                        with open("/tmp/kryon_last_messages.json", "w", encoding="utf-8") as _f:
+                            _json.dump(kwargs.get("messages"), _f, default=str, indent=2)
+                    except Exception:  # noqa: BLE001
+                        pass
                 ret = await litellm.acompletion(**kwargs)
                 return ret
         except Exception as e:
