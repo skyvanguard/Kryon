@@ -2,10 +2,15 @@
 
 Patrón validado por prior art (Manus, agent-patterns, AutoGPT
 post-mortem): hash ``(tool_name, sha256(args), sha256(result))``
-para cada tool call que el agente ejecuta. Si el mismo triple aparece
-3 veces dentro de una ventana deslizante de 5, el agente está
-loopeando — emitir intervención al turno 2 (system message:
-"reconsider approach") y abortar el run al turno 3 con ``StuckError``.
+para cada tool call que el agente ejecuta. Si el mismo triple se
+repite dentro de una ventana deslizante, el agente está loopeando.
+
+Default (post fix-pivot): ventana 6, intervención al 2do duplicado y
+al 3ro (mensaje escalado "reconsider approach" → "ÚLTIMA advertencia:
+pivotá a un ángulo concreto o emití el reporte final ya"), abort al
+4to con ``StuckError``. Dar DOS nudges accionables antes de abortar le
+da al agente margen real para pivotar en vez de morir al primer
+repeat. El abort sigue siendo el tope duro (bounded, banca-safe).
 
 Distingue:
 
@@ -46,21 +51,48 @@ class StuckAction:
         return cls(kind="continue")
 
     @classmethod
-    def intervene(cls, tool_name: str, count: int, window: int) -> StuckAction:
+    def intervene(
+        cls, tool_name: str, count: int, window: int, *, is_final: bool = False
+    ) -> StuckAction:
+        """Build an actionable "you are looping" nudge.
+
+        ``is_final`` (the last warning before abort) escalates the tone and
+        hard-forces a binary choice: pivot to a concretely different action,
+        or emit the final report now. The non-final nudge is softer but still
+        enumerates concrete pivot angles so the model has somewhere to go
+        instead of re-sending the same call.
+        """
+        if is_final:
+            message = (
+                f"⚠️ LAST WARNING before this run is aborted. You have repeated "
+                f"tool '{tool_name}' with identical arguments and the identical "
+                f"result {count} times. Repeating it once more STOPS the run. "
+                f"You MUST now do exactly ONE of:\n"
+                f"  1. PIVOT — issue a concretely DIFFERENT action: a different "
+                f"endpoint/path, a different parameter or HTTP method, a "
+                f"different tool, or a different target host. Never re-send the "
+                f"same call.\n"
+                f"  2. CONCLUDE — emit your FINAL report NOW summarizing what "
+                f"you have ALREADY confirmed, even if it is partial.\n"
+                f"Pick one. Do NOT call '{tool_name}' with the same arguments."
+            )
+        else:
+            message = (
+                f"You have called tool '{tool_name}' with identical arguments "
+                f"and gotten the identical result {count} times in the last "
+                f"{window} tool calls — you are not making progress. Change your "
+                f"approach NOW: try a different endpoint/path, a different "
+                f"parameter or HTTP method, a different tool, or pivot to a new "
+                f"target host. If you have genuinely exhausted reasonable "
+                f"options, stop and report partial findings. Do NOT call "
+                f"'{tool_name}' again with the same arguments."
+            )
         return cls(
             kind="intervene",
             tool_name=tool_name,
             repeat_count=count,
             window_size=window,
-            message=(
-                f"You have called tool '{tool_name}' with identical arguments "
-                f"and gotten the identical result {count} times in the last "
-                f"{window} tool calls. This means you are not making progress. "
-                f"Reconsider your approach: try a different tool, vary the "
-                f"arguments, or stop and report partial findings if you have "
-                f"exhausted reasonable options. Do NOT call '{tool_name}' "
-                f"again with the same arguments."
-            ),
+            message=message,
         )
 
     @classmethod
@@ -119,9 +151,9 @@ class StuckDetector:
     def __init__(
         self,
         *,
-        window_size: int = 5,
+        window_size: int = 6,
         intervene_at: int = 2,
-        abort_at: int = 3,
+        abort_at: int = 4,
     ) -> None:
         if abort_at <= intervene_at:
             raise ValueError(f"abort_at ({abort_at}) must be > intervene_at ({intervene_at})")
@@ -132,9 +164,11 @@ class StuckDetector:
         self.abort_at = abort_at
         # Recent triples in chronological order; older entries fall off.
         self._window: deque[tuple[str, str, str]] = deque(maxlen=window_size)
-        # Track which triples we've already intervened on so the same
-        # loop doesn't yield two intervene actions before abort.
-        self._intervened: set[tuple[str, str, str]] = set()
+        # Track (triple, repeat_count) pairs we've already nudged on, so each
+        # distinct count in the warning band [intervene_at, abort_at) fires
+        # exactly one (escalating) intervention — instead of going silent
+        # after the first one, which left the model no second chance to pivot.
+        self._intervened: set[tuple[tuple[str, str, str], int]] = set()
 
     def record(self, tool_name: str, args: Any, result: Any) -> StuckAction:
         """Record a completed tool call and return the recommended
@@ -159,16 +193,27 @@ class StuckDetector:
             )
             return StuckAction.abort(tool_name, count, self.window_size)
 
-        if count >= self.intervene_at and triple not in self._intervened:
-            self._intervened.add(triple)
-            logger.info(
-                "StuckDetector: intervening on '%s' (%d/%d identical triples in window of %d)",
-                tool_name,
-                count,
-                self.intervene_at,
-                self.window_size,
-            )
-            return StuckAction.intervene(tool_name, count, self.window_size)
+        # Intervene once per distinct repeat-count inside the warning band
+        # [intervene_at, abort_at). Each higher count escalates; the count
+        # immediately before abort_at is the final warning. Keying on
+        # (triple, count) — not just triple — lets us re-nudge as the loop
+        # tightens instead of staying silent after the first intervention.
+        if self.intervene_at <= count < self.abort_at:
+            key = (triple, count)
+            if key not in self._intervened:
+                self._intervened.add(key)
+                is_final = count >= self.abort_at - 1
+                logger.info(
+                    "StuckDetector: intervening on '%s' (count=%d, final=%s, "
+                    "window=%d)",
+                    tool_name,
+                    count,
+                    is_final,
+                    self.window_size,
+                )
+                return StuckAction.intervene(
+                    tool_name, count, self.window_size, is_final=is_final
+                )
 
         return StuckAction.continue_()
 
