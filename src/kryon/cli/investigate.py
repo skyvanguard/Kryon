@@ -450,17 +450,36 @@ def run_investigate(args: argparse.Namespace) -> int:
         urls_to_check = list(hints.get("urls") or [])
         if args.url and args.url not in urls_to_check:
             urls_to_check.append(args.url)
+        # Backstop wall-bound per URL. The detectors carry their own per-probe
+        # timeouts, but this guarantees one misbehaving detector can't block the
+        # whole run (which is sync here, before the async agent loop).
+        import concurrent.futures
+
+        _det_timeout = float(os.environ.get("KRYON_DETERMINISTIC_TIMEOUT_S", "120"))
         for u in urls_to_check:
-            df = _run_deterministic_phase(
-                u,
-                ssh_user=args.ssh_user,
-                ssh_password=args.ssh_pass,
-                ssh_key=args.ssh_key,
-                db_user=args.db_user,
-                db_password=args.db_pass,
-                include_dns=args.include_dns_checks,
-                include_smb=args.include_smb_checks,
-            )
+            try:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _ex:
+                    _fut = _ex.submit(
+                        _run_deterministic_phase,
+                        u,
+                        ssh_user=args.ssh_user,
+                        ssh_password=args.ssh_pass,
+                        ssh_key=args.ssh_key,
+                        db_user=args.db_user,
+                        db_password=args.db_pass,
+                        include_dns=args.include_dns_checks,
+                        include_smb=args.include_smb_checks,
+                    )
+                    df = _fut.result(timeout=_det_timeout)
+            except concurrent.futures.TimeoutError:
+                console.print(
+                    f"[yellow]⚠ fase determinista excedió {_det_timeout:.0f}s "
+                    f"para {u} — saltando[/yellow]"
+                )
+                df = None
+            except Exception as e:  # noqa: BLE001 — detectors must never break the run
+                console.print(f"[yellow]deterministic phase warning ({u}): {e}[/yellow]")
+                df = None
             if df:
                 deterministic_findings.extend(df)
 
@@ -495,9 +514,23 @@ def run_investigate(args: argparse.Namespace) -> int:
         agent_input = full_prompt
         try:
             from kryon.skills.pre_hook_integration import maybe_run_pre_hooks
-            pre_hook_suffix = await maybe_run_pre_hooks(agent, full_prompt, console)
+
+            # Outer wall-bound on ALL pre_hooks. Each hook already has its own
+            # timeout + orphan-kill, but a skill with many hooks (or a slow
+            # nuclei/sqlmap target) could still stall the run before the agent
+            # loop starts. Cap the whole phase so the run always progresses.
+            _ph_timeout = float(os.environ.get("KRYON_PREHOOK_TOTAL_TIMEOUT_S", "180"))
+            pre_hook_suffix = await asyncio.wait_for(
+                maybe_run_pre_hooks(agent, full_prompt, console),
+                timeout=_ph_timeout,
+            )
             if pre_hook_suffix:
                 agent_input = full_prompt + pre_hook_suffix
+        except asyncio.TimeoutError:
+            console.print(
+                f"[yellow]⚠ pre_hooks excedieron {_ph_timeout:.0f}s — "
+                f"continuando sin su salida[/yellow]"
+            )
         except Exception as e:  # noqa: BLE001 — pre_hooks must never break the run
             console.print(f"[yellow]pre_hook integration warning: {e}[/yellow]")
 
