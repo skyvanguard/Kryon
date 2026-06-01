@@ -1269,6 +1269,63 @@ async def run_with_reflection(
                     {"role": "user", "content": reflection_msg}
                 ]
                 continue
+            if "StuckError" in ename:
+                # The stuck-detector aborted the chunk: the agent is in an
+                # irrecoverable loop (identical tool+args+result repeated
+                # abort_at times). More chunks won't help — finalize
+                # gracefully with whatever was captured in-flight so the
+                # caller (kryon investigate) still produces a PARTIAL report
+                # instead of dying with no artifact. Converts a "failed, no
+                # report" run into a "partial findings" run.
+                logger.warning(
+                    "reflective runner: stuck-loop abort at turn %d — "
+                    "finalizing with partial findings: %s",
+                    turns_used,
+                    e,
+                )
+                if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in (
+                    "1",
+                    "true",
+                    "yes",
+                ):
+                    print(
+                        f"\n🛑 [reflective-runner] stuck-loop abort at turn "
+                        f"{turns_used} — finalizing with partial findings"
+                    )
+                # Salvage facts captured by the hooks before the loop tripped.
+                try:
+                    stuck_chunk_text = _chunk_text_from_capture(capture_hooks)
+                    if stuck_chunk_text:
+                        accumulated_facts = accumulated_facts.merge(
+                            _extract_facts_from_chunk(stuck_chunk_text)
+                        )
+                except Exception as ee:  # noqa: BLE001
+                    logger.debug("stuck-path extract failed: %s", ee)
+                stuck_tool = getattr(e, "tool_name", "") or "?"
+                stuck_note = (
+                    f"⚠️ El agente entró en un loop irrecuperable sobre la "
+                    f"tool '{stuck_tool}' (misma llamada repetida) y el run se "
+                    f"detuvo para no consumir presupuesto repitiéndose. Los "
+                    f"hallazgos abajo son PARCIALES y requieren verificación."
+                )
+                if last_result is not None:
+                    try:
+                        prior = getattr(last_result, "final_output", "") or ""
+                        last_result.final_output = (  # type: ignore[attr-defined]
+                            prior + "\n\n" + stuck_note
+                        ).strip()
+                    except Exception:  # noqa: BLE001
+                        pass
+                else:
+                    # Stuck in the very first chunk — no clean result yet.
+                    # Build a minimal carrier so the final return block can
+                    # attach accumulated_items + the captured chain to it.
+                    from types import SimpleNamespace
+
+                    last_result = SimpleNamespace(
+                        final_output=stuck_note, new_items=[]
+                    )
+                break
             logger.exception("reflective runner chunk failed at turn %d: %s", turns_used, e)
             raise
 

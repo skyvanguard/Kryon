@@ -518,16 +518,36 @@ def run_investigate(args: argparse.Namespace) -> int:
             run_config=get_run_config(),
         )
 
+    agent_error: str | None = None
     try:
         result = asyncio.run(_run())
     except KeyboardInterrupt:
         console.print("\n[yellow]interrupted by user[/yellow]")
         return 130
     except Exception as e:  # noqa: BLE001
-        console.print(f"[red]agent run failed: {type(e).__name__}: {e}[/red]")
-        return 6
+        # Don't abort empty-handed. The deterministic detectors may have
+        # already produced findings, and a stuck/looping (or otherwise
+        # crashed) agent run still has value as a PARTIAL report. Fall
+        # through to build + persist a report instead of returning with no
+        # artifact — converts a "failed, no report" run into a "partial
+        # findings" run. The reflective runner finalizes StuckError
+        # gracefully (so it rarely reaches here), but the non-reflective
+        # Runner.run path and any unexpected crash land here as a net.
+        ename = type(e).__name__
+        console.print(
+            f"[yellow]agent run ended early ({ename}: {e}) — "
+            f"emitting partial report[/yellow]"
+        )
+        result = None
+        agent_error = f"{ename}: {e}"
 
     output = getattr(result, "final_output", None) or ""
+    if agent_error and not output:
+        output = (
+            f"⚠️ El run del agente terminó temprano ({agent_error}). "
+            f"Los hallazgos deterministas abajo son válidos; el análisis del "
+            f"agente quedó incompleto y debe re-ejecutarse o continuarse."
+        )
 
     # Observability + anti-bluff — build a structured report that separates
     # VERIFIED (deterministic detectors + validate_* confirmations) from
@@ -560,8 +580,9 @@ def run_investigate(args: argparse.Namespace) -> int:
     except Exception as e:  # noqa: BLE001
         console.print(f"\n[dim]reporte no persistido: {e}[/dim]")
 
-    # F203.F — Write-through al learning loop (best-effort, no bloquea exit)
-    if not args.no_writeback:
+    # F203.F — Write-through al learning loop (best-effort, no bloquea exit).
+    # Skip when the run crashed (result is None): nothing coherent to learn from.
+    if not args.no_writeback and result is not None:
         try:
             from kryon.services.investigate_writeback import write_back_from_investigate
             exp_id = write_back_from_investigate(prompt, hints, result)
