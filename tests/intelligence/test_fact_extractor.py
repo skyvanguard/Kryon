@@ -18,7 +18,6 @@ from kryon.intelligence.fact_extractor import (
     extract_facts,
 )
 
-
 # ---------------------------------------------------------------------------
 # ldapsearch
 # ---------------------------------------------------------------------------
@@ -619,3 +618,60 @@ def test_dispatch_falls_through_to_generic_when_no_match() -> None:
     """Unknown tool name — generic parser runs."""
     facts = extract_facts("totally-unknown-tool", "hint: did you read the source?")
     assert "did you read the source" in facts.hints
+
+
+# ---------------------------------------------------------------------------
+# Web path extraction — feeds the chain planner's web-exploitation rules.
+# Without this facts.paths only ever held LDAP DNs and the web rules were
+# dead code.
+# ---------------------------------------------------------------------------
+
+
+def test_web_fetch_smart_extracts_parametrized_path() -> None:
+    sample = (
+        '{"final_url": "http://10.0.0.5/", "server": "Apache/2.4", '
+        '"body": "see [products](/products?id=1) and /search?q=test"}'
+    )
+    facts = extract_facts("web_fetch_smart http://10.0.0.5/", sample)
+    assert "/products?id=1" in facts.paths
+    assert "/search?q=test" in facts.paths
+
+
+def test_web_path_absolute_url_normalized_to_relative() -> None:
+    """Absolute URLs are stripped to a relative path so the planner targets
+    the fetched host, not an external link."""
+    sample = '{"body": "link http://10.0.0.5/item.php?cat=2 here"}'
+    facts = extract_facts("web_fetch_smart http://10.0.0.5/", sample)
+    assert "/item.php?cat=2" in facts.paths
+    # the host portion must NOT leak into the stored path
+    assert not any("10.0.0.5" in p for p in facts.paths)
+
+
+def test_disallow_paths_promoted_to_facts_paths() -> None:
+    sample = '{"body": "User-agent: *\nDisallow: /admin\nDisallow: /backup"}'
+    facts = extract_facts("web_fetch_smart http://t/robots.txt", sample)
+    assert "/admin" in facts.paths
+    assert "/backup" in facts.paths
+
+
+def test_generic_pass_also_extracts_web_paths() -> None:
+    """The reflective runner's whole-chunk pass routes through _parse_generic
+    (empty tool_invocation) — it must extract web paths too."""
+    chunk = "curl output: GET /login?next=/admin returned 200"
+    facts = extract_facts("", chunk)
+    assert "/login?next=/admin" in facts.paths
+
+
+def test_web_param_path_drives_planner_to_sqlmap() -> None:
+    """End-to-end: a web_fetch_smart capture with a parametrized URL must now
+    flow through to a concrete sqlmap recommendation (the fix #2 chain that
+    was dead before web-path extraction existed)."""
+    from kryon.intelligence.exploit_chain_planner import plan_next_action
+
+    sample = '{"final_url": "http://10.10.10.10/", "body": "go to /item?id=3"}'
+    facts = extract_facts("web_fetch_smart http://10.10.10.10/", sample)
+    assert "/item?id=3" in facts.paths
+    rec = plan_next_action(facts, [], "audita http://10.10.10.10")
+    assert rec is not None
+    assert "sqlmap" in rec.args
+    assert "/item?id=3" in rec.args

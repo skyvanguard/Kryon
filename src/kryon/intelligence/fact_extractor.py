@@ -62,6 +62,14 @@ _DISALLOW_PATH_RE = re.compile(
     r"disallow\s*:[\s│|]*(/[^\s\\\"]+)",
     re.IGNORECASE,
 )
+# Parametrized web path (``/x?id=1``) — the concrete SQLi/IDOR target the
+# chain planner's web rules attack. Optional scheme+host is stripped (group 1
+# captures only the path+query) so the planner re-anchors it to the fetched
+# host, never an external link. Stops at whitespace / quotes / brackets /
+# parens so it works inside JSON bodies and markdown links alike.
+_PARAM_URL_RE = re.compile(
+    r"(?:https?://[^/\s\"'<>]+)?(/[^\s\"'<>)\]}?]*\?[^\s\"'<>)\]}]*=[^\s\"'<>)\]}]*)"
+)
 # FASE 11.O.2 — HTTP ``Location:`` header value. Used to detect
 # vhost redirects (302 to ``http://otherhost/...``). Captures the
 # host portion of the URL (group 1), strips port and path. Case-
@@ -595,6 +603,37 @@ def _parse_secretsdump(output: str) -> ExtractedFacts:
     )
 
 
+def _extract_web_paths(output: str, hints: list[str]) -> list[str]:
+    """Web paths the planner can attack, pulled from tool output.
+
+    - Parametrized paths (``/x?id=1``) → concrete SQLi/IDOR targets for the
+      ``_rule_sqlmap_on_parametrized_path`` planner rule.
+    - ``disallow:`` / ``discovered:`` hints promoted to bare endpoints so the
+      broad ``_rule_nuclei_web_scan_after_recon`` rule has a target even when
+      no parametrized URL was seen.
+
+    Without this, ``facts.paths`` only ever held LDAP DNs and the web rules
+    were dead code. Absolute URLs are normalized to a relative path (the
+    planner re-anchors to the fetched host) so we never fire at an external
+    link.
+    """
+    out: list[str] = []
+    for m in _PARAM_URL_RE.finditer(output):
+        p = m.group(1).rstrip(".,;")
+        if p and p not in out:
+            out.append(p)
+    for h in hints:
+        if h.startswith("disallow:"):
+            endpoint = h.split(":", 1)[1]
+        elif h.startswith("discovered:"):
+            endpoint = "/" + h.split(":", 1)[1]
+        else:
+            continue
+        if endpoint and endpoint not in out:
+            out.append(endpoint)
+    return out
+
+
 def _parse_web_fetch_smart(output: str) -> ExtractedFacts:
     """web_fetch_smart returns a JSON dict. Extract server header
     versions, the URL's host/port as a (host, service) facts pair so
@@ -709,6 +748,7 @@ def _parse_web_fetch_smart(output: str) -> ExtractedFacts:
         hints=_dedup_sorted(tuple(hints)),
         services=_dedup_sorted_pairs_int(tuple(services)),
         hosts=_dedup_sorted(tuple(hosts)),
+        paths=_dedup_sorted(tuple(_extract_web_paths(output, hints))),
     )
 
 
@@ -767,6 +807,7 @@ def _parse_generic(output: str) -> ExtractedFacts:
     return ExtractedFacts(
         hashes=_dedup_sorted(tuple(hashes)),
         hints=_dedup_sorted(tuple(hints)),
+        paths=_dedup_sorted(tuple(_extract_web_paths(output, hints))),
     )
 
 
