@@ -141,3 +141,42 @@ def test_dedup_keeps_distinct_hosts():
     a = _Finding("CWE-89", "HIGH", "10.0.0.1", "SQLi")
     b = _Finding("CWE-89", "HIGH", "10.0.0.2", "SQLi")
     assert len(_dedup_findings([a, b])) == 2
+
+
+# ---------------------------------------------------------------------------
+# E — severity ranking
+# ---------------------------------------------------------------------------
+from kryon.cli.investigate_report import _rank_findings  # noqa: E402
+
+
+def test_rank_orders_critical_first():
+    fs = [
+        _Finding("CWE-1", "LOW", "h", "low"),
+        _Finding("CWE-2", "CRITICAL", "h", "crit"),
+        _Finding("CWE-3", "MEDIUM", "h", "med"),
+        _Finding("CWE-4", "HIGH", "h", "high"),
+    ]
+    sevs = [f.severity for f in _rank_findings(fs)]
+    assert sevs == ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+
+
+def test_rank_unknown_severity_sorts_last():
+    fs = [_Finding("CWE-1", "weird", "h", "x"), _Finding("CWE-2", "HIGH", "h", "y")]
+    assert [f.severity for f in _rank_findings(fs)] == ["HIGH", "weird"]
+
+
+def test_rank_is_stable_within_tier():
+    a = _Finding("CWE-1", "HIGH", "h", "first")
+    b = _Finding("CWE-2", "HIGH", "h", "second")
+    assert [f.cwe for f in _rank_findings([a, b])] == ["CWE-1", "CWE-2"]
+
+
+def test_report_renders_critical_before_low():
+    det = [
+        _Finding("CWE-79", "LOW", "h", "reflected XSS"),
+        _Finding("CWE-89", "CRITICAL", "h", "blind SQLi"),
+    ]
+    r = build_investigate_report(
+        prompt="x", active=True, output="", deterministic_findings=det, chain=[]
+    )
+    assert r.index("CWE-89") < r.index("CWE-79")
