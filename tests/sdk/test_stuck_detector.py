@@ -24,13 +24,15 @@ def test_first_call_always_continues():
 
 
 def test_two_identical_triples_emit_intervention():
-    det = StuckDetector(window_size=5, intervene_at=2, abort_at=3)
+    det = StuckDetector(window_size=6, intervene_at=2, abort_at=4)
     det.record("get_users", "{}", "alice,bob")
     action = det.record("get_users", "{}", "alice,bob")
     assert action.kind == "intervene"
     assert action.tool_name == "get_users"
     assert action.repeat_count == 2
-    assert "reconsider" in action.message.lower()
+    # First (non-final) nudge tells the model it's looping + how to pivot.
+    assert "not making progress" in action.message.lower()
+    assert "last warning" not in action.message.lower()
 
 
 def test_three_identical_triples_emit_abort():
@@ -42,16 +44,29 @@ def test_three_identical_triples_emit_abort():
     assert action.repeat_count == 3
 
 
-def test_intervention_emitted_only_once_per_triple():
-    """The same triple shouldn't yield two intervene actions before
-    abort — the second time we hit intervene_at threshold for an
-    already-intervened triple, we keep counting toward abort."""
-    det = StuckDetector(window_size=5, intervene_at=2, abort_at=4)
-    det.record("x", "{}", "y")
-    a1 = det.record("x", "{}", "y")
-    assert a1.kind == "intervene"
-    a2 = det.record("x", "{}", "y")
-    assert a2.kind == "continue", "second intervention for same triple suppressed"
+def test_escalating_interventions_then_abort():
+    """Fix-pivot: each distinct repeat-count in the warning band
+    [intervene_at, abort_at) fires one escalating nudge. The count just
+    before abort is the FINAL warning. This gives a looping agent two
+    actionable chances to pivot before the run is stopped."""
+    det = StuckDetector(window_size=6, intervene_at=2, abort_at=4)
+    det.record("x", "{}", "y")  # count 1 → continue
+    a2 = det.record("x", "{}", "y")  # count 2 → intervene (non-final)
+    a3 = det.record("x", "{}", "y")  # count 3 → intervene (final warning)
+    a4 = det.record("x", "{}", "y")  # count 4 → abort
+    assert a2.kind == "intervene"
+    assert "last warning" not in a2.message.lower()
+    assert a3.kind == "intervene"
+    assert "last warning" in a3.message.lower()
+    assert a4.kind == "abort"
+    assert a4.repeat_count == 4
+
+
+def test_default_thresholds_are_lenient_pivot_friendly():
+    """Defaults give two nudges (count 2, 3) then abort at 4 — not the
+    old single-nudge-then-die-at-3."""
+    det = StuckDetector()
+    assert (det.window_size, det.intervene_at, det.abort_at) == (6, 2, 4)
 
 
 def test_different_args_dont_count_as_repeat():

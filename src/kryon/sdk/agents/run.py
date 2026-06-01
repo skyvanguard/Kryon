@@ -205,9 +205,9 @@ class Runner:
             # Manus/agent-patterns prior-art consensus.
             from ._stuck_detector import StuckDetector
 
-            stuck_window = int(os.getenv("KRYON_STUCK_WINDOW", "5"))
+            stuck_window = int(os.getenv("KRYON_STUCK_WINDOW", "6"))
             stuck_intervene = int(os.getenv("KRYON_STUCK_INTERVENE_AT", "2"))
-            stuck_abort = int(os.getenv("KRYON_STUCK_ABORT_AT", "3"))
+            stuck_abort = int(os.getenv("KRYON_STUCK_ABORT_AT", "4"))
 
             # F123 — Pull the active ActionLog from the registry so the
             # _run_impl tool-call hook can persist per-tool entries.
