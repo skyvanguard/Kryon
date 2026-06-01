@@ -186,6 +186,12 @@ def build_tool_registry() -> dict[str, Any]:
             # responder (analyze-only default), bloodhound-python,
             # msfvenom. Todos requieren creds previas o hardware.
             "kryon.tools.lateral_movement.kali_redteam",
+            # D — web exploitation: file upload (CWE-434) + Java
+            # deserialization (CWE-502). The two attack classes that had no
+            # native tool (commix/sqlmap/dalfox already cover RCE/SQLi/XSS).
+            # Intrusive: benign-marker probe by default, aggressive run needs
+            # the per-tool fire env var too.
+            "kryon.tools.exploitation.web_exploit",
         ])
     for mod_path in _extra_tools:
         try:

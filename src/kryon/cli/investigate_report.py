@@ -30,6 +30,10 @@ _VALIDATION_TOOLS = (
     "validate_auth_bypass",
     "validate_finding",
     "validate_detection",
+    # D — web exploitation tools emit the same validation_status JSON, so a
+    # confirmed upload/deser surfaces in the "Verificado por exploit" section.
+    "exploit_file_upload",
+    "exploit_java_deserialization",
 )
 
 _REPORT_DIR = Path.home() / ".kryon" / "investigate"
