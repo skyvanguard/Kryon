@@ -38,6 +38,7 @@ solo modifica la conversation history entre chunks.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -1071,6 +1072,15 @@ async def run_with_reflection(
     except ValueError:
         _wall_budget_s = 0.0
     _loop_start = time.monotonic()
+    # Per-chunk timeout. The wall budget only checks BETWEEN chunks, so a single
+    # hung chunk (stuck tool or a tight loop in the agent step) never returns and
+    # the loop never terminates. wait_for around each chunk guarantees progress.
+    try:
+        _chunk_timeout_s = float(os.environ.get("KRYON_CHUNK_TIMEOUT_S") or 180)
+    except ValueError:
+        _chunk_timeout_s = 180.0
+    _chunk_timeouts = 0
+    _MAX_CHUNK_TIMEOUTS = 2
 
     while turns_used < max_total_turns:
         if _wall_budget_s and (time.monotonic() - _loop_start) > _wall_budget_s:
@@ -1116,13 +1126,31 @@ async def run_with_reflection(
             logger.debug("planner subcall log init failed: %s", e)
 
         try:
-            result = await Runner.run(
+            _chunk_coro = Runner.run(
                 agent,
                 input=current_input,
                 max_turns=chunk_size,
                 run_config=run_config,
                 hooks=capture_hooks,  # F203.K — capture items in-flight
             )
+            if _chunk_timeout_s > 0:
+                result = await asyncio.wait_for(_chunk_coro, timeout=_chunk_timeout_s)
+            else:
+                result = await _chunk_coro
+        except asyncio.TimeoutError:
+            # The chunk overran its wall budget (hung tool or a stuck agent
+            # step). Abort it so the run ALWAYS terminates: advance the turn
+            # counter, and after a couple of consecutive timeouts break out.
+            _chunk_timeouts += 1
+            turns_used += chunk_size
+            logger.warning(
+                "reflective runner: chunk timed out after %.0fs (count=%d) — advancing",
+                _chunk_timeout_s,
+                _chunk_timeouts,
+            )
+            if _chunk_timeouts >= _MAX_CHUNK_TIMEOUTS or turns_used >= max_total_turns:
+                break
+            continue
         except Exception as e:  # noqa: BLE001 — handle MaxTurnsExceeded specially
             # MaxTurnsExceeded inside a chunk = "agent wanted to continue beyond
             # chunk budget". That's expected — the whole point of the reflective

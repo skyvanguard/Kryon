@@ -25,10 +25,13 @@ Security model:
 from __future__ import annotations
 
 import asyncio
+import glob
 import importlib.util
 import inspect
 import logging
+import os
 import re
+import signal
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Union
 
@@ -139,6 +142,45 @@ def _resolve_python_callable(hook: PreHookSpec) -> Callable[..., Any]:
     return func
 
 
+def _all_descendants(pid: int) -> set[int]:
+    """Recursive child PIDs of ``pid`` via /proc (Linux); empty elsewhere.
+
+    ``asyncio.wait_for`` cancels the await on timeout but cannot kill the
+    executor thread running a sync hook — so its subprocess (nuclei/sqlmap/...)
+    survives at 100% CPU. We snapshot children before the hook and kill any new
+    ones on timeout.
+    """
+    out: set[int] = set()
+    stack = [pid]
+    while stack:
+        cur = stack.pop()
+        try:
+            for ch_file in glob.glob(f"/proc/{cur}/task/*/children"):
+                with open(ch_file, encoding="ascii") as f:
+                    for tok in f.read().split():
+                        cpid = int(tok)
+                        if cpid not in out:
+                            out.add(cpid)
+                            stack.append(cpid)
+        except (OSError, ValueError):
+            continue
+    return out
+
+
+# SIGKILL is Unix-only (the pre_hook runner runs in the Linux container);
+# fall back to SIGTERM on Windows so unit tests on the host don't break.
+_SIGKILL = getattr(signal, "SIGKILL", signal.SIGTERM)
+
+
+def _kill_pids(pids: set[int]) -> None:
+    """Hard-kill each pid, best-effort (already-gone / denied is fine)."""
+    for p in pids:
+        try:
+            os.kill(p, _SIGKILL)
+        except (ProcessLookupError, PermissionError, OSError, ValueError):
+            pass
+
+
 async def _invoke_one(
     hook: PreHookSpec,
     ctx: dict[str, Any],
@@ -171,10 +213,20 @@ async def _invoke_one(
             loop = asyncio.get_running_loop()
             coro = loop.run_in_executor(None, lambda: callable_(**args))
 
+    _self_pid = os.getpid()
+    _children_before = _all_descendants(_self_pid)
     try:
         result = await asyncio.wait_for(coro, timeout=hook.timeout_s)
     except asyncio.TimeoutError as e:
-        raise PreHookExecutionError(f"pre_hook {label!r} timed out after {hook.timeout_s}s") from e
+        # wait_for cancelled the await, but a sync hook's executor thread (and
+        # its subprocess, e.g. nuclei/sqlmap) keeps running. Kill the orphaned
+        # children so they don't peg the CPU indefinitely after the timeout.
+        _orphans = _all_descendants(_self_pid) - _children_before
+        _kill_pids(_orphans)
+        raise PreHookExecutionError(
+            f"pre_hook {label!r} timed out after {hook.timeout_s}s "
+            f"(killed {len(_orphans)} orphaned subprocess(es))"
+        ) from e
     except PreHookExecutionError:
         raise
     except Exception as e:  # noqa: BLE001
