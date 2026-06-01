@@ -7,6 +7,7 @@ across all agents while keeping individual tool lists focused.
 
 from kryon.tools.ai.claude_code import claude_code
 from kryon.tools.knowledge import (
+    cve_intel,
     findings_library_stats,
     get_exploit_techniques,
     get_security_tools,
@@ -29,7 +30,7 @@ from kryon.tools.reconnaissance.run_command import run_command
 from kryon.tools.intelligence.planner_executor import execute_planner_directive
 
 # Core execution tools — every agent that runs commands needs these
-CORE_TOOLS = [run_command, execute_code, execute_planner_directive]
+CORE_TOOLS = [run_command, execute_code, execute_planner_directive, cve_intel]
 
 # RAG knowledge base tools — basic set for most agents
 # recall_similar_experiences is included here so EVERY agent that does

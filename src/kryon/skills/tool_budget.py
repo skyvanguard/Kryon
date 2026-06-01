@@ -21,6 +21,7 @@ ALWAYS_INCLUDE = {
     "run_command",
     "execute_code",
     "nmap",
+    "cve_intel",  # F2 — live CVE intel (reemplaza el RAG estático de CVEs)
     # FASE 6 — the OPERATOR DIRECTIVE block tells the model to call
     # ``execute_planner_directive()`` as its next tool. Without this
     # entry the tool-budget selector can drop the function_tool when
