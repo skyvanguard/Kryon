@@ -17,6 +17,7 @@ Pure/testable: report building takes data in and returns a string; only
 from __future__ import annotations
 
 import datetime
+import re
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,51 @@ _VALIDATION_TOOLS = (
 
 _REPORT_DIR = Path.home() / ".kryon" / "investigate"
 
+# Authoritative verdict emitted by the exploit validators (_build_result):
+# `{"validation_status": "confirmed|false_positive|potential", ...}`.
+_VERDICT_RE = re.compile(
+    r'"validation_status"\s*:\s*"(confirmed|false_positive|potential)"'
+)
+
+# Fallback heuristic for tools that don't emit the structured field. NEGATIONS
+# are checked FIRST — mirroring the validators themselves — so "not confirmed",
+# "could not be confirmed", "not injectable", etc. are never misread as a
+# confirmation (the anti-bluff whole point: nothing shows ✅ unless truly proven).
+_NEGATION_MARKERS = (
+    "false_positive",
+    "false positive",
+    "not confirmed",
+    "could not be confirmed",
+    "unconfirmed",
+    "no confirmado",
+    "not injectable",
+    "not vulnerable",
+    "not exploitable",
+)
+_CONFIRM_MARKERS = ("confirmed", "is vulnerable", "injectable", "exploited")
+
+
+def _classify_validation(preview: str) -> str:
+    """Map a validate_* output to confirmed | false_positive | ran.
+
+    Prefers the validator's own structured ``validation_status`` verdict
+    (authoritative); falls back to a negation-first text heuristic only when
+    the structured field is absent (e.g. truncated/older outputs)."""
+    pl = preview.lower()
+    m = _VERDICT_RE.search(pl)
+    if m:
+        verdict = m.group(1)
+        if verdict == "confirmed":
+            return "confirmed"
+        if verdict == "false_positive":
+            return "false_positive"
+        return "ran"  # "potential" → no clear verdict
+    if any(n in pl for n in _NEGATION_MARKERS):
+        return "false_positive"
+    if any(c in pl for c in _CONFIRM_MARKERS):
+        return "confirmed"
+    return "ran"
+
 
 def _validations_from_chain(chain: list[dict[str, Any]]) -> list[dict[str, str]]:
     """Find validate_* tool calls in the chain and classify their outcome."""
@@ -42,13 +88,7 @@ def _validations_from_chain(chain: list[dict[str, Any]]) -> list[dict[str, str]]
         if not any(v in tool for v in _VALIDATION_TOOLS):
             continue
         preview = str(step.get("output_preview", "") or "")
-        pl = preview.lower()
-        if "confirmed" in pl:
-            status = "confirmed"
-        elif "false_positive" in pl or "false positive" in pl:
-            status = "false_positive"
-        else:
-            status = "ran"
+        status = _classify_validation(preview)
         out.append({"tool": tool, "status": status, "preview": preview[:160]})
     return out
 
