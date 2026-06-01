@@ -3812,6 +3812,14 @@ class OpenAIChatCompletionsModel(Model):
                 return response, stream_obj
             else:
                 # Standard OpenAI handling for non-streaming
+                if os.environ.get("KRYON_DUMP_MESSAGES"):
+                    try:
+                        import json as _json
+
+                        with open("/tmp/kryon_last_messages.json", "w", encoding="utf-8") as _f:
+                            _json.dump(kwargs.get("messages"), _f, default=str, indent=2)
+                    except Exception:  # noqa: BLE001
+                        pass
                 ret = await litellm.acompletion(**kwargs)
                 return ret
         except Exception as e:

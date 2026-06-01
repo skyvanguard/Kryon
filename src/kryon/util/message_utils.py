@@ -234,11 +234,16 @@ def fix_message_list(messages):  # pylint: disable=R0914,R0915,R0912
                 tool_id = tc.get("id")
                 if not tool_id:
                     continue
-                if tool_id in consumed_tool_ids:
-                    continue
                 tool_msg = tool_responses.get(tool_id)
-                if tool_msg is None:
-                    # Synthesize tool response for the call.
+                if tool_msg is None or tool_id in consumed_tool_ids:
+                    # Either no response exists, OR the response was already
+                    # attached to an EARLIER assistant (the model re-emitted a
+                    # tool_call_id from a previous turn — seen with DeepSeek
+                    # after a reflection turn). Strict providers require a tool
+                    # response immediately after THIS assistant too, so
+                    # synthesize a fresh one instead of skipping (the skip left
+                    # the assistant with tool_calls and no responses → 400
+                    # "insufficient tool messages following tool_calls").
                     fn = tc.get("function") or {}
                     tool_name = fn.get("name") or "unknown_function"
                     tool_msg = {
