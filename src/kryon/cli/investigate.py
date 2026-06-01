@@ -529,25 +529,36 @@ def run_investigate(args: argparse.Namespace) -> int:
 
     output = getattr(result, "final_output", None) or ""
 
-    # F203.M — Prepend deterministic findings to output so scoreboard
-    # (and any downstream CWE-extraction) sees them. The LLM summary may
-    # or may not include each CWE in prose — explicit deterministic
-    # findings ensure they're in the transcript.
-    if deterministic_findings:
-        det_block_lines = ["## Hallazgos deterministicos (pre-agent F203.M)"]
-        for f in deterministic_findings:
-            cwe = getattr(f, "cwe", "?")
-            rule = getattr(f, "rule_id", "?")
-            severity = getattr(f, "severity", "?")
-            host = getattr(f, "host", "?")
-            message = getattr(f, "message", "")
-            det_block_lines.append(
-                f"- **{cwe}** ({severity}) `{rule}` @ {host}: {message[:200]}"
-            )
-        output = "\n".join(det_block_lines) + "\n\n" + output
+    # Observability + anti-bluff — build a structured report that separates
+    # VERIFIED (deterministic detectors + validate_* confirmations) from
+    # ALLEGED (the LLM's prose). Persist it to a stable path and print it
+    # FLUSHED so it's visible even when piped (non-TTY) — the old single
+    # ``console.print`` was lost in pipes and left runs with no artifact.
+    try:
+        from kryon.services.investigate_writeback import _extract_chain
 
+        chain = _extract_chain(getattr(result, "new_items", []) or [])
+    except Exception:  # noqa: BLE001
+        chain = []
+    from kryon.cli.investigate_report import (
+        build_investigate_report,
+        persist_investigate_report,
+    )
+
+    report = build_investigate_report(
+        prompt=prompt,
+        active=active,
+        output=output,
+        deterministic_findings=deterministic_findings,
+        chain=chain,
+    )
     console.print("\n[bold green]═══ Resumen de la investigación ═══[/bold green]\n")
-    console.print(output)
+    print(report, flush=True)
+    try:
+        report_path = persist_investigate_report(report)
+        console.print(f"\n[dim]📄 reporte → {report_path}[/dim]")
+    except Exception as e:  # noqa: BLE001
+        console.print(f"\n[dim]reporte no persistido: {e}[/dim]")
 
     # F203.F — Write-through al learning loop (best-effort, no bloquea exit)
     if not args.no_writeback:
@@ -559,21 +570,16 @@ def run_investigate(args: argparse.Namespace) -> int:
         except Exception as e:  # noqa: BLE001
             console.print(f"\n[dim]write-back skipped: {e}[/dim]")
 
-    # Persist transcript if --out given
+    # Also persist the same structured report to --out dir if given.
     if args.out:
+        import datetime as _dt
+
         out_dir = Path(args.out)
         out_dir.mkdir(parents=True, exist_ok=True)
-        ts = __import__("datetime").datetime.now().strftime("%Y%m%d-%H%M%S")
+        ts = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         out_path = out_dir / f"investigate-{ts}.md"
-        out_path.write_text(
-            f"# Investigate Transcript\n\n"
-            f"**Prompt**: {prompt}\n\n"
-            f"**Mode**: {hints.get('mode')}\n\n"
-            f"**Active**: {active}\n\n"
-            f"## Output\n\n{output}\n",
-            encoding="utf-8",
-        )
-        console.print(f"\n[green]transcript →[/green] {out_path}")
+        out_path.write_text(report, encoding="utf-8")
+        console.print(f"\n[green]reporte →[/green] {out_path}")
 
     return 0
 
