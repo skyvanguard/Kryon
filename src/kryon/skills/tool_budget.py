@@ -43,9 +43,11 @@ RAG_TOOLS = {
     "query_memory",
 }
 
-# Exploit-confirmation tools (exploit_validator). They RUN sqlmap/dalfox/etc,
-# so they're double-gated (KRYON_EXPLOIT_FIRE + fire=True → dry-run by default)
-# AND only OFFERED to the agent under KRYON_RED_TEAM (active-pentest profile).
+# Exploit-confirmation tools (exploit_validator). They RUN the real exploit
+# tool (sqlmap/dalfox/commix/...) against the target when called — there is NO
+# dry-run gate inside the validator. Banking-safety therefore comes from only
+# OFFERING them under KRYON_RED_TEAM (the active-pentest profile, which already
+# requires written authorization — same contract as the hydra/fuzzing tools).
 # Before this they were registered but never selected (no skill listed them in
 # required_tools, not in ALWAYS_INCLUDE) → the agent never confirmed a finding
 # → the report's "Verificado por exploit" section was always empty.
@@ -223,9 +225,9 @@ def select_tools(
     selected_names = set(ALWAYS_INCLUDE)
     selected_names.update(skill_tool_names)
     # Active-pentest profile: offer exploit-confirmation tools so findings can
-    # be promoted ALLEGED → VERIFIED. Banca-safe — off unless the operator
-    # opted into KRYON_RED_TEAM, and the tools are themselves double-gated
-    # (dry-run without KRYON_EXPLOIT_FIRE + fire=True).
+    # be promoted ALLEGED → VERIFIED. These RUN the real exploit tool against
+    # the target, so they're offered ONLY under KRYON_RED_TEAM (off in the
+    # banking default; that profile already requires written authorization).
     if os.environ.get("KRYON_RED_TEAM", "").strip().lower() in ("1", "true", "yes"):
         selected_names |= EXPLOIT_VALIDATION_TOOLS
     # RAG apagado salvo opt-in explícito: filtra las RAG tools aunque algún
