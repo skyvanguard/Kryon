@@ -43,6 +43,20 @@ RAG_TOOLS = {
     "query_memory",
 }
 
+# Exploit-confirmation tools (exploit_validator). They RUN sqlmap/dalfox/etc,
+# so they're double-gated (KRYON_EXPLOIT_FIRE + fire=True → dry-run by default)
+# AND only OFFERED to the agent under KRYON_RED_TEAM (active-pentest profile).
+# Before this they were registered but never selected (no skill listed them in
+# required_tools, not in ALWAYS_INCLUDE) → the agent never confirmed a finding
+# → the report's "Verificado por exploit" section was always empty.
+EXPLOIT_VALIDATION_TOOLS = {
+    "validate_sqli",
+    "validate_xss",
+    "validate_rce",
+    "validate_auth_bypass",
+    "validate_finding",
+}
+
 
 def build_tool_registry() -> dict[str, Any]:
     """Import ALL tools from toolsets and index them by name.
@@ -208,6 +222,12 @@ def select_tools(
     """
     selected_names = set(ALWAYS_INCLUDE)
     selected_names.update(skill_tool_names)
+    # Active-pentest profile: offer exploit-confirmation tools so findings can
+    # be promoted ALLEGED → VERIFIED. Banca-safe — off unless the operator
+    # opted into KRYON_RED_TEAM, and the tools are themselves double-gated
+    # (dry-run without KRYON_EXPLOIT_FIRE + fire=True).
+    if os.environ.get("KRYON_RED_TEAM", "").strip().lower() in ("1", "true", "yes"):
+        selected_names |= EXPLOIT_VALIDATION_TOOLS
     # RAG apagado salvo opt-in explícito: filtra las RAG tools aunque algún
     # playbook las pida en required_tools (apaga el RAG de forma central).
     if os.environ.get("KRYON_MEMORY", "").strip().lower() != "true":
