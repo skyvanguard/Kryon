@@ -43,6 +43,22 @@ RAG_TOOLS = {
     "query_memory",
 }
 
+# Exploit-confirmation tools (exploit_validator). They RUN the real exploit
+# tool (sqlmap/dalfox/commix/...) against the target when called — there is NO
+# dry-run gate inside the validator. Banking-safety therefore comes from only
+# OFFERING them under KRYON_RED_TEAM (the active-pentest profile, which already
+# requires written authorization — same contract as the hydra/fuzzing tools).
+# Before this they were registered but never selected (no skill listed them in
+# required_tools, not in ALWAYS_INCLUDE) → the agent never confirmed a finding
+# → the report's "Verificado por exploit" section was always empty.
+EXPLOIT_VALIDATION_TOOLS = {
+    "validate_sqli",
+    "validate_xss",
+    "validate_rce",
+    "validate_auth_bypass",
+    "validate_finding",
+}
+
 
 def build_tool_registry() -> dict[str, Any]:
     """Import ALL tools from toolsets and index them by name.
@@ -170,6 +186,12 @@ def build_tool_registry() -> dict[str, Any]:
             # responder (analyze-only default), bloodhound-python,
             # msfvenom. Todos requieren creds previas o hardware.
             "kryon.tools.lateral_movement.kali_redteam",
+            # D — web exploitation: file upload (CWE-434) + Java
+            # deserialization (CWE-502). The two attack classes that had no
+            # native tool (commix/sqlmap/dalfox already cover RCE/SQLi/XSS).
+            # Intrusive: benign-marker probe by default, aggressive run needs
+            # the per-tool fire env var too.
+            "kryon.tools.exploitation.web_exploit",
         ])
     for mod_path in _extra_tools:
         try:
@@ -208,6 +230,12 @@ def select_tools(
     """
     selected_names = set(ALWAYS_INCLUDE)
     selected_names.update(skill_tool_names)
+    # Active-pentest profile: offer exploit-confirmation tools so findings can
+    # be promoted ALLEGED → VERIFIED. These RUN the real exploit tool against
+    # the target, so they're offered ONLY under KRYON_RED_TEAM (off in the
+    # banking default; that profile already requires written authorization).
+    if os.environ.get("KRYON_RED_TEAM", "").strip().lower() in ("1", "true", "yes"):
+        selected_names |= EXPLOIT_VALIDATION_TOOLS
     # RAG apagado salvo opt-in explícito: filtra las RAG tools aunque algún
     # playbook las pida en required_tools (apaga el RAG de forma central).
     if os.environ.get("KRYON_MEMORY", "").strip().lower() != "true":

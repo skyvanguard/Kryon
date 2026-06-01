@@ -11,7 +11,11 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from kryon.skills.tool_budget import ALWAYS_INCLUDE, select_tools
+from kryon.skills.tool_budget import (
+    ALWAYS_INCLUDE,
+    EXPLOIT_VALIDATION_TOOLS,
+    select_tools,
+)
 
 
 def _fake_registry(names: list[str]) -> dict[str, object]:
@@ -54,3 +58,18 @@ def test_select_tools_never_exceeds_cap() -> None:
     registry = _fake_registry(list(ALWAYS_INCLUDE) + many)
     tools = select_tools(registry, set(many), max_tools=15)
     assert len(tools) <= 15
+
+
+def test_exploit_validators_offered_only_under_red_team(monkeypatch) -> None:
+    """Banca-safe: validate_* are selectable only when KRYON_RED_TEAM is set,
+    so findings can be promoted ALLEGED → VERIFIED in active engagements
+    without exposing exploit tools in the banking default."""
+    registry = _fake_registry(list(ALWAYS_INCLUDE) + list(EXPLOIT_VALIDATION_TOOLS))
+
+    monkeypatch.delenv("KRYON_RED_TEAM", raising=False)
+    names_off = {t.name for t in select_tools(registry, set(), max_tools=30)}
+    assert not (EXPLOIT_VALIDATION_TOOLS & names_off), "leaked into banking default"
+
+    monkeypatch.setenv("KRYON_RED_TEAM", "true")
+    names_on = {t.name for t in select_tools(registry, set(), max_tools=30)}
+    assert EXPLOIT_VALIDATION_TOOLS <= names_on, "not offered under red-team"

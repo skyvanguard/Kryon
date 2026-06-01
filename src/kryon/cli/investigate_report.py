@@ -30,6 +30,10 @@ _VALIDATION_TOOLS = (
     "validate_auth_bypass",
     "validate_finding",
     "validate_detection",
+    # D — web exploitation tools emit the same validation_status JSON, so a
+    # confirmed upload/deser surfaces in the "Verificado por exploit" section.
+    "exploit_file_upload",
+    "exploit_java_deserialization",
 )
 
 _REPORT_DIR = Path.home() / ".kryon" / "investigate"
@@ -93,6 +97,50 @@ def _validations_from_chain(chain: list[dict[str, Any]]) -> list[dict[str, str]]
     return out
 
 
+_THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+_BLANK_RUN_RE = re.compile(r"\n{3,}")
+
+
+def _clean_agent_output(output: str) -> str:
+    """Strip reasoning noise from the agent's final prose before it lands in
+    the ALEGADO section. Conservative — only removes explicit ``<think>``
+    chain-of-thought blocks, collapses long blank runs, and drops
+    consecutive duplicate lines (the model repeating itself). Never rewrites
+    substantive content."""
+    if not output:
+        return ""
+    text = _THINK_BLOCK_RE.sub("", output)
+    text = _BLANK_RUN_RE.sub("\n\n", text)
+    out_lines: list[str] = []
+    prev = None
+    for ln in text.split("\n"):
+        s = ln.strip()
+        if s and s == prev:
+            continue  # drop immediate repeat of the same line
+        out_lines.append(ln)
+        if s:
+            prev = s
+    return "\n".join(out_lines).strip()
+
+
+def _dedup_findings(findings: list[Any]) -> list[Any]:
+    """Drop duplicate deterministic findings (same CWE + host + message head).
+    Detectors run per-URL, so the same issue can surface more than once."""
+    seen: set[tuple[str, str, str]] = set()
+    out: list[Any] = []
+    for f in findings:
+        sig = (
+            str(getattr(f, "cwe", "") or ""),
+            str(getattr(f, "host", "") or ""),
+            (getattr(f, "message", "") or "")[:80],
+        )
+        if sig in seen:
+            continue
+        seen.add(sig)
+        out.append(f)
+    return out
+
+
 def build_investigate_report(
     *,
     prompt: str,
@@ -103,6 +151,8 @@ def build_investigate_report(
 ) -> str:
     """Render a markdown report separating verified vs alleged findings."""
     validations = _validations_from_chain(chain)
+    deterministic_findings = _dedup_findings(deterministic_findings)
+    output = _clean_agent_output(output)
     lines: list[str] = [
         "# Investigate report",
         "",
