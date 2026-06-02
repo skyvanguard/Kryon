@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**KRYON v2.1.0 "Hydra — Skillforge"** is an autonomous cybersecurity agent for the **financial services sector**. Python 3.10+, managed with `uv` (workspace member: `agents/`). License is **Proprietary** — do not reintroduce MIT references.
+**KRYON v2.1.0 "Hydra — Skillforge"** is a **general offensive autonomous cybersecurity agent** (pivoting from its original financial-services focus — banking/compliance capabilities still ship but are being deprioritized). Python 3.10+, managed with `uv` (workspace member: `agents/`). License is **Proprietary** — do not reintroduce MIT references.
 
-The architecture has evolved from 33 static Python agents (v1.x) to a **unified skill-based system** (v2.x): one agent called "Kryon" with **67 dynamic markdown playbooks** that load based on target profile and user intent. Focus is on **banking clients in LATAM/Paraguay** (BCP, SIB, Superintendencia de Bancos).
+The architecture is a **unified skill-based system** (v2.x): one agent called "Kryon" with **~106 dynamic markdown playbooks** that load based on target profile and user intent. The 33 static Python agents (v1.x) + the per-name factory + `/agent select` were **removed** — `get_agent_by_name(<any>)` now always returns the unified agent (see `agents/__init__.py`). Product direction is a **general offensive autonomous agent**; the banking/compliance surface (PCI/CIS skills, compliance frameworks) is still present but being deprioritized (a dedicated "offensive-pure" strip is pending — it would touch engage + reporting deeply, so it's its own effort).
 
 Entry point: `kryon = "kryon.cli:main"` (see `pyproject.toml`).
 
@@ -46,9 +46,9 @@ Top-level layout: `src/kryon/` (package), `tests/` (mirrors package layout), `do
 ### Skill system (`src/kryon/skills/`) — primary interface in v2.x
 
 - **`loader.py`** — `SkillLoader` scans `playbooks/` recursively, parses YAML frontmatter, matches by `triggers` (tech, ports, keywords) and user intent. Priority-based selection with token budget cap.
-- **`unified_agent.py`** — `create_unified_agent()` builds a single "Kryon" agent with composed prompt (base identity + matched skill bodies) and budget-selected tools (max 30 to fit 32K context).
-- **`tool_budget.py`** — Selects tools from the full registry based on active skills' `required_tools`.
-- **`playbooks/`** — 67 markdown files with YAML frontmatter, three subdirectories:
+- **`unified_agent.py`** — `create_unified_agent()` builds a single "Kryon" agent with composed prompt (base identity + matched skill bodies) and budget-selected tools (max 15 to keep schema tokens under control).
+- **`tool_budget.py`** — Selects tools from the full registry based on active skills' `required_tools`. `EXPLOIT_VALIDATION_TOOLS` are offered only under `KRYON_RED_TEAM`. The RAG retrieval tools + their exclude filter were removed (see RAG note below).
+- **`playbooks/`** — ~106 markdown files with YAML frontmatter, subdirectories:
   - **`(core)` 11 skills**: recon-scout, pentest, vuln-hunter, wordpress-audit, appsec, forensics, ctf-master, ssl-audit, server-hardening, safe-modification, rollback-recovery
   - **`imported/` 28 skills**: From `mukul975/Anthropic-Cybersecurity-Skills` (Apache 2.0, MITRE ATT&CK mapped). SQL injection, SSRF, JWT attacks, HTTP smuggling, AD attacks, cloud attacks, forensics, etc.
   - **`banking/` skills**: Custom for financial clients. pci-dss-audit, core-banking-assessment, mobile-banking-audit, atm-security, payment-gateway-testing, fraud-detection, swift-network-security, open-banking-api, cis-controls-v8.1.
@@ -87,7 +87,7 @@ Two execution modes:
   - CWE map override: `~/.kryon/cwe_map.yaml` (template at `docs/examples/cwe_map.yaml`) or `KRYON_CWE_MAP` env var.
 - **`services/`** — Context management. `micro_compact.py` (trim tool outputs ~85%), `session_memory.py` (Magic Doc auto-report), `auto_extract.py` (save experience on exit + auto-synth draft), `tool_output_cap.py` (save >5K outputs to disk).
 - **`sdk/`** — Agent runtime SDK (under `sdk/agents/`). Run loop, tool executor, MCP integration, model adapters. Most of `mypy` and coverage is focused here.
-- **`agents/`** — Legacy 33+ agents (still work for backward compat via `/agent select <name>`). In v2.x the default is `kryon` (unified).
+- **`agents/`** — Unified-only. The 33 legacy per-name agents + `factory.py` + `mixins/` were **removed**; `get_agent_by_name(<any-name>)` returns the unified Kryon agent (skills subsume the static agents). Remaining files are SUPPORT only: `base.py` (model factory + `chat_model_cls`), `toolsets.py`, `guardrails.py`, `lazy_handoff.py`, `scope.py`, `tool_restrictions.py`, `network_policy.py`, `codeagent.py`. `/agent select` now resolves to unified.
 - **`tools/`** — 204+ tool implementations by kill-chain category. Agents bind to categories/tools rather than individual files.
 - **`server/`** — FastAPI application (`app.py`) with `routes/`, `auth/`, `middleware/`, JWT/RBAC. 136 endpoints.
 - **`repl/` + `tui/` + `cli/`** — User interfaces. CLI is `kryon` entry point. Commands in `repl/commands/`:
@@ -119,24 +119,33 @@ Two execution modes:
   `KRYON_MODEL=Kryon-MOE-35B`, `KRYON_LOCAL_LLM=true`) **pisa** a
   `.env.docker`. Modelos secundarios (triage/narrator/RAG) caen al principal.
 
-- **Tool-calling local**: muchos fixes en
-  `sdk/agents/models/openai_chatcompletions.py` (normalización de nombres,
-  tolerancia a alucinación, schema fix, `tool_choice` forcing). El MoE emite
-  `tool_calls` nativos vía `--jinja`; el fallback JSON-in-content queda como
-  red de seguridad, activado por `KRYON_LOCAL_LLM=true` (reemplaza al viejo
-  flag `OLLAMA`; también habilita el usage-patch de litellm). `KRYON_FORCE_TOOL_TURNS=8`
-  fuerza tool-use los primeros N turnos. `is_reasoning_model()` (marker `moe`)
-  auto-sube el cap de turnos por fase 5→8 (`tools/autonomous/pentest_planner.py`,
-  override `KRYON_PHASE_TURNS`).
+- **Model layer — native AsyncOpenAI is the DEFAULT (no litellm)**: el runtime
+  es 100% OpenAI-compatible (Qwen local + DeepSeek), así que el modelo default
+  es `sdk/agents/models/openai_native.py` (`OpenAINativeModel`), que llama al
+  cliente `openai` directo — sin el branching per-provider/drop_params/prefijo
+  `openai/` de litellm. `agents/base.chat_model_cls()` lo selecciona;
+  `KRYON_USE_LITELLM=true` es el escape-hatch que restaura el modelo litellm
+  (`openai_chatcompletions.py`, ahora no-default). El tracing del SDK ya **no
+  llama a casa** (no postea a OpenAI con endpoints locales/keys placeholder).
 
-- **RAG / embeddings APAGADO**: el RAG estaba infrautilizado (corpus 94%
-  duplicado, `query_knowledge_base` con 0 llamadas reales, queries devolvían
-  ruido). Las tools `query_knowledge_base` / `search_vulnerabilities` /
-  `recall_similar_experiences` se quitaron de `ALWAYS_INCLUDE`
-  (`skills/tool_budget.py`); `KRYON_MEMORY` y `KRYON_AUTO_UPDATE` en `false`.
-  Sin `KRYON_EMBEDDING_BASE_URL` no hay dependencia de Ollama. `embeddings.py`
-  puede correr 100% local con `sentence-transformers` (MiniLM 384-dim) si se
-  reactiva — implicaría re-indexar (nomic era 768-dim).
+- **Tool-calling local**: el MoE emite `tool_calls` nativos vía `--jinja`
+  (validado en vivo por ambos modelos). `KRYON_LOCAL_LLM=true` activa parsers
+  robustos. `KRYON_FORCE_TOOL_TURNS=8` fuerza tool-use los primeros N turnos.
+  `is_reasoning_model()` (marker `moe`) auto-sube el cap de turnos por fase
+  5→8 (`tools/autonomous/pentest_planner.py`, override `KRYON_PHASE_TURNS`).
+  El modelo litellm (escape-hatch) conserva los parsers tolerantes + el
+  fallback JSON-in-content como red de seguridad.
+
+- **RAG retrieval REMOVIDO**: el corpus RAG estaba infrautilizado (94%
+  duplicado, `query_knowledge_base` con 0 llamadas reales). Las tools de
+  retrieval (`query_knowledge_base`, `search_vulnerabilities`,
+  `recall_similar_experiences`, `query_similar_findings`, `query_memory`,
+  `add_to_memory_*`) + sus archivos (`tools/knowledge/rag_tools.py`,
+  `tools/misc/rag.py`) + el filtro `RAG_TOOLS` de `tool_budget` fueron
+  **borrados**. **Se MANTIENE** el paquete `knowledge/` (tiene piezas vivas:
+  `exploitdb_scraper`→cve_enrichment, `cve_corpus`→zero-day hunter + `/corpus`,
+  `datasets`→cve_correlator) y el ChromaDB del learning-store (persistencia
+  de experiences/findings; gated por `KRYON_EMBEDDING_BASE_URL`).
 
 - **CVE hallucination guard + applicability gates**: `kryon update-cve-cache
   --all` puebla `~/.kryon/nvd_cache/cves.txt`; con `KRYON_CVE_CACHE_REQUIRED=true`
@@ -169,6 +178,17 @@ Two execution modes:
 - **Tests mirror the package**: `tests/<subsystem>/...`. Top-level integration/smoke tests exist too.
 
 ### Configuration
+
+**Central config (`kryon/config/settings.py`)**: `KryonSettings` (frozen
+dataclass) is the single source of truth for the core config (model, LLM
+endpoint, agent/exec profile, timeouts, paths). Read it via
+`from kryon.config import settings; settings()` instead of re-deriving
+`os.getenv(..., "<default>")` defaults — that duplication caused drift.
+`settings(refresh=True)` re-reads env (CLI sets env from args before building
+the agent). Run **`kryon config`** to dump the effective config (API key
+masked). Migration is incremental: `agents/base.get_default_model` already
+reads it; other call sites adopt it over time. Feature-specific flags (fire
+gates, nmap timing) stay where they're read.
 
 Runtime config via env vars (see `docker/.env.docker`):
 
