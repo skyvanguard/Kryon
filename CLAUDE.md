@@ -107,14 +107,19 @@ Two execution modes:
 
 - **Runtime — llama.cpp local (no Ollama)**: el LLM principal corre en el
   servicio `llama-server` (`ghcr.io/ggml-org/llama.cpp:server-cuda`) del
-  `docker/docker-compose.kali.yml`, sirviendo **`Kryon-MOE-35B`**
-  (Qwen3.6-35B-A3B MoE, UD-Q4_K_XL, 21 GB). Flags clave (compose real):
-  `--n-cpu-moe 30 -ngl 99 -fa on -c 40960` (30 capas de expertos→CPU, resto +
-  attention→GPU ≈ **~7.8 GB VRAM** de 12, con KV cache q4_0), `-n 2000` (tope
-  de generación — ver nota de performance abajo), `--jinja` (tool-calling
-  OpenAI-compat, validado end-to-end con tool calls reales), `--temp 0.3`
-  (banca-safe). El GGUF se reusa del volume externo `hermes-llamacpp-cache`
-  (`:ro`). **Solo un llama-server a la vez en 12 GB VRAM** — parar el
+  `docker/docker-compose.kali.yml`. **Modelo default: `gpt-oss-20b`** (OpenAI
+  open MoE, 21B-A3.6B, MXFP4, 11.3 GB) — reemplazó al Qwen3.6-35B-A3B porque en
+  el bench SAST CyberGym dio **1/3** (detección tool-driven real de Log4Shell
+  CWE-502) vs **0/3** del 35B (que loopea `run_command` sin progresar). Para un
+  agente ofensivo agentic, la confiabilidad de tool-use le gana al score de
+  code-completion. Se sirve bajo el **alias `Kryon-MOE-35B`** (`-a`) para que el
+  resto del stack (`KRYON_MODEL`, el turn-bump de reasoning-model "moe", el parser
+  Harmony content-based F162) siga andando sin cambios. Flags (compose real):
+  `--n-cpu-moe 12 -ngl 99 -fa on -c 40960 -n 2000 --temp 0.3 --jinja`
+  (≈ **8.4 GB VRAM** de 12, ~3.5 GB headroom, ~27 tok/s). El GGUF del 35B
+  (`qwen36-35b-a3b-q4kxl.gguf`) sigue en el volume para A/B benching — flipear
+  `-m` lo reactiva (con `--n-cpu-moe 26 -c 24576`, ~42 tok/s, ver historial). El
+  GGUF se reusa del volume externo `hermes-llamacpp-cache` (`:ro`). **Solo un llama-server a la vez en 12 GB VRAM** — parar el
   contenedor externo `hermes-llamacpp` (proyecto hermes-agent, mismo GGUF)
   si está activo, o habrá OOM. Config efectiva: el bloque `environment:`
   del compose (`OPENAI_BASE_URL=http://llama-server:8080/v1`,
