@@ -1737,6 +1737,19 @@ async def run_with_reflection(
             {"role": "user", "content": reflection_msg}
         ]
 
+    # If NO chunk ever returned a clean result (run ended on the wall budget, or
+    # every chunk hit MaxTurns mid-flight), last_result is None — but the agent
+    # may well have run tools (captured by the hooks). Build a minimal carrier so
+    # the report reflects that activity instead of "Tool calls: 0". Same shape as
+    # the StuckError finalize path; final_output stays "" (the agent genuinely
+    # didn't produce a final summary).
+    if last_result is None:
+        _captured_final = capture_hooks.to_chain()
+        if _captured_final or accumulated_items:
+            from types import SimpleNamespace
+
+            last_result = SimpleNamespace(final_output="", new_items=accumulated_items)
+
     # F203.H — final return: patch accumulated_items onto last_result so
     # downstream consumers see the full history even when exiting via the
     # max_total_turns budget (not just early-finish path).

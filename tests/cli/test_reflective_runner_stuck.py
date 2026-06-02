@@ -80,3 +80,40 @@ async def test_stuck_error_preserves_prior_final_output(monkeypatch):
     final = getattr(result, "final_output", "") or ""
     assert "found endpoint /rest/products" in final
     assert "loop irrecuperable" in final.lower()
+
+
+async def test_no_clean_result_still_reports_captured_tools(monkeypatch):
+    """Wall-budget / all-MaxTurns end with no clean chunk result → last_result
+    is None, but the agent DID run tools (captured by hooks). The runner must
+    build a carrier so the report shows the tool activity, not 'Tool calls: 0'.
+    """
+    import kryon.sdk.agents.run as run_mod
+
+    class _MaxTurnsExceeded(Exception):
+        pass
+
+    class _ToolThenMaxTurns:
+        @staticmethod
+        async def run(agent, **kwargs):  # noqa: ARG004
+            hooks = kwargs.get("hooks")
+            if hooks is not None:
+                tool = SimpleNamespace(name="web_fetch_smart")
+                await hooks.on_tool_start(None, agent, tool)
+                await hooks.on_tool_end(None, agent, tool, "HTTP 200 OK")
+            raise _MaxTurnsExceeded("chunk budget exhausted")
+
+    monkeypatch.setattr(run_mod, "Runner", _ToolThenMaxTurns)
+
+    from kryon.cli.reflective_runner import run_with_reflection
+
+    result = await run_with_reflection(
+        SimpleNamespace(name="kryon"),
+        initial_input="audita https://t.example",
+        reflect_every=4,
+        max_total_turns=4,
+    )
+    assert result is not None, "must build a carrier when tools ran but no clean result"
+    chain = getattr(result, "_captured_chain", []) or []
+    assert any(step.get("tool") == "web_fetch_smart" for step in chain), (
+        f"captured tool activity must be reported, got chain={chain}"
+    )
