@@ -6,6 +6,7 @@ import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from kryon.sdk.agents.run_outcome import classify_run_exception
 from kryon.server.auth import require_api_key
 from kryon.server.exceptions import not_found
 from kryon.server.logging_config import get_logger
@@ -90,9 +91,17 @@ async def create_run(req: RunRequest):
             except asyncio.CancelledError:
                 run_state.status = "cancelled"
             except Exception as exc:
-                logger.error("Agent execution failed: %s", exc, exc_info=True)
-                run_state.status = "failed"
-                run_state.output = "Agent execution failed"
+                outcome = classify_run_exception(exc)
+                if outcome is None:
+                    logger.error("Agent execution failed: %s", exc, exc_info=True)
+                    run_state.status = "failed"
+                    run_state.output = "Agent execution failed"
+                else:
+                    # Graceful early stop (stuck / max-turns / budget): deliver
+                    # the partial note, not a hard failure — mirrors the CLI.
+                    logger.warning("Agent stream ended early (%s): %s", outcome.status, exc)
+                    run_state.status = outcome.status
+                    run_state.output = outcome.message
 
         run_state.task = asyncio.create_task(_run_streamed())
 
@@ -110,11 +119,31 @@ async def create_run(req: RunRequest):
     try:
         async with sm.semaphore:
             result = await Runner.run(agent, input=input_items, max_turns=req.max_turns, run_config=get_run_config())
-    except Exception:
-        run_state.status = "failed"
-        run_state.output = "Agent execution failed"
-        logger.exception("Agent run failed: run_id=%s agent=%s", run_state.run_id, req.agent_key)
-        raise HTTPException(status_code=500, detail="Agent run failed due to an internal error")
+    except Exception as exc:
+        outcome = classify_run_exception(exc)
+        if outcome is None:
+            # Genuine crash — keep the opaque 500 (don't leak internals).
+            run_state.status = "failed"
+            run_state.output = "Agent execution failed"
+            logger.exception("Agent run failed: run_id=%s agent=%s", run_state.run_id, req.agent_key)
+            raise HTTPException(status_code=500, detail="Agent run failed due to an internal error") from exc
+        # Graceful early stop (stuck / max-turns / budget) is NOT a server
+        # error. Return 200 with a structured partial status, mirroring the
+        # CLI investigate / reflective-runner partial-report behaviour.
+        logger.warning(
+            "Agent run ended early (%s): run_id=%s agent=%s",
+            outcome.status,
+            run_state.run_id,
+            req.agent_key,
+        )
+        run_state.status = outcome.status
+        run_state.output = outcome.message
+        return RunResponse(
+            run_id=run_state.run_id,
+            status=outcome.status,
+            output=outcome.message,
+            agent=req.agent_key,
+        )
 
     run_state.status = "completed"
     output = result.final_output or ""
@@ -156,7 +185,11 @@ async def stream_run(run_id: str):
                 yield run.events[idx]["sse"]
                 idx += 1
 
-            if run.status in ("completed", "failed", "cancelled"):
+            # "stuck" / "incomplete" / "budget_exceeded" are graceful partial
+            # stops — terminal, but delivered as a normal done-event carrying
+            # the partial note (not an error). Without them here the stream
+            # would loop forever waiting for a status that never comes.
+            if run.status in ("completed", "failed", "cancelled", "stuck", "incomplete", "budget_exceeded"):
                 if run.status == "failed":
                     yield error_event(run.output)
                 else:

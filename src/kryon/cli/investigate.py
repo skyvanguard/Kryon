@@ -566,13 +566,18 @@ def run_investigate(args: argparse.Namespace) -> int:
         # findings" run. The reflective runner finalizes StuckError
         # gracefully (so it rarely reaches here), but the non-reflective
         # Runner.run path and any unexpected crash land here as a net.
+        from kryon.sdk.agents.run_outcome import classify_run_exception
+
         ename = type(e).__name__
         console.print(
             f"[yellow]agent run ended early ({ename}: {e}) — "
             f"emitting partial report[/yellow]"
         )
         result = None
-        agent_error = f"{ename}: {e}"
+        # Use the shared classifier so the partial-report wording for
+        # stuck / max-turns / budget matches the reflective runner + REST route.
+        _outcome = classify_run_exception(e)
+        agent_error = _outcome.message if _outcome is not None else f"{ename}: {e}"
 
     output = getattr(result, "final_output", None) or ""
     if agent_error and not output:
