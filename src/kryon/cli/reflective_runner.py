@@ -1075,10 +1075,22 @@ async def run_with_reflection(
     # Per-chunk timeout. The wall budget only checks BETWEEN chunks, so a single
     # hung chunk (stuck tool or a tight loop in the agent step) never returns and
     # the loop never terminates. wait_for around each chunk guarantees progress.
+    #
+    # IMPORTANT: this exists to break GENUINELY hung chunks, NOT slow-but-working
+    # generation. The local MoE (~1 tok/s) legitimately takes minutes per chunk,
+    # so the old 180s default false-positived — it killed the run after 2 chunk
+    # timeouts before the model produced ANY output (observed live). So: default
+    # generous for local LLMs, and never fire before the wall budget (the real
+    # overall guard). Operators still override via KRYON_CHUNK_TIMEOUT_S.
+    _is_local_llm = os.environ.get("KRYON_LOCAL_LLM", "").strip().lower() in ("1", "true", "yes")
+    _default_chunk_timeout = 900.0 if _is_local_llm else 180.0
     try:
-        _chunk_timeout_s = float(os.environ.get("KRYON_CHUNK_TIMEOUT_S") or 180)
+        _chunk_timeout_s = float(os.environ.get("KRYON_CHUNK_TIMEOUT_S") or _default_chunk_timeout)
     except ValueError:
-        _chunk_timeout_s = 180.0
+        _chunk_timeout_s = _default_chunk_timeout
+    if _wall_budget_s > 0:
+        # The wall budget bounds the whole run; the chunk timeout must not pre-empt it.
+        _chunk_timeout_s = max(_chunk_timeout_s, _wall_budget_s)
     _chunk_timeouts = 0
     _MAX_CHUNK_TIMEOUTS = 2
 
