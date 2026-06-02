@@ -11,7 +11,6 @@ import subprocess
 import threading
 from functools import lru_cache
 
-import requests  # pylint: disable=import-error
 from prompt_toolkit.formatted_text import HTML  # pylint: disable=import-error
 
 # Variable to track when to refresh the toolbar
@@ -69,7 +68,7 @@ def _get_kryon_state_str(compact: bool = False) -> str:
             get_active_skill_names,
             get_tool_count,
         )
-        from kryon.repl.ui.status_line import _cached, _count_drafts, _ollama_healthy
+        from kryon.repl.ui.status_line import _cached, _count_drafts
     except Exception:  # pragma: no cover
         return ""
 
@@ -93,16 +92,6 @@ def _get_kryon_state_str(compact: bool = False) -> str:
         if n:
             text_ = f"📝 {n}" if compact else f"<b>📝 Drafts:</b> {n}"
             parts.append(f"<ansimagenta>{text_}</ansimagenta>")
-    except Exception:  # pragma: no cover
-        pass
-
-    # Ollama health — green ✓ / red ✗.
-    try:
-        healthy = _cached("ollama", _ollama_healthy)
-        if healthy:
-            parts.append("<ansigreen>ollama ✓</ansigreen>")
-        else:
-            parts.append("<ansired>ollama ✗</ansired>")
     except Exception:  # pragma: no cover
         pass
 
@@ -138,23 +127,6 @@ def update_toolbar_in_background():
             active_env_name, active_env_icon, active_env_color = get_container_info(container_id)
         else:
             active_env_name, active_env_icon, active_env_color = "Host System", "💻", "ansiblue"
-
-        # Get Ollama information
-        try:
-            # Get Ollama models with a short timeout to prevent hanging
-            api_base = os.getenv("OLLAMA_API_BASE", os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1"))
-            response = requests.get(f"{api_base.replace('/v1', '')}/api/tags", timeout=0.5)
-
-            if response.status_code == 200:
-                data = response.json()
-                if "models" in data:
-                    len(data["models"])
-                else:
-                    # Fallback for older Ollama versions
-                    len(data.get("items", []))
-        except Exception:  # pylint: disable=broad-except
-            # Silently fail if Ollama is not available
-            pass
 
         # Get current time for the toolbar refresh indicator
         current_time = datetime.datetime.now().strftime("%H:%M")

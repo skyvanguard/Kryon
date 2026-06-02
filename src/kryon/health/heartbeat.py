@@ -132,26 +132,6 @@ def _check_heartbeat(threshold_minutes: int) -> HealthCheckResult:
     return HealthCheckResult(name="heartbeat", ok=True, detail=record.timestamp)
 
 
-def _check_ollama_reachable() -> HealthCheckResult:
-    """Probe the *embeddings* endpoint (``KRYON_EMBEDDING_BASE_URL`` →
-    Ollama ``/api/tags``). The main LLM moved to llama-server (see
-    ``_check_llm_reachable``); Ollama now only serves embeddings.
-    Best-effort — degraded reachability shouldn't crash doctor."""
-    host = os.environ.get("KRYON_EMBEDDING_BASE_URL", "").strip()
-    if not host:
-        host = os.environ.get("OLLAMA_HOST", "http://localhost:11434").strip()
-    if not host.startswith("http"):
-        host = f"http://{host}"
-    url = host.rstrip("/") + "/api/tags"
-    try:
-        req = urllib.request.Request(url, method="GET")
-        with urllib.request.urlopen(req, timeout=3) as resp:
-            ok = 200 <= resp.status < 300
-            return HealthCheckResult(name="ollama(embeddings)", ok=ok, detail=f"{url} → {resp.status}")
-    except (urllib.error.URLError, urllib.error.HTTPError, OSError) as exc:
-        return HealthCheckResult(name="ollama(embeddings)", ok=False, detail=f"{url}: {exc}")
-
-
 def _check_llm_reachable() -> HealthCheckResult:
     """Probe the main LLM endpoint (``OPENAI_BASE_URL`` → ``/v1/models``).
     Works for llama-server, Ollama's ``/v1`` shim and any OpenAI-compatible
@@ -187,7 +167,6 @@ def _check_env(env_var: str, *, expected: str = "") -> HealthCheckResult:
 def run_doctor(
     *,
     heartbeat_threshold_minutes: int = 10,
-    check_ollama: bool = True,
 ) -> list[HealthCheckResult]:
     """Run every diagnostic. Returns ordered list of results. Caller
     decides exit code based on ``ok=False`` count."""
@@ -209,10 +188,6 @@ def run_doctor(
 
     # F177 — CVE cache health.
     checks.append(_check_cve_cache())
-
-    # External dependencies (optional).
-    if check_ollama:
-        checks.append(_check_ollama_reachable())
 
     return checks
 

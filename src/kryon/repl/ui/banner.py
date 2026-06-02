@@ -101,21 +101,6 @@ def get_supported_models_count():
                 1 for model_info in model_data.values() if model_info.get("supports_function_calling", False)
             )
 
-            # Try to get Ollama models count
-            try:
-                ollama_api_base = os.getenv(
-                    "OLLAMA_API_BASE", os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
-                )
-                ollama_response = requests.get(f"{ollama_api_base.replace('/v1', '')}/api/tags", timeout=1)
-
-                if ollama_response.status_code == 200:
-                    ollama_data = ollama_response.json()
-                    ollama_models = len(ollama_data.get("models", ollama_data.get("items", [])))
-                    return function_calling_models + ollama_models
-            except Exception:  # pylint: disable=broad-except
-                logging.debug("Could not fetch Ollama models")
-                # Continue without Ollama models
-
             return function_calling_models
     except Exception:  # pylint: disable=broad-except
         logging.warning("Could not fetch model data from LiteLLM")
@@ -168,14 +153,14 @@ def _external_llm_warning() -> list:
     routed to a third-party endpoint (DeepSeek, OpenAI, OpenRouter, etc).
 
     Returns a list of (text, style) tuples ready to be spread into a
-    Text.assemble() call. Empty list when running against local Ollama
-    or no configured endpoint — no warning needed.
+    Text.assemble() call. Empty list when running against a local
+    endpoint (llama-server) or no configured endpoint — no warning needed.
     """
     base_url = os.getenv("OPENAI_BASE_URL", "").lower()
     if not base_url:
         return []
     # Local endpoints don't warrant a warning
-    if any(local in base_url for local in ("localhost", "127.0.0.1", "ollama", "11434")):
+    if any(local in base_url for local in ("localhost", "127.0.0.1", "11434")):
         return []
     # Anything else is external — warn loudly
     return [
@@ -538,15 +523,6 @@ def display_quick_guide(console: Console):
         ("• Use $ prefix for quick shell: $ ls\n", "dim"),
     )
 
-    # Create additional tips panels
-    Panel(
-        "To use Ollama models, configure OLLAMA_API_BASE\nbefore startup.\n\nDefault: localhost:11434/v1",
-        title="[bold yellow]Ollama Configuration[/bold yellow]",
-        border_style="yellow",
-        padding=(1, 2),
-        title_align="center",
-    )
-
     # Simplified privacy notice
     Text.assemble(
         (
@@ -577,7 +553,6 @@ def display_quick_guide(console: Console):
         title_align="center",
     )
     # Combine tips into a group
-    # tips_group = Group(ollama_tip, context_tip, privacy_notice)
     tips_group = Group(context_tip)
 
     # Create a three-column panel layout

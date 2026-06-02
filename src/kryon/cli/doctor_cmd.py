@@ -8,8 +8,7 @@ import sys
 
 
 def add_doctor_subparser(subparsers) -> argparse.ArgumentParser:
-    p = subparsers.add_parser("doctor", help="F142 — Health check Kryon (dirs, env, LLM, embeddings, heartbeat)")
-    p.add_argument("--no-ollama", action="store_true", help="Skip embeddings (Ollama) probe")
+    p = subparsers.add_parser("doctor", help="F142 — Health check Kryon (dirs, env, LLM, heartbeat)")
     p.add_argument("--heartbeat-threshold", type=int, default=10, help="Stale threshold in minutes")
     p.add_argument("--format", choices=("table", "json"), default="table")
     p.add_argument("--fail-on-stale", action="store_true", help="Exit non-zero if any check fails")
@@ -26,7 +25,6 @@ def run_doctor_command(args) -> int:
 
     results = run_doctor(
         heartbeat_threshold_minutes=args.heartbeat_threshold,
-        check_ollama=not args.no_ollama,
     )
     if args.format == "json":
         print(json.dumps([r.to_dict() for r in results], indent=2, ensure_ascii=False))

@@ -551,8 +551,7 @@ class HelpCommand(Command):
         console.print("• Fast inference models for quick responses")
         console.print("• Reasoning models for complex analysis")
         console.print("• Code-specialized models for development")
-        console.print("• Local models via Ollama")
-        console.print("• Multi-provider access through aggregators")
+        console.print("• Local model (Qwen MoE) via llama-server, plus DeepSeek")
 
         # Notes panel
         notes = [
@@ -561,7 +560,6 @@ class HelpCommand(Command):
             "Each provider requires its API key following the pattern: PROVIDER_API_KEY",
             "Use /config to see which API keys are configured",
             "Use /quickstart to check your API key setup",
-            "Local models via Ollama require local installation",
         ]
 
         console.print(create_notes_panel(notes))

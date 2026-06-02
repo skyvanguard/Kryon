@@ -16,7 +16,7 @@ Usage:
     from kryon.repl.ui.theme import accent, ok, severity
 
     console.print(f"{accent('◆ skills:')} {skill_names}")
-    console.print(f"  {ok('ollama')} healthy")
+    console.print(f"  {ok('llm')} reachable")
     console.print(severity("21 findings", "CRITICAL"))
 
 Design notes:

@@ -60,7 +60,7 @@ def build_app():
         _auth_or_raise(x_api_token)
         from kryon.health import run_doctor
 
-        results = run_doctor(check_ollama=False)
+        results = run_doctor()
         return {
             "ok": all(r.ok for r in results),
             "checks": [r.to_dict() for r in results],

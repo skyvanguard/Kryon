@@ -2,8 +2,8 @@
 
 Renders a single-line summary of agent + system state at the start of
 each turn. Composable, resilient, and never crashes the REPL — every
-optional component (chromadb-backed draft count, ollama health) wrapped
-in its own try/except.
+optional component (draft count, last experience) wrapped in its own
+try/except.
 """
 
 from __future__ import annotations
@@ -144,43 +144,6 @@ def test_drafts_count_failure_does_not_crash(monkeypatch: pytest.MonkeyPatch) ->
     assert "draft" not in out.lower()  # gracefully omitted
 
 
-# ---------- Ollama health ----------
-
-
-def test_ollama_ok_shows_check_mark(monkeypatch: pytest.MonkeyPatch) -> None:
-    from kryon.repl.ui import status_line
-
-    monkeypatch.setattr(status_line, "_ollama_healthy", lambda: True)
-    agent = _FakeAgent(skills=[_FakeSkill("x")], tools=[])
-    out = _render(agent)
-    assert "ollama" in out.lower()
-
-
-def test_ollama_down_shows_warning(monkeypatch: pytest.MonkeyPatch) -> None:
-    from kryon.repl.ui import status_line
-
-    monkeypatch.setattr(status_line, "_ollama_healthy", lambda: False)
-    agent = _FakeAgent(skills=[_FakeSkill("x")], tools=[])
-    out = _render(agent)
-    # Down state is communicated somehow.
-    assert "ollama" in out.lower()
-    # Either ✗ or "down" or red marker — assertion-level just confirms
-    # ollama is mentioned. Specific style asserted in theme tests.
-
-
-def test_ollama_check_failure_does_not_crash(monkeypatch: pytest.MonkeyPatch) -> None:
-    from kryon.repl.ui import status_line
-
-    def boom() -> bool:
-        raise ConnectionError("network down")
-
-    monkeypatch.setattr(status_line, "_ollama_healthy", boom)
-    agent = _FakeAgent(skills=[_FakeSkill("x")], tools=[])
-    # Should not raise — degrades to silent omission.
-    out = _render(agent)
-    assert out.strip() != ""
-
-
 # ---------- Last experience ----------
 
 
@@ -215,7 +178,6 @@ def test_renders_single_line(monkeypatch: pytest.MonkeyPatch) -> None:
     from kryon.repl.ui import status_line
 
     monkeypatch.setattr(status_line, "_count_drafts", lambda: 0)
-    monkeypatch.setattr(status_line, "_ollama_healthy", lambda: True)
     monkeypatch.setattr(status_line, "_last_experience_id", lambda: None)
 
     agent = _FakeAgent(
@@ -237,7 +199,6 @@ def test_uses_palette_b_cyan_accent(monkeypatch: pytest.MonkeyPatch) -> None:
     from kryon.repl.ui.status_line import render_status_line
 
     monkeypatch.setattr(status_line, "_count_drafts", lambda: 0)
-    monkeypatch.setattr(status_line, "_ollama_healthy", lambda: True)
     monkeypatch.setattr(status_line, "_last_experience_id", lambda: None)
 
     buf = StringIO()

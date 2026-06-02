@@ -74,35 +74,6 @@ class QuickstartCommand(Command):
         except Exception as e:
             return False, f"❌ Error: {str(e)}"
 
-    def check_ollama_models(self) -> list[str]:
-        """Check available Ollama models."""
-        try:
-            import httpx
-
-            with httpx.Client(timeout=2.0) as client:
-                response = client.get("http://localhost:11434/api/tags")
-                if response.status_code == 200:
-                    data = response.json()
-                    return [model["name"] for model in data.get("models", [])]
-        except ImportError:
-            # Fallback if httpx not available
-            try:
-                import json
-                import urllib.request
-
-                # nosemgrep: dynamic-urllib-use-detected
-                with urllib.request.urlopen(
-                    "http://localhost:11434/api/tags", timeout=2
-                ) as response:  # nosemgrep: dynamic-urllib-use-detected
-                    if response.status == 200:
-                        data = json.loads(response.read())
-                        return [model["name"] for model in data.get("models", [])]
-            except Exception:
-                pass
-        except Exception:
-            pass
-        return []
-
     def get_provider_name(self, api_key: str) -> str:
         """Get a formatted provider name from API key name.
 
@@ -215,47 +186,8 @@ class QuickstartCommand(Command):
                 )
             )
 
-        # Step 2: Local Models (Ollama)
-        console.print("\n[bold yellow]🖥️  Step 2: Local Models (Optional)[/bold yellow]\n")
-        console.print("For local model support, KRYON can use Ollama:")
-
-        # Check Ollama endpoints
-        ollama_table = Table(show_header=True, header_style="bold")
-        ollama_table.add_column("Endpoint", style="cyan")
-        ollama_table.add_column("Status", style="green")
-        ollama_table.add_column("Models", style="yellow")
-
-        # Check standard Ollama port
-        is_accessible, status = self.check_local_endpoint("http://localhost:11434")
-        models = self.check_ollama_models() if is_accessible else []
-        model_str = f"{len(models)} models" if models else "N/A"
-        ollama_table.add_row("http://localhost:11434", status, model_str)
-
-        # Check Docker internal
-        is_docker_accessible, docker_status = self.check_local_endpoint("http://host.docker.internal:11434")
-        ollama_table.add_row("http://host.docker.internal:11434", docker_status, "Docker access")
-
-        console.print(ollama_table)
-
-        if is_accessible and models:
-            console.print(f"\n[green]Available Ollama models:[/green] {', '.join(models[:5])}")
-            if len(models) > 5:
-                console.print(f"[dim]... and {len(models) - 5} more[/dim]")
-
-        console.print(
-            Panel(
-                "[cyan]To use Ollama:[/cyan]\n"
-                "1. Install: [yellow]curl -fsSL https://ollama.com/install.sh | sh[/yellow]\n"
-                "2. Pull a model: [yellow]ollama pull llama3.1[/yellow]\n"
-                "3. Set in .env: "
-                "[yellow]OLLAMA_API_BASE='http://127.0.0.1:11434/v1'[/yellow]\n"
-                "4. Use in KRYON: [yellow]/model llama3.1[/yellow]",
-                border_style="cyan",
-            )
-        )
-
-        # Step 3: Choose Your Model
-        console.print("\n[bold yellow]🤖 Step 3: Choose Your Model[/bold yellow]\n")
+        # Step 2: Choose Your Model
+        console.print("\n[bold yellow]🤖 Step 2: Choose Your Model[/bold yellow]\n")
 
         # Check which API keys are available
         has_api_keys = any(api_keys.values())
