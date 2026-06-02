@@ -48,6 +48,10 @@ services:
       - KRYON_GUARDRAILS=${KRYON_GUARDRAILS:-true}
       - KRYON_MAX_TURNS=${KRYON_MAX_TURNS:-50}
       - KRYON_STREAM=${KRYON_STREAM:-false}
+      # Sub-agent delegation (Phase 1): when true, the unified agent gets a
+      # focused SAST specialist it can delegate to via as_tool (isolated
+      # context). Off by default — banca-safe; off == prior behavior.
+      - KRYON_SUBAGENTS=${KRYON_SUBAGENTS:-false}
       # RAG apagado — auto-updater desactivado (ya no se siembra el corpus).
       - KRYON_AUTO_UPDATE=${KRYON_AUTO_UPDATE:-false}
       # Claude Code CLI backend — configured in .env.docker
