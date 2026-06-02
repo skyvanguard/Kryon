@@ -219,6 +219,32 @@ async def test_native_fetch_logs_when_fix_message_list_fails(monkeypatch, caplog
     assert "fix_message_list failed (native path)" in caplog.text
 
 
+async def test_native_forwards_reasoning_effort():
+    """The native path must forward reasoning_effort (F184/KRYON_REASONING_EFFORT)
+    — it was silently dropped, making the knob a no-op on the default backend."""
+    from kryon.sdk.agents.models.openai_native import OpenAINativeModel
+
+    create = AsyncMock(return_value=SimpleNamespace(choices=[], usage=None))
+    client = MagicMock()
+    client.chat.completions.create = create
+    model = OpenAINativeModel(model="gpt-oss-20b", openai_client=client)
+    ms = _model_settings()
+    ms.reasoning_effort = "high"
+
+    await model._fetch_response(
+        system_instructions=None,
+        input="hi",
+        model_settings=ms,
+        tools=[],
+        output_schema=None,
+        handoffs=[],
+        span=None,
+        tracing=SimpleNamespace(include_data=lambda: False),
+        stream=False,
+    )
+    assert create.await_args.kwargs.get("reasoning_effort") == "high"
+
+
 async def test_native_fetch_stream_returns_response_tuple():
     from kryon.sdk.agents.models.openai_native import OpenAINativeModel
 
