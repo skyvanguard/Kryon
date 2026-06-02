@@ -9,7 +9,7 @@ from typing import Callable
 
 from openai import AsyncOpenAI
 
-from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel
+from kryon.sdk.agents import Agent
 
 
 def create_generic_agent_factory(
@@ -59,7 +59,9 @@ def create_generic_agent_factory(
 
         # Create a new model instance with the original agent name
         # Custom name is only for display purposes, not for the model
-        new_model = OpenAIChatCompletionsModel(
+        from kryon.agents.base import chat_model_cls
+
+        new_model = chat_model_cls()(
             model=model_name,
             openai_client=AsyncOpenAI(api_key=api_key, base_url=base_url),
             agent_name=original_agent.name,  # Always use original agent name

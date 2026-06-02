@@ -85,12 +85,37 @@ class BackendSpanExporter(TracingExporter):
     def project(self):
         return self._project or os.environ.get("OPENAI_PROJECT_ID")
 
+    def _target_is_openai(self) -> bool:
+        """True only when traces would genuinely reach OpenAI.
+
+        For a custom OPENAI_BASE_URL (llama.cpp / DeepSeek / any
+        OpenAI-compatible backend — Kryon's only runtimes) posting to OpenAI's
+        trace-ingest endpoint 401s on the local key AND leaks telemetry to a
+        third party. A placeholder key (sk-noauth / not-set) is the same
+        signal. In both cases: skip the export entirely.
+        """
+        base = os.environ.get("OPENAI_BASE_URL", "").strip().lower()
+        if base and "api.openai.com" not in base:
+            return False
+        key = (self.api_key or "").strip().lower()
+        if key in ("sk-noauth", "not-set", ""):
+            return False
+        return True
+
     def export(self, items: list[Trace | Span[Any]]) -> None:
         if not items:
             return
 
         if not self.api_key:
             logger.warning("OPENAI_API_KEY is not set, skipping trace export")
+            return
+
+        if not self._target_is_openai():
+            logger.debug(
+                "trace export skipped: endpoint is not OpenAI (OPENAI_BASE_URL=%r) "
+                "or key is a local placeholder — not phoning home",
+                os.environ.get("OPENAI_BASE_URL", ""),
+            )
             return
 
         data = [item.export() for item in items if item.export()]
