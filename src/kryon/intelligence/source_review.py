@@ -60,6 +60,11 @@ SKIP_DIRS: frozenset[str] = frozenset(
         "dist", "build", "out", "target", "__pycache__", ".venv", "venv",
         "site-packages", "bower_components", ".tox", ".mypy_cache",
         "testdata", "fixtures", "examples", "docs",
+        # Build-time codegen / assembly generators (e.g. OpenSSL's perl asm
+        # generators under crypto/*/asm/). Their backtick/shell-out lines are
+        # build tooling, not product attack surface — they swamped the
+        # sink-density triage with CWE-78 noise and crowded out real source.
+        "asm", "perlasm", "test", "tests",
     }
 )
 

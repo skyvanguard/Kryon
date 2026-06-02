@@ -44,6 +44,13 @@ def test_enumerate_skips_vendor_and_non_source(tmp_path: Path):
     _write(tmp_path / "vendor" / "lib.go")
     _write(tmp_path / "README.md")
     _write(tmp_path / "src" / "core.c")
+    # Build-time codegen / assembly generators + test trees are build tooling,
+    # not product attack surface — they swamped the sink-density triage with
+    # CWE-78 noise (OpenSSL's crypto/*/asm/*.pl) and crowded out real source.
+    _write(tmp_path / "crypto" / "sha" / "asm" / "sha1-x86_64.pl")
+    _write(tmp_path / "perlasm" / "gen.pl")
+    _write(tmp_path / "test" / "harness.c")
+    _write(tmp_path / "tests" / "fuzz.c")
 
     files = enumerate_source_files(tmp_path)
     names = {p.name for p in files}
