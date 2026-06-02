@@ -29,6 +29,27 @@ def test_native_is_default_litellm_is_escape_hatch(monkeypatch):
     assert base.chat_model_cls() is OpenAIChatCompletionsModel
 
 
+def test_deepseek_reasoning_autoroutes_to_litellm(monkeypatch):
+    """P4: DeepSeek thinking models need litellm's reasoning_content round-trip
+    (native 400s mid-run), so they auto-route to the litellm backend even without
+    KRYON_USE_LITELLM. deepseek-chat + local models stay on the native default."""
+    import kryon.agents.base as base
+    from kryon.sdk.agents import OpenAIChatCompletionsModel
+    from kryon.sdk.agents.models.openai_native import OpenAINativeModel
+
+    monkeypatch.delenv("KRYON_USE_LITELLM", raising=False)
+
+    # DeepSeek reasoning/thinking models → litellm.
+    for m in ("deepseek-reasoner", "deepseek-v4-pro"):
+        monkeypatch.setenv("KRYON_MODEL", m)
+        assert base.chat_model_cls() is OpenAIChatCompletionsModel, m
+
+    # Non-reasoning DeepSeek (V3 chat) + local/other models → native default.
+    for m in ("deepseek-chat", "Kryon-MOE-35B", "gpt-4o-mini"):
+        monkeypatch.setenv("KRYON_MODEL", m)
+        assert base.chat_model_cls() is OpenAINativeModel, m
+
+
 def test_native_import_does_not_load_litellm():
     """P1 invariant: importing the DEFAULT model path must NOT import litellm.
 
