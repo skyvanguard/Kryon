@@ -1,5 +1,15 @@
 from __future__ import annotations
 
+import os
+
+# Enable the red-team / offensive modules for the test session (matches the
+# per-subdir conftests in tests/skills, tests/state, tests/tools/autonomous).
+# Many tests import offensive tools (privilege_escalation, lateral_movement,
+# data_exfiltration, autonomous/evasion) gated behind KRYON_RED_TEAM; without
+# this their import fails at collection. setdefault → an operator can still run
+# `KRYON_RED_TEAM=false pytest` to exercise the gate-disabled path.
+os.environ.setdefault("KRYON_RED_TEAM", "true")
+
 import pytest
 
 from kryon.sdk.agents.models import _openai_shared

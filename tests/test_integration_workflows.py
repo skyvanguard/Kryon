@@ -350,13 +350,13 @@ class TestErrorHandling:
             pytest.skip("CTF tools not available")
 
     def test_agent_transfer_invalid_name(self):
-        """Test agent transfer with invalid agent name"""
+        """v2.x unified-only: get_agent_by_name returns the unified Kryon agent
+        for ANY key (the legacy per-name agents + their ValueError path were
+        removed in #57), so an unknown name resolves instead of raising."""
         try:
             from kryon.agents import get_agent_by_name
 
-            # Should raise ValueError for invalid agent
-            with pytest.raises(ValueError):
-                get_agent_by_name("nonexistent_agent_xyz123")
+            assert get_agent_by_name("nonexistent_agent_xyz123") is not None
 
         except ImportError:
             pytest.skip("Agent system not available")
