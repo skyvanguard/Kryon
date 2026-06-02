@@ -108,6 +108,12 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
             converted_tools.append(ToolConverter.convert_handoff_tool(handoff))
 
         agent_model = getattr(model_settings, "agent_model", None)
+        # Forward reasoning_effort when set (F184 / KRYON_REASONING_EFFORT).
+        # gpt-oss + DeepSeek thinking + o-series all read it; llama.cpp's gpt-oss
+        # --jinja maps it to the Harmony "Reasoning: <level>" system directive.
+        # The litellm path already forwards it; the native default did not, so
+        # KRYON_REASONING_EFFORT was a silent no-op on the default backend.
+        reasoning_effort = self._non_null_or_not_given(getattr(model_settings, "reasoning_effort", None))
         kwargs: dict[str, Any] = {
             "model": agent_model or self.model,
             "messages": converted_messages,
@@ -117,6 +123,7 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
             "frequency_penalty": self._non_null_or_not_given(model_settings.frequency_penalty),
             "presence_penalty": self._non_null_or_not_given(model_settings.presence_penalty),
             "max_tokens": self._non_null_or_not_given(model_settings.max_tokens),
+            "reasoning_effort": reasoning_effort,
             "tool_choice": tool_choice,
             "response_format": response_format,
             "parallel_tool_calls": parallel_tool_calls,

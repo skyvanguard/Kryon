@@ -48,6 +48,10 @@ services:
       - KRYON_GUARDRAILS=${KRYON_GUARDRAILS:-true}
       - KRYON_MAX_TURNS=${KRYON_MAX_TURNS:-50}
       - KRYON_STREAM=${KRYON_STREAM:-false}
+      # Reasoning effort (F184: low|medium|high). gpt-oss reads it (Harmony
+      # "Reasoning:" directive). Empty = model default. medium+ without active
+      # pre_hooks can cause CoT loops — measure before defaulting it on.
+      - KRYON_REASONING_EFFORT=${KRYON_REASONING_EFFORT:-}
       # RAG apagado — auto-updater desactivado (ya no se siembra el corpus).
       - KRYON_AUTO_UPDATE=${KRYON_AUTO_UPDATE:-false}
       # Claude Code CLI backend — configured in .env.docker
