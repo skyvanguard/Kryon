@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, cast
 
 from openai.types.responses import ResponseCompletedEvent
@@ -784,6 +784,11 @@ class Runner:
         model = cls._get_model(agent, run_config)
         model_settings = agent.model_settings.resolve(run_config.model_settings)
         model_settings = RunImpl.maybe_reset_tool_choice(agent, tool_use_tracker, model_settings)
+        # resolve() returns `self` when there's no run-level override, so the
+        # defaults applied below would mutate the caller's agent.model_settings
+        # in place (leaking temperature=0.0 onto the agent object, breaking
+        # agent identity/equality). Copy first so mutations stay local.
+        model_settings = replace(model_settings)
         # F155 — Default LLM temperature from env. Lower temperature
         # reduces hallucinations (R1 distill especially) at the cost
         # of creativity. Banca-safe default is 0.0; can be overridden
@@ -1094,6 +1099,10 @@ class Runner:
         model = cls._get_model(agent, run_config)
         model_settings = agent.model_settings.resolve(run_config.model_settings)
         model_settings = RunImpl.maybe_reset_tool_choice(agent, tool_use_tracker, model_settings)
+        # Copy before applying defaults — see the non-streaming path: resolve()
+        # may return the agent's own model_settings, and the mutations below
+        # must not leak onto the caller's agent.
+        model_settings = replace(model_settings)
         # F155 — Default LLM temperature from env. Lower temperature
         # reduces hallucinations (R1 distill especially) at the cost
         # of creativity. Banca-safe default is 0.0; can be overridden
