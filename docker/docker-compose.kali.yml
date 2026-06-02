@@ -111,8 +111,14 @@ services:
     command:
       - -m
       - /models/qwen36-35b-a3b-q4kxl.gguf
+      # Perf tuning: 30→26 moves 4 more expert layers CPU→GPU. Measured on the
+      # RTX 5070 Ti Laptop (12 GB): warm generation ~10 tok/s (degraded) → ~42
+      # tok/s, leaving ~1.9 GB VRAM headroom (safe for the laptop's shared
+      # display). Going to 24 gave the same speed but only ~990 MB free (OOM
+      # risk under display pressure), so 26 is the sweet spot. Lowering further
+      # showed diminishing returns — the CPU-resident experts are the floor.
       - --n-cpu-moe
-      - "30"
+      - "26"
       - -ngl
       - "99"
       - -fa
@@ -121,8 +127,11 @@ services:
       - q4_0
       - --cache-type-v
       - q4_0
+      # 40960→24576: reducing context frees the KV-cache VRAM that funds the
+      # extra expert offload above. Post-P5 (no double-sent conversation) typical
+      # runs fit well under 24K; bump back up if a long SAST run needs it.
       - -c
-      - "40960"
+      - "24576"
       # Generation cap. 8000 was a foot-gun: one verbose/CoT turn ran to 8000
       # tokens (~245s @ ~32 tok/s) and that response then ballooned every
       # subsequent prompt's prefill (8K+ tokens → ~431s with experts partly on
