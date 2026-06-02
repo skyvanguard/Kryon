@@ -158,6 +158,17 @@ def get_available_agents(include_patterns: bool = True) -> dict[str, Agent]:  # 
             pseudo_agent = PatternAgent(pattern_obj)
             agents_to_display[pattern_name] = pseudo_agent
 
+    # v2.x is unified-only: "kryon" is THE canonical agent. Expose it first so
+    # validation / listing / selection (/agent, /parallel) accept it. The
+    # legacy per-name agents were removed; any name resolves to this one via
+    # get_agent_by_name. Omitted only if construction fails (e.g. no model cfg).
+    try:
+        from kryon.skills.unified_agent import create_unified_agent
+
+        agents_to_display = {"kryon": create_unified_agent(), **agents_to_display}
+    except Exception:  # noqa: BLE001
+        pass
+
     return agents_to_display
 
 
@@ -206,137 +217,52 @@ def get_agent_by_name(
     agent_name: str, custom_name: str = None, model_override: str = None, agent_id: str = None
 ) -> Agent:
     """
-    Get a NEW agent instance by name using the dynamic factory system.
+    Get a NEW unified "Kryon" agent instance.
+
+    v2.x is unified-only: ``agent_name`` no longer selects a distinct agent —
+    every request returns the skill-based Kryon agent (skills matched
+    dynamically, subsuming the old static per-name agents). The parameter is
+    retained for call-site compatibility (engage phases, parallel slots,
+    handoffs, ``/agent`` switching).
 
     Args:
-        agent_name: Name of the agent to retrieve
-        custom_name: Optional custom name for the agent instance (e.g., "Bug Bounter #1")
-        model_override: Optional model to use instead of the default
-        agent_id: Optional agent ID (e.g., "P1", "P2", "P3")
+        agent_name: Retained for compatibility; does not select an agent.
+        custom_name: Optional display name for the instance (e.g., "P1").
+        model_override: Optional model to use instead of the default.
+        agent_id: Optional agent ID (e.g., "P1", "P2", "P3").
 
     Returns:
-        NEW Agent instance corresponding to the given name
-
-    Raises:
-        ValueError: If the agent name is not found
+        A NEW unified Kryon Agent instance.
     """
-    # Unified skill-based agent: "kryon" or KRYON_UNIFIED=true
-    if agent_name.lower() == "kryon" or os.environ.get("KRYON_UNIFIED", "").lower() in ("true", "1"):
+    # v2.x is UNIFIED-ONLY: every agent request resolves to the single
+    # skill-based "Kryon" agent. The legacy per-name agents + factory were
+    # removed — create_unified_agent() matches skills dynamically, which
+    # subsumes what the static agents did. ``agent_name`` is kept for
+    # call-site compatibility (engage phases, parallel slots, handoffs) but
+    # no longer selects a distinct agent.
+    from kryon.skills.unified_agent import create_unified_agent
+
+    agent = create_unified_agent(model_override=model_override, agent_id=agent_id)
+    if custom_name:
         try:
-            from kryon.skills.unified_agent import create_unified_agent
-
-            return create_unified_agent()
-        except Exception as e:
-            import logging
-
-            logging.getLogger(__name__).warning("Unified agent failed, falling back: %s", e)
-            # Don't fall through to legacy — "kryon" doesn't exist there.
-            # Fall back to recon_scout which is the closest equivalent.
-            agent_name = "recon_scout"
-
-    # Import the generic factory system
-    from kryon.agents.factory import get_agent_factory
-
-    try:
-        # Use the generic factory system to get a factory for this agent
-        factory = get_agent_factory(agent_name)
-        # Create and return a new instance with optional model override and custom name
-        agent = factory(model_override=model_override, custom_name=custom_name, agent_id=agent_id)
-        return agent
-    except ValueError:
-        # If not found in factory, fall back to legacy method
-        pass
-
-    # Legacy fallback: get existing singleton instances
-    available_agents = get_available_agents()
-    agent_name_lower = agent_name.lower()
-
-    # Check if the agent exists in available_agents
-    if agent_name_lower not in available_agents:
-        raise ValueError(f"Invalid agent type: {agent_name}. Available agents: {', '.join(available_agents.keys())}")
-
-    # Get the agent instance (singleton)
-    agent = available_agents[agent_name_lower]
-
-    # For singleton agents, try to create a copy with a fresh model instance
-    if hasattr(agent, "model") and hasattr(agent.model, "__class__"):
-        try:
-            # Create a new model instance
-            model_class = agent.model.__class__
-            new_model = None
-            if model_class.__name__ == "ClaudeCodeModel":
-                # Clone with a fresh ClaudeCodeModel instance
-                new_model = model_class(
-                    model=model_override if model_override else agent.model.model,
-                    timeout=getattr(agent.model, "timeout", 300),
-                    max_budget_usd=getattr(agent.model, "max_budget_usd", None),
-                )
-            elif model_class.__name__ == "OpenAIChatCompletionsModel":
-                # Use custom name if provided, otherwise use agent's name
-                instance_name = custom_name if custom_name else agent.name
-                # Determine which model to use
-                model_to_use = model_override if model_override else agent.model.model
-                # Create new model with same config but new instance
-                new_model = model_class(
-                    model=model_to_use,
-                    openai_client=agent.model._client,
-                    agent_name=instance_name,
-                    agent_id=agent_id,
-                    agent_type=agent_name_lower,
-                )
-
-            if new_model is not None:
-                # Clone the agent with the new model
-                cloned_agent = agent.clone(model=new_model)
-                # Update the agent's name if custom name provided
-                if custom_name:
-                    cloned_agent.name = custom_name
-
-                # Check if this agent has any MCP tools configured
-                try:
-                    from kryon.repl.commands.mcp import get_mcp_tools_for_agent
-
-                    # Get MCP tools for this agent and add them
-                    mcp_tools = get_mcp_tools_for_agent(agent_name_lower)
-                    if mcp_tools:
-                        # Ensure the agent has tools list
-                        if not hasattr(cloned_agent, "tools"):
-                            cloned_agent.tools = []
-
-                        # Remove any existing tools with the same names to avoid duplicates
-                        existing_tool_names = {t.name for t in mcp_tools}
-                        cloned_agent.tools = [t for t in cloned_agent.tools if t.name not in existing_tool_names]
-
-                        # Add the MCP tools
-                        cloned_agent.tools.extend(mcp_tools)
-                except ImportError:
-                    # MCP command not available, skip
-                    pass
-
-                return cloned_agent
-        except Exception:
-            # If cloning fails, return the original
+            agent.name = custom_name
+        except Exception:  # noqa: BLE001
             pass
 
-    # For singleton agents without cloning, still check for MCP tools
+    # Attach any MCP tools configured for this slot (preserved from the
+    # legacy path so MCP integrations keep working under the unified agent).
     try:
         from kryon.repl.commands.mcp import get_mcp_tools_for_agent
 
-        # Get MCP tools for this agent and add them
-        mcp_tools = get_mcp_tools_for_agent(agent_name_lower)
+        mcp_tools = get_mcp_tools_for_agent(agent_name.lower())
         if mcp_tools:
-            # Ensure the agent has tools list
-            if not hasattr(agent, "tools"):
+            if not getattr(agent, "tools", None):
                 agent.tools = []
-
-            # Remove any existing tools with the same names to avoid duplicates
-            existing_tool_names = {t.name for t in mcp_tools}
-            agent.tools = [t for t in agent.tools if t.name not in existing_tool_names]
-
-            # Add the MCP tools
-            agent.tools.extend(mcp_tools)
+            existing = {t.name for t in mcp_tools}
+            agent.tools = [t for t in agent.tools if t.name not in existing] + list(mcp_tools)
     except ImportError:
-        # MCP command not available, skip
+        pass
+    except Exception:  # noqa: BLE001
         pass
 
     return agent

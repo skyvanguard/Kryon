@@ -69,4 +69,5 @@ async def test_lazy_handoff_resolves_agent_at_runtime():
     ctx = MagicMock()
     ctx.context = None
     agent = await h.on_invoke_handoff(ctx, "")
-    assert agent.name == "Recon Scout"
+    # v2.x is unified-only: any handoff target resolves to the Kryon agent.
+    assert agent.name == "Kryon"
