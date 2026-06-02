@@ -21,7 +21,6 @@ from kryon.sdk.agents import Agent, Runner
 from kryon.sdk.agents.models.openai_chatcompletions import (
     ACTIVE_MODEL_INSTANCES,
     PERSISTENT_MESSAGE_HISTORIES,
-    OpenAIChatCompletionsModel,
     get_agent_message_history,
     get_all_agent_histories,
     get_current_active_model,
@@ -1263,10 +1262,12 @@ Then wrap your final concise summary in <summary> tags — this is what persists
 
 This session is being continued from a previous conversation that ran out of context. The conversation is summarized below:"""
 
+        from kryon.agents.base import chat_model_cls
+
         summary_agent = Agent(
             name="Summary Agent",
             instructions=instructions,
-            model=OpenAIChatCompletionsModel(
+            model=chat_model_cls()(
                 model=model_name,
                 openai_client=AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY")),
                 agent_name="Summary Agent",

@@ -113,8 +113,31 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
         }
 
         client = self._get_client()
+
+        async def _create():
+            """Single native call, with the one litellm-path workaround worth
+            keeping: if the provider rejects an over-long tool_call_id, truncate
+            all ids to 40 chars and retry once."""
+            try:
+                return await client.chat.completions.create(**kwargs)
+            except Exception as e:  # noqa: BLE001
+                msg = str(e)
+                if (
+                    "tool_call_id" in msg
+                    and ("maximum length" in msg or "string too long" in msg)
+                ):
+                    for m in kwargs.get("messages", []):
+                        tcid = m.get("tool_call_id")
+                        if isinstance(tcid, str) and len(tcid) > 40:
+                            m["tool_call_id"] = tcid[:40]
+                        for tc in m.get("tool_calls", []) or []:
+                            if isinstance(tc, dict) and isinstance(tc.get("id"), str) and len(tc["id"]) > 40:
+                                tc["id"] = tc["id"][:40]
+                    return await client.chat.completions.create(**kwargs)
+                raise
+
         if stream:
-            stream_obj = await client.chat.completions.create(**kwargs)
+            stream_obj = await _create()
             response = Response(
                 id=FAKE_RESPONSES_ID,
                 created_at=time.time(),
@@ -132,4 +155,4 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
                 else False,
             )
             return response, stream_obj
-        return await client.chat.completions.create(**kwargs)
+        return await _create()

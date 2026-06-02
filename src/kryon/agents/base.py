@@ -14,14 +14,25 @@ from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel
 
 
 def chat_model_cls() -> type[OpenAIChatCompletionsModel]:
-    """Pick the chat-model class. Spike: ``KRYON_USE_NATIVE_OPENAI=true`` swaps
-    in the native AsyncOpenAI model (no litellm) — drop-in subclass that only
-    changes the HTTP call layer. Default stays the litellm-backed model."""
-    if os.getenv("KRYON_USE_NATIVE_OPENAI", "").strip().lower() in ("1", "true", "yes"):
-        from kryon.sdk.agents.models.openai_native import OpenAINativeModel
+    """Pick the chat-model class.
 
-        return OpenAINativeModel
-    return OpenAIChatCompletionsModel
+    Default is now the native AsyncOpenAI model (no litellm): Kryon's runtime
+    is 100% OpenAI-compatible (local Qwen MoE + DeepSeek), so the native client
+    with ``base_url`` handles it directly — without litellm's per-provider
+    branching, drop_params toggling, ``openai/<model>`` prefix hack, or its
+    fragile internals (validated live against the local MoE).
+
+    Escape hatch: ``KRYON_USE_LITELLM=true`` restores the litellm-backed model
+    for any provider that genuinely needs litellm's translation layer.
+    ``KRYON_USE_NATIVE_OPENAI`` is still honored (forces native) for parity
+    with the spike rollout.
+    """
+    if os.getenv("KRYON_USE_LITELLM", "").strip().lower() in ("1", "true", "yes"):
+        return OpenAIChatCompletionsModel
+    # Default + explicit opt-in both resolve to native.
+    from kryon.sdk.agents.models.openai_native import OpenAINativeModel
+
+    return OpenAINativeModel
 
 
 def get_default_model() -> OpenAIChatCompletionsModel:

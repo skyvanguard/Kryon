@@ -17,9 +17,10 @@ import os
 
 from openai import AsyncOpenAI
 
+from kryon.agents.base import chat_model_cls
 from kryon.agents.lazy_handoff import lazy_handoff
 from kryon.agents.toolsets import AI_TOOLS, RAG_TOOLS
-from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel
+from kryon.sdk.agents import Agent
 
 model = os.getenv("KRYON_MODEL", "Kryon-MOE-35B")
 
@@ -60,7 +61,7 @@ EXTRACTION PROTOCOL:
 
 REMEMBER: Precision is critical. Extract ONLY the flag, nothing else.
 ═══════════════════════════════════════════════════════════════════════""",
-    model=OpenAIChatCompletionsModel(
+    model=chat_model_cls()(
         model="gpt-4o" if os.getenv("KRYON_MODEL", "Kryon-MOE-35B") == "o3-mini" else model,
         openai_client=AsyncOpenAI(
             api_key=api_key,

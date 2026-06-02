@@ -14,18 +14,20 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 
-def test_flag_selects_native_model(monkeypatch):
+def test_native_is_default_litellm_is_escape_hatch(monkeypatch):
     import kryon.agents.base as base
 
-    monkeypatch.delenv("KRYON_USE_NATIVE_OPENAI", raising=False)
     from kryon.sdk.agents import OpenAIChatCompletionsModel
-
-    assert base.chat_model_cls() is OpenAIChatCompletionsModel
-
-    monkeypatch.setenv("KRYON_USE_NATIVE_OPENAI", "true")
     from kryon.sdk.agents.models.openai_native import OpenAINativeModel
 
+    # Default (no flags) → native.
+    monkeypatch.delenv("KRYON_USE_LITELLM", raising=False)
+    monkeypatch.delenv("KRYON_USE_NATIVE_OPENAI", raising=False)
     assert base.chat_model_cls() is OpenAINativeModel
+
+    # Escape hatch → litellm-backed model.
+    monkeypatch.setenv("KRYON_USE_LITELLM", "true")
+    assert base.chat_model_cls() is OpenAIChatCompletionsModel
 
 
 def _model_settings():
