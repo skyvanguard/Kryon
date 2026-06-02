@@ -1,9 +1,10 @@
-"""Spike (behind ``KRYON_USE_NATIVE_OPENAI=true``): native AsyncOpenAI model.
+"""DEFAULT model: native AsyncOpenAI HTTP layer (no litellm at call time).
 
-Drop-in subclass of ``OpenAIChatCompletionsModel`` that overrides ONLY the HTTP
-call layer — replacing ``litellm.acompletion`` with the native ``openai``
-async client. It reuses the parent's converters, streaming loop, and response
-parsing untouched.
+Selected by ``agents.base.chat_model_cls()`` for every run unless
+``KRYON_USE_LITELLM=true`` restores the litellm-backed parent. Drop-in subclass
+of ``OpenAIChatCompletionsModel`` that overrides ONLY the HTTP call layer —
+replacing ``litellm.acompletion`` with the native ``openai`` async client. It
+reuses the parent's converters, streaming loop, and response parsing untouched.
 
 What it DROPS vs the litellm path (`OpenAIChatCompletionsModel._fetch_response`,
 ~780 lines, 2998-3776):
@@ -19,10 +20,13 @@ how much workaround disappears. The native client also returns real
 expects (the upstream openai-agents model uses this client), so downstream is
 MORE compatible, not less.
 
-It is NOT wired on by default — ``base.get_default_model`` selects it only under
-the env flag. The claude/gemini ``cache_control`` block is intentionally
-omitted (irrelevant for the OpenAI-compatible local/DeepSeek endpoints this
-targets).
+The claude/gemini ``cache_control`` block is intentionally omitted (irrelevant
+for the OpenAI-compatible local/DeepSeek endpoints this targets).
+
+NOTE: importing this module still imports ``openai_chatcompletions`` (for the
+shared converters), which runs litellm's import-time monkeypatching. The native
+path avoids litellm at *call* time, not *import* time — removing that import
+coupling is tracked separately (P1: extract a litellm-free base module).
 """
 
 from __future__ import annotations

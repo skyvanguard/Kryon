@@ -1313,12 +1313,15 @@ async def run_with_reflection(
                         )
                 except Exception as ee:  # noqa: BLE001
                     logger.debug("stuck-path extract failed: %s", ee)
-                stuck_tool = getattr(e, "tool_name", "") or "?"
+                from kryon.sdk.agents.run_outcome import classify_run_exception
+
+                # Shared classifier → same wording as the REST route + CLI.
+                _outcome = classify_run_exception(e)
                 stuck_note = (
-                    f"⚠️ El agente entró en un loop irrecuperable sobre la "
-                    f"tool '{stuck_tool}' (misma llamada repetida) y el run se "
-                    f"detuvo para no consumir presupuesto repitiéndose. Los "
-                    f"hallazgos abajo son PARCIALES y requieren verificación."
+                    _outcome.message
+                    if _outcome is not None
+                    else "⚠️ El agente se detuvo en un loop irrecuperable. "
+                    "Los hallazgos abajo son PARCIALES y requieren verificación."
                 )
                 if last_result is not None:
                     try:
