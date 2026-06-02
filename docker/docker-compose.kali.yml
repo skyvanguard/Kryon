@@ -123,8 +123,13 @@ services:
       - q4_0
       - -c
       - "40960"
+      # Generation cap. 8000 was a foot-gun: one verbose/CoT turn ran to 8000
+      # tokens (~245s @ ~32 tok/s) and that response then ballooned every
+      # subsequent prompt's prefill (8K+ tokens → ~431s with experts partly on
+      # CPU). 2000 bounds a turn AND stops the history snowballing — the main
+      # reason the local MoE felt slow vs hermes-agent.
       - -n
-      - "8000"
+      - "2000"
       # Sampling banca-safe (temp 0.3 vs 0.6 del perfil active de hermes).
       - --temp
       - "0.3"

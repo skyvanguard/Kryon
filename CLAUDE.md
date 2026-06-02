@@ -108,9 +108,11 @@ Two execution modes:
 - **Runtime — llama.cpp local (no Ollama)**: el LLM principal corre en el
   servicio `llama-server` (`ghcr.io/ggml-org/llama.cpp:server-cuda`) del
   `docker/docker-compose.kali.yml`, sirviendo **`Kryon-MOE-35B`**
-  (Qwen3.6-35B-A3B MoE, UD-Q4_K_XL, 21 GB). Flags clave: `--n-cpu-moe 99
-  -ngl 99` (expertos→RAM, attention→GPU ≈ **3.4-4 GB VRAM**), `--jinja`
-  (tool-calling OpenAI-compat, validado end-to-end), `--temp 0.3`
+  (Qwen3.6-35B-A3B MoE, UD-Q4_K_XL, 21 GB). Flags clave (compose real):
+  `--n-cpu-moe 30 -ngl 99 -fa on -c 40960` (30 capas de expertos→CPU, resto +
+  attention→GPU ≈ **~7.8 GB VRAM** de 12, con KV cache q4_0), `-n 2000` (tope
+  de generación — ver nota de performance abajo), `--jinja` (tool-calling
+  OpenAI-compat, validado end-to-end con tool calls reales), `--temp 0.3`
   (banca-safe). El GGUF se reusa del volume externo `hermes-llamacpp-cache`
   (`:ro`). **Solo un llama-server a la vez en 12 GB VRAM** — parar el
   contenedor externo `hermes-llamacpp` (proyecto hermes-agent, mismo GGUF)
@@ -118,6 +120,20 @@ Two execution modes:
   del compose (`OPENAI_BASE_URL=http://llama-server:8080/v1`,
   `KRYON_MODEL=Kryon-MOE-35B`, `KRYON_LOCAL_LLM=true`) **pisa** a
   `.env.docker`. Modelos secundarios (triage/narrator/RAG) caen al principal.
+
+- **Performance del MoE local (por qué se sentía lento vs hermes)**: con
+  expertos parcialmente en CPU, prefill y generación van a ~20-32 tok/s. El
+  foot-gun era `-n 8000`: un turno verboso/CoT generaba 8000 tokens (~245s), y
+  ese response inflaba el historial → cada prefill posterior procesaba 8K+
+  tokens (~431s). Cascada. Bajado a `-n 2000` (acota el turno + frena la bola
+  de nieve). **El chunk timeout del reflective runner** (`KRYON_CHUNK_TIMEOUT_S`)
+  ahora default 900s bajo `KRYON_LOCAL_LLM` (vs 180s remoto) y nunca dispara
+  antes del wall budget — el 180s viejo mataba el loop antes de que el MoE
+  generara nada. Para runs locales reales: budgets generosos
+  (`KRYON_WALL_BUDGET_S` 1800+); el camino determinista (pre_hooks) es el
+  rápido/confiable. Para velocidad interactiva → DeepSeek (remoto; el modelo
+  nativo default lo soporta). Hay ~4.4 GB de VRAM libre: bajar `--n-cpu-moe`
+  offloadea más a GPU = más rápido (a costa de VRAM).
 
 - **Model layer — native AsyncOpenAI is the DEFAULT (no litellm)**: el runtime
   es 100% OpenAI-compatible (Qwen local + DeepSeek), así que el modelo default
