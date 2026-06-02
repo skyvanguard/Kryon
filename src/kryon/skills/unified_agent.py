@@ -145,10 +145,12 @@ def create_unified_agent(
     _subagents_on = os.environ.get("KRYON_SUBAGENTS", "").lower() in ("1", "true", "yes")
     if _subagents_on:
         instructions += (
-            "\n\n## Delegación a especialistas\n"
-            "Para una revisión SAST profunda de un árbol de código local, delegá "
-            "a la tool `sast_review` (corre aislada y devuelve CWEs confirmados) "
-            "en vez de hacer el grep/cat vos mismo."
+            "\n\n## Delegación a especialistas (OBLIGATORIO para código)\n"
+            "Si la tarea es auditar/revisar CÓDIGO FUENTE de un árbol local, tu "
+            "PRIMER tool-call DEBE ser `sast_review` pasándole el path + el "
+            "objetivo. El especialista corre aislado y te devuelve los CWEs "
+            "(`CWE-XXX en archivo:línea`). NO uses `run_command`/grep/cat para "
+            "leer el código vos mismo — delegá y después sintetizá su resultado."
         )
 
     # Select tools — ITR per-turn (F84.7) or static skill-driven (F77).

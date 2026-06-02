@@ -28,7 +28,21 @@ _SAST_PROMPT = (
     "2. `cat`/`sed -n` los archivos candidatos para confirmar el data-flow.\n"
     "3. Apenas confirmes el defecto, EMITÍ `CWE-XXX en <archivo>:<línea>` y "
     "TERMINÁ — no sigas explorando ni re-verifiques de más.\n"
-    "Si no encontrás nada concreto, decílo explícitamente — no inventes."
+    "Si no encontrás nada concreto, decílo explícitamente — no inventes.\n\n"
+    "## Clasificación CWE precisa (conocimiento general, distinguí familias)\n"
+    "- Resolución de nombres/objetos remotos (JNDI/LDAP/RMI lookups, readObject, "
+    "unmarshalling) que instancia clases desde datos no confiables = "
+    "**deserialización insegura, CWE-502** (NO es SSRF; SSRF/CWE-918 es solo "
+    "hacer un request a una URL controlada, sin instanciar objetos).\n"
+    "- Copias de memoria (`memcpy`/`memmove`) cuyo largo viene del input sin "
+    "validar contra el buffer real = lectura/escritura fuera de límites, "
+    "**CWE-125** (read) o **CWE-787** (write).\n"
+    "- Evaluación de expresiones/plantillas con input (OGNL/SpEL/EL/eval) = "
+    "**inyección de expresión/código, CWE-917/CWE-94**; ejecución de comandos "
+    "shell con input = **CWE-78**.\n"
+    "- Falta de chequeo/sanitización de input que habilita el ataque, sin un "
+    "sink más específico = **validación impropia de input, CWE-20**.\n"
+    "Elegí el CWE que describe el DATA-FLOW real, no el primero que se te ocurra."
 )
 
 
