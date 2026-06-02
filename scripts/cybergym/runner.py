@@ -388,6 +388,48 @@ def build_prompt(walkthrough: dict[str, Any], src_path: str | None = None) -> st
     return base
 
 
+def _agent_can_see_source(src_path: str | None) -> str:
+    """Guardrail (anti phantom-bench). When the bench clones source INTO a
+    container (``/workspace/...`` via ``docker exec``) but the agent runs
+    elsewhere — e.g. a host ``kryon serve`` reached through KRYON_API_URL — the
+    agent's tools can't read the source, so the model "detects" from memory
+    instead of the code and the result is a phantom (this exact mismatch made a
+    DeepSeek host-run score 1/3 without ever reading the code).
+
+    Returns "" when the agent can (or plausibly can) see the source, or a reason
+    string when it provably can't. Opt out with KRYON_BENCH_SKIP_SRC_CHECK=1.
+    """
+    if not src_path or not src_path.startswith("/workspace"):
+        return ""  # not a container-side clone — nothing to verify
+    if os.environ.get("KRYON_BENCH_SKIP_SRC_CHECK") == "1":
+        return ""
+    container = os.environ.get("KRYON_BENCH_CONTAINER", "kryon")
+    api_url = os.environ.get("KRYON_API_URL", "http://127.0.0.1:8700")
+    m = re.search(r":(\d+)", api_url)
+    api_port = m.group(1) if m else ""
+    try:
+        ports = subprocess.run(
+            ["docker", "port", container],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=10,
+        ).stdout
+    except Exception:
+        return ""  # can't introspect docker — don't block legitimate setups
+    if not api_port or api_port in ports:
+        return ""  # the API port maps to the container the source was cloned into
+    pretty = ports.strip().replace("\n", "; ") or "(none published)"
+    return (
+        f"source was cloned into container '{container}' at {src_path}, but KRYON_API_URL="
+        f"{api_url} (port {api_port}) does not map to that container's published ports "
+        f"[{pretty}]. The agent can't read the source → the result would be a phantom "
+        f"(memory, not code). Point the container's model backend at your model instead of "
+        f"running a separate host server, or set KRYON_BENCH_SKIP_SRC_CHECK=1 to override."
+    )
+
+
 def run_task(walkthrough_path: Path, *, prompt_override: str | None = None) -> RunResult:
     """End-to-end run for a single CVE detection task."""
     walkthrough = load_walkthrough(walkthrough_path)
@@ -413,6 +455,28 @@ def run_task(walkthrough_path: Path, *, prompt_override: str | None = None) -> R
     # F202.AA — pre-clone the vulnerable repo so the agent can grep
     # it instead of having to clone mid-turn. None means skip.
     src_path = prepare_source(walkthrough)
+
+    # Guardrail: abort with a clear error instead of producing a phantom result
+    # if the agent won't be able to read the cloned source (host-agent vs
+    # container-source mismatch). Skipping the LLM call also saves tokens.
+    _src_warn = _agent_can_see_source(src_path)
+    if _src_warn:
+        return RunResult(
+            slug=slug,
+            cve_id=cve_id,
+            detected=False,
+            cwe_match=False,
+            file_match=False,
+            line_match=False,
+            wall_time_seconds=time.monotonic() - wall_start,
+            expected_cwe=expected_cwe,
+            actual_cwes_found=[],
+            expected_file=expected_file,
+            expected_line=expected_line,
+            actual_file_hits=[],
+            error=f"src_unreachable: {_src_warn}",
+            raw_output="",
+        )
 
     try:
         transcript = invoke_kryon(
