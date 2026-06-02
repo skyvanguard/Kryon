@@ -14,9 +14,7 @@ required_tools:
   - read_function
   - find_callers
   - run_sandboxed
-  - recall_similar_experiences
   - recall_similar_code_pattern
-  - add_to_memory_semantic
   # F5.1.d structured output — call these instead of writing text blocks
   - submit_finding
   - submit_no_finding

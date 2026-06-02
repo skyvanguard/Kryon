@@ -29,7 +29,6 @@ required_tools:
   - generate_compliance_pdf
   - run_command
   - nuclei_scan
-  - search_vulnerabilities
 pre_hooks:
   - tool: run_compliance_audit
     args:

@@ -22,8 +22,6 @@ priority: 25
 required_tools:
   - run_command
   - nuclei_scan
-  - search_vulnerabilities
-  - query_knowledge_base
 pre_hooks:
   # F203.O — nuclei web vuln baseline via run_command (SSTI guard del
   # pre_hook spec NO acepta JSON literal en args, por eso usamos shell).

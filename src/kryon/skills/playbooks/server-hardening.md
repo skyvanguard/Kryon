@@ -8,8 +8,6 @@ triggers:
 priority: 10
 required_tools:
   - run_command
-  - search_vulnerabilities
-  - query_knowledge_base
 ---
 
 ## Server Hardening

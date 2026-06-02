@@ -36,8 +36,6 @@ priority: 15
 required_tools:
   - run_command
   - nuclei_scan
-  - search_vulnerabilities
-  - query_knowledge_base
   - duckduckgo_search
 # F185 — Deterministic-first execution. Pre-hooks run BEFORE the LLM
 # sees the engagement. The model used to bounce between "should I

@@ -6,7 +6,6 @@ triggers:
   keywords: ["mitre attack", "ttp", "tactics techniques", "attack framework", "att&ck"]
 priority: 30
 required_tools:
-  - query_knowledge_base
 ---
 
 # Analyzing Threat Actor TTPs with MITRE ATT&CK

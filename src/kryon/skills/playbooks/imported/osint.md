@@ -9,7 +9,6 @@ priority: 15
 required_tools:
   - run_command
   - duckduckgo_search
-  - query_knowledge_base
 ---
 
 - DE.AE-02

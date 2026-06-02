@@ -6,49 +6,34 @@ across all agents while keeping individual tool lists focused.
 """
 
 from kryon.tools.ai.claude_code import claude_code
-from kryon.tools.knowledge import (
-    cve_intel,
-    findings_library_stats,
-    get_exploit_techniques,
-    get_security_tools,
-    list_recent_experiences,
-    query_knowledge_base,
-    query_similar_findings,
-    recall_similar_experiences,
-    record_engagement_findings,
-    request_skill,
-    search_vulnerabilities,
-    tool_search,
-)
-from kryon.tools.reconnaissance.exec_code import execute_code
-from kryon.tools.reconnaissance.run_command import run_command
 
 # FASE 6 — programmatic execution mode: lets the model delegate the
 # next tool invocation to the planner instead of having to copy a
 # (possibly long / base64'd / shell-escaped) directive by hand. Reads
 # the live planner-runtime ContextVar set by run_with_reflection.
 from kryon.tools.intelligence.planner_executor import execute_planner_directive
+from kryon.tools.knowledge import (
+    cve_intel,
+    findings_library_stats,
+    list_recent_experiences,
+    record_engagement_findings,
+    request_skill,
+    tool_search,
+)
+from kryon.tools.reconnaissance.exec_code import execute_code
+from kryon.tools.reconnaissance.run_command import run_command
 
 # Core execution tools — every agent that runs commands needs these
 CORE_TOOLS = [run_command, execute_code, execute_planner_directive, cve_intel]
 
-# RAG knowledge base tools — basic set for most agents
-# recall_similar_experiences is included here so EVERY agent that does
-# recon can bias its plan toward attack chains that worked against
-# similar targets before (self-improving loop — see docs/LEARNING_LOOP.md).
-# F64 — query_similar_findings added so the planner pulls XBOW-style
-# n-days patterns before probing a new target.
-RAG_TOOLS = [
-    query_knowledge_base,
-    search_vulnerabilities,
-    recall_similar_experiences,
-    query_similar_findings,
-]
-
-# RAG full set — for agents doing deep vuln research
-RAG_TOOLS_FULL = RAG_TOOLS + [
-    get_exploit_techniques,
-    get_security_tools,
+# Knowledge / discovery tools. The RAG *retrieval* tools (query_knowledge_base,
+# search_vulnerabilities, recall_similar_experiences, query_similar_findings,
+# get_exploit_techniques, get_security_tools) were removed — the corpus RAG was
+# off (KRYON_MEMORY=false) and the tools were never selected. These are the
+# surviving live ones: findings/experience recording + on-demand skill/tool
+# discovery. (Name kept as RAG_TOOLS_FULL for the tool-registry consumers.)
+RAG_TOOLS: list = []  # RAG retrieval tools removed (corpus off)
+RAG_TOOLS_FULL = [
     list_recent_experiences,
     record_engagement_findings,
     findings_library_stats,
@@ -61,8 +46,8 @@ RAG_TOOLS_FULL = RAG_TOOLS + [
 # AI delegation tool
 AI_TOOLS = [claude_code]
 
-# Base toolset — standard for every agent (7 tools)
-BASE_TOOLS = CORE_TOOLS + RAG_TOOLS + AI_TOOLS
+# Base toolset — standard for every agent
+BASE_TOOLS = CORE_TOOLS + AI_TOOLS
 
 # --- Domain-specific toolsets ---
 
@@ -225,10 +210,7 @@ DISCOVERY_TOOLS = [
     aggregate_cloud_posture,
 ]
 
-# Memory / learning tools — agents can store and recall operational knowledge
-try:
-    from kryon.tools.misc.rag import add_to_memory_semantic, query_memory  # noqa: E402
-
-    MEMORY_TOOLS = [query_memory, add_to_memory_semantic]
-except ImportError:
-    MEMORY_TOOLS = []
+# Memory / learning tools — the vector-memory tools (query_memory,
+# add_to_memory_semantic) were removed with the RAG retrieval purge (corpus
+# off). Kept as an empty list for the tool-registry consumers.
+MEMORY_TOOLS: list = []

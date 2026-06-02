@@ -21,9 +21,7 @@ required_tools:
   - generate_compliance_pdf
   - tomcat_recon
   - nuclei_scan
-  - search_vulnerabilities
   - run_command
-  - recall_similar_experiences
 pre_hooks:
   - tool: run_compliance_audit
     args:

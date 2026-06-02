@@ -9,7 +9,6 @@ priority: 25
 required_tools:
   - run_command
   - execute_code
-  - query_knowledge_base
 ---
 
 ## Incident Response Flow

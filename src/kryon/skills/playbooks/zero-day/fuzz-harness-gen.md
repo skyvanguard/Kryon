@@ -10,7 +10,6 @@ required_tools:
   - read_function
   - run_sandboxed
   - find_callers
-  - add_to_memory_semantic
 ---
 
 # Fuzz Harness Generator
