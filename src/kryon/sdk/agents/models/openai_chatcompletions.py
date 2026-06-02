@@ -15,10 +15,14 @@ from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
-import litellm
 import tiktoken
 
-# Silence LiteLLM's noisy INFO logs (logs every single API call)
+# Silence LiteLLM's noisy INFO logs (logs every single API call). Setting the
+# log level by NAME does not import litellm — it's safe at module scope. The
+# litellm module itself is imported LAZILY (see _ensure_litellm_configured),
+# because litellm is the NON-DEFAULT backend (KRYON_USE_LITELLM=true) and both
+# importing it and its global-flag mutation are deferred until a litellm-path
+# method actually runs. The default OpenAINativeModel never triggers it.
 logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 logging.getLogger("litellm").setLevel(logging.WARNING)
 from openai import NOT_GIVEN, AsyncOpenAI, AsyncStream, NotGiven
@@ -141,33 +145,69 @@ if TYPE_CHECKING:
     from ..model_settings import ModelSettings
 
 
-# Suppress debug info from litellm
-litellm.suppress_debug_info = True
+_litellm_configured = False
 
-# On a FAILED call, litellm's failure_handler builds a StandardLoggingObject and
-# runs get_error_information -> format_tb over the exception traceback. With a
-# deep traceback (the agent loop) this pegs the CPU for minutes — the investigate
-# "hang" seen end-to-end was here, not in inference. Kryon uses none of litellm's
-# logging callbacks, so disabling them lets a failed call propagate immediately
-# to our own retry/error handling instead of blocking the event loop.
-litellm.success_callback = []
-litellm.failure_callback = []
-litellm._async_success_callback = []
-litellm._async_failure_callback = []
-litellm.callbacks = []
-litellm.turn_off_message_logging = True
 
-# Let litellm repair the message list to satisfy strict providers (DeepSeek/
-# OpenAI reject an assistant tool_calls message not followed by a tool response
-# for every tool_call_id). Our fix_message_list handles dict-shaped history but
-# misses some object-shaped turns; modify_params is litellm's own repair pass.
-litellm.modify_params = True
+def _ensure_litellm_configured():
+    """Lazily import litellm and apply Kryon's global config (idempotent).
 
-if (
-    os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "Kryon-MOE-35B")) == "o3-mini"
-    or os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "Kryon-MOE-35B")) == "gemini-1.5-pro"
-):
-    litellm.drop_params = True
+    Returns the litellm module. Call this at the top of any litellm-path method
+    that references ``litellm.*`` — it binds the name AND applies the one-time
+    flag setup. The default ``OpenAINativeModel`` overrides ``_fetch_response``
+    and never calls this, so importing this module no longer pulls litellm in
+    (the P1 goal: a litellm-free default import path).
+    """
+    import litellm  # noqa: PLC0415 — deliberately lazy (non-default backend)
+
+    global _litellm_configured
+    if _litellm_configured:
+        return litellm
+
+    # Suppress debug info from litellm
+    litellm.suppress_debug_info = True
+
+    # On a FAILED call, litellm's failure_handler builds a StandardLoggingObject
+    # and runs get_error_information -> format_tb over the exception traceback.
+    # With a deep traceback (the agent loop) this pegs the CPU for minutes — the
+    # investigate "hang" seen end-to-end was here, not in inference. Kryon uses
+    # none of litellm's logging callbacks, so disabling them lets a failed call
+    # propagate immediately to our own retry/error handling instead of blocking
+    # the event loop.
+    litellm.success_callback = []
+    litellm.failure_callback = []
+    litellm._async_success_callback = []
+    litellm._async_failure_callback = []
+    litellm.callbacks = []
+    litellm.turn_off_message_logging = True
+
+    # Let litellm repair the message list to satisfy strict providers (DeepSeek/
+    # OpenAI reject an assistant tool_calls message not followed by a tool
+    # response for every tool_call_id). Our fix_message_list handles dict-shaped
+    # history but misses some object-shaped turns; modify_params is litellm's
+    # own repair pass.
+    litellm.modify_params = True
+
+    if os.getenv("KRYON_MODEL", "Kryon-MOE-35B") in ("o3-mini", "gemini-1.5-pro"):
+        litellm.drop_params = True
+
+    _litellm_configured = True
+    return litellm
+
+
+def _detect_local_llm() -> bool:
+    """True when pointed at a LOCAL OpenAI-compatible endpoint (llama.cpp / vLLM
+    / Ollama) — enables the robust tool-call parsers + usage patch.
+
+    ``KRYON_LOCAL_LLM`` is the canonical flag; ``OLLAMA`` is the deprecated
+    alias kept for backward compat. A value of ``"false"`` (case-insensitive)
+    disables it. SINGLE SOURCE OF TRUTH: both ``__init__`` and ``_fetch_response``
+    call this, so the streaming and non-streaming paths can no longer disagree
+    on local-vs-remote (the old non-streaming path checked only ``OLLAMA`` and
+    silently reset the flag mid-run).
+    """
+    val = os.getenv("KRYON_LOCAL_LLM") or os.getenv("OLLAMA")
+    return val is not None and val.strip().lower() != "false"
+
 
 _USER_AGENT = f"Agents/Python {__version__}"
 _HEADERS = {"User-Agent": _USER_AGENT}
@@ -647,11 +687,10 @@ class OpenAIChatCompletionsModel(Model):
         self.model = model
         self._client = openai_client
         # "Local LLM mode": robust tool-call parsers + litellm usage patch for
-        # llama.cpp / local OpenAI-compat endpoints. KRYON_LOCAL_LLM is the
-        # current flag; OLLAMA kept for backward compat. Attribute name
-        # (is_ollama) left unchanged to avoid churn across this file.
-        _local = os.getenv("KRYON_LOCAL_LLM") or os.getenv("OLLAMA")
-        self.is_ollama = _local is not None and _local.lower() != "false"
+        # llama.cpp / local OpenAI-compat endpoints. Detection is centralized in
+        # _detect_local_llm() (KRYON_LOCAL_LLM canonical, OLLAMA deprecated alias)
+        # so __init__ and _fetch_response can't disagree.
+        self.is_local_llm = _detect_local_llm()
         self.empty_content_error_shown = False
 
         # Track interaction counter and token totals for cli display
@@ -1029,8 +1068,10 @@ class OpenAIChatCompletionsModel(Model):
                 from kryon.util import fix_message_list
 
                 converted_messages = fix_message_list(converted_messages)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001 — best-effort repair
+                # Not fatal, but the usual root cause of a later provider 400.
+                # Debug-log so it's diagnosable instead of vanishing silently.
+                logger.debug("fix_message_list failed (get_response): %s", exc)
 
             # Get token count estimate before API call for consistent counting
             estimated_input_tokens, _ = count_tokens_with_tiktoken(converted_messages)
@@ -1099,7 +1140,7 @@ class OpenAIChatCompletionsModel(Model):
 
             # Ollama fallback: parse tool calls from text content when the model
             # outputs them as JSON in the message body instead of proper tool_calls
-            if self.is_ollama:
+            if self.is_local_llm:
                 msg = response.choices[0].message
                 has_tool_calls = hasattr(msg, "tool_calls") and msg.tool_calls
                 content = getattr(msg, "content", "") or ""
@@ -1638,10 +1679,11 @@ class OpenAIChatCompletionsModel(Model):
 
                         # Update input with the fixed version
                         input = new_input
-                except Exception:
-                    # Silently continue with original input if pre-processing failed
-                    # This is not critical and shouldn't show warnings
-                    pass
+                except Exception as exc:  # noqa: BLE001 — best-effort repair
+                    # Continue with original input if pre-processing failed. Not
+                    # critical, so debug (not warning) per the streaming intent —
+                    # but no longer fully invisible when it causes a later 400.
+                    logger.debug("fix_message_list failed (streaming pre-pass): %s", exc)
 
             # Increment the interaction counter for CLI display
             self.interaction_counter += 1
@@ -1835,7 +1877,7 @@ class OpenAIChatCompletionsModel(Model):
                 # Ollama specific: accumulate full content to check for function calls at the end
                 # Some Ollama models output the function call as JSON in the text content
                 ollama_full_content = ""
-                is_ollama = False
+                is_local_llm = False
 
                 model_str = str(self.model).lower()
                 base_url_env = os.environ.get("OPENAI_BASE_URL", "").lower()
@@ -1862,8 +1904,8 @@ class OpenAIChatCompletionsModel(Model):
                     "wizardcoder",
                     "nous",
                 )
-                is_ollama = bool(
-                    self.is_ollama
+                is_local_llm = bool(
+                    self.is_local_llm
                     or "ollama" in base_url_env
                     or "11434" in base_url_env
                     or "ollama" in model_str
@@ -2020,7 +2062,7 @@ class OpenAIChatCompletionsModel(Model):
                                 thinking_context = None  # Clear the context
 
                             # For Ollama, we need to accumulate the full content to check for function calls
-                            if is_ollama:
+                            if is_local_llm:
                                 ollama_full_content += content
 
                             # Add to the streaming text buffer
@@ -2399,7 +2441,7 @@ class OpenAIChatCompletionsModel(Model):
                     raise
 
                 # Special handling for Ollama - check if accumulated text contains a valid function call
-                if is_ollama and ollama_full_content and len(state.function_calls) == 0:
+                if is_local_llm and ollama_full_content and len(state.function_calls) == 0:
                     # Look for JSON object that might be a function call
                     try:
                         # Try to extract a JSON object from the content
@@ -3007,8 +3049,14 @@ class OpenAIChatCompletionsModel(Model):
         tracing: ModelTracing,
         stream: bool = False,
     ) -> ChatCompletion | tuple[Response, AsyncStream[ChatCompletionChunk]]:
-        # start by re-fetching self.is_ollama
-        self.is_ollama = os.getenv("OLLAMA") is not None and os.getenv("OLLAMA").lower() == "true"
+        # Lazily import + configure litellm (this is the litellm backend; the
+        # native default model overrides this method and never reaches here).
+        litellm = _ensure_litellm_configured()
+        # Re-detect local-LLM mode at call time (env may change mid-session),
+        # via the SAME helper __init__ uses. The old code checked only the
+        # deprecated OLLAMA var and reset the flag to False whenever the user
+        # had set KRYON_LOCAL_LLM instead — disagreeing with __init__/streaming.
+        self.is_local_llm = _detect_local_llm()
 
         # IMPORTANT: Include existing message history for context
         converted_messages = []
@@ -3123,7 +3171,7 @@ class OpenAIChatCompletionsModel(Model):
                 f"Stream: {stream}\n"
                 f"Tool choice: {tool_choice}\n"
                 f"Response format: {response_format}\n"
-                f"Using OLLAMA: {self.is_ollama}\n"
+                f"Local LLM mode: {self.is_local_llm}\n"
             )
 
         # Use NOT_GIVEN for store if not explicitly set to avoid compatibility issues
@@ -3161,13 +3209,13 @@ class OpenAIChatCompletionsModel(Model):
         # provided" — and then its failure_handler HANGS formatting the
         # traceback (root cause of the investigate hang). Prefix with "openai/"
         # + pass api_base/api_key so litellm uses the generic OpenAI-compatible
-        # handler. Skipped for the local path (self.is_ollama) and for natively
+        # handler. Skipped for the local path (self.is_local_llm) and for natively
         # recognised model names (gpt-/o1/o3/claude/gemini).
         _ll_base = os.environ.get("OPENAI_BASE_URL", "").strip()
         _ll_model = str(kwargs["model"])
         if (
             _ll_base
-            and not self.is_ollama
+            and not self.is_local_llm
             and "/" not in _ll_model
             and not _ll_model.lower().startswith(("gpt-", "o1", "o3", "claude", "gemini"))
         ):
@@ -3308,7 +3356,7 @@ class OpenAIChatCompletionsModel(Model):
                 if not converted_tools:
                     kwargs.pop("tool_choice", None)
                 # Don't add custom_llm_provider here to avoid duplication with Ollama provider
-                if self.is_ollama:
+                if self.is_local_llm:
                     # Clean kwargs for ollama to avoid parameter conflicts
                     for param in ["custom_llm_provider"]:
                         kwargs.pop(param, None)
@@ -3345,7 +3393,7 @@ class OpenAIChatCompletionsModel(Model):
 
         while retry_count < max_retries:
             try:
-                if self.is_ollama:
+                if self.is_local_llm:
                     return await self._fetch_response_litellm_ollama(
                         kwargs, model_settings, tool_choice, stream, parallel_tool_calls
                     )
@@ -3715,6 +3763,7 @@ class OpenAIChatCompletionsModel(Model):
         too long, truncate all tool_call ids in the messages to 40 characters
         and retry once silently.
         """
+        litellm = _ensure_litellm_configured()
         try:
             if stream:
                 # Standard LiteLLM handling for streaming.
@@ -3825,6 +3874,7 @@ class OpenAIChatCompletionsModel(Model):
             ChatCompletion or tuple[Response, AsyncStream[ChatCompletionChunk]]:
                 The completion response or a tuple for streaming.
         """
+        litellm = _ensure_litellm_configured()
         # Extract only supported parameters for Ollama
         ollama_supported_params = {
             "model": kwargs.get("model", ""),
@@ -3984,6 +4034,7 @@ class OpenAIChatCompletionsModel(Model):
         parallel_tool_calls: bool,
     ) -> ChatCompletion:
         """Execute the actual litellm.acompletion call for Ollama."""
+        litellm = _ensure_litellm_configured()
         if stream:
             response = Response(
                 id=FAKE_RESPONSES_ID,

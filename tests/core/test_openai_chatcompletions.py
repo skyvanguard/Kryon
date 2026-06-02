@@ -389,3 +389,56 @@ async def test_interaction_counter_single_turn_with_tool_calls(monkeypatch) -> N
 
     # Counter should now be 2 (one increment per turn, not per item)
     assert model.interaction_counter == 2
+
+
+# --- P3: local-LLM detection (rename is_ollama -> is_local_llm + unify) ---
+
+
+@pytest.mark.unit
+def test_detect_local_llm_env_matrix(monkeypatch):
+    from kryon.sdk.agents.models.openai_chatcompletions import _detect_local_llm
+
+    monkeypatch.delenv("KRYON_LOCAL_LLM", raising=False)
+    monkeypatch.delenv("OLLAMA", raising=False)
+    assert _detect_local_llm() is False
+
+    # Canonical flag.
+    monkeypatch.setenv("KRYON_LOCAL_LLM", "true")
+    assert _detect_local_llm() is True
+
+    # Explicit disable.
+    monkeypatch.setenv("KRYON_LOCAL_LLM", "false")
+    assert _detect_local_llm() is False
+
+    # Deprecated OLLAMA alias still recognised.
+    monkeypatch.delenv("KRYON_LOCAL_LLM", raising=False)
+    monkeypatch.setenv("OLLAMA", "true")
+    assert _detect_local_llm() is True
+
+
+@pytest.mark.unit
+def test_local_llm_flag_set_from_canonical_env(monkeypatch):
+    """Regression: KRYON_LOCAL_LLM=true (no OLLAMA) sets is_local_llm True, and
+    the call-time re-detect agrees — the old non-streaming path checked only the
+    deprecated OLLAMA var and silently reset the flag to False mid-run."""
+    from kryon.sdk.agents.models.openai_chatcompletions import (
+        OpenAIChatCompletionsModel,
+        _detect_local_llm,
+    )
+
+    monkeypatch.delenv("OLLAMA", raising=False)
+    monkeypatch.setenv("KRYON_LOCAL_LLM", "true")
+
+    dummy_client = type(
+        "_C",
+        (),
+        {
+            "chat": type("_Ch", (), {"completions": None})(),
+            "base_url": httpx.URL("http://fake"),
+        },
+    )()
+    model = OpenAIChatCompletionsModel(model="Kryon-MOE-35B", openai_client=dummy_client)  # type: ignore
+
+    assert model.is_local_llm is True
+    # _fetch_response now re-detects via the SAME helper → no disagreement.
+    assert _detect_local_llm() is True
