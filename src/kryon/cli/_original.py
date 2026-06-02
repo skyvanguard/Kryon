@@ -2229,6 +2229,10 @@ def main():
     add_cve_cache_subparser(subparsers)
     add_api_subparser(subparsers)
 
+    from kryon.cli.config_cmd import add_config_subparser
+
+    add_config_subparser(subparsers)
+
     # --- default (REPL) arguments ---
     parser.add_argument(
         "prompt",
@@ -2362,6 +2366,10 @@ def main():
         from kryon.cli.api_cmd import run_api_command
 
         sys.exit(run_api_command(args))
+    if args.command == "config":
+        from kryon.cli.config_cmd import run_config_command
+
+        sys.exit(run_config_command(args))
 
     if args.command == "report":
         import asyncio
