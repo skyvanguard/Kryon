@@ -16,7 +16,6 @@ import pytest
 
 def test_native_is_default_litellm_is_escape_hatch(monkeypatch):
     import kryon.agents.base as base
-
     from kryon.sdk.agents import OpenAIChatCompletionsModel
     from kryon.sdk.agents.models.openai_native import OpenAINativeModel
 
@@ -28,6 +27,29 @@ def test_native_is_default_litellm_is_escape_hatch(monkeypatch):
     # Escape hatch → litellm-backed model.
     monkeypatch.setenv("KRYON_USE_LITELLM", "true")
     assert base.chat_model_cls() is OpenAIChatCompletionsModel
+
+
+def test_native_import_does_not_load_litellm():
+    """P1 invariant: importing the DEFAULT model path must NOT import litellm.
+
+    litellm is the ``KRYON_USE_LITELLM`` escape hatch — its import + global-flag
+    monkeypatching are deferred to ``_ensure_litellm_configured()``, only run by
+    litellm-path methods (which the native model overrides). Runs in a FRESH
+    subprocess because the test suite has litellm in sys.modules already; this
+    guards against anyone re-adding a module-level ``import litellm``.
+    """
+    import subprocess
+    import sys
+
+    code = (
+        "import sys; "
+        "import kryon.sdk.agents.models.openai_native; "
+        "assert 'litellm' not in sys.modules, 'litellm imported on default path'; "
+        "print('CLEAN')"
+    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert "CLEAN" in result.stdout
 
 
 def _model_settings():

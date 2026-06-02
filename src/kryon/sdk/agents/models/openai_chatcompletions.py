@@ -15,10 +15,14 @@ from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
-import litellm
 import tiktoken
 
-# Silence LiteLLM's noisy INFO logs (logs every single API call)
+# Silence LiteLLM's noisy INFO logs (logs every single API call). Setting the
+# log level by NAME does not import litellm — it's safe at module scope. The
+# litellm module itself is imported LAZILY (see _ensure_litellm_configured),
+# because litellm is the NON-DEFAULT backend (KRYON_USE_LITELLM=true) and both
+# importing it and its global-flag mutation are deferred until a litellm-path
+# method actually runs. The default OpenAINativeModel never triggers it.
 logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 logging.getLogger("litellm").setLevel(logging.WARNING)
 from openai import NOT_GIVEN, AsyncOpenAI, AsyncStream, NotGiven
@@ -141,33 +145,54 @@ if TYPE_CHECKING:
     from ..model_settings import ModelSettings
 
 
-# Suppress debug info from litellm
-litellm.suppress_debug_info = True
+_litellm_configured = False
 
-# On a FAILED call, litellm's failure_handler builds a StandardLoggingObject and
-# runs get_error_information -> format_tb over the exception traceback. With a
-# deep traceback (the agent loop) this pegs the CPU for minutes — the investigate
-# "hang" seen end-to-end was here, not in inference. Kryon uses none of litellm's
-# logging callbacks, so disabling them lets a failed call propagate immediately
-# to our own retry/error handling instead of blocking the event loop.
-litellm.success_callback = []
-litellm.failure_callback = []
-litellm._async_success_callback = []
-litellm._async_failure_callback = []
-litellm.callbacks = []
-litellm.turn_off_message_logging = True
 
-# Let litellm repair the message list to satisfy strict providers (DeepSeek/
-# OpenAI reject an assistant tool_calls message not followed by a tool response
-# for every tool_call_id). Our fix_message_list handles dict-shaped history but
-# misses some object-shaped turns; modify_params is litellm's own repair pass.
-litellm.modify_params = True
+def _ensure_litellm_configured():
+    """Lazily import litellm and apply Kryon's global config (idempotent).
 
-if (
-    os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "Kryon-MOE-35B")) == "o3-mini"
-    or os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "Kryon-MOE-35B")) == "gemini-1.5-pro"
-):
-    litellm.drop_params = True
+    Returns the litellm module. Call this at the top of any litellm-path method
+    that references ``litellm.*`` — it binds the name AND applies the one-time
+    flag setup. The default ``OpenAINativeModel`` overrides ``_fetch_response``
+    and never calls this, so importing this module no longer pulls litellm in
+    (the P1 goal: a litellm-free default import path).
+    """
+    import litellm  # noqa: PLC0415 — deliberately lazy (non-default backend)
+
+    global _litellm_configured
+    if _litellm_configured:
+        return litellm
+
+    # Suppress debug info from litellm
+    litellm.suppress_debug_info = True
+
+    # On a FAILED call, litellm's failure_handler builds a StandardLoggingObject
+    # and runs get_error_information -> format_tb over the exception traceback.
+    # With a deep traceback (the agent loop) this pegs the CPU for minutes — the
+    # investigate "hang" seen end-to-end was here, not in inference. Kryon uses
+    # none of litellm's logging callbacks, so disabling them lets a failed call
+    # propagate immediately to our own retry/error handling instead of blocking
+    # the event loop.
+    litellm.success_callback = []
+    litellm.failure_callback = []
+    litellm._async_success_callback = []
+    litellm._async_failure_callback = []
+    litellm.callbacks = []
+    litellm.turn_off_message_logging = True
+
+    # Let litellm repair the message list to satisfy strict providers (DeepSeek/
+    # OpenAI reject an assistant tool_calls message not followed by a tool
+    # response for every tool_call_id). Our fix_message_list handles dict-shaped
+    # history but misses some object-shaped turns; modify_params is litellm's
+    # own repair pass.
+    litellm.modify_params = True
+
+    if os.getenv("KRYON_MODEL", "Kryon-MOE-35B") in ("o3-mini", "gemini-1.5-pro"):
+        litellm.drop_params = True
+
+    _litellm_configured = True
+    return litellm
+
 
 _USER_AGENT = f"Agents/Python {__version__}"
 _HEADERS = {"User-Agent": _USER_AGENT}
@@ -3007,6 +3032,9 @@ class OpenAIChatCompletionsModel(Model):
         tracing: ModelTracing,
         stream: bool = False,
     ) -> ChatCompletion | tuple[Response, AsyncStream[ChatCompletionChunk]]:
+        # Lazily import + configure litellm (this is the litellm backend; the
+        # native default model overrides this method and never reaches here).
+        litellm = _ensure_litellm_configured()
         # start by re-fetching self.is_ollama
         self.is_ollama = os.getenv("OLLAMA") is not None and os.getenv("OLLAMA").lower() == "true"
 
@@ -3715,6 +3743,7 @@ class OpenAIChatCompletionsModel(Model):
         too long, truncate all tool_call ids in the messages to 40 characters
         and retry once silently.
         """
+        litellm = _ensure_litellm_configured()
         try:
             if stream:
                 # Standard LiteLLM handling for streaming.
@@ -3825,6 +3854,7 @@ class OpenAIChatCompletionsModel(Model):
             ChatCompletion or tuple[Response, AsyncStream[ChatCompletionChunk]]:
                 The completion response or a tuple for streaming.
         """
+        litellm = _ensure_litellm_configured()
         # Extract only supported parameters for Ollama
         ollama_supported_params = {
             "model": kwargs.get("model", ""),
@@ -3984,6 +4014,7 @@ class OpenAIChatCompletionsModel(Model):
         parallel_tool_calls: bool,
     ) -> ChatCompletion:
         """Execute the actual litellm.acompletion call for Ollama."""
+        litellm = _ensure_litellm_configured()
         if stream:
             response = Response(
                 id=FAKE_RESPONSES_ID,
