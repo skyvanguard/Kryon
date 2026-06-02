@@ -27,9 +27,9 @@ class TestParallelCustomPrompts:
 
     def test_prompt_subcommand_adds_prompt_to_config(self):
         """Test that the prompt subcommand correctly adds a custom prompt to a config."""
-        # Add an agent first (use pentest_agent as it's a valid redteam agent)
+        # Add an agent first (use kryon (unified, the only agent in v2.x))
         with patch("kryon.repl.commands.parallel.console"):
-            self.command.handle_add(["pentest_agent"])
+            self.command.handle_add(["kryon"])
 
         # Verify agent was added
         assert len(PARALLEL_CONFIGS) == 1
@@ -48,9 +48,9 @@ class TestParallelCustomPrompts:
 
     def test_prompt_subcommand_with_index(self):
         """Test that the prompt subcommand works with numeric index."""
-        # Add an agent (use pentest_agent as it's a valid core agent)
+        # Add an agent (use kryon (unified, the only agent in v2.x))
         with patch("kryon.repl.commands.parallel.console"):
-            self.command.handle_add(["pentest_agent"])
+            self.command.handle_add(["kryon"])
 
         # Set prompt using index
         with patch("kryon.repl.commands.parallel.console"):
