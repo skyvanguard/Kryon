@@ -15,8 +15,25 @@ def test_run_input_max_length(client):
     assert resp.status_code == 422
 
 
-def test_run_input_within_limit(client):
-    """RunRequest.input accepts inputs within limit (agent may not exist, but validation passes)."""
+def test_run_input_within_limit(client, monkeypatch):
+    """RunRequest.input accepts inputs within limit — validation passes (not 422).
+    v2.x: any agent_key resolves to the unified agent (no 404 path), so we mock
+    the run and assert the request wasn't rejected by validation. Was asserting
+    404, stale since the unified-only migration."""
+    from types import SimpleNamespace
+
+    from kryon.sdk.agents import Runner
+
+    async def _ok(*args, **kwargs):
+        return SimpleNamespace(
+            final_output="ok",
+            last_agent=SimpleNamespace(name="Kryon"),
+            raw_responses=[],
+            to_input_list=lambda: [],
+        )
+
+    monkeypatch.setattr(Runner, "run", _ok)
+
     resp = client.post(
         "/api/v1/runs",
         json={
@@ -24,8 +41,8 @@ def test_run_input_within_limit(client):
             "input": "x" * 100,
         },
     )
-    # 404 = agent not found means validation passed; 422 would mean validation failed
-    assert resp.status_code == 404
+    assert resp.status_code != 422  # validation passed
+    assert resp.status_code == 200
 
 
 def test_engagement_targets_max_length(client):

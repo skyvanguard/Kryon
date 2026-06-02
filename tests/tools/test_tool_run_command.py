@@ -45,6 +45,7 @@ async def test_run_command_invalid_command():
         "not found",
         "command not found",
         "no such file",
+        "not recognized",  # English Windows ("is not recognized as an internal or external command")
         "no se reconoce",  # Spanish Windows
         "wird nicht erkannt",  # German Windows
         "n'est pas reconnu",  # French Windows
