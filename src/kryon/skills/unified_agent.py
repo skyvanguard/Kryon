@@ -139,6 +139,18 @@ def create_unified_agent(
 
     instructions = _BASE_PROMPT.format(skill_sections=skill_sections)
 
+    # Sub-agent delegation (KRYON_SUBAGENTS, off by default — banca-safe). Give
+    # the orchestrator a focused SAST specialist it can DELEGATE to (agent-as-
+    # tool, isolated context) instead of driving grep/cat itself.
+    _subagents_on = os.environ.get("KRYON_SUBAGENTS", "").lower() in ("1", "true", "yes")
+    if _subagents_on:
+        instructions += (
+            "\n\n## Delegación a especialistas\n"
+            "Para una revisión SAST profunda de un árbol de código local, delegá "
+            "a la tool `sast_review` (corre aislada y devuelve CWEs confirmados) "
+            "en vez de hacer el grep/cat vos mismo."
+        )
+
     # Select tools — ITR per-turn (F84.7) or static skill-driven (F77).
     # Default is static for banca-safe rollout; operators opt in to
     # ITR via KRYON_TOOL_BUDGET=itr.
@@ -170,6 +182,18 @@ def create_unified_agent(
     for name in _ambient_tool_names:
         if name in registry and name not in existing_names and name not in forbidden:
             tools.append(registry[name])
+
+    # Attach the SAST specialist as a delegation tool (agent-as-tool) when
+    # sub-agents are enabled. The orchestrator stays in control and only sees
+    # the specialist's distilled findings (isolated context).
+    if _subagents_on and "run_command" in registry:
+        if "sast_review" not in {getattr(t, "name", "") for t in tools}:
+            try:
+                from kryon.agents.specialists.sast_agent import sast_review_tool
+
+                tools.append(sast_review_tool(registry))
+            except Exception as e:  # noqa: BLE001 — never break the agent build
+                logger.debug("sast sub-agent wiring skipped: %s", e)
 
     logger.info(
         "Unified agent: %d skills loaded (%s), %d tools active",
