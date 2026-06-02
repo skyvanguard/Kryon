@@ -209,6 +209,48 @@ def _detect_local_llm() -> bool:
     return val is not None and val.strip().lower() != "false"
 
 
+def _msg_signature(m: dict) -> tuple:
+    """Identity of a chat message, ignoring enrichments (reasoning_content) and
+    cache_control, so the SAME turn rendered two different ways compares equal."""
+    content = m.get("content")
+    content_key = content if isinstance(content, (str, type(None))) else repr(content)
+    tcs = m.get("tool_calls")
+    tc_key = None
+    if tcs:
+        tc_key = tuple(
+            (c.get("id"), (c.get("function") or {}).get("name"), (c.get("function") or {}).get("arguments"))
+            for c in tcs
+        )
+    return (m.get("role"), content_key, tc_key, m.get("tool_call_id"))
+
+
+def _merge_history_and_converter(message_history, converter_messages) -> list:
+    """P5 — Build the request messages from the authoritative ENRICHED
+    ``message_history`` plus only the converter messages it doesn't already
+    represent.
+
+    The fork keeps ``message_history`` (which carries reasoning_content + exact
+    tool_call formatting) AND the Runner passes the full conversation as ``input``
+    every turn. Converting both and concatenating sent the whole conversation
+    TWICE — ~2x input tokens, degraded provider cache, and a confusingly
+    duplicated context. We take ``message_history`` as the single source of truth
+    and append only converter messages with an unseen signature, so item types
+    history didn't capture are still preserved (no data loss).
+    """
+    out: list = []
+    for msg in message_history or []:
+        m = msg.copy()
+        m.pop("cache_control", None)
+        out.append(m)
+    seen = {_msg_signature(m) for m in out}
+    for m in converter_messages or []:
+        sig = _msg_signature(m)
+        if sig not in seen:
+            out.append(m)
+            seen.add(sig)
+    return out
+
+
 _USER_AGENT = f"Agents/Python {__version__}"
 _HEADERS = {"User-Agent": _USER_AGENT}
 
@@ -958,20 +1000,13 @@ class OpenAIChatCompletionsModel(Model):
         ) as span_generation:
             # Prepare the messages for consistent token counting
             # IMPORTANT: Include existing message history for context
-            converted_messages = []
-
-            # First, add all existing messages from history
-            if self.message_history:
-                for msg in self.message_history:
-                    msg_copy = msg.copy()  # Use copy to avoid modifying original
-                    # Remove any existing cache_control to avoid exceeding the 4-block limit
-                    if "cache_control" in msg_copy:
-                        del msg_copy["cache_control"]
-                    converted_messages.append(msg_copy)
-
-            # Then convert and add the new input
-            new_messages = self._converter.items_to_messages(input, model_instance=self)
-            converted_messages.extend(new_messages)
+            # Build from the authoritative enriched history + only converter
+            # messages it doesn't already represent (P5: avoid sending the whole
+            # conversation twice, which also doubled this token estimate). The
+            # converter call is kept for its side-effects (flushing pending tool
+            # calls into message_history).
+            converter_messages = self._converter.items_to_messages(input, model_instance=self)
+            converted_messages = _merge_history_and_converter(self.message_history, converter_messages)
 
             if system_instructions:
                 # Check if we already have a system message
@@ -3059,20 +3094,12 @@ class OpenAIChatCompletionsModel(Model):
         self.is_local_llm = _detect_local_llm()
 
         # IMPORTANT: Include existing message history for context
-        converted_messages = []
-
-        # First, add all existing messages from history
-        if self.message_history:
-            for msg in self.message_history:
-                msg_copy = msg.copy()  # Use copy to avoid modifying original
-                # Remove any existing cache_control to avoid exceeding the 4-block limit
-                if "cache_control" in msg_copy:
-                    del msg_copy["cache_control"]
-                converted_messages.append(msg_copy)
-
-        # Then convert and add the new input
-        new_messages = self._converter.items_to_messages(input, model_instance=self)
-        converted_messages.extend(new_messages)
+        # P5: authoritative enriched history + only converter messages it
+        # doesn't already represent (avoid sending the conversation twice). The
+        # converter call is kept for its side-effects (flushing pending tool
+        # calls into message_history).
+        converter_messages = self._converter.items_to_messages(input, model_instance=self)
+        converted_messages = _merge_history_and_converter(self.message_history, converter_messages)
 
         if system_instructions:
             # Check if we already have a system message

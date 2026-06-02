@@ -50,6 +50,63 @@ def test_deepseek_reasoning_autoroutes_to_litellm(monkeypatch):
         assert base.chat_model_cls() is OpenAINativeModel, m
 
 
+def test_merge_history_and_converter_dedups():
+    """P5: merge keeps the enriched history copy, drops the converter's plain
+    re-render of the same turns, and still appends converter-only new items."""
+    from kryon.sdk.agents.models.openai_chatcompletions import _merge_history_and_converter
+
+    history = [
+        {"role": "user", "content": "A"},
+        {"role": "assistant", "content": "B", "reasoning_content": "R"},
+    ]
+    converter = [
+        {"role": "user", "content": "A"},  # dup of history
+        {"role": "assistant", "content": "B"},  # dup (plain, no reasoning)
+        {"role": "user", "content": "C"},  # genuinely new — converter-only
+    ]
+    merged = _merge_history_and_converter(history, converter)
+
+    assert [m.get("content") for m in merged] == ["A", "B", "C"]  # no dup, new kept
+    assert merged[1].get("reasoning_content") == "R"  # enriched copy retained
+
+
+async def test_native_does_not_duplicate_history_and_input():
+    """P5 regression: the Runner re-sends the full conversation as `input` every
+    turn AND the fork keeps it in message_history. The request must contain each
+    turn ONCE (was twice → ~2x input tokens)."""
+    from kryon.sdk.agents.models.openai_native import OpenAINativeModel
+
+    create = AsyncMock(return_value=SimpleNamespace(choices=[], usage=None))
+    client = MagicMock()
+    client.chat.completions.create = create
+    model = OpenAINativeModel(model="deepseek-chat", openai_client=client)
+    model.message_history = [
+        {"role": "user", "content": "AUDIT"},
+        {"role": "assistant", "content": "REPLY", "reasoning_content": "THINK"},
+    ]
+    same_conv = [
+        {"role": "user", "content": "AUDIT"},
+        {"role": "assistant", "content": "REPLY"},
+    ]
+    await model._fetch_response(
+        system_instructions="SYS",
+        input=same_conv,
+        model_settings=_model_settings(),
+        tools=[],
+        output_schema=None,
+        handoffs=[],
+        span=None,
+        tracing=SimpleNamespace(include_data=lambda: False),
+        stream=False,
+    )
+    msgs = create.await_args.kwargs["messages"]
+    assert sum(1 for m in msgs if m.get("content") == "AUDIT") == 1
+    assert sum(1 for m in msgs if m.get("content") == "REPLY") == 1
+    # The enriched copy (with reasoning_content) is the one kept.
+    asst = next(m for m in msgs if m.get("content") == "REPLY")
+    assert asst.get("reasoning_content") == "THINK"
+
+
 def test_native_import_does_not_load_litellm():
     """P1 invariant: importing the DEFAULT model path must NOT import litellm.
 

@@ -40,7 +40,12 @@ from openai.types.responses import Response
 
 from ..logger import logger
 from .fake_id import FAKE_RESPONSES_ID
-from .openai_chatcompletions import _HEADERS, OpenAIChatCompletionsModel, ToolConverter
+from .openai_chatcompletions import (
+    _HEADERS,
+    OpenAIChatCompletionsModel,
+    ToolConverter,
+    _merge_history_and_converter,
+)
 
 if TYPE_CHECKING:
     from ..handoffs import Handoff
@@ -66,15 +71,15 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
     ) -> ChatCompletion | tuple[Response, AsyncStream[ChatCompletionChunk]]:
         from kryon.util import fix_message_list
 
-        # --- messages: history + new input + system (reuse parent converter) ---
-        converted_messages: list[dict] = []
-        if self.message_history:
-            for msg in self.message_history:
-                m = msg.copy()
-                m.pop("cache_control", None)
-                converted_messages.append(m)
-        converted_messages.extend(
-            self._converter.items_to_messages(input, model_instance=self)
+        # --- messages: authoritative enriched history + only converter messages
+        # it doesn't already represent (P5: the Runner passes the full
+        # conversation as `input` every turn AND the fork keeps it in
+        # message_history; converting both and concatenating sent it TWICE). The
+        # converter call is kept for its side-effects (flushing pending tool
+        # calls into message_history).
+        converter_messages = self._converter.items_to_messages(input, model_instance=self)
+        converted_messages: list[dict] = _merge_history_and_converter(
+            self.message_history, converter_messages
         )
         if system_instructions and not any(
             m.get("role") == "system" for m in converted_messages
