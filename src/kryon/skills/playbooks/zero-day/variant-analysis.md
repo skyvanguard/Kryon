@@ -13,7 +13,6 @@ required_tools:
   - find_callers
   - run_sandboxed
   - git_log_security
-  - add_to_memory_semantic
 ---
 
 # Variant Analysis

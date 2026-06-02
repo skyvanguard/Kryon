@@ -22,8 +22,6 @@ required_tools:
   - generate_compliance_pdf
   - nmap
   - nuclei_scan
-  - search_vulnerabilities
-  - recall_similar_experiences
   - request_approval
 pre_hooks:
   - tool: run_compliance_audit

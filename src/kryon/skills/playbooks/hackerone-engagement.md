@@ -22,7 +22,6 @@ required_tools:
   - h1_list_my_reports
   - h1_submit_report
   - run_web_pentest
-  - query_similar_findings
   - record_engagement_findings
   - request_approval
 ---

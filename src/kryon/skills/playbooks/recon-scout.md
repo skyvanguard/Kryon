@@ -36,7 +36,6 @@ required_tools:
   - nuclei_scan
   - run_command
   - duckduckgo_search
-  - recall_similar_experiences
   - reflect_on_hypothesis
 pre_hooks:
   # FASE 11.T — web common paths discovery (deterministic recon

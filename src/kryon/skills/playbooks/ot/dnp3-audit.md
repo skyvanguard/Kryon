@@ -24,7 +24,6 @@ priority: 15
 required_tools:
   - run_command
   - run_compliance_audit
-  - search_vulnerabilities
 pre_hooks:
   - python: ./pre_hooks/dnp3_probe_hook.py:run
     args:

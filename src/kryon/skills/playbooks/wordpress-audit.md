@@ -8,7 +8,6 @@ triggers:
 priority: 15
 required_tools:
   - run_command
-  - search_vulnerabilities
   - nuclei_scan
 pre_hooks:
   # F203.O — confirma WordPress + REST API users enum + nuclei WP templates.

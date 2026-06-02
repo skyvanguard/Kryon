@@ -29,9 +29,6 @@ required_tools:
   - run_command
   - nmap
   - nuclei_scan
-  - search_vulnerabilities
-  - query_knowledge_base
-  - recall_similar_experiences
   - request_approval
 pre_hooks:
   - tool: run_compliance_audit

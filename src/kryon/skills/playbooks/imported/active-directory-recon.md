@@ -9,7 +9,6 @@ priority: 20
 required_tools:
   - run_command
   - execute_code
-  - query_knowledge_base
 ---
 
 - DE.AE-07

@@ -28,7 +28,6 @@ required_tools:
   - run_compliance_audit
   - generate_compliance_pdf
   - run_command
-  - query_knowledge_base
   - request_approval
 pre_hooks:
   - tool: run_compliance_audit

@@ -10,8 +10,6 @@ required_tools:
   - run_command
   - execute_code
   - nmap
-  - search_vulnerabilities
-  - query_knowledge_base
 ---
 
 ## CTF Methodology
