@@ -104,6 +104,43 @@ async def test_native_fetch_calls_client_with_clean_kwargs():
     assert kwargs["stream"] is False
 
 
+async def test_native_fetch_logs_when_fix_message_list_fails(monkeypatch, caplog):
+    """P2 observability: a fix_message_list repair failure on the native path is
+    debug-logged (not silently swallowed) but does NOT abort the call."""
+    import logging
+
+    import kryon.util as kutil
+    from kryon.sdk.agents.models.openai_native import OpenAINativeModel
+
+    def _boom(_messages):
+        raise ValueError("bad message shape")
+
+    monkeypatch.setattr(kutil, "fix_message_list", _boom)
+
+    create = AsyncMock(return_value=SimpleNamespace(choices=[], usage=None))
+    client = MagicMock()
+    client.chat.completions.create = create
+    model = OpenAINativeModel(model="deepseek-chat", openai_client=client)
+
+    with caplog.at_level(logging.DEBUG, logger="openai.agents"):
+        await model._fetch_response(
+            system_instructions="sys",
+            input="hi",
+            model_settings=_model_settings(),
+            tools=[],
+            output_schema=None,
+            handoffs=[],
+            span=None,
+            tracing=SimpleNamespace(include_data=lambda: False),
+            stream=False,
+        )
+
+    # The call still proceeded despite the repair failure...
+    create.assert_awaited_once()
+    # ...and the failure is now diagnosable instead of vanishing.
+    assert "fix_message_list failed (native path)" in caplog.text
+
+
 async def test_native_fetch_stream_returns_response_tuple():
     from kryon.sdk.agents.models.openai_native import OpenAINativeModel
 

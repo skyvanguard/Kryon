@@ -38,6 +38,7 @@ from openai import NOT_GIVEN, AsyncStream
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from openai.types.responses import Response
 
+from ..logger import logger
 from .fake_id import FAKE_RESPONSES_ID
 from .openai_chatcompletions import _HEADERS, OpenAIChatCompletionsModel, ToolConverter
 
@@ -82,8 +83,11 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
 
         try:
             converted_messages = fix_message_list(converted_messages)
-        except Exception:  # noqa: BLE001 — repair is best-effort
-            pass
+        except Exception as exc:  # noqa: BLE001 — repair is best-effort
+            # Repair failure isn't fatal, but it's the usual cause of a later
+            # provider 400 (assistant tool_calls not followed by a tool result).
+            # Log at debug so it's diagnosable instead of vanishing.
+            logger.debug("fix_message_list failed (native path): %s", exc)
 
         if tracing.include_data():
             span.span_data.input = converted_messages

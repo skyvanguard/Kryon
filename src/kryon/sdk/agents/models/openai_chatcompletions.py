@@ -1054,8 +1054,10 @@ class OpenAIChatCompletionsModel(Model):
                 from kryon.util import fix_message_list
 
                 converted_messages = fix_message_list(converted_messages)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001 — best-effort repair
+                # Not fatal, but the usual root cause of a later provider 400.
+                # Debug-log so it's diagnosable instead of vanishing silently.
+                logger.debug("fix_message_list failed (get_response): %s", exc)
 
             # Get token count estimate before API call for consistent counting
             estimated_input_tokens, _ = count_tokens_with_tiktoken(converted_messages)
@@ -1663,10 +1665,11 @@ class OpenAIChatCompletionsModel(Model):
 
                         # Update input with the fixed version
                         input = new_input
-                except Exception:
-                    # Silently continue with original input if pre-processing failed
-                    # This is not critical and shouldn't show warnings
-                    pass
+                except Exception as exc:  # noqa: BLE001 — best-effort repair
+                    # Continue with original input if pre-processing failed. Not
+                    # critical, so debug (not warning) per the streaming intent —
+                    # but no longer fully invisible when it causes a later 400.
+                    logger.debug("fix_message_list failed (streaming pre-pass): %s", exc)
 
             # Increment the interaction counter for CLI display
             self.interaction_counter += 1
