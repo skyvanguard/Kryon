@@ -397,6 +397,14 @@ def run_task(walkthrough_path: Path, *, prompt_override: str | None = None) -> R
     expected_file = walkthrough.get("expected_file")
     expected_line = walkthrough.get("expected_line")
     budget = walkthrough.get("wall_budget_seconds", _DEFAULT_WALL_BUDGET_SECONDS)
+    # Env override — slow reasoning models (e.g. DeepSeek thinking) need more
+    # wall time than the per-task default; lets us re-run without editing fixtures.
+    _budget_override = os.environ.get("KRYON_BENCH_WALL_BUDGET")
+    if _budget_override:
+        try:
+            budget = int(_budget_override)
+        except ValueError:
+            pass
 
     wall_start = time.monotonic()
     transcript = ""
