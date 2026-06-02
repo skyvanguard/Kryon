@@ -3198,46 +3198,6 @@ class OpenAIChatCompletionsModel(Model):
                 # and burning thinking tokens.
                 if hasattr(model_settings, "reasoning_effort") and model_settings.reasoning_effort:
                     kwargs["reasoning_effort"] = model_settings.reasoning_effort
-            elif provider == "claude" or "claude" in model_str:
-                litellm.drop_params = True
-                kwargs.pop("store", None)
-                kwargs.pop("parallel_tool_calls", None)  # Claude doesn't support parallel tool calls
-                # Remove tool_choice if no tools are specified
-                if not converted_tools:
-                    kwargs.pop("tool_choice", None)
-
-                # Add extended reasoning support for Claude models
-                # Supports Claude 3.7, Claude 4, and any model with "thinking" in the name
-                has_reasoning_capability = (
-                    "thinking" in model_str
-                    or
-                    # Claude 4 models support reasoning
-                    "-4-" in model_str
-                    or "sonnet-4" in model_str
-                    or "haiku-4" in model_str
-                    or "opus-4" in model_str
-                    or "3.7" in model_str
-                )
-
-                if has_reasoning_capability:
-                    # Clean the model name by removing "thinking" before sending to API
-                    clean_model = kwargs["model"]
-                    if isinstance(clean_model, str) and "thinking" in clean_model.lower():
-                        # Remove "thinking" and clean up any extra spaces/separators
-                        clean_model = re.sub(r"[_-]?thinking[_-]?", "", clean_model, flags=re.IGNORECASE)
-                        clean_model = re.sub(r"[-_]{2,}", "-", clean_model)  # Clean up multiple separators
-                        clean_model = clean_model.strip("-_")  # Clean up leading/trailing separators
-                        kwargs["model"] = clean_model
-
-                    # Check if message history is compatible with reasoning
-                    messages = kwargs.get("messages", [])
-                    is_compatible = _check_reasoning_compatibility(messages)
-
-                    if is_compatible:
-                        kwargs["reasoning_effort"] = "low"  # Use reasoning_effort instead of thinking
-            elif provider == "gemini":
-                kwargs.pop("parallel_tool_calls", None)
-                # Add any specific gemini settings if needed
             elif "openrouter.ai" in os.getenv("OPENAI_BASE_URL", "").lower():
                 # OpenRouter — OpenAI-compat aggregator. Standard OpenAI
                 # params apply; reasoning surfaces via the standard
@@ -3571,38 +3531,6 @@ class OpenAIChatCompletionsModel(Model):
                             # explicitly set one. Mirrors the happy path.
                             if hasattr(model_settings, "reasoning_effort") and model_settings.reasoning_effort:
                                 provider_kwargs["reasoning_effort"] = model_settings.reasoning_effort
-                        elif provider == "claude" or "claude" in model_str:
-                            provider_kwargs["custom_llm_provider"] = "anthropic"
-                            provider_kwargs.pop("store", None)  # Claude doesn't support store parameter
-                            provider_kwargs.pop(
-                                "parallel_tool_calls", None
-                            )  # Claude doesn't support parallel tool calls
-
-                            # Add extended reasoning support for Claude models
-                            if "thinking" in model_str:
-                                # Clean the model name by removing "thinking" before sending to API
-                                clean_model = provider_kwargs["model"]
-                                if isinstance(clean_model, str) and "thinking" in clean_model.lower():
-                                    # Remove "thinking" and clean up any extra spaces/separators
-                                    clean_model = re.sub(r"[_-]?thinking[_-]?", "", clean_model, flags=re.IGNORECASE)
-                                    clean_model = re.sub(r"[-_]{2,}", "-", clean_model)  # Clean up multiple separators
-                                    clean_model = clean_model.strip("-_")  # Clean up leading/trailing separators
-                                    provider_kwargs["model"] = clean_model
-
-                                # Check if message history is compatible with reasoning
-                                messages = provider_kwargs.get("messages", [])
-                                is_compatible = _check_reasoning_compatibility(messages)
-
-                                if is_compatible:
-                                    provider_kwargs["reasoning_effort"] = (
-                                        "low"  # Use reasoning_effort instead of thinking
-                                    )
-                        elif provider == "gemini":
-                            provider_kwargs["custom_llm_provider"] = "gemini"
-                            provider_kwargs.pop("store", None)  # Gemini doesn't support store parameter
-                            provider_kwargs.pop(
-                                "parallel_tool_calls", None
-                            )  # Gemini doesn't support parallel tool calls
                         else:
                             # Unknown provider — only fall back to Ollama if
                             # the configured base_url actually points at one.
