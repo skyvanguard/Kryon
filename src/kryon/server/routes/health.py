@@ -37,10 +37,9 @@ async def _ping_llm() -> ReadinessCheck:
             return _llm_cache["check"]  # type: ignore[return-value]
 
         base_url = os.environ.get("OPENAI_BASE_URL", "").strip()
-        # OLLAMA=true now means "local OpenAI-compatible endpoint" (llama-server
-        # or Ollama's /v1 shim) — both are reached via base_url, NOT litellm's
-        # native ollama/ provider (which talks /api/chat and breaks llama-server).
-        has_local = os.environ.get("OLLAMA", "").lower() == "true" or bool(base_url)
+        # A local OpenAI-compatible endpoint (llama-server / DeepSeek) is reached
+        # via base_url; native OpenAI is detected by the API key alone.
+        has_local = bool(base_url)
         has_openai = bool(os.environ.get("OPENAI_API_KEY"))
         has_anthropic = bool(os.environ.get("ANTHROPIC_API_KEY"))
 

@@ -101,7 +101,7 @@ def test_is_stale_invalid_timestamp():
 def test_doctor_returns_list_of_results(tmp_path, monkeypatch):
     # Cd into tmp so ".kryon/..." dirs are isolated.
     monkeypatch.chdir(tmp_path)
-    results = run_doctor(check_ollama=False)
+    results = run_doctor()
     assert isinstance(results, list)
     assert len(results) >= 4  # 3 dirs + heartbeat (+ env)
     # Dir probes should pass in a fresh tmp dir.
@@ -111,7 +111,7 @@ def test_doctor_returns_list_of_results(tmp_path, monkeypatch):
 
 def test_doctor_flags_missing_heartbeat(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    results = run_doctor(check_ollama=False)
+    results = run_doctor()
     hb = next(r for r in results if r.name == "heartbeat")
     assert hb.ok is False
     assert "missing" in hb.detail
@@ -121,7 +121,7 @@ def test_doctor_passes_when_heartbeat_fresh(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".kryon").mkdir()
     write_heartbeat(path=tmp_path / ".kryon" / "heartbeat.json")
-    results = run_doctor(check_ollama=False)
+    results = run_doctor()
     hb = next(r for r in results if r.name == "heartbeat")
     assert hb.ok is True
 
@@ -129,7 +129,7 @@ def test_doctor_passes_when_heartbeat_fresh(tmp_path, monkeypatch):
 def test_doctor_flags_missing_env(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("KRYON_MODEL", raising=False)
-    results = run_doctor(check_ollama=False)
+    results = run_doctor()
     env = next(r for r in results if r.name == "env:KRYON_MODEL")
     assert env.ok is False
 
@@ -137,6 +137,6 @@ def test_doctor_flags_missing_env(tmp_path, monkeypatch):
 def test_doctor_passes_when_env_set(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("KRYON_MODEL", "kryon-14b")
-    results = run_doctor(check_ollama=False)
+    results = run_doctor()
     env = next(r for r in results if r.name == "env:KRYON_MODEL")
     assert env.ok is True

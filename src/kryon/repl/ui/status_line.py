@@ -5,8 +5,8 @@ Designed to be called once at the start of each user turn:
     render_status_line(agent, console)
     user_input = prompt(...)
 
-Composable: every optional component (drafts count, ollama health,
-last experience) is wrapped in its own try/except. A failing component
+Composable: every optional component (drafts count, last experience)
+is wrapped in its own try/except. A failing component
 is silently omitted; the line never crashes the REPL.
 
 Caches inexpensive checks for ~5 seconds so the line is responsive
@@ -22,8 +22,6 @@ from typing import Any
 from kryon.repl.ui.theme import (
     accent,
     dim,
-    err,
-    ok,
     secondary,
 )
 
@@ -65,23 +63,6 @@ def _count_drafts() -> int:
         return len(list_existing_names())
     except Exception:  # noqa: BLE001
         return 0
-
-
-def _ollama_healthy() -> bool:
-    """Best-effort Ollama health check. False on any failure."""
-    import os
-
-    base = os.environ.get("OLLAMA_HOST") or os.environ.get(
-        "KRYON_EMBEDDING_BASE_URL",
-        "http://localhost:11434",
-    )
-    try:
-        import requests
-
-        r = requests.get(f"{base.rstrip('/')}/api/tags", timeout=0.5)
-        return r.status_code == 200
-    except Exception:  # noqa: BLE001
-        return False
 
 
 def _last_experience_id() -> str | None:
@@ -129,15 +110,6 @@ def _format_drafts() -> str | None:
     return f"{secondary(f'📝 {n} drafts')}"
 
 
-def _format_ollama() -> str | None:
-    try:
-        healthy = _cached("ollama", _ollama_healthy)
-    except Exception as e:  # noqa: BLE001
-        logger.debug("status_line: ollama check failed: %s", e)
-        return None
-    return ok("ollama ✓") if healthy else err("ollama ✗")
-
-
 def _format_last_exp() -> str | None:
     try:
         eid = _cached("last_exp", _last_experience_id)
@@ -155,7 +127,7 @@ def render_status_line(agent: Any, console: Any) -> None:
 
     Layout (line 1 always, line 2 only when there's something to say):
         ──────────────────────────  (separator, dim cyan)
-        ◆ skills: a, b, c (14 tools)  •  ollama ✓
+        ◆ skills: a, b, c (14 tools)
         📝 3 drafts  •  last: eng_a3f9b2c1d4
 
     The horizontal rule replaces the visual chunkiness the legacy ASCII
@@ -173,12 +145,8 @@ def render_status_line(agent: Any, console: Any) -> None:
     except Exception:  # pragma: no cover
         pass
 
-    # Line 1 — skills + ollama
-    line1_parts = [_format_skills(agent)]
-    olla = _format_ollama()
-    if olla:
-        line1_parts.append(olla)
-    console.print("  •  ".join(line1_parts))
+    # Line 1 — skills
+    console.print(_format_skills(agent))
 
     # Line 2 — drafts + last experience (only when at least one is present)
     line2_parts: list[str] = []
