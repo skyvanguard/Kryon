@@ -52,6 +52,10 @@ services:
       # focused SAST specialist it can delegate to via as_tool (isolated
       # context). Off by default — banca-safe; off == prior behavior.
       - KRYON_SUBAGENTS=${KRYON_SUBAGENTS:-false}
+      # Reasoning effort (F184: low|medium|high). gpt-oss reads it (Harmony
+      # "Reasoning:" directive). Empty = model default. medium+ without active
+      # pre_hooks can cause CoT loops — measure before defaulting it on.
+      - KRYON_REASONING_EFFORT=${KRYON_REASONING_EFFORT:-}
       # RAG apagado — auto-updater desactivado (ya no se siembra el corpus).
       - KRYON_AUTO_UPDATE=${KRYON_AUTO_UPDATE:-false}
       # Claude Code CLI backend — configured in .env.docker

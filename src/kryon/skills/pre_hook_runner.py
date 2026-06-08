@@ -224,8 +224,7 @@ async def _invoke_one(
         _orphans = _all_descendants(_self_pid) - _children_before
         _kill_pids(_orphans)
         raise PreHookExecutionError(
-            f"pre_hook {label!r} timed out after {hook.timeout_s}s "
-            f"(killed {len(_orphans)} orphaned subprocess(es))"
+            f"pre_hook {label!r} timed out after {hook.timeout_s}s (killed {len(_orphans)} orphaned subprocess(es))"
         ) from e
     except PreHookExecutionError:
         raise

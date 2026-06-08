@@ -77,11 +77,7 @@ def _format_skill_body(skill: Any) -> str:
         body = body[:_BODY_MAX_CHARS] + "\n\n... (truncated)"
     name = getattr(skill, "name", "unknown")
     desc = getattr(skill, "description", "") or ""
-    return (
-        f"## Skill: `{name}`\n"
-        f"{desc}\n\n"
-        f"---\n\n{body}\n"
-    )
+    return f"## Skill: `{name}`\n{desc}\n\n---\n\n{body}\n"
 
 
 def _log_telemetry(topic: str, matched: bool, returned_skill: str | None) -> None:
@@ -139,15 +135,8 @@ def request_skill(topic: str) -> str:
         _log_telemetry(topic, matched=True, returned_skill=getattr(top, "name", None))
 
         # Also list other near-matches so the agent knows what else is available.
-        other_names = [
-            getattr(s, "name", "?")
-            for s in matched[1:6]
-        ]
-        other_block = (
-            f"\n\n**Other related skills available**: {', '.join(other_names)}\n"
-            if other_names
-            else ""
-        )
+        other_names = [getattr(s, "name", "?") for s in matched[1:6]]
+        other_block = f"\n\n**Other related skills available**: {', '.join(other_names)}\n" if other_names else ""
         return _format_skill_body(top) + other_block
 
     # No match — return generic + 3 closest by name similarity.

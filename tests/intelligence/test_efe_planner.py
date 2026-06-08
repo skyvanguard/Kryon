@@ -17,8 +17,8 @@ from kryon.intelligence.exploit_chain_planner import (
 )
 from kryon.intelligence.fact_extractor import ExtractedFacts
 
-
 # --- epistemic gain (pure) -------------------------------------------------
+
 
 def test_gain_high_when_field_empty():
     """An action that enumerates users, when we have none, opens new ground."""
@@ -40,6 +40,7 @@ def test_gain_zero_when_no_signal():
 
 
 # --- efe score: order dominates at w=0 -------------------------------------
+
 
 def test_efe_score_order_dominates_at_w0():
     """At w=0, an earlier rule (lower index) always outscores a later one,
@@ -63,6 +64,7 @@ def test_efe_score_epistemic_can_flip_close_candidates():
 
 # --- env gating ------------------------------------------------------------
 
+
 def test_efe_disabled_by_default(monkeypatch):
     monkeypatch.delenv("KRYON_EFE_PLANNER", raising=False)
     assert _efe_enabled() is False
@@ -76,6 +78,7 @@ def test_efe_weight_parse(monkeypatch):
 
 
 # --- integration: OFF and on-w0 yield the same winner ----------------------
+
 
 def _asrep_facts() -> ExtractedFacts:
     """Facts that fire at least one rule (AS-REP roast: users + domain, no hashes)."""

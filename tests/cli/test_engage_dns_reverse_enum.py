@@ -21,13 +21,13 @@ os.environ.setdefault("OPENAI_API_KEY", "test_key_for_ci_environment")
 import pytest
 
 from kryon.cli.engage import (
-    DiscoveredService,
-    _check_reverse_dns_enum,
-    _is_generic_ptr,
     _REVERSE_FAILURE_MARKERS,
     _REVERSE_HIT_THRESHOLD,
     _REVERSE_PROBE_OCTETS,
     _SENSITIVE_HOSTNAME_KEYWORDS,
+    DiscoveredService,
+    _check_reverse_dns_enum,
+    _is_generic_ptr,
     _try_ptr_query,
 )
 
@@ -38,20 +38,11 @@ def _svc(host: str = "172.18.201.205", port: int = 53, state: str = "open") -> D
 
 def _ptr_response(hostname: str, ip: str) -> str:
     """Build a realistic Windows nslookup PTR response."""
-    return (
-        "Server:  UnKnown\n"
-        "Address:  172.18.201.205\n"
-        "\n"
-        f"Name:    {hostname}\n"
-        f"Address:  {ip}\n"
-    )
+    return f"Server:  UnKnown\nAddress:  172.18.201.205\n\nName:    {hostname}\nAddress:  {ip}\n"
 
 
 _NXDOMAIN_OUT = (
-    "Server:  UnKnown\n"
-    "Address:  172.18.201.205\n"
-    "\n"
-    "*** UnKnown can't find 172.18.201.99: Non-existent domain\n"
+    "Server:  UnKnown\nAddress:  172.18.201.205\n\n*** UnKnown can't find 172.18.201.99: Non-existent domain\n"
 )
 
 
@@ -195,6 +186,7 @@ class TestNegative:
         """Hostnames like `host-172-18-201-5.dyn.isp.net` are
         IP-derived auto-PTRs — no real internal info disclosed.
         Must NOT flag even with 10+ hits."""
+
         def _multi(cmd, **_kw):
             ip = cmd[1]
             octets = ip.split(".")

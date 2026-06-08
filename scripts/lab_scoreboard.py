@@ -50,15 +50,15 @@ GROUND_TRUTH: dict[str, set[str]] = {
     # planted in Juice Shop 14.x without over-claiming (only CWEs that
     # are deterministically present in the unmodified default build).
     "juice_shop": {
-        "CWE-89",   # SQLi en /rest/user/login (boolean blind)
-        "CWE-79",   # Reflected/stored XSS en search + comments + 5-star
+        "CWE-89",  # SQLi en /rest/user/login (boolean blind)
+        "CWE-79",  # Reflected/stored XSS en search + comments + 5-star
         "CWE-639",  # IDOR en /api/Baskets/{id}, /api/Feedbacks/{id}
         "CWE-285",  # Broken access control (/api/Quantitys, /administration)
         "CWE-200",  # info disclosure (server tokens, /api/Users emails)
-        "CWE-22",   # Path traversal en /ftp endpoint
+        "CWE-22",  # Path traversal en /ftp endpoint
         "CWE-352",  # CSRF en perfil endpoints
         "CWE-915",  # Mass assignment en profile update
-        "CWE-1004", # Cookies sin HttpOnly
+        "CWE-1004",  # Cookies sin HttpOnly
         "CWE-319",  # HTTP por default (sin TLS termination)
     },
 }
@@ -78,9 +78,13 @@ PORT_TO_TARGET = {
 }
 
 
-# Accept ASCII hyphen, non-breaking hyphen (U+2011), en/em dashes, minus.
-# LLM markdown often renders the dash as U+2011 inside table cells.
-_CWE_RE = re.compile(r"CWE[-\s_‐-―−]*(\d{1,4})", re.IGNORECASE)
+# Accept ASCII hyphen, non-breaking hyphen (U+2011), en/em dashes, minus
+# (LLM markdown often renders the dash as U+2011 inside table cells).
+# `(?!\d)` forces the full number (no backtracking to a partial like CWE-2 from
+# "cwe-22-…"); `(?!-[a-zA-Z])` skips skill identifiers like `cwe-89-sqli`
+# (CWE-number-word) while still matching findings `CWE-89`, `CWE-89:`,
+# `CWE-1004 ` — so loaded-skill telemetry never inflates the emitted set.
+_CWE_RE = re.compile(r"CWE[-\s_‐-―−]*(\d{1,4})(?!\d)(?!-[a-zA-Z])", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -115,17 +119,45 @@ class ScoreResult:
             return 0.0
         z = 1.96
         p_hat = len(self.tp) / n
-        numerator = (
-            p_hat + z * z / (2 * n)
-            - z * math.sqrt(p_hat * (1 - p_hat) / n + z * z / (4 * n * n))
-        )
+        numerator = p_hat + z * z / (2 * n) - z * math.sqrt(p_hat * (1 - p_hat) / n + z * z / (4 * n * n))
         denominator = 1 + z * z / n
         return max(0.0, numerator / denominator)
 
 
+# Headings that open a "recommended / to-verify" section. CWE mentions inside
+# such a section are SUGGESTIONS, not findings, so they don't count as emitted
+# (mirrors the agent's confirmed-vs-recommended report split).
+_REC_SECTION_RE = re.compile(
+    r"a\s+verificar|no\s+confirmad|recomenda|pr[oó]ximos\s+pasos|next\s+steps|to\s+verify|to\s+test|sugerenc",
+    re.IGNORECASE,
+)
+
+
+def _is_heading(line: str) -> bool:
+    s = line.strip()
+    return s.startswith("#") or (len(s) > 4 and s.startswith("**") and s.endswith("**"))
+
+
+def _strip_recommendation_sections(text: str) -> str:
+    """Drop lines under a 'recommended / to-verify' heading (until the next
+    heading) so suggested CWEs aren't scored as confirmed findings."""
+    kept: list[str] = []
+    in_rec = False
+    for line in text.splitlines():
+        if _is_heading(line):
+            in_rec = bool(_REC_SECTION_RE.search(line))
+        if not in_rec:
+            kept.append(line)
+    return "\n".join(kept)
+
+
 def extract_cwes(text: str) -> set[str]:
-    """Pull all `CWE-XXX` mentions from a text blob (markdown / JSON)."""
-    return {f"CWE-{int(m.group(1))}" for m in _CWE_RE.finditer(text)}
+    """Pull all `CWE-XXX` *finding* mentions from a text blob (markdown / JSON).
+
+    Skips CWE ids that are skill identifiers (handled by the regex) and ids
+    inside a recommended/to-verify section (handled here).
+    """
+    return {f"CWE-{int(m.group(1))}" for m in _CWE_RE.finditer(_strip_recommendation_sections(text))}
 
 
 def infer_target_from_text(text: str) -> str | None:
@@ -138,27 +170,46 @@ def infer_target_from_text(text: str) -> str | None:
     text_lower = text.lower()
     for port, target in PORT_TO_TARGET.items():
         patterns = (
-            f":{port}",               # URL form: http://host:8080/
-            f"port {port}",            # "port 8080" descriptive
-            f"-p {port}",              # ssh -p 2222
-            f"-P {port}",              # mysql -P 33060 (uppercase original)
-            f"-p={port}",              # ssh -p=2222
+            f":{port}",  # URL form: http://host:8080/
+            f"port {port}",  # "port 8080" descriptive
+            f"-p {port}",  # ssh -p 2222
+            f"-P {port}",  # mysql -P 33060 (uppercase original)
+            f"-p={port}",  # ssh -p=2222
         )
         if any(p in text or p.lower() in text_lower for p in patterns):
             return target
     return None
 
 
+# A finding for a child CWE satisfies its parent in ground truth (the CWE tree
+# narrows the same weakness). Conservative, well-established relationships only.
+_CWE_PARENT: dict[str, str] = {
+    "CWE-862": "CWE-285",  # Missing Authorization ⊂ Improper Access Control
+    "CWE-306": "CWE-285",  # Missing Auth for Critical Function ⊂ Improper Access Control
+}
+
+
 def score_text(text: str, target: str) -> ScoreResult:
-    """Compute TP/FP/FN comparing CWEs in text vs ground truth for target."""
+    """Compute TP/FP/FN comparing CWEs in text vs ground truth for target.
+
+    Honors CWE parent/child relationships: an emitted child CWE credits its
+    parent when the parent is in ground truth (and is then not counted as a
+    false positive).
+    """
     if target not in GROUND_TRUTH:
         raise ValueError(f"Unknown target '{target}'. Options: {list(GROUND_TRUTH)}")
 
     gt = GROUND_TRUTH[target]
     emitted = extract_cwes(text)
-    tp = gt & emitted
-    fp = emitted - gt
-    fn = gt - emitted
+    # Expand emitted with parent CWEs that appear in ground truth.
+    expanded = set(emitted)
+    for cwe in emitted:
+        parent = _CWE_PARENT.get(cwe)
+        if parent and parent in gt:
+            expanded.add(parent)
+    tp = gt & expanded
+    fp = {c for c in emitted if c not in gt and _CWE_PARENT.get(c) not in gt}
+    fn = gt - expanded
     return ScoreResult(
         target=target,
         ground_truth=gt,
@@ -174,8 +225,7 @@ def format_report(result: ScoreResult) -> str:
     lines = [
         f"## Lab Scoreboard — target: {result.target}",
         "",
-        f"Ground truth ({len(result.ground_truth)} CWEs): "
-        f"{', '.join(sorted(result.ground_truth))}",
+        f"Ground truth ({len(result.ground_truth)} CWEs): {', '.join(sorted(result.ground_truth))}",
         f"Emitted     ({len(result.emitted)} CWEs): "
         f"{', '.join(sorted(result.emitted)) if result.emitted else '(none)'}",
         "",
@@ -192,9 +242,7 @@ def format_report(result: ScoreResult) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(
-        description="F203.J — Score Kryon findings against vulnerable-lab ground truth"
-    )
+    ap = argparse.ArgumentParser(description="F203.J — Score Kryon findings against vulnerable-lab ground truth")
     ap.add_argument(
         "--transcript",
         type=Path,

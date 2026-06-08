@@ -45,10 +45,32 @@ DEFAULT_MODEL = "Kryon-MOE-35B"
 # within this set so a low-signal file just sinks to the bottom.
 SOURCE_EXTENSIONS: frozenset[str] = frozenset(
     {
-        ".c", ".cc", ".cpp", ".cxx", ".h", ".hpp", ".hh",
-        ".py", ".rb", ".php", ".java", ".go", ".rs",
-        ".js", ".jsx", ".ts", ".tsx", ".kt", ".scala", ".cs",
-        ".swift", ".m", ".mm", ".pl", ".lua", ".sh",
+        ".c",
+        ".cc",
+        ".cpp",
+        ".cxx",
+        ".h",
+        ".hpp",
+        ".hh",
+        ".py",
+        ".rb",
+        ".php",
+        ".java",
+        ".go",
+        ".rs",
+        ".js",
+        ".jsx",
+        ".ts",
+        ".tsx",
+        ".kt",
+        ".scala",
+        ".cs",
+        ".swift",
+        ".m",
+        ".mm",
+        ".pl",
+        ".lua",
+        ".sh",
     }
 )
 
@@ -56,15 +78,35 @@ SOURCE_EXTENSIONS: frozenset[str] = frozenset(
 # tests (a vuln in a test fixture is not a product vuln). Lowercased.
 SKIP_DIRS: frozenset[str] = frozenset(
     {
-        ".git", ".hg", ".svn", "node_modules", "vendor", "third_party",
-        "dist", "build", "out", "target", "__pycache__", ".venv", "venv",
-        "site-packages", "bower_components", ".tox", ".mypy_cache",
-        "testdata", "fixtures", "examples", "docs",
+        ".git",
+        ".hg",
+        ".svn",
+        "node_modules",
+        "vendor",
+        "third_party",
+        "dist",
+        "build",
+        "out",
+        "target",
+        "__pycache__",
+        ".venv",
+        "venv",
+        "site-packages",
+        "bower_components",
+        ".tox",
+        ".mypy_cache",
+        "testdata",
+        "fixtures",
+        "examples",
+        "docs",
         # Build-time codegen / assembly generators (e.g. OpenSSL's perl asm
         # generators under crypto/*/asm/). Their backtick/shell-out lines are
         # build tooling, not product attack surface — they swamped the
         # sink-density triage with CWE-78 noise and crowded out real source.
-        "asm", "perlasm", "test", "tests",
+        "asm",
+        "perlasm",
+        "test",
+        "tests",
     }
 )
 
@@ -271,10 +313,10 @@ _REVIEW_INSTRUCTIONS = (
     "finding, identify the precise line and the dangerous expression (the "
     "sink).\n\n"
     "Respond with a JSON array ONLY (no prose, no markdown fences). Each "
-    "element: {\"line\": int, \"cwe\": \"CWE-XXX\", \"severity\": "
-    "\"CRITICAL|HIGH|MEDIUM|LOW\", \"title\": str, \"description\": str, "
-    "\"evidence\": \"the exact vulnerable line(s)\", \"sink\": \"the "
-    "dangerous call/expression\", \"confidence\": 0.0-1.0}. "
+    'element: {"line": int, "cwe": "CWE-XXX", "severity": '
+    '"CRITICAL|HIGH|MEDIUM|LOW", "title": str, "description": str, '
+    '"evidence": "the exact vulnerable line(s)", "sink": "the '
+    'dangerous call/expression", "confidence": 0.0-1.0}. '
     "If there are no real vulnerabilities, respond with []."
 )
 
@@ -284,11 +326,7 @@ def build_review_prompt(rel_path: str, code: str, *, max_code_chars: int = 24_00
     char cap (triage already filtered by byte size; this is a safety net)."""
     snippet = code if len(code) <= max_code_chars else code[:max_code_chars] + "\n…(truncated)\n"
     numbered = _number_lines(snippet)
-    return (
-        f"{_REVIEW_INSTRUCTIONS}\n\n"
-        f"File: {rel_path}\n"
-        f"```\n{numbered}\n```\n"
-    )
+    return f"{_REVIEW_INSTRUCTIONS}\n\nFile: {rel_path}\n```\n{numbered}\n```\n"
 
 
 def _number_lines(code: str) -> str:

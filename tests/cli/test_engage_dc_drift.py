@@ -19,8 +19,8 @@ os.environ.setdefault("OPENAI_API_KEY", "test_key_for_ci_environment")
 import pytest
 
 from kryon.cli.engage import (
-    Finding,
     _DC_DRIFT_DNS_RULES,
+    Finding,
     _is_domain_controller_host,
     _rule_ids_present,
     diff_dc_dns_posture,
@@ -131,9 +131,7 @@ class TestDnsRuleDrift:
             }
             drift = diff_dc_dns_posture(host_findings)
             drift_for_this = [f for f in drift if f.rule_id == f"dc-drift-{rule_id}"]
-            assert len(drift_for_this) == 1, (
-                f"No drift detected for asymmetric rule {rule_id!r}"
-            )
+            assert len(drift_for_this) == 1, f"No drift detected for asymmetric rule {rule_id!r}"
             assert drift_for_this[0].severity == expected_sev
 
 

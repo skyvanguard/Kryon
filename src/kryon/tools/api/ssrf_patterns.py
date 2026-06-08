@@ -374,6 +374,7 @@ def analyze_ssrf(
     for s in snippets:
         findings.extend(_classify_snippet(s))
     from kryon.util.severity import SEVERITY_RANK as severity_order
+
     findings.sort(key=lambda f: (severity_order.get(f.severity, 99), f.rule_id, f.location))
     return SsrfAnalysis(
         total_parameters=len(parameters),

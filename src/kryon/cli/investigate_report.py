@@ -42,9 +42,7 @@ _REPORT_DIR = Path.home() / ".kryon" / "investigate"
 
 # Authoritative verdict emitted by the exploit validators (_build_result):
 # `{"validation_status": "confirmed|false_positive|potential", ...}`.
-_VERDICT_RE = re.compile(
-    r'"validation_status"\s*:\s*"(confirmed|false_positive|potential)"'
-)
+_VERDICT_RE = re.compile(r'"validation_status"\s*:\s*"(confirmed|false_positive|potential)"')
 
 # Fallback heuristic for tools that don't emit the structured field. NEGATIONS
 # are checked FIRST — mirroring the validators themselves — so "not confirmed",

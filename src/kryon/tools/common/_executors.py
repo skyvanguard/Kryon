@@ -255,9 +255,7 @@ async def _run_local_async(
                     await _drain_and_kill(process)
                     raise subprocess.TimeoutExpired(command, timeout)
                 try:
-                    line = await asyncio.wait_for(
-                        process.stdout.readline(), timeout=remaining
-                    )
+                    line = await asyncio.wait_for(process.stdout.readline(), timeout=remaining)
                 except asyncio.TimeoutError as e:
                     await _drain_and_kill(process)
                     raise subprocess.TimeoutExpired(command, timeout) from e

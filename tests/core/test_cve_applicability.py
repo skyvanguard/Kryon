@@ -34,7 +34,6 @@ from kryon.validation.cve_applicability import (
     is_cve_applicable,
 )
 
-
 # ---------------------------------------------------------------------------
 # Tech-stack extraction from recon output
 # ---------------------------------------------------------------------------
@@ -74,10 +73,7 @@ def test_extract_empty_input_returns_empty_set():
 
 
 def test_extract_combined_sources():
-    combined = (
-        '[{"plugins":{"nginx":{"string":["nginx"]}}}]\n'
-        'Server: nginx/1.20\nX-Powered-By: Express\n'
-    )
+    combined = '[{"plugins":{"nginx":{"string":["nginx"]}}}]\nServer: nginx/1.20\nX-Powered-By: Express\n'
     stack = extract_target_tech_stack(combined)
     assert "nginx" in stack
     assert "express" in stack
@@ -211,14 +207,10 @@ def test_finding_with_cve_rule_id_runs_full_check(monkeypatch):
     monkeypatch.setattr(
         cve_applicability,
         "_lookup_cve_metadata",
-        lambda cid: CVEApplicability(
-            cve_id=cid, products=("jamon",), description="JAMon XSS"
-        ),
+        lambda cid: CVEApplicability(cve_id=cid, products=("jamon",), description="JAMon XSS"),
     )
     finding = {"rule_id": "CVE-2013-6235", "severity": "HIGH"}
-    ok, reason = cve_applicability.is_cve_applicable_for_finding(
-        finding, tech_stack={"express", "node.js"}
-    )
+    ok, reason = cve_applicability.is_cve_applicable_for_finding(finding, tech_stack={"express", "node.js"})
     assert ok is False
     assert "jamon" in reason.lower() or "no match" in reason.lower()
 
@@ -246,14 +238,10 @@ def test_disabled_filter_for_finding(monkeypatch):
     monkeypatch.setattr(
         cve_applicability,
         "_lookup_cve_metadata",
-        lambda cid: CVEApplicability(
-            cve_id=cid, products=("jamon",), description="JAMon XSS"
-        ),
+        lambda cid: CVEApplicability(cve_id=cid, products=("jamon",), description="JAMon XSS"),
     )
     finding = {"rule_id": "CVE-2013-6235"}
-    ok, _ = cve_applicability.is_cve_applicable_for_finding(
-        finding, tech_stack={"express"}
-    )
+    ok, _ = cve_applicability.is_cve_applicable_for_finding(finding, tech_stack={"express"})
     assert ok is True
 
 
@@ -302,9 +290,7 @@ def test_known_target_juice_shop_blocks_jamon_cve_with_empty_stack():
         "host": "http://juice_shop:3000",
         "severity": "HIGH",
     }
-    ok, reason = cve_applicability.is_cve_applicable_for_finding(
-        finding, tech_stack=set()
-    )
+    ok, reason = cve_applicability.is_cve_applicable_for_finding(finding, tech_stack=set())
     assert ok is False
     assert "jamon" in reason.lower() or "no match" in reason.lower()
 
@@ -318,9 +304,7 @@ def test_known_target_dvwa_blocks_jamon_jsp_cve():
         "host": "http://dvwa:80/login.php",
         "severity": "HIGH",
     }
-    ok, _ = cve_applicability.is_cve_applicable_for_finding(
-        finding, tech_stack=set()
-    )
+    ok, _ = cve_applicability.is_cve_applicable_for_finding(finding, tech_stack=set())
     assert ok is False
 
 
@@ -333,9 +317,7 @@ def test_known_target_webgoat_keeps_jamon_jsp_cve():
         "host": "http://webgoat:8080/WebGoat",
         "severity": "HIGH",
     }
-    ok, _ = cve_applicability.is_cve_applicable_for_finding(
-        finding, tech_stack=set()
-    )
+    ok, _ = cve_applicability.is_cve_applicable_for_finding(finding, tech_stack=set())
     # WebGoat is JSP-ish — the gate should keep it (or at least not be
     # the one to drop it). Strict matching: jamon product NOT in
     # webgoat stack {java, spring boot, tomcat}, so the gate will still
@@ -355,9 +337,7 @@ def test_unknown_target_falls_through_to_caller_stack():
         "severity": "HIGH",
     }
     # With empty stack the conservative pass kicks in.
-    ok, reason = cve_applicability.is_cve_applicable_for_finding(
-        finding, tech_stack=set()
-    )
+    ok, reason = cve_applicability.is_cve_applicable_for_finding(finding, tech_stack=set())
     assert ok is True
     assert "no tech stack" in reason.lower() or "passing conservatively" in reason.lower()
 
@@ -377,9 +357,7 @@ def test_caller_stack_merged_with_host_hint():
     # match Struts on tomcat? Actually products=("apache struts",); the
     # caller token "tomcat" doesn't share a 4-char word with "apache
     # struts" → no match → drop.
-    ok, _ = cve_applicability.is_cve_applicable_for_finding(
-        finding, tech_stack={"tomcat"}
-    )
+    ok, _ = cve_applicability.is_cve_applicable_for_finding(finding, tech_stack={"tomcat"})
     assert ok is False
 
 
@@ -413,13 +391,8 @@ def test_f181c_known_target_overrides_contaminated_narration():
     # Simulate the contamination: narration extractor pulled jamon
     # from a prior finding's message.
     contaminated = {"jamon", "jsp", "node"}
-    ok, reason = cve_applicability.is_cve_applicable_for_finding(
-        finding, tech_stack=contaminated
-    )
-    assert ok is False, (
-        f"Known target host should override contaminated stack, "
-        f"but got ok=True with reason: {reason}"
-    )
+    ok, reason = cve_applicability.is_cve_applicable_for_finding(finding, tech_stack=contaminated)
+    assert ok is False, f"Known target host should override contaminated stack, but got ok=True with reason: {reason}"
     assert "jamon" not in reason or "no match" in reason.lower()
 
 
@@ -431,9 +404,7 @@ def test_jsp_keyword_no_longer_extracted_from_text():
     operator's recon must surface ``Tomcat`` / ``Spring`` / similar."""
     from kryon.validation.cve_applicability import extract_target_tech_stack
 
-    stack = extract_target_tech_stack(
-        "Finding 1: JAMonAdmin.jsp XSS. Finding 2: served by .jsp pages."
-    )
+    stack = extract_target_tech_stack("Finding 1: JAMonAdmin.jsp XSS. Finding 2: served by .jsp pages.")
     assert "jsp" not in stack
     assert "jamon" not in stack
 
@@ -443,7 +414,5 @@ def test_jsp_targets_still_caught_via_tomcat_keyword():
     still in the keyword set."""
     from kryon.validation.cve_applicability import extract_target_tech_stack
 
-    stack = extract_target_tech_stack(
-        "Server: Apache Tomcat 9.0 hosting JAMonAdmin.jsp."
-    )
+    stack = extract_target_tech_stack("Server: Apache Tomcat 9.0 hosting JAMonAdmin.jsp.")
     assert "tomcat" in stack

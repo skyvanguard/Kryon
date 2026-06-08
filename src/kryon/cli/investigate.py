@@ -61,10 +61,18 @@ def _classify_intent(prompt: str) -> dict[str, Any]:
     if urls:
         hints["urls"] = urls
         hints["mode"] = "web_audit"
-        hints["keywords"].extend([
-            "webapp", "web vulnerability", "http",
-            "cwe-79", "cwe-89", "cwe-352", "cwe-22", "cwe-918",
-        ])
+        hints["keywords"].extend(
+            [
+                "webapp",
+                "web vulnerability",
+                "http",
+                "cwe-79",
+                "cwe-89",
+                "cwe-352",
+                "cwe-22",
+                "cwe-918",
+            ]
+        )
 
     # Code path detection
     for word in prompt.split():
@@ -144,8 +152,20 @@ def _build_investigate_prompt(user_prompt: str, hints: dict[str, Any], active: b
         f"    de forms en el HTML.\n"
         f"NUNCA emitas `[]` (findings vacío) sin haber intentado al menos 3 tool calls "
         f"manuales adicionales.\n\n"
-        f"Cuando termines, emití un **resumen ejecutivo** con: lo que aprendiste, "
-        f"hallazgos preliminares (si aplican), y próximos pasos sugeridos para el operador.\n"
+        f"## Formato del reporte final (OBLIGATORIO — separar confirmado de recomendado)\n\n"
+        f"Emití DOS secciones bien separadas. NO mezcles:\n\n"
+        f"### ✅ Hallazgos confirmados\n"
+        f"Solo vulnerabilidades que **observaste con evidencia** (findings deterministas "
+        f"inyectados arriba + lo que vos verificaste con una tool). Acá SÍ usá la etiqueta "
+        f"`CWE-XXX` por cada hallazgo, con la evidencia concreta. Si no lo confirmaste, NO va acá.\n\n"
+        f"### 🔎 A verificar (NO confirmado)\n"
+        f"Clases de vulnerabilidad que valdría la pena testear pero que **NO confirmaste**. "
+        f"Acá describí en prosa el qué y el cómo (ej: 'probar inyección SQL en el parámetro q "
+        f"con sqlmap'). **PROHIBIDO usar la etiqueta `CWE-XXX` en esta sección** — una "
+        f"recomendación no es un hallazgo, y etiquetarla como CWE la haría pasar por confirmada. "
+        f"Usá el nombre de la clase en texto (SQLi, XSS, CSRF…), nunca el código CWE.\n\n"
+        f"Regla de oro: un `CWE-XXX` en el reporte = afirmás que ESE defecto existe y lo viste. "
+        f"Si solo lo sospechás, va en 'A verificar' sin código CWE.\n"
     )
 
 
@@ -212,9 +232,17 @@ def _run_deterministic_phase(
     port = parsed.port
     if port is None:
         defaults = {
-            "https": 443, "http": 80, "ssh": 22, "mysql": 3306,
-            "postgres": 5432, "postgresql": 5432, "redis": 6379,
-            "mongodb": 27017, "dns": 53, "smb": 445, "cifs": 445,
+            "https": 443,
+            "http": 80,
+            "ssh": 22,
+            "mysql": 3306,
+            "postgres": 5432,
+            "postgresql": 5432,
+            "redis": 6379,
+            "mongodb": 27017,
+            "dns": 53,
+            "smb": 445,
+            "cifs": 445,
         }
         port = defaults.get(scheme)
         if port is None:
@@ -225,7 +253,9 @@ def _run_deterministic_phase(
     # HTTP / HTTPS
     if scheme in ("http", "https") or port in (80, 443, 8080, 8443, 8000, 8888):
         svc = DiscoveredService(
-            host=host, port=port, state="open",
+            host=host,
+            port=port,
+            state="open",
             service="https" if scheme == "https" or port == 443 else "http",
         )
         findings.extend(_safe_call(_check_http, svc))
@@ -245,9 +275,7 @@ def _run_deterministic_phase(
                 os.environ["KRYON_SSH_PORT"] = str(port)
             if ssh_key:
                 os.environ["KRYON_SSH_KEY_PATH"] = ssh_key
-            findings.extend(
-                _safe_call(_check_ssh, svc, ssh_target, ssh_password or None)
-            )
+            findings.extend(_safe_call(_check_ssh, svc, ssh_target, ssh_password or None))
         finally:
             if prior_port is None:
                 os.environ.pop("KRYON_SSH_PORT", None)
@@ -333,6 +361,71 @@ def _run_source_review_phase(code_path: str, *, max_files: int = 25) -> list:
     return [f.to_engage_finding() for f in result.findings]
 
 
+def _run_webexploit_phase(
+    url: str,
+    *,
+    enable_nuclei: bool = False,
+    max_depth: int = 2,
+    max_urls: int = 40,
+    web_auth: dict | None = None,
+) -> list:
+    """F57 deterministic web-pentest sweep → engage.Finding list (Phase 5).
+
+    Runs the unified webexploit pipeline (crawl → planner_web → hunter_web →
+    validator_web, offline / no LLM escalation) and converts non-FP
+    BankingFindings into engage.Finding so they inject as ground truth
+    like the other deterministic checks. This is the autonomous wiring of
+    the previously-dormant F57 pipeline (it was only reachable via the
+    ``/webpentest`` REPL command). ACTIVE — sends payloads; the caller
+    gates it behind ``--active``. Skips silently on any error.
+    """
+    from urllib.parse import urlparse
+
+    try:
+        from kryon.cli.engage import Finding
+        from kryon.webexploit.crawler import CrawlConfig, Crawler
+        from kryon.webexploit.orchestrator import run_engagement
+        from kryon.webexploit.proxy import HttpSession
+    except ImportError:
+        return []
+
+    host = urlparse(url).hostname or ""
+    if not host:
+        return []
+
+    try:
+        session = HttpSession(base_url=url, verify_tls=False)
+        graph = Crawler(session, config=CrawlConfig(max_depth=max_depth, max_urls=max_urls)).crawl([url])
+
+        def _factory() -> HttpSession:
+            return HttpSession(base_url=url, verify_tls=False)
+
+        report = run_engagement(session, _factory, graph, base_url=url, enable_nuclei=enable_nuclei, web_auth=web_auth)
+    except Exception:  # noqa: BLE001 — LLM agent still runs
+        return []
+
+    rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+    findings: list = []
+    for vf in report.findings:
+        if vf.status == "FALSE_POSITIVE":
+            continue
+        bf = vf.finding
+        findings.append(
+            Finding(
+                cwe=bf.cwe_id or "?",
+                severity=bf.severity,
+                host=host,
+                rule_id=bf.probe_id,
+                message=bf.title,
+                evidence=bf.evidence[:1024],
+                remediation=bf.remediation,
+                severity_rank=rank.get(bf.severity, 99),
+                needs_verification=(vf.status != "CONFIRMED"),
+            )
+        )
+    return findings
+
+
 def _format_findings_for_prompt(findings: list) -> str:
     """Render Finding list as markdown block to inject into agent prompt."""
     if not findings:
@@ -372,19 +465,13 @@ def run_investigate(args: argparse.Namespace) -> int:
     # with the parent CLI's `prompt` positional (which is set to None).
     prompt = args.query
     if args.url:
-        prompt = (
-            f"{prompt} (URL declarada explícitamente: {args.url})"
-            if prompt
-            else f"Investigá {args.url}"
-        )
+        prompt = f"{prompt} (URL declarada explícitamente: {args.url})" if prompt else f"Investigá {args.url}"
     if not prompt:
         console.print("[red]error: provide a prompt or --url[/red]")
         return 2
 
     hints = _classify_intent(prompt)
-    active = args.active or os.environ.get("KRYON_INVESTIGATE_ACTIVE", "").lower() in (
-        "1", "true", "yes"
-    )
+    active = args.active or os.environ.get("KRYON_INVESTIGATE_ACTIVE", "").lower() in ("1", "true", "yes")
 
     console.print(f"[cyan]▸ Investigate mode:[/cyan] {hints.get('mode', 'general')}")
     if active:
@@ -403,10 +490,7 @@ def run_investigate(args: argparse.Namespace) -> int:
     intent = prompt + " " + " ".join(hints.get("keywords", []))
     matched = loader.match(profile={}, user_msg=intent)
     if matched:
-        console.print(
-            f"[dim]skills loaded: {[s.name for s in matched[:6]]} "
-            f"(total={len(matched)})[/dim]"
-        )
+        console.print(f"[dim]skills loaded: {[s.name for s in matched[:6]]} (total={len(matched)})[/dim]")
 
     # Build agent + run loop
     try:
@@ -472,10 +556,7 @@ def run_investigate(args: argparse.Namespace) -> int:
                     )
                     df = _fut.result(timeout=_det_timeout)
             except concurrent.futures.TimeoutError:
-                console.print(
-                    f"[yellow]⚠ fase determinista excedió {_det_timeout:.0f}s "
-                    f"para {u} — saltando[/yellow]"
-                )
+                console.print(f"[yellow]⚠ fase determinista excedió {_det_timeout:.0f}s para {u} — saltando[/yellow]")
                 df = None
             except Exception as e:  # noqa: BLE001 — detectors must never break the run
                 console.print(f"[yellow]deterministic phase warning ({u}): {e}[/yellow]")
@@ -483,15 +564,54 @@ def run_investigate(args: argparse.Namespace) -> int:
             if df:
                 deterministic_findings.extend(df)
 
+        # F57 webexploit sweep — ACTIVE only (sends payloads). Adds the unified
+        # deterministic web-vuln coverage (SQLi/XSS/LFI/SSTI/cmd-inj/XXE/IDOR/
+        # SSRF/CORS/JWT/git-leak) + opt-in nuclei known-CVE library. This is the
+        # autonomous wiring of the F57 pipeline (was /webpentest-only).
+        if active:
+            enable_nuclei = os.environ.get("KRYON_RED_TEAM", "").strip().lower() in ("1", "true", "yes")
+            # Comprehensive sweep (surface discovery + injection over dozens of
+            # endpoints + headless cookie check + authenticated IDOR/mass-assign)
+            # is heavy on rich targets; 600s default so its findings aren't
+            # dropped. Override with KRYON_WEBEXPLOIT_TIMEOUT_S.
+            _wx_timeout = float(os.environ.get("KRYON_WEBEXPLOIT_TIMEOUT_S", "600"))
+            # Authenticated probing mode — operator-supplied web creds unlock
+            # IDOR / mass-assignment probes (unreachable unauthenticated).
+            _web_auth = None
+            if getattr(args, "web_login_url", "") and getattr(args, "web_user", ""):
+                login_url = args.web_login_url
+                if not login_url.lower().startswith(("http://", "https://")) and args.url:
+                    login_url = args.url.rstrip("/") + "/" + login_url.lstrip("/")
+                _web_auth = {
+                    "login_url": login_url,
+                    "username": args.web_user,
+                    "password": args.web_pass,
+                    "token_json_path": args.web_token_path,
+                }
+            for u in urls_to_check:
+                if not u.lower().startswith(("http://", "https://")):
+                    continue
+                try:
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _ex:
+                        _fut = _ex.submit(_run_webexploit_phase, u, enable_nuclei=enable_nuclei, web_auth=_web_auth)
+                        wf = _fut.result(timeout=_wx_timeout)
+                except concurrent.futures.TimeoutError:
+                    console.print(f"[yellow]⚠ webexploit sweep excedió {_wx_timeout:.0f}s para {u} — saltando[/yellow]")
+                    wf = None
+                except Exception as e:  # noqa: BLE001 — must never break the run
+                    console.print(f"[yellow]webexploit sweep warning ({u}): {e}[/yellow]")
+                    wf = None
+                if wf:
+                    console.print(f"[cyan]🕸 webexploit sweep:[/cyan] {len(wf)} findings en {u}")
+                    deterministic_findings.extend(wf)
+
         if deterministic_findings:
             console.print(
                 f"[cyan]🔬 deterministic phase:[/cyan] "
                 f"{len(deterministic_findings)} finding(s) detected before agent loop"
             )
             for f in deterministic_findings[:8]:
-                console.print(
-                    f"  [dim]→ {getattr(f, 'cwe', '?')} {getattr(f, 'rule_id', '?')}[/dim]"
-                )
+                console.print(f"  [dim]→ {getattr(f, 'cwe', '?')} {getattr(f, 'rule_id', '?')}[/dim]")
             full_prompt = full_prompt + _format_findings_for_prompt(deterministic_findings)
 
     max_turns = args.max_turns
@@ -499,8 +619,7 @@ def run_investigate(args: argparse.Namespace) -> int:
 
     if reflect_every > 0:
         console.print(
-            f"[dim]starting ReAct loop with reflection every {reflect_every} turns "
-            f"(max_turns={max_turns})[/dim]\n"
+            f"[dim]starting ReAct loop with reflection every {reflect_every} turns (max_turns={max_turns})[/dim]\n"
         )
     else:
         console.print(f"[dim]starting ReAct loop (max_turns={max_turns}, reflection disabled)[/dim]\n")
@@ -527,16 +646,14 @@ def run_investigate(args: argparse.Namespace) -> int:
             if pre_hook_suffix:
                 agent_input = full_prompt + pre_hook_suffix
         except asyncio.TimeoutError:
-            console.print(
-                f"[yellow]⚠ pre_hooks excedieron {_ph_timeout:.0f}s — "
-                f"continuando sin su salida[/yellow]"
-            )
+            console.print(f"[yellow]⚠ pre_hooks excedieron {_ph_timeout:.0f}s — continuando sin su salida[/yellow]")
         except Exception as e:  # noqa: BLE001 — pre_hooks must never break the run
             console.print(f"[yellow]pre_hook integration warning: {e}[/yellow]")
 
         # F203.C — use reflective runner when reflect_every > 0
         if reflect_every > 0:
             from kryon.cli.reflective_runner import run_with_reflection
+
             return await run_with_reflection(
                 agent,
                 initial_input=agent_input,
@@ -569,10 +686,7 @@ def run_investigate(args: argparse.Namespace) -> int:
         from kryon.sdk.agents.run_outcome import classify_run_exception
 
         ename = type(e).__name__
-        console.print(
-            f"[yellow]agent run ended early ({ename}: {e}) — "
-            f"emitting partial report[/yellow]"
-        )
+        console.print(f"[yellow]agent run ended early ({ename}: {e}) — emitting partial report[/yellow]")
         result = None
         # Use the shared classifier so the partial-report wording for
         # stuck / max-turns / budget matches the reflective runner + REST route.
@@ -626,6 +740,7 @@ def run_investigate(args: argparse.Namespace) -> int:
     if not args.no_writeback and result is not None:
         try:
             from kryon.services.investigate_writeback import write_back_from_investigate
+
             exp_id = write_back_from_investigate(prompt, hints, result)
             if exp_id:
                 console.print(f"\n[dim]💾 experience persisted: {exp_id}[/dim]")
@@ -717,40 +832,60 @@ def add_investigate_subparser(subparsers) -> argparse.ArgumentParser:
     )
     # F203.N.2 — creds-aware deep audit
     p.add_argument(
-        "--ssh-user", default="",
+        "--ssh-user",
+        default="",
         help="F203.N.2 — SSH user for deep audit (sshd_config / users / banner). "
         "Without it, only banner-grab finding emitted.",
     )
     p.add_argument(
-        "--ssh-pass", default="",
+        "--ssh-pass",
+        default="",
         help="F203.N.2 — SSH password (alternativa: --ssh-key). Banca-safe: "
         "passwd se pasa como param, no se persiste a disco.",
     )
     p.add_argument(
-        "--ssh-key", default="",
+        "--ssh-key",
+        default="",
         help="F203.N.2 — ruta a SSH private key (preferido sobre --ssh-pass).",
     )
     p.add_argument(
-        "--db-user", default="",
-        help="F203.N.2 — MySQL user para F202.W deep audit (have_ssl / SHOW "
-        "GRANTS / mysql.user audit).",
+        "--db-user",
+        default="",
+        help="F203.N.2 — MySQL user para F202.W deep audit (have_ssl / SHOW GRANTS / mysql.user audit).",
     )
     p.add_argument(
-        "--db-pass", default="",
-        help="F203.N.2 — MySQL password. Promovido a KRYON_DB_PASSWORD env solo "
-        "durante la fase deterministica.",
+        "--db-pass",
+        default="",
+        help="F203.N.2 — MySQL password. Promovido a KRYON_DB_PASSWORD env solo durante la fase deterministica.",
     )
     # F203.N.3 — opt-in batteries con dependencia externa
     p.add_argument(
-        "--include-dns-checks", action="store_true",
+        "--include-dns-checks",
+        action="store_true",
         help="F203.N.3 — ejecuta batería DNS (zone transfer, chaos leak, dnssec, "
         "open resolver, reverse enum) cuando port=53 o scheme=dns://. Requiere "
         "nslookup/dig en PATH (graceful skip si falta).",
     )
     p.add_argument(
-        "--include-smb-checks", action="store_true",
+        "--include-smb-checks",
+        action="store_true",
         help="F203.N.3 — ejecuta SMB anonymous shares (port 445 / smb:// scheme). "
         "Requiere smbclient en PATH (graceful skip si falta).",
+    )
+    p.add_argument(
+        "--web-login-url",
+        default="",
+        help="Authenticated probing: login endpoint (absolute or relative to --url). "
+        "POSTs {email,password} as JSON; unlocks IDOR (CWE-639) + mass-assignment "
+        "(CWE-915) probes. Requires --active and an authorized engagement.",
+    )
+    p.add_argument("--web-user", default="", help="Username/email for --web-login-url.")
+    p.add_argument("--web-pass", default="", help="Password for --web-login-url.")
+    p.add_argument(
+        "--web-token-path",
+        default="authentication.token",
+        help="Dotted JSON path to the bearer token in the login response "
+        "(default: authentication.token, matches OWASP Juice Shop).",
     )
     p.add_argument(
         "--out",

@@ -101,12 +101,12 @@ def test_triage_ranks_risky_first(tmp_path: Path):
 
 
 def test_strip_think_removes_block():
-    raw = "<think>let me reason about this</think>\n[{\"x\": 1}]"
+    raw = '<think>let me reason about this</think>\n[{"x": 1}]'
     assert strip_think(raw) == '[{"x": 1}]'
 
 
 def test_strip_think_drops_unterminated_trailing():
-    raw = '[]\n<think>truncated reasoning that never closed'
+    raw = "[]\n<think>truncated reasoning that never closed"
     assert strip_think(raw) == "[]"
 
 
@@ -128,10 +128,7 @@ def test_parse_findings_from_plain_array():
 
 
 def test_parse_findings_strips_think_and_fences():
-    raw = (
-        "<think>reasoning here</think>\n"
-        "```json\n[{\"line\": 7, \"cwe\": \"79\", \"severity\": \"low\"}]\n```"
-    )
+    raw = '<think>reasoning here</think>\n```json\n[{"line": 7, "cwe": "79", "severity": "low"}]\n```'
     findings = parse_findings_json(raw, file="x.js")
 
     assert len(findings) == 1
@@ -141,8 +138,7 @@ def test_parse_findings_strips_think_and_fences():
 
 def test_parse_findings_tolerates_garbage_and_clamps():
     raw = (
-        '[{"line": "not-a-number", "cwe": "CWE-22", "severity": "WEIRD", '
-        '"confidence": 5.0}, "junk", {"no_cwe": true}]'
+        '[{"line": "not-a-number", "cwe": "CWE-22", "severity": "WEIRD", "confidence": 5.0}, "junk", {"no_cwe": true}]'
     )
     findings = parse_findings_json(raw, file="p.c")
 
@@ -202,8 +198,13 @@ def test_collect_variant_targets_finds_sink_elsewhere(tmp_path: Path):
     _write(tmp_path / "clean.py", "return 1\n")
 
     seed_finding = SourceFinding(
-        file="seed.py", line=1, cwe="CWE-78", severity="HIGH",
-        title="cmd injection", sink="os.system(", confidence=0.9,
+        file="seed.py",
+        line=1,
+        cwe="CWE-78",
+        severity="HIGH",
+        title="cmd injection",
+        sink="os.system(",
+        confidence=0.9,
     )
     reviewed = {tmp_path / "seed.py"}
 
@@ -215,8 +216,13 @@ def test_collect_variant_targets_finds_sink_elsewhere(tmp_path: Path):
 
 def test_collect_variant_targets_ignores_low_confidence():
     seed = SourceFinding(
-        file="seed.py", line=1, cwe="CWE-78", severity="HIGH",
-        title="t", sink="os.system(", confidence=0.3,
+        file="seed.py",
+        line=1,
+        cwe="CWE-78",
+        severity="HIGH",
+        title="t",
+        sink="os.system(",
+        confidence=0.3,
     )
     assert collect_variant_targets(Path("."), [seed], set()) == []
 
@@ -235,8 +241,13 @@ def test_review_tree_end_to_end(tmp_path: Path):
         if "os.system(" in code:
             return [
                 SourceFinding(
-                    file=rel_path, line=1, cwe="CWE-78", severity="HIGH",
-                    title="OS command injection", sink="os.system(", confidence=0.9,
+                    file=rel_path,
+                    line=1,
+                    cwe="CWE-78",
+                    severity="HIGH",
+                    title="OS command injection",
+                    sink="os.system(",
+                    confidence=0.9,
                 )
             ]
         return []
@@ -290,8 +301,14 @@ def test_review_tree_respects_max_files(tmp_path: Path):
 
 def test_to_engage_finding_maps_fields():
     f = SourceFinding(
-        file="src/x.py", line=10, cwe="CWE-89", severity="high",
-        title="SQLi", description="concat in query", evidence="q(x+y)", confidence=0.7,
+        file="src/x.py",
+        line=10,
+        cwe="CWE-89",
+        severity="high",
+        title="SQLi",
+        description="concat in query",
+        evidence="q(x+y)",
+        confidence=0.7,
     )
     ef = f.to_engage_finding()
     assert ef.cwe == "CWE-89"
@@ -307,8 +324,13 @@ def test_format_report_markdown():
     result = SourceReviewResult(
         findings=[
             SourceFinding(
-                file="a.py", line=5, cwe="CWE-78", severity="CRITICAL",
-                title="cmd inj", evidence="os.system(x)", confidence=0.95,
+                file="a.py",
+                line=5,
+                cwe="CWE-78",
+                severity="CRITICAL",
+                title="cmd inj",
+                evidence="os.system(x)",
+                confidence=0.95,
             )
         ],
         files_total=10,

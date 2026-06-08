@@ -361,8 +361,14 @@ def build_prompt(walkthrough: dict[str, Any], src_path: str | None = None) -> st
     if src_path:
         src_line = (
             f"\nCódigo fuente pre-clonado en: {src_path}\n"
-            f"Usá `run_command` con `grep -rn`, `find`, `cat` sobre ese path. "
-            f"NO clones nada — el árbol ya está completo."
+            f"Es un SNAPSHOT del árbol (no hay `.git`) — NO uses `git log`/`git`, "
+            f"perdés turnos. NO clones nada, ya está completo.\n"
+            f"Metodología SAST (sé DIRECTO, no te quedes orientándote con ls/pwd):\n"
+            f"1. `grep -rn` los sinks de riesgo típicos del lenguaje del repo "
+            f"(puntos donde input no confiable llega a una operación peligrosa).\n"
+            f"2. `cat`/`sed -n` los archivos candidatos para confirmar el data-flow.\n"
+            f"3. Apenas confirmes el defecto, EMITÍ `CWE-XXX en <archivo>:<línea>` "
+            f"y terminá — NO sigas explorando ni re-verifiques de más."
         )
     else:
         src_line = ""

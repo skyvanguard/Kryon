@@ -48,7 +48,8 @@ _DEFAULT_STATE = PlannerRuntimeState(facts=EMPTY, prior_tool_args=())
 # planner needs facts + history to make sense, and without them it
 # would emit the empty-state recommendation every time).
 _current_state: ContextVar[PlannerRuntimeState | None] = ContextVar(
-    "kryon_planner_runtime_state", default=None,
+    "kryon_planner_runtime_state",
+    default=None,
 )
 
 

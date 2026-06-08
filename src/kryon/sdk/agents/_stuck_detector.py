@@ -51,9 +51,7 @@ class StuckAction:
         return cls(kind="continue")
 
     @classmethod
-    def intervene(
-        cls, tool_name: str, count: int, window: int, *, is_final: bool = False
-    ) -> StuckAction:
+    def intervene(cls, tool_name: str, count: int, window: int, *, is_final: bool = False) -> StuckAction:
         """Build an actionable "you are looping" nudge.
 
         ``is_final`` (the last warning before abort) escalates the tone and
@@ -204,16 +202,13 @@ class StuckDetector:
                 self._intervened.add(key)
                 is_final = count >= self.abort_at - 1
                 logger.info(
-                    "StuckDetector: intervening on '%s' (count=%d, final=%s, "
-                    "window=%d)",
+                    "StuckDetector: intervening on '%s' (count=%d, final=%s, window=%d)",
                     tool_name,
                     count,
                     is_final,
                     self.window_size,
                 )
-                return StuckAction.intervene(
-                    tool_name, count, self.window_size, is_final=is_final
-                )
+                return StuckAction.intervene(tool_name, count, self.window_size, is_final=is_final)
 
         return StuckAction.continue_()
 

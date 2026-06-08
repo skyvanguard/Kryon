@@ -208,10 +208,13 @@ def _check_cve_cache() -> HealthCheckResult:
       * ok=False when cache is empty AND strict mode is on (the
         operator is about to silently drop every CVE finding)
     """
-    cache_path_str = os.environ.get(
-        "KRYON_CVE_CACHE_PATH",
-        ".kryon/nvd_cache/cves.txt",
-    ).strip() or ".kryon/nvd_cache/cves.txt"
+    cache_path_str = (
+        os.environ.get(
+            "KRYON_CVE_CACHE_PATH",
+            ".kryon/nvd_cache/cves.txt",
+        ).strip()
+        or ".kryon/nvd_cache/cves.txt"
+    )
     strict = os.environ.get("KRYON_CVE_CACHE_REQUIRED", "").strip().lower() in {
         "1",
         "true",

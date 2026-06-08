@@ -30,7 +30,6 @@ from __future__ import annotations
 from kryon.intelligence.exploit_chain_planner import plan_next_action
 from kryon.intelligence.fact_extractor import ExtractedFacts
 
-
 # ---------------------------------------------------------------------------
 # _rule_confirm_python_repl_with_print
 # ---------------------------------------------------------------------------
@@ -128,7 +127,7 @@ def test_introspect_fires_after_repl_confirmation() -> None:
         hints=("is not defined",),
         services=((8000, "http-alt"),),
     )
-    prior = ['printf \'print("kryon-probe")\\n\' | nc -w 5 target 8000']
+    prior = ["printf 'print(\"kryon-probe\")\\n' | nc -w 5 target 8000"]
     rec = plan_next_action(facts, prior, "")
     assert rec is not None
     assert "python_repl_introspect" in rec.args

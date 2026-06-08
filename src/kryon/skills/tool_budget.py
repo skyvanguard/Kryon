@@ -157,31 +157,33 @@ def build_tool_registry() -> dict[str, Any]:
     #   - lateral_movement/{ad_attacks,pivoting,pth_attacks,remote_execution}
     #     (intrusive lateral movement)
     if os.environ.get("KRYON_RED_TEAM", "").lower() in ("1", "true", "yes"):
-        _extra_tools.extend([
-            # API attacks — fuzzing, credential testing, JWT analysis
-            "kryon.tools.api_attacks.api_fuzzer",
-            "kryon.tools.api_attacks.ffuf_api",
-            "kryon.tools.api_attacks.hydra",
-            "kryon.tools.api_attacks.jwt_tool",
-            "kryon.tools.api_attacks.medusa",
-            "kryon.tools.api_attacks.wfuzz",
-            # Browser automation (Playwright) — useful for E2E auth flows
-            "kryon.tools.browser.playwright_tools",
-            # Payload prep (analytical, no exec): encoding + obfuscation
-            "kryon.tools.evasion.payload_encoding",
-            "kryon.tools.evasion.traffic_obfuscation",
-            # F203.BD Group 2 — RED_TEAM-gated AD/exploit Kali tools.
-            # evil-winrm, impacket-{secretsdump,psexec,GetUserSPNs},
-            # responder (analyze-only default), bloodhound-python,
-            # msfvenom. Todos requieren creds previas o hardware.
-            "kryon.tools.lateral_movement.kali_redteam",
-            # D — web exploitation: file upload (CWE-434) + Java
-            # deserialization (CWE-502). The two attack classes that had no
-            # native tool (commix/sqlmap/dalfox already cover RCE/SQLi/XSS).
-            # Intrusive: benign-marker probe by default, aggressive run needs
-            # the per-tool fire env var too.
-            "kryon.tools.exploitation.web_exploit",
-        ])
+        _extra_tools.extend(
+            [
+                # API attacks — fuzzing, credential testing, JWT analysis
+                "kryon.tools.api_attacks.api_fuzzer",
+                "kryon.tools.api_attacks.ffuf_api",
+                "kryon.tools.api_attacks.hydra",
+                "kryon.tools.api_attacks.jwt_tool",
+                "kryon.tools.api_attacks.medusa",
+                "kryon.tools.api_attacks.wfuzz",
+                # Browser automation (Playwright) — useful for E2E auth flows
+                "kryon.tools.browser.playwright_tools",
+                # Payload prep (analytical, no exec): encoding + obfuscation
+                "kryon.tools.evasion.payload_encoding",
+                "kryon.tools.evasion.traffic_obfuscation",
+                # F203.BD Group 2 — RED_TEAM-gated AD/exploit Kali tools.
+                # evil-winrm, impacket-{secretsdump,psexec,GetUserSPNs},
+                # responder (analyze-only default), bloodhound-python,
+                # msfvenom. Todos requieren creds previas o hardware.
+                "kryon.tools.lateral_movement.kali_redteam",
+                # D — web exploitation: file upload (CWE-434) + Java
+                # deserialization (CWE-502). The two attack classes that had no
+                # native tool (commix/sqlmap/dalfox already cover RCE/SQLi/XSS).
+                # Intrusive: benign-marker probe by default, aggressive run needs
+                # the per-tool fire env var too.
+                "kryon.tools.exploitation.web_exploit",
+            ]
+        )
     for mod_path in _extra_tools:
         try:
             import importlib

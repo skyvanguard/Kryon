@@ -77,8 +77,7 @@ from __future__ import annotations
 
 import logging
 import os
-import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
@@ -132,18 +131,11 @@ class DistilledRule:
         subs: dict[str, str] = {}
         if self.hints_any_of:
             lower = [h.lower() for h in facts.hints]
-            if not any(
-                phrase.lower() in h
-                for phrase in self.hints_any_of
-                for h in lower
-            ):
+            if not any(phrase.lower() in h for phrase in self.hints_any_of for h in lower):
                 return False, subs
         if self.hints_all_of:
             lower = [h.lower() for h in facts.hints]
-            if not all(
-                any(phrase.lower() in h for h in lower)
-                for phrase in self.hints_all_of
-            ):
+            if not all(any(phrase.lower() in h for h in lower) for phrase in self.hints_all_of):
                 return False, subs
         if self.services_have_non_ssh_port:
             port = ""
@@ -188,9 +180,11 @@ class DistilledRule:
             out = out.replace(placeholder, value)
         return out
 
-    def as_callable(self) -> Callable[
+    def as_callable(
+        self,
+    ) -> Callable[
         [ExtractedFacts, list[str], str],
-        "NextActionRecommendation | None",
+        NextActionRecommendation | None,
     ]:
         """Return a function that the planner can call alongside its
         hard-coded rules. The closure captures this dataclass."""
@@ -199,13 +193,14 @@ class DistilledRule:
             facts: ExtractedFacts,
             prior_tool_args: list[str],
             intent: str,
-        ) -> "NextActionRecommendation | None":
+        ) -> NextActionRecommendation | None:
             try:
                 ok, subs = self._check_preconditions(facts, prior_tool_args)
             except Exception as exc:  # noqa: BLE001 — must never raise
                 logger.debug(
                     "distilled rule %r precondition check failed: %s",
-                    self.name, exc,
+                    self.name,
+                    exc,
                 )
                 return None
             if not ok:
@@ -215,7 +210,8 @@ class DistilledRule:
             except Exception as exc:  # noqa: BLE001
                 logger.debug(
                     "distilled rule %r arg render failed: %s",
-                    self.name, exc,
+                    self.name,
+                    exc,
                 )
                 return None
             return NextActionRecommendation(
@@ -272,13 +268,9 @@ def parse_distilled_rule(
     try:
         confidence = float(raw_confidence)
     except (TypeError, ValueError) as exc:
-        raise ValueError(
-            f"'confidence' must be a number, got {raw_confidence!r}"
-        ) from exc
+        raise ValueError(f"'confidence' must be a number, got {raw_confidence!r}") from exc
     if not 0.0 <= confidence <= 1.0:
-        raise ValueError(
-            f"'confidence' must be in [0.0, 1.0], got {confidence}"
-        )
+        raise ValueError(f"'confidence' must be in [0.0, 1.0], got {confidence}")
 
     when = data.get("when") or {}
     if not isinstance(when, dict):
@@ -288,9 +280,7 @@ def parse_distilled_rule(
     try:
         users_present = int(users_present_raw)
     except (TypeError, ValueError) as exc:
-        raise ValueError(
-            f"'when.users_present' must be int, got {users_present_raw!r}"
-        ) from exc
+        raise ValueError(f"'when.users_present' must be int, got {users_present_raw!r}") from exc
 
     return DistilledRule(
         name=name.strip(),
@@ -300,16 +290,12 @@ def parse_distilled_rule(
         rationale=rationale.strip(),
         hints_any_of=_coerce_str_tuple(when.get("hints_any_of")),
         hints_all_of=_coerce_str_tuple(when.get("hints_all_of")),
-        services_have_non_ssh_port=bool(
-            when.get("services_have_non_ssh_port", False)
-        ),
+        services_have_non_ssh_port=bool(when.get("services_have_non_ssh_port", False)),
         users_present=users_present,
         creds_present=bool(when.get("creds_present", False)),
         hashes_present=bool(when.get("hashes_present", False)),
         domains_present=bool(when.get("domains_present", False)),
-        not_invoked_before=_coerce_str_tuple(
-            when.get("not_invoked_before")
-        ),
+        not_invoked_before=_coerce_str_tuple(when.get("not_invoked_before")),
         invoked_before=_coerce_str_tuple(when.get("invoked_before")),
         source_path=source_path,
     )
@@ -324,10 +310,12 @@ def _default_distilled_rules_dir() -> Path:
 
 def load_distilled_rules(
     directory: Path | None = None,
-) -> list[Callable[
-    [ExtractedFacts, list[str], str],
-    "NextActionRecommendation | None",
-]]:
+) -> list[
+    Callable[
+        [ExtractedFacts, list[str], str],
+        NextActionRecommendation | None,
+    ]
+]:
     """Scan ``directory`` (default ``~/.kryon/distilled_rules/``) for
     YAML rule files and return them as planner-compatible callables.
 
@@ -363,12 +351,15 @@ def load_distilled_rules(
             rules.append(rule.as_callable())
             logger.info(
                 "loaded distilled rule %r from %s (confidence=%.2f)",
-                rule.name, path.name, rule.confidence,
+                rule.name,
+                path.name,
+                rule.confidence,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "skipping distilled rule %s — failed to parse: %s",
-                path.name, exc,
+                path.name,
+                exc,
             )
     return rules
 

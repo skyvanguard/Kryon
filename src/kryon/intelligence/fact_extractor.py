@@ -32,9 +32,7 @@ from typing import Callable
 # loses the username/domain extracted from the prefix.
 _KRB5_RE = re.compile(r"\$krb5(?:asrep|tgs)\$[0-9A-Za-z*$./:_+@-]+")
 # NTLM hashes from secretsdump (LMHASH:NTHASH form, both 32 hex).
-_NTLM_PAIR_RE = re.compile(
-    r"\b[A-Za-z0-9._$-]+:\d+:[0-9a-fA-F]{32}:[0-9a-fA-F]{32}:::"
-)
+_NTLM_PAIR_RE = re.compile(r"\b[A-Za-z0-9._$-]+:\d+:[0-9a-fA-F]{32}:[0-9a-fA-F]{32}:::")
 # IPv4 dotted-quad (loose — caller filters target/RFC1918 if needed).
 _IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 # Generic FQDN — letters/digits/dashes separated by dots, 2+ labels.
@@ -67,9 +65,7 @@ _DISALLOW_PATH_RE = re.compile(
 # captures only the path+query) so the planner re-anchors it to the fetched
 # host, never an external link. Stops at whitespace / quotes / brackets /
 # parens so it works inside JSON bodies and markdown links alike.
-_PARAM_URL_RE = re.compile(
-    r"(?:https?://[^/\s\"'<>]+)?(/[^\s\"'<>)\]}?]*\?[^\s\"'<>)\]}]*=[^\s\"'<>)\]}]*)"
-)
+_PARAM_URL_RE = re.compile(r"(?:https?://[^/\s\"'<>]+)?(/[^\s\"'<>)\]}?]*\?[^\s\"'<>)\]}]*=[^\s\"'<>)\]}]*)")
 # FASE 11.O.2 — HTTP ``Location:`` header value. Used to detect
 # vhost redirects (302 to ``http://otherhost/...``). Captures the
 # host portion of the URL (group 1), strips port and path. Case-
@@ -173,9 +169,16 @@ class ExtractedFacts:
     def is_empty(self) -> bool:
         return not any(
             (
-                self.users, self.shares, self.hashes, self.hosts,
-                self.services, self.domains, self.creds, self.paths,
-                self.versions, self.hints,
+                self.users,
+                self.shares,
+                self.hashes,
+                self.hosts,
+                self.services,
+                self.domains,
+                self.creds,
+                self.paths,
+                self.versions,
+                self.hints,
             )
         )
 
@@ -205,21 +208,24 @@ class ExtractedFacts:
         parts.append(_list_line("hosts", self.hosts))
         parts.append(
             _list_line(
-                "services", self.services,
+                "services",
+                self.services,
                 fmt=lambda p: f"{p[0]}/{p[1]}" if p[1] else f"{p[0]}",  # type: ignore[index]
             )
         )
         parts.append(_list_line("domains", self.domains))
         parts.append(
             _list_line(
-                "creds", self.creds,
+                "creds",
+                self.creds,
                 fmt=lambda c: f"{c[0]}:{c[1]}",  # type: ignore[index]
             )
         )
         parts.append(_list_line("paths", self.paths))
         parts.append(
             _list_line(
-                "versions", self.versions,
+                "versions",
+                self.versions,
                 fmt=lambda v: f"{v[0]} {v[1]}",  # type: ignore[index]
             )
         )
@@ -333,18 +339,16 @@ def _dedup_sorted_pairs(items: tuple[tuple[str, str], ...]) -> tuple[tuple[str, 
     return tuple(sorted({i for i in items if i[0]}))
 
 
-def _dedup_sorted_pairs_int(
-    items: tuple[tuple[int, str], ...]
-) -> tuple[tuple[int, str], ...]:
-    return tuple(sorted({i for i in items}))
+def _dedup_sorted_pairs_int(items: tuple[tuple[int, str], ...]) -> tuple[tuple[int, str], ...]:
+    return tuple(sorted(set(items)))
 
 
 def _parse_ldapsearch(output: str) -> ExtractedFacts:
     """LDIF output from ldapsearch. Extract:
-      - users (sAMAccountName entries, cn= in CN=Users branch),
-      - domains (defaultNamingContext / namingContexts),
-      - paths (DN strings — useful as pivot intel),
-      - hosts (dNSHostName entries for computer objects).
+    - users (sAMAccountName entries, cn= in CN=Users branch),
+    - domains (defaultNamingContext / namingContexts),
+    - paths (DN strings — useful as pivot intel),
+    - hosts (dNSHostName entries for computer objects).
     """
     users: list[str] = []
     domains: list[str] = []
@@ -409,10 +413,10 @@ def _dn_to_fqdn(dn: str) -> str:
 
 def _parse_smbclient_shares(output: str) -> ExtractedFacts:
     """``smbclient -L`` share listing. Lines look like:
-        Sharename       Type      Comment
-        --------        ----      -------
-        ADMIN$          Disk      Remote Admin
-        IPC$            IPC       Remote IPC
+    Sharename       Type      Comment
+    --------        ----      -------
+    ADMIN$          Disk      Remote Admin
+    IPC$            IPC       Remote IPC
     """
     shares: list[str] = []
     in_table = False
@@ -474,9 +478,9 @@ def _parse_nmap(output: str) -> ExtractedFacts:
 def _parse_nxc(output: str) -> ExtractedFacts:
     """nxc (netexec) SMB/LDAP output. Common lines:
 
-      SMB    10.0.0.1  445  DC01      [*] Windows 10 ... (domain:THM.LOCAL)
-      LDAP   10.0.0.1  389  DC01      [+] THM.LOCAL\\guest:
-      SMB    10.0.0.1  445  DC01      [+] THM.LOCAL\\alice (Pwn3d!)
+    SMB    10.0.0.1  445  DC01      [*] Windows 10 ... (domain:THM.LOCAL)
+    LDAP   10.0.0.1  389  DC01      [+] THM.LOCAL\\guest:
+    SMB    10.0.0.1  445  DC01      [+] THM.LOCAL\\alice (Pwn3d!)
     """
     users: list[str] = []
     hosts: list[str] = []
@@ -492,9 +496,7 @@ def _parse_nxc(output: str) -> ExtractedFacts:
         if m:
             domains.append(m.group(1).lower())
         # DOMAIN\\user:password — confirmed creds.
-        m = re.search(
-            r"\b([A-Za-z0-9._-]+)\\([A-Za-z0-9._@-]+):([^\s]+)", line
-        )
+        m = re.search(r"\b([A-Za-z0-9._-]+)\\([A-Za-z0-9._@-]+):([^\s]+)", line)
         if m:
             domains.append(m.group(1).lower())
             users.append(m.group(2))
@@ -540,7 +542,7 @@ def _parse_impacket_getnpusers(output: str) -> ExtractedFacts:
 def _parse_impacket_getuserspns(output: str) -> ExtractedFacts:
     """GetUserSPNs.py — Kerberoast hashes (TGS). Format::
 
-        $krb5tgs$23$*sqlsvc$THM.LOCAL$MSSQLSvc/sql01.thm.local~1433*$...
+    $krb5tgs$23$*sqlsvc$THM.LOCAL$MSSQLSvc/sql01.thm.local~1433*$...
     """
     hashes = [h for h in _KRB5_RE.findall(output) if "tgs" in h]
     users: list[str] = []
@@ -587,7 +589,7 @@ def _parse_hashcat(output: str) -> ExtractedFacts:
 def _parse_secretsdump(output: str) -> ExtractedFacts:
     """secretsdump.py — NTLM hash dump. Lines look like::
 
-        Administrator:500:aad3b...:31d6cfe0d16ae931b73c59d7e0c089c0:::
+    Administrator:500:aad3b...:31d6cfe0d16ae931b73c59d7e0c089c0:::
     """
     users: list[str] = []
     hashes: list[str] = []
@@ -708,9 +710,16 @@ def _parse_web_fetch_smart(output: str) -> ExtractedFacts:
     # auth-chain rules can pivot. Skip static assets (.css/.js/img)
     # — those don't enable exploitation paths.
     _PHP_APP_ENTRY_POINTS = (
-        "login.php", "register.php", "admin.php", "upload.php",
-        "config.php", "index.php", "logout.php", "dashboard.php",
-        "profile.php", "api.php",
+        "login.php",
+        "register.php",
+        "admin.php",
+        "upload.php",
+        "config.php",
+        "index.php",
+        "logout.php",
+        "dashboard.php",
+        "profile.php",
+        "api.php",
     )
     lower_output = output.lower()
     for entry in _PHP_APP_ENTRY_POINTS:
@@ -796,9 +805,16 @@ def _parse_generic(output: str) -> ExtractedFacts:
     # Same predicate as the web_fetch_smart-specific path so gobuster
     # / dirb / nuclei outputs surface the auth chain signals too.
     _PHP_ENTRY = (
-        "login.php", "register.php", "admin.php", "upload.php",
-        "config.php", "index.php", "logout.php", "dashboard.php",
-        "profile.php", "api.php",
+        "login.php",
+        "register.php",
+        "admin.php",
+        "upload.php",
+        "config.php",
+        "index.php",
+        "logout.php",
+        "dashboard.php",
+        "profile.php",
+        "api.php",
     )
     for entry in _PHP_ENTRY:
         if entry in lower:
@@ -860,10 +876,9 @@ def extract_facts(tool_invocation: str, output: str) -> ExtractedFacts:
         if needle in haystack:
             parsed = parser(output)
             if anti_pattern_hints:
-                parsed = parsed.merge(
-                    ExtractedFacts(hints=anti_pattern_hints)
-                )
+                parsed = parsed.merge(ExtractedFacts(hints=anti_pattern_hints))
             return parsed
+
     # Content-based dispatch fallback. Each signature must be specific
     # enough that mismatching is unlikely; order is most-distinctive first.
     # All branches merge anti_pattern_hints so the structured intel stays

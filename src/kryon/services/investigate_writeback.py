@@ -87,6 +87,7 @@ def _extract_chain(new_items: list[Any]) -> list[dict[str, Any]]:
       AND item.output exposes the wrapper output too.
     - MessageOutputItem: type == "message_output_item" — skip.
     """
+
     def _g(obj: Any, key: str, default: Any = None) -> Any:
         """Get attr OR dict key, since SDK mixes both."""
         if obj is None:
@@ -110,11 +111,7 @@ def _extract_chain(new_items: list[Any]) -> list[dict[str, Any]]:
 
         # --- Tool call branch ---
         if item_type == "tool_call_item" or _g(raw, "name"):
-            tool_name = (
-                _g(raw, "name")
-                or _g(raw, "tool_name")
-                or "unknown_tool"
-            )
+            tool_name = _g(raw, "name") or _g(raw, "tool_name") or "unknown_tool"
             args = _g(raw, "arguments") or _g(raw, "args") or {}
             call_id = _g(raw, "call_id") or _g(raw, "id") or ""
             entry = {
@@ -130,11 +127,7 @@ def _extract_chain(new_items: list[Any]) -> list[dict[str, Any]]:
         # --- Tool output branch ---
         if item_type == "tool_call_output_item" or _g(raw, "output") is not None:
             # Output may be on the wrapper (item.output) OR on raw_item.
-            output = (
-                getattr(item, "output", None)
-                or _g(raw, "output")
-                or _g(raw, "content")
-            )
+            output = getattr(item, "output", None) or _g(raw, "output") or _g(raw, "content")
             call_id = _g(raw, "call_id") or _g(raw, "tool_call_id")
             if output is not None:
                 idx = None
@@ -172,8 +165,7 @@ def chain_from_result(result: Any) -> list[dict[str, Any]]:
     captured = getattr(result, "_captured_chain", None)
     if isinstance(captured, list) and len(captured) > len(chain):
         logger.info(
-            "chain_from_result: using hooks-captured chain (%d items) over "
-            "result.new_items (%d items)",
+            "chain_from_result: using hooks-captured chain (%d items) over result.new_items (%d items)",
             len(captured),
             len(chain),
         )
@@ -192,6 +184,7 @@ def _build_profile_from_hints(hints: dict[str, Any]) -> dict[str, Any]:
     if urls:
         # Use first URL hostname as host
         from urllib.parse import urlparse
+
         try:
             parsed = urlparse(urls[0])
             profile["host"] = parsed.netloc or ""
@@ -204,9 +197,21 @@ def _build_profile_from_hints(hints: dict[str, Any]) -> dict[str, Any]:
     # Pull tech hints from keywords (heuristic)
     keywords = hints.get("keywords") or []
     tech_keywords = {
-        "moodle", "wordpress", "tomcat", "nginx", "apache",
-        "java", "php", "python", "nodejs", "react", "vue",
-        "mysql", "postgresql", "mongo", "redis",
+        "moodle",
+        "wordpress",
+        "tomcat",
+        "nginx",
+        "apache",
+        "java",
+        "php",
+        "python",
+        "nodejs",
+        "react",
+        "vue",
+        "mysql",
+        "postgresql",
+        "mongo",
+        "redis",
     }
     for kw in keywords:
         if kw in tech_keywords:
@@ -252,13 +257,17 @@ def write_back_from_investigate(
             raw_cls = type(getattr(item, "raw_item", None)).__name__
             logger.warning(
                 "WB-DEBUG: item[%d] type=%s raw_cls=%s name=%s",
-                i, item_attr_type, raw_cls,
+                i,
+                item_attr_type,
+                raw_cls,
                 getattr(getattr(item, "raw_item", None), "name", None),
             )
         _cap = getattr(result, "_captured_chain", None)
-        logger.warning("WB-DEBUG: final chain: %d tool calls (captured=%s)",
-                       len(chain),
-                       len(_cap) if isinstance(_cap, list) else "n/a")
+        logger.warning(
+            "WB-DEBUG: final chain: %d tool calls (captured=%s)",
+            len(chain),
+            len(_cap) if isinstance(_cap, list) else "n/a",
+        )
 
     if len(chain) < 2:
         logger.info("write-back skipped: chain too short (%d tool calls)", len(chain))
@@ -291,12 +300,12 @@ def write_back_from_investigate(
         logger.warning("write-back persistence failed: %s", e)
         return None
 
-    logger.info("investigate write-back: experience %s persisted (outcome=%s, chain=%d)",
-                exp_id, outcome, len(chain))
+    logger.info("investigate write-back: experience %s persisted (outcome=%s, chain=%d)", exp_id, outcome, len(chain))
 
     if auto_synth and outcome in ("success", "partial"):
         try:
             from kryon.learning.draft_writer import try_synthesize_and_persist
+
             draft_path = try_synthesize_and_persist(experience)
             if draft_path is not None:
                 logger.info("auto-synth draft persisted: %s", draft_path)

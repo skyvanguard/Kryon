@@ -87,9 +87,7 @@ def test_report_separates_verified_and_alleged():
 
 
 def test_report_empty_run_is_honest():
-    r = build_investigate_report(
-        prompt="x", active=False, output="", deterministic_findings=[], chain=[]
-    )
+    r = build_investigate_report(prompt="x", active=False, output="", deterministic_findings=[], chain=[])
     assert "ninguno" in r  # no verified findings
     assert "no produjo salida" in r  # no LLM output
 
@@ -176,7 +174,5 @@ def test_report_renders_critical_before_low():
         _Finding("CWE-79", "LOW", "h", "reflected XSS"),
         _Finding("CWE-89", "CRITICAL", "h", "blind SQLi"),
     ]
-    r = build_investigate_report(
-        prompt="x", active=True, output="", deterministic_findings=det, chain=[]
-    )
+    r = build_investigate_report(prompt="x", active=True, output="", deterministic_findings=det, chain=[])
     assert r.index("CWE-89") < r.index("CWE-79")

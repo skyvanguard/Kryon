@@ -445,9 +445,7 @@ def _should_reset_counter_for_user(content: Any) -> bool:
 _DIRECTIVE_FORCE_TRUTHY = {"1", "true", "yes", "on"}
 
 
-def _should_force_directive_tool_choice(
-    has_tools: bool, effective_tool_choice: Any
-) -> bool:
+def _should_force_directive_tool_choice(has_tools: bool, effective_tool_choice: Any) -> bool:
     """FASE 11.Q — decide whether the next model call should be upgraded
     to ``tool_choice="required"`` because the planner has a
     high-confidence directive ready.
@@ -481,9 +479,7 @@ def _should_force_directive_tool_choice(
 
         return bool(has_high_confidence_directive())
     except Exception as exc:  # noqa: BLE001 — never break SDK loop
-        logger.debug(
-            "FASE 11.Q directive probe failed; falling back: %s", exc
-        )
+        logger.debug("FASE 11.Q directive probe failed; falling back: %s", exc)
         return False
 
 
@@ -1171,7 +1167,9 @@ class OpenAIChatCompletionsModel(Model):
             if _debug.DONT_LOG_MODEL_DATA:
                 logger.debug("Received model response")
             else:
-                logger.debug(f"LLM resp:\n{json.dumps(_safe_model_dump(response.choices[0].message), indent=2, default=str)}\n")
+                logger.debug(
+                    f"LLM resp:\n{json.dumps(_safe_model_dump(response.choices[0].message), indent=2, default=str)}\n"
+                )
 
             # Ollama fallback: parse tool calls from text content when the model
             # outputs them as JSON in the message body instead of proper tool_calls

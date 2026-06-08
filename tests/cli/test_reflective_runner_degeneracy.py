@@ -42,9 +42,9 @@ def test_detects_real_degeneracy_sample_from_endgame_run() -> None:
     degen = (
         'Maybe use smbclient -L 10.64.151.155 -U "" -N -L? Not.\n'
         'Maybe use smbclient -L 10.64.151.155 -U "" -N -L? Already.\n'
-        "Let us try smbclient -L 10.64.151.155 -U \"\" -N -L? Already.\n"
+        'Let us try smbclient -L 10.64.151.155 -U "" -N -L? Already.\n'
         'Maybe use smbclient -L 10.64.151.155 -U "" -N -L? Not.\n'
-        "Let us try smbclient -L 10.64.151.155 -U \"\" -N -L? Already.\n"
+        'Let us try smbclient -L 10.64.151.155 -U "" -N -L? Already.\n'
         'Maybe use smbclient -L 10.64.151.155 -U "" -N -L? Not.\n'
         'Ok maybe use smbclient -L 10.64.151.155 -U "" -N -L? Already.\n'
         'Ok maybe use smbclient -L 10.64.151.155 -U "" -N -L? Not.\n'
@@ -230,10 +230,7 @@ def test_extract_facts_from_chunk_picks_up_hint_phrases_from_reasoning() -> None
     """CTF-style hint phrases that appear in the model's reasoning
     (not in a tool output block) should still surface via the
     whole-chunk generic pass."""
-    chunk = (
-        "The server keeps saying 'Try a more basic connection' on every "
-        "endpoint we hit. Maybe try netcat raw?"
-    )
+    chunk = "The server keeps saying 'Try a more basic connection' on every endpoint we hit. Maybe try netcat raw?"
     facts = _extract_facts_from_chunk(chunk)
     assert "try a more basic connection" in facts.hints
 
@@ -526,12 +523,8 @@ def test_facts_signature_none_is_empty_string() -> None:
 def test_recommendation_signature_truncates_long_args() -> None:
     from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
 
-    rec_a = NextActionRecommendation(
-        tool="run_command", args="x" * 1000, rationale="r"
-    )
-    rec_b = NextActionRecommendation(
-        tool="run_command", args="x" * 1000 + "different", rationale="r"
-    )
+    rec_a = NextActionRecommendation(tool="run_command", args="x" * 1000, rationale="r")
+    rec_b = NextActionRecommendation(tool="run_command", args="x" * 1000 + "different", rationale="r")
     # First 200 chars identical → signatures match (benign drift in
     # tail doesn't count as a new recommendation).
     assert _recommendation_signature(rec_a) == _recommendation_signature(rec_b)
@@ -558,11 +551,14 @@ def test_is_stall_clears_when_facts_progress() -> None:
     rec_sig = "run_command|GetNPUsers.py -no-pass thm.local/"
     for _ in range(3):
         window.append(rec_sig)
-    assert _is_stall(
-        window,
-        "u=2_h=0_c=0_s=0_d=1",  # before
-        "u=2_h=1_c=0_s=0_d=1",  # after — hashes grew
-    ) is False
+    assert (
+        _is_stall(
+            window,
+            "u=2_h=0_c=0_s=0_d=1",  # before
+            "u=2_h=1_c=0_s=0_d=1",  # after — hashes grew
+        )
+        is False
+    )
 
 
 def test_is_stall_requires_window_to_be_full() -> None:

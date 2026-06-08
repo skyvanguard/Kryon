@@ -229,20 +229,14 @@ def test_web_fetch_smart_extracts_host_and_port_from_url() -> None:
 
 
 def test_web_fetch_smart_defaults_port_80_when_url_has_no_port() -> None:
-    sample = (
-        '{"status": 200, "final_url": "http://target.example/path", '
-        '"body_md": "..."}'
-    )
+    sample = '{"status": 200, "final_url": "http://target.example/path", "body_md": "..."}'
     facts = extract_facts("web_fetch_smart", sample)
     ports = {p for p, _ in facts.services}
     assert 80 in ports
 
 
 def test_web_fetch_smart_defaults_port_443_when_https() -> None:
-    sample = (
-        '{"status": 200, "final_url": "https://target.example/", '
-        '"body_md": "..."}'
-    )
+    sample = '{"status": 200, "final_url": "https://target.example/", "body_md": "..."}'
     facts = extract_facts("web_fetch_smart", sample)
     ports = {p for p, _ in facts.services}
     assert 443 in ports
@@ -282,10 +276,7 @@ def test_nc_inside_echo_pipe_still_detected() -> None:
 def test_ldapsearch_without_filter_emits_anti_pattern_hint() -> None:
     """ldapsearch -b without an objectClass filter should warn that
     it'll dump the whole subtree."""
-    sample = (
-        "# extended LDIF\ndn: CN=foo,DC=corp,DC=local\n"
-        "sAMAccountName: foo"
-    )
+    sample = "# extended LDIF\ndn: CN=foo,DC=corp,DC=local\nsAMAccountName: foo"
     facts = extract_facts(
         "ldapsearch -x -H ldap://target -b 'DC=corp,DC=local'",
         sample,
@@ -329,11 +320,7 @@ def test_getnpusers_without_outputfile_emits_anti_pattern_hint() -> None:
 def test_anti_pattern_hints_dont_interfere_with_parser_output() -> None:
     """The G5 hints should be MERGED on top of whatever the per-tool
     parser extracted — not replace it."""
-    sample = (
-        "# extended LDIF\n"
-        "dn: CN=alice,CN=Users,DC=corp,DC=local\n"
-        "sAMAccountName: alice\n"
-    )
+    sample = "# extended LDIF\ndn: CN=alice,CN=Users,DC=corp,DC=local\nsAMAccountName: alice\n"
     facts = extract_facts(
         "ldapsearch -x -H ldap://target -b 'DC=corp,DC=local'",
         sample,
@@ -413,7 +400,8 @@ def test_web_fetch_smart_detects_vhost_from_location_redirect() -> None:
         '"body_md": ""}'
     )
     facts = extract_facts(
-        "web_fetch_smart http://10.67.138.59/login.php", sample,
+        "web_fetch_smart http://10.67.138.59/login.php",
+        sample,
     )
     assert "vhost:robots.thm" in facts.hints
 
@@ -423,11 +411,11 @@ def test_web_fetch_smart_vhost_ignores_same_host_redirects() -> None:
     those are just routing changes. The hint should ONLY fire when
     the Location host differs from where we requested."""
     sample = (
-        '{"status": 302, "final_url": "http://10.67.138.59/old", '
-        '"headers": {"location": "http://10.67.138.59/new"}}'
+        '{"status": 302, "final_url": "http://10.67.138.59/old", "headers": {"location": "http://10.67.138.59/new"}}'
     )
     facts = extract_facts(
-        "web_fetch_smart http://10.67.138.59/old", sample,
+        "web_fetch_smart http://10.67.138.59/old",
+        sample,
     )
     assert not any(h.startswith("vhost:") for h in facts.hints)
 
@@ -436,10 +424,7 @@ def test_web_fetch_smart_vhost_strips_port_from_hostname() -> None:
     """``Location: http://robots.thm:80/x`` and
     ``Location: http://robots.thm/x`` should produce the same vhost
     hint — strip port for the Host header value."""
-    sample = (
-        '{"status": 302, "final_url": "http://10.67.138.59/x", '
-        '"headers": {"location": "http://robots.thm:80/x"}}'
-    )
+    sample = '{"status": 302, "final_url": "http://10.67.138.59/x", "headers": {"location": "http://robots.thm:80/x"}}'
     facts = extract_facts("web_fetch_smart http://10.67.138.59/x", sample)
     assert "vhost:robots.thm" in facts.hints
 
@@ -484,10 +469,7 @@ def test_web_fetch_smart_skips_allow_directives() -> None:
     """Only ``Disallow:`` paths count — ``Allow:`` paths are
     intentionally exposed by the operator and aren't the
     high-signal hint we want."""
-    sample = (
-        '{"status": 200, "final_url": "http://t/robots.txt", '
-        '"body_md": "Allow: /public\\nDisallow: /admin"}'
-    )
+    sample = '{"status": 200, "final_url": "http://t/robots.txt", "body_md": "Allow: /public\\nDisallow: /admin"}'
     facts = extract_facts("web_fetch_smart http://t/robots.txt", sample)
     assert "disallow:/admin" in facts.hints
     assert "disallow:/public" not in facts.hints
@@ -497,10 +479,7 @@ def test_web_fetch_smart_skips_allow_directives() -> None:
 def test_web_fetch_smart_disallow_root_path_skipped() -> None:
     """``Disallow: /`` blocks everything and isn't useful as a
     gobuster target — skip it to avoid noise."""
-    sample = (
-        '{"status": 200, "final_url": "http://t/robots.txt", '
-        '"body_md": "Disallow: /\\nDisallow: /admin"}'
-    )
+    sample = '{"status": 200, "final_url": "http://t/robots.txt", "body_md": "Disallow: /\\nDisallow: /admin"}'
     facts = extract_facts("web_fetch_smart http://t/robots.txt", sample)
     assert "disallow:/admin" in facts.hints
     assert "disallow:/" not in facts.hints

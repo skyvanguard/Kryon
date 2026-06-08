@@ -47,93 +47,117 @@ def test_detects_resumen_ejecutivo_exact_pattern_from_bench_b() -> None:
         "1. CWE-319 (HIGH): Servicio HTTP sin TLS\n"
         "2. CWE-200 (MEDIUM): Information disclosure\n"
     )
-    assert _detect_premature_summary(
-        chunk,
-        tool_calls_in_chunk=2,
-        has_foothold=False,
-    ) is True
+    assert (
+        _detect_premature_summary(
+            chunk,
+            tool_calls_in_chunk=2,
+            has_foothold=False,
+        )
+        is True
+    )
 
 
 def test_detects_resumen_de_la_investigacion() -> None:
     """Another shape observed in older runs."""
     chunk = "═══ Resumen de la investigación ═══\nFindings: ..."
-    assert _detect_premature_summary(
-        chunk,
-        tool_calls_in_chunk=2,
-        has_foothold=False,
-    ) is True
+    assert (
+        _detect_premature_summary(
+            chunk,
+            tool_calls_in_chunk=2,
+            has_foothold=False,
+        )
+        is True
+    )
 
 
 def test_detects_executive_summary_english() -> None:
     """English-mode runs (some skills are EN-only) — must catch both
     Spanish and English markers."""
     chunk = "## Executive Summary\n\nIdentified 2 medium findings..."
-    assert _detect_premature_summary(
-        chunk,
-        tool_calls_in_chunk=2,
-        has_foothold=False,
-    ) is True
+    assert (
+        _detect_premature_summary(
+            chunk,
+            tool_calls_in_chunk=2,
+            has_foothold=False,
+        )
+        is True
+    )
 
 
 def test_detects_hallazgos_marker() -> None:
     chunk = "📋 Hallazgos\n- CWE-200..."
-    assert _detect_premature_summary(
-        chunk,
-        tool_calls_in_chunk=2,
-        has_foothold=False,
-    ) is True
+    assert (
+        _detect_premature_summary(
+            chunk,
+            tool_calls_in_chunk=2,
+            has_foothold=False,
+        )
+        is True
+    )
 
 
 def test_detects_conclusion_marker() -> None:
     chunk = "## Conclusión\n\nEl target no presenta vulnerabilidades..."
-    assert _detect_premature_summary(
-        chunk,
-        tool_calls_in_chunk=2,
-        has_foothold=False,
-    ) is True
+    assert (
+        _detect_premature_summary(
+            chunk,
+            tool_calls_in_chunk=2,
+            has_foothold=False,
+        )
+        is True
+    )
 
 
 def test_no_summary_in_text_returns_false() -> None:
     """Plain reasoning text with no summary markers → not premature."""
-    chunk = (
-        "We're still enumerating the target. Let me try a different "
-        "endpoint to see if there's a path traversal."
+    chunk = "We're still enumerating the target. Let me try a different endpoint to see if there's a path traversal."
+    assert (
+        _detect_premature_summary(
+            chunk,
+            tool_calls_in_chunk=2,
+            has_foothold=False,
+        )
+        is False
     )
-    assert _detect_premature_summary(
-        chunk,
-        tool_calls_in_chunk=2,
-        has_foothold=False,
-    ) is False
 
 
 def test_empty_chunk_returns_false() -> None:
-    assert _detect_premature_summary(
-        "",
-        tool_calls_in_chunk=0,
-        has_foothold=False,
-    ) is False
+    assert (
+        _detect_premature_summary(
+            "",
+            tool_calls_in_chunk=0,
+            has_foothold=False,
+        )
+        is False
+    )
 
 
 def test_high_tool_call_count_is_legitimate_summary() -> None:
     """Even with the summary marker, ≥3 tool calls in the chunk means
     the model genuinely explored before summarizing. Not premature."""
     chunk = "📌 Resumen Ejecutivo\n1. CWE-200..."
-    assert _detect_premature_summary(
-        chunk,
-        tool_calls_in_chunk=5,
-        has_foothold=False,
-    ) is False
+    assert (
+        _detect_premature_summary(
+            chunk,
+            tool_calls_in_chunk=5,
+            has_foothold=False,
+        )
+        is False
+    )
 
 
 def test_foothold_confirmed_makes_summary_legitimate() -> None:
     """If we DO have creds/hashes/shell evidence, the summary is the
     correct outcome — don't false-positive."""
     chunk = "📌 Resumen Ejecutivo\n1. RCE confirmed via..."
-    assert _detect_premature_summary(
-        chunk,
-        tool_calls_in_chunk=2,
-        has_foothold=True,
-    ) is False
+    assert (
+        _detect_premature_summary(
+            chunk,
+            tool_calls_in_chunk=2,
+            has_foothold=True,
+        )
+        is False
+    )
 
 
 def test_custom_threshold_overrides_default() -> None:
@@ -141,51 +165,61 @@ def test_custom_threshold_overrides_default() -> None:
     skills (e.g. recon-only skills want a lower threshold)."""
     chunk = "📌 Resumen Ejecutivo\nFindings..."
     # Default threshold=3 → would fire at 2 calls
-    assert _detect_premature_summary(
-        chunk,
-        tool_calls_in_chunk=2,
-        has_foothold=False,
-    ) is True
+    assert (
+        _detect_premature_summary(
+            chunk,
+            tool_calls_in_chunk=2,
+            has_foothold=False,
+        )
+        is True
+    )
     # Bump threshold to 1 → 2 calls now legitimate
-    assert _detect_premature_summary(
-        chunk,
-        tool_calls_in_chunk=2,
-        has_foothold=False,
-        threshold_tool_calls=1,
-    ) is False
+    assert (
+        _detect_premature_summary(
+            chunk,
+            tool_calls_in_chunk=2,
+            has_foothold=False,
+            threshold_tool_calls=1,
+        )
+        is False
+    )
 
 
 def test_summary_marker_in_thinking_block_still_counts() -> None:
     """Some models emit the summary inside their <think> reasoning
     before it lands in the final channel. The detector operates on the
     full chunk text so it catches both placements."""
-    chunk = (
-        "<think>\n"
-        "Maybe I should just wrap this up — # 📌 Resumen Ejecutivo\n"
-        "</think>\n"
-        "OK let me think more..."
+    chunk = "<think>\nMaybe I should just wrap this up — # 📌 Resumen Ejecutivo\n</think>\nOK let me think more..."
+    assert (
+        _detect_premature_summary(
+            chunk,
+            tool_calls_in_chunk=1,
+            has_foothold=False,
+        )
+        is True
     )
-    assert _detect_premature_summary(
-        chunk,
-        tool_calls_in_chunk=1,
-        has_foothold=False,
-    ) is True
 
 
 def test_summary_threshold_boundary_at_exactly_threshold() -> None:
     """Exactly equal to threshold (3 tool calls) → legitimate.
     Below (2) → premature. Boundary test."""
     chunk = "📌 Resumen Ejecutivo"
-    assert _detect_premature_summary(
-        chunk,
-        tool_calls_in_chunk=3,
-        has_foothold=False,
-    ) is False
-    assert _detect_premature_summary(
-        chunk,
-        tool_calls_in_chunk=2,
-        has_foothold=False,
-    ) is True
+    assert (
+        _detect_premature_summary(
+            chunk,
+            tool_calls_in_chunk=3,
+            has_foothold=False,
+        )
+        is False
+    )
+    assert (
+        _detect_premature_summary(
+            chunk,
+            tool_calls_in_chunk=2,
+            has_foothold=False,
+        )
+        is True
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -517,8 +551,8 @@ def test_count_real_tool_calls_excludes_planner_subcall() -> None:
     emit summaries after fewer real probes than the operator
     intended."""
     from kryon.cli.reflective_runner import (
-        _ToolCallRecord,
         _count_real_tool_calls,
+        _ToolCallRecord,
     )
 
     records = [
@@ -544,8 +578,8 @@ def test_count_real_tool_calls_all_synthetic() -> None:
     Real count should be 0 — those subcalls came from the planner,
     not from the model's own probes."""
     from kryon.cli.reflective_runner import (
-        _ToolCallRecord,
         _count_real_tool_calls,
+        _ToolCallRecord,
     )
 
     records = [

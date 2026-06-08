@@ -23,7 +23,6 @@ import pytest
 
 from kryon.cache.scan_cache import cache_scan_result
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -98,9 +97,7 @@ def test_failure_output_not_cached(failure_output):
     # Same failure both times — but the function was called twice
     # because the first failure was NOT cached.
     assert r1 == r2 == failure_output
-    assert call_count["n"] == 2, (
-        f"Expected 2 calls (failure not cached) for marker: {failure_output!r}"
-    )
+    assert call_count["n"] == 2, f"Expected 2 calls (failure not cached) for marker: {failure_output!r}"
 
 
 # ---------------------------------------------------------------------------

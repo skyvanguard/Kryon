@@ -624,6 +624,7 @@ def analyze_security_headers(response: HTTPResponse) -> SecurityHeadersAnalysis:
     findings.extend(_check_info_leaks(response))
 
     from kryon.util.severity import SEVERITY_RANK as severity_order
+
     findings.sort(key=lambda f: (severity_order.get(f.severity, 99), f.rule_id))
 
     return SecurityHeadersAnalysis(

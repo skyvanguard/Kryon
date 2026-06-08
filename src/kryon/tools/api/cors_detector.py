@@ -446,6 +446,7 @@ def analyze_cors_response(
     findings.extend(_check_acao_present_at_all(allow_origin, response.request_origin))
 
     from kryon.util.severity import SEVERITY_RANK as severity_order
+
     findings.sort(key=lambda f: severity_order.get(f.severity, 99))
 
     return CORSAnalysis(

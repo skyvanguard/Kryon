@@ -29,7 +29,6 @@ import pytest
 
 from kryon.sdk.agents.models.harmony_parser import parse_harmony_tool_calls
 
-
 # ---------------------------------------------------------------------------
 # Detection: no Harmony tokens → None
 # ---------------------------------------------------------------------------
@@ -142,10 +141,7 @@ def test_reasoning_before_tool_call_only_returns_tool_call():
 
 
 def test_final_channel_returns_none():
-    harmony = (
-        "<|start|>assistant<|channel|>final"
-        "<|message|>I found 3 vulnerabilities. Report attached.<|return|>"
-    )
+    harmony = "<|start|>assistant<|channel|>final<|message|>I found 3 vulnerabilities. Report attached.<|return|>"
     assert parse_harmony_tool_calls(harmony) is None
 
 
@@ -168,8 +164,7 @@ def test_functions_namespace_stripped():
 def test_dotted_namespace_uses_last_segment():
     """For built-ins like ``browser.search``, name = ``search``."""
     harmony = (
-        "<|start|>assistant<|channel|>analysis to=browser.search code"
-        '<|message|>{"query":"sqli juice shop"}<|call|>'
+        '<|start|>assistant<|channel|>analysis to=browser.search code<|message|>{"query":"sqli juice shop"}<|call|>'
     )
     result = parse_harmony_tool_calls(harmony)
     assert result is not None
@@ -179,8 +174,7 @@ def test_dotted_namespace_uses_last_segment():
 def test_bare_function_name_no_namespace():
     """Some Ollama variants drop the namespace entirely."""
     harmony = (
-        "<|start|>assistant<|channel|>commentary to=nuclei_scan "
-        '<|constrain|>json<|message|>{"target":"x"}<|call|>'
+        '<|start|>assistant<|channel|>commentary to=nuclei_scan <|constrain|>json<|message|>{"target":"x"}<|call|>'
     )
     result = parse_harmony_tool_calls(harmony)
     assert result is not None
@@ -196,8 +190,7 @@ def test_malformed_json_args_kept_as_string():
     """If the JSON args don't parse, keep raw arguments — the SDK retries
     will surface the schema error to the model so it can self-correct."""
     harmony = (
-        "<|start|>assistant<|channel|>commentary to=functions.x "
-        "<|constrain|>json<|message|>{not-valid-json<|call|>"
+        "<|start|>assistant<|channel|>commentary to=functions.x <|constrain|>json<|message|>{not-valid-json<|call|>"
     )
     result = parse_harmony_tool_calls(harmony)
     assert result is not None
@@ -228,10 +221,7 @@ def test_json_args_with_newlines_and_whitespace():
 def test_partial_harmony_without_closing_call_returns_none():
     """If the tool call is truncated (no <|call|> terminator), the parser
     refuses to guess — the SDK retry path picks it up instead."""
-    harmony = (
-        "<|start|>assistant<|channel|>commentary to=functions.x "
-        '<|constrain|>json<|message|>{"target":"x"'
-    )
+    harmony = '<|start|>assistant<|channel|>commentary to=functions.x <|constrain|>json<|message|>{"target":"x"'
     assert parse_harmony_tool_calls(harmony) is None
 
 
@@ -249,10 +239,7 @@ def test_tool_call_in_middle_of_long_response():
 
 
 def test_call_id_is_unique_per_invocation():
-    harmony = (
-        "<|start|>assistant<|channel|>commentary to=functions.x "
-        '<|constrain|>json<|message|>{"a":1}<|call|>'
-    )
+    harmony = '<|start|>assistant<|channel|>commentary to=functions.x <|constrain|>json<|message|>{"a":1}<|call|>'
     r1 = parse_harmony_tool_calls(harmony)
     r2 = parse_harmony_tool_calls(harmony)
     assert r1 is not None and r2 is not None
@@ -262,10 +249,7 @@ def test_call_id_is_unique_per_invocation():
 def test_arguments_serialized_as_string_not_dict():
     """OpenAI ChatCompletion tool_calls expect arguments as a JSON STRING,
     not a parsed dict. The SDK parses the string later."""
-    harmony = (
-        "<|start|>assistant<|channel|>commentary to=functions.x "
-        '<|constrain|>json<|message|>{"a":1}<|call|>'
-    )
+    harmony = '<|start|>assistant<|channel|>commentary to=functions.x <|constrain|>json<|message|>{"a":1}<|call|>'
     result = parse_harmony_tool_calls(harmony)
     assert result is not None
     assert isinstance(result[0]["function"]["arguments"], str)

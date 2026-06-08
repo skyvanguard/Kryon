@@ -421,7 +421,7 @@ class Crawler:
                     fut = pool.submit(self._fetch, url)
                     future_map[fut] = (url, depth, parent)
 
-                for fut, (url, depth, parent) in future_map.items():
+                for fut, (url, depth, _parent) in future_map.items():
                     resp, err = fut.result()
                     if resp is None:
                         errors.append(CrawlError(url=url, reason=err))

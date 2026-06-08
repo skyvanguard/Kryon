@@ -694,6 +694,7 @@ def analyze_cookies(
     findings.extend(_check_duplicates(cookies))
 
     from kryon.util.severity import SEVERITY_RANK as severity_order
+
     findings.sort(key=lambda f: (severity_order.get(f.severity, 99), f.rule_id, f.cookie_name))
 
     return CookieAnalysis(

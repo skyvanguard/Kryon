@@ -129,8 +129,7 @@ class TestWebFetchSmartHTML:
         <meta name="generator" content="WordPress 6.4">
         </head><body><h1>Welcome</h1>
         <a href="/admin">Admin</a></body></html>"""
-        with _patch_fetch_raw(200, {"content-type": "text/html; charset=utf-8"},
-                              html, "http://test.local/"):
+        with _patch_fetch_raw(200, {"content-type": "text/html; charset=utf-8"}, html, "http://test.local/"):
             result_json = _raw(url="http://test.local/")
         result = json.loads(result_json)
         assert result["status"] == 200
@@ -144,8 +143,7 @@ class TestWebFetchSmartHTML:
 class TestWebFetchSmartJSON:
     def test_json_response_pretty_printed(self):
         payload = b'{"version": "1.0", "endpoints": ["/login", "/api/v1"]}'
-        with _patch_fetch_raw(200, {"content-type": "application/json"},
-                              payload, "http://api.local/"):
+        with _patch_fetch_raw(200, {"content-type": "application/json"}, payload, "http://api.local/"):
             result_json = _raw(url="http://api.local/")
         result = json.loads(result_json)
         assert result["status"] == 200
@@ -156,8 +154,7 @@ class TestWebFetchSmartJSON:
 
     def test_invalid_json_falls_back_to_text(self):
         payload = b"not valid json {{{"
-        with _patch_fetch_raw(200, {"content-type": "application/json"},
-                              payload, "http://api.local/"):
+        with _patch_fetch_raw(200, {"content-type": "application/json"}, payload, "http://api.local/"):
             result_json = _raw(url="http://api.local/")
         result = json.loads(result_json)
         assert "body_text" in result
@@ -175,16 +172,16 @@ class TestWebFetchSmartErrors:
 
     def test_http_error_returns_status(self):
         import urllib.error
+
         err = urllib.error.HTTPError("http://test/", 404, "Not Found", {}, None)
-        with patch(
-            "kryon.tools.web.web_fetch_smart._fetch_raw", side_effect=err
-        ):
+        with patch("kryon.tools.web.web_fetch_smart._fetch_raw", side_effect=err):
             result = json.loads(_raw(url="http://test.local/"))
         assert result["status"] == 404
         assert "404" in result["error"]
 
     def test_url_error_handled(self):
         import urllib.error
+
         with patch(
             "kryon.tools.web.web_fetch_smart._fetch_raw",
             side_effect=urllib.error.URLError("connection refused"),
@@ -197,9 +194,7 @@ class TestWebFetchSmartTruncation:
     def test_truncated_flag_when_oversize(self):
         big_html = b"<html><body>" + (b"x" * 100) + b"</body></html>"
         with _patch_fetch_raw(
-            200,
-            {"content-type": "text/html", "_kryon_truncated": "true (capped at 50)"},
-            big_html, "http://big.local/"
+            200, {"content-type": "text/html", "_kryon_truncated": "true (capped at 50)"}, big_html, "http://big.local/"
         ):
             result = json.loads(_raw(url="http://big.local/"))
         assert result["truncated"] is True
@@ -210,11 +205,12 @@ class TestBancaSafeContract:
 
     def test_no_post_put_delete_in_source(self):
         from pathlib import Path
+
         src = Path(__file__).resolve().parents[3] / "src" / "kryon" / "tools" / "web" / "web_fetch_smart.py"
         text = src.read_text(encoding="utf-8")
         # method=POST should never appear
-        assert "method=\"POST\"" not in text
-        assert "method=\"PUT\"" not in text
-        assert "method=\"DELETE\"" not in text
+        assert 'method="POST"' not in text
+        assert 'method="PUT"' not in text
+        assert 'method="DELETE"' not in text
         # urlopen on req with method=GET only
         assert 'method="GET"' in text

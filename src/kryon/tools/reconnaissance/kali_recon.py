@@ -46,9 +46,7 @@ def masscan_scan(
         str: masscan output (open ports + banner if --banners).
     """
     safe_rate = min(int(rate), 10000)
-    fmt_flag = {"json": "-oJ -", "xml": "-oX -", "list": "-oL -"}.get(
-        output_format, "-oL -"
-    )
+    fmt_flag = {"json": "-oJ -", "xml": "-oX -", "list": "-oL -"}.get(output_format, "-oL -")
     cmd_parts = [
         "masscan",
         target,

@@ -672,6 +672,7 @@ def _flatten_resources(rs: list[Any]) -> set[str]:
 
 def _sort_findings(findings: list[AWSFinding]) -> list[AWSFinding]:
     from kryon.util.severity import SEVERITY_RANK as severity_order
+
     return sorted(
         findings,
         key=lambda f: (severity_order.get(f.severity, 99), f.rule_id),
