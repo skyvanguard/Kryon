@@ -149,16 +149,35 @@ def infer_target_from_text(text: str) -> str | None:
     return None
 
 
+# A finding for a child CWE satisfies its parent in ground truth (the CWE tree
+# narrows the same weakness). Conservative, well-established relationships only.
+_CWE_PARENT: dict[str, str] = {
+    "CWE-862": "CWE-285",  # Missing Authorization ⊂ Improper Access Control
+    "CWE-306": "CWE-285",  # Missing Auth for Critical Function ⊂ Improper Access Control
+}
+
+
 def score_text(text: str, target: str) -> ScoreResult:
-    """Compute TP/FP/FN comparing CWEs in text vs ground truth for target."""
+    """Compute TP/FP/FN comparing CWEs in text vs ground truth for target.
+
+    Honors CWE parent/child relationships: an emitted child CWE credits its
+    parent when the parent is in ground truth (and is then not counted as a
+    false positive).
+    """
     if target not in GROUND_TRUTH:
         raise ValueError(f"Unknown target '{target}'. Options: {list(GROUND_TRUTH)}")
 
     gt = GROUND_TRUTH[target]
     emitted = extract_cwes(text)
-    tp = gt & emitted
-    fp = emitted - gt
-    fn = gt - emitted
+    # Expand emitted with parent CWEs that appear in ground truth.
+    expanded = set(emitted)
+    for cwe in emitted:
+        parent = _CWE_PARENT.get(cwe)
+        if parent and parent in gt:
+            expanded.add(parent)
+    tp = gt & expanded
+    fp = {c for c in emitted if c not in gt and _CWE_PARENT.get(c) not in gt}
+    fn = gt - expanded
     return ScoreResult(
         target=target,
         ground_truth=gt,

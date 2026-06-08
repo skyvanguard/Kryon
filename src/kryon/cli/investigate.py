@@ -355,6 +355,7 @@ def _run_webexploit_phase(
     enable_nuclei: bool = False,
     max_depth: int = 2,
     max_urls: int = 40,
+    web_auth: dict | None = None,
 ) -> list:
     """F57 deterministic web-pentest sweep → engage.Finding list (Phase 5).
 
@@ -387,7 +388,7 @@ def _run_webexploit_phase(
         def _factory() -> HttpSession:
             return HttpSession(base_url=url, verify_tls=False)
 
-        report = run_engagement(session, _factory, graph, base_url=url, enable_nuclei=enable_nuclei)
+        report = run_engagement(session, _factory, graph, base_url=url, enable_nuclei=enable_nuclei, web_auth=web_auth)
     except Exception:  # noqa: BLE001 — LLM agent still runs
         return []
 
@@ -557,13 +558,30 @@ def run_investigate(args: argparse.Namespace) -> int:
         # autonomous wiring of the F57 pipeline (was /webpentest-only).
         if active:
             enable_nuclei = os.environ.get("KRYON_RED_TEAM", "").strip().lower() in ("1", "true", "yes")
-            _wx_timeout = float(os.environ.get("KRYON_WEBEXPLOIT_TIMEOUT_S", "300"))
+            # Comprehensive sweep (surface discovery + injection over dozens of
+            # endpoints + headless cookie check + authenticated IDOR/mass-assign)
+            # is heavy on rich targets; 600s default so its findings aren't
+            # dropped. Override with KRYON_WEBEXPLOIT_TIMEOUT_S.
+            _wx_timeout = float(os.environ.get("KRYON_WEBEXPLOIT_TIMEOUT_S", "600"))
+            # Authenticated probing mode — operator-supplied web creds unlock
+            # IDOR / mass-assignment probes (unreachable unauthenticated).
+            _web_auth = None
+            if getattr(args, "web_login_url", "") and getattr(args, "web_user", ""):
+                login_url = args.web_login_url
+                if not login_url.lower().startswith(("http://", "https://")) and args.url:
+                    login_url = args.url.rstrip("/") + "/" + login_url.lstrip("/")
+                _web_auth = {
+                    "login_url": login_url,
+                    "username": args.web_user,
+                    "password": args.web_pass,
+                    "token_json_path": args.web_token_path,
+                }
             for u in urls_to_check:
                 if not u.lower().startswith(("http://", "https://")):
                     continue
                 try:
                     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _ex:
-                        _fut = _ex.submit(_run_webexploit_phase, u, enable_nuclei=enable_nuclei)
+                        _fut = _ex.submit(_run_webexploit_phase, u, enable_nuclei=enable_nuclei, web_auth=_web_auth)
                         wf = _fut.result(timeout=_wx_timeout)
                 except concurrent.futures.TimeoutError:
                     console.print(f"[yellow]⚠ webexploit sweep excedió {_wx_timeout:.0f}s para {u} — saltando[/yellow]")
@@ -841,6 +859,21 @@ def add_investigate_subparser(subparsers) -> argparse.ArgumentParser:
         action="store_true",
         help="F203.N.3 — ejecuta SMB anonymous shares (port 445 / smb:// scheme). "
         "Requiere smbclient en PATH (graceful skip si falta).",
+    )
+    p.add_argument(
+        "--web-login-url",
+        default="",
+        help="Authenticated probing: login endpoint (absolute or relative to --url). "
+        "POSTs {email,password} as JSON; unlocks IDOR (CWE-639) + mass-assignment "
+        "(CWE-915) probes. Requires --active and an authorized engagement.",
+    )
+    p.add_argument("--web-user", default="", help="Username/email for --web-login-url.")
+    p.add_argument("--web-pass", default="", help="Password for --web-login-url.")
+    p.add_argument(
+        "--web-token-path",
+        default="authentication.token",
+        help="Dotted JSON path to the bearer token in the login response "
+        "(default: authentication.token, matches OWASP Juice Shop).",
     )
     p.add_argument(
         "--out",
