@@ -482,8 +482,10 @@ def _check_http_cookie_flags(svc: DiscoveredService) -> list[Finding]:
                 shutil.which("curl") or "curl",
                 "-sSI",
                 "-k",
-                "--max-redirs", "0",
-                "--max-time", "5",
+                "--max-redirs",
+                "0",
+                "--max-time",
+                "5",
                 url,
             ],
             capture_output=True,
@@ -529,9 +531,8 @@ def _check_http_cookie_flags(svc: DiscoveredService) -> list[Finding]:
                     + ". Cookie stealable via XSS reflejado / DOM-XSS — "
                     "compromiso de sesion banking user inmediato."
                 ),
-                evidence="Set-Cookie headers (snippet):\n" + "\n".join(
-                    f"  {ln}" for ln in headers.splitlines() if "set-cookie" in ln.lower()
-                )[:600],
+                evidence="Set-Cookie headers (snippet):\n"
+                + "\n".join(f"  {ln}" for ln in headers.splitlines() if "set-cookie" in ln.lower())[:600],
                 remediation=(
                     "Setear HttpOnly en TODAS las session cookies. Por framework:\n"
                     "  - PHP: session.cookie_httponly = 1 en php.ini\n"
@@ -916,10 +917,7 @@ def _check_dns_open_resolver(svc: DiscoveredService) -> Finding | None:
             f"DNS server {svc.host}:53 acepta queries recursivas de clientes arbitrarios "
             f"(resolvio {_DNS_EXTERNAL_PROBE} -> {external[0]})."
         ),
-        evidence=(
-            f"nslookup {_DNS_EXTERNAL_PROBE} {svc.host} resolvio IP(s) externa(s): "
-            f"{', '.join(external[:3])}"
-        ),
+        evidence=(f"nslookup {_DNS_EXTERNAL_PROBE} {svc.host} resolvio IP(s) externa(s): {', '.join(external[:3])}"),
         remediation=(
             "Restringir recursion a subnets internas y revisar perimetro.\n"
             "  - Microsoft DNS: dnsmgmt.msc > Properties > Advanced > "
@@ -1061,9 +1059,7 @@ def _try_axfr(host: str, zone: str) -> tuple[bool, str]:
         # Count record-type-bearing lines. >=3 distinct records is the
         # threshold: SOA + at least 2 non-SOA entries is a real zone
         # dump, not an isolated SOA query reply.
-        record_lines = [
-            ln for ln in proc.stdout.splitlines() if _AXFR_RECORD_TYPE_RE.search(ln)
-        ]
+        record_lines = [ln for ln in proc.stdout.splitlines() if _AXFR_RECORD_TYPE_RE.search(ln)]
         if len(record_lines) >= 3:
             snippet = "\n".join(record_lines[:6])
             return True, snippet
@@ -1096,9 +1092,7 @@ def _check_dns_zone_transfer(svc: DiscoveredService) -> Finding | None:
         return None
 
     leaked_zones = ", ".join(z for z, _ in transferable[:3])
-    evidence_blocks = "\n\n".join(
-        f"Zone {zone}:\n{snippet}" for zone, snippet in transferable[:2]
-    )
+    evidence_blocks = "\n\n".join(f"Zone {zone}:\n{snippet}" for zone, snippet in transferable[:2])
 
     return Finding(
         cwe="CWE-200",
@@ -1117,7 +1111,7 @@ def _check_dns_zone_transfer(svc: DiscoveredService) -> Finding | None:
             "  - Microsoft DNS: dnsmgmt.msc > <zona> > Properties > Zone "
             "Transfers > 'Only to servers listed on the Name Servers tab' "
             "o 'Only to the following servers' con IPs explicitas.\n"
-            "  - BIND: zone \"example.com\" { allow-transfer { 10.0.0.5; "
+            '  - BIND: zone "example.com" { allow-transfer { 10.0.0.5; '
             "10.0.0.6; }; }; (vacio = deny por default desde 9.4+).\n"
             "  - Unbound: no aplica (Unbound es solo recursor; AXFR "
             "no esta soportado).\n"
@@ -1225,15 +1219,12 @@ def _check_dns_chaos_leak(svc: DiscoveredService) -> Finding | None:
         severity=severity,
         host=f"{svc.host}:{svc.port}",
         rule_id="dns-chaos-leak",
-        message=(
-            f"DNS server {svc.host}:53 responde a queries CHAOS class y "
-            f"revela info debug: {leaked_probes}."
-        ),
+        message=(f"DNS server {svc.host}:53 responde a queries CHAOS class y revela info debug: {leaked_probes}."),
         evidence=evidence[:800],
         remediation=(
             "Suprimir respuestas CHAOS class en el motor DNS:\n"
-            "  - BIND named.conf: options { version \"\"; hostname \"\"; "
-            "server-id \"\"; };\n"
+            '  - BIND named.conf: options { version ""; hostname ""; '
+            'server-id ""; };\n'
             "  - Unbound: server: hide-version: yes + hide-identity: yes\n"
             "  - PowerDNS recursor.conf: version-string=anonymous + server-id=disabled\n"
             "  - Knot Resolver: options.cache_size + nsid module disabled\n"
@@ -1354,9 +1345,7 @@ def _try_cache_snoop(host: str, name: str) -> bool | None:
 
     answer_block = m.group(1)
     # ANSWER must contain the queried name AND an A record IPv4 form.
-    if name.lower() in answer_block.lower() and re.search(
-        r"\bA\s+\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", answer_block
-    ):
+    if name.lower() in answer_block.lower() and re.search(r"\bA\s+\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", answer_block):
         return True
     return False
 
@@ -1408,8 +1397,7 @@ def _check_dns_cache_snoop(svc: DiscoveredService) -> Finding | None:
             f"cacheados detectados: {leaked_summary}."
         ),
         evidence=(
-            f"dig +norecurse +cd @{svc.host} <domain> A retorno ANSWER "
-            f"SECTION para:\n  - " + "\n  - ".join(cached_hits)
+            f"dig +norecurse +cd @{svc.host} <domain> A retorno ANSWER SECTION para:\n  - " + "\n  - ".join(cached_hits)
         ),
         remediation=(
             "Aislar el cache recursor de queries no autorizadas.\n"
@@ -1514,12 +1502,7 @@ def _check_dnssec_validation(svc: DiscoveredService) -> Finding | None:
     # Look for non-loopback IPv4 answers. If present, the resolver
     # returned the broken-DNSSEC zone records -> validation OFF.
     addrs = re.findall(r"\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b", proc.stdout)
-    external = [
-        a for a in addrs
-        if a != svc.host
-        and not a.startswith("127.")
-        and not a.startswith("0.")
-    ]
+    external = [a for a in addrs if a != svc.host and not a.startswith("127.") and not a.startswith("0.")]
     if not external:
         return None
 
@@ -1547,7 +1530,7 @@ def _check_dnssec_validation(svc: DiscoveredService) -> Finding | None:
             "  - BIND: options { dnssec-validation auto; }; (default "
             "desde 9.16+). Con `auto` el resolver usa los root trust "
             "anchors built-in.\n"
-            "  - Unbound: server: module-config: \"validator iterator\" "
+            '  - Unbound: server: module-config: "validator iterator" '
             "+ auto-trust-anchor-file (default /var/lib/unbound/root.key).\n"
             "  - Knot Resolver: trust_anchors.add_file('root.key') o "
             "trust_anchors.set_insecure() solo para zonas problematicas.\n"
@@ -1587,7 +1570,16 @@ def _check_dnssec_validation(svc: DiscoveredService) -> Finding | None:
 # bastion range (50, 100), DB range (150, 200), and final
 # host before broadcast (254).
 _REVERSE_PROBE_OCTETS: tuple[int, ...] = (
-    1, 5, 10, 20, 50, 100, 150, 200, 222, 254,
+    1,
+    5,
+    10,
+    20,
+    50,
+    100,
+    150,
+    200,
+    222,
+    254,
 )
 _REVERSE_HIT_THRESHOLD = 3
 
@@ -1595,21 +1587,50 @@ _REVERSE_HIT_THRESHOLD = 3
 # Lowercase; matched as substrings of the hostname.
 _SENSITIVE_HOSTNAME_KEYWORDS: tuple[str, ...] = (
     # Banking / payments / SWIFT
-    "bank", "banco", "payment", "pago", "swift",
-    "ach", "bancard", "stripe", "mastercard", "visa",
-    "core-bank", "corebank",
+    "bank",
+    "banco",
+    "payment",
+    "pago",
+    "swift",
+    "ach",
+    "bancard",
+    "stripe",
+    "mastercard",
+    "visa",
+    "core-bank",
+    "corebank",
     # Production / database
-    "prod", "production", "produccion",
-    "db-", "-db.", "sql-", "-sql.",
-    "rds-", "postgres", "mongo", "redis", "oracle",
-    "backup", "bkp",
+    "prod",
+    "production",
+    "produccion",
+    "db-",
+    "-db.",
+    "sql-",
+    "-sql.",
+    "rds-",
+    "postgres",
+    "mongo",
+    "redis",
+    "oracle",
+    "backup",
+    "bkp",
     # Identity / secrets / AD
-    "ldap", "ad-", "-ad.", "dc-", "-dc.",
-    "vault", "secret", "kdc",
+    "ldap",
+    "ad-",
+    "-ad.",
+    "dc-",
+    "-dc.",
+    "vault",
+    "secret",
+    "kdc",
     # Mail / exchange
-    "exchange", "mail-", "-mail.", "smtp",
+    "exchange",
+    "mail-",
+    "-mail.",
+    "smtp",
     # File / share
-    "fileserver", "share-",
+    "fileserver",
+    "share-",
 )
 
 _REVERSE_FAILURE_MARKERS = (
@@ -1717,10 +1738,7 @@ def _check_reverse_dns_enum(svc: DiscoveredService) -> Finding | None:
     if len(discovered) < _REVERSE_HIT_THRESHOLD:
         return None
 
-    sensitive_hits = [
-        (ip, hn) for ip, hn in discovered
-        if any(kw in hn for kw in _SENSITIVE_HOSTNAME_KEYWORDS)
-    ]
+    sensitive_hits = [(ip, hn) for ip, hn in discovered if any(kw in hn for kw in _SENSITIVE_HOSTNAME_KEYWORDS)]
     severity = "HIGH" if sensitive_hits else "MEDIUM"
 
     evidence_lines = [f"  {ip} -> {hn}" for ip, hn in discovered[:8]]
@@ -1758,7 +1776,7 @@ def _check_reverse_dns_enum(svc: DiscoveredService) -> Finding | None:
             "> Properties > Security: limitar query permissions a internal "
             "subnets. O usar Set-DnsServerZoneTransfer / "
             "Set-DnsServerRecursionScope con ACL.\n"
-            "  - BIND: zone \"<X>.in-addr.arpa\" { type master; "
+            '  - BIND: zone "<X>.in-addr.arpa" { type master; '
             "allow-query { 10.0.0.0/8; 172.16.0.0/12; }; };\n"
             "  - Unbound: stub-zone para reverse interno + "
             "access-control: 0.0.0.0/0 deny + access-control: "
@@ -1830,9 +1848,7 @@ def _check_dns_dynamic_update(svc: DiscoveredService) -> Finding | None:
 
         update = dns.update.UpdateMessage(zone)
         # Long random label so we never hit a real record.
-        test_label = (
-            f"kryon-rfc2136-noop-probe-{int(time.time())}"
-        )
+        test_label = f"kryon-rfc2136-noop-probe-{int(time.time())}"
         update.delete(test_label, dns.rdatatype.TXT)
 
         try:
@@ -1879,7 +1895,7 @@ def _check_dns_dynamic_update(svc: DiscoveredService) -> Finding | None:
             "'Nonsecure and secure' a 'Secure only' (requiere GSS-TSIG / "
             "Kerberos auth contra el DC). Validar con "
             "Get-DnsServerZone | Select Name,DynamicUpdate.\n"
-            "  - BIND: zone \"example.com\" { type master; "
+            '  - BIND: zone "example.com" { type master; '
             "allow-update { key dhcp-key; }; }; + definir TSIG key "
             "compartida con DHCP server, NUNCA `allow-update { any; };`.\n"
             "  - PowerDNS: api-key required + disable-syslog en "
@@ -1975,9 +1991,7 @@ def diff_dc_dns_posture(
       - `cwe` = `"CWE-1188"`
     """
     dc_hosts: dict[str, list[Finding]] = {
-        host: findings
-        for host, findings in host_findings.items()
-        if _is_domain_controller_host(findings)
+        host: findings for host, findings in host_findings.items() if _is_domain_controller_host(findings)
     }
     if len(dc_hosts) < 2:
         return []
@@ -2136,18 +2150,13 @@ def diff_proxmox_cluster_posture(
     de multiples engages contra los nodos del cluster.
     """
     pve_hosts: dict[str, list[Finding]] = {
-        host: findings
-        for host, findings in host_findings.items()
-        if _is_proxmox_host(findings)
+        host: findings for host, findings in host_findings.items() if _is_proxmox_host(findings)
     }
     if len(pve_hosts) < 2:
         return []
 
     drift_findings: list[Finding] = []
-    rule_sets: dict[str, set[str]] = {
-        host: {f.rule_id for f in findings}
-        for host, findings in pve_hosts.items()
-    }
+    rule_sets: dict[str, set[str]] = {host: {f.rule_id for f in findings} for host, findings in pve_hosts.items()}
 
     # 1. Rule drift cross-nodes
     for rule_id, drift_severity, label in _PROXMOX_CLUSTER_DRIFT_RULES:
@@ -2221,10 +2230,7 @@ def diff_proxmox_cluster_posture(
                     "PVE distintas — incompatibilidad cluster operations "
                     "(HA / live migration / ceph). Risk de split-brain."
                 ),
-                evidence="\n".join(
-                    f"  {host}: pve-manager/{ver}"
-                    for host, ver in sorted(versions_per_host.items())
-                ),
+                evidence="\n".join(f"  {host}: pve-manager/{ver}" for host, ver in sorted(versions_per_host.items())),
                 remediation=(
                     "Unificar version PVE cross-cluster:\n"
                     "  1. Identificar nodo target (mas reciente).\n"
@@ -2592,11 +2598,11 @@ def _check_ssh(svc: DiscoveredService, ssh_target: str | None, ssh_password: str
 
 _SIEM_PACKAGES_TO_CHECK = (
     "wazuh-agent",  # Wazuh OSSEC fork — top SIEM en LATAM banca
-    "filebeat",     # Elastic Beats log shipper
-    "auditd",       # Linux audit daemon — base de cualquier SIEM
-    "osquery",      # Facebook osquery
-    "rsyslog",      # Remote syslog (mejor que nada)
-    "syslog-ng",    # Alternative syslog
+    "filebeat",  # Elastic Beats log shipper
+    "auditd",  # Linux audit daemon — base de cualquier SIEM
+    "osquery",  # Facebook osquery
+    "rsyslog",  # Remote syslog (mejor que nada)
+    "syslog-ng",  # Alternative syslog
 )
 
 
@@ -2627,10 +2633,14 @@ def _check_siem_activity(
             # accept-new pins fingerprint la primera vez; rechaza si
             # cambia (MITM detection). NO `=no` que es vulnerable a MITM
             # en redes bancarias internas con ARP spoofing posible.
-            "-o", "StrictHostKeyChecking=accept-new",
-            "-o", "BatchMode=yes",
-            "-o", "ConnectTimeout=10",
-            "-p", port,
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=10",
+            "-p",
+            port,
         ]
         if ssh_key:
             base.extend(["-i", ssh_key])
@@ -2641,8 +2651,12 @@ def _check_siem_activity(
             base = ["sshpass", "-e"] + base
         try:
             r = subprocess.run(
-                base + [cmd], capture_output=True, text=True,
-                timeout=20, check=False, env=env,
+                base + [cmd],
+                capture_output=True,
+                text=True,
+                timeout=20,
+                check=False,
+                env=env,
             )
             return r.stdout
         except Exception:  # noqa: BLE001
@@ -2651,10 +2665,10 @@ def _check_siem_activity(
     probe_cmd = (
         "for svc in " + " ".join(_SIEM_PACKAGES_TO_CHECK) + "; do "
         "  status=$(systemctl is-active $svc 2>/dev/null || echo missing); "
-        "  echo \"$svc=$status\"; "
+        '  echo "$svc=$status"; '
         "done; "
-        "echo \"ossec_dir=$(test -d /var/ossec && echo yes || echo no)\"; "
-        "echo \"wazuh_dir=$(test -d /var/ossec/etc && echo yes || echo no)\""
+        'echo "ossec_dir=$(test -d /var/ossec && echo yes || echo no)"; '
+        'echo "wazuh_dir=$(test -d /var/ossec/etc && echo yes || echo no)"'
     )
 
     output = _remote(probe_cmd)
@@ -2757,9 +2771,7 @@ def _check_siem_activity(
 
     # CASO 4: SIEM heterogeneo (filebeat sin wazuh, o auditd solo) —
     # MEDIUM info. Operationally menos optimo que un stack unificado.
-    active_daemons = ", ".join(
-        name for name, status in statuses.items() if status == "active"
-    )
+    active_daemons = ", ".join(name for name, status in statuses.items() if status == "active")
     return Finding(
         cwe="CWE-778",
         severity="MEDIUM",
@@ -2802,13 +2814,23 @@ _SMB_FAILURE_MARKERS = (
 
 # Keywords en share names que elevan severidad a MEDIUM
 _SMB_SENSITIVE_KEYWORDS = (
-    "bank", "banco", "payment", "pago", "swift",
-    "rpa", "automation",
-    "prod", "production",
-    "customer", "cliente",
-    "backup", "bkp",
-    "vault", "secret",
-    "finance", "finanzas",
+    "bank",
+    "banco",
+    "payment",
+    "pago",
+    "swift",
+    "rpa",
+    "automation",
+    "prod",
+    "production",
+    "customer",
+    "cliente",
+    "backup",
+    "bkp",
+    "vault",
+    "secret",
+    "finance",
+    "finanzas",
     "core",
 )
 
@@ -2831,8 +2853,7 @@ def _check_smb_anonymous_shares(svc: DiscoveredService) -> Finding | None:
 
     try:
         proc = subprocess.run(
-            ["smbclient", "-L", f"//{svc.host}", "-N",
-             "--option=client min protocol=SMB2"],
+            ["smbclient", "-L", f"//{svc.host}", "-N", "--option=client min protocol=SMB2"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -2881,10 +2902,7 @@ def _check_smb_anonymous_shares(svc: DiscoveredService) -> Finding | None:
     if not shares:
         return None
 
-    sensitive_hits = [
-        s for s in shares
-        if any(kw in s.lower() for kw in _SMB_SENSITIVE_KEYWORDS)
-    ]
+    sensitive_hits = [s for s in shares if any(kw in s.lower() for kw in _SMB_SENSITIVE_KEYWORDS)]
     severity = "MEDIUM" if sensitive_hits else "LOW"
 
     shares_str = ", ".join(shares[:5])
@@ -2907,9 +2925,7 @@ def _check_smb_anonymous_shares(svc: DiscoveredService) -> Finding | None:
             )
         ),
         evidence=(
-            f"smbclient -L //{svc.host} -N retorno:\n"
-            f"  Anonymous login successful\n"
-            f"  Shares: {', '.join(shares)}"
+            f"smbclient -L //{svc.host} -N retorno:\n  Anonymous login successful\n  Shares: {', '.join(shares)}"
         ),
         remediation=(
             "Deshabilitar enumeracion anonymous de shares:\n"
@@ -2921,10 +2937,10 @@ def _check_smb_anonymous_shares(svc: DiscoveredService) -> Finding | None:
             "      ntlm auth = no\n"
             "  - **Windows**: Group Policy > Security Settings > Local "
             "Policies > Security Options:\n"
-            "      \"Network access: Do not allow anonymous enumeration of "
-            "SAM accounts and shares\" = Enabled\n"
-            "      \"Network access: Restrict anonymous access to Named "
-            "Pipes and Shares\" = Enabled\n"
+            '      "Network access: Do not allow anonymous enumeration of '
+            'SAM accounts and shares" = Enabled\n'
+            '      "Network access: Restrict anonymous access to Named '
+            'Pipes and Shares" = Enabled\n'
             "Impacto banking: share names suelen revelar clientes, "
             "proyectos, fileservers internos. Aun cuando file-access "
             "esta protegido (tree-connect denied), la disclosure del "
@@ -2973,8 +2989,7 @@ def _check_bgp_exposure(svc: DiscoveredService) -> Finding | None:
             "anuncios de prefijos."
         ),
         evidence=(
-            f"nmap detecto puerto 179/tcp open en {svc.host}. "
-            f"Banner: {svc.product or '(suprimido / tcpwrapped)'}"
+            f"nmap detecto puerto 179/tcp open en {svc.host}. Banner: {svc.product or '(suprimido / tcpwrapped)'}"
         ),
         remediation=(
             "Banking-mandatory hardening BGP:\n"
@@ -3357,10 +3372,7 @@ def _check_mysql_deep(svc: DiscoveredService) -> list[Finding]:
                     severity="HIGH",
                     host=f"{svc.host}:{svc.port}",
                     rule_id="mysql-version-eol",
-                    message=(
-                        f"MySQL {version} es EOL. Sin patches de seguridad "
-                        "desde el end-of-life date."
-                    ),
+                    message=(f"MySQL {version} es EOL. Sin patches de seguridad desde el end-of-life date."),
                     evidence=f"SELECT VERSION() -> '{version}'",
                     remediation=(
                         "Upgrade path:\n"
@@ -3729,15 +3741,13 @@ def _invoke_agent_deepening(
                 cwe = (f.cwe or "").lower()
                 # http-* findings -> webapp + classification skills
                 if rid.startswith("http-") or "http" in rid:
-                    extra_kw.extend(["webapp", "http", "web vulnerability",
-                                     "cwe-79", "cwe-89", "cwe-22"])
+                    extra_kw.extend(["webapp", "http", "web vulnerability", "cwe-79", "cwe-89", "cwe-22"])
                 if "cookie" in rid or "samesite" in rid or "csrf" in cwe:
                     extra_kw.extend(["cookie", "csrf", "samesite", "cwe-352"])
                 if "ssh" in rid or "auth" in rid or "password" in rid or "credential" in rid:
                     extra_kw.extend(["auth", "authentication", "ssh", "cwe-287"])
                 if "mysql" in rid or "postgres" in rid or "mongo" in rid or "redis" in rid:
-                    extra_kw.extend(["sqli", "sql injection", "database",
-                                     "cwe-89", "cwe-918"])
+                    extra_kw.extend(["sqli", "sql injection", "database", "cwe-89", "cwe-918"])
                 if "admin-open" in rid or "weak-pass" in rid or "default-cred" in rid:
                     extra_kw.append("cwe-287")
                 # F202.AD — propagate CWE id itself for direct skill match.
@@ -4510,7 +4520,7 @@ _DVR_BODY_MARKERS = (
     "/doc/page/login.htm",  # Hikvision NVR alt
     "doc/page/wizard",  # Hikvision setup wizard URL
     "server: webs",  # Goahead WebServer signature (en HTTP headers
-                     # extraidos como parte del body fetch)
+    # extraidos como parte del body fetch)
 )
 
 # F201.A — Port combinations that are diagnostic of DVR/NVR appliances.
@@ -4576,12 +4586,12 @@ _PRINTER_BODY_MARKERS = (
 # (raw print port, almost exclusively used by printers). Combined with
 # any web port confirms an MFP.
 _PRINTER_PORT_COMBOS: tuple[frozenset[int], ...] = (
-    frozenset({80, 9100}),   # HTTP admin + JetDirect raw print
+    frozenset({80, 9100}),  # HTTP admin + JetDirect raw print
     frozenset({443, 9100}),  # HTTPS admin + JetDirect
     frozenset({80, 9100, 9220}),  # + IPP (printer)
-    frozenset({80, 631}),    # IPP / CUPS print server
+    frozenset({80, 631}),  # IPP / CUPS print server
     frozenset({443, 631}),
-    frozenset({80, 515}),    # LPD print queue
+    frozenset({80, 515}),  # LPD print queue
     frozenset({9100, 9220, 9290}),  # all jetdirect variants
 )
 
@@ -4672,9 +4682,7 @@ def _detect_device_families(services: list[DiscoveredService]) -> list[str]:
         # FreeIPA / Samba-AD ARE AD-compatible — banner contains
         # "samba ad dc" or "ipa". Don't blanket-suppress them.
         is_non_ad_directory = (
-            any(m in product for m in non_ad_directory_markers)
-            and "samba ad" not in product
-            and "ipa" not in product
+            any(m in product for m in non_ad_directory_markers) and "samba ad" not in product and "ipa" not in product
         )
         is_non_ad_kdc = any(m in product for m in non_ad_kerberos_markers)
         if s.port in (88, 389, 636, 3268, 3269):
@@ -5107,6 +5115,22 @@ def run_engage(args: argparse.Namespace) -> int:
             # F202.U — cookie security flags (HttpOnly, Secure, SameSite).
             # Banking-critical: missing HttpOnly = XSS session takeover.
             findings.extend(_check_http_cookie_flags(svc))
+            # Full F57 web sweep (crawl + surface discovery + injection +
+            # headless cookie/PP/DOM-XSS + nuclei) on web services — ACTIVE
+            # only (KRYON_RED_TEAM), so banca-safe engagements are unchanged.
+            # Reuses the investigate phase to map BankingFinding → engage.Finding.
+            if os.environ.get("KRYON_RED_TEAM", "").strip().lower() in ("1", "true", "yes"):
+                _scheme = "https" if (svc.service == "https" or svc.port in (443, 8443)) else "http"
+                _base = f"{_scheme}://{svc.host}:{svc.port}"
+                try:
+                    from kryon.cli.investigate import _run_webexploit_phase
+
+                    _wx = _run_webexploit_phase(_base, enable_nuclei=True) or []
+                    if _wx:
+                        console.print(f"    🕸 webexploit sweep: {len(_wx)} findings en {_base}")
+                        findings.extend(_wx)
+                except Exception as exc:  # noqa: BLE001 — never break the engagement
+                    console.print(f"[yellow]    webexploit sweep warning ({_base}): {exc}[/yellow]")
         if svc.service == "ssh" or svc.port == 22 or svc.port == 2222:
             findings.extend(_check_ssh(svc, args.ssh, args.ssh_password))
         if svc.service in (

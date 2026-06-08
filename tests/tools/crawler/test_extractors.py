@@ -65,8 +65,8 @@ def test_extract_multiple_tags():
     <iframe src="https://external.example/embed"></iframe>
     """
     links = extract_links_from_html(body, BASE)
-    urls = {l.url for l in links}
-    tags = {l.source_tag for l in links}
+    urls = {link.url for link in links}
+    tags = {link.source_tag for link in links}
     assert "https://target.example/about" in urls
     assert "https://target.example/static/app.css" in urls
     assert "https://target.example/static/app.js" in urls

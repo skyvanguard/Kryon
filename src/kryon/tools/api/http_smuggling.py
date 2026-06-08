@@ -302,5 +302,6 @@ def analyze_probes(probes: list[SmugglingProbe]) -> SmugglingAnalysis:
     for probe in probes:
         findings.extend(_classify_probe(probe))
     from kryon.util.severity import SEVERITY_RANK as severity_order
+
     findings.sort(key=lambda f: (severity_order.get(f.severity, 99), f.rule_id))
     return SmugglingAnalysis(total_probes=len(probes), findings=tuple(findings))

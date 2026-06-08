@@ -305,10 +305,7 @@ def _resolve_threshold_for_class(facts: ExtractedFacts) -> int:
       _RECON_CLASS_PREMATURE_THRESHOLD (5) for recon-class targets,
       _DEFAULT_PREMATURE_THRESHOLD (3) otherwise.
     """
-    has_disallow_hints = any(
-        h.lower().startswith("disallow:")
-        for h in facts.hints
-    )
+    has_disallow_hints = any(h.lower().startswith("disallow:") for h in facts.hints)
     if has_disallow_hints:
         return _RECON_CLASS_PREMATURE_THRESHOLD
     return _DEFAULT_PREMATURE_THRESHOLD
@@ -477,6 +474,7 @@ def _is_stall(
 @dataclass(frozen=True)
 class _ToolCallRecord:
     """One tool invocation observed in the agent's history."""
+
     tool_name: str
     args_hash: str
     args_preview: str  # first 200 chars for the prompt
@@ -772,10 +770,8 @@ def _detect_intra_turn_degeneracy(
         return None
 
     from collections import Counter
-    ngrams = [
-        " ".join(words[i : i + ngram_size])
-        for i in range(len(words) - ngram_size + 1)
-    ]
+
+    ngrams = [" ".join(words[i : i + ngram_size]) for i in range(len(words) - ngram_size + 1)]
     if not ngrams:
         return None
     counts = Counter(ngrams)
@@ -961,9 +957,7 @@ class ItemCaptureHooks:
         self.captured_items.append(entry)
         self._last_call_idx[tool_name] = len(self.captured_items) - 1
 
-    async def on_tool_end(
-        self, context: Any, agent: Any, tool: Any, result: Any
-    ) -> None:
+    async def on_tool_end(self, context: Any, agent: Any, tool: Any, result: Any) -> None:
         tool_name = getattr(tool, "name", None) or str(tool)
         idx = self._last_call_idx.get(tool_name)
         if idx is not None and idx < len(self.captured_items):
@@ -1058,8 +1052,7 @@ async def run_with_reflection(
     _max_rejections_env = os.environ.get("KRYON_PREMATURE_MAX_REJECTIONS", "")
     try:
         premature_max_rejections = (
-            int(_max_rejections_env) if _max_rejections_env
-            else _DEFAULT_PREMATURE_MAX_REJECTIONS
+            int(_max_rejections_env) if _max_rejections_env else _DEFAULT_PREMATURE_MAX_REJECTIONS
         )
     except ValueError:
         premature_max_rejections = _DEFAULT_PREMATURE_MAX_REJECTIONS
@@ -1171,10 +1164,12 @@ async def run_with_reflection(
             ename = type(e).__name__
             if "MaxTurns" in ename:
                 if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
-                    print(f"\n🪞 [reflective-runner] chunk hit max_turns at total turn {turns_used} — forcing reflection")
+                    print(
+                        f"\n🪞 [reflective-runner] chunk hit max_turns at total turn {turns_used} — forcing reflection"
+                    )
                 logger.info(
-                    "reflective runner: chunk hit max_turns at total turn %d — "
-                    "injecting reflection and continuing", turns_used,
+                    "reflective runner: chunk hit max_turns at total turn %d — injecting reflection and continuing",
+                    turns_used,
                 )
                 # Bump turns_used by chunk_size so we don't loop forever
                 turns_used += chunk_size
@@ -1232,9 +1227,7 @@ async def run_with_reflection(
                 except Exception as ee:  # noqa: BLE001
                     logger.debug("MaxTurns planner path failed: %s", ee)
 
-                if os.environ.get(
-                    "KRYON_REFLECT_DEBUG", ""
-                ).lower() in ("1", "true", "yes"):
+                if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
                     print(
                         f"\n🪞 [reflective-runner] MaxTurns-path intel: "
                         f"facts_empty={accumulated_facts.is_empty()} "
@@ -1254,15 +1247,8 @@ async def run_with_reflection(
                 next_action_top_mt = ""
                 next_action_block_mt = ""
                 if next_action_mt is not None:
-                    target_host_mt = (
-                        accumulated_facts.hosts[0]
-                        if accumulated_facts.hosts
-                        else ""
-                    )
-                    rendered_mt = (
-                        _render_planner(next_action_mt, target_host=target_host_mt)
-                        + "\n"
-                    )
+                    target_host_mt = accumulated_facts.hosts[0] if accumulated_facts.hosts else ""
+                    rendered_mt = _render_planner(next_action_mt, target_host=target_host_mt) + "\n"
                     if next_action_mt.confidence >= 0.85:
                         next_action_top_mt = rendered_mt
                     else:
@@ -1277,9 +1263,7 @@ async def run_with_reflection(
                     f"Pause + decide: (a) emit final summary with what you have, "
                     f"or (b) pick ONE next decisive tool call (no repetition).\n"
                 )
-                current_input = base_history + [
-                    {"role": "user", "content": reflection_msg}
-                ]
+                current_input = base_history + [{"role": "user", "content": reflection_msg}]
                 continue
             if "StuckError" in ename:
                 # The stuck-detector aborted the chunk: the agent is in an
@@ -1290,8 +1274,7 @@ async def run_with_reflection(
                 # instead of dying with no artifact. Converts a "failed, no
                 # report" run into a "partial findings" run.
                 logger.warning(
-                    "reflective runner: stuck-loop abort at turn %d — "
-                    "finalizing with partial findings: %s",
+                    "reflective runner: stuck-loop abort at turn %d — finalizing with partial findings: %s",
                     turns_used,
                     e,
                 )
@@ -1308,9 +1291,7 @@ async def run_with_reflection(
                 try:
                     stuck_chunk_text = _chunk_text_from_capture(capture_hooks)
                     if stuck_chunk_text:
-                        accumulated_facts = accumulated_facts.merge(
-                            _extract_facts_from_chunk(stuck_chunk_text)
-                        )
+                        accumulated_facts = accumulated_facts.merge(_extract_facts_from_chunk(stuck_chunk_text))
                 except Exception as ee:  # noqa: BLE001
                     logger.debug("stuck-path extract failed: %s", ee)
                 from kryon.sdk.agents.run_outcome import classify_run_exception
@@ -1337,9 +1318,7 @@ async def run_with_reflection(
                     # attach accumulated_items + the captured chain to it.
                     from types import SimpleNamespace
 
-                    last_result = SimpleNamespace(
-                        final_output=stuck_note, new_items=[]
-                    )
+                    last_result = SimpleNamespace(final_output=stuck_note, new_items=[])
                 break
             logger.exception("reflective runner chunk failed at turn %d: %s", turns_used, e)
             raise
@@ -1383,9 +1362,7 @@ async def run_with_reflection(
             )
             tool_history.append(synthetic)
             new_records.append(synthetic)
-        if subcall_args_list and os.environ.get(
-            "KRYON_REFLECT_DEBUG", ""
-        ).lower() in ("1", "true", "yes"):
+        if subcall_args_list and os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
             print(
                 f"\n🔗 [reflective-runner] merged "
                 f"{len(subcall_args_list)} planner sub-call(s) into "
@@ -1393,9 +1370,11 @@ async def run_with_reflection(
             )
 
         if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
-            print(f"\n🪞 [reflective-runner] chunk done: turn={turns_used}, "
-                  f"new_items={len(chunk_items)}, accumulated={len(accumulated_items)}, "
-                  f"tool_calls_total={len(tool_history)}")
+            print(
+                f"\n🪞 [reflective-runner] chunk done: turn={turns_used}, "
+                f"new_items={len(chunk_items)}, accumulated={len(accumulated_items)}, "
+                f"tool_calls_total={len(tool_history)}"
+            )
 
         # Did the agent finish? (final_output set + no pending tool calls)
         if not _has_pending_tool_calls(result):
@@ -1435,15 +1414,12 @@ async def run_with_reflection(
             if should_reject_final:
                 premature_rejection_count += 1
                 logger.warning(
-                    "FASE 11.E premature final_output rejected at turn %d "
-                    "(rejection=%d/%d) — forcing reflection turn",
+                    "FASE 11.E premature final_output rejected at turn %d (rejection=%d/%d) — forcing reflection turn",
                     turns_used,
                     premature_rejection_count,
                     premature_max_rejections,
                 )
-                if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in (
-                    "1", "true", "yes"
-                ):
+                if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
                     print(
                         f"\n🛑 [reflective-runner] PREMATURE FINAL REJECTED "
                         f"at turn {turns_used} "
@@ -1457,12 +1433,8 @@ async def run_with_reflection(
                 try:
                     base_history = result.to_input_list()
                 except Exception:  # noqa: BLE001
-                    base_history = [
-                        {"role": "user", "content": str(current_input)}
-                    ]
-                current_input = base_history + [
-                    {"role": "user", "content": reject_msg}
-                ]
+                    base_history = [{"role": "user", "content": str(current_input)}]
+                current_input = base_history + [{"role": "user", "content": reject_msg}]
                 # Do NOT return — continue the while loop so the model
                 # gets another chunk to try alternatives.
                 continue
@@ -1525,9 +1497,10 @@ async def run_with_reflection(
         except Exception as e:  # noqa: BLE001
             logger.debug("fact extraction probe failed: %s", e)
 
-        if (
-            not accumulated_facts.is_empty()
-            and os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes")
+        if not accumulated_facts.is_empty() and os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in (
+            "1",
+            "true",
+            "yes",
         ):
             print(
                 f"\n📊 [reflective-runner] facts at turn {turns_used}: "
@@ -1565,15 +1538,12 @@ async def run_with_reflection(
 
         if premature_summary_detected:
             logger.warning(
-                "FASE 11.B premature summary detected at turn %d "
-                "(tool_calls_in_chunk=%d, has_foothold=%s)",
+                "FASE 11.B premature summary detected at turn %d (tool_calls_in_chunk=%d, has_foothold=%s)",
                 turns_used,
                 len(new_records),
                 _has_foothold(accumulated_facts),
             )
-            if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in (
-                "1", "true", "yes"
-            ):
+            if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
                 print(
                     f"\n🛑 [reflective-runner] PREMATURE SUMMARY at turn "
                     f"{turns_used} — model emitted summary marker after "
@@ -1608,9 +1578,7 @@ async def run_with_reflection(
         except Exception as e:  # noqa: BLE001 — best-effort, never bubble
             logger.debug("planner runtime state set failed: %s", e)
 
-        if next_action is not None and os.environ.get(
-            "KRYON_REFLECT_DEBUG", ""
-        ).lower() in ("1", "true", "yes"):
+        if next_action is not None and os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
             print(
                 f"\n🎯 [reflective-runner] next_action at turn {turns_used}: "
                 f"{next_action.tool}({next_action.args[:80]}...) "
@@ -1635,13 +1603,12 @@ async def run_with_reflection(
         )
         if stall_detected:
             logger.warning(
-                "G7 stall detected at turn %d: same recommendation %d "
-                "turns + no facts change", turns_used, _DEFAULT_STALL_THRESHOLD,
+                "G7 stall detected at turn %d: same recommendation %d turns + no facts change",
+                turns_used,
+                _DEFAULT_STALL_THRESHOLD,
             )
             consecutive_stall_count += 1
-            if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in (
-                "1", "true", "yes"
-            ):
+            if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
                 print(
                     f"\n🛑 [reflective-runner] STALL DETECTED at turn "
                     f"{turns_used} — recommendation repeated "
@@ -1660,14 +1627,12 @@ async def run_with_reflection(
                     "FASE 8.B operator-pair fallback firing at turn %d "
                     "after %d consecutive stalls — emitting "
                     "REQUEST_OPERATOR_INPUT and breaking the loop",
-                    turns_used, consecutive_stall_count,
+                    turns_used,
+                    consecutive_stall_count,
                 )
-                if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in (
-                    "1", "true", "yes"
-                ):
+                if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
                     print(
-                        f"\n🚨 [reflective-runner] OPERATOR-PAIR FALLBACK "
-                        f"at turn {turns_used} — REQUEST_OPERATOR_INPUT"
+                        f"\n🚨 [reflective-runner] OPERATOR-PAIR FALLBACK at turn {turns_used} — REQUEST_OPERATOR_INPUT"
                     )
                 try:
                     operator_input_summary = _build_operator_input_request(
@@ -1677,12 +1642,9 @@ async def run_with_reflection(
                         turns_used,
                     )
                 except Exception as e:  # noqa: BLE001
-                    logger.debug(
-                        "operator-pair summary build failed: %s", e
-                    )
+                    logger.debug("operator-pair summary build failed: %s", e)
                     operator_input_summary = (
-                        "REQUEST_OPERATOR_INPUT — agent stuck. "
-                        "Inspect ExtractedFacts + history manually."
+                        "REQUEST_OPERATOR_INPUT — agent stuck. Inspect ExtractedFacts + history manually."
                     )
                 operator_input_requested = True
                 break
@@ -1705,9 +1667,7 @@ async def run_with_reflection(
                 turns_used,
                 degen_pattern[:120],
             )
-            if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in (
-                "1", "true", "yes"
-            ):
+            if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
                 print(
                     f"\n🚨 [reflective-runner] INTRA-TURN DEGENERACY at turn "
                     f"{turns_used}: pattern={degen_pattern[:80]!r}"
@@ -1727,8 +1687,10 @@ async def run_with_reflection(
         )
 
         if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
-            print(f"\n🪞 [reflective-runner] injecting reflection turn (turn {turns_used}/"
-                  f"{max_total_turns}, stuck={stuck.tool_name if stuck else 'no'})")
+            print(
+                f"\n🪞 [reflective-runner] injecting reflection turn (turn {turns_used}/"
+                f"{max_total_turns}, stuck={stuck.tool_name if stuck else 'no'})"
+            )
 
         try:
             base_history = result.to_input_list()
@@ -1736,9 +1698,7 @@ async def run_with_reflection(
             # Fallback: re-use the original input as a string concatenation.
             base_history = [{"role": "user", "content": str(current_input)}]
 
-        current_input = base_history + [
-            {"role": "user", "content": reflection_msg}
-        ]
+        current_input = base_history + [{"role": "user", "content": reflection_msg}]
 
     # If NO chunk ever returned a clean result (run ended on the wall budget, or
     # every chunk hit MaxTurns mid-flight), last_result is None — but the agent

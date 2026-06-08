@@ -25,10 +25,10 @@ os.environ.setdefault("OPENAI_API_KEY", "test_key_for_ci_environment")
 import pytest
 
 from kryon.cli.engage import (
-    DiscoveredService,
-    _detect_device_families,
     _DVR_BODY_MARKERS,
     _DVR_PORT_COMBOS,
+    DiscoveredService,
+    _detect_device_families,
 )
 
 
@@ -62,10 +62,10 @@ class TestBritimpTorreUsrH2:
         /doc/page/login.asp with timestamp. Must trigger dvr family."""
         services = [_svc(80, "http", ""), _svc(8000, "http-alt", "")]
         body = (
-            '<!doctype html><html><head><title></title></head>'
-            '<body></body>'
+            "<!doctype html><html><head><title></title></head>"
+            "<body></body>"
             '<script>window.location.href = "/doc/page/login.asp?_" + '
-            '(new Date()).getTime();</script></html>'
+            "(new Date()).getTime();</script></html>"
         )
         with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_curl_body(body)):
             families = _detect_device_families(services)

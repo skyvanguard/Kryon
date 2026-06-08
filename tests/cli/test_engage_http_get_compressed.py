@@ -34,7 +34,8 @@ def _captured_cmd_runner():
     def _run(cmd, **kwargs):
         captured["cmd"] = cmd
         return subprocess.CompletedProcess(
-            cmd, 0,
+            cmd,
+            0,
             stdout="OK\n__HTTPCODE__200",
             stderr="",
         )
@@ -47,9 +48,7 @@ class TestCompressedFlag:
         captured, runner = _captured_cmd_runner()
         with patch("kryon.cli.engage.subprocess.run", side_effect=runner):
             _http_get("http://example.com/")
-        assert "--compressed" in captured["cmd"], (
-            f"_http_get must pass --compressed; got {captured['cmd']}"
-        )
+        assert "--compressed" in captured["cmd"], f"_http_get must pass --compressed; got {captured['cmd']}"
 
     def test_compressed_with_k_for_tls(self):
         """Both `-k` (skip cert verify) and `--compressed` must be present."""
@@ -92,7 +91,8 @@ class TestStillReturnsBodyAndCode:
     def test_returns_tuple_code_body(self):
         def _run(cmd, **_kw):
             return subprocess.CompletedProcess(
-                cmd, 0,
+                cmd,
+                0,
                 stdout="hello world\n__HTTPCODE__200",
                 stderr="",
             )

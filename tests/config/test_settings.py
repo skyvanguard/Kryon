@@ -9,8 +9,13 @@ from kryon.config import KryonSettings, settings
 
 def test_defaults_match_documented_values(monkeypatch):
     for var in (
-        "KRYON_MODEL", "OPENAI_BASE_URL", "KRYON_LOCAL_LLM", "KRYON_USE_LITELLM",
-        "KRYON_MAX_TURNS", "KRYON_RED_TEAM", "KRYON_LLM_TEMPERATURE",
+        "KRYON_MODEL",
+        "OPENAI_BASE_URL",
+        "KRYON_LOCAL_LLM",
+        "KRYON_USE_LITELLM",
+        "KRYON_MAX_TURNS",
+        "KRYON_RED_TEAM",
+        "KRYON_LLM_TEMPERATURE",
     ):
         monkeypatch.delenv(var, raising=False)
     s = KryonSettings.from_env()

@@ -374,7 +374,7 @@ class Pipeline:
             max_body_bytes=2000,  # probe body fingerprint only
             respect_robots=False,  # disclosure paths are deliberately not in robots
             same_origin_only=True,
-            allowed_extra_hosts=tuple(),
+            allowed_extra_hosts=(),
             block_internal_ips=base.block_internal_ips if base else True,
             fetch_external_js=False,
             auth_cookies=base.auth_cookies if base else (),
@@ -652,6 +652,7 @@ class Pipeline:
 
         # Sort: severity (CRITICAL→INFO), then module, then rule_id
         from kryon.util.severity import SEVERITY_RANK as severity_order
+
         findings.sort(
             key=lambda f: (
                 severity_order.get(f.severity, 99),

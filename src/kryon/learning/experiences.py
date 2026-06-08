@@ -41,6 +41,22 @@ def _get_collection():
     persist_dir.mkdir(parents=True, exist_ok=True)
     _client = chromadb.PersistentClient(path=str(persist_dir))
 
+    try:
+        _collection = _client.get_or_create_collection(**_collection_kwargs())
+    except Exception as ce:
+        # A prior run may have persisted the collection with a different
+        # embedder (e.g. 768-dim nomic vs 384-dim all-MiniLM when
+        # KRYON_EMBEDDING_BASE_URL was toggled). ChromaDB then refuses to
+        # open it — recreate with the current embedder.
+        if _is_embed_mismatch(ce):
+            _collection = _recreate_collection()
+        else:
+            raise
+
+    return _collection
+
+
+def _collection_kwargs() -> dict[str, Any]:
     embed_fn = _build_embedding_function()
     kwargs: dict[str, Any] = {
         "name": _COLLECTION_NAME,
@@ -51,22 +67,29 @@ def _get_collection():
     }
     if embed_fn is not None:
         kwargs["embedding_function"] = embed_fn
+    return kwargs
 
+
+# Errors ChromaDB raises when the persisted vectors don't match the active
+# embedder — by name ("embedding function") or by shape ("dimension").
+_EMBED_MISMATCH_MARKERS = ("embedding function", "dimension")
+
+
+def _is_embed_mismatch(err: Exception) -> bool:
+    msg = str(err).lower()
+    return any(marker in msg for marker in _EMBED_MISMATCH_MARKERS)
+
+
+def _recreate_collection():
+    """Drop + recreate the collection with the current embedder. Used when a
+    stale persisted dimension would otherwise crash every writeback. Old
+    experiences are lost (their vectors are incompatible anyway)."""
+    global _collection
     try:
-        _collection = _client.get_or_create_collection(**kwargs)
-    except Exception as ce:
-        # Same recovery path as kryon.knowledge.simple_vector_db: if a
-        # prior run persisted a different embedding fn, recreate the
-        # collection with ours.
-        if "embedding function" in str(ce).lower() and embed_fn is not None:
-            try:
-                _client.delete_collection(name=_COLLECTION_NAME)
-            except Exception:
-                pass
-            _collection = _client.create_collection(**kwargs)
-        else:
-            raise
-
+        _client.delete_collection(name=_COLLECTION_NAME)
+    except Exception:  # noqa: BLE001
+        pass
+    _collection = _client.create_collection(**_collection_kwargs())
     return _collection
 
 
@@ -241,11 +264,15 @@ def add_experience(experience: dict[str, Any]) -> str:
     metadata = _jsonable_metadata(experience)
 
     collection = _get_collection()
-    collection.add(
-        documents=[document],
-        metadatas=[metadata],
-        ids=[experience["id"]],
-    )
+    try:
+        collection.add(documents=[document], metadatas=[metadata], ids=[experience["id"]])
+    except Exception as ae:  # noqa: BLE001
+        if not _is_embed_mismatch(ae):
+            raise
+        # Stale-dimension collection — recreate with the current embedder and
+        # retry once so the writeback succeeds instead of silently failing.
+        logger.warning("Experience store embedding mismatch (%s) — recreating collection", ae)
+        _recreate_collection().add(documents=[document], metadatas=[metadata], ids=[experience["id"]])
     logger.info(
         "Experience %s stored (host=%s outcome=%s chain_len=%d)",
         experience["id"],

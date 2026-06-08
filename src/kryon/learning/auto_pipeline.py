@@ -28,18 +28,19 @@ from pathlib import Path
 from typing import Callable
 
 from kryon.learning.draft_writer import get_drafts_dir, list_existing_names
-from kryon.learning.merge_decider import MergeDecision, decide_merge_action
-from kryon.learning.merge_loader import load_existing_for_merge
-from kryon.learning.pattern_detector import (
-    ChainCluster,
-    detect_recurrent_chains,
-)
+
 # F203.S — Guide score (relevance + naturalness) as second-axis filter
 # post-CWE-eval. Detects placeholder soup, repeated lines, frontmatter/body
 # mismatches that the technical eval can miss.
 from kryon.learning.guide_scorer import (
     GUIDE_DEFAULT_THRESHOLD,
     score_draft,
+)
+from kryon.learning.merge_decider import MergeDecision, decide_merge_action
+from kryon.learning.merge_loader import load_existing_for_merge
+from kryon.learning.pattern_detector import (
+    ChainCluster,
+    detect_recurrent_chains,
 )
 from kryon.learning.skill_evaluator import (
     EvalReport,

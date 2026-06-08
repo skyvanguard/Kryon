@@ -27,39 +27,30 @@ from kryon.validation.finding_applicability import (
     is_finding_applicable_general,
 )
 
-
 # ---------------------------------------------------------------------------
 # extract_product_mentions — text scanning
 # ---------------------------------------------------------------------------
 
 
 def test_extract_jamon_from_message():
-    mentions = extract_product_mentions(
-        "Reflected XSS in JAMonAdmin.jsp parameter on /admin endpoint"
-    )
+    mentions = extract_product_mentions("Reflected XSS in JAMonAdmin.jsp parameter on /admin endpoint")
     assert "jamon" in mentions
 
 
 def test_extract_jamon_from_evidence_lower_case():
-    mentions = extract_product_mentions(
-        "según output de nikto: jamon admin interface identified"
-    )
+    mentions = extract_product_mentions("según output de nikto: jamon admin interface identified")
     assert "jamon" in mentions
 
 
 def test_extract_multiple_products():
-    mentions = extract_product_mentions(
-        "Apache Struts2 vulnerable to OGNL injection, also Log4j present"
-    )
+    mentions = extract_product_mentions("Apache Struts2 vulnerable to OGNL injection, also Log4j present")
     assert "struts" in mentions
     assert "log4j" in mentions
 
 
 def test_extract_no_product_returns_empty():
     """Generic message with no product keyword → empty."""
-    mentions = extract_product_mentions(
-        "Content-Security-Policy header missing on the response."
-    )
+    mentions = extract_product_mentions("Content-Security-Policy header missing on the response.")
     assert mentions == set()
 
 
@@ -194,6 +185,7 @@ def test_finding_mentioning_both_stack_match_and_mismatch_passes():
 
 def test_dataclass_compatible():
     """Should also accept Finding-like dataclass instances."""
+
     class _F:
         rule_id = "WEB-XSS-001"
         host = "http://juice_shop:3000"

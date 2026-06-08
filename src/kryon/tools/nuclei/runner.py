@@ -272,6 +272,7 @@ def run_nuclei(config: NuclieConfig) -> NucleiResult:
     findings = parse_nuclei_jsonl(proc.stdout or "")
     elapsed = time.monotonic() - t0
     from kryon.util.severity import SEVERITY_RANK as severity_order
+
     findings.sort(
         key=lambda f: (
             severity_order.get(f.severity, 99),

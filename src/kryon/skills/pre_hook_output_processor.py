@@ -156,9 +156,7 @@ def _summarize_sqlmap(payload: str, *, max_items: int) -> str:
     return "\n".join(candidates[:max_items])
 
 
-def summarize_pre_hook_output(
-    inject_as: str, payload: str | None, *, max_items: int = 30
-) -> str:
+def summarize_pre_hook_output(inject_as: str, payload: str | None, *, max_items: int = 30) -> str:
     """Compress one pre-hook tool output for the LLM context.
 
     Returns an empty string for empty payloads. Otherwise returns a

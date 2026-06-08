@@ -20,7 +20,6 @@ from kryon.intelligence.tool_templates import (
     format_templates_for_recent_tools,
 )
 
-
 # ---------------------------------------------------------------------------
 # _detect_tools_in_args
 # ---------------------------------------------------------------------------
@@ -41,17 +40,14 @@ def test_detect_finds_multiple_tools_in_chained_invocation() -> None:
     """A macro chain that runs GetNPUsers then hashcat should match
     both names."""
     detected = _detect_tools_in_args(
-        "GetNPUsers.py -no-pass -dc-ip 1.2.3.4 thm.local/ && "
-        "hashcat -m 18200 hashes.txt rockyou.txt"
+        "GetNPUsers.py -no-pass -dc-ip 1.2.3.4 thm.local/ && hashcat -m 18200 hashes.txt rockyou.txt"
     )
     assert "GetNPUsers.py" in detected
     assert "hashcat" in detected
 
 
 def test_detect_finds_impacket_dotpy_suffix() -> None:
-    detected = _detect_tools_in_args(
-        "secretsdump.py -just-dc-ntlm thm.local/alice:'P' @10.0.0.1"
-    )
+    detected = _detect_tools_in_args("secretsdump.py -just-dc-ntlm thm.local/alice:'P' @10.0.0.1")
     assert "secretsdump.py" in detected
 
 
@@ -73,9 +69,7 @@ def test_format_returns_empty_string_when_no_history() -> None:
 
 
 def test_format_returns_empty_string_when_no_known_tools() -> None:
-    assert format_templates_for_recent_tools(
-        ["totally-unrelated-thing arg1 arg2"]
-    ) == ""
+    assert format_templates_for_recent_tools(["totally-unrelated-thing arg1 arg2"]) == ""
 
 
 def test_format_includes_canonical_invocation_for_detected_tool() -> None:

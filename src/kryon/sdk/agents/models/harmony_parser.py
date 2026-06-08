@@ -57,9 +57,7 @@ _CONSTRAIN = r"(?:\s+<\|constrain\|>\w+|\s+code)?"
 
 _HARMONY_TOOL_CALL_RE = re.compile(
     r"<\|channel\|>(?:analysis|commentary)"
-    r"\s+to=(?P<recipient>" + _RECIPIENT + r")"
-    + _CONSTRAIN
-    + r"\s*<\|message\|>(?P<body>.*?)<\|call\|>",
+    r"\s+to=(?P<recipient>" + _RECIPIENT + r")" + _CONSTRAIN + r"\s*<\|message\|>(?P<body>.*?)<\|call\|>",
     re.DOTALL,
 )
 

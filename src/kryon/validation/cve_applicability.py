@@ -69,9 +69,7 @@ _WHATWEB_STRING_RE = re.compile(r'"string"\s*:\s*\[\s*"([^"]+)"')
 # embeds these in prose ("WhatWeb output: ..., X-Powered-By: Express"),
 # not always at start of line. Capture stops at the first comma so we
 # don't slurp the rest of the sentence.
-_SERVER_HEADER_RE = re.compile(
-    r"(?i)(?:Server|X-Powered-By)\s*:\s*([A-Za-z0-9_.\-/]+)"
-)
+_SERVER_HEADER_RE = re.compile(r"(?i)(?:Server|X-Powered-By)\s*:\s*([A-Za-z0-9_.\-/]+)")
 
 # F180 — common technology mentions in free narration. The LLM often
 # describes the stack inline ("Express server detected", "Node.js
@@ -247,9 +245,7 @@ def _env_true(name: str, default: str = "true") -> bool:
     return os.environ.get(name, default).strip().lower() in {"1", "true", "yes", "on"}
 
 
-def is_cve_applicable(
-    cve: CVEApplicability, tech_stack: set[str]
-) -> tuple[bool, str]:
+def is_cve_applicable(cve: CVEApplicability, tech_stack: set[str]) -> tuple[bool, str]:
     """Decide whether ``cve`` plausibly applies to a target whose
     detected technology stack is ``tech_stack``.
 
@@ -285,8 +281,7 @@ def is_cve_applicable(
     products_str = ", ".join(cve.products) if cve.products else "(no products listed)"
     return (
         False,
-        f"no match between CVE products [{products_str}] and detected stack "
-        f"[{', '.join(sorted(tech_stack))}]",
+        f"no match between CVE products [{products_str}] and detected stack [{', '.join(sorted(tech_stack))}]",
     )
 
 
@@ -346,9 +341,7 @@ def _lookup_cve_metadata(cve_id: str) -> CVEApplicability:
     return CVEApplicability(cve_id=upper, products=(), description="")
 
 
-def is_cve_applicable_for_finding(
-    finding: dict | object, *, tech_stack: set[str]
-) -> tuple[bool, str]:
+def is_cve_applicable_for_finding(finding: dict | object, *, tech_stack: set[str]) -> tuple[bool, str]:
     """Run the applicability gate over a finding-shaped object.
 
     Non-CVE rule_ids (``Missing-CSP``, ``Exposed-htpasswd``, etc.) pass

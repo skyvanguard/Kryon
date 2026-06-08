@@ -358,9 +358,7 @@ def render_demo_report(
         try:
             from weasyprint import HTML  # type: ignore
         except ImportError:
-            paths["pdf_error"] = Path(
-                "install the 'reporting' extra: pip install 'kryon[reporting]'"
-            )
+            paths["pdf_error"] = Path("install the 'reporting' extra: pip install 'kryon[reporting]'")
         except OSError as e:
             # Most common: Windows + no GTK runtime installed.
             paths["pdf_error"] = Path(

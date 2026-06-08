@@ -157,9 +157,7 @@ async def execute_planner_directive(
             tool_name="execute_planner_directive",
         )
     except Exception as exc:  # noqa: BLE001 — surface as tool output
-        logger.warning(
-            "execute_planner_directive subprocess failed: %s", exc
-        )
+        logger.warning("execute_planner_directive subprocess failed: %s", exc)
         return (
             f"# PLANNER EXECUTED (FAILED): {rec.tool}\n"
             f"# rationale: {rec.rationale}\n"

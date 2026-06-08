@@ -71,10 +71,7 @@ def run_cve_cache_command(args) -> int:
     )
     cache_path = Path(args.output) if args.output else None
 
-    print(
-        f"Fetching {len(years)} year(s): "
-        f"{years[0]}..{years[-1]} (this may take a few minutes)"
-    )
+    print(f"Fetching {len(years)} year(s): {years[0]}..{years[-1]} (this may take a few minutes)")
     try:
         result = update_cache(years, cache_path=cache_path, timeout=args.timeout)
     except Exception as exc:  # noqa: BLE001 - surface real cause to operator

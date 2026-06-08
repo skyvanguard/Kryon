@@ -14,6 +14,7 @@ _NT = "31d6cfe0d16ae931b73c59d7e0c089c0"
 
 # --- pass-the-hash lateral -------------------------------------------------
 
+
 def test_pth_fires_on_nt_hash_and_domain():
     facts = ExtractedFacts(
         hashes=(f"Administrator:500:aad3b435b51404eeaad3b435b51404ee:{_NT}:::",),
@@ -44,6 +45,7 @@ def test_pth_abstains_if_already_invoked():
 
 # --- credential reuse over SMB ---------------------------------------------
 
+
 def test_cred_spray_fires_on_creds_and_smb():
     facts = ExtractedFacts(creds=(("bob", "pass123"),), services=((445, "microsoft-ds"),))
     rec = _rule_cred_spray_smb(facts, [], "")
@@ -61,6 +63,7 @@ def test_cred_spray_no_creds_no_fire():
 
 
 # --- GTFOBins sudo privesc -------------------------------------------------
+
 
 def test_gtfobins_known_binary_payload():
     facts = ExtractedFacts(hints=("(root) NOPASSWD: /usr/bin/find",))

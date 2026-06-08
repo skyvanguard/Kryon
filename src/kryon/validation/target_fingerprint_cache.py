@@ -69,9 +69,7 @@ def save_target_fingerprint(host: str | None, tech_stack: set[str]) -> bool:
             "tech_stack": sorted(tech_stack),
             "saved_at": datetime.now(timezone.utc).isoformat(),
         }
-        path.write_text(
-            json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        path.write_text(json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8")
         return True
     except OSError as exc:
         logger.debug("F192 save failed for %s: %s", host, exc)

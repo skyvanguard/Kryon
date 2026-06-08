@@ -5,12 +5,11 @@ from __future__ import annotations
 import pytest
 
 from kryon.skills.playbooks.pre_hooks.endpoint_discovery_sqlmap_hook import (
+    KNOWN_INJECTABLE_ENDPOINTS,
     _is_responsive,
     _looks_injection_positive,
     _summarize_endpoint_results,
-    KNOWN_INJECTABLE_ENDPOINTS,
 )
-
 
 # ---------------------------------------------------------------------------
 # Endpoint catalog

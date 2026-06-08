@@ -22,8 +22,8 @@ os.environ.setdefault("OPENAI_API_KEY", "test_key_for_ci_environment")
 import pytest
 
 from kryon.cli.engage import (
-    _check_siem_activity,
     _SIEM_PACKAGES_TO_CHECK,
+    _check_siem_activity,
 )
 
 
@@ -149,22 +149,28 @@ class TestNoSiemAtAll:
 class TestOkScenarios:
     def test_wazuh_active_no_finding(self):
         with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_ssh(_OUT_WAZUH_ACTIVE)):
-            assert _check_siem_activity(
-                host="10.0.0.5",
-                ssh_target="root@10.0.0.5",
-                ssh_key="/tmp/key",
-                ssh_password=None,
-            ) is None
+            assert (
+                _check_siem_activity(
+                    host="10.0.0.5",
+                    ssh_target="root@10.0.0.5",
+                    ssh_key="/tmp/key",
+                    ssh_password=None,
+                )
+                is None
+            )
 
     def test_auditd_plus_rsyslog_no_finding(self):
         """Minimum viable SIEM baseline: auditd + remote rsyslog OK."""
         with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_ssh(_OUT_AUDITD_RSYSLOG_ONLY)):
-            assert _check_siem_activity(
-                host="10.0.0.5",
-                ssh_target="ubuntu@10.0.0.5",
-                ssh_key="/tmp/key",
-                ssh_password=None,
-            ) is None
+            assert (
+                _check_siem_activity(
+                    host="10.0.0.5",
+                    ssh_target="ubuntu@10.0.0.5",
+                    ssh_key="/tmp/key",
+                    ssh_password=None,
+                )
+                is None
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -196,22 +202,28 @@ class TestGracefulDegradation:
     def test_no_ssh_target_no_call(self):
         """Sin ssh_target, check no se ejecuta."""
         # No need to patch — should never reach subprocess.run
-        assert _check_siem_activity(
-            host="10.0.0.5",
-            ssh_target=None,
-            ssh_key=None,
-            ssh_password=None,
-        ) is None
+        assert (
+            _check_siem_activity(
+                host="10.0.0.5",
+                ssh_target=None,
+                ssh_key=None,
+                ssh_password=None,
+            )
+            is None
+        )
 
     def test_ssh_empty_output_no_finding(self):
         """SSH connect falla (sin output) -> graceful skip, no finding."""
         with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_ssh("")):
-            assert _check_siem_activity(
-                host="10.0.0.5",
-                ssh_target="root@10.0.0.5",
-                ssh_key="/tmp/key",
-                ssh_password=None,
-            ) is None
+            assert (
+                _check_siem_activity(
+                    host="10.0.0.5",
+                    ssh_target="root@10.0.0.5",
+                    ssh_key="/tmp/key",
+                    ssh_password=None,
+                )
+                is None
+            )
 
 
 # ---------------------------------------------------------------------------

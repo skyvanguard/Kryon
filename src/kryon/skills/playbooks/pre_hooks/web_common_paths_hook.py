@@ -71,8 +71,8 @@ _COMMON_PATHS: tuple[str, ...] = (
 # listing (trailing slash), default index files, auth surfaces, and
 # common CMS / app entry points.
 _DISALLOW_SUBPATHS: tuple[str, ...] = (
-    "",            # the disallow path itself (directory listing)
-    "/",           # with trailing slash (forces dir listing if mod_autoindex)
+    "",  # the disallow path itself (directory listing)
+    "/",  # with trailing slash (forces dir listing if mod_autoindex)
     "/index.php",
     "/index.html",
     "/login.php",
@@ -447,9 +447,7 @@ def run(ctx: dict[str, Any]) -> str:
         )
         with _NO_REDIRECT_OPENER.open(req, timeout=3.0) as resp:
             baseline_status = resp.status
-            baseline_body = resp.read(_MAX_BODY_PREVIEW).decode(
-                "utf-8", errors="replace"
-            )
+            baseline_body = resp.read(_MAX_BODY_PREVIEW).decode("utf-8", errors="replace")
     except urllib.error.HTTPError as exc:
         baseline_status = exc.code
     except Exception as exc:  # noqa: BLE001 — baseline failure is non-fatal
@@ -479,10 +477,7 @@ def run(ctx: dict[str, Any]) -> str:
     spa_collapsed: list[tuple[str, int, int, str]] = []
     interesting_raw = [r for r in results if r[1] not in (404, -1)]
     if baseline_sig:
-        spa_collapsed = [
-            r for r in interesting_raw
-            if r[1] == 200 and _body_signature(r[3]) == baseline_sig
-        ]
+        spa_collapsed = [r for r in interesting_raw if r[1] == 200 and _body_signature(r[3]) == baseline_sig]
         interesting = [r for r in interesting_raw if r not in spa_collapsed]
     else:
         interesting = interesting_raw
@@ -561,13 +556,9 @@ def run(ctx: dict[str, Any]) -> str:
 
         chain_results: list[tuple[str, int, int, str]] = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
-            chain_futures = {
-                ex.submit(_probe_path, target, p): p for p in chain_probes
-            }
+            chain_futures = {ex.submit(_probe_path, target, p): p for p in chain_probes}
             try:
-                for fut in concurrent.futures.as_completed(
-                    chain_futures, timeout=_WALL_CLOCK_S
-                ):
+                for fut in concurrent.futures.as_completed(chain_futures, timeout=_WALL_CLOCK_S):
                     try:
                         chain_results.append(fut.result())
                     except Exception as exc:  # noqa: BLE001
@@ -579,9 +570,7 @@ def run(ctx: dict[str, Any]) -> str:
         # Keep only paths that returned actionable status (200 / 3xx /
         # 401 / 403). 404s under disallow are noise; errors are
         # transport noise.
-        live_subpath_hits = [
-            r for r in chain_results if r[1] in (200, 301, 302, 307, 308, 401, 403)
-        ]
+        live_subpath_hits = [r for r in chain_results if r[1] in (200, 301, 302, 307, 308, 401, 403)]
 
     if robots_disallow_paths:
         lines.append("")
@@ -614,18 +603,10 @@ def run(ctx: dict[str, Any]) -> str:
         if detected_vhost:
             # Re-probe each redirect path with the vhost Host header.
             # Cap at ~6 paths to stay within wall-clock budget.
-            redirect_paths = [
-                p for p, s, _, _ in live_subpath_hits
-                if s in (301, 302, 307, 308)
-            ][:6]
+            redirect_paths = [p for p, s, _, _ in live_subpath_hits if s in (301, 302, 307, 308)][:6]
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-                vhost_futures = {
-                    ex.submit(_probe_with_vhost, target, p, detected_vhost): p
-                    for p in redirect_paths
-                }
-                for fut in concurrent.futures.as_completed(
-                    vhost_futures, timeout=_WALL_CLOCK_S
-                ):
+                vhost_futures = {ex.submit(_probe_with_vhost, target, p, detected_vhost): p for p in redirect_paths}
+                for fut in concurrent.futures.as_completed(vhost_futures, timeout=_WALL_CLOCK_S):
                     p = vhost_futures[fut]
                     try:
                         status, size, body = fut.result()
@@ -659,11 +640,7 @@ def run(ctx: dict[str, Any]) -> str:
         ] = []  # (path, vhost, u, status, body_size_str, cookie, body_preview)
         baseline_sig = ""
         baseline_status = 0
-        if (
-            login_forms
-            and os.environ.get("KRYON_W_CREDS_PROBE", "false").lower()
-            in {"1", "true", "yes", "on"}
-        ):
+        if login_forms and os.environ.get("KRYON_W_CREDS_PROBE", "false").lower() in {"1", "true", "yes", "on"}:
             combos = _resolve_creds_list()
             for path, vhost, _status, body, form in login_forms[:1]:
                 # Baseline: hash of the form body we already have.
@@ -687,9 +664,7 @@ def run(ctx: dict[str, Any]) -> str:
                         username=username,
                         password=password,
                     )
-                    creds_results.append(
-                        (path, vhost, f"{username}:{password}", status, str(size), cookie, preview)
-                    )
+                    creds_results.append((path, vhost, f"{username}:{password}", status, str(size), cookie, preview))
                     if not baseline_status:
                         # First probe acts as our baseline status — if
                         # later probes deviate we surface them.
@@ -711,19 +686,11 @@ def run(ctx: dict[str, Any]) -> str:
                 action = form.get("action") or path
                 method = form.get("method") or "POST"
                 inputs = form.get("inputs", [])
+                lines.append("- **finding**: `LOGIN_FORM_VHOST_EXPOSED` (CWE-200 + CWE-287, severity HIGH)")
+                lines.append(f"  - **host**: `{target}{path}`")
+                lines.append(f"  - **vhost**: `{vhost}` (DNS-unresolvable, accessed via Host header)")
                 lines.append(
-                    f"- **finding**: `LOGIN_FORM_VHOST_EXPOSED` "
-                    f"(CWE-200 + CWE-287, severity HIGH)"
-                )
-                lines.append(
-                    f"  - **host**: `{target}{path}`"
-                )
-                lines.append(
-                    f"  - **vhost**: `{vhost}` (DNS-unresolvable, accessed via Host header)"
-                )
-                lines.append(
-                    f"  - **form**: action=`{action}` method=`{method}` "
-                    f"inputs={', '.join(f'`{i}`' for i in inputs)}"
+                    f"  - **form**: action=`{action}` method=`{method}` inputs={', '.join(f'`{i}`' for i in inputs)}"
                 )
                 lines.append(
                     "  - **message**: Login form hidden behind vhost; only "
@@ -759,9 +726,7 @@ def run(ctx: dict[str, Any]) -> str:
                         divergent.append(r)
 
                 lines.append("")
-                lines.append(
-                    "### 🏆 DEFAULT CREDS PROBE — auto-tested 5 combos"
-                )
+                lines.append("### 🏆 DEFAULT CREDS PROBE — auto-tested 5 combos")
                 lines.append("")
                 if divergent:
                     lines.append(
@@ -775,14 +740,11 @@ def run(ctx: dict[str, Any]) -> str:
                         if body.startswith("[Location:"):
                             loc = body.split("\n", 1)[0]
                         lines.append(
-                            f"- **combo**: `{combo}` → status {status}, "
-                            f"body {sz} bytes, cookie `{cookie_short}` "
-                            f"{loc}"
+                            f"- **combo**: `{combo}` → status {status}, body {sz} bytes, cookie `{cookie_short}` {loc}"
                         )
                     lines.append("")
                     lines.append(
-                        "- **finding**: `DEFAULT_CREDS_DIFFERENTIAL_RESPONSE` "
-                        "(CWE-521 weak credentials, severity HIGH)"
+                        "- **finding**: `DEFAULT_CREDS_DIFFERENTIAL_RESPONSE` (CWE-521 weak credentials, severity HIGH)"
                     )
                     lines.append(
                         "- **evidence**: combos above diverged from the "
@@ -801,10 +763,7 @@ def run(ctx: dict[str, Any]) -> str:
                     )
                 lines.append("")
 
-            lines.append(
-                "_Optional follow-up tools (NOT required for findings JSON; "
-                "useful only si querés escalar)_:"
-            )
+            lines.append("_Optional follow-up tools (NOT required for findings JSON; useful only si querés escalar)_:")
             for _p, vhost, _s, _b, form in login_forms[:1]:
                 action = form.get("action") or login_forms[0][0]
                 method = form.get("method") or "POST"

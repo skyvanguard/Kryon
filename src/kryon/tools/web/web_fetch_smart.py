@@ -41,10 +41,32 @@ _DROP_TAGS = {"script", "style", "noscript", "iframe", "svg"}
 
 # Tags that imply block-level boundary (newline in markdown output).
 _BLOCK_TAGS = {
-    "p", "div", "section", "article", "header", "footer", "nav",
-    "main", "aside", "h1", "h2", "h3", "h4", "h5", "h6",
-    "li", "ul", "ol", "table", "tr", "td", "th", "pre", "blockquote",
-    "form", "fieldset",
+    "p",
+    "div",
+    "section",
+    "article",
+    "header",
+    "footer",
+    "nav",
+    "main",
+    "aside",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "li",
+    "ul",
+    "ol",
+    "table",
+    "tr",
+    "td",
+    "th",
+    "pre",
+    "blockquote",
+    "form",
+    "fieldset",
 }
 
 
@@ -229,9 +251,7 @@ def web_fetch_smart(
         return json.dumps({"error": f"unsupported scheme in url: {url}"})
 
     try:
-        status, headers, body, final_url = _fetch_raw(
-            url, timeout=timeout_s, max_size=max_size, user_agent=_DEFAULT_UA
-        )
+        status, headers, body, final_url = _fetch_raw(url, timeout=timeout_s, max_size=max_size, user_agent=_DEFAULT_UA)
     except urllib.error.HTTPError as e:
         return json.dumps(
             {

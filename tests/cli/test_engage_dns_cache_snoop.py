@@ -21,10 +21,10 @@ os.environ.setdefault("OPENAI_API_KEY", "test_key_for_ci_environment")
 import pytest
 
 from kryon.cli.engage import (
-    DiscoveredService,
-    _check_dns_cache_snoop,
     _DNS_SNOOP_PROBES,
     _DNS_SNOOP_THRESHOLD,
+    DiscoveredService,
+    _check_dns_cache_snoop,
     _try_cache_snoop,
 )
 
@@ -117,9 +117,7 @@ class TestCacheSnoopDetected:
 
         def _multi(cmd, **_kw):
             name = cmd[-2]
-            body = (
-                f";; ANSWER SECTION:\n{name}.\t300\tIN\tA\t1.2.3.4\n"
-            )
+            body = f";; ANSWER SECTION:\n{name}.\t300\tIN\tA\t1.2.3.4\n"
             return subprocess.CompletedProcess(cmd, 0, stdout=body, stderr="")
 
         with patch("kryon.cli.engage.subprocess.run", side_effect=_multi):
@@ -149,11 +147,17 @@ class TestThresholdAndSecure:
             assert _check_dns_cache_snoop(_svc()) is None
 
     def test_none_cached_no_flag(self):
-        with patch("kryon.cli.engage.subprocess.run", side_effect=lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 0, stdout=_DIG_NOT_CACHED, stderr="")):
+        with patch(
+            "kryon.cli.engage.subprocess.run",
+            side_effect=lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 0, stdout=_DIG_NOT_CACHED, stderr=""),
+        ):
             assert _check_dns_cache_snoop(_svc()) is None
 
     def test_all_refused_no_flag(self):
-        with patch("kryon.cli.engage.subprocess.run", side_effect=lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 0, stdout=_DIG_REFUSED, stderr="")):
+        with patch(
+            "kryon.cli.engage.subprocess.run",
+            side_effect=lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 0, stdout=_DIG_REFUSED, stderr=""),
+        ):
             assert _check_dns_cache_snoop(_svc()) is None
 
 
@@ -220,15 +224,24 @@ class TestGate:
 
 class TestTryCacheSnoop:
     def test_cached_returns_true(self):
-        with patch("kryon.cli.engage.subprocess.run", side_effect=lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 0, stdout=_DIG_CACHED_OFFICE365, stderr="")):
+        with patch(
+            "kryon.cli.engage.subprocess.run",
+            side_effect=lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 0, stdout=_DIG_CACHED_OFFICE365, stderr=""),
+        ):
             assert _try_cache_snoop("10.0.0.5", "outlook.office365.com") is True
 
     def test_not_cached_returns_false(self):
-        with patch("kryon.cli.engage.subprocess.run", side_effect=lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 0, stdout=_DIG_NOT_CACHED, stderr="")):
+        with patch(
+            "kryon.cli.engage.subprocess.run",
+            side_effect=lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 0, stdout=_DIG_NOT_CACHED, stderr=""),
+        ):
             assert _try_cache_snoop("10.0.0.5", "stripe.com") is False
 
     def test_refused_returns_none(self):
-        with patch("kryon.cli.engage.subprocess.run", side_effect=lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 0, stdout=_DIG_REFUSED, stderr="")):
+        with patch(
+            "kryon.cli.engage.subprocess.run",
+            side_effect=lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 0, stdout=_DIG_REFUSED, stderr=""),
+        ):
             assert _try_cache_snoop("10.0.0.5", "instagram.com") is None
 
     def test_dig_not_installed_returns_none(self):

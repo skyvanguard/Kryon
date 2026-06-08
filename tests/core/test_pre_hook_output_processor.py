@@ -26,7 +26,6 @@ from kryon.skills.pre_hook_output_processor import (
     summarize_pre_hook_output,
 )
 
-
 # ---------------------------------------------------------------------------
 # nuclei output summarization
 # ---------------------------------------------------------------------------
@@ -67,9 +66,7 @@ def test_nuclei_summary_keeps_severity_findings():
 
 def test_nuclei_summary_truncates_to_top_n():
     # Generate 60 findings of varied severity.
-    payload = "\n".join(
-        f"[template-{i}] [http] [info] http://x/path-{i}" for i in range(60)
-    )
+    payload = "\n".join(f"[template-{i}] [http] [info] http://x/path-{i}" for i in range(60))
     out = summarize_pre_hook_output("nuclei_pre_scan", payload, max_items=30)
     # Cap respected.
     finding_lines = [line for line in out.splitlines() if line.startswith("[")]
@@ -171,11 +168,7 @@ def test_nikto_v26_bracketed_id_lines_recognized():
 def test_nikto_v26_metadata_lines_filtered():
     """``+ Server: ...``, ``+ Target IP: ...``, etc. start with ``+ Word:``
     (no leading slash). Must NOT match the finding regex."""
-    payload = (
-        "+ Target IP:          1.2.3.4\n"
-        "+ Server: nginx/1.20\n"
-        "+ [999986] /api: real finding\n"
-    )
+    payload = "+ Target IP:          1.2.3.4\n+ Server: nginx/1.20\n+ [999986] /api: real finding\n"
     out = summarize_pre_hook_output("nikto_pre_scan", payload)
     assert "real finding" in out
     assert "Target IP" not in out
@@ -208,9 +201,7 @@ back-end DBMS: SQLite
 
 
 def test_sqlmap_vulnerable_finding_preserved():
-    out = summarize_pre_hook_output(
-        "sqlmap_rest_login_pre_scan", _SQLMAP_VULNERABLE_SAMPLE
-    )
+    out = summarize_pre_hook_output("sqlmap_rest_login_pre_scan", _SQLMAP_VULNERABLE_SAMPLE)
     # The injection point block + parameter type + payload + DBMS line
     # are the four things the model needs to emit a CWE-89 finding.
     assert "injection point" in out
@@ -236,9 +227,7 @@ def test_sqlmap_negative_compact_message():
     """When sqlmap finds nothing, the model still needs to know the
     probe ran (so it doesn't re-invoke sqlmap or claim "we didn't
     test SQLi"). A single negative line suffices."""
-    out = summarize_pre_hook_output(
-        "sqlmap_rest_login_pre_scan", _SQLMAP_NEGATIVE_SAMPLE
-    )
+    out = summarize_pre_hook_output("sqlmap_rest_login_pre_scan", _SQLMAP_NEGATIVE_SAMPLE)
     assert "no injection" in out.lower() or "not vulnerable" in out.lower()
     # Don't include the verbose testing trail.
     assert "testing if GET parameter" not in out
@@ -274,12 +263,7 @@ def test_imperative_suffix_contains_action_verb():
     # And told NOT to re-run the tools — accept either the English
     # ``do not`` / ``DO NOT`` or the Spanish negative imperative
     # ``no re-invoc``.
-    assert (
-        "do not" in lowered
-        or "DO NOT" in suf
-        or "no re-invoc" in lowered
-        or "no re-run" in lowered
-    )
+    assert "do not" in lowered or "DO NOT" in suf or "no re-invoc" in lowered or "no re-run" in lowered
 
 
 def test_imperative_suffix_short():
@@ -326,10 +310,12 @@ def test_format_findings_block_empty_payload_uses_no_evidence_variant() -> None:
     from kryon.skills.pre_hook_integration import format_findings_block
 
     # All hooks returned empty strings
-    block = format_findings_block({
-        "sqlmap_multi_endpoint_probe": "",
-        "nuclei_xss_battery": "",
-    })
+    block = format_findings_block(
+        {
+            "sqlmap_multi_endpoint_probe": "",
+            "nuclei_xss_battery": "",
+        }
+    )
     # Si el block está completamente vacío, NO debe haber suffix.
     # Pero el current behaviour es: format_findings_block returns "" si
     # findings dict está vacío. Para findings con keys but empty values,
@@ -350,10 +336,12 @@ def test_format_findings_block_real_evidence_uses_default_variant() -> None:
     from kryon.skills.pre_hook_integration import format_findings_block
 
     payload = '[{"cwe": "CWE-79", "severity": "high", "host": "x.example.com", "rule_id": "xss-reflected", "message": "Reflected XSS", "evidence": "<svg>"}]'
-    block = format_findings_block({
-        "deterministic_compliance_findings": payload,
-        "sqlmap_multi_endpoint_probe": "",
-    })
+    block = format_findings_block(
+        {
+            "deterministic_compliance_findings": payload,
+            "sqlmap_multi_endpoint_probe": "",
+        }
+    )
     assert "ACCIÓN OBLIGATORIA" in block
     assert "NO re-invocás" in block
     assert "NUNCA emitas" not in block
@@ -364,9 +352,11 @@ def test_format_findings_block_json_empty_array_treated_as_no_evidence() -> None
     NO evidence — el agent debe seguir buscando."""
     from kryon.skills.pre_hook_integration import format_findings_block
 
-    block = format_findings_block({
-        "deterministic_compliance_findings": "[]",
-    })
+    block = format_findings_block(
+        {
+            "deterministic_compliance_findings": "[]",
+        }
+    )
     # JSON parses to empty list → no evidence → 'continúa manualmente'
     assert "VACÍO" in block or "vacío" in block
 
@@ -376,9 +366,11 @@ def test_format_findings_block_json_non_empty_treated_as_evidence() -> None:
     from kryon.skills.pre_hook_integration import format_findings_block
 
     payload = '[{"cwe": "CWE-89", "severity": "high", "host": "x", "rule_id": "y", "message": "z", "evidence": "w"}]'
-    block = format_findings_block({
-        "deterministic_compliance_findings": payload,
-    })
+    block = format_findings_block(
+        {
+            "deterministic_compliance_findings": payload,
+        }
+    )
     assert "ACCIÓN OBLIGATORIA" in block
 
 
@@ -389,6 +381,7 @@ def test_format_findings_block_json_non_empty_treated_as_evidence() -> None:
 
 def test_looks_like_real_evidence_with_cwe_marker() -> None:
     from kryon.skills.pre_hook_integration import _looks_like_real_evidence
+
     assert _looks_like_real_evidence("Found CWE-89 SQLi at /login")
     assert _looks_like_real_evidence("[critical] /admin exposed")
     assert _looks_like_real_evidence("[high] reflected XSS")
@@ -398,20 +391,17 @@ def test_looks_like_real_evidence_with_cwe_marker() -> None:
 
 def test_looks_like_real_evidence_rejects_enumeration_noise() -> None:
     from kryon.skills.pre_hook_integration import _looks_like_real_evidence
+
     # curl headers dump
     assert not _looks_like_real_evidence(
         "Set-Cookie: SESSION=abc; HttpOnly\nServer: nginx\nX-Frame-Options: SAMEORIGIN"
     )
     # OPTIONS preflight
-    assert not _looks_like_real_evidence(
-        "HTTP/1.1 200 OK\nAccess-Control-Allow-Origin: *"
-    )
+    assert not _looks_like_real_evidence("HTTP/1.1 200 OK\nAccess-Control-Allow-Origin: *")
     # idor_probe table sin candidates (post F203.AS retorna "" pero
     # legacy callers podrían retornar table sin "Interesting (potential
     # CWE-639):" line).
-    assert not _looks_like_real_evidence(
-        "| /users/1 | 404 | 0 |  |\n| /users/2 | 404 | 0 |  |"
-    )
+    assert not _looks_like_real_evidence("| /users/1 | 404 | 0 |  |\n| /users/2 | 404 | 0 |  |")
     # Empty
     assert not _looks_like_real_evidence("")
 
@@ -421,13 +411,15 @@ def test_format_findings_block_text_without_evidence_markers_uses_continue_varia
     headers, OPTIONS preflight) → suffix "DEBÉS continuar"."""
     from kryon.skills.pre_hook_integration import format_findings_block
 
-    block = format_findings_block({
-        "csrf_posture_baseline": (
-            "Set-Cookie: SESSION=abc; SameSite=Lax\n"
-            "X-Frame-Options: SAMEORIGIN\n"
-            "Content-Security-Policy: default-src 'self'\n"
-        ),
-    })
+    block = format_findings_block(
+        {
+            "csrf_posture_baseline": (
+                "Set-Cookie: SESSION=abc; SameSite=Lax\n"
+                "X-Frame-Options: SAMEORIGIN\n"
+                "Content-Security-Policy: default-src 'self'\n"
+            ),
+        }
+    )
     # No markers → tratar como no-evidence → continuar manually
     assert "VACÍO" in block or "vacío" in block
     assert "NUNCA emitas" in block
@@ -467,12 +459,7 @@ def test_looks_like_real_evidence_accepts_disallow_lines() -> None:
     evidence for recon CTF flow."""
     from kryon.skills.pre_hook_integration import _looks_like_real_evidence
 
-    output = (
-        "Robots.txt content:\n"
-        "User-agent: *\n"
-        "Disallow: /harm/to/self\n"
-        "Disallow: /admin/\n"
-    )
+    output = "Robots.txt content:\nUser-agent: *\nDisallow: /harm/to/self\nDisallow: /admin/\n"
     assert _looks_like_real_evidence(output)
 
 

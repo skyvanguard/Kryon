@@ -52,12 +52,7 @@ def robots_server():
 
         def do_GET(self) -> None:
             if self.path == "/robots.txt":
-                body = (
-                    "User-agent: *\n"
-                    "Disallow: /post/\n"
-                    "Disallow: /harm/to/self/\n"
-                    "Disallow: /admin/\n"
-                ).encode()
+                body = b"User-agent: *\nDisallow: /post/\nDisallow: /harm/to/self/\nDisallow: /admin/\n"
                 self.send_response(200)
                 self.send_header("Content-Type", "text/plain")
                 self.send_header("Content-Length", str(len(body)))
@@ -249,9 +244,7 @@ def test_run_no_disallow_section_when_robots_txt_missing() -> None:
     conditional on actual disallow content."""
     # Use an unreachable target so no probe succeeds.
     out = run({"target": "http://10.255.255.1"})
-    assert "KEY FINDING" not in out, (
-        "should not claim disallow finding when /robots.txt absent"
-    )
+    assert "KEY FINDING" not in out, "should not claim disallow finding when /robots.txt absent"
 
 
 # ---------------------------------------------------------------------------
@@ -269,10 +262,12 @@ def test_run_no_disallow_section_when_robots_txt_missing() -> None:
 def test_run_prefers_ctx_host_over_ctx_target(robots_server) -> None:
     """When ctx has both host (env-backed, correct) and target
     (regex-detected, wrong), the helper MUST use host."""
-    out = run({
-        "host": f"http://127.0.0.1:{robots_server}",  # correct
-        "target": "user.txt",  # false positive from "find user.txt"
-    })
+    out = run(
+        {
+            "host": f"http://127.0.0.1:{robots_server}",  # correct
+            "target": "user.txt",  # false positive from "find user.txt"
+        }
+    )
     # Should hit the real server, not http://user.txt
     assert "Disallow: /post/" in out
     assert "KEY FINDING" in out
@@ -616,9 +611,7 @@ def test_run_runs_creds_probe_when_env_on(creds_server, monkeypatch) -> None:
     assert "DEFAULT CREDS" in out or "default creds" in out.lower()
 
 
-def test_run_creds_probe_detects_differential_response(
-    creds_server, monkeypatch
-) -> None:
+def test_run_creds_probe_detects_differential_response(creds_server, monkeypatch) -> None:
     """admin/admin is the only winning combo on the mock — its
     response must be flagged with differential status (302 vs the
     200 baseline)."""
@@ -630,9 +623,7 @@ def test_run_creds_probe_detects_differential_response(
     assert "302" in out
 
 
-def test_run_creds_probe_emits_finding_shape(
-    creds_server, monkeypatch
-) -> None:
+def test_run_creds_probe_emits_finding_shape(creds_server, monkeypatch) -> None:
     """Discovered creds must emit as HIGH/CRITICAL finding with
     a clear rule_id the model can convert to JSON directly."""
     monkeypatch.setenv("KRYON_W_CREDS_PROBE", "true")
@@ -672,8 +663,7 @@ def spa_server():
     /api/v1 (returns 500). Mimics Juice Shop / Angular behavior."""
 
     _SPA_INDEX = (
-        b"<!doctype html><html><head><title>SPA</title></head>"
-        b'<body><div id="app">Loading...</div></body></html>'
+        b'<!doctype html><html><head><title>SPA</title></head><body><div id="app">Loading...</div></body></html>'
     )
 
     class _Handler(http.server.BaseHTTPRequestHandler):

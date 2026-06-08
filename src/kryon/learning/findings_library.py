@@ -60,6 +60,20 @@ def _get_collection():
     persist_dir.mkdir(parents=True, exist_ok=True)
     _client = chromadb.PersistentClient(path=str(persist_dir))
 
+    try:
+        _collection = _client.get_or_create_collection(**_collection_kwargs())
+    except Exception as ce:
+        # Stale persisted embedder (function or dimension mismatch, e.g. 768 vs
+        # 384 when KRYON_EMBEDDING_BASE_URL was toggled) — recreate with ours.
+        if _is_embed_mismatch(ce):
+            _collection = _recreate_collection()
+        else:
+            raise
+
+    return _collection
+
+
+def _collection_kwargs() -> dict[str, Any]:
     embed_fn = _build_embedding_function()
     kwargs: dict[str, Any] = {
         "name": _COLLECTION_NAME,
@@ -70,19 +84,25 @@ def _get_collection():
     }
     if embed_fn is not None:
         kwargs["embedding_function"] = embed_fn
+    return kwargs
 
+
+_EMBED_MISMATCH_MARKERS = ("embedding function", "dimension")
+
+
+def _is_embed_mismatch(err: Exception) -> bool:
+    msg = str(err).lower()
+    return any(marker in msg for marker in _EMBED_MISMATCH_MARKERS)
+
+
+def _recreate_collection():
+    """Drop + recreate with the current embedder (stale-dimension recovery)."""
+    global _collection
     try:
-        _collection = _client.get_or_create_collection(**kwargs)
-    except Exception as ce:
-        if "embedding function" in str(ce).lower() and embed_fn is not None:
-            try:
-                _client.delete_collection(name=_COLLECTION_NAME)
-            except Exception:
-                pass
-            _collection = _client.create_collection(**kwargs)
-        else:
-            raise
-
+        _client.delete_collection(name=_COLLECTION_NAME)
+    except Exception:  # noqa: BLE001
+        pass
+    _collection = _client.create_collection(**_collection_kwargs())
     return _collection
 
 
@@ -296,11 +316,13 @@ def add_finding(finding: dict[str, Any]) -> str:
 
     collection = _get_collection()
     # upsert: if the id exists, replace; otherwise add
-    collection.upsert(
-        documents=[document],
-        metadatas=[metadata],
-        ids=[finding["id"]],
-    )
+    try:
+        collection.upsert(documents=[document], metadatas=[metadata], ids=[finding["id"]])
+    except Exception as ue:  # noqa: BLE001
+        if not _is_embed_mismatch(ue):
+            raise
+        logger.warning("Findings library embedding mismatch (%s) — recreating collection", ue)
+        _recreate_collection().upsert(documents=[document], metadatas=[metadata], ids=[finding["id"]])
     logger.info(
         "Finding %s stored (cwe=%s host=%s shape=%s)",
         finding["id"],

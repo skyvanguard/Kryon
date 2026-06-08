@@ -135,6 +135,7 @@ KNOWN_INJECTABLE_ENDPOINTS: list[dict[str, str]] = [
     },
 ]
 
+
 # Status codes that indicate "the server answered — worth probing".
 # We accept 2xx-5xx; only network failures (0) are filtered out.
 def _is_responsive(status_code: int | None) -> bool:
@@ -201,9 +202,7 @@ def _run_sqlmap_quick(endpoint: dict, target: str, *, timeout: int = 30) -> str:
             cmd.extend(["--headers", f"Content-Type: {endpoint['content_type']}"])
     logger.info("F191 sqlmap on %s", url)
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=timeout, check=False
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
     except subprocess.TimeoutExpired:
         return f"[timeout after {timeout}s]"
     except FileNotFoundError:
@@ -230,14 +229,11 @@ def _summarize_endpoint_results(results: list[dict]) -> str:
     positive = [r for r in results if r.get("injectable")]
     negative = [r for r in results if not r.get("injectable")]
     lines = [
-        f"[F191] endpoints probed: {len(results)} | "
-        f"VULNERABLE: {len(positive)} | clean: {len(negative)}",
+        f"[F191] endpoints probed: {len(results)} | VULNERABLE: {len(positive)} | clean: {len(negative)}",
         "",
     ]
     for r in positive:
-        lines.append(
-            f"**VULNERABLE** {r['method']} {r['endpoint']} (status {r['status']})"
-        )
+        lines.append(f"**VULNERABLE** {r['method']} {r['endpoint']} (status {r['status']})")
         # Trim sqlmap_summary aggressively — only the diagnostic lines
         # the model needs to emit a CWE-89 finding.
         for sline in (r.get("sqlmap_summary") or "").splitlines():

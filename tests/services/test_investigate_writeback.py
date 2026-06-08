@@ -35,29 +35,38 @@ from kryon.services.investigate_writeback import (
 
 
 class TestOutcomeHeuristic:
-    @pytest.mark.parametrize("text", [
-        "no se pudo identificar el target",
-        "did not find any vulnerability",
-        "could not connect to the host",
-        "no encontré evidencia de XSS",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "no se pudo identificar el target",
+            "did not find any vulnerability",
+            "could not connect to the host",
+            "no encontré evidencia de XSS",
+        ],
+    )
     def test_fail_markers(self, text):
         assert _outcome_from_summary(text) == "fail"
 
-    @pytest.mark.parametrize("text", [
-        "Hallazgo parcial: indicio de SQLi",
-        "Sospechoso pero no concluyente",
-        "Posible XSS, necesita verificación",
-        "tentative finding requires manual review",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Hallazgo parcial: indicio de SQLi",
+            "Sospechoso pero no concluyente",
+            "Posible XSS, necesita verificación",
+            "tentative finding requires manual review",
+        ],
+    )
     def test_partial_markers(self, text):
         assert _outcome_from_summary(text) == "partial"
 
-    @pytest.mark.parametrize("text", [
-        "Encontré CWE-79 confirmado en /search",
-        "Found 3 confirmed findings on the target",
-        "Audit complete: 5 critical CWE-89 instances",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Encontré CWE-79 confirmado en /search",
+            "Found 3 confirmed findings on the target",
+            "Audit complete: 5 critical CWE-89 instances",
+        ],
+    )
     def test_success_default(self, text):
         assert _outcome_from_summary(text) == "success"
 
@@ -111,20 +120,14 @@ class TestExtractChain:
 
     def test_output_fallback_to_last_unattached(self):
         # Output without call_id should attach to the most recent call
-        call = SimpleNamespace(
-            raw_item=SimpleNamespace(name="curl", arguments={})
-        )
-        output = SimpleNamespace(
-            raw_item=SimpleNamespace(output="HTTP 200 OK")
-        )
+        call = SimpleNamespace(raw_item=SimpleNamespace(name="curl", arguments={}))
+        output = SimpleNamespace(raw_item=SimpleNamespace(output="HTTP 200 OK"))
         chain = _extract_chain([call, output])
         assert chain[0]["output_preview"] == "HTTP 200 OK"
 
     def test_truncates_long_args(self):
         big_args = {"data": "x" * 1000}
-        call = SimpleNamespace(
-            raw_item=SimpleNamespace(name="x", arguments=big_args)
-        )
+        call = SimpleNamespace(raw_item=SimpleNamespace(name="x", arguments=big_args))
         chain = _extract_chain([call])
         assert len(chain[0]["args"]) <= 510  # 500 + minor overhead
 
@@ -136,9 +139,7 @@ class TestChainFromResult:
     def test_uses_new_items_when_present(self):
         from kryon.services.investigate_writeback import chain_from_result
 
-        call = SimpleNamespace(
-            raw_item=SimpleNamespace(name="curl", arguments={"url": "http://x"})
-        )
+        call = SimpleNamespace(raw_item=SimpleNamespace(name="curl", arguments={"url": "http://x"}))
         result = SimpleNamespace(new_items=[call])
         chain = chain_from_result(result)
         assert len(chain) == 1
@@ -163,9 +164,7 @@ class TestChainFromResult:
         chain, prefer the captured one (it survived dropped chunks)."""
         from kryon.services.investigate_writeback import chain_from_result
 
-        call = SimpleNamespace(
-            raw_item=SimpleNamespace(name="curl", arguments={})
-        )
+        call = SimpleNamespace(raw_item=SimpleNamespace(name="curl", arguments={}))
         captured = [
             {"tool": "a", "args": "", "output_preview": ""},
             {"tool": "b", "args": "", "output_preview": ""},
@@ -222,19 +221,23 @@ def _fake_result(tool_calls=2, final_output="Found CWE-79 confirmed in /search")
     """Build a fake RunResult shape with N tool calls."""
     items = []
     for i in range(tool_calls):
-        items.append(SimpleNamespace(
-            raw_item=SimpleNamespace(
-                name=f"tool_{i}",
-                arguments={"i": i},
-                call_id=f"call_{i}",
+        items.append(
+            SimpleNamespace(
+                raw_item=SimpleNamespace(
+                    name=f"tool_{i}",
+                    arguments={"i": i},
+                    call_id=f"call_{i}",
+                )
             )
-        ))
-        items.append(SimpleNamespace(
-            raw_item=SimpleNamespace(
-                output=f"output_{i}",
-                call_id=f"call_{i}",
+        )
+        items.append(
+            SimpleNamespace(
+                raw_item=SimpleNamespace(
+                    output=f"output_{i}",
+                    call_id=f"call_{i}",
+                )
             )
-        ))
+        )
     return SimpleNamespace(new_items=items, final_output=final_output)
 
 
@@ -267,7 +270,9 @@ class TestWriteBackIntegration:
         fake_result = _fake_result(tool_calls=1)
         with patch("kryon.learning.experiences.add_experience") as mock_add:
             exp_id = write_back_from_investigate(
-                "x", {"mode": "general", "keywords": []}, fake_result,
+                "x",
+                {"mode": "general", "keywords": []},
+                fake_result,
                 auto_synth=False,
             )
         assert exp_id is None
@@ -278,7 +283,9 @@ class TestWriteBackIntegration:
         with patch.dict(os.environ, {"KRYON_NO_WRITEBACK": "1"}):
             with patch("kryon.learning.experiences.add_experience") as mock_add:
                 exp_id = write_back_from_investigate(
-                    "x", {"mode": "general", "keywords": []}, fake_result,
+                    "x",
+                    {"mode": "general", "keywords": []},
+                    fake_result,
                     auto_synth=False,
                 )
         assert exp_id is None
@@ -291,10 +298,11 @@ class TestWriteBackIntegration:
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("KRYON_NO_WRITEBACK", None)
             # Simulate import failure by patching the module
-            with patch("kryon.learning.experiences.add_experience",
-                       side_effect=RuntimeError("ChromaDB unavailable")):
+            with patch("kryon.learning.experiences.add_experience", side_effect=RuntimeError("ChromaDB unavailable")):
                 exp_id = write_back_from_investigate(
-                    "x", {"mode": "general", "keywords": []}, fake_result,
+                    "x",
+                    {"mode": "general", "keywords": []},
+                    fake_result,
                     auto_synth=False,
                 )
         assert exp_id is None
@@ -309,9 +317,7 @@ class TestWriteBackIntegration:
             with patch("kryon.learning.draft_writer.try_synthesize_and_persist") as mock_synth:
                 with patch.dict(os.environ, {}, clear=False):
                     os.environ.pop("KRYON_NO_WRITEBACK", None)
-                    exp_id = write_back_from_investigate(
-                        "x", {}, fake_result, auto_synth=True
-                    )
+                    exp_id = write_back_from_investigate("x", {}, fake_result, auto_synth=True)
         assert exp_id == "exp_x"
         mock_synth.assert_not_called()
 
@@ -322,10 +328,7 @@ class TestWriteBackIntegration:
 
 
 class TestBancaSafe:
-    SRC = (
-        Path(__file__).resolve().parents[2]
-        / "src" / "kryon" / "services" / "investigate_writeback.py"
-    )
+    SRC = Path(__file__).resolve().parents[2] / "src" / "kryon" / "services" / "investigate_writeback.py"
 
     def test_no_network_calls(self):
         text = self.SRC.read_text(encoding="utf-8")

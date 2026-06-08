@@ -45,7 +45,6 @@ def build_app():
     importable even when fastapi isn't installed."""
     try:
         from fastapi import FastAPI, Header, HTTPException, Query
-        from fastapi.responses import JSONResponse
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError("F145 REST API requires fastapi. Install via `uv pip install fastapi uvicorn`.") from exc
 
@@ -113,8 +112,8 @@ def build_app():
             if candidate.exists():
                 try:
                     return json.loads(candidate.read_text(encoding="utf-8"))
-                except (OSError, json.JSONDecodeError):
-                    raise HTTPException(status_code=500, detail="findings file unreadable")
+                except (OSError, json.JSONDecodeError) as exc:
+                    raise HTTPException(status_code=500, detail="findings file unreadable") from exc
         raise HTTPException(status_code=404, detail="findings not found")
 
     @app.get("/audit/summary")

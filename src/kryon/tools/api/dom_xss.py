@@ -298,6 +298,7 @@ def analyze_dom_xss(snippets: list[JsSnippet]) -> DomXssAnalysis:
     for snippet in snippets:
         findings.extend(_classify_snippet(snippet))
     from kryon.util.severity import SEVERITY_RANK as severity_order
+
     findings.sort(
         key=lambda f: (
             severity_order.get(f.severity, 99),

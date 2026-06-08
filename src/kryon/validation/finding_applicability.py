@@ -75,18 +75,11 @@ _PRODUCT_KEYWORDS: dict[str, tuple[str, tuple[str, ...]]] = {
 # root from each match. Each product's pattern keeps its own boundary
 # rules (prefix-only vs full word).
 _PRODUCT_RE = re.compile(
-    "(?i)("
-    + "|".join(
-        f"(?P<_{i}>{pat})"
-        for i, (pat, _products) in enumerate(_PRODUCT_KEYWORDS.values())
-    )
-    + ")"
+    "(?i)(" + "|".join(f"(?P<_{i}>{pat})" for i, (pat, _products) in enumerate(_PRODUCT_KEYWORDS.values())) + ")"
 )
 
 # Mapping group-name → keyword root for post-match resolution.
-_GROUP_TO_ROOT: dict[str, str] = {
-    f"_{i}": root for i, root in enumerate(_PRODUCT_KEYWORDS.keys())
-}
+_GROUP_TO_ROOT: dict[str, str] = {f"_{i}": root for i, root in enumerate(_PRODUCT_KEYWORDS.keys())}
 
 
 def extract_product_mentions(text: str | None) -> set[str]:
@@ -135,9 +128,7 @@ def _finding_host(finding: dict | object) -> str:
     return str(getattr(finding, "host", "") or "")
 
 
-def is_finding_applicable_general(
-    finding: dict | object, *, tech_stack: set[str]
-) -> tuple[bool, str]:
+def is_finding_applicable_general(finding: dict | object, *, tech_stack: set[str]) -> tuple[bool, str]:
     """Decide whether the finding's mentioned products apply to the
     target's tech stack. Works for ANY rule_id shape, not just CVE-XXXX.
 
@@ -166,10 +157,7 @@ def is_finding_applicable_general(
     # findings that name multiple things from over-aggressive drops.
     tech_in_text = extract_target_tech_stack(text)
     if tech_in_text & effective_stack:
-        return True, (
-            f"finding text mentions stack-compatible tech "
-            f"{sorted(tech_in_text & effective_stack)}"
-        )
+        return True, (f"finding text mentions stack-compatible tech {sorted(tech_in_text & effective_stack)}")
 
     # Flatten keyword mentions to the canonical product names they map to.
     flat_products: list[str] = []
@@ -181,9 +169,7 @@ def is_finding_applicable_general(
             flat_products.extend(entry[1])
 
     # Match-wins: if ANY mentioned product overlaps the stack, pass.
-    pseudo = CVEApplicability(
-        cve_id="(implicit)", products=tuple(flat_products), description=text
-    )
+    pseudo = CVEApplicability(cve_id="(implicit)", products=tuple(flat_products), description=text)
     ok, reason = is_cve_applicable(pseudo, effective_stack)
     if ok:
         return True, f"product match found: {reason}"

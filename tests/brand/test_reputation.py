@@ -272,7 +272,7 @@ def test_whois_old_does_not_fire():
     )
     # registered alone = 20 → low
     assert "low" in report.by_tier
-    risk_list = [r for r in report.high_risk + report.medium_risk]
+    risk_list = list(report.high_risk + report.medium_risk)
     # The domain is low-tier; not in high or medium.
     for r in risk_list:
         assert r.domain != domain

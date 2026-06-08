@@ -52,16 +52,16 @@ _HOST_RE = re.compile(r"\b((?:\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9][\w\-.]*\.[a-zA-Z]
 # 3 disallow paths. Was a false-negative in evidence detection.
 _EVIDENCE_MARKERS = re.compile(
     r"(?:"
-    r"\bCWE-\d+\b|"                        # CWE-89, CWE-639, etc.
+    r"\bCWE-\d+\b|"  # CWE-89, CWE-639, etc.
     r"\b(?:VULNERABLE|exploitable|exploited)\b|"
     r"\binjection point\b|\binjection found\b|"
     r"sqlmap identified|"
-    r"\[critical\]|\[high\]|\[medium\]|"   # nuclei severity tags (no word-boundary)
+    r"\[critical\]|\[high\]|\[medium\]|"  # nuclei severity tags (no word-boundary)
     r"\bmatched\b|"
-    r"interesting \([a-z ]+\):\s*[1-9]|"   # idor_probe "Interesting (potential CWE-X): N"
-    r"candidate \(200 OK on foreign|"      # idor candidate confirmed
-    r"KEY FINDING|"                        # FASE 11.T web_common_paths section
-    r"^\s*Disallow:\s*/"                   # /robots.txt body line (recon CTF marker)
+    r"interesting \([a-z ]+\):\s*[1-9]|"  # idor_probe "Interesting (potential CWE-X): N"
+    r"candidate \(200 OK on foreign|"  # idor candidate confirmed
+    r"KEY FINDING|"  # FASE 11.T web_common_paths section
+    r"^\s*Disallow:\s*/"  # /robots.txt body line (recon CTF marker)
     r")",
     re.IGNORECASE | re.MULTILINE,
 )

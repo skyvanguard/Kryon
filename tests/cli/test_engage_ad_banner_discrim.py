@@ -47,9 +47,7 @@ class TestBritimpH10PbxScenario:
             _svc(8888, "sun-answerbook"),
         ]
         families = _detect_device_families(services)
-        assert "windows_ad" not in families, (
-            f"OpenLDAP banner must suppress windows_ad; got {families}"
-        )
+        assert "windows_ad" not in families, f"OpenLDAP banner must suppress windows_ad; got {families}"
         # asterisk should still trigger (5060 sip)
         assert "asterisk" in families
 

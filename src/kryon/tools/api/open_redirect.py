@@ -336,5 +336,6 @@ def analyze_observations(
     for obs in observations:
         findings.extend(_classify_observation(obs))
     from kryon.util.severity import SEVERITY_RANK as severity_order
+
     findings.sort(key=lambda f: (severity_order.get(f.severity, 99), f.rule_id, f.url))
     return RedirectAnalysis(total_observations=len(observations), findings=tuple(findings))
