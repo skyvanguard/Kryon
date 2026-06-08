@@ -558,7 +558,11 @@ def run_investigate(args: argparse.Namespace) -> int:
         # autonomous wiring of the F57 pipeline (was /webpentest-only).
         if active:
             enable_nuclei = os.environ.get("KRYON_RED_TEAM", "").strip().lower() in ("1", "true", "yes")
-            _wx_timeout = float(os.environ.get("KRYON_WEBEXPLOIT_TIMEOUT_S", "300"))
+            # Comprehensive sweep (surface discovery + injection over dozens of
+            # endpoints + headless cookie check + authenticated IDOR/mass-assign)
+            # is heavy on rich targets; 600s default so its findings aren't
+            # dropped. Override with KRYON_WEBEXPLOIT_TIMEOUT_S.
+            _wx_timeout = float(os.environ.get("KRYON_WEBEXPLOIT_TIMEOUT_S", "600"))
             # Authenticated probing mode — operator-supplied web creds unlock
             # IDOR / mass-assignment probes (unreachable unauthenticated).
             _web_auth = None
