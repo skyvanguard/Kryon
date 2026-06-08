@@ -19,9 +19,9 @@ os.environ.setdefault("OPENAI_API_KEY", "test_key_for_ci_environment")
 import pytest
 
 from kryon.cli.engage import (
+    _PROXMOX_CLUSTER_DRIFT_RULES,
     Finding,
     _is_proxmox_host,
-    _PROXMOX_CLUSTER_DRIFT_RULES,
     diff_proxmox_cluster_posture,
 )
 
@@ -75,7 +75,13 @@ class TestBritimpClusterDrift:
         no en .115 ni .222 -> drift CRITICAL."""
         host_findings = {
             "172.18.201.115": [_f("PVE-1.2"), _f("PVE-2.1"), _f("PVE-3.1"), _f("sshd-permit-root-login")],
-            "172.18.201.200": [_f("PVE-1.2"), _f("PVE-2.1"), _f("PVE-3.1"), _f("sshd-permit-root-login"), _f("python-simplehttp-directory-listing", sev="CRITICAL")],
+            "172.18.201.200": [
+                _f("PVE-1.2"),
+                _f("PVE-2.1"),
+                _f("PVE-3.1"),
+                _f("sshd-permit-root-login"),
+                _f("python-simplehttp-directory-listing", sev="CRITICAL"),
+            ],
             "172.18.201.222": [_f("PVE-1.2"), _f("PVE-2.1"), _f("PVE-3.1"), _f("sshd-permit-root-login")],
         }
         drift = diff_proxmox_cluster_posture(host_findings)

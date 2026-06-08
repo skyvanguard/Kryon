@@ -39,7 +39,6 @@ import pytest
 
 from kryon.tools.common._executors import _run_local_async
 
-
 POSIX_ONLY = pytest.mark.skipif(
     not hasattr(os, "setsid"),
     reason="Process group cleanup requires POSIX setsid (no Windows)",
@@ -94,9 +93,7 @@ async def test_streaming_branch_kills_grandchild_process(
     scenario — perl PID 2976 with PPID=1 after shell got killed)."""
     # Run a shell that prints the child PID then waits. The child is
     # a backgrounded sleep so it has a stable pid we can poll.
-    cmd = (
-        "exec sh -c 'sleep 30 & echo CHILD_PID=$!; exec sleep 30'"
-    )
+    cmd = "exec sh -c 'sleep 30 & echo CHILD_PID=$!; exec sleep 30'"
 
     # Use a deep-helper: import the executor's hidden helper directly
     # via the module so we can capture the child pid from streaming

@@ -25,8 +25,13 @@ _FRAMEWORK_MAP: dict[str, str] = {
 # compliance/checks/<framework>/. Accesibles via run_compliance_audit(framework=...)
 # NO via map_findings_to_framework. Listado explícito para discovery/docs.
 _INFRA_FRAMEWORKS: tuple[str, ...] = (
-    "fortigate", "proxmox", "unifi", "active_directory",
-    "asterisk", "windows", "tomcat",
+    "fortigate",
+    "proxmox",
+    "unifi",
+    "active_directory",
+    "asterisk",
+    "windows",
+    "tomcat",
 )
 
 

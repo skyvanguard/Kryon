@@ -17,11 +17,11 @@ os.environ.setdefault("OPENAI_API_KEY", "test_key_for_ci_environment")
 import pytest
 
 from kryon.cli.engage import (
-    DiscoveredService,
-    _check_dnssec_validation,
     _DNSSEC_INCONCLUSIVE_MARKERS,
     _DNSSEC_TEST_DOMAIN,
     _DNSSEC_VALID_MARKERS,
+    DiscoveredService,
+    _check_dnssec_validation,
 )
 
 
@@ -47,19 +47,10 @@ _NSLOOKUP_NOT_VALIDATING = (
 )
 
 _NSLOOKUP_VALIDATING_SERVFAIL = (
-    "Server:  UnKnown\n"
-    "Address:  172.18.201.205\n"
-    "\n"
-    "*** UnKnown can't find dnssec-failed.org: Server failed\n"
+    "Server:  UnKnown\nAddress:  172.18.201.205\n\n*** UnKnown can't find dnssec-failed.org: Server failed\n"
 )
 
-_NSLOOKUP_TIMEOUT = (
-    "Server:  UnKnown\n"
-    "Address:  172.18.201.205\n"
-    "\n"
-    "DNS request timed out.\n"
-    "    timeout was 2 seconds.\n"
-)
+_NSLOOKUP_TIMEOUT = "Server:  UnKnown\nAddress:  172.18.201.205\n\nDNS request timed out.\n    timeout was 2 seconds.\n"
 
 
 # ---------------------------------------------------------------------------
@@ -132,11 +123,7 @@ class TestInconclusive:
     def test_only_loopback_ip_no_finding(self):
         """The server's own IP in the address line is not a real
         resolution of the broken-DNSSEC zone."""
-        out = (
-            "Server:  UnKnown\n"
-            "Address:  127.0.0.1\n"
-            "\n"
-        )
+        out = "Server:  UnKnown\nAddress:  127.0.0.1\n\n"
         svc = DiscoveredService(host="127.0.0.1", port=53, state="open", service="domain", product="")
         with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_proc(out)):
             assert _check_dnssec_validation(svc) is None

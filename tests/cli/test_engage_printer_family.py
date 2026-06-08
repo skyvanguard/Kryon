@@ -25,11 +25,11 @@ os.environ.setdefault("OPENAI_API_KEY", "test_key_for_ci_environment")
 import pytest
 
 from kryon.cli.engage import (
-    DiscoveredService,
-    _detect_device_families,
     _PRINTER_BANNER_MARKERS,
     _PRINTER_BODY_MARKERS,
     _PRINTER_PORT_COMBOS,
+    DiscoveredService,
+    _detect_device_families,
 )
 
 

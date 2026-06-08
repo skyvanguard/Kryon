@@ -66,6 +66,7 @@ def _gather_inventory() -> list[Any]:
             CORE_TOOLS,
             RAG_TOOLS_FULL,
         )
+
         _add(CORE_TOOLS)
         _add(RAG_TOOLS_FULL)
         _add(AI_TOOLS)
@@ -76,6 +77,7 @@ def _gather_inventory() -> list[Any]:
     try:
         from kryon.tools.web.duckduckgo_search import duckduckgo_search
         from kryon.tools.web.web_fetch_smart import web_fetch_smart
+
         _add([web_fetch_smart, duckduckgo_search])
     except Exception as e:  # noqa: BLE001
         logger.debug("web tools import failed: %s", e)
@@ -89,6 +91,7 @@ def _gather_inventory() -> list[Any]:
             censys_search,
             virustotal_search,
         )
+
         _add([theharvester_search, shodan_host, virustotal_search, censys_search])
     except Exception as e:  # noqa: BLE001
         logger.debug("osint tools import failed: %s", e)
@@ -96,12 +99,14 @@ def _gather_inventory() -> list[Any]:
     # Common active-recon tools (nmap, nuclei, sqlmap wrappers)
     try:
         from kryon.tools.reconnaissance.nmap import nmap_scan
+
         _add([nmap_scan])
     except Exception as e:  # noqa: BLE001
         logger.debug("nmap tool import failed: %s", e)
 
     try:
         from kryon.tools.web.nuclei import nuclei_scan
+
         _add([nuclei_scan])
     except Exception as e:  # noqa: BLE001
         logger.debug("nuclei tool import failed: %s", e)
@@ -200,8 +205,7 @@ def tool_search(query: str) -> str:
     if not top:
         # No semantic match — list a small default subset so agent has
         # *something* to consider, instead of total silence.
-        default_names = ["web_fetch_smart", "duckduckgo_search", "run_command",
-                         "query_knowledge_base", "request_skill"]
+        default_names = ["web_fetch_smart", "duckduckgo_search", "run_command", "query_knowledge_base", "request_skill"]
         defaults = [t for t in inventory if getattr(t, "name", "") in default_names]
         if not defaults:
             return (

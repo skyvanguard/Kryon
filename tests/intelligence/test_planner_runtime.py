@@ -353,9 +353,7 @@ def test_has_high_conf_directive_handles_invalid_env_threshold(
     from kryon.intelligence import planner_runtime as pr
     from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
 
-    rec_above = NextActionRecommendation(
-        tool="run_command", args="x", rationale="t", confidence=0.95
-    )
+    rec_above = NextActionRecommendation(tool="run_command", args="x", rationale="t", confidence=0.95)
     monkeypatch.setattr(
         "kryon.intelligence.exploit_chain_planner.plan_next_action",
         lambda *_a, **_k: rec_above,

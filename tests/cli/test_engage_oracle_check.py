@@ -163,7 +163,4 @@ class TestEngineTableSanity:
     def test_banking_specific_remediation(self):
         meta = _DATABASE_ENGINES[("oracle-tns", 1521)]
         # Banking-LATAM context must be mentioned
-        assert (
-            "core-banking" in meta["remediation"].lower()
-            or "Banca-LATAM" in meta["remediation"]
-        )
+        assert "core-banking" in meta["remediation"].lower() or "Banca-LATAM" in meta["remediation"]

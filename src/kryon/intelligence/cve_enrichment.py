@@ -88,9 +88,7 @@ class CVEEnricher:
                             if m.get("criteria"):
                                 cpes.append(m["criteria"])
                 out["cpe_affected"] = cpes[:20]
-                out["references"] = [
-                    r.get("url", "") for r in cve.get("references", []) if r.get("url")
-                ][:10]
+                out["references"] = [r.get("url", "") for r in cve.get("references", []) if r.get("url")][:10]
         except Exception:
             logger.debug("NVD lookup failed for %s", cve_id, exc_info=True)
         return out

@@ -29,7 +29,6 @@ from kryon.intelligence.distillation import (
 )
 from kryon.intelligence.fact_extractor import ExtractedFacts
 
-
 # ---------------------------------------------------------------------------
 # parse_distilled_rule — schema validation
 # ---------------------------------------------------------------------------
@@ -69,22 +68,26 @@ def test_parse_rejects_missing_emit_args() -> None:
 
 def test_parse_rejects_confidence_out_of_range() -> None:
     with pytest.raises(ValueError, match="confidence"):
-        parse_distilled_rule({
-            "name": "x",
-            "confidence": 1.5,
-            "emit": {"tool": "y", "args": "z"},
-        })
+        parse_distilled_rule(
+            {
+                "name": "x",
+                "confidence": 1.5,
+                "emit": {"tool": "y", "args": "z"},
+            }
+        )
 
 
 def test_parse_accepts_string_hints_as_single_entry() -> None:
     """``hints_any_of: "invalid syntax"`` (no list) should coerce to
     a single-element tuple. YAML often writes scalars when there's
     only one entry."""
-    rule = parse_distilled_rule({
-        "name": "x",
-        "emit": {"tool": "y", "args": "z"},
-        "when": {"hints_any_of": "invalid syntax"},
-    })
+    rule = parse_distilled_rule(
+        {
+            "name": "x",
+            "emit": {"tool": "y", "args": "z"},
+            "when": {"hints_any_of": "invalid syntax"},
+        }
+    )
     assert rule.hints_any_of == ("invalid syntax",)
 
 
@@ -235,7 +238,10 @@ def test_load_returns_empty_when_directory_missing(tmp_path: Path) -> None:
 
 
 def test_load_picks_up_valid_yaml(tmp_path: Path) -> None:
-    _write_yaml(tmp_path, "rule.yaml", """
+    _write_yaml(
+        tmp_path,
+        "rule.yaml",
+        """
 name: simple_probe
 confidence: 0.9
 when:
@@ -246,7 +252,8 @@ emit:
   tool: run_command
   args: 'echo probe | nc <target> {port}'
   rationale: ok
-""")
+""",
+    )
     rules = load_distilled_rules(tmp_path)
     assert len(rules) == 1
     facts = ExtractedFacts(
@@ -258,29 +265,35 @@ emit:
     assert "8000" in rec.args
 
 
-def test_load_skips_malformed_yaml_without_crashing(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_load_skips_malformed_yaml_without_crashing(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """A bad YAML must NOT take the planner down. Log a warning,
     continue with whatever valid rules exist."""
     _write_yaml(tmp_path, "bad.yaml", "this is not: : valid: yaml: ::")
-    _write_yaml(tmp_path, "good.yaml", """
+    _write_yaml(
+        tmp_path,
+        "good.yaml",
+        """
 name: ok
 emit:
   tool: run_command
   args: 'echo x'
-""")
+""",
+    )
     rules = load_distilled_rules(tmp_path)
     assert len(rules) == 1  # only the good one
 
 
 def test_load_skips_yaml_missing_required_fields(tmp_path: Path) -> None:
     """``emit.tool`` is required — file without it gets skipped."""
-    _write_yaml(tmp_path, "missing.yaml", """
+    _write_yaml(
+        tmp_path,
+        "missing.yaml",
+        """
 name: incomplete
 emit:
   args: 'echo x'
-""")
+""",
+    )
     rules = load_distilled_rules(tmp_path)
     assert rules == []
 
@@ -288,14 +301,22 @@ emit:
 def test_load_orders_files_lexicographically(tmp_path: Path) -> None:
     """Operators use numeric prefixes (00_, 99_) to control ordering.
     The loader must respect lexicographic file order."""
-    _write_yaml(tmp_path, "20_second.yaml", """
+    _write_yaml(
+        tmp_path,
+        "20_second.yaml",
+        """
 name: second
 emit: {tool: run_command, args: 'echo second'}
-""")
-    _write_yaml(tmp_path, "10_first.yaml", """
+""",
+    )
+    _write_yaml(
+        tmp_path,
+        "10_first.yaml",
+        """
 name: first
 emit: {tool: run_command, args: 'echo first'}
-""")
+""",
+    )
     rules = load_distilled_rules(tmp_path)
     # The first-fired rule's args contain "echo first".
     rec = rules[0](ExtractedFacts(), [], "")
@@ -308,12 +329,16 @@ def test_distilled_rule_args_keep_target_placeholder_literal(
 ) -> None:
     """``<target>`` survives unsubstituted — the reflective runner
     fills it later with the concrete host. This is the contract."""
-    _write_yaml(tmp_path, "x.yaml", """
+    _write_yaml(
+        tmp_path,
+        "x.yaml",
+        """
 name: with_target
 emit:
   tool: run_command
   args: 'ssh user@<target> id'
-""")
+""",
+    )
     rules = load_distilled_rules(tmp_path)
     rec = rules[0](ExtractedFacts(), [], "")
     assert rec is not None
@@ -325,16 +350,17 @@ emit:
 # ---------------------------------------------------------------------------
 
 
-def test_distilled_rule_fires_via_plan_next_action(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_distilled_rule_fires_via_plan_next_action(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """End-to-end: drop a YAML file, override the lookup directory,
     enable reload, call plan_next_action — the rule should fire if
     its preconditions hold AND no hard-coded F1-F8 rule beats it
     on the same facts."""
     from kryon.intelligence import exploit_chain_planner as planner_mod
 
-    _write_yaml(tmp_path, "novel.yaml", """
+    _write_yaml(
+        tmp_path,
+        "novel.yaml",
+        """
 name: novel_class_marker
 confidence: 0.95
 when:
@@ -344,7 +370,8 @@ emit:
   tool: run_command
   args: 'echo from-distilled <target>'
   rationale: distilled fallback for novel CTF class
-""")
+""",
+    )
     monkeypatch.setenv("KRYON_DISTILLED_RULES_DIR", str(tmp_path))
     monkeypatch.setenv("KRYON_DISTILLED_RULES_RELOAD", "true")
     # Clear the module cache so the new directory is rescanned.

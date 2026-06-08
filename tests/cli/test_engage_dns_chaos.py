@@ -23,9 +23,9 @@ os.environ.setdefault("OPENAI_API_KEY", "test_key_for_ci_environment")
 import pytest
 
 from kryon.cli.engage import (
+    _DNS_CHAOS_FAILURE_MARKERS,
     DiscoveredService,
     _check_dns_chaos_leak,
-    _DNS_CHAOS_FAILURE_MARKERS,
     _try_chaos_query,
 )
 
@@ -43,26 +43,14 @@ def _fake_proc(stdout: str, stderr: str = "", returncode: int = 0):
 
 # Sample CHAOS responses
 _VERSION_BIND_LEAK = (
-    "Server:  ns01.example.com\n"
-    "Address:  10.0.0.5\n"
-    "\n"
-    'version.bind   text = "9.18.24-1ubuntu1-Ubuntu"\n'
+    'Server:  ns01.example.com\nAddress:  10.0.0.5\n\nversion.bind   text = "9.18.24-1ubuntu1-Ubuntu"\n'
 )
 
-_HOSTNAME_BIND_LEAK = (
-    "Server:  ns01.example.com\n"
-    "Address:  10.0.0.5\n"
-    "\n"
-    'hostname.bind  text = "ns01.example.com"\n'
-)
+_HOSTNAME_BIND_LEAK = 'Server:  ns01.example.com\nAddress:  10.0.0.5\n\nhostname.bind  text = "ns01.example.com"\n'
 
-_ID_SERVER_LEAK = (
-    'id.server  text = "anycast-pop-fra-3"\n'
-)
+_ID_SERVER_LEAK = 'id.server  text = "anycast-pop-fra-3"\n'
 
-_VERSION_SERVER_LEAK = (
-    'version.server text = "Unbound 1.13.2"\n'
-)
+_VERSION_SERVER_LEAK = 'version.server text = "Unbound 1.13.2"\n'
 
 _CHAOS_REFUSED = (
     "Server:  ms-dns.example.com\n"

@@ -38,11 +38,7 @@ def _fake_curl(headers: str):
 class TestHttpOnlyMissing:
     def test_session_cookie_without_httponly_flags_medium(self):
         """Lab case: Set-Cookie PHPSESSID=abc; Path=/  (no HttpOnly)."""
-        headers = (
-            "HTTP/1.1 200 OK\r\n"
-            "Set-Cookie: PHPSESSID=abcdef123; Path=/\r\n"
-            "Content-Type: text/html\r\n\r\n"
-        )
+        headers = "HTTP/1.1 200 OK\r\nSet-Cookie: PHPSESSID=abcdef123; Path=/\r\nContent-Type: text/html\r\n\r\n"
         with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_curl(headers)):
             findings = _check_http_cookie_flags(_svc())
         # MEDIUM HttpOnly + LOW SameSite (Secure not relevant on :80)
@@ -54,10 +50,7 @@ class TestHttpOnlyMissing:
         assert "PHPSESSID" in httponly.message
 
     def test_cookie_with_httponly_no_flag(self):
-        headers = (
-            "HTTP/1.1 200 OK\r\n"
-            "Set-Cookie: session=xyz; Path=/; HttpOnly; SameSite=Lax\r\n\r\n"
-        )
+        headers = "HTTP/1.1 200 OK\r\nSet-Cookie: session=xyz; Path=/; HttpOnly; SameSite=Lax\r\n\r\n"
         with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_curl(headers)):
             findings = _check_http_cookie_flags(_svc())
         rule_ids = [f.rule_id for f in findings]
@@ -84,10 +77,7 @@ class TestHttpOnlyMissing:
 
 class TestSecureFlag:
     def test_https_cookie_without_secure_flags_medium(self):
-        headers = (
-            "HTTP/1.1 200 OK\r\n"
-            "Set-Cookie: session=xyz; HttpOnly; SameSite=Lax\r\n\r\n"
-        )
+        headers = "HTTP/1.1 200 OK\r\nSet-Cookie: session=xyz; HttpOnly; SameSite=Lax\r\n\r\n"
         with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_curl(headers)):
             findings = _check_http_cookie_flags(_svc(port=443))
         rule_ids = [f.rule_id for f in findings]
@@ -98,20 +88,14 @@ class TestSecureFlag:
 
     def test_http_port_no_secure_check(self):
         """En HTTP plano :80, missing Secure NO es finding (no aplica)."""
-        headers = (
-            "HTTP/1.1 200 OK\r\n"
-            "Set-Cookie: session=xyz; HttpOnly; SameSite=Lax\r\n\r\n"
-        )
+        headers = "HTTP/1.1 200 OK\r\nSet-Cookie: session=xyz; HttpOnly; SameSite=Lax\r\n\r\n"
         with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_curl(headers)):
             findings = _check_http_cookie_flags(_svc(port=80))
         rule_ids = [f.rule_id for f in findings]
         assert "http-cookie-missing-secure" not in rule_ids
 
     def test_https_cookie_with_secure_ok(self):
-        headers = (
-            "HTTP/1.1 200 OK\r\n"
-            "Set-Cookie: session=xyz; HttpOnly; Secure; SameSite=Strict\r\n\r\n"
-        )
+        headers = "HTTP/1.1 200 OK\r\nSet-Cookie: session=xyz; HttpOnly; Secure; SameSite=Strict\r\n\r\n"
         with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_curl(headers)):
             findings = _check_http_cookie_flags(_svc(port=443))
         assert findings == []  # all flags present
@@ -124,10 +108,7 @@ class TestSecureFlag:
 
 class TestSameSite:
     def test_missing_samesite_low(self):
-        headers = (
-            "HTTP/1.1 200 OK\r\n"
-            "Set-Cookie: csrf=token; HttpOnly\r\n\r\n"
-        )
+        headers = "HTTP/1.1 200 OK\r\nSet-Cookie: csrf=token; HttpOnly\r\n\r\n"
         with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_curl(headers)):
             findings = _check_http_cookie_flags(_svc())
         rule_ids = [f.rule_id for f in findings]
@@ -184,10 +165,7 @@ class TestNegative:
 class TestBankingScenarios:
     def test_https_session_cookie_missing_all_three_flags(self):
         """Worst case banking: HTTPS session cookie sin ningun flag."""
-        headers = (
-            "HTTP/1.1 200 OK\r\n"
-            "Set-Cookie: JSESSIONID=banking-session-id; Path=/\r\n\r\n"
-        )
+        headers = "HTTP/1.1 200 OK\r\nSet-Cookie: JSESSIONID=banking-session-id; Path=/\r\n\r\n"
         with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_curl(headers)):
             findings = _check_http_cookie_flags(_svc(port=443))
         rule_ids = [f.rule_id for f in findings]

@@ -12,11 +12,7 @@ import importlib.util
 from pathlib import Path
 from typing import Any
 
-_F191_HOOK_PATH = (
-    Path(__file__).resolve().parent.parent
-    / "pre_hooks"
-    / "endpoint_discovery_sqlmap_hook.py"
-)
+_F191_HOOK_PATH = Path(__file__).resolve().parent.parent / "pre_hooks" / "endpoint_discovery_sqlmap_hook.py"
 
 
 def run(ctx: dict[str, Any]) -> str:
@@ -24,9 +20,7 @@ def run(ctx: dict[str, Any]) -> str:
     if not _F191_HOOK_PATH.is_file():
         return "F203.U sqlmap bridge: F191 hook file missing — fallback skipped"
 
-    spec = importlib.util.spec_from_file_location(
-        "_f191_sqlmap_hook_loaded_by_f203u", _F191_HOOK_PATH
-    )
+    spec = importlib.util.spec_from_file_location("_f191_sqlmap_hook_loaded_by_f203u", _F191_HOOK_PATH)
     if spec is None or spec.loader is None:
         return "F203.U sqlmap bridge: importlib spec creation failed"
 

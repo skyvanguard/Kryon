@@ -126,10 +126,7 @@ class TestSecureConfigurations:
         This is the typical 'recursion disabled, query refused but
         the server still echoes its own address' scenario."""
         stdout = (
-            "Server:  UnKnown\n"
-            "Address:  172.18.201.205\n"
-            "\n"
-            "*** UnKnown can't find google.com: Non-existent domain\n"
+            "Server:  UnKnown\nAddress:  172.18.201.205\n\n*** UnKnown can't find google.com: Non-existent domain\n"
         )
         with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_nslookup(stdout)):
             assert _check_dns_open_resolver(_svc()) is None

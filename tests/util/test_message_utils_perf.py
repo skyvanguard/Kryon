@@ -61,14 +61,10 @@ def _assert_sequence_invariant(messages: list[dict]) -> None:
         tool_id = msg.get("tool_call_id")
         assert i > 0, f"tool msg {i} has no preceding assistant"
         prev = messages[i - 1]
-        assert prev.get("role") == "assistant", (
-            f"tool msg {i} preceded by {prev.get('role')!r}, not assistant"
-        )
+        assert prev.get("role") == "assistant", f"tool msg {i} preceded by {prev.get('role')!r}, not assistant"
         tcs = prev.get("tool_calls") or []
         ids = {tc.get("id") for tc in tcs}
-        assert tool_id in ids, (
-            f"tool msg {i} tool_call_id={tool_id!r} not in prev assistant tool_calls {ids!r}"
-        )
+        assert tool_id in ids, f"tool msg {i} tool_call_id={tool_id!r} not in prev assistant tool_calls {ids!r}"
 
 
 # ---------------------------------------------------------------------------

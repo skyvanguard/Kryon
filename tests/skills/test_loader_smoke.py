@@ -52,9 +52,9 @@ def test_match_web_intent(loader: SkillLoader) -> None:
     skills = loader.match(user_msg="audita juice shop OWASP")
     names = [s.name for s in skills]
     valid_tokens = ("web", "pentest", "owasp", "api-security", "api-gateway", "waf")
-    assert any(
-        any(tok in n.lower() for tok in valid_tokens) for n in names
-    ), f"no web/api-security/pentest skill surfaced: {names}"
+    assert any(any(tok in n.lower() for tok in valid_tokens) for n in names), (
+        f"no web/api-security/pentest skill surfaced: {names}"
+    )
 
 
 # ---------- F77.E — whole-word keyword matching ----------

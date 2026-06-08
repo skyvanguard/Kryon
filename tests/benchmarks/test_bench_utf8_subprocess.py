@@ -64,6 +64,5 @@ def test_cybergym_runner_uses_rest_api():
         # Look only at the invoke_kryon function body (~3 kB).
         block = src[invoke_start : invoke_start + 3000]
         assert '"docker", "exec"' not in block, (
-            "cybergym invoke_kryon must not shell out to docker exec — "
-            "use the REST API."
+            "cybergym invoke_kryon must not shell out to docker exec — use the REST API."
         )

@@ -269,8 +269,8 @@ def test_meta_tags_captured(server):
     result = Crawler(_make_config([server + "/"])).crawl()
     # meta_tags shape: ((page_url, ((name, content), ...)), ...)
     found_keys: set[str] = set()
-    for page_url, pairs in result.meta_tags:
-        for name, content in pairs:
+    for _page_url, pairs in result.meta_tags:
+        for name, _content in pairs:
             found_keys.add(name)
     assert "generator" in found_keys
     assert "csrf-token" in found_keys

@@ -21,7 +21,6 @@ from kryon.validation.cve_cache_updater import (
     update_cache,
 )
 
-
 # ---------------------------------------------------------------------------
 # resolve_years — operator flag translation
 # ---------------------------------------------------------------------------
@@ -96,9 +95,9 @@ def test_extract_ids_drops_malformed_entries():
     doc = {
         "CVE_Items": [
             {"cve": {"CVE_data_meta": {"ID": "CVE-2021-44228"}}},
-            {"cve": {"CVE_data_meta": {}}},          # no ID
-            {"cve": {}},                              # no meta
-            {},                                       # no cve
+            {"cve": {"CVE_data_meta": {}}},  # no ID
+            {"cve": {}},  # no meta
+            {},  # no cve
             {"cve": {"CVE_data_meta": {"ID": "not-a-cve"}}},  # invalid format
             {"cve": {"CVE_data_meta": {"ID": "CVE-1990-0001"}}},  # year too old
         ]
@@ -159,9 +158,7 @@ def test_update_cache_creates_new_file(tmp_path):
 
 def test_update_cache_merges_with_existing(tmp_path):
     cache = tmp_path / "cves.txt"
-    cache.write_text(
-        "# preexisting\nCVE-2021-44228\nCVE-2020-12345\n", encoding="utf-8"
-    )
+    cache.write_text("# preexisting\nCVE-2021-44228\nCVE-2020-12345\n", encoding="utf-8")
 
     def fake_fetch(year, *, timeout: int = 60) -> set[str]:
         return {"CVE-2024-9999"}
@@ -260,6 +257,7 @@ def test_update_cache_invalid_format_ids_dropped(tmp_path):
     assert "junk" in text or "junk" not in text  # write phase keeps as-is
     # But on the next read pass they'd be dropped — verify by re-reading:
     from kryon.validation.cve_cache_updater import _read_existing
+
     parsed = _read_existing(cache)
     assert "CVE-2024-9999" in parsed
     assert "JUNK" not in parsed

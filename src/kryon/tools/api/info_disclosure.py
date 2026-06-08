@@ -1126,5 +1126,6 @@ def analyze_probes(probes: list[DisclosureProbe]) -> DisclosureAnalysis:
         if finding is not None:
             findings.append(finding)
     from kryon.util.severity import SEVERITY_RANK as severity_order
+
     findings.sort(key=lambda f: (severity_order.get(f.severity, 99), f.rule_id, f.path))
     return DisclosureAnalysis(total_probes=len(probes), findings=tuple(findings))

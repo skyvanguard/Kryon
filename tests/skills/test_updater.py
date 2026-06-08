@@ -92,7 +92,7 @@ def test_valid_skill_added(tmp_path):
     with patch("kryon.skills.updater.subprocess.run", side_effect=fake_clone):
         result = update_from_git("https://repo", local_playbooks_dir=local)
 
-    assert "test-skill.md" in [a for a in result.added]
+    assert "test-skill.md" in list(result.added)
     assert (local / "test-skill.md").exists()
 
 

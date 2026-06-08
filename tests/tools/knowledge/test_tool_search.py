@@ -184,10 +184,7 @@ class TestToolSearchErrors:
 class TestBancaSafe:
     """tool_search must not write disk, touch network, or exec subprocess."""
 
-    SRC = (
-        Path(__file__).resolve().parents[3]
-        / "src" / "kryon" / "tools" / "knowledge" / "tool_search.py"
-    )
+    SRC = Path(__file__).resolve().parents[3] / "src" / "kryon" / "tools" / "knowledge" / "tool_search.py"
 
     def test_no_filesystem_writes(self):
         text = self.SRC.read_text(encoding="utf-8")

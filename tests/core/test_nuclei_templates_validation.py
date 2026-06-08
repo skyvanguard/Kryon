@@ -75,19 +75,13 @@ def fake_run_command(monkeypatch):
 
 @pytest.mark.parametrize("bad_value", ["web", "all", "default", "web-templates"])
 def test_bare_keyword_templates_stripped(bad_value, fake_run_command):
-    nuclei_module.nuclei_scan._raw_fn(
-        target="http://x.example", templates=bad_value, stats=False
-    )
+    nuclei_module.nuclei_scan._raw_fn(target="http://x.example", templates=bad_value, stats=False)
     cmd = fake_run_command["cmd"]
     # The "-t" flag must NOT appear with the bad value.
-    assert f"-t {bad_value}" not in cmd, (
-        f"Bare keyword {bad_value!r} should have been stripped; got: {cmd!r}"
-    )
+    assert f"-t {bad_value}" not in cmd, f"Bare keyword {bad_value!r} should have been stripped; got: {cmd!r}"
     # And no "-t" at all (since there's no workflow/auto fallback path
     # in this scenario — falls through to nuclei's default set).
-    assert " -t " not in cmd, (
-        f"No -t flag expected when templates is a bare keyword; got: {cmd!r}"
-    )
+    assert " -t " not in cmd, f"No -t flag expected when templates is a bare keyword; got: {cmd!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -100,9 +94,7 @@ def test_bare_keyword_templates_stripped(bad_value, fake_run_command):
     ["cves/", "vulnerabilities/", "default-logins/", "exposures/", "/custom/path/"],
 )
 def test_directory_templates_passed_through(good_value, fake_run_command):
-    nuclei_module.nuclei_scan._raw_fn(
-        target="http://x.example", templates=good_value, stats=False
-    )
+    nuclei_module.nuclei_scan._raw_fn(target="http://x.example", templates=good_value, stats=False)
     cmd = fake_run_command["cmd"]
     assert f"-t {good_value}" in cmd
 
@@ -128,9 +120,7 @@ def test_yaml_template_file_passed_through(fake_run_command):
 
 
 def test_empty_templates_no_t_flag(fake_run_command):
-    nuclei_module.nuclei_scan._raw_fn(
-        target="http://x.example", templates="", stats=False
-    )
+    nuclei_module.nuclei_scan._raw_fn(target="http://x.example", templates="", stats=False)
     cmd = fake_run_command["cmd"]
     assert " -t " not in cmd
 
@@ -141,8 +131,6 @@ def test_empty_templates_no_t_flag(fake_run_command):
 
 
 def test_relative_path_templates_accepted(fake_run_command):
-    nuclei_module.nuclei_scan._raw_fn(
-        target="http://x.example", templates="./local-templates", stats=False
-    )
+    nuclei_module.nuclei_scan._raw_fn(target="http://x.example", templates="./local-templates", stats=False)
     cmd = fake_run_command["cmd"]
     assert "-t ./local-templates" in cmd

@@ -683,5 +683,6 @@ def analyze_scripts(observations: list[ScriptObservation]) -> JSLibAnalysis:
     for obs in observations:
         findings.extend(_classify_observation(obs))
     from kryon.util.severity import SEVERITY_RANK as severity_order
+
     findings.sort(key=lambda f: (severity_order.get(f.severity, 99), f.library, f.rule_id))
     return JSLibAnalysis(total_scripts=len(observations), findings=tuple(findings))

@@ -78,12 +78,8 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
         # converter call is kept for its side-effects (flushing pending tool
         # calls into message_history).
         converter_messages = self._converter.items_to_messages(input, model_instance=self)
-        converted_messages: list[dict] = _merge_history_and_converter(
-            self.message_history, converter_messages
-        )
-        if system_instructions and not any(
-            m.get("role") == "system" for m in converted_messages
-        ):
+        converted_messages: list[dict] = _merge_history_and_converter(self.message_history, converter_messages)
+        if system_instructions and not any(m.get("role") == "system" for m in converted_messages):
             converted_messages.insert(0, {"role": "system", "content": system_instructions})
 
         try:
@@ -98,9 +94,7 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
             span.span_data.input = converted_messages
 
         # --- tools / tool_choice / response_format (reuse parent converters) ---
-        parallel_tool_calls = (
-            True if (model_settings.parallel_tool_calls and tools) else NOT_GIVEN
-        )
+        parallel_tool_calls = True if (model_settings.parallel_tool_calls and tools) else NOT_GIVEN
         tool_choice = self._converter.convert_tool_choice(model_settings.tool_choice)
         response_format = self._converter.convert_response_format(output_schema)
         converted_tools = [ToolConverter.to_openai(t) for t in tools] if tools else []
@@ -142,10 +136,7 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
                 return await client.chat.completions.create(**kwargs)
             except Exception as e:  # noqa: BLE001
                 msg = str(e)
-                if (
-                    "tool_call_id" in msg
-                    and ("maximum length" in msg or "string too long" in msg)
-                ):
+                if "tool_call_id" in msg and ("maximum length" in msg or "string too long" in msg):
                     for m in kwargs.get("messages", []):
                         tcid = m.get("tool_call_id")
                         if isinstance(tcid, str) and len(tcid) > 40:
@@ -170,9 +161,7 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
                 top_p=model_settings.top_p,
                 temperature=model_settings.temperature,
                 tools=[],
-                parallel_tool_calls=bool(parallel_tool_calls)
-                if parallel_tool_calls is not NOT_GIVEN
-                else False,
+                parallel_tool_calls=bool(parallel_tool_calls) if parallel_tool_calls is not NOT_GIVEN else False,
             )
             return response, stream_obj
         return await _create()

@@ -40,9 +40,7 @@ class TestDemoReportGracefulSkip:
         fake_weasyprint = type(sys)("weasyprint")
 
         def _raise_on_html_access():
-            raise OSError(
-                "cannot load library 'libgobject-2.0-0': error 0x7e"
-            )
+            raise OSError("cannot load library 'libgobject-2.0-0': error 0x7e")
 
         # When weasyprint is imported, force OSError by replacing the
         # module with one that raises on attribute access.
@@ -51,9 +49,7 @@ class TestDemoReportGracefulSkip:
             with patch.dict(sys.modules, {"weasyprint": None}):
                 # Force re-import to fail with OSError
                 def _bad_import(*_a, **_kw):
-                    raise OSError(
-                        "cannot load library 'libgobject-2.0-0': error 0x7e"
-                    )
+                    raise OSError("cannot load library 'libgobject-2.0-0': error 0x7e")
 
                 with patch.dict(sys.modules, {}, clear=False):
                     sys.modules["weasyprint"] = type(sys)("weasyprint")

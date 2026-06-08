@@ -17,9 +17,7 @@ def _asst(call_id):
     return {
         "role": "assistant",
         "content": None,
-        "tool_calls": [
-            {"id": call_id, "type": "function", "function": {"name": "f", "arguments": "{}"}}
-        ],
+        "tool_calls": [{"id": call_id, "type": "function", "function": {"name": "f", "arguments": "{}"}}],
     }
 
 
@@ -38,11 +36,7 @@ def test_reemitted_tool_call_id_gets_its_own_response():
     for i, m in enumerate(out):
         if m.get("role") == "assistant" and m.get("tool_calls"):
             ids = {tc["id"] for tc in m["tool_calls"]}
-            following = {
-                out[j].get("tool_call_id")
-                for j in range(i + 1, len(out))
-                if out[j].get("role") == "tool"
-            }
+            following = {out[j].get("tool_call_id") for j in range(i + 1, len(out)) if out[j].get("role") == "tool"}
             assert ids <= following, f"assistant#{i} tool_calls {ids} missing responses (have {following})"
 
 

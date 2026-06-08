@@ -25,8 +25,8 @@ os.environ.setdefault("OPENAI_API_KEY", "test_key_for_ci_environment")
 import pytest
 
 from kryon.cli.engage import (
-    DiscoveredService,
     _AXFR_FAILURE_MARKERS,
+    DiscoveredService,
     _check_dns_zone_transfer,
     _derive_dns_zone_candidates,
     _try_axfr,
@@ -82,8 +82,7 @@ class TestAxfrSuccess:
         # Patch nslookup PTR query to return the zone name, then patch
         # the AXFR attempt to return success.
         ptr_stdout = (
-            "Server:  UnKnown\nAddress:  172.18.201.205\n\n"
-            "Name:    dc01.britimp.com.py\nAddress:  172.18.201.205\n"
+            "Server:  UnKnown\nAddress:  172.18.201.205\n\nName:    dc01.britimp.com.py\nAddress:  172.18.201.205\n"
         )
 
         call_count = {"n": 0}
@@ -211,8 +210,7 @@ class TestGate:
 class TestDeriveZoneCandidates:
     def test_ptr_yields_zone(self):
         ptr_stdout = (
-            "Server:  UnKnown\nAddress:  172.18.201.205\n\n"
-            "Name:    dc01.britimp.com.py\nAddress:  172.18.201.205\n"
+            "Server:  UnKnown\nAddress:  172.18.201.205\n\nName:    dc01.britimp.com.py\nAddress:  172.18.201.205\n"
         )
         with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_proc(ptr_stdout)):
             zones = _derive_dns_zone_candidates("172.18.201.205")

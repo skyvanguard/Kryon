@@ -58,9 +58,7 @@ from kryon.validation.cve_validator import (
 
 logger = logging.getLogger(__name__)
 
-_LEGACY_FEED_URL = (
-    "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-{year}.json.gz"
-)
+_LEGACY_FEED_URL = "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-{year}.json.gz"
 _NVD_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 _NVD_API_PAGE_SIZE = 2000
 
@@ -82,8 +80,7 @@ class UpdateResult:
     def summary(self) -> str:
         parts = [
             f"cache: {self.cache_path}",
-            f"years requested: {len(self.years_attempted)} "
-            f"({min(self.years_attempted)}..{max(self.years_attempted)})",
+            f"years requested: {len(self.years_attempted)} ({min(self.years_attempted)}..{max(self.years_attempted)})",
             f"years succeeded: {len(self.years_succeeded)}",
             f"CVEs before: {self.cve_count_before}",
             f"CVEs after:  {self.cve_count_after}",
@@ -144,9 +141,7 @@ def fetch_year_api_v2(year: int, *, timeout: int = 60) -> set[str]:
             f"{_NVD_API_URL}?pubStartDate={start}&pubEndDate={end}"
             f"&resultsPerPage={_NVD_API_PAGE_SIZE}&startIndex={start_index}"
         )
-        logger.info(
-            "fetching NVD 2.0 API for %d, startIndex=%d", year, start_index
-        )
+        logger.info("fetching NVD 2.0 API for %d, startIndex=%d", year, start_index)
         raw = _http_get(url, timeout=timeout)
         doc = json.loads(raw.decode("utf-8"))
         for vuln in doc.get("vulnerabilities", []):

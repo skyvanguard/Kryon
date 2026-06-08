@@ -42,9 +42,7 @@ class TestMemberServerNotAD:
         ]
         families = _detect_device_families(services)
         assert "windows" in families, f"Expected windows family, got {families}"
-        assert "windows_ad" not in families, (
-            f"Pre-F202.I bug: 135/445 alone activated AD family; got {families}"
-        )
+        assert "windows_ad" not in families, f"Pre-F202.I bug: 135/445 alone activated AD family; got {families}"
 
     def test_basic_smb_only_no_ad(self):
         """Even barer Windows server (SMB-only) -> windows family only.

@@ -20,10 +20,10 @@ os.environ.setdefault("OPENAI_API_KEY", "test_key_for_ci_environment")
 import pytest
 
 from kryon.cli.engage import (
-    DiscoveredService,
-    _check_smb_anonymous_shares,
     _SMB_FAILURE_MARKERS,
     _SMB_SENSITIVE_KEYWORDS,
+    DiscoveredService,
+    _check_smb_anonymous_shares,
 )
 
 
@@ -146,9 +146,10 @@ class TestNegative:
             assert _check_smb_anonymous_shares(_svc()) is None
 
     def test_connection_refused_no_flag(self):
-        with patch("kryon.cli.engage.subprocess.run", side_effect=_fake_smbclient(
-            "smbclient: Connection refused\n", returncode=1
-        )):
+        with patch(
+            "kryon.cli.engage.subprocess.run",
+            side_effect=_fake_smbclient("smbclient: Connection refused\n", returncode=1),
+        ):
             assert _check_smb_anonymous_shares(_svc()) is None
 
     def test_dollar_suffix_admin_shares_skipped(self):

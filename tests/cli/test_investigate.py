@@ -30,21 +30,27 @@ from kryon.cli.investigate import (
 
 
 class TestUrlDetection:
-    @pytest.mark.parametrize("url", [
-        "http://example.com",
-        "https://eaula.ing.una.py",
-        "https://target.com/path?q=1",
-    ])
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://example.com",
+            "https://eaula.ing.una.py",
+            "https://target.com/path?q=1",
+        ],
+    )
     def test_recognizes_http_urls(self, url):
         assert _is_url(url)
 
-    @pytest.mark.parametrize("not_url", [
-        "example.com",
-        "ftp://example.com",
-        "file:///etc/passwd",
-        "/local/path",
-        "",
-    ])
+    @pytest.mark.parametrize(
+        "not_url",
+        [
+            "example.com",
+            "ftp://example.com",
+            "file:///etc/passwd",
+            "/local/path",
+            "",
+        ],
+    )
     def test_rejects_non_http(self, not_url):
         assert not _is_url(not_url)
 
@@ -104,9 +110,7 @@ class TestIntentClassification:
 class TestPromptBuilder:
     def test_passive_mode_has_safety_language(self):
         hints = {"mode": "web_audit", "urls": ["https://x"], "keywords": []}
-        prompt = _build_investigate_prompt(
-            "audita https://x", hints, active=False
-        )
+        prompt = _build_investigate_prompt("audita https://x", hints, active=False)
         assert "PASSIVE MODE" in prompt
         assert "web_fetch_smart" in prompt
         assert "NO ejecutes nmap" in prompt
@@ -159,10 +163,16 @@ class TestArgparseWiring:
         sub = parser.add_subparsers(dest="command")
         add_investigate_subparser(sub)
 
-        args = parser.parse_args([
-            "investigate", "--url", "https://eaula.ing.una.py", "--active",
-            "--max-turns", "10",
-        ])
+        args = parser.parse_args(
+            [
+                "investigate",
+                "--url",
+                "https://eaula.ing.una.py",
+                "--active",
+                "--max-turns",
+                "10",
+            ]
+        )
         assert args.url == "https://eaula.ing.una.py"
         assert args.active is True
         assert args.max_turns == 10
@@ -243,10 +253,18 @@ class TestHybridMode:
         sub = parser.add_subparsers(dest="command")
         add_investigate_subparser(sub)
 
-        args = parser.parse_args([
-            "investigate", "x", "--ssh-user", "admin",
-            "--ssh-pass", "secret123", "--ssh-key", "/path/to/key",
-        ])
+        args = parser.parse_args(
+            [
+                "investigate",
+                "x",
+                "--ssh-user",
+                "admin",
+                "--ssh-pass",
+                "secret123",
+                "--ssh-key",
+                "/path/to/key",
+            ]
+        )
         assert args.ssh_user == "admin"
         assert args.ssh_pass == "secret123"
         assert args.ssh_key == "/path/to/key"
@@ -256,9 +274,16 @@ class TestHybridMode:
         sub = parser.add_subparsers(dest="command")
         add_investigate_subparser(sub)
 
-        args = parser.parse_args([
-            "investigate", "x", "--db-user", "app", "--db-pass", "pw",
-        ])
+        args = parser.parse_args(
+            [
+                "investigate",
+                "x",
+                "--db-user",
+                "app",
+                "--db-pass",
+                "pw",
+            ]
+        )
         assert args.db_user == "app"
         assert args.db_pass == "pw"
 
@@ -267,9 +292,14 @@ class TestHybridMode:
         sub = parser.add_subparsers(dest="command")
         add_investigate_subparser(sub)
 
-        args = parser.parse_args([
-            "investigate", "x", "--include-dns-checks", "--include-smb-checks",
-        ])
+        args = parser.parse_args(
+            [
+                "investigate",
+                "x",
+                "--include-dns-checks",
+                "--include-smb-checks",
+            ]
+        )
         assert args.include_dns_checks is True
         assert args.include_smb_checks is True
 
@@ -286,13 +316,21 @@ class TestHybridMode:
 
     def test_run_deterministic_phase_accepts_kwargs(self):
         from kryon.cli.investigate import _run_deterministic_phase
+
         # Should not raise — empty URL returns []
-        assert _run_deterministic_phase(
-            "",
-            ssh_user="admin", ssh_password="x", ssh_key="/k",
-            db_user="root", db_password="r",
-            include_dns=True, include_smb=True,
-        ) == []
+        assert (
+            _run_deterministic_phase(
+                "",
+                ssh_user="admin",
+                ssh_password="x",
+                ssh_key="/k",
+                db_user="root",
+                db_password="r",
+                include_dns=True,
+                include_smb=True,
+            )
+            == []
+        )
 
     def test_format_findings_for_prompt_includes_cwe_and_rule(self):
         from kryon.cli.investigate import _format_findings_for_prompt

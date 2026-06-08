@@ -31,13 +31,7 @@ def _svc(host: str = "172.18.201.205", port: int = 53, state: str = "open") -> D
 
 def _ptr_for_zone(zone: str) -> str:
     """nslookup PTR response for the target IP yielding `zone`."""
-    return (
-        "Server:  UnKnown\n"
-        "Address:  172.18.201.205\n"
-        "\n"
-        f"Name:    dc01.{zone}\n"
-        f"Address:  172.18.201.205\n"
-    )
+    return f"Server:  UnKnown\nAddress:  172.18.201.205\n\nName:    dc01.{zone}\nAddress:  172.18.201.205\n"
 
 
 def _patched_dns_response(rcode_value: int):
@@ -65,8 +59,10 @@ class TestUpdateAccepted:
         def _multi(cmd, **_kw):
             return subprocess.CompletedProcess(cmd, 0, stdout=_ptr_for_zone("britimp.com.py"), stderr="")
 
-        with patch("kryon.cli.engage.subprocess.run", side_effect=_multi), \
-             patch("dns.query.udp", return_value=_patched_dns_response(dns.rcode.NOERROR)):
+        with (
+            patch("kryon.cli.engage.subprocess.run", side_effect=_multi),
+            patch("dns.query.udp", return_value=_patched_dns_response(dns.rcode.NOERROR)),
+        ):
             finding = _check_dns_dynamic_update(_svc())
 
         assert finding is not None
@@ -90,8 +86,10 @@ class TestUpdateRejected:
         def _multi(cmd, **_kw):
             return subprocess.CompletedProcess(cmd, 0, stdout=_ptr_for_zone("britimp.com.py"), stderr="")
 
-        with patch("kryon.cli.engage.subprocess.run", side_effect=_multi), \
-             patch("dns.query.udp", return_value=_patched_dns_response(dns.rcode.REFUSED)):
+        with (
+            patch("kryon.cli.engage.subprocess.run", side_effect=_multi),
+            patch("dns.query.udp", return_value=_patched_dns_response(dns.rcode.REFUSED)),
+        ):
             assert _check_dns_dynamic_update(_svc()) is None
 
     def test_notauth_no_finding(self):
@@ -101,8 +99,10 @@ class TestUpdateRejected:
         def _multi(cmd, **_kw):
             return subprocess.CompletedProcess(cmd, 0, stdout=_ptr_for_zone("britimp.com.py"), stderr="")
 
-        with patch("kryon.cli.engage.subprocess.run", side_effect=_multi), \
-             patch("dns.query.udp", return_value=_patched_dns_response(dns.rcode.NOTAUTH)):
+        with (
+            patch("kryon.cli.engage.subprocess.run", side_effect=_multi),
+            patch("dns.query.udp", return_value=_patched_dns_response(dns.rcode.NOTAUTH)),
+        ):
             assert _check_dns_dynamic_update(_svc()) is None
 
     def test_formerr_no_finding(self):
@@ -111,8 +111,10 @@ class TestUpdateRejected:
         def _multi(cmd, **_kw):
             return subprocess.CompletedProcess(cmd, 0, stdout=_ptr_for_zone("britimp.com.py"), stderr="")
 
-        with patch("kryon.cli.engage.subprocess.run", side_effect=_multi), \
-             patch("dns.query.udp", return_value=_patched_dns_response(dns.rcode.FORMERR)):
+        with (
+            patch("kryon.cli.engage.subprocess.run", side_effect=_multi),
+            patch("dns.query.udp", return_value=_patched_dns_response(dns.rcode.FORMERR)),
+        ):
             assert _check_dns_dynamic_update(_svc()) is None
 
 
@@ -148,8 +150,10 @@ class TestGracefulDegradation:
         def _raise_timeout(*args, **kwargs):
             raise dns.exception.Timeout
 
-        with patch("kryon.cli.engage.subprocess.run", side_effect=_multi), \
-             patch("dns.query.udp", side_effect=_raise_timeout):
+        with (
+            patch("kryon.cli.engage.subprocess.run", side_effect=_multi),
+            patch("dns.query.udp", side_effect=_raise_timeout),
+        ):
             assert _check_dns_dynamic_update(_svc()) is None
 
     def test_oserror_no_finding(self):
@@ -159,8 +163,10 @@ class TestGracefulDegradation:
         def _raise_oserror(*args, **kwargs):
             raise OSError("network unreachable")
 
-        with patch("kryon.cli.engage.subprocess.run", side_effect=_multi), \
-             patch("dns.query.udp", side_effect=_raise_oserror):
+        with (
+            patch("kryon.cli.engage.subprocess.run", side_effect=_multi),
+            patch("dns.query.udp", side_effect=_raise_oserror),
+        ):
             assert _check_dns_dynamic_update(_svc()) is None
 
 
@@ -178,8 +184,13 @@ class TestReverseZoneSkipped:
 
         # PTR returns nothing useful -> only the reverse zone is in
         # the candidate list.
-        with patch("kryon.cli.engage.subprocess.run", side_effect=lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")), \
-             patch("dns.query.udp", return_value=_patched_dns_response(dns.rcode.NOERROR)) as p:
+        with (
+            patch(
+                "kryon.cli.engage.subprocess.run",
+                side_effect=lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 0, stdout="", stderr=""),
+            ),
+            patch("dns.query.udp", return_value=_patched_dns_response(dns.rcode.NOERROR)) as p,
+        ):
             assert _check_dns_dynamic_update(_svc()) is None
             # And dns.query.udp must NOT have been invoked because
             # the only candidate was in-addr.arpa.
@@ -205,6 +216,11 @@ class TestGate:
     def test_no_zones_skipped(self):
         """If PTR returns nothing AND target is non-IPv4, no candidates -> skip."""
         svc = DiscoveredService(host="notanip", port=53, state="open", service="domain", product="")
-        with patch("kryon.cli.engage.subprocess.run", side_effect=lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")), \
-             patch("dns.query.udp", side_effect=AssertionError("must not call")):
+        with (
+            patch(
+                "kryon.cli.engage.subprocess.run",
+                side_effect=lambda cmd, **_kw: subprocess.CompletedProcess(cmd, 0, stdout="", stderr=""),
+            ),
+            patch("dns.query.udp", side_effect=AssertionError("must not call")),
+        ):
             assert _check_dns_dynamic_update(svc) is None
