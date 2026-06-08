@@ -50,15 +50,15 @@ GROUND_TRUTH: dict[str, set[str]] = {
     # planted in Juice Shop 14.x without over-claiming (only CWEs that
     # are deterministically present in the unmodified default build).
     "juice_shop": {
-        "CWE-89",   # SQLi en /rest/user/login (boolean blind)
-        "CWE-79",   # Reflected/stored XSS en search + comments + 5-star
+        "CWE-89",  # SQLi en /rest/user/login (boolean blind)
+        "CWE-79",  # Reflected/stored XSS en search + comments + 5-star
         "CWE-639",  # IDOR en /api/Baskets/{id}, /api/Feedbacks/{id}
         "CWE-285",  # Broken access control (/api/Quantitys, /administration)
         "CWE-200",  # info disclosure (server tokens, /api/Users emails)
-        "CWE-22",   # Path traversal en /ftp endpoint
+        "CWE-22",  # Path traversal en /ftp endpoint
         "CWE-352",  # CSRF en perfil endpoints
         "CWE-915",  # Mass assignment en profile update
-        "CWE-1004", # Cookies sin HttpOnly
+        "CWE-1004",  # Cookies sin HttpOnly
         "CWE-319",  # HTTP por default (sin TLS termination)
     },
 }
@@ -78,9 +78,13 @@ PORT_TO_TARGET = {
 }
 
 
-# Accept ASCII hyphen, non-breaking hyphen (U+2011), en/em dashes, minus.
-# LLM markdown often renders the dash as U+2011 inside table cells.
-_CWE_RE = re.compile(r"CWE[-\s_‐-―−]*(\d{1,4})", re.IGNORECASE)
+# Accept ASCII hyphen, non-breaking hyphen (U+2011), en/em dashes, minus
+# (LLM markdown often renders the dash as U+2011 inside table cells).
+# `(?!\d)` forces the full number (no backtracking to a partial like CWE-2 from
+# "cwe-22-…"); `(?!-[a-zA-Z])` skips skill identifiers like `cwe-89-sqli`
+# (CWE-number-word) while still matching findings `CWE-89`, `CWE-89:`,
+# `CWE-1004 ` — so loaded-skill telemetry never inflates the emitted set.
+_CWE_RE = re.compile(r"CWE[-\s_‐-―−]*(\d{1,4})(?!\d)(?!-[a-zA-Z])", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -115,10 +119,7 @@ class ScoreResult:
             return 0.0
         z = 1.96
         p_hat = len(self.tp) / n
-        numerator = (
-            p_hat + z * z / (2 * n)
-            - z * math.sqrt(p_hat * (1 - p_hat) / n + z * z / (4 * n * n))
-        )
+        numerator = p_hat + z * z / (2 * n) - z * math.sqrt(p_hat * (1 - p_hat) / n + z * z / (4 * n * n))
         denominator = 1 + z * z / n
         return max(0.0, numerator / denominator)
 
@@ -138,11 +139,11 @@ def infer_target_from_text(text: str) -> str | None:
     text_lower = text.lower()
     for port, target in PORT_TO_TARGET.items():
         patterns = (
-            f":{port}",               # URL form: http://host:8080/
-            f"port {port}",            # "port 8080" descriptive
-            f"-p {port}",              # ssh -p 2222
-            f"-P {port}",              # mysql -P 33060 (uppercase original)
-            f"-p={port}",              # ssh -p=2222
+            f":{port}",  # URL form: http://host:8080/
+            f"port {port}",  # "port 8080" descriptive
+            f"-p {port}",  # ssh -p 2222
+            f"-P {port}",  # mysql -P 33060 (uppercase original)
+            f"-p={port}",  # ssh -p=2222
         )
         if any(p in text or p.lower() in text_lower for p in patterns):
             return target
@@ -193,8 +194,7 @@ def format_report(result: ScoreResult) -> str:
     lines = [
         f"## Lab Scoreboard — target: {result.target}",
         "",
-        f"Ground truth ({len(result.ground_truth)} CWEs): "
-        f"{', '.join(sorted(result.ground_truth))}",
+        f"Ground truth ({len(result.ground_truth)} CWEs): {', '.join(sorted(result.ground_truth))}",
         f"Emitted     ({len(result.emitted)} CWEs): "
         f"{', '.join(sorted(result.emitted)) if result.emitted else '(none)'}",
         "",
@@ -211,9 +211,7 @@ def format_report(result: ScoreResult) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(
-        description="F203.J — Score Kryon findings against vulnerable-lab ground truth"
-    )
+    ap = argparse.ArgumentParser(description="F203.J — Score Kryon findings against vulnerable-lab ground truth")
     ap.add_argument(
         "--transcript",
         type=Path,

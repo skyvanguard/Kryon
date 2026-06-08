@@ -239,3 +239,26 @@ def test_unmapped_emitted_cwe_still_false_positive():
     # CWE-918 (SSRF) is not in juice_shop GT and has no parent mapping → FP.
     res = score_text("Detected CWE-918 ssrf.", "juice_shop")
     assert "CWE-918" in res.fp
+
+
+# ---------------------------------------------------------------------------
+# extract_cwes — skill-name identifiers must not be scored as findings
+# ---------------------------------------------------------------------------
+
+
+def test_extract_cwes_skips_skill_identifiers():
+    # 'cwe-89-sqli' etc. are loaded-skill names, NOT findings.
+    text = "skills loaded: ['cwe-22-path-traversal', 'cwe-89-sqli', 'cwe-918-ssrf']"
+    assert extract_cwes(text) == set()
+
+
+def test_extract_cwes_keeps_real_findings_alongside_skill_names():
+    text = "skills loaded: ['cwe-89-sqli']. Finding: CWE-89 SQLi at /q. Also CWE-1004: cookie. CWE-352."
+    assert extract_cwes(text) == {"CWE-89", "CWE-1004", "CWE-352"}
+
+
+def test_extract_cwes_no_partial_number_from_skill_name():
+    # Regression: must NOT yield CWE-2 / CWE-91 etc. by backtracking on cwe-22 / cwe-918.
+    got = extract_cwes("['cwe-22-x', 'cwe-918-y', 'cwe-352-z']")
+    assert got == set()
+    assert "CWE-2" not in got and "CWE-91" not in got and "CWE-35" not in got
