@@ -124,9 +124,40 @@ class ScoreResult:
         return max(0.0, numerator / denominator)
 
 
+# Headings that open a "recommended / to-verify" section. CWE mentions inside
+# such a section are SUGGESTIONS, not findings, so they don't count as emitted
+# (mirrors the agent's confirmed-vs-recommended report split).
+_REC_SECTION_RE = re.compile(
+    r"a\s+verificar|no\s+confirmad|recomenda|pr[oó]ximos\s+pasos|next\s+steps|to\s+verify|to\s+test|sugerenc",
+    re.IGNORECASE,
+)
+
+
+def _is_heading(line: str) -> bool:
+    s = line.strip()
+    return s.startswith("#") or (len(s) > 4 and s.startswith("**") and s.endswith("**"))
+
+
+def _strip_recommendation_sections(text: str) -> str:
+    """Drop lines under a 'recommended / to-verify' heading (until the next
+    heading) so suggested CWEs aren't scored as confirmed findings."""
+    kept: list[str] = []
+    in_rec = False
+    for line in text.splitlines():
+        if _is_heading(line):
+            in_rec = bool(_REC_SECTION_RE.search(line))
+        if not in_rec:
+            kept.append(line)
+    return "\n".join(kept)
+
+
 def extract_cwes(text: str) -> set[str]:
-    """Pull all `CWE-XXX` mentions from a text blob (markdown / JSON)."""
-    return {f"CWE-{int(m.group(1))}" for m in _CWE_RE.finditer(text)}
+    """Pull all `CWE-XXX` *finding* mentions from a text blob (markdown / JSON).
+
+    Skips CWE ids that are skill identifiers (handled by the regex) and ids
+    inside a recommended/to-verify section (handled here).
+    """
+    return {f"CWE-{int(m.group(1))}" for m in _CWE_RE.finditer(_strip_recommendation_sections(text))}
 
 
 def infer_target_from_text(text: str) -> str | None:

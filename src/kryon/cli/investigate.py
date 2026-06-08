@@ -152,8 +152,20 @@ def _build_investigate_prompt(user_prompt: str, hints: dict[str, Any], active: b
         f"    de forms en el HTML.\n"
         f"NUNCA emitas `[]` (findings vacío) sin haber intentado al menos 3 tool calls "
         f"manuales adicionales.\n\n"
-        f"Cuando termines, emití un **resumen ejecutivo** con: lo que aprendiste, "
-        f"hallazgos preliminares (si aplican), y próximos pasos sugeridos para el operador.\n"
+        f"## Formato del reporte final (OBLIGATORIO — separar confirmado de recomendado)\n\n"
+        f"Emití DOS secciones bien separadas. NO mezcles:\n\n"
+        f"### ✅ Hallazgos confirmados\n"
+        f"Solo vulnerabilidades que **observaste con evidencia** (findings deterministas "
+        f"inyectados arriba + lo que vos verificaste con una tool). Acá SÍ usá la etiqueta "
+        f"`CWE-XXX` por cada hallazgo, con la evidencia concreta. Si no lo confirmaste, NO va acá.\n\n"
+        f"### 🔎 A verificar (NO confirmado)\n"
+        f"Clases de vulnerabilidad que valdría la pena testear pero que **NO confirmaste**. "
+        f"Acá describí en prosa el qué y el cómo (ej: 'probar inyección SQL en el parámetro q "
+        f"con sqlmap'). **PROHIBIDO usar la etiqueta `CWE-XXX` en esta sección** — una "
+        f"recomendación no es un hallazgo, y etiquetarla como CWE la haría pasar por confirmada. "
+        f"Usá el nombre de la clase en texto (SQLi, XSS, CSRF…), nunca el código CWE.\n\n"
+        f"Regla de oro: un `CWE-XXX` en el reporte = afirmás que ESE defecto existe y lo viste. "
+        f"Si solo lo sospechás, va en 'A verificar' sin código CWE.\n"
     )
 
 

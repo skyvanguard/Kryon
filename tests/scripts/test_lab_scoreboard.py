@@ -262,3 +262,29 @@ def test_extract_cwes_no_partial_number_from_skill_name():
     got = extract_cwes("['cwe-22-x', 'cwe-918-y', 'cwe-352-z']")
     assert got == set()
     assert "CWE-2" not in got and "CWE-91" not in got and "CWE-35" not in got
+
+
+# ---------------------------------------------------------------------------
+# extract_cwes — recommended/to-verify sections are not scored as findings
+# ---------------------------------------------------------------------------
+
+
+def test_extract_cwes_ignores_recommended_section():
+    text = (
+        "### Hallazgos confirmados\n"
+        "CWE-89 SQLi confirmada en /q.\n"
+        "### 🔎 A verificar (NO confirmado)\n"
+        "CWE-352 posible CSRF en /admin.\n"
+        "CWE-918 quizás SSRF.\n"
+    )
+    # Only the confirmed-section CWE counts; recommended ones are dropped.
+    assert extract_cwes(text) == {"CWE-89"}
+
+
+def test_extract_cwes_recommended_section_resets_at_next_heading():
+    text = "## A verificar\nCWE-918 maybe\n## Hallazgos confirmados\nCWE-200 leak confirmed\n"
+    assert extract_cwes(text) == {"CWE-200"}
+
+
+def test_extract_cwes_keeps_cwes_before_any_heading():
+    assert extract_cwes("CWE-319 cleartext observed.") == {"CWE-319"}
