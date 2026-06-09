@@ -118,35 +118,37 @@ services:
     restart: unless-stopped
     command:
       - -m
-      # gpt-oss-20b (OpenAI's open MoE, 21B-A3.6B) replaced Qwen3.6-35B-A3B as the
-      # local default. On the CyberGym SAST bench it scored 1/3 (real tool-driven
-      # detection of Log4Shell CWE-502) vs the 35B's 0/3 (which loops on run_command
-      # without ever progressing to the analysis). For an agentic offensive agent,
-      # tool-use reliability beats raw code-completion score. Served under the
-      # alias "Kryon-MOE-35B" (-a below) so the rest of the stack — KRYON_MODEL,
-      # the reasoning-model "moe" per-phase turn bump, the content-based Harmony
-      # parser — keeps working unchanged. The 35B GGUF stays in the volume for
-      # A/B benching; flip -m back to re-enable it.
-      - /models/gpt-oss-20b-mxfp4.gguf
-      # MXFP4 is 11.3 GB. --n-cpu-moe 12 offloads ~half the experts to keep ~3.6 GB
-      # VRAM headroom on the 12 GB laptop GPU at ~27 tok/s. -c 40960 (gpt-oss is
-      # natively 128K) matches the context the "Kryon-MOE-35B" alias makes the
-      # container assume, so auto-compaction trims before the server overflows —
-      # the first try at -c 16384 400'd mid-run on the large struts2 tree.
-      - --n-cpu-moe
-      - "12"
+      # Qwen3-8B (DENSE, 8B) — replaced the gpt-oss-20b MoE for interactive use.
+      # Being dense it fits whole in the 12 GB GPU (-ngl 99, NO --n-cpu-moe), so
+      # generation runs at ~65 tok/s vs the MoE's ~0.9 tok/s (CPU expert offload).
+      # Emits native tool_calls and answers directly with --reasoning-budget 0
+      # (below). Served under the same "Kryon-MOE-35B" alias so the rest of the
+      # stack is unchanged. Flip -m back to /models/gpt-oss-20b-mxfp4.gguf (and
+      # re-add --n-cpu-moe 12) to restore the MoE.
+      # NB: qwen3.5-9b-q4km.gguf in the volume over-thinks (never emits content/
+      # tool_calls, ignores --reasoning-budget 0 and /no_think) — do NOT use it.
+      - /models/qwen3-8b-q4km.gguf
       - -ngl
       - "99"
       - -fa
       - "on"
+      # 32K context — a dense 9B's KV cache fits comfortably alongside the 5.3 GB
+      # weights in 12 GB; plenty for web investigate.
       - -c
-      - "40960"
+      - "32768"
       # Generation cap — bounds a verbose CoT turn + stops history snowballing.
       - -n
       - "2000"
-      # Sampling banca-safe (low temp; deterministic-leaning).
+      # temp 0.6 — Qwen3's recommended sampling for non-thinking mode (0.3 is
+      # fine too for banca-safe determinism; 0.6 balances tool-use reliability).
       - --temp
-      - "0.3"
+      - "0.6"
+      # Disable Qwen3 "thinking" mode. Qwen3 models default to emitting a long
+      # <think> block; left on it burns the token budget in reasoning_content
+      # and delays content/tool_calls. --reasoning-budget 0 forces direct
+      # answers / immediate tool use (verified: emits native tool_calls).
+      - --reasoning-budget
+      - "0"
       - --parallel
       - "1"
       - --jinja
