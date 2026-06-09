@@ -15,6 +15,7 @@ with actionable notes otherwise (still useful for the banking report).
 
 from __future__ import annotations
 
+import shlex
 import time
 
 from kryon.compliance.checks.active_directory._helpers import (
@@ -87,13 +88,16 @@ class _AuditPolicyCheck:
 
         # Probe WinRM 5985/5986 first — if not reachable, SIEM forwarding
         # is very unlikely to exist.
-        nmap_cmd = f"nmap -Pn -p 5985,5986 {dc} 2>&1 | tail -6"
+        nmap_cmd = f"nmap -Pn -p 5985,5986 {shlex.quote(dc)} 2>&1 | tail -6"
         n_out, _, _ = run_cmd(ctx, nmap_cmd, shell=True, timeout_s=20)
 
         winrm_open = "5985/tcp open" in n_out or "5986/tcp open" in n_out
 
-        # Try `rpcclient` netsharegetinfo as a low-priv sanity check
-        rpc_cmd = f"rpcclient -U '{domain}\\\\{user}%{pwd}' -c 'srvinfo' {dc} 2>&1 | head -10"
+        # Try `rpcclient` netsharegetinfo as a low-priv sanity check.
+        # Build the DOMAIN\\user%pwd credential then shell-quote it as a whole
+        # (preserves the original double-backslash semantics, blocks injection).
+        rpc_cred = f"{domain}\\\\{user}%{pwd}"
+        rpc_cmd = f"rpcclient -U {shlex.quote(rpc_cred)} -c 'srvinfo' {shlex.quote(dc)} 2>&1 | head -10"
         r_out, r_err, r_rc = run_cmd(ctx, rpc_cmd, shell=True, timeout_s=10)
 
         issues: list[str] = []

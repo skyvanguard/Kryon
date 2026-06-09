@@ -10,6 +10,7 @@ Reference: Microsoft ADV190023.
 
 from __future__ import annotations
 
+import shlex
 import time
 
 from kryon.compliance.checks.active_directory._helpers import (
@@ -66,7 +67,7 @@ class _LdapSigningCheck:
             )
 
         # Simple bind over cleartext 389 — should FAIL if signing enforced.
-        cmd = f"ldapsearch -x -H ldap://{dc}:389 -D '{user}' -w '{pwd}' -b '' -s base namingContexts 2>&1 | head -20"
+        cmd = f"ldapsearch -x -H ldap://{shlex.quote(dc)}:389 -D {shlex.quote(user)} -w {shlex.quote(pwd)} -b '' -s base namingContexts 2>&1 | head -20"
         out, err, rc = run_cmd(ctx, cmd, shell=True, timeout_s=10)
 
         issues: list[str] = []

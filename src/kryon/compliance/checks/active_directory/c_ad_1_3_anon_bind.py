@@ -9,6 +9,7 @@ We probe with an anonymous simple bind and look for a "Success" result.
 
 from __future__ import annotations
 
+import shlex
 import time
 
 from kryon.compliance.checks.active_directory._helpers import (
@@ -53,7 +54,7 @@ class _AnonBindCheck:
             )
 
         # Anonymous bind (-x, no -D / -w), query rootDSE for anything useful
-        cmd = f"ldapsearch -x -H ldap://{dc}:389 -b '' -s base namingContexts supportedLDAPVersion 2>&1 | head -15"
+        cmd = f"ldapsearch -x -H ldap://{shlex.quote(dc)}:389 -b '' -s base namingContexts supportedLDAPVersion 2>&1 | head -15"
         out, err, rc = run_cmd(ctx, cmd, shell=True, timeout_s=8)
 
         # Markers

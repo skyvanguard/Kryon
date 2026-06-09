@@ -10,6 +10,7 @@ We enumerate CN=Domain Admins,CN=Users,<base_dn> members via LDAP.
 from __future__ import annotations
 
 import re
+import shlex
 import time
 
 from kryon.compliance.checks.active_directory._helpers import (
@@ -69,7 +70,7 @@ class _DomainAdminsCheck:
         base_dn = ",".join(f"DC={p}" for p in domain.split("."))
         # Get member list of Domain Admins (CN=Domain Admins,CN=Users,<base>)
         da_dn = f"CN=Domain Admins,CN=Users,{base_dn}"
-        cmd = f"ldapsearch -x -H ldap://{dc} -D '{user}' -w '{pwd}' -b '{da_dn}' -s base member 2>&1"
+        cmd = f"ldapsearch -x -H ldap://{shlex.quote(dc)} -D {shlex.quote(user)} -w {shlex.quote(pwd)} -b {shlex.quote(da_dn)} -s base member 2>&1"
         out, err, rc = run_cmd(ctx, cmd, shell=True, timeout_s=10)
 
         if "result: 0 Success" not in out and rc != 0:

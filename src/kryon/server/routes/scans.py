@@ -9,7 +9,11 @@ from fastapi import APIRouter, Depends, Query
 
 from kryon.server.auth import require_api_key
 from kryon.server.auth.deps import get_current_user
-from kryon.server.auth.isolation import verify_client_access
+from kryon.server.auth.isolation import (
+    get_accessible_client_ids,
+    require_resource_access,
+    verify_client_access,
+)
 from kryon.server.auth.models import User
 from kryon.server.deps import get_scheduler, get_store
 from kryon.server.exceptions import not_found
@@ -50,30 +54,45 @@ async def schedule_scan(req: ScheduleScanRequest, user: User | None = Depends(ge
 
 
 @router.get("/scans")
-async def list_scans(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=500)) -> list[dict]:
+async def list_scans(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    user: User | None = Depends(get_current_user),
+) -> list[dict]:
     """List all scheduled and completed scans."""
     scheduler = get_scheduler()
     jobs = await scheduler.list_scheduled()
+    # Scope non-admin users to their assigned clients.
+    accessible = get_accessible_client_ids(user, get_store())
+    if accessible is not None:
+        jobs = [j for j in jobs if j.client_id in accessible]
     return [j.model_dump() for j in jobs[offset : offset + limit]]
 
 
 @router.get("/scans/{job_id}")
-async def get_scan(job_id: str) -> dict:
+async def get_scan(job_id: str, user: User | None = Depends(get_current_user)) -> dict:
     """Get scan job details."""
     scheduler = get_scheduler()
     job = scheduler.jobs.get(job_id)
     if not job:
         logger.warning("Scan job not found: %s", job_id)
         raise not_found("Job", job_id)
+    require_resource_access(user, job.client_id, get_store(), kind="Job", resource_id=job_id)
     return job.model_dump()
 
 
 @router.delete("/scans/{job_id}")
-async def cancel_scan(job_id: str) -> dict:
+async def cancel_scan(job_id: str, user: User | None = Depends(get_current_user)) -> dict:
     """Cancel a scheduled scan."""
     scheduler = get_scheduler()
-    if not await scheduler.cancel_scan(job_id):
+    # Authorize against the job's client before cancelling, so a scoped
+    # user cannot cancel another client's scan by guessing its ID.
+    job = scheduler.jobs.get(job_id)
+    if not job:
         logger.warning("Scan job not found for cancel: %s", job_id)
+        raise not_found("Job", job_id)
+    require_resource_access(user, job.client_id, get_store(), kind="Job", resource_id=job_id)
+    if not await scheduler.cancel_scan(job_id):
         raise not_found("Job", job_id)
     logger.info("Scan cancelled: %s", job_id)
     return {"cancelled": True}
@@ -146,22 +165,24 @@ async def start_auto_scan(req: AutoScanRequest, user: User | None = Depends(get_
 
 
 @router.get("/scans/auto/{scan_id}", response_model=AutoScanStatus)
-async def get_auto_scan_status(scan_id: str) -> AutoScanStatus:
+async def get_auto_scan_status(scan_id: str, user: User | None = Depends(get_current_user)) -> AutoScanStatus:
     """Get current status of an autonomous scan."""
     entry = _auto_scans.get(scan_id)
     if not entry:
         raise not_found("Auto-scan", scan_id)
+    require_resource_access(user, entry["orchestrator"].client_id, get_store(), kind="Auto-scan", resource_id=scan_id)
 
     p = entry["orchestrator"].progress
     return AutoScanStatus(**p.to_dict())
 
 
 @router.get("/scans/auto/{scan_id}/stream")
-async def stream_auto_scan(scan_id: str):
+async def stream_auto_scan(scan_id: str, user: User | None = Depends(get_current_user)):
     """SSE stream of progress events for a running auto-scan."""
     entry = _auto_scans.get(scan_id)
     if not entry:
         raise not_found("Auto-scan", scan_id)
+    require_resource_access(user, entry["orchestrator"].client_id, get_store(), kind="Auto-scan", resource_id=scan_id)
 
     async def _event_generator():
         orch = entry["orchestrator"]
@@ -191,11 +212,12 @@ async def stream_auto_scan(scan_id: str):
 
 
 @router.get("/scans/auto/{scan_id}/findings", response_model=list[AutoScanFinding])
-async def get_auto_scan_findings(scan_id: str) -> list[AutoScanFinding]:
+async def get_auto_scan_findings(scan_id: str, user: User | None = Depends(get_current_user)) -> list[AutoScanFinding]:
     """Get findings from an autonomous scan."""
     entry = _auto_scans.get(scan_id)
     if not entry:
         raise not_found("Auto-scan", scan_id)
+    require_resource_access(user, entry["orchestrator"].client_id, get_store(), kind="Auto-scan", resource_id=scan_id)
 
     orch = entry["orchestrator"]
     return [
@@ -214,12 +236,13 @@ async def get_auto_scan_findings(scan_id: str) -> list[AutoScanFinding]:
 
 
 @router.delete("/scans/auto/{scan_id}")
-async def cancel_auto_scan(scan_id: str) -> dict:
+async def cancel_auto_scan(scan_id: str, user: User | None = Depends(get_current_user)) -> dict:
     """Cancel a running autonomous scan."""
     entry = _auto_scans.get(scan_id)
     if not entry:
         logger.warning("Auto-scan not found for cancel: %s", scan_id)
         raise not_found("Auto-scan", scan_id)
+    require_resource_access(user, entry["orchestrator"].client_id, get_store(), kind="Auto-scan", resource_id=scan_id)
 
     task = entry["task"]
     if not task.done():
