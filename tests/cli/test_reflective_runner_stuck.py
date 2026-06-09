@@ -82,6 +82,43 @@ async def test_stuck_error_preserves_prior_final_output(monkeypatch):
     assert "loop irrecuperable" in final.lower()
 
 
+async def test_persistent_stuck_tool_aborts_before_max_turns(monkeypatch):
+    """A weak model that re-issues the SAME tool+args every chunk must be
+    cut off well before max_total_turns — not allowed to spin to the budget
+    (observed: qwen3-8b re-fetching one URL ~48× to the 50-turn cap)."""
+    import kryon.cli.reflective_runner as rr
+    import kryon.sdk.agents.run as run_mod
+
+    calls = {"n": 0}
+
+    class _SpinRunner:
+        @staticmethod
+        async def run(agent, **kwargs):  # noqa: ARG004
+            calls["n"] += 1
+            return SimpleNamespace(final_output="", new_items=[object()], raw_responses=[object()], _pending=True)
+
+    monkeypatch.setattr(run_mod, "Runner", _SpinRunner)
+    # Every chunk yields the SAME two identical tool calls → _is_stuck fires
+    # each chunk, so consecutive_stuck_count crosses the abort trigger.
+    rec = rr._ToolCallRecord(tool_name="web_fetch_smart", args_hash="samehash", args_preview="url=https://t/")
+    monkeypatch.setattr(rr, "_extract_tool_calls", lambda items: [rec, rec])
+    # Keep the loop going (agent never "finishes") so only the stuck-abort
+    # can stop it.
+    monkeypatch.setattr(rr, "_has_pending_tool_calls", lambda r: True)
+
+    result = await rr.run_with_reflection(
+        SimpleNamespace(name="kryon"),
+        initial_input="audita https://t.example",
+        reflect_every=2,
+        max_total_turns=40,  # 20 chunks if never aborted
+    )
+
+    # Aborted within a few chunks (trigger=3), not the full 20.
+    assert calls["n"] <= rr._DEFAULT_STUCK_ABORT_TRIGGER + 1, f"did not abort early: {calls['n']} chunks ran"
+    final = (getattr(result, "final_output", "") or "").lower()
+    assert "bucle detectado" in final, f"missing stuck-abort summary: {final!r}"
+
+
 async def test_no_clean_result_still_reports_captured_tools(monkeypatch):
     """Wall-budget / all-MaxTurns end with no clean chunk result → last_result
     is None, but the agent DID run tools (captured by hooks). The runner must

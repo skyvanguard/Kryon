@@ -76,6 +76,13 @@ logger = logging.getLogger(__name__)
 _DEFAULT_REFLECT_EVERY = 4
 # Stuck threshold: 2 identical (tool_name, args_hash) consecutive triggers warning.
 _DEFAULT_STUCK_THRESHOLD = 2
+# After this many CONSECUTIVE reflection chunks where _is_stuck keeps firing
+# (same tool+args), abandon the loop. _is_stuck on its own only injects a
+# warning into the reflection prompt — a weak agentic model ignores it and
+# spins (observed: qwen3-8b re-fetching one URL ~48× to max_turns). This makes
+# the warning escalate to a hard stop so the deterministic findings still
+# surface instead of the budget burning on identical calls.
+_DEFAULT_STUCK_ABORT_TRIGGER = 3
 # F203.AX — intra-turn degeneracy detector. Catches n-gram repetition
 # WITHIN a single reasoning block (Harmony analysis channel), which the
 # turn-level _is_stuck can't see because no tool_call is emitted while
@@ -1040,6 +1047,9 @@ async def run_with_reflection(
     # row without facts moving, the runner abandons the loop and
     # surfaces a REQUEST_OPERATOR_INPUT summary so a human takes over.
     consecutive_stall_count: int = 0
+    # Count consecutive chunks where _is_stuck fires (same tool+args). Crossing
+    # _DEFAULT_STUCK_ABORT_TRIGGER abandons the loop (see below).
+    consecutive_stuck_count: int = 0
     operator_input_requested: bool = False
     operator_input_summary: str = ""
 
@@ -1466,6 +1476,33 @@ async def run_with_reflection(
 
         # Inject reflection user message for the next chunk.
         stuck = _is_stuck(tool_history, threshold=stuck_threshold)
+        # Escalate a persistent stuck pattern to a hard stop. _is_stuck only
+        # warns via the reflection prompt; a weak agentic model ignores it and
+        # re-issues the same tool+args indefinitely (qwen3-8b: ~48× one URL).
+        # Counting consecutive stuck chunks and breaking turns that into an
+        # abort so the deterministic findings still surface.
+        if stuck is not None:
+            consecutive_stuck_count += 1
+            if consecutive_stuck_count >= _DEFAULT_STUCK_ABORT_TRIGGER:
+                logger.warning(
+                    "stuck-loop abort at turn %d: tool '%s' repeated identically "
+                    "across %d consecutive chunks — breaking the loop",
+                    turns_used,
+                    stuck.tool_name,
+                    consecutive_stuck_count,
+                )
+                operator_input_summary = (
+                    "## 🛑 Investigación abortada — bucle detectado\n\n"
+                    f"El agente repitió `{stuck.tool_name}` con argumentos idénticos en "
+                    f"{consecutive_stuck_count} chunks consecutivos sin progresar (mismo "
+                    "resultado cada vez); se cortó el loop para no malgastar el budget.\n\n"
+                    "Revisá los hallazgos deterministas (sección **Verificado**) — el "
+                    "modelo local no está razonando sobre los resultados de las tools."
+                )
+                operator_input_requested = True
+                break
+        else:
+            consecutive_stuck_count = 0
         last_output = ""
         try:
             fo = getattr(result, "final_output", None)
