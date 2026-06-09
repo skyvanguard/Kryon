@@ -61,7 +61,20 @@ class SeparateDatabaseStrategy(IsolationStrategy):
 
 
 class SharedDatabaseStrategy(IsolationStrategy):
-    """All tenants share one database, filtered by tenant_id column."""
+    """All tenants share one database — **NOT a supported multi-tenant mode.**
+
+    Kryon's production posture is **single-tenant per deployment** (one
+    client per instance / container; isolation is at the instance boundary).
+    The business tables (clients, scans, findings, engagements,
+    user_client_access) are *client*-scoped, not *tenant*-scoped — there is
+    no ``tenant_id`` column to filter or purge by — so a shared database
+    cannot actually isolate tenants. Use :class:`SeparateDatabaseStrategy`
+    (a DB file per tenant) or one deployment per client instead.
+
+    This class is retained only as a placeholder for a future true
+    multi-tenant build; its destructive operation refuses to run rather than
+    silently pretending to delete a tenant's data.
+    """
 
     def __init__(self):
         self._store = None
@@ -75,4 +88,11 @@ class SharedDatabaseStrategy(IsolationStrategy):
         pass  # No special init needed for shared DB
 
     def delete_tenant_data(self, tenant_id: str) -> None:
-        logger.warning("SharedDatabaseStrategy.delete_tenant_data not implemented — requires per-table cleanup")
+        # Fail loud: silently no-op'ing a "delete all tenant data" call is a
+        # data-retention/compliance hazard. Shared-DB multi-tenant deletion
+        # is not implementable against the current client-centric schema.
+        raise NotImplementedError(
+            "SharedDatabaseStrategy does not support per-tenant deletion "
+            "(the schema is client-scoped, not tenant-scoped). Use "
+            "SeparateDatabaseStrategy or one deployment per client."
+        )

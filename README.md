@@ -31,7 +31,9 @@
 
 ## What is KRYON?
 
-KRYON is an **autonomous cybersecurity agent** focused on **compliance audits, authorized pentesting, and incident response** for the **financial-services sector (LATAM/Paraguay)**. It runs **locally** on a 12 GB-VRAM GPU using `Kryon-MOE-35B` (a `llama-server` / llama.cpp **alias** that, by default, serves **gpt-oss-20b** — an OpenAI MoE 21B-A3.6B in MXFP4, ~11.3 GB GGUF — which outperformed the original Qwen3.6-35B-A3B on the agentic tool-use bench), so **zero API cost** and **zero data leaving the engagement perimeter**.
+KRYON is a **general autonomous offensive-security agent** — recon, authorized pentesting, vulnerability hunting, DFIR, and compliance audits from a single prompt. It runs **locally** on a 12 GB-VRAM GPU using `Kryon-MOE-35B` (a `llama-server` / llama.cpp **alias** that, by default, serves **gpt-oss-20b** — an OpenAI MoE 21B-A3.6B in MXFP4, ~11.3 GB GGUF — which outperformed the original Qwen3.6-35B-A3B on the agentic tool-use bench), so **zero API cost** and **zero data leaving the engagement perimeter**.
+
+> **Direction (v2.x):** the product is a *general* offensive/compliance agent. **Banking/financial services (LATAM/Paraguay) is one strong vertical** — backed by a real moat (BCP Res. 12/2021 deterministic checks, local-first, pricing in guaraníes) — **not the whole product**. Several banking playbooks are methodology *templates*, not turnkey scanners; see [Banking Status](#banking-vertical--honest-status) for what runs end-to-end vs. what's a starter frame.
 
 Architecture is **skill-based**: instead of 33 static Python agents, there is one unified "Kryon" agent that dynamically loads **~106 markdown playbooks** based on target profile and operator intent. Critical detection paths run as **deterministic pre-hooks** (nuclei, nikto, sqlmap, fail2ban check, PCI-DSS validators, …) before the LLM ever gets control — the model **narrates evidence, it cannot skip the detector**.
 
@@ -305,7 +307,7 @@ CWE map override: `~/.kryon/cwe_map.yaml` (template at `docs/examples/cwe_map.ya
       │ compliance/ 9 frameworks (PCI-DSS, CIS, SWIFT, …) runners    │
       │ reporting/ PDF/DOCX/HTML, reproducibility hashes (F39)       │
       │ memory/    SQLite store (16 migrations) — engagements, KB    │
-      │ server/    FastAPI — 136 endpoints, multi-tenant, JWT/RBAC   │
+      │ server/    FastAPI — 136 endpoints, single-tenant, JWT/RBAC  │
       │ approval/  Human-in-the-loop for destructive actions (F144)  │
       └──────────────────────────────────────────────────────────────┘
                        │

@@ -1,5 +1,15 @@
 # Sales Kit — BritImp × Kryon
 
+> ⚠️ **Material vertical-específico (banca).** Estos documentos están escritos
+> para la vertical financiera (BritImp / ASOBAN). **No representan el producto
+> entero**: Kryon es un *agente ofensivo/compliance general* (ver el README
+> raíz), del cual banca es **una** vertical. Antes de reusar para otro sector,
+> reframea el mensaje. Además, varios playbooks bancarios citados son
+> *templates* de metodología, no scanners turnkey — ver "Banking Status" en el
+> README para qué corre end-to-end vs. qué es un frame de inicio. El pricing
+> menciona "tenancy aislado": en la práctica es **single-tenant por
+> despliegue** (aislamiento por instancia), no SaaS multi-banco.
+
 Material comercial completo para la presentación a directivos de BritImp y
 engagements posteriores. Todo en markdown / CSV para que podás editar, imprimir
 o convertir a PDF según necesites.

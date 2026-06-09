@@ -80,3 +80,10 @@ class TestSharedDatabaseStrategy:
     def test_initialize_no_error(self):
         strategy = SharedDatabaseStrategy()
         strategy.initialize_tenant("test-123")  # Should not raise
+
+    def test_delete_tenant_data_refuses(self):
+        """Per-tenant deletion must fail loud, not silently no-op — silently
+        'deleting' a tenant's data is a data-retention/compliance hazard."""
+        strategy = SharedDatabaseStrategy()
+        with pytest.raises(NotImplementedError):
+            strategy.delete_tenant_data("some-tenant")
