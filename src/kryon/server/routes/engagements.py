@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from kryon.server.auth import require_api_key
 from kryon.server.auth.deps import get_current_user
-from kryon.server.auth.isolation import verify_client_access
+from kryon.server.auth.isolation import require_resource_access, verify_client_access
 from kryon.server.auth.models import User
 from kryon.server.deps import get_engagement_manager
 from kryon.server.exceptions import not_found
@@ -58,13 +58,14 @@ async def list_engagements(
 
 
 @router.get("/engagements/{engagement_id}")
-async def get_engagement(engagement_id: str) -> dict:
+async def get_engagement(engagement_id: str, user: User | None = Depends(get_current_user)) -> dict:
     """Get engagement detail with phases."""
     manager = get_engagement_manager()
     eng = manager.store.get_engagement(engagement_id)
     if not eng:
         logger.warning("Engagement not found: %s", engagement_id)
         raise not_found("Engagement", engagement_id)
+    require_resource_access(user, eng.client_name, manager.store, kind="Engagement", resource_id=engagement_id)
     phases = manager.store.get_engagement_phases(engagement_id)
     result = eng.model_dump(mode="json")
     result["phases"] = [p.model_dump(mode="json") for p in phases]
@@ -72,12 +73,13 @@ async def get_engagement(engagement_id: str) -> dict:
 
 
 @router.get("/engagements/{engagement_id}/stream")
-async def stream_engagement(engagement_id: str):
+async def stream_engagement(engagement_id: str, user: User | None = Depends(get_current_user)):
     """SSE stream for live engagement updates."""
     manager = get_engagement_manager()
     eng = manager.store.get_engagement(engagement_id)
     if not eng:
         raise not_found("Engagement", engagement_id)
+    require_resource_access(user, eng.client_name, manager.store, kind="Engagement", resource_id=engagement_id)
 
     async def _event_generator():
         queue = manager.get_progress_queue(engagement_id)
@@ -96,12 +98,13 @@ async def stream_engagement(engagement_id: str):
 
 
 @router.get("/engagements/{engagement_id}/findings")
-async def get_engagement_findings(engagement_id: str) -> list[dict]:
+async def get_engagement_findings(engagement_id: str, user: User | None = Depends(get_current_user)) -> list[dict]:
     """Get accumulated findings across all engagement phases."""
     manager = get_engagement_manager()
     eng = manager.store.get_engagement(engagement_id)
     if not eng:
         raise not_found("Engagement", engagement_id)
+    require_resource_access(user, eng.client_name, manager.store, kind="Engagement", resource_id=engagement_id)
 
     phases = manager.store.get_engagement_phases(engagement_id)
     all_findings = []
@@ -113,12 +116,13 @@ async def get_engagement_findings(engagement_id: str) -> list[dict]:
 
 
 @router.post("/engagements/{engagement_id}/pause")
-async def pause_engagement(engagement_id: str) -> dict:
+async def pause_engagement(engagement_id: str, user: User | None = Depends(get_current_user)) -> dict:
     """Pause an active engagement."""
     manager = get_engagement_manager()
     eng = manager.store.get_engagement(engagement_id)
     if not eng:
         raise not_found("Engagement", engagement_id)
+    require_resource_access(user, eng.client_name, manager.store, kind="Engagement", resource_id=engagement_id)
     if eng.status.value != "active":
         raise HTTPException(status_code=409, detail=f"Cannot pause engagement in '{eng.status.value}' state")
     await manager.pause_engagement(engagement_id)
@@ -127,12 +131,13 @@ async def pause_engagement(engagement_id: str) -> dict:
 
 
 @router.post("/engagements/{engagement_id}/resume")
-async def resume_engagement(engagement_id: str) -> dict:
+async def resume_engagement(engagement_id: str, user: User | None = Depends(get_current_user)) -> dict:
     """Resume a paused engagement."""
     manager = get_engagement_manager()
     eng = manager.store.get_engagement(engagement_id)
     if not eng:
         raise not_found("Engagement", engagement_id)
+    require_resource_access(user, eng.client_name, manager.store, kind="Engagement", resource_id=engagement_id)
     if eng.status.value != "paused":
         raise HTTPException(status_code=409, detail=f"Cannot resume engagement in '{eng.status.value}' state")
     await manager.resume_engagement(engagement_id)
@@ -141,12 +146,13 @@ async def resume_engagement(engagement_id: str) -> dict:
 
 
 @router.delete("/engagements/{engagement_id}")
-async def cancel_engagement(engagement_id: str) -> dict:
+async def cancel_engagement(engagement_id: str, user: User | None = Depends(get_current_user)) -> dict:
     """Cancel an engagement."""
     manager = get_engagement_manager()
     eng = manager.store.get_engagement(engagement_id)
     if not eng:
         raise not_found("Engagement", engagement_id)
+    require_resource_access(user, eng.client_name, manager.store, kind="Engagement", resource_id=engagement_id)
     await manager.cancel_engagement(engagement_id)
     logger.info("Engagement cancelled: %s", engagement_id)
     return {"status": "cancelled"}
