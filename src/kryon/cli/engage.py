@@ -2376,6 +2376,81 @@ def _check_webserver_eol(svc: DiscoveredService, headers: str) -> Finding | None
     return None
 
 
+_SECURITY_HEADERS = {
+    "content-security-policy": "Content-Security-Policy ausente — sin mitigación XSS/clickjacking a nivel header",
+    "x-frame-options": "X-Frame-Options ausente — clickjacking (CWE-1021); usar DENY/SAMEORIGIN o CSP frame-ancestors",
+    "x-content-type-options": "X-Content-Type-Options ausente — MIME sniffing (CWE-430); usar 'nosniff'",
+}
+# HSTS only meaningful on TLS endpoints.
+_TLS_SECURITY_HEADER = (
+    "strict-transport-security",
+    "Strict-Transport-Security (HSTS) ausente — riesgo de downgrade / SSL-strip (CWE-319)",
+)
+
+
+def _check_security_headers(svc: DiscoveredService) -> Finding | None:
+    """Flag missing HTTP security response headers (HSTS/CSP/X-Frame-Options/
+    X-Content-Type-Options).
+
+    The compliance runner has an equivalent PCI 6.4.1 check, but the
+    open-ended ``investigate`` hybrid phase had no deterministic header
+    detector — so a passive web audit silently missed missing headers and
+    left it to the (weak, local) LLM. This wires the same signal into the
+    deterministic phase.
+    """
+    if svc.state != "open" or svc.port not in (80, 443, 8080, 8443, 8000, 8888):
+        return None
+
+    is_tls = svc.port in (443, 8443) or svc.service == "https"
+    scheme = "https" if is_tls else "http"
+    url = f"{scheme}://{svc.host}:{svc.port}/"
+    try:
+        proc = subprocess.run(
+            ["curl", "-sSI", "-k", "--max-time", "5", url],
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return None
+    if proc.returncode != 0 or not proc.stdout:
+        return None
+
+    present = set()
+    for line in proc.stdout.splitlines():
+        if ":" in line and not line.startswith("HTTP/"):
+            key, _, _ = line.partition(":")
+            present.add(key.strip().lower())
+
+    required = dict(_SECURITY_HEADERS)
+    if is_tls:
+        required[_TLS_SECURITY_HEADER[0]] = _TLS_SECURITY_HEADER[1]
+
+    missing = {h: desc for h, desc in required.items() if h not in present}
+    if not missing:
+        return None
+
+    missing_lines = "\n".join(f"  - {desc}" for desc in missing.values())
+    return Finding(
+        cwe="CWE-693",  # Protection Mechanism Failure
+        severity="MEDIUM",
+        host=f"{svc.host}:{svc.port}",
+        rule_id="http-missing-security-headers",
+        message=f"Faltan {len(missing)} security header(s): {', '.join(sorted(missing))}",
+        evidence=f"HEAD {url}\n{proc.stdout[:800]}\n\nFaltantes:\n{missing_lines}",
+        remediation=(
+            "Agregar los headers en el reverse proxy / web server. nginx:\n"
+            '  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;\n'
+            "  add_header Content-Security-Policy \"default-src 'self'\" always;\n"
+            '  add_header X-Frame-Options "DENY" always;\n'
+            '  add_header X-Content-Type-Options "nosniff" always;\n'
+            "Validar con `curl -sSI` que aparezcan en la respuesta."
+        ),
+        severity_rank=_SEV_RANK["MEDIUM"],
+    )
+
+
 def _check_admin_open(svc: DiscoveredService) -> Finding | None:
     """F199.H — Flag CWE-306 only when /admin is meaningfully different
     from the root. SPA frameworks (Angular/React/Vue) serve index.html

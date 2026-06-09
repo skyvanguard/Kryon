@@ -856,11 +856,14 @@ class OpenAIChatCompletionsModel(Model):
         ):
             try:
                 from kryon.agents.guardrails import (
-                    detect_injection_patterns,
+                    detect_tool_output_injection,
                     sanitize_external_content,
                 )
 
-                is_suspicious, patterns = detect_injection_patterns(msg["content"])
+                # Use the tool-output-tuned detector (high-confidence only) so
+                # legitimate recon data (JSON, search results, /oauth/token)
+                # isn't flagged — real injection structures still are.
+                is_suspicious, patterns = detect_tool_output_injection(msg["content"])
                 if is_suspicious:
                     tool_id = msg.get("tool_call_id", "")[:20]
                     logger.warning(
