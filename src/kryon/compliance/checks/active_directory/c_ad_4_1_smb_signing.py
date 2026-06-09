@@ -9,6 +9,7 @@ Probe: `nmap --script smb2-security-mode` against 445/tcp.
 
 from __future__ import annotations
 
+import shlex
 import time
 
 from kryon.compliance.checks.active_directory._helpers import (
@@ -52,7 +53,7 @@ class _SmbSigningCheck:
                 install_hint="apt install nmap",
             )
 
-        cmd = f"nmap -Pn -p 445 --script smb2-security-mode {dc} 2>&1 | tail -30"
+        cmd = f"nmap -Pn -p 445 --script smb2-security-mode {shlex.quote(dc)} 2>&1 | tail -30"
         out, err, rc = run_cmd(ctx, cmd, shell=True, timeout_s=25)
 
         # Output typical:

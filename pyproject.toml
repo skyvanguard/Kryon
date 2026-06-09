@@ -34,6 +34,7 @@ dependencies = [
     "duckduckgo-search>=7.0, <9",
     "defusedxml>=0.7.1, <1",
     "pymysql>=1.2.0",
+    "filelock>=3.12, <4",  # cross-platform lock for atomic queue/scheduler state
 ]
 classifiers = [
     "Typing :: Typed",

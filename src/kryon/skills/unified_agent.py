@@ -204,11 +204,25 @@ def create_unified_agent(
         len(tools),
     )
 
+    # Wire the security guardrails (prompt-injection + scope on input,
+    # command-execution on output). They are opt-out via KRYON_GUARDRAILS=false.
+    # Defensive: a guardrail import error must never break the agent build.
+    input_guardrails: list = []
+    output_guardrails: list = []
+    try:
+        from kryon.agents.guardrails import get_security_guardrails
+
+        input_guardrails, output_guardrails = get_security_guardrails()
+    except Exception as e:  # noqa: BLE001 — never break the agent build
+        logger.warning("Security guardrails not wired: %s", e)
+
     agent = create_agent(
         name="Kryon",
         instructions=instructions,
         tools=tools,
         description="Unified autonomous cybersecurity agent with dynamic skills",
+        input_guardrails=input_guardrails,
+        output_guardrails=output_guardrails,
     )
 
     # Stash loader + skills on the agent for hot-swap later

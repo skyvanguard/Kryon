@@ -19,8 +19,8 @@
 [![Security Scan](https://github.com/skyvanguard/Kryon/actions/workflows/security-scan.yml/badge.svg)](https://github.com/skyvanguard/Kryon/actions/workflows/security-scan.yml)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Version](https://img.shields.io/badge/version-2.1.0_Skillforge-purple.svg)](CHANGELOG.md)
-[![Skills](https://img.shields.io/badge/skills-150+_playbooks-gold.svg)](#skill-system)
-[![Tools](https://img.shields.io/badge/tools-338_function__tools-cyan.svg)](#architecture)
+[![Skills](https://img.shields.io/badge/skills-106_playbooks-gold.svg)](#skill-system)
+[![Tools](https://img.shields.io/badge/tools-348_function__tools-cyan.svg)](#architecture)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 
 [Installation](#installation) · [Execution Modes](#three-execution-modes) · [Skill System](#skill-system) · [Architecture](#architecture) · [Banking Status](#banking-vertical--honest-status) · [POC Reality](#what-runs-today-poc-reality)
@@ -31,9 +31,9 @@
 
 ## What is KRYON?
 
-KRYON is an **autonomous cybersecurity agent** focused on **compliance audits, authorized pentesting, and incident response** for the **financial-services sector (LATAM/Paraguay)**. It runs **locally** on a 12 GB-VRAM GPU using `Kryon-MOE-35B` (Qwen3.6-35B-A3B MoE, UD-Q4_K_XL GGUF, served by `llama-server` / llama.cpp), so **zero API cost** and **zero data leaving the engagement perimeter**.
+KRYON is an **autonomous cybersecurity agent** focused on **compliance audits, authorized pentesting, and incident response** for the **financial-services sector (LATAM/Paraguay)**. It runs **locally** on a 12 GB-VRAM GPU using `Kryon-MOE-35B` (a `llama-server` / llama.cpp **alias** that, by default, serves **gpt-oss-20b** — an OpenAI MoE 21B-A3.6B in MXFP4, ~11.3 GB GGUF — which outperformed the original Qwen3.6-35B-A3B on the agentic tool-use bench), so **zero API cost** and **zero data leaving the engagement perimeter**.
 
-Architecture is **skill-based**: instead of 33 static Python agents, there is one unified "Kryon" agent that dynamically loads **150+ markdown playbooks** based on target profile and operator intent. Critical detection paths run as **deterministic pre-hooks** (nuclei, nikto, sqlmap, fail2ban check, PCI-DSS validators, …) before the LLM ever gets control — the model **narrates evidence, it cannot skip the detector**.
+Architecture is **skill-based**: instead of 33 static Python agents, there is one unified "Kryon" agent that dynamically loads **~106 markdown playbooks** based on target profile and operator intent. Critical detection paths run as **deterministic pre-hooks** (nuclei, nikto, sqlmap, fail2ban check, PCI-DSS validators, …) before the LLM ever gets control — the model **narrates evidence, it cannot skip the detector**.
 
 ### One prompt — full engagement
 
@@ -64,13 +64,13 @@ $ kryon investigate "audita https://target.com"
 
 | Component | Count |
 |-----------|:-----:|
-| Skill playbooks (`.md`) | **151** (23 core + 11 CWE + 10 banking + 5 OT + 78 imported + helpers) |
-| `@function_tool` implementations | **338** across 250 modules |
+| Skill playbooks (`.md`) | **106** (42 core + 11 CWE + 4 banking + 5 OT + 40 imported + 1 zero-day) |
+| `@function_tool` implementations | **348** across ~150 modules |
 | CLI entry points | 19 subcommands |
 | API endpoints (FastAPI) | 136 |
 | Compliance frameworks | 9 (PCI-DSS, OWASP, NIST CSF, CIS, MITRE ATT&CK, SWIFT CSP, FAPI, HIPAA, SOC2) |
 | Production-capable audit modules | 7 (PCI-DSS · Proxmox · FortiGate · Unifi · Asterisk · Windows Server · Tomcat) |
-| Default model | `Kryon-MOE-35B` (Qwen3.6-35B-A3B MoE, UD-Q4_K_XL, ~21 GB GGUF) via llama.cpp |
+| Default model | `Kryon-MOE-35B` (alias; serves **gpt-oss-20b** MoE 21B-A3.6B MXFP4 ~11.3 GB by default) via llama.cpp |
 | LLM runtime | `llama-server` (llama.cpp), tool-calling via `--jinja` |
 
 ### Core capabilities
@@ -81,7 +81,7 @@ $ kryon investigate "audita https://target.com"
 - **CVE applicability gate (F180-F183)** — drops findings whose products do not apply to the target stack (e.g. JAMon-JSP CVE on a Node.js host).
 - **Self-improving loop (F1-F3, F77.G.5)** — every successful engagement writes a draft skill; Wilson-scored selection ranks proven playbooks first; pattern detector clusters chains and auto-synthesizes new skills.
 - **Hybrid mode (F203.M)** — 11 deterministic detectors (HTTP, MySQL, SSH, BGP, cookies, …) run BEFORE the LLM in `investigate`; findings injected as ground truth. Web bench recall: 25% → 100%.
-- **Local-first by design** — Kryon-MOE-35B (Qwen3.6-35B-A3B MoE) via llama.cpp on 12 GB VRAM. Zero per-engagement cost. Banking data never leaves the engagement host.
+- **Local-first by design** — Kryon-MOE-35B (gpt-oss-20b by default) via llama.cpp on 12 GB VRAM. Zero per-engagement cost. Banking data never leaves the engagement host.
 - **Banca-safe by default** — passive recon, throttled nmap (`-T2 --min-rate 50`), no live HTTP unless `KRYON_*_FIRE=true` AND `fire=True` argument (double gate).
 - **Safe-modification protocol** — diagnose (read-only) → propose (table + STOP) → backup → apply → verify → rollback on failure.
 
@@ -158,28 +158,31 @@ kryon queue process \
 
 ## Skill System
 
-Kryon's intelligence lives in **151 markdown playbooks** organized by purpose. Skills are **auto-matched** by target tech, open ports, and user keywords. Priority-based selection with a token budget cap (max 30 tools to fit a 16K-context active engagement).
+Kryon's intelligence lives in **106 markdown playbooks** organized by purpose. Skills are **auto-matched** by target tech, open ports, and user keywords. Priority-based selection with a token budget cap (max 30 tools to fit a 16K-context active engagement).
 
 ```
 src/kryon/skills/playbooks/
-├── 23 core skills          recon-scout, pentest, vuln-hunter, appsec,
+├── ~42 core skills         recon-scout, pentest, vuln-hunter, appsec,
 │                            forensics, ctf-master, ssl-audit, server-hardening,
 │                            safe-modification, rollback-recovery,
 │                            tomcat-audit, fortigate-audit, unifi-audit,
 │                            voip-asterisk-audit, dvr-audit, hackerone-engagement,
 │                            burp-integration, http-fetch, evidence-forensics,
 │                            cryptanalysis-techniques, browser-exploit,
-│                            memory-corruption-exploits, binary-reverse-engineering
-├── banking/ (10 skills)    pci-dss-audit, audit-bank-full, proxmox-audit,
-│                            core-banking-assessment, mobile-banking-audit,
-│                            atm-security, payment-gateway-testing,
-│                            fraud-detection, swift-network-security,
-│                            open-banking-api
+│                            memory-corruption-exploits, binary-reverse-engineering, …
+├── banking/ (4 .md files)  pci-dss-audit, audit-bank-full, proxmox-audit,
+│                            cis-controls-v8.1
+│                            ⚠ core-banking-assessment, mobile-banking-audit,
+│                            atm-security, payment-gateway-testing, fraud-detection,
+│                            swift-network-security, open-banking-api are
+│                            *methodology templates* documented in CLAUDE.md,
+│                            NOT shipped .md playbooks — see Banking Status below.
 ├── cwe-detection/ (11)     CWE-22, CWE-78, CWE-79, CWE-89, CWE-125, CWE-20,
 │                            CWE-287, CWE-352, CWE-502, CWE-639, CWE-918
 ├── ot/ (5 skills)          modbus, dnp3, iec104, s7, mqtt-industrial
-├── imported/ (78 skills)   from mukul975/Anthropic-Cybersecurity-Skills
+├── imported/ (40 skills)   from mukul975/Anthropic-Cybersecurity-Skills
 │                            (Apache 2.0, MITRE ATT&CK / NIST CSF mapped)
+├── zero-day/ (1 skill)     source-review / variant-analysis harness
 └── pre_hooks/              Python escape-hatch helpers (sqlmap, IDOR probe)
 ```
 
@@ -206,7 +209,7 @@ Currently wired in: `fortigate-audit`, `unifi-audit`, `proxmox-audit`, `pci-dss-
 ### `/skill` REPL commands
 
 ```bash
-KRYON> /skill list                      # All 151 loaded
+KRYON> /skill list                      # All 106 loaded
 KRYON> /skill show recon-scout          # View playbook content
 KRYON> /skill search kubernetes         # Search upstream catalog (754 skills)
 KRYON> /skill import exploiting-zerologon-vulnerability-cve-2020-1472
@@ -276,12 +279,12 @@ CWE map override: `~/.kryon/cwe_map.yaml` (template at `docs/examples/cwe_map.ya
                   │   │ unified_agent.py — compose prompt      │    │
                   │   │ pre_hook_runner.py — deterministic-1st │    │
                   │   └────────────────────────────────────────┘    │
-                  │   playbooks/  (151 .md files)                   │
+                  │   playbooks/  (106 .md files)                   │
                   └────────────┬────────────────────┬───────────────┘
                                │                    │
                                ▼                    ▼
             ┌──────────────────────────┐  ┌────────────────────────────┐
-            │ sdk/agents/ (run loop)   │  │ tools/ (338 @function_tool)│
+            │ sdk/agents/ (run loop)   │  │ tools/ (348 @function_tool)│
             │ ┌──────────────────────┐ │  │ 35 categories:             │
             │ │ Runner               │ │  │ reconnaissance, web,       │
             │ │ models/openai_chat   │ │  │ network, ad, cloud,        │
@@ -605,7 +608,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Conventional commits: `feat:`, `fix:`, `
 ## Working with banking clients
 
 - **Written authorization is mandatory** before testing any institution-owned system.
-- **Paraguay regulatory**: BCP Resoluciones (SIB), SEPRELAD for AML, Superintendencia de Bancos for audits.
+- **Paraguay regulatory context**: BCP Resoluciones (SIB) and Superintendencia de Bancos for infrastructure/security audits. SEPRELAD (AML/KYC) is named here only as regulatory context — **Kryon does not implement AML/KYC or transaction-monitoring controls** (those are not infrastructure controls a scanner validates). Do not pitch SEPRELAD coverage.
 - **Never commit or log real PAN numbers**. Use test cards only (Stripe: 4242…, Bancard: 4005 5500 0000 0001).
 - **NDA first**, data retention policy, secure destruction after engagement.
 - For PCI-DSS audits, confirm SAQ level (A, A-EP, B, B-IP, C, C-VT, D) before scoping.

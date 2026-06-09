@@ -27,10 +27,13 @@ jobs:
           sudo apt-get install -y trivy
 
       - name: Run Trivy vulnerability scanner
+        # Blocks the job on CRITICAL/HIGH findings that have a fix available.
+        # --ignore-unfixed avoids failing on CVEs with no upstream patch yet.
+        # Mark this job as a required status check in branch protection to
+        # gate merges on it.
         run: |
           trivy fs --format sarif --output trivy-results.sarif \
-            --severity CRITICAL,HIGH --exit-code 0 .
-        continue-on-error: true
+            --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 .
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4
@@ -74,7 +77,9 @@ jobs:
             --exclude-rule python.lang.security.audit.exec-detected.exec-detected \
             --exclude-rule python.lang.security.audit.insecure-file-permissions.insecure-file-permissions \
             src/
-        continue-on-error: true
+        # --error makes Semgrep exit non-zero on findings; no continue-on-error
+        # so this job fails (and gates merge once marked required in branch
+        # protection). Tune the --exclude-rule list above to manage the baseline.
 
       - name: Upload Semgrep results
         uses: github/codeql-action/upload-sarif@v4

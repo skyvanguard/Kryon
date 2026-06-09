@@ -27,13 +27,14 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+
+from kryon.util.atomic_state import read_json_locked, write_json_atomic
 
 logger = logging.getLogger(__name__)
 
@@ -115,25 +116,12 @@ class Scheduler:
     @classmethod
     def load(cls, path: Path | None = None) -> Scheduler:
         p = path or _default_state_path()
-        if not p.exists():
-            return cls(jobs=[], state_path=p)
-        try:
-            data = json.loads(p.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError) as exc:
-            logger.warning("schedule load failed (%s) — starting empty", exc)
-            return cls(jobs=[], state_path=p)
+        data = read_json_locked(p, default={"jobs": []})
         jobs = [ScheduledJob(**j) for j in data.get("jobs", []) if isinstance(j, dict)]
         return cls(jobs=jobs, state_path=p)
 
     def save(self) -> None:
-        try:
-            self.state_path.parent.mkdir(parents=True, exist_ok=True)
-            self.state_path.write_text(
-                json.dumps({"jobs": [j.to_dict() for j in self.jobs]}, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-        except OSError as exc:
-            logger.warning("schedule save failed: %s", exc)
+        write_json_atomic(self.state_path, {"jobs": [j.to_dict() for j in self.jobs]})
 
     def add_job(self, job: ScheduledJob) -> None:
         """Add or replace a job by ``job_id``."""

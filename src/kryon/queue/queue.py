@@ -20,13 +20,14 @@ actions.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+
+from kryon.util.atomic_state import read_json_locked, write_json_atomic
 
 logger = logging.getLogger(__name__)
 
@@ -66,25 +67,12 @@ class EngagementQueue:
     @classmethod
     def load(cls, path: Path | None = None) -> EngagementQueue:
         p = path or _default_queue_path()
-        if not p.exists():
-            return cls(items=[], state_path=p)
-        try:
-            data = json.loads(p.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError) as exc:
-            logger.warning("queue load failed (%s) — starting empty", exc)
-            return cls(items=[], state_path=p)
+        data = read_json_locked(p, default={"items": []})
         items = [QueueItem(**i) for i in data.get("items", []) if isinstance(i, dict)]
         return cls(items=items, state_path=p)
 
     def save(self) -> None:
-        try:
-            self.state_path.parent.mkdir(parents=True, exist_ok=True)
-            self.state_path.write_text(
-                json.dumps({"items": [i.to_dict() for i in self.items]}, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-        except OSError as exc:
-            logger.warning("queue save failed: %s", exc)
+        write_json_atomic(self.state_path, {"items": [i.to_dict() for i in self.items]})
 
     def add(
         self,
