@@ -5,22 +5,23 @@ Test Suite for KRYON RAG System
 Comprehensive tests for the RAG knowledge system.
 """
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
+
+import pytest
 
 # Check if sentence_transformers is available
 try:
     import sentence_transformers
+
     HAS_SENTENCE_TRANSFORMERS = True
 except ImportError:
     HAS_SENTENCE_TRANSFORMERS = False
 
 # Skip marker for tests requiring sentence_transformers
 requires_sentence_transformers = pytest.mark.skipif(
-    not HAS_SENTENCE_TRANSFORMERS,
-    reason="sentence_transformers not installed (pip install sentence-transformers)"
+    not HAS_SENTENCE_TRANSFORMERS, reason="sentence_transformers not installed (pip install sentence-transformers)"
 )
 
 
@@ -32,6 +33,7 @@ class TestVectorDatabase:
         """Setup test database."""
         self.temp_dir = tempfile.mkdtemp()
         from kryon.knowledge.vector_db import VectorDatabase
+
         self.db = VectorDatabase(persist_directory=self.temp_dir)
 
     def teardown_method(self):
@@ -56,17 +58,13 @@ class TestVectorDatabase:
     def test_query_documents(self):
         """Test querying documents."""
         # Add documents
-        docs = [
-            "Apache web server vulnerability",
-            "MySQL database exploit",
-            "Linux privilege escalation"
-        ]
+        docs = ["Apache web server vulnerability", "MySQL database exploit", "Linux privilege escalation"]
         self.db.add_documents(docs)
 
         # Query
         results = self.db.query("Apache vulnerability", top_k=2)
         assert len(results) <= 2
-        assert results[0]['score'] > 0
+        assert results[0]["score"] > 0
 
     def test_delete_documents(self):
         """Test deleting documents."""
@@ -84,8 +82,8 @@ class TestVectorDatabase:
         self.db.add_documents(docs, metadatas=metadatas)
 
         stats = self.db.get_stats()
-        assert stats['total_documents'] == 2
-        assert 'test' in stats.get('sources', {})
+        assert stats["total_documents"] == 2
+        assert "test" in stats.get("sources", {})
 
 
 class TestEmbeddings:
@@ -126,8 +124,8 @@ class TestRAGEngine:
     def setup_method(self):
         """Setup test RAG engine."""
         self.temp_dir = tempfile.mkdtemp()
-        from kryon.knowledge.vector_db import VectorDatabase
         from kryon.knowledge.rag_engine import RAGEngine
+        from kryon.knowledge.vector_db import VectorDatabase
 
         db = VectorDatabase(persist_directory=self.temp_dir)
         self.rag = RAGEngine(vector_db=db)
@@ -140,9 +138,7 @@ class TestRAGEngine:
     def test_add_knowledge(self):
         """Test adding knowledge."""
         doc_id = self.rag.add_knowledge(
-            content="Test exploit for Apache",
-            source="test",
-            metadata={"cve": "CVE-2021-1234"}
+            content="Test exploit for Apache", source="test", metadata={"cve": "CVE-2021-1234"}
         )
 
         assert doc_id is not None
@@ -151,31 +147,25 @@ class TestRAGEngine:
     def test_query_knowledge(self):
         """Test querying knowledge."""
         # Add some knowledge
-        self.rag.add_knowledge(
-            "Apache path traversal exploit",
-            "test"
-        )
-        self.rag.add_knowledge(
-            "MySQL SQL injection technique",
-            "test"
-        )
+        self.rag.add_knowledge("Apache path traversal exploit", "test")
+        self.rag.add_knowledge("MySQL SQL injection technique", "test")
 
         # Query
         result = self.rag.query(
             "How to exploit Apache?",
-            use_llm=False  # Don't use LLM in tests
+            use_llm=False,  # Don't use LLM in tests
         )
 
-        assert 'sources' in result
-        assert len(result['sources']) > 0
+        assert "sources" in result
+        assert len(result["sources"]) > 0
 
     def test_get_stats(self):
         """Test getting RAG statistics."""
         self.rag.add_knowledge("Test content", "test")
 
         stats = self.rag.get_stats()
-        assert 'total_knowledge_items' in stats
-        assert stats['total_knowledge_items'] >= 1
+        assert "total_knowledge_items" in stats
+        assert stats["total_knowledge_items"] >= 1
 
 
 class TestDocumentProcessor:
@@ -198,7 +188,7 @@ class TestDocumentProcessor:
         from kryon.knowledge.processors import DocumentProcessor
 
         # Create temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("Test content for knowledge base.\n" * 100)
             temp_file = f.name
 
@@ -207,8 +197,8 @@ class TestDocumentProcessor:
             chunks = processor.process_file(temp_file)
 
             assert len(chunks) > 0
-            assert all('content' in chunk for chunk in chunks)
-            assert all('metadata' in chunk for chunk in chunks)
+            assert all("content" in chunk for chunk in chunks)
+            assert all("metadata" in chunk for chunk in chunks)
         finally:
             Path(temp_file).unlink()
 
@@ -224,8 +214,8 @@ class TestMetadataExtractor:
         content = "This exploit targets CVE-2021-41773 and CVE-2021-42013"
 
         metadata = extractor.extract(content)
-        assert 'cves' in metadata
-        assert len(metadata['cves']) == 2
+        assert "cves" in metadata
+        assert len(metadata["cves"]) == 2
 
     def test_extract_tools(self):
         """Test tool extraction."""
@@ -235,9 +225,9 @@ class TestMetadataExtractor:
         content = "Use nmap for scanning and metasploit for exploitation"
 
         metadata = extractor.extract(content)
-        assert 'tools' in metadata
-        assert 'nmap' in metadata['tools']
-        assert 'metasploit' in metadata['tools']
+        assert "tools" in metadata
+        assert "nmap" in metadata["tools"]
+        assert "metasploit" in metadata["tools"]
 
     def test_extract_platforms(self):
         """Test platform extraction."""
@@ -247,8 +237,8 @@ class TestMetadataExtractor:
         content = "Linux privilege escalation on Ubuntu systems"
 
         metadata = extractor.extract(content)
-        assert 'platforms' in metadata
-        assert 'linux' in metadata['platforms']
+        assert "platforms" in metadata
+        assert "linux" in metadata["platforms"]
 
     def test_extract_attack_types(self):
         """Test attack type extraction."""
@@ -258,20 +248,16 @@ class TestMetadataExtractor:
         content = "SQL injection and XSS vulnerabilities found"
 
         metadata = extractor.extract(content)
-        assert 'attack_types' in metadata
-        assert 'sqli' in metadata['attack_types']
-        assert 'xss' in metadata['attack_types']
+        assert "attack_types" in metadata
+        assert "sqli" in metadata["attack_types"]
+        assert "xss" in metadata["attack_types"]
 
 
 def test_imports():
     """Test that all modules can be imported."""
     try:
-        from kryon.knowledge import (
-            query_knowledge,
-            add_document,
-            get_vector_db,
-            start_auto_updater
-        )
+        from kryon.knowledge import add_document, get_vector_db, query_knowledge, start_auto_updater
+
         assert True
     except ImportError as e:
         pytest.fail(f"Import failed: {e}")
@@ -279,19 +265,22 @@ def test_imports():
 
 def test_dependencies():
     """Test that required dependencies are installed."""
-    required = ['chromadb', 'schedule']
-    optional = ['sentence_transformers', 'PyPDF2']
+    # RAG is off by default and the `rag` extra is optional — skip cleanly
+    # (rather than fail) when it isn't installed.
+    pytest.importorskip("chromadb")
+    required = ["chromadb", "schedule"]
+    optional = ["sentence_transformers", "PyPDF2"]
 
     for dep in required:
         try:
-            __import__(dep.replace('_', '-'))
+            __import__(dep.replace("_", "-"))
         except ImportError:
             pytest.fail(f"Required dependency not installed: {dep}")
 
     # Optional dependencies - warn but don't fail
     for dep in optional:
         try:
-            __import__(dep.replace('_', '-'))
+            __import__(dep.replace("_", "-"))
         except ImportError:
             print(f"⚠️  Optional dependency not installed: {dep}")
 

@@ -32,7 +32,7 @@ def mock_litellm():
 
 @pytest.mark.asyncio
 async def test_ping_llm_no_provider(monkeypatch):
-    monkeypatch.delenv("OLLAMA", raising=False)
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
@@ -43,7 +43,7 @@ async def test_ping_llm_no_provider(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_ping_llm_success(monkeypatch, mock_litellm):
-    monkeypatch.setenv("OLLAMA", "true")
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://test-llm:8080/v1")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
@@ -68,7 +68,7 @@ async def test_ping_llm_failure(monkeypatch, mock_litellm):
 
 @pytest.mark.asyncio
 async def test_ping_llm_cache(monkeypatch, mock_litellm):
-    monkeypatch.setenv("OLLAMA", "true")
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://test-llm:8080/v1")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 

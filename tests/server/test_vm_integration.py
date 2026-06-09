@@ -1,8 +1,17 @@
 """Tests for VM integration API routes."""
 
+import sys
 from unittest.mock import patch
 
 import pytest
+
+# The import-file endpoint validates that the path lives under /workspace or
+# /tmp (container import dirs). On Windows the pytest tmp_path is outside that
+# allowlist, so the file-import tests only run on POSIX (and in Linux CI).
+_skip_on_windows = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="ImportFileRequest path allowlist is container-relative (/workspace, /tmp)",
+)
 from starlette.testclient import TestClient
 
 from kryon.server import ServerConfig, create_app
@@ -68,6 +77,7 @@ def test_import_rapid7_endpoint(client):
         assert "job_id" in data
 
 
+@_skip_on_windows
 def test_import_file_endpoint(client, tmp_path):
     """POST /api/v1/import/file accepts nmap XML."""
     nmap_xml = tmp_path / "scan.xml"
@@ -137,6 +147,7 @@ def test_import_tenable_returns_source(client):
         assert data["source"] == "tenable"
 
 
+@_skip_on_windows
 def test_import_file_nuclei_source(client, tmp_path):
     """POST /api/v1/import/file with nuclei type returns nuclei source."""
     jsonl_file = tmp_path / "results.jsonl"

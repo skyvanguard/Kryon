@@ -1,5 +1,9 @@
 """Test that TUI modules can be imported."""
 
+import pytest
+
+pytest.importorskip("textual")  # requires the optional `tui` extra
+
 
 def test_import_tui_package():
     from kryon.tui import KryonTUI

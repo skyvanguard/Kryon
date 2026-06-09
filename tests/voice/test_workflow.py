@@ -4,6 +4,9 @@ import json
 from collections.abc import AsyncIterator
 
 import pytest
+
+pytest.importorskip("websockets")  # requires the optional `voice` extra
+
 from inline_snapshot import snapshot
 from openai.types.responses import ResponseCompletedEvent
 from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent

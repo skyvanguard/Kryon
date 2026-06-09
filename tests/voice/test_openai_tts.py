@@ -5,6 +5,8 @@ from typing import Any
 
 import pytest
 
+pytest.importorskip("websockets")  # requires the optional `voice` extra
+
 try:
     from kryon.sdk.agents.voice import OpenAITTSModel, TTSModelSettings
 except ImportError:

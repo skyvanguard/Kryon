@@ -8,6 +8,10 @@ from unittest.mock import AsyncMock, patch
 import numpy as np
 import pytest
 
+# Voice STT requires the optional `voice` extra (websockets). Skip the whole
+# module cleanly when it isn't installed instead of erroring at patch time.
+pytest.importorskip("websockets")
+
 try:
     from kryon.sdk.agents.voice import (
         OpenAISTTTranscriptionSession,

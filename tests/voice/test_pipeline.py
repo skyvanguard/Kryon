@@ -4,6 +4,8 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
+pytest.importorskip("websockets")  # requires the optional `voice` extra
+
 try:
     from kryon.sdk.agents.voice import (
         AudioInput,

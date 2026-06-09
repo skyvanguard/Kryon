@@ -13,12 +13,14 @@ from kryon.server.config import ServerConfig
 def client():
     config = ServerConfig(api_keys=["test-key"])
     app = create_app(config)
-    return TestClient(app)
+    # `with` runs the lifespan so configure_auth() actually populates the keys.
+    with TestClient(app) as c:
+        yield c
 
 
 @pytest.fixture
 def headers():
-    return {"Authorization": "Bearer test-key"}
+    return {"X-API-Key": "test-key"}
 
 
 class TestGetMetrics:

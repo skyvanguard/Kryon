@@ -4,6 +4,8 @@ import wave
 import numpy as np
 import pytest
 
+pytest.importorskip("websockets")  # requires the optional `voice` extra
+
 try:
     from kryon.sdk.agents import UserError
     from kryon.sdk.agents.voice import AudioInput, StreamedAudioInput
