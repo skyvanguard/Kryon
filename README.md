@@ -305,7 +305,7 @@ CWE map override: `~/.kryon/cwe_map.yaml` (template at `docs/examples/cwe_map.ya
       │ compliance/ 9 frameworks (PCI-DSS, CIS, SWIFT, …) runners    │
       │ reporting/ PDF/DOCX/HTML, reproducibility hashes (F39)       │
       │ memory/    SQLite store (16 migrations) — engagements, KB    │
-      │ server/    FastAPI — 136 endpoints, multi-tenant, JWT/RBAC   │
+      │ server/    FastAPI — 136 endpoints, single-tenant, JWT/RBAC  │
       │ approval/  Human-in-the-loop for destructive actions (F144)  │
       └──────────────────────────────────────────────────────────────┘
                        │

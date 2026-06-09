@@ -123,7 +123,7 @@ Export in `src/kryon/tools/{category}/__init__.py` and add tests.
 - `src/kryon/reporting/` — HTML/PDF report generation (executive, technical, PCI-DSS, SOC2)
 - `src/kryon/compliance/` — PCI-DSS v4.0 and SOC 2 Type II compliance mapping
 - `src/kryon/integrations/` — SIEM/SOAR (Splunk, QRadar, Elastic)
-- `src/kryon/tenancy/` — Multi-tenancy with per-tenant DB isolation
+- `src/kryon/tenancy/` — Tenant scaffolding (scope policy, quotas). **Production is single-tenant per deployment** — the shared-DB multi-tenant path is not wired into the server and is not supported; isolation is at the instance boundary or via `SeparateDatabaseStrategy` (DB file per tenant).
 - `src/kryon/engagements/` — Multi-day autonomous pentesting
 
 ## Security
