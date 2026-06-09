@@ -41,8 +41,28 @@ docker start kryon-llama         # restore inference
 | `requirements-finetune.txt` | HF QLoRA stack | done |
 | `smoke_test.py` | Fase 0 sm_120 gate | done ✅ |
 | `convert_dataset.py` | T-C-O → Kryon `run_command` tool-call chat format + STOP turn | **done** (Pentest-R1) |
-| `train_qlora.py` | QLoRA SFT (Qwen3-8B + LoRA via trl SFTTrainer) | TODO (Fase 2) |
+| `train_qlora.py` | QLoRA SFT (Qwen3-8B + LoRA via trl SFTTrainer) | **smoke ✅** |
 | `eval_behaviour.py` | loop-rate / convergence / mode-respect + CyberGym | TODO (Fase 3) |
+
+### Fase 2 smoke (validated end-to-end on sm_120)
+
+```
+# free the GPU first — an 8B QLoRA at seq 2048 uses the WHOLE 12 GB
+docker stop kryon-llama
+R=$(pwd)
+docker run --rm --gpus all -v $R/data/finetune:/data \
+  -v $R/data/finetune/hf-cache:/root/.cache/huggingface \
+  -v $R/scripts/finetune:/train kryon-train \
+  python /train/train_qlora.py --model Qwen/Qwen3-8B --max-steps 5 --max-seq-len 2048 --grad-accum 1
+docker start kryon-llama
+# → loss 2.11→1.25, token_acc 0.68→0.75, ~3.8 s/step, adapter saved.
+```
+
+**Memory note:** Qwen3-8B QLoRA at `--max-seq-len 2048` fills all 12 GB
+(VRAM free 0.0 GB at peak). For the real run, keep seq ≤ 2048 (truncate long
+trajectories) or add flash-attention-2 to cut activation memory; **the
+llama-server MUST be stopped** (it holds ~9.5 GB). bf16 throughout — fp16's
+grad scaler errors on bf16 grads here.
 
 ## Fase 1 — data curation (in progress)
 
