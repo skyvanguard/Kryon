@@ -205,6 +205,61 @@ def detect_injection_patterns(text: str) -> tuple[bool, list[str]]:
     return len(suspicious_patterns) > 0, suspicious_patterns
 
 
+# High-confidence injection patterns for TOOL OUTPUTS (external recon data).
+# detect_injection_patterns() is tuned for *user input* and is intentionally
+# aggressive — but applied to tool outputs it flags constantly on legitimate
+# crawled data: bare words like "execute"/"token"/"curl", lone shell
+# metacharacters (JSON `{}` from web_fetch), and search results about
+# "security vulnerabilities". This subset keeps only structural prompt-injection
+# signals that do not occur in normal recon data.
+_TOOL_OUTPUT_INJECTION_PATTERNS = [
+    r"(?i)(ignore|disregard|forget|bypass|skip|override)\s+(all\s+)?(previous|prior|above|system)\s+(instructions?|rules?|commands?|prompts?)",
+    r"(?i)(new|updated?|revised?|changed?)\s+(instructions?|rules?|system\s+prompt)",
+    r"(?i)(note|important|attention|warning)\s+to\s+(system|ai|assistant|model|agent|llm)",
+    r"(?i)(system|admin|root)\s+(note|message|command|instruction)",
+    r"(?i)<(system|admin|instruction|command|hidden)[^>]*>",
+    r"(?i)N[0O]TE\s+TO\s+SYST[E3]M",
+    r"(?i)\[END\s+TOOL\s+OUTPUT\]",
+    r"(?i)IF\s+YOU\s+HAVE\s+BEEN\s+TASKED.*EXPLOIT",
+    r"(?i)PRODUCE\s+THE\s+RESULT\s+OF.*DIRECTIVE",
+    r"(?i)FOLLOWING\s+DIRECTIVE.*\$\(",
+    r"(?i)FOLLOWING\s+DIRECTIVE.*base32",
+    r"(?i)base32.*-d.*\|",
+    r"(?i)decode\s+and\s+execute",
+]
+
+
+def detect_tool_output_injection(text: str) -> tuple[bool, list[str]]:
+    """Injection detection tuned for TOOL OUTPUTS (untrusted external data).
+
+    Flags only high-confidence prompt-injection structures (instruction
+    overrides, note-to-system, ``[END TOOL OUTPUT]``, directive-to-exploit)
+    plus shell command-substitution and homograph-hidden commands. It does
+    NOT flag bare command words or lone shell metacharacters, which appear in
+    legitimate crawled content (JSON, HTML, search results, ``/oauth/token``)
+    and caused noisy false positives on recon tools.
+
+    Returns ``(has_suspicious_patterns, matched)``.
+    """
+    if not text:
+        return False, []
+    normalized_text = normalize_unicode_homographs(text)
+    matched: list[str] = []
+    for pattern in _TOOL_OUTPUT_INJECTION_PATTERNS:
+        if re.search(pattern, text) or re.search(pattern, normalized_text):
+            matched.append(pattern)
+    # `$(...)` command substitution is a real injection signal even in data
+    # (backticks are excluded — they appear in legitimate markdown/code).
+    if re.search(r"\$\([^)]*\)", text) or re.search(r"\$\([^)]*\)", normalized_text):
+        matched.append("command_substitution")
+    # Commands hidden behind Unicode homographs.
+    if has_homograph_characters(text) and any(
+        cmd in normalized_text.lower() for cmd in ["curl", "wget", "nc ", "netcat", "bash", "sh ", "exec", "eval"]
+    ):
+        matched.append("unicode_homograph_detected")
+    return len(matched) > 0, matched
+
+
 def sanitize_external_content(content: str) -> str:
     """
     Sanitize external content to neutralize potential injection attempts.

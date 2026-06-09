@@ -217,6 +217,7 @@ def _run_deterministic_phase(
             _check_mysql_deep,
             _check_python_simplehttp_exposed,
             _check_reverse_dns_enum,
+            _check_security_headers,
             _check_smb_anonymous_shares,
             _check_ssh,
         )
@@ -260,6 +261,8 @@ def _run_deterministic_phase(
         )
         findings.extend(_safe_call(_check_http, svc))
         findings.extend(_safe_call(_check_http_cookie_flags, svc))
+        # Missing security headers (HSTS/CSP/X-Frame-Options/X-Content-Type-Options)
+        findings.extend(_safe_call(_check_security_headers, svc))
         # F203.N.1 — Python http.server directory listing
         findings.extend(_safe_call(_check_python_simplehttp_exposed, svc))
 
