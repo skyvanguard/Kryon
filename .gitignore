@@ -257,3 +257,4 @@ scripts/f18/juiceshop_sources/
 
 # Repos externos clonados para research/hunting (no parte del proyecto)
 _hunt/
+data/finetune/

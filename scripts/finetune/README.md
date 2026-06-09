@@ -40,14 +40,25 @@ docker start kryon-llama         # restore inference
 | `Dockerfile.train` | training image (kryon-train) | done |
 | `requirements-finetune.txt` | HF QLoRA stack | done |
 | `smoke_test.py` | Fase 0 sm_120 gate | done ✅ |
-| `convert_dataset.py` | T-C-O / public sets → Kryon chat format | TODO (Fase 1) |
+| `convert_dataset.py` | T-C-O → Kryon `run_command` tool-call chat format + STOP turn | **done** (Pentest-R1) |
 | `train_qlora.py` | QLoRA SFT (Qwen3-8B + LoRA via trl SFTTrainer) | TODO (Fase 2) |
 | `eval_behaviour.py` | loop-rate / convergence / mode-respect + CyberGym | TODO (Fase 3) |
 
-## Next (Fase 1 — data curation, the 80%)
+## Fase 1 — data curation (in progress)
 
-1. Pull Pentest-R1 (MIT) + glaive-function-calling-v2 + ToolACE (Apache 2.0).
-2. `convert_dataset.py`: T-C-O → OpenAI `tool_calls` chat format (matching
-   `sdk/agents/run_to_jsonl.py`), inject STOP discipline + anti-loop pairs +
-   mode-awareness → `data/finetune/{train,val}.jsonl`.
-3. Decide seq length + LoRA rank from the 11 GB headroom.
+Pentest-R1 (MIT) is converted and template-validated:
+
+```
+git clone --depth 1 https://github.com/KHenryAegis/Pentest-R1 data/finetune/pentest-r1
+python scripts/finetune/convert_dataset.py --steps data/finetune/pentest-r1/data/steps --out data/finetune
+# → 532 walkthroughs → train.jsonl (479) + val.jsonl (53) + tools.json
+#   avg 57.8 turns/example; Qwen3 apply_chat_template renders the tool_calls OK
+```
+
+Each `command` maps to a `run_command` tool_call; the `thought` is the
+assistant's reasoning content; a final **STOP turn** teaches convergence
+(anti-loop). Datasets live under `data/finetune/` (gitignored).
+
+Remaining Fase 1: glaive-fc-v2 + ToolACE (tool-format), Primus (cyber CoT),
+synthetic anti-loop negatives, mode-awareness (passive vs active) examples;
+then decide seq length + LoRA rank from the 11 GB headroom.
