@@ -1,0 +1,26 @@
+# Training image for the Qwen3-8B QLoRA fine-tune (Fase 0).
+#
+# Reuses the kryon runtime image — it already ships torch 2.12+cu130, which is
+# validated working on this Blackwell sm_120 GPU (gate 1: matmul on cuda OK).
+# That avoids re-downloading/rebuilding torch. The runtime venv was built with
+# uv and ships NO pip, so we bootstrap pip into it, then add the HF QLoRA stack.
+#
+# Build from the repo root:
+#   docker build -f scripts/finetune/Dockerfile.train -t kryon-train .
+# Run the smoke gate (needs the GPU; stop kryon-llama first to free VRAM):
+#   docker run --rm --gpus all kryon-train
+FROM docker-kryon
+USER root
+WORKDIR /train
+
+# Bootstrap pip into the uv-built venv (no pip/ensurepip present).
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
+    && python /tmp/get-pip.py --break-system-packages \
+    && rm /tmp/get-pip.py \
+    && python -m pip --version
+
+COPY scripts/finetune/requirements-finetune.txt /train/
+RUN python -m pip install --no-cache-dir --break-system-packages -r requirements-finetune.txt
+
+COPY scripts/finetune/ /train/
+CMD ["python", "smoke_test.py"]
