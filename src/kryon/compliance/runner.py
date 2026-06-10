@@ -363,9 +363,21 @@ def _import_all_checks() -> None:
 
         from kryon.compliance.cis import register_framework
 
-        yaml_path = Path(__file__).resolve().parent / "cis" / "frameworks" / "pci-dss-4.0.yaml"
-        if yaml_path.exists():
-            register_framework(yaml_path)
+        frameworks_dir = Path(__file__).resolve().parent / "cis" / "frameworks"
+        # PCI baseline + the LATAM/banking frameworks (BCP Res. 12/2021, SWIFT
+        # CSP, ATM disposition, core-banking). The YAMLs ship real deterministic
+        # commands; registering them makes `run_compliance_audit(framework=...)`
+        # able to dispatch BCP-/SWIFT-/ATM-/CBH- controls — the regulatory moat.
+        for stem in (
+            "pci-dss-4.0",
+            "bcp-py-res-12-2021",
+            "swift-csp-2024",
+            "atm-security-bcp-2024",
+            "core-banking-hardening",
+        ):
+            yaml_path = frameworks_dir / f"{stem}.yaml"
+            if yaml_path.exists():
+                register_framework(yaml_path)
     except Exception:
         # YAML framework optional — runner stays usable with hand-written
         # checks even if the loader/parsing fails for any reason.

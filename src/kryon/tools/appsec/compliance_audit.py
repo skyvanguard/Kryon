@@ -48,6 +48,18 @@ _FRAMEWORK_PREFIX = {
     "tomcat": ("TOMCAT-",),  # F200.A Apache Tomcat audit
     "apache-tomcat": ("TOMCAT-",),
     "coyote": ("TOMCAT-",),
+    # LATAM / banking regulatory frameworks (YAML-defined, real deterministic
+    # commands). This is the regulatory moat — local frameworks global vendors
+    # don't cover.
+    "bcp-py": ("BCP-",),  # BCP Paraguay Resolución 12/2021
+    "bcp": ("BCP-",),
+    "swift-csp": ("SWIFT-",),  # SWIFT Customer Security Programme
+    "swift": ("SWIFT-",),
+    "atm-security": ("ATM-",),  # BCP PY 2024 ATM/POS disposition
+    "atm": ("ATM-",),
+    "core-banking": ("CBH-",),  # core-banking hardening baseline
+    "cbh": ("CBH-",),
+    "banking": ("BCP-", "SWIFT-", "ATM-", "CBH-"),  # everything banking-regulatory
     "all": (),
 }
 
