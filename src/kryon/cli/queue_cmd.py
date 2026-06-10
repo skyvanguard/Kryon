@@ -82,6 +82,12 @@ def add_queue_subparser(subparsers) -> argparse.ArgumentParser:
         help="Pass --client to each engage invocation",
     )
     proc.add_argument(
+        "--consolidate",
+        action="store_true",
+        help="After draining, merge all per-host findings into ONE consolidated "
+        "spreadsheet + segment summary under --out (needs --out).",
+    )
+    proc.add_argument(
         "--ssh-key",
         default="",
         help="SSH key path for compliance runner per engage invocation",
@@ -266,6 +272,24 @@ def _process_queue(args) -> int:
                     failed += 1
 
     print(f"done. succeeded={succeeded}, failed={failed}")
+
+    # F1.1 — Consolidate the per-host outputs into ONE client deliverable.
+    if getattr(args, "consolidate", False):
+        if not args.out:
+            print("  [consolidate] skipped: --consolidate needs --out", file=sys.stderr)
+        else:
+            from pathlib import Path
+
+            from kryon.reporting.consolidate import consolidate_engagement_dir
+
+            result = consolidate_engagement_dir(Path(args.out), client_name=args.client)
+            summary = result["summary"]
+            print(
+                f"  consolidated: {summary['total_findings']} findings across "
+                f"{summary['host_count']} host(s) → {result['spreadsheet']}"
+            )
+            print(f"  segment summary → {result['summary_json']}")
+
     return 0 if failed == 0 else 1
 
 
