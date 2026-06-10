@@ -47,3 +47,29 @@ def test_verdict_mode_applied_to_catalog():
 def test_exposed_service_maps_to_network_control():
     finding = SimpleNamespace(title="Redis exposed on 6379", description="open database")
     assert "1.2.1" in map_finding_to_pci_controls(finding)
+
+
+def test_f21_new_controls_present_and_auto():
+    catalog_ids = {c.id for c in PCI_DSS_V4_CONTROLS}
+    for cid in ("1.3.2", "1.4.1", "2.2.1", "2.2.4", "2.2.5", "2.2.6", "8.3.9", "10.3.1", "11.5.1"):
+        assert cid in catalog_ids, f"{cid} missing from catalog"
+        assert pci_assessment_type(cid) == "AUTO"
+
+
+def test_catalog_has_no_duplicate_ids():
+    ids = [c.id for c in PCI_DSS_V4_CONTROLS]
+    assert len(ids) == len(set(ids))
+
+
+def test_f21_keyword_mappings():
+    assert "2.2.5" in map_finding_to_pci_controls(SimpleNamespace(title="telnet enabled", description=""))
+    assert "11.5.1" in map_finding_to_pci_controls(SimpleNamespace(title="no IDS deployed", description=""))
+    assert "8.3.9" in map_finding_to_pci_controls(
+        SimpleNamespace(title="password age unlimited", description="no expiry")
+    )
+
+
+def test_coverage_grew_past_30():
+    s = pci_coverage_summary()
+    assert s["total"] >= 34
+    assert s["auto"] >= 22

@@ -206,6 +206,80 @@ PCI_DSS_V4_CONTROLS: list[ComplianceControl] = [
         testing_procedures=["Risk assessment review"],
         expected_evidence=["Risk assessment doc"],
     ),
+    # F2.1 — Additional controls Kryon assesses deterministically (map to
+    # detection categories the engage detectors already produce).
+    ComplianceControl(
+        id="1.3.2",
+        title="Outbound Traffic from CDE Restricted",
+        description="Restrict outbound traffic from the cardholder data environment",
+        category="Network Security",
+        testing_procedures=["Firewall egress review"],
+        expected_evidence=["Egress rule scan"],
+    ),
+    ComplianceControl(
+        id="1.4.1",
+        title="Network Security Controls Between Trusted/Untrusted Networks",
+        description="NSCs are implemented between trusted and untrusted networks",
+        category="Network Security",
+        testing_procedures=["Segmentation test"],
+        expected_evidence=["Segmentation scan"],
+    ),
+    ComplianceControl(
+        id="2.2.1",
+        title="Configuration Standards",
+        description="Configuration standards address all known security vulnerabilities",
+        category="System Configuration",
+        testing_procedures=["Hardening review"],
+        expected_evidence=["Hardening scan results"],
+    ),
+    ComplianceControl(
+        id="2.2.4",
+        title="Only Necessary Services Enabled",
+        description="Only necessary services, protocols, daemons, and functions are enabled",
+        category="System Configuration",
+        testing_procedures=["Service enumeration"],
+        expected_evidence=["Open-service scan"],
+    ),
+    ComplianceControl(
+        id="2.2.5",
+        title="Insecure Services/Protocols Secured",
+        description="Insecure services/protocols are removed or additional security features documented",
+        category="System Configuration",
+        testing_procedures=["Protocol analysis"],
+        expected_evidence=["Telnet/FTP/HTTP scan"],
+    ),
+    ComplianceControl(
+        id="2.2.6",
+        title="System Security Parameters",
+        description="System security parameters are configured to prevent misuse",
+        category="System Configuration",
+        testing_procedures=["Security parameter review"],
+        expected_evidence=["Hardening config scan"],
+    ),
+    ComplianceControl(
+        id="8.3.9",
+        title="Password Change Frequency",
+        description="Passwords changed at least every 90 days or dynamic analysis of posture",
+        category="Authentication",
+        testing_procedures=["Password policy review"],
+        expected_evidence=["Password age policy"],
+    ),
+    ComplianceControl(
+        id="10.3.1",
+        title="Audit Log Access Restricted",
+        description="Read access to audit logs is limited to those with a job-related need",
+        category="Logging & Monitoring",
+        testing_procedures=["Log ACL review"],
+        expected_evidence=["Log file permissions"],
+    ),
+    ComplianceControl(
+        id="11.5.1",
+        title="Intrusion Detection/Prevention",
+        description="Intrusion-detection/prevention techniques detect and alert on intrusions",
+        category="Testing",
+        testing_procedures=["IDS/IPS verification"],
+        expected_evidence=["IDS/IPS presence scan"],
+    ),
 ]
 
 # Controls Kryon assesses DETERMINISTICALLY (a real check produces a PASS/FAIL).
@@ -228,6 +302,16 @@ PCI_AUTO_CONTROLS: frozenset[str] = frozenset(
         "8.3.6",  # password complexity — policy check
         "8.4.2",  # MFA for CDE — MFA config check
         "10.2.1",  # audit trails — logging check
+        # F2.1 additions
+        "1.3.2",  # outbound CDE restriction — egress firewall review
+        "1.4.1",  # NSC trusted/untrusted — segmentation probe
+        "2.2.1",  # configuration standards — hardening scan
+        "2.2.4",  # only necessary services — open-service scan
+        "2.2.5",  # insecure services secured — telnet/ftp/http scan
+        "2.2.6",  # security parameters — hardening config scan
+        "8.3.9",  # password change frequency — policy check
+        "10.3.1",  # audit log access restricted — log file permissions
+        "11.5.1",  # IDS/IPS — presence detection
     }
 )
 
@@ -265,7 +349,17 @@ def pci_coverage_summary() -> dict[str, object]:
 _PCI_KEYWORD_MAP: list[tuple[list[str], list[str]]] = [
     (["open port", "service discovery", "port scan", "unnecessary service"], ["1.1.6", "1.2.1"]),
     (["default password", "default credential", "vendor default"], ["2.2.2"]),
-    (["unencrypted", "plaintext", "http://", "telnet", "ftp"], ["2.2.7", "4.2.1"]),
+    (["unencrypted", "plaintext", "http://", "telnet", "ftp"], ["2.2.7", "4.2.1", "2.2.5"]),
+    (["unnecessary service", "open port", "exposed service", "service exposure"], ["2.2.4"]),
+    (
+        ["hardening", "security configuration", "insecure default", "default config", "security parameter"],
+        ["2.2.1", "2.2.6"],
+    ),
+    (["egress", "outbound traffic", "outbound rule"], ["1.3.2"]),
+    (["segmentation", "flat network", "network segmentation", "trusted network"], ["1.4.1"]),
+    (["password age", "password expiry", "password rotation", "90 days"], ["8.3.9"]),
+    (["log permission", "audit log access", "world-readable log", "log acl"], ["10.3.1"]),
+    (["ids", "ips", "intrusion detection", "intrusion prevention"], ["11.5.1"]),
     (["data exposure", "pan ", "card number", "sensitive data"], ["3.4.1", "3.5.1"]),
     (["weak ssl", "weak tls", "certificate", "weak cipher", "expired cert"], ["4.2.1", "4.2.2"]),
     (["malware", "trojan", "ransomware", "virus"], ["5.2.1"]),
