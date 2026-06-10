@@ -5000,6 +5000,87 @@ def _parse_ssh_arg(raw: str) -> tuple[str, str]:
     return m.group(1), m.group(2) or "22"
 
 
+def emit_post_report_artifacts(
+    *,
+    findings: list,
+    out_dir: Path,
+    engagement_id: str,
+    client: str,
+    auditor: str,
+    do_sign: bool,
+    paths: dict[str, str],
+    trend_base_dir: Path | None = None,
+) -> list[str]:
+    """F3.3/F2.4/F3.2 — emit trend log, evidence appendix and (optional) signed
+    PDFs after the report is rendered. Mutates ``paths`` with any new files and
+    returns human-readable status messages. Never raises — a reporting add-on
+    must not abort an engagement.
+
+    ``trend_base_dir`` overrides the trend-log location (tests); production uses
+    the per-client log under ``~/.kryon/trends``.
+    """
+    messages: list[str] = []
+
+    # F3.3 — record severity counts to the client trend log; emit a trend
+    # section once there's history (>= 2 runs).
+    try:
+        from kryon.reporting.trending import (
+            build_trend,
+            format_trend_markdown,
+            load_trend,
+            record_trend_point,
+        )
+
+        by_severity: dict[str, int] = {}
+        for f in findings:
+            sev = str(getattr(f, "severity", "") or "").upper()
+            if sev:
+                by_severity[sev] = by_severity.get(sev, 0) + 1
+        if client:
+            record_trend_point(client, datetime.now(timezone.utc).isoformat(), by_severity, base_dir=trend_base_dir)
+            trend = build_trend(load_trend(client, base_dir=trend_base_dir))
+            if trend.get("runs", 0) >= 2:
+                trend_path = out_dir / f"kryon-{engagement_id}-trend.md"
+                trend_path.write_text(format_trend_markdown(trend), encoding="utf-8")
+                paths["trend"] = str(trend_path)
+                messages.append(
+                    f"trend {trend['direction']} (Δ crit/high {trend['delta_critical_high']:+d} "
+                    f"over {trend['runs']} runs)"
+                )
+    except Exception as exc:  # pragma: no cover — trending must never abort a run
+        messages.append(f"trend skipped: {exc}")
+
+    # F2.4 — evidence appendix if artifacts were attached to this engagement.
+    try:
+        from kryon.evidence.store import EvidenceStore, render_appendix_markdown
+
+        appendix = render_appendix_markdown(EvidenceStore(out_dir))
+        if appendix:
+            appendix_path = out_dir / f"kryon-{engagement_id}-evidence.md"
+            appendix_path.write_text(appendix, encoding="utf-8")
+            paths["evidence_appendix"] = str(appendix_path)
+    except Exception as exc:  # pragma: no cover
+        messages.append(f"evidence appendix skipped: {exc}")
+
+    # F3.2 — sign the PDF deliverables (detached Ed25519 sidecars).
+    if do_sign:
+        try:
+            from kryon.reporting.signing import ReportSigner
+
+            signer = ReportSigner()
+            sign_ts = datetime.now(timezone.utc).isoformat()
+            for key in ("pdf_multi", "pdf"):
+                pdf = paths.get(key)
+                if pdf and Path(pdf).exists():
+                    sidecar = signer.sign_file(Path(pdf), signer=auditor or "Kryon", timestamp=sign_ts)
+                    paths[f"{key}_sig"] = str(sidecar)
+                    messages.append(f"signed {key} → {sidecar.name}")
+        except Exception as exc:  # pragma: no cover
+            messages.append(f"signing skipped: {exc}")
+
+    return messages
+
+
 def run_engage(args: argparse.Namespace) -> int:
     """Entry point from the CLI dispatcher."""
     from rich.console import Console
@@ -5647,6 +5728,20 @@ def run_engage(args: argparse.Namespace) -> int:
         filename_stem=f"kryon-{engagement_id}",
     )
     paths.update(demo_paths)
+
+    # F3.3/F2.4/F3.2 — post-report artifacts: client trend log, evidence
+    # appendix, optional Ed25519 signing. Glue is in a tested helper.
+    for msg in emit_post_report_artifacts(
+        findings=findings,
+        out_dir=out_dir,
+        engagement_id=engagement_id,
+        client=args.client or "",
+        auditor=args.auditor or "Kryon",
+        do_sign=getattr(args, "sign", False),
+        paths=paths,
+    ):
+        console.print(f"  [dim]{msg}[/dim]")
+
     for k, v in paths.items():
         console.print(f"  [green]{k}[/green] → {v}")
 
@@ -5753,6 +5848,11 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
         default="",
         help="F1.4 — Resolve SSH user/host/password/key from a stored named credential "
         "(see `kryon credential add`). CLI --ssh* flags override the vault.",
+    )
+    p.add_argument(
+        "--sign",
+        action="store_true",
+        help="F3.2 — Sign the PDF deliverables with a detached Ed25519 signature (.sig.json).",
     )
     # F202.W — DB creds opcionales para deep audit MySQL (config interna
     # via SHOW VARIABLES). Sin esto solo se emite el rule_id genérico
