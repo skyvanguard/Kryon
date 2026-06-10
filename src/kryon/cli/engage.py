@@ -5545,6 +5545,16 @@ def run_engage(args: argparse.Namespace) -> int:
 
             baseline_diff = compute_diff(previous_findings_for_diff, findings)
             console.print(f"  [cyan]Δ[/cyan] {format_diff_summary(baseline_diff)}")
+
+            # Q2 — Alert on drift (NEW/CHANGED since last run) via the
+            # env-configured channel. Opt-in: only fires when --notify-drift is
+            # set, so a normal one-shot audit stays quiet. Best-effort.
+            if getattr(args, "notify_drift", False) and baseline_diff.has_changes:
+                from kryon.notifications.drift_alert import notify_drift
+
+                res = notify_drift(baseline_diff, target, client=args.client or "")
+                if res is not None and getattr(res, "ok", False):
+                    console.print("  [cyan]drift alert sent[/cyan]")
         except Exception as exc:  # pragma: no cover
             console.print(f"  [dim]baseline diff skipped: {exc}[/dim]")
 
@@ -5853,6 +5863,12 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
         "--sign",
         action="store_true",
         help="F3.2 — Sign the PDF deliverables with a detached Ed25519 signature (.sig.json).",
+    )
+    p.add_argument(
+        "--notify-drift",
+        action="store_true",
+        help="Q2 — Send a drift alert (NEW/CHANGED findings vs the baseline) via the "
+        "env-configured channel (KRYON_SLACK_WEBHOOK / KRYON_EMAIL_*). For continuous monitoring.",
     )
     # F202.W — DB creds opcionales para deep audit MySQL (config interna
     # via SHOW VARIABLES). Sin esto solo se emite el rule_id genérico

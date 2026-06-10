@@ -45,6 +45,17 @@ def add_schedule_subparser(subparsers) -> argparse.ArgumentParser:
 
     runner = sub.add_parser("run-due", help="Run every job whose cron matches now")
     runner.add_argument("--dry-run", action="store_true", help="Print what would run; don't fork engage")
+    runner.add_argument(
+        "--watch",
+        action="store_true",
+        help="Q2 — Stay running as a continuous monitor: check due jobs every --interval seconds.",
+    )
+    runner.add_argument("--interval", type=int, default=60, help="Seconds between checks in --watch mode (default 60)")
+    runner.add_argument(
+        "--notify-drift",
+        action="store_true",
+        help="Q2 — Pass --notify-drift to each engage so scheduled runs alert on drift.",
+    )
 
     return p
 
@@ -64,7 +75,7 @@ def _format_table(jobs) -> str:
     return "\n".join(lines)
 
 
-def _run_engage_for_job(job: ScheduledJob, *, dry_run: bool) -> int:
+def _run_engage_for_job(job: ScheduledJob, *, dry_run: bool, notify_drift: bool = False) -> int:
     """Spawn ``kryon engage`` with the job's params. Honest subprocess
     fork — the parent doesn't need to import the engage module."""
     cmd = [
@@ -82,6 +93,8 @@ def _run_engage_for_job(job: ScheduledJob, *, dry_run: bool) -> int:
         "--dry-run-only",
         "--skip-reaudit",
     ]
+    if notify_drift:
+        cmd.append("--notify-drift")
     if job.objective:
         cmd.extend(["--objective", job.objective])
     if dry_run:
@@ -131,23 +144,47 @@ def run_schedule_command(args) -> int:
         return 0
 
     if action == "run-due":
-        due = sched.due_jobs()
-        if not due:
-            print("(no jobs due right now)")
-            return 0
-        print(f"running {len(due)} due job(s)")
-        any_failed = False
-        for j in due:
-            print(f"\n→ {j.job_id}  target={j.target}  cron={j.cron}")
-            rc = _run_engage_for_job(j, dry_run=args.dry_run)
-            if rc == 0 and not args.dry_run:
-                sched.mark_run(j.job_id)
-            elif rc != 0:
-                any_failed = True
-                print(f"  [warn] exit {rc}", file=sys.stderr)
-        if not args.dry_run:
-            sched.save()
-        return 1 if any_failed else 0
+        if getattr(args, "watch", False):
+            return _watch_loop(args)
+        return _run_due_once(sched, dry_run=args.dry_run, notify_drift=getattr(args, "notify_drift", False))
 
     print(f"schedule: unknown action '{action}'", file=sys.stderr)
     return 2
+
+
+def _run_due_once(sched, *, dry_run: bool, notify_drift: bool) -> int:
+    """Run every job whose cron matches now. Returns 1 if any job failed."""
+    due = sched.due_jobs()
+    if not due:
+        print("(no jobs due right now)")
+        return 0
+    print(f"running {len(due)} due job(s)")
+    any_failed = False
+    for j in due:
+        print(f"\n→ {j.job_id}  target={j.target}  cron={j.cron}")
+        rc = _run_engage_for_job(j, dry_run=dry_run, notify_drift=notify_drift)
+        if rc == 0 and not dry_run:
+            sched.mark_run(j.job_id)
+        elif rc != 0:
+            any_failed = True
+            print(f"  [warn] exit {rc}", file=sys.stderr)
+    if not dry_run:
+        sched.save()
+    return 1 if any_failed else 0
+
+
+def _watch_loop(args) -> int:
+    """Q2 — Continuous monitor: re-check due jobs every --interval seconds until
+    interrupted. Reloads the schedule each tick so edits are picked up live."""
+    import time
+
+    interval = max(5, int(getattr(args, "interval", 60)))
+    print(f"watching schedule every {interval}s (Ctrl-C to stop)")
+    try:
+        while True:
+            sched = Scheduler.load()
+            _run_due_once(sched, dry_run=args.dry_run, notify_drift=getattr(args, "notify_drift", False))
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print("\nstopped.")
+        return 0
