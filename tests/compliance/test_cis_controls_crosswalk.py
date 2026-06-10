@@ -100,3 +100,24 @@ class TestAuditCisControls:
         assert s["auto_covered"] >= 2
         assert s["manual_required"] == 153 - s["auto_covered"]
         assert s["auto_fail"] >= 1  # 2.2.2 FAIL → CIS-4.7
+
+
+def test_f31_expansion_covers_at_least_43_safeguards():
+    """F3.1 — the crosswalk derives >= 43 distinct AUTO safeguards (was 32)."""
+    covered: set[str] = set()
+    for sgs in CHECK_TO_SAFEGUARD.values():
+        covered.update(sgs)
+    assert len(covered) >= 43
+
+
+def test_f31_new_safeguards_present():
+    covered: set[str] = set()
+    for sgs in CHECK_TO_SAFEGUARD.values():
+        covered.update(sgs)
+    for sg in ("4.9", "5.1", "6.3", "13.2", "10.6", "13.10", "12.5", "3.12", "3.3", "13.4", "13.7"):
+        assert sg in covered, f"F3.1 safeguard {sg} not covered"
+
+
+def test_f31_mappings_are_valid_safeguards():
+    """No invented safeguard ids — every crosswalk target is a real v8.1 id."""
+    assert validate_crosswalk() == []

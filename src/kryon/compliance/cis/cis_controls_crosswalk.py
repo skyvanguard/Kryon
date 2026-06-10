@@ -175,6 +175,30 @@ CHECK_TO_SAFEGUARD: dict[str, list[str]] = {
     "MQTT-1.1": ["4.7"],  # MQTT anonymous connect
 }
 
+# F3.1 — Additional safeguards that EXISTING checks already evidence. Kept
+# separate (merged below) so the provenance of the v8.1 coverage expansion is
+# explicit. Each mapping is defensible from the check's actual evidence, not
+# padding — invalid safeguard ids are caught by validate_crosswalk().
+_F31_EXTRA: dict[str, list[str]] = {
+    "FGT-2.4": ["4.9"],  # internal DNS resolvers → configure trusted DNS servers
+    "AD-3.1": ["5.1"],  # Domain Admins enumeration → account inventory evidence
+    "FGT-3.2": ["6.3"],  # SSL VPN MFA → MFA for externally-exposed apps
+    "UNF-1.3": ["6.3"],  # controller admin 2FA → MFA for externally-exposed apps
+    "WIN-2.1": ["13.2", "10.6"],  # Defender RTP → host IDS + centrally managed AV
+    "FGT-5.2": ["13.10", "10.6"],  # FortiGuard IPS/AV → app-layer filtering + central AV
+    "UNF-3.3": ["12.5"],  # RADIUS → centralize network AAA
+    "UNF-3.1": ["3.12"],  # mgmt/guest VLAN → segment data processing by sensitivity
+    "UNF-3.2": ["3.12"],  # corp/guest VLAN separation → segment by sensitivity
+    "10.3.1": ["3.3"],  # protect audit logs → configure data access control lists
+    "PVE-4.1": ["13.4"],  # datacenter firewall default-deny → traffic filtering between segments
+    "WIN-4.2": ["13.7"],  # EDR behaviour detection → host-based intrusion prevention
+}
+for _cid, _extra in _F31_EXTRA.items():
+    bucket = CHECK_TO_SAFEGUARD.setdefault(_cid, [])
+    for _sg in _extra:
+        if _sg not in bucket:
+            bucket.append(_sg)
+
 # Verdict precedence for aggregation (fail-closed).
 _PRECEDENCE = {"FAIL": 3, "ERROR": 2, "PASS": 1, "N/A": 0}
 
