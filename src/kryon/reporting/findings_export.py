@@ -22,6 +22,7 @@ COLUMNS: tuple[str, ...] = (
     "id",
     "title",
     "severity",
+    "cvss",
     "framework",
     "control",
     "host",
@@ -43,6 +44,7 @@ _COL_WIDTH: dict[str, int] = {
     "id": 16,
     "title": 42,
     "severity": 12,
+    "cvss": 8,
     "framework": 14,
     "control": 14,
     "host": 18,
@@ -61,6 +63,7 @@ class FindingRow:
     id: str
     title: str
     severity: str
+    cvss: str
     framework: str
     control: str
     host: str
@@ -76,13 +79,22 @@ def _s(obj: Any, attr: str, default: str = "") -> str:
     return str(getattr(obj, attr, default) or default)
 
 
+def _cvss_cell(severity: str) -> str:
+    from kryon.compliance.cvss import cvss_score_for_severity
+
+    score = cvss_score_for_severity(severity)
+    return f"{score:.1f}" if score else ""
+
+
 def from_check_result(result: Any, framework: str = "") -> FindingRow:
     """Adapt a compliance ``CheckResult`` into a client row."""
     evidence = (_s(result, "evidence_stdout") or _s(result, "evidence_command"))[:_EVIDENCE_CAP]
+    severity = _s(result, "severity").upper()
     return FindingRow(
         id=_s(result, "control_id"),
         title=_s(result, "control_title")[:_TITLE_CAP],
-        severity=_s(result, "severity").upper(),
+        severity=severity,
+        cvss=_cvss_cell(severity),
         framework=framework,
         control=_s(result, "control_id"),
         host=_s(result, "host"),
@@ -94,10 +106,12 @@ def from_check_result(result: Any, framework: str = "") -> FindingRow:
 
 def from_engage_finding(finding: Any) -> FindingRow:
     """Adapt an offensive ``engage.Finding`` into a client row."""
+    severity = _s(finding, "severity").upper()
     return FindingRow(
         id=_s(finding, "rule_id"),
         title=_s(finding, "message")[:_TITLE_CAP],
-        severity=_s(finding, "severity").upper(),
+        severity=severity,
+        cvss=_cvss_cell(severity),
         framework="",
         control=_s(finding, "cwe"),
         host=_s(finding, "host") or _s(finding, "target_host"),
@@ -110,10 +124,15 @@ def from_engage_finding(finding: Any) -> FindingRow:
 def from_intel_finding(finding: Any) -> FindingRow:
     """Adapt an ``intelligence.models.Finding`` (used by ``kryon report``) into
     a client row. That model uses id/title/description/affected_asset/cve."""
+    severity = _s(finding, "severity").upper()
+    # Respect a measured CVSS if the finding carries one; else derive from severity.
+    measured = getattr(finding, "cvss_score", 0) or 0
+    cvss = f"{float(measured):.1f}" if measured else _cvss_cell(severity)
     return FindingRow(
         id=_s(finding, "id"),
         title=_s(finding, "title")[:_TITLE_CAP],
-        severity=_s(finding, "severity").upper(),
+        severity=severity,
+        cvss=cvss,
         framework=_s(finding, "tool_source"),
         control=_s(finding, "cve") or _s(finding, "mitre"),
         host=_s(finding, "affected_asset"),
