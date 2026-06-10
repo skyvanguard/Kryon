@@ -2140,7 +2140,7 @@ def main():
     report_parser.add_argument(
         "--type", default="technical", choices=["executive", "technical", "compliance"], help="Report type"
     )
-    report_parser.add_argument("--format", default="html", choices=["html", "pdf"], help="Output format")
+    report_parser.add_argument("--format", default="html", choices=["html", "pdf", "csv", "xlsx"], help="Output format")
     report_parser.add_argument("--client", default="", help="Client name")
     report_parser.add_argument("--scope", default="", help="Target scope")
     report_parser.add_argument("--compliance", action="append", default=[], help="Compliance framework (repeatable)")
@@ -2385,6 +2385,19 @@ def main():
             with open(args.findings, encoding="utf-8") as f:
                 raw = json_mod.load(f)
             findings = [Finding(**item) for item in raw]
+
+        # Tabular export (client tracking spreadsheets) bypasses HTML generation.
+        if args.format in ("csv", "xlsx"):
+            from kryon.reporting.findings_export import export_findings, from_intel_finding
+
+            rows = [from_intel_finding(f) for f in findings]
+            try:
+                path = export_findings(rows, fmt=args.format, client_name=args.client, report_type=args.type)
+            except RuntimeError as exc:  # openpyxl missing for xlsx
+                print(color(str(exc), fg="red"))
+                sys.exit(1)
+            print(color(f"Report saved: {path} ({len(rows)} findings)", fg="green"))
+            return
 
         config = ReportConfig(
             report_type=ReportType(args.type),
