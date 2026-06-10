@@ -2217,6 +2217,7 @@ def main():
     from kryon.cli.discover_cmd import add_discover_subparser
     from kryon.cli.doctor_cmd import add_doctor_subparser, add_heartbeat_subparser
     from kryon.cli.queue_cmd import add_queue_subparser
+    from kryon.cli.retest_cmd import add_retest_subparser
     from kryon.cli.sweep_cmd import add_sweep_subparser
     from kryon.cli.update_skills_cmd import add_update_skills_subparser
 
@@ -2225,6 +2226,7 @@ def main():
     add_discover_subparser(subparsers)
     add_queue_subparser(subparsers)
     add_sweep_subparser(subparsers)
+    add_retest_subparser(subparsers)
     add_approve_subparser(subparsers)
     add_digest_subparser(subparsers)
     add_update_skills_subparser(subparsers)
@@ -2352,6 +2354,10 @@ def main():
         from kryon.cli.sweep_cmd import run_sweep_command
 
         sys.exit(run_sweep_command(args))
+    if args.command == "retest":
+        from kryon.cli.retest_cmd import run_retest_command
+
+        sys.exit(run_retest_command(args))
     if args.command == "approve":
         from kryon.cli.approve_cmd import run_approve_command
 
