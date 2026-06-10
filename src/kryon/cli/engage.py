@@ -5007,6 +5007,31 @@ def run_engage(args: argparse.Namespace) -> int:
 
     console = Console()
 
+    # F1.4 — Resolve a stored named credential into the ssh args. Explicit CLI
+    # --ssh* flags win over the vault; only empty ones are filled in.
+    if getattr(args, "use_credential", ""):
+        try:
+            from kryon.onboarding.credential_store import CredentialStore
+
+            cred = CredentialStore().get(args.use_credential)
+            if cred is None:
+                console.print(f"  [red]no such credential '{args.use_credential}'[/red]")
+                return 2
+            if not args.ssh and cred.get("host"):
+                user = cred.get("user", "")
+                host = cred["host"]
+                port = cred.get("ssh_port", "")
+                args.ssh = f"{user}@{host}" if user else host
+                if port:
+                    args.ssh = f"{args.ssh}:{port}"
+            if not args.ssh_password and cred.get("password"):
+                args.ssh_password = cred["password"]
+            if not args.ssh_key and cred.get("ssh_key_path"):
+                args.ssh_key = cred["ssh_key_path"]
+            console.print(f"  [dim]using stored credential '{args.use_credential}'[/dim]")
+        except Exception as exc:  # pragma: no cover — vault errors shouldn't crash the run
+            console.print(f"  [yellow]credential resolution skipped: {exc}[/yellow]")
+
     # F85.B — Budget hardening: propagate CLI overrides into env so the
     # CostTracker (which reads KRYON_PRICE_LIMIT lazily) and the SDK
     # runner (which reads KRYON_MAX_TURNS at import) honor them. Only
@@ -5723,6 +5748,12 @@ def add_engage_subparser(subparsers) -> argparse.ArgumentParser:
         "env var also works. Implies --use-agent.",
     )
     p.add_argument("--ssh-key", default="", help="SSH private key path for compliance runner")
+    p.add_argument(
+        "--use-credential",
+        default="",
+        help="F1.4 — Resolve SSH user/host/password/key from a stored named credential "
+        "(see `kryon credential add`). CLI --ssh* flags override the vault.",
+    )
     # F202.W — DB creds opcionales para deep audit MySQL (config interna
     # via SHOW VARIABLES). Sin esto solo se emite el rule_id genérico
     # "mysql-exposed". Banking: NUNCA hardcodear; usar var KRYON_DB_PASSWORD
