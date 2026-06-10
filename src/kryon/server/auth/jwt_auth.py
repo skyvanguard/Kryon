@@ -20,6 +20,11 @@ _algorithm: str = "HS256"
 _jwt_issuer: str = "kryon"
 _jwt_audience: str = "kryon-api"
 
+# Minimum HMAC key length for HS256. NIST SP 800-117/800-175B recommends the key
+# be at least as long as the hash output (32 bytes for SHA-256). A shorter secret
+# weakens the signature; we fail loud at startup rather than accept it silently.
+_MIN_SECRET_LEN: int = 32
+
 # SQLite-backed revocation store (survives restarts)
 _revocation_db: Path | None = None
 
@@ -41,7 +46,19 @@ def _get_revocation_db() -> Path:
 
 
 def configure_jwt(secret: str, access_ttl_minutes: int = 60) -> None:
-    """Configure JWT parameters. Called at server startup."""
+    """Configure JWT parameters. Called at server startup.
+
+    An empty ``secret`` is the "unconfigured" sentinel (used to reset/disable
+    JWT, e.g. between tests) and is accepted. A NON-empty secret shorter than
+    :data:`_MIN_SECRET_LEN` is rejected with ``ValueError`` — a weak HMAC key
+    must never be accepted silently for HS256.
+    """
+    if secret and len(secret) < _MIN_SECRET_LEN:
+        raise ValueError(
+            f"JWT secret is too short ({len(secret)} chars); HS256 needs at least "
+            f"{_MIN_SECRET_LEN}. Generate one with `secrets.token_urlsafe(32)` and "
+            f"set it via KRYON_JWT_SECRET."
+        )
     global _jwt_secret, _access_ttl_minutes
     _jwt_secret = secret
     _access_ttl_minutes = access_ttl_minutes
