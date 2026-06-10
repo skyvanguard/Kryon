@@ -2217,6 +2217,7 @@ def main():
     from kryon.cli.discover_cmd import add_discover_subparser
     from kryon.cli.doctor_cmd import add_doctor_subparser, add_heartbeat_subparser
     from kryon.cli.credential_cmd import add_credential_subparser
+    from kryon.cli.evidence_cmd import add_evidence_subparser
     from kryon.cli.queue_cmd import add_queue_subparser
     from kryon.cli.retest_cmd import add_retest_subparser
     from kryon.cli.scope_cmd import add_scope_subparser
@@ -2231,6 +2232,7 @@ def main():
     add_retest_subparser(subparsers)
     add_credential_subparser(subparsers)
     add_scope_subparser(subparsers)
+    add_evidence_subparser(subparsers)
     add_approve_subparser(subparsers)
     add_digest_subparser(subparsers)
     add_update_skills_subparser(subparsers)
@@ -2370,6 +2372,10 @@ def main():
         from kryon.cli.scope_cmd import run_scope_command
 
         sys.exit(run_scope_command(args))
+    if args.command == "evidence":
+        from kryon.cli.evidence_cmd import run_evidence_command
+
+        sys.exit(run_evidence_command(args))
     if args.command == "approve":
         from kryon.cli.approve_cmd import run_approve_command
 
