@@ -49,6 +49,21 @@ EXPLOIT_VALIDATION_TOOLS = {
 }
 
 
+# Post-foothold / exploitation tools — persistent interactive shell sessions
+# plus SQLi data extraction (enumerate/dump). Same banca-safe contract as
+# EXPLOIT_VALIDATION_TOOLS: offered ONLY under KRYON_RED_TEAM (active-pentest,
+# written authorization). The compliance/banking default never sees them. The
+# matching module imports are gated under the same flag in build_tool_registry.
+POST_EXPLOITATION_TOOLS = {
+    "shell_session_start",
+    "shell_session_input",
+    "shell_session_output",
+    "shell_session_close",
+    "shell_session_list",
+    "sqlmap_dump_database",
+}
+
+
 def build_tool_registry() -> dict[str, Any]:
     """Import ALL tools from toolsets and index them by name.
     Returns dict[tool_name, Tool object].
@@ -182,6 +197,12 @@ def build_tool_registry() -> dict[str, Any]:
                 # Intrusive: benign-marker probe by default, aggressive run needs
                 # the per-tool fire env var too.
                 "kryon.tools.exploitation.web_exploit",
+                # Post-foothold tools — persistent interactive shell sessions
+                # (shell_session_*) + SQLi enumerate/dump (sqlmap_dump_database).
+                # See POST_EXPLOITATION_TOOLS. Same written-authorization
+                # contract as the rest of this block.
+                "kryon.tools.common.session_tools",
+                "kryon.tools.sqlmap_dump",
             ]
         )
     for mod_path in _extra_tools:
@@ -227,6 +248,7 @@ def select_tools(
     # banking default; that profile already requires written authorization).
     if os.environ.get("KRYON_RED_TEAM", "").strip().lower() in ("1", "true", "yes"):
         selected_names |= EXPLOIT_VALIDATION_TOOLS
+        selected_names |= POST_EXPLOITATION_TOOLS
     if forbidden_tool_names:
         selected_names -= set(forbidden_tool_names)
 
