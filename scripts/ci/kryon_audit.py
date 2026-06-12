@@ -77,7 +77,7 @@ def summarize_findings(findings: list[dict[str, Any]]) -> dict[str, int]:
     """Bucket findings by severity. Always returns the canonical five
     keys (info / low / medium / high / critical) so CI step output
     consumers don't have to guess which buckets are missing."""
-    counts: dict[str, int] = {level: 0 for level in SEVERITY_ORDER}
+    counts: dict[str, int] = dict.fromkeys(SEVERITY_ORDER, 0)
     counts["unknown"] = 0
     for f in findings:
         severity = str(f.get("severity") or "").strip().lower()

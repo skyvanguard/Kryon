@@ -75,11 +75,11 @@ def main() -> int:
     for sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"):
         if sev in by_severity:
             print(f"  {sev:8s}: {by_severity[sev]}")
-    print(f"\n--- by source module ---")
+    print("\n--- by source module ---")
     for mod in sorted(by_module.keys()):
         print(f"  {mod}: {by_module[mod]}")
 
-    print(f"\n--- top findings ---")
+    print("\n--- top findings ---")
     for f in result.findings[:25]:
         print(f"  [{f.severity:8s}] {f.source_module} {f.rule_id}  {f.title}")
         print(f"            target: {f.target}")

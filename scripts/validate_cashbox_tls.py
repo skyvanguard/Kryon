@@ -152,7 +152,7 @@ def main() -> int:
     print(f"supported_protocols: {supported}")
 
     cert = parse_cert(cert_dict, der)
-    print(f"\ncertificate:")
+    print("\ncertificate:")
     print(f"  subject_cn:  {cert.subject_common_name}")
     print(f"  issuer_cn:   {cert.issuer_common_name}")
     print(f"  not_before:  {cert.not_before}")

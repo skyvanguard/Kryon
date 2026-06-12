@@ -167,8 +167,8 @@ def main():
     if args.batch:
         all_targets = list(BANKING_CRITICAL_PRIORITY_5.items()) + list(USEFUL_PRIORITY_15.items())
         priorities = {
-            **{k: 5 for k in BANKING_CRITICAL_PRIORITY_5},
-            **{k: 15 for k in USEFUL_PRIORITY_15},
+            **dict.fromkeys(BANKING_CRITICAL_PRIORITY_5, 5),
+            **dict.fromkeys(USEFUL_PRIORITY_15, 15),
         }
         ok, fail = 0, 0
         for slug, output_name in all_targets:

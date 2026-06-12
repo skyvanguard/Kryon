@@ -31,7 +31,7 @@ def tcp_banner_grab(host: str, port: int = 7070, timeout: float = 3.0) -> str:
                 data += chunk
                 if len(data) > 2048:
                     break
-        except socket.timeout:
+        except TimeoutError:
             pass
         s.close()
         return data.decode('utf-8', errors='replace')[:500]
@@ -84,7 +84,7 @@ def http_get(host: str, port: int = 7070, timeout: float = 3.0) -> str:
                 data += chunk
                 if len(data) > 4096:
                     break
-        except socket.timeout:
+        except TimeoutError:
             pass
         s.close()
         return data.decode('utf-8', errors='replace')[:600]

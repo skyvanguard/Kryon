@@ -2212,11 +2212,11 @@ def main():
     # --- Sprint D wirings (F139-F148) ---
     from kryon.cli.api_cmd import add_api_subparser
     from kryon.cli.approve_cmd import add_approve_subparser
+    from kryon.cli.credential_cmd import add_credential_subparser
     from kryon.cli.cve_cache_cmd import add_cve_cache_subparser
     from kryon.cli.digest_cmd import add_digest_subparser
     from kryon.cli.discover_cmd import add_discover_subparser
     from kryon.cli.doctor_cmd import add_doctor_subparser, add_heartbeat_subparser
-    from kryon.cli.credential_cmd import add_credential_subparser
     from kryon.cli.evidence_cmd import add_evidence_subparser
     from kryon.cli.queue_cmd import add_queue_subparser
     from kryon.cli.retest_cmd import add_retest_subparser
