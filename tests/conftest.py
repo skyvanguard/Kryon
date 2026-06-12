@@ -70,6 +70,25 @@ def disable_real_model_clients(monkeypatch, request):
     monkeypatch.setattr(OpenAIChatCompletionsModel, "stream_response", failing_version)
 
 
+@pytest.fixture
+def isolate_vector_db(tmp_path, monkeypatch):
+    """Point the knowledge vector store at a throwaway tmp dir and reset the
+    module-level singletons, so knowledge/RAG tests never reuse (and get broken
+    by) the operator's real ``.kryon_knowledge/chromadb`` — e.g. a collection
+    persisted by a 768-dim embedder while the test default embedder yields 384.
+    Activated via autouse shims in the conftests/modules that touch the store.
+    """
+    import kryon.knowledge.rag_engine as rag_mod
+    import kryon.knowledge.simple_vector_db as svdb_mod
+
+    monkeypatch.setenv("KRYON_VECTOR_DB_DIR", str(tmp_path / "chromadb"))
+    svdb_mod._vector_db = None
+    rag_mod._rag_engine = None
+    yield
+    svdb_mod._vector_db = None
+    rag_mod._rag_engine = None
+
+
 @pytest.fixture(autouse=True)
 def relax_stuck_detector(monkeypatch, request):
     """F85.E — Most SDK tests legitimately loop the same tool call to

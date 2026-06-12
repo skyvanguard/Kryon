@@ -13,6 +13,8 @@ import codecs
 import sys
 import time
 
+import pytest
+
 # Windows UTF-8 fix
 if sys.platform == "win32":
     if hasattr(sys.stdout, "buffer"):
@@ -25,6 +27,13 @@ sys.path.insert(0, "./src")
 
 from kryon.knowledge.llm_cache import clear_llm_cache, get_llm_cache_stats
 from kryon.knowledge.rag_engine import RAGEngine
+
+
+@pytest.fixture(autouse=True)
+def _auto_isolate_vector_db(isolate_vector_db):
+    """Isolate the knowledge vector store for this module (see root conftest
+    ``isolate_vector_db``)."""
+    yield
 
 
 def print_header(title: str):

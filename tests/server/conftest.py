@@ -24,6 +24,13 @@ def _allow_unauthenticated(monkeypatch):
     monkeypatch.setenv("KRYON_ALLOW_UNAUTHENTICATED", "true")
 
 
+@pytest.fixture(autouse=True)
+def _auto_isolate_vector_db(isolate_vector_db):
+    """Isolate the knowledge vector store for every server test (see root
+    conftest ``isolate_vector_db``)."""
+    yield
+
+
 @pytest.fixture
 def server_config():
     return ServerConfig(api_keys=[])

@@ -11,6 +11,7 @@ Classification: RESTRICTED
 
 import json
 import logging
+import os
 import pickle
 import sys
 import time
@@ -488,10 +489,19 @@ class VectorDatabase:
 _vector_db = None
 
 
-def get_vector_db(persist_directory: str = ".kryon_knowledge/chromadb") -> VectorDatabase:
-    """Get global vector database instance."""
+def get_vector_db(persist_directory: str | None = None) -> VectorDatabase:
+    """Get global vector database instance.
+
+    The persist directory defaults to ``.kryon_knowledge/chromadb`` but can be
+    overridden via the ``KRYON_VECTOR_DB_DIR`` environment variable. This keeps
+    test runs from reusing (and being broken by) a real persisted store whose
+    embedder dimension differs from the current one, and lets operators relocate
+    the store.
+    """
     global _vector_db
     if _vector_db is None:
+        if persist_directory is None:
+            persist_directory = os.environ.get("KRYON_VECTOR_DB_DIR", ".kryon_knowledge/chromadb")
         _vector_db = VectorDatabase(persist_directory)
     return _vector_db
 
