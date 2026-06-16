@@ -118,39 +118,51 @@ services:
     restart: unless-stopped
     command:
       - -m
-      # Qwen3-8B (DENSE, 8B) — replaced the gpt-oss-20b MoE for interactive use.
-      # Being dense it fits whole in the 12 GB GPU (-ngl 99, NO --n-cpu-moe), so
-      # generation runs at ~65 tok/s vs the MoE's ~0.9 tok/s (CPU expert offload).
-      # Emits native tool_calls and answers directly with --reasoning-budget 0
-      # (below). Served under the same "Kryon-MOE-35B" alias so the rest of the
-      # stack is unchanged. Flip -m back to /models/gpt-oss-20b-mxfp4.gguf (and
-      # re-add --n-cpu-moe 12) to restore the MoE.
-      # NB: qwen3.5-9b-q4km.gguf in the volume over-thinks (never emits content/
-      # tool_calls, ignores --reasoning-budget 0 and /no_think) — do NOT use it.
-      - /models/qwen3-8b-q4km.gguf
+      # Devstral-Small-2-24B (Mistral, IQ3_XXS, 8.8 GB) — tool-use specialist.
+      # 24B dense does NOT fit in 12 GB with f16 KV at useful context, so the KV
+      # cache is quantized to q8_0 (below, practically lossless with -fa): that
+      # halves KV VRAM and lets -c reach 24576 (24K) at ~11.7/12 GB — enough for
+      # the unified agent's ~10K system prompt + multi-turn SAST (verified: it
+      # found JNDI/OGNL sinks live; emits native tool_calls; responds to the
+      # StuckDetector instead of looping). Served under the "Kryon-MOE-35B" alias
+      # so the rest of the stack is unchanged. To go back to the faster (but
+      # shallower) dense 8B, flip -m to /models/qwen3-8b-q4km.gguf, drop the
+      # --cache-type-k/v lines, set -c 32768 and re-add --reasoning-budget 0.
+      - /models/Devstral-Small-2-24B-IQ3_XXS.gguf
       - -ngl
       - "99"
       - -fa
       - "on"
-      # 32K context — a dense 9B's KV cache fits comfortably alongside the 5.3 GB
-      # weights in 12 GB; plenty for web investigate.
+      # KV cache q8_0 — ~50% menos VRAM del KV (practically lossless con -fa),
+      # libera espacio para subir el contexto de 12K -> 24K en 12 GB.
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - q8_0
+      # 24K context — max that fits with the 8.8 GB IQ3 weights + q8_0 KV in
+      # 12 GB; covers the ~10K system prompt with headroom for multi-turn.
       - -c
-      - "32768"
+      - "24576"
       # Generation cap — bounds a verbose CoT turn + stops history snowballing.
       - -n
       - "2000"
       # temp 0.6 — Qwen3's recommended sampling for non-thinking mode (0.3 is
       # fine too for banca-safe determinism; 0.6 balances tool-use reliability).
       - --temp
-      - "0.6"
+      - "0.15"
       # Disable Qwen3 "thinking" mode. Qwen3 models default to emitting a long
       # <think> block; left on it burns the token budget in reasoning_content
       # and delays content/tool_calls. --reasoning-budget 0 forces direct
       # answers / immediate tool use (verified: emits native tool_calls).
-      - --reasoning-budget
-      - "0"
       - --parallel
       - "1"
+      # -t 8: usar SOLO los 8 P-cores del Core Ultra 9 275HX (hibrido 8P+16E).
+      # Sin esto llama.cpp usa los 24 threads (incluidos E-cores) y la generacion
+      # con --n-cpu-moe (modelos MoE: gpt-oss-20b, qwen36-35b) cae ~10x
+      # (~38 -> ~3.5 tok/s). Verificado 2026-06-10 con el coder-30B. Inocuo para
+      # el 8B denso (GPU-bound), critico al flipear a un MoE.
+      - -t
+      - "8"
       - --jinja
       - -a
       - Kryon-MOE-35B
