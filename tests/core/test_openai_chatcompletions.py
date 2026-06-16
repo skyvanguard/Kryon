@@ -197,6 +197,52 @@ async def test_get_response_with_tool_call(monkeypatch) -> None:
     assert fn_call_item.arguments == "{'x':1}"
 
 
+@pytest.mark.allow_call_model_methods
+@pytest.mark.asyncio
+async def test_get_response_parses_multi_tool_json_in_content(monkeypatch) -> None:
+    """Local models without --jinja tool grammar (DeepHat-V1-7B) return
+    ``tool_calls: null`` and emit the call(s) as NDJSON in ``content``. On the
+    local path, ``get_response`` must recover EVERY call — the regression the
+    old first-{/last-} fallback caused (it dropped all but one)."""
+    import json as _json
+
+    content = (
+        '{"name": "run_nmap", "arguments": {"target": "10.10.10.5"}}\n'
+        '{"name": "run_sqlmap", "arguments": {"url": "http://10.10.10.5/login?id=1"}}'
+    )
+    msg = ChatCompletionMessage(role="assistant", content=content, tool_calls=None)
+    choice = Choice(index=0, finish_reason="stop", message=msg)
+    chat = ChatCompletion(
+        id="resp-id",
+        created=0,
+        model="fake",
+        object="chat.completion",
+        choices=[choice],
+        usage=None,
+    )
+
+    async def patched_fetch_response(self, *args, **kwargs):
+        return chat
+
+    monkeypatch.setattr(OpenAIChatCompletionsModel, "_fetch_response", patched_fetch_response)
+    model = OpenAIProvider(use_responses=False).get_model(kryon_model)
+    model.is_local_llm = True  # force the local-model JSON-in-content fallback
+
+    resp: ModelResponse = await model.get_response(
+        system_instructions=None,
+        input="",
+        model_settings=ModelSettings(),
+        tools=[],
+        output_schema=None,
+        handoffs=[],
+        tracing=ModelTracing.DISABLED,
+    )
+
+    fn_calls = [it for it in resp.output if isinstance(it, ResponseFunctionToolCall)]
+    assert [c.name for c in fn_calls] == ["run_nmap", "run_sqlmap"]
+    assert _json.loads(fn_calls[1].arguments) == {"url": "http://10.10.10.5/login?id=1"}
+
+
 @pytest.mark.skipif(not _has_local_model, reason="Requires local model server (ollama)")
 @pytest.mark.asyncio
 async def test_fetch_response_non_stream(monkeypatch) -> None:

@@ -1207,57 +1207,34 @@ class OpenAIChatCompletionsModel(Model):
                         msg.content = None
                         has_tool_calls = True
 
+                # JSON-in-content fallback: local templates without --jinja tool
+                # grammar (DeepHat-V1-7B, Qwen2.5 security fine-tunes) write the
+                # call(s) into content as raw JSON. parse_json_tool_calls scans
+                # for EVERY {"name","arguments"} object so multi-step NDJSON
+                # (e.g. nmap-then-sqlmap on separate lines) is preserved — the
+                # old first-{/last-} extraction silently dropped all but one.
                 if not has_tool_calls and content.strip():
-                    try:
-                        # Strip markdown code fences if present
-                        clean = content.strip()
-                        if clean.startswith("```"):
-                            # Remove ```json or ``` prefix and trailing ```
-                            lines = clean.split("\n")
-                            if lines[0].startswith("```"):
-                                lines = lines[1:]
-                            if lines and lines[-1].strip() == "```":
-                                lines = lines[:-1]
-                            clean = "\n".join(lines).strip()
+                    from kryon.sdk.agents.models.json_tool_parser import (
+                        parse_json_tool_calls,
+                    )
 
-                        json_start = clean.find("{")
-                        json_end = clean.rfind("}") + 1
-                        if json_start >= 0 and json_end > json_start:
-                            parsed = json.loads(clean[json_start:json_end])
-                            if "name" in parsed and "arguments" in parsed:
-                                logger.debug(f"Parsed tool call from Ollama text: {parsed['name']}")
-                                # Build arguments string
-                                if isinstance(parsed["arguments"], dict):
-                                    parsed["arguments"].pop("ctf", None)
-                                    args_str = json.dumps(parsed["arguments"])
-                                elif isinstance(parsed["arguments"], str):
-                                    try:
-                                        ad = json.loads(parsed["arguments"])
-                                        if isinstance(ad, dict):
-                                            ad.pop("ctf", None)
-                                        args_str = json.dumps(ad)
-                                    except Exception:
-                                        args_str = json.dumps(parsed["arguments"])
-                                else:
-                                    args_str = json.dumps(str(parsed["arguments"]))
+                    json_calls = parse_json_tool_calls(content)
+                    if json_calls:
+                        from types import SimpleNamespace
 
-                                call_id = f"call_{uuid.uuid4().hex[:8]}"
-
-                                # Inject proper tool_calls into the response
-                                from types import SimpleNamespace
-
-                                tc = SimpleNamespace(
-                                    id=call_id,
-                                    type="function",
-                                    function=SimpleNamespace(
-                                        name=parsed["name"],
-                                        arguments=args_str,
-                                    ),
-                                )
-                                msg.tool_calls = [tc]
-                                msg.content = None  # Clear text so it's not displayed as message
-                    except (json.JSONDecodeError, KeyError, TypeError):
-                        pass  # Not a valid tool call JSON, treat as normal text
+                        logger.debug("Parsed %d tool call(s) from local-model text", len(json_calls))
+                        msg.tool_calls = [
+                            SimpleNamespace(
+                                id=tc["id"],
+                                type=tc["type"],
+                                function=SimpleNamespace(
+                                    name=tc["function"]["name"],
+                                    arguments=tc["function"]["arguments"],
+                                ),
+                            )
+                            for tc in json_calls
+                        ]
+                        msg.content = None  # Clear text so it's not displayed as message
 
             # Ensure we have reasonable token counts
             if response.usage:
