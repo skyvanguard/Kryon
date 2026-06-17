@@ -109,9 +109,14 @@ def gobuster_dir(
     if extensions:
         cmd_parts.append(f"-x {extensions}")
 
-    # Exclude status codes
+    # Exclude status codes. gobuster >= 3.6 sets --status-codes-blacklist="404"
+    # by DEFAULT, which conflicts with -s ("status-codes and status-codes-blacklist
+    # are both set - please set only one"). Clear the blacklist with -b "" when we
+    # pass -s and no explicit exclude list, so positive matching works.
     if exclude_status:
         cmd_parts.append(f"-b {exclude_status}")
+    else:
+        cmd_parts.append('-b ""')
 
     # User agent
     if user_agent:

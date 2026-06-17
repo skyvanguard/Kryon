@@ -364,6 +364,163 @@ def _run_source_review_phase(code_path: str, *, max_files: int = 25) -> list:
     return [f.to_engage_finding() for f in result.findings]
 
 
+def _detect_redirect_host(url: str, *, timeout: int = 8) -> str:
+    """If GET <url> redirects (301/302) to a DIFFERENT hostname, return it.
+
+    This is how a bare-IP web target reveals its canonical vhost (e.g.
+    10.x -> creative.thm). The agent used to discover this ad-hoc; doing it
+    deterministically lets us seed /etc/hosts + vhost fuzzing reliably.
+    """
+    import urllib.error
+    import urllib.request
+    from urllib.parse import urlparse
+
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *a, **k):  # noqa: ANN001, ANN002 — stdlib signature
+            return None
+
+    loc = ""
+    try:
+        opener = urllib.request.build_opener(_NoRedirect)
+        try:
+            resp = opener.open(urllib.request.Request(url, method="GET"), timeout=timeout)
+            loc = resp.headers.get("Location", "") or ""
+        except urllib.error.HTTPError as e:
+            loc = (e.headers.get("Location", "") if e.headers else "") or ""
+    except Exception:  # noqa: BLE001 — best-effort
+        return ""
+
+    if not loc:
+        return ""
+    lh = urlparse(loc if "//" in loc else f"//{loc}").hostname or ""
+    orig = urlparse(url).hostname or ""
+    return lh if (lh and lh != orig and "." in lh) else ""
+
+
+def _add_vhost_to_hosts(hostname: str, ip: str) -> None:
+    """Best-effort: append '<ip> <hostname>' to /etc/hosts so the agent's OWN
+    tools (curl, etc.) resolve a discovered vhost. Enumeration itself does NOT
+    depend on this — it fuzzes via Host headers — so failure is non-fatal.
+
+    /etc/hosts is root-owned and investigate runs as a non-root user, so we try a
+    direct write, then sudo (no-op if unavailable)."""
+    if not hostname or not ip:
+        return
+    try:
+        with open("/etc/hosts", encoding="utf-8") as f:
+            if hostname in f.read():
+                return
+    except OSError:
+        return
+    try:
+        with open("/etc/hosts", "a", encoding="utf-8") as f:
+            f.write(f"\n{ip} {hostname}\n")
+        return
+    except OSError:
+        pass
+    try:
+        import subprocess
+
+        subprocess.run(
+            f"echo '{ip} {hostname}' | sudo -n tee -a /etc/hosts",
+            shell=True,
+            capture_output=True,
+            timeout=10,
+        )  # noqa: S602 — fixed ip/hostname from our own enumeration
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _run_web_enum_phase(url: str, *, timeout: int = 180) -> list:
+    """F-WEBENUM — Deterministic web content enumeration BEFORE the LLM.
+
+    Runs ffuf for directory + vhost/subdomain discovery with the CORRECT
+    wordlists (intelligence.web_enum), auto-adds discovered vhosts to /etc/hosts,
+    and returns engage.Finding objects so the surface is injected as ground
+    truth. Weak local agents stall picking wordlists/commands here; making it
+    deterministic is what lets them reach a foothold. Skips silently on error.
+    """
+    import ipaddress
+    import socket
+    import subprocess
+    from urllib.parse import urlparse
+
+    try:
+        from kryon.cli.engage import Finding
+        from kryon.intelligence.web_enum import run_web_enum
+    except ImportError:
+        return []
+
+    def _runner(cmd: str, t: int) -> str:
+        try:
+            return subprocess.run(
+                cmd, shell=True, capture_output=True, text=True, timeout=t
+            ).stdout  # noqa: S602 — fixed ffuf command, not user input
+        except Exception:  # noqa: BLE001
+            return ""
+
+    host = urlparse(url).hostname or ""
+    if not host:
+        return []
+
+    def _is_ip(h: str) -> bool:
+        try:
+            ipaddress.ip_address(h)
+            return True
+        except ValueError:
+            return False
+
+    ip = host if _is_ip(host) else ""
+    if not ip:
+        try:
+            ip = socket.gethostbyname(host)
+        except OSError:
+            ip = ""
+
+    # Reveal + seed the canonical vhost from a redirect (bare-IP targets).
+    vhost_domain = _detect_redirect_host(url)
+    if vhost_domain and ip:
+        _add_vhost_to_hosts(vhost_domain, ip)
+
+    try:
+        discoveries = run_web_enum(url, runner=_runner, vhost_domain=vhost_domain or None, timeout=timeout)
+    except Exception:  # noqa: BLE001
+        return []
+
+    # Auto-add discovered vhosts so every downstream tool resolves them.
+    for d in discoveries:
+        if d.kind == "vhost" and ip:
+            _add_vhost_to_hosts(d.value, ip)
+
+    findings: list = []
+    dirs = [d for d in discoveries if d.kind == "dir"]
+    vhosts = [d for d in discoveries if d.kind == "vhost"]
+    if dirs:
+        listing = ", ".join(f"/{d.value} ({d.status})" for d in dirs[:25])
+        findings.append(
+            Finding(
+                cwe="CWE-200",
+                severity="INFO",
+                host=host,
+                rule_id="WEB-ENUM-DIR",
+                message=f"{len(dirs)} path(s) discovered on {url} via ffuf (auto-calibrated)",
+                evidence=listing,
+            )
+        )
+    for v in vhosts:
+        findings.append(
+            Finding(
+                cwe="CWE-200",
+                severity="INFO",
+                host=host,
+                rule_id="WEB-ENUM-VHOST",
+                message=f"virtual host discovered: {v.value} (HTTP {v.status}) — added to /etc/hosts",
+                evidence=f"ffuf -H 'Host: {v.value}' (size {v.size})",
+            )
+        )
+    return findings
+
+
 def _run_webexploit_phase(
     url: str,
     *,
@@ -566,6 +723,30 @@ def run_investigate(args: argparse.Namespace) -> int:
                 df = None
             if df:
                 deterministic_findings.extend(df)
+
+        # F-WEBENUM — deterministic content enumeration (directories + vhosts/
+        # subdomains via ffuf, correct wordlists + auto-calibration) BEFORE the
+        # webexploit sweep + the LLM. ACTIVE only (sends many requests). Seeds
+        # /etc/hosts with discovered vhosts so downstream tools resolve them. This
+        # is the enumeration step weak local agents stall on — making it
+        # deterministic is what unblocks reaching a foothold.
+        if active:
+            _wenum_timeout = float(os.environ.get("KRYON_WEBENUM_TIMEOUT_S", "300"))
+            for u in urls_to_check:
+                if not u.lower().startswith(("http://", "https://")):
+                    continue
+                try:
+                    console.print(f"[cyan]🌐 web-enum phase:[/cyan] {u} (dirs + vhosts via ffuf)")
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _ex2:
+                        _fut2 = _ex2.submit(_run_web_enum_phase, u, timeout=int(_wenum_timeout))
+                        wf = _fut2.result(timeout=_wenum_timeout + 30)
+                    if wf:
+                        console.print(f"[cyan]🌐 web-enum:[/cyan] {len(wf)} findings en {u}")
+                        deterministic_findings.extend(wf)
+                except concurrent.futures.TimeoutError:
+                    console.print(f"[yellow]⚠ web-enum excedió {_wenum_timeout:.0f}s para {u} — saltando[/yellow]")
+                except Exception as e:  # noqa: BLE001 — never break the run
+                    console.print(f"[yellow]web-enum warning ({u}): {e}[/yellow]")
 
         # F57 webexploit sweep — ACTIVE only (sends payloads). Adds the unified
         # deterministic web-vuln coverage (SQLi/XSS/LFI/SSTI/cmd-inj/XXE/IDOR/
