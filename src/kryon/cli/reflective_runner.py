@@ -1140,6 +1140,25 @@ async def run_with_reflection(
         except Exception as e:  # noqa: BLE001
             logger.debug("planner subcall log init failed: %s", e)
 
+        # F-CTXMGMT — trim accumulated tool outputs in the history BEFORE each
+        # chunk so a long engagement doesn't snowball the context. Observed live:
+        # a 44-min web pentest grew the history to ~20K tokens, and Devstral (24B
+        # dense) re-processed all of it per turn → minutes/turn, GPU pinned. This
+        # was wired into the REPL but NOT the investigate loop. micro_compact
+        # keeps recent messages intact + head/tail of OLD large tool outputs.
+        # Kill-switch: KRYON_MICRO_COMPACT=false.
+        if os.environ.get("KRYON_MICRO_COMPACT", "true").strip().lower() != "false":
+            try:
+                model = getattr(agent, "model", None)
+                if model is not None and hasattr(model, "message_history"):
+                    from kryon.services.micro_compact import micro_compact_history
+
+                    _trimmed = micro_compact_history(model.message_history)
+                    if _trimmed:
+                        logger.debug("micro-compact trimmed %d tool output(s) before chunk", _trimmed)
+            except Exception as e:  # noqa: BLE001 — context mgmt must never break the run
+                logger.debug("micro-compact failed: %s", e)
+
         try:
             _chunk_coro = Runner.run(
                 agent,
