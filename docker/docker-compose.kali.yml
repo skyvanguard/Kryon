@@ -141,12 +141,13 @@ services:
       # 16K context — the SWEET SPOT, not 24K. Measured on the RTX 5070 Ti Laptop
       # (12 GB): at -c 24576 the KV cache fills VRAM (11.5/12 GB) and llama.cpp
       # falls back to a slow path → ~3 tok/s (engagements crawl). At -c 16384 the
-      # model fits in 10.85/12 GB and generates at ~40 tok/s — 13x faster, SAME
-      # IQ3 quality (no weight requant needed). Covers the ~10K unified system
-      # prompt + history, which micro_compact (F-CTXMGMT) keeps trimmed so 16K is
-      # enough for long multi-turn runs. Drop further only if you shrink the prompt.
+      # model sits at 11.35/12 GB (just under that threshold) and still does ~40
+      # tok/s — same IQ3 quality (no requant). NB: 16K was 60 tokens short — the
+      # ~10K system prompt + injected deterministic findings reach ~16.4K BEFORE
+      # the agent acts (micro_compact F-CTXMGMT trims history, not the prompt). 20K
+      # covers prompt+findings + trimmed history; more headroom → shrink the prompt.
       - -c
-      - "16384"
+      - "20480"
       # Generation cap — bounds a verbose CoT turn + stops history snowballing.
       - -n
       - "2000"
