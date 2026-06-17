@@ -6,6 +6,9 @@ triggers:
   keywords: ["trivy", "docker scan", "image vuln", "container cve"]
 priority: 25
 required_tools:
+  - trivy_image_scan
+  - trivy_filesystem_scan
+  - trivy_config_scan
   - run_command
 ---
 

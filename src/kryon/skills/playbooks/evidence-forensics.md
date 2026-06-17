@@ -21,6 +21,8 @@ triggers:
     - "flag"
 priority: 23
 required_tools:
+  - volatility_process_list
+  - tsk_timeline
   - run_command
 ---
 

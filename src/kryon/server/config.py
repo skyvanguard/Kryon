@@ -50,6 +50,14 @@ class ServerConfig:
         if env_rate.isdigit():
             self.rate_limit_rpm = int(env_rate)
 
+        # Allow env var override for CORS origins. The setup wizard writes
+        # KRYON_CORS_ORIGINS to .env, but nothing read it — origins silently
+        # stayed at the localhost default, so the operator couldn't actually
+        # restrict (or widen) cross-origin access. Comma-separated list.
+        env_cors = os.getenv("KRYON_CORS_ORIGINS", "")
+        if env_cors.strip():
+            self.cors_origins = [o.strip() for o in env_cors.split(",") if o.strip()]
+
         # Allow env var override for debug
         env_debug = os.getenv("KRYON_DEBUG", "").lower()
         if env_debug in ("true", "1", "yes"):

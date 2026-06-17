@@ -7,6 +7,8 @@ triggers:
   keywords: ["kubernetes", "k8s audit", "kubectl", "pod escalation", "container escape"]
 priority: 22
 required_tools:
+  - kube_hunter_scan
+  - kube_bench_scan
   - run_command
 ---
 

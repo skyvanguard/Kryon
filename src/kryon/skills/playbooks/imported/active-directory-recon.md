@@ -7,6 +7,11 @@ triggers:
   keywords: ["bloodhound", "active directory", "ad", "kerberoast", "asreproast", "ntlm", "dcsync", "domain"]
 priority: 20
 required_tools:
+  - enumerate_ad
+  - bloodhound_collect
+  - kerberoast
+  - asreproast
+  - find_attack_path
   - run_command
   - execute_code
 ---

@@ -6,6 +6,8 @@ triggers:
   keywords: ["privesc", "privilege escalation", "linpeas", "suid", "capabilities", "sudo abuse"]
 priority: 20
 required_tools:
+  - run_linpeas
+  - gtfobins_lookup
   - run_command
 ---
 

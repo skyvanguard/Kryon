@@ -26,7 +26,7 @@ pre_hooks:
       host: "{ctx.host}"
       port: 502
     inject_as: modbus_scan_result
-    required: true
+    required: false
     timeout_s: 15
 ---
 

@@ -7,6 +7,9 @@ triggers:
   keywords: ["forensic", "incident", "compromiso", "memoria", "volatility", "log analysis", "breach", "malware"]
 priority: 25
 required_tools:
+  - volatility_process_list
+  - volatility_find_malware
+  - autopsy_analyze
   - run_command
   - execute_code
 ---

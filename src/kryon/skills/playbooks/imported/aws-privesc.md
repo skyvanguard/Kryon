@@ -6,6 +6,7 @@ triggers:
   keywords: ["aws privesc", "iam privilege", "aws lateral", "ec2 role", "lambda privesc"]
 priority: 22
 required_tools:
+  - prowler_scan
   - run_command
 ---
 

@@ -6,6 +6,7 @@ triggers:
   keywords: ["dcsync", "domain replication", "krbtgt", "golden ticket"]
 priority: 22
 required_tools:
+  - dcsync_attack
   - run_command
   - execute_code
 ---

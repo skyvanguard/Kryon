@@ -7,6 +7,8 @@ triggers:
   keywords: ["osint", "shodan", "maltego", "spiderfoot", "recon-ng", "passive recon", "inteligencia", "threat intel", "whois", "certificate transparency", "crt.sh"]
 priority: 15
 required_tools:
+  - shodan_search
+  - theharvester_search
   - run_command
   - duckduckgo_search
 ---

@@ -158,6 +158,41 @@ def build_tool_registry() -> dict[str, Any]:
         # F203.BD Group 1 — banca-safe recon/RE wrappers (no RED_TEAM gate).
         # masscan/tcpdump/dnsrecon/amass/sublist3r/radare2. Read-only.
         "kryon.tools.reconnaissance.kali_recon",
+        # WIRING FIX — read-only / analytical capability branches that were
+        # defined but never registered (the registry is a hardcoded allowlist, it
+        # does NOT scan tools/**). All banca-safe: cloud posture audit, OSINT,
+        # DFIR analysis, container/k8s scanning, threat-intel correlation. None
+        # are intrusive (no exploitation, no credential access) so they need no
+        # RED_TEAM gate.
+        "kryon.tools.cloud.prowler",
+        "kryon.tools.cloud.scoutsuite",
+        "kryon.tools.cloud.pacu",
+        "kryon.tools.cloud.s3scanner",
+        "kryon.tools.cloud.cloudmapper",
+        "kryon.tools.cloud.aws_tool",
+        "kryon.tools.osint.shodan_cli",
+        "kryon.tools.osint.theharvester",
+        "kryon.tools.osint.threat_intel",
+        "kryon.tools.osint.yara_scan",
+        "kryon.tools.dfir.volatility_forensics",
+        "kryon.tools.dfir.disk_forensics",
+        "kryon.tools.dfir.log_analysis",
+        "kryon.tools.dfir.network_forensics",
+        "kryon.tools.container.trivy",
+        "kryon.tools.container.kube_hunter",
+        "kryon.tools.container.kube_bench",
+        "kryon.tools.container.docker_bench",
+        "kryon.tools.container.dockerfile_tool",
+        "kryon.tools.intelligence.intel_tools",
+        "kryon.tools.intelligence.vulnerability_correlator",
+        "kryon.tools.intelligence.vm_importers",
+        "kryon.tools.intelligence.misp_client",
+        "kryon.tools.intelligence.stix_taxii",
+        "kryon.tools.intelligence.decision_engine",
+        # F66 unified web pipeline — was built but had zero call-sites. Static
+        # analyzers ON by default (headers/cookies/CMS/JS-libs/DOM-XSS); network
+        # stages opt-in. Banca-safe default.
+        "kryon.tools.pipeline.pipeline_tool",
     ]
 
     # F203.T — red-team tools gated by KRYON_RED_TEAM=true. Banking-default
@@ -166,11 +201,12 @@ def build_tool_registry() -> dict[str, Any]:
     # `export KRYON_RED_TEAM=true` for authorized pentest engagements (Juice
     # Shop bench, bug bounty con autorización escrita, lab interno).
     #
-    # NOT included even under RED_TEAM=true (require separate approval):
-    #   - evasion/log_cleaning, anti_forensic, timestomping (destructive in prod)
-    #   - post_exploitation/credential_dumping (intrusive, requires existing access)
-    #   - lateral_movement/{ad_attacks,pivoting,pth_attacks,remote_execution}
-    #     (intrusive lateral movement)
+    # Still NOT included even under RED_TEAM=true (destructive — separate approval):
+    #   - evasion/log_cleaning, anti_forensic, timestomping (tamper/destruction)
+    # The post-exploitation / lateral-movement / AD branches below ARE now offered
+    # under RED_TEAM (intrusive, require existing access + written authorization)
+    # — they were defined but never registered, leaving the offensive agent without
+    # credential dumping, lateral movement, AD attacks, or privesc.
     if os.environ.get("KRYON_RED_TEAM", "").lower() in ("1", "true", "yes"):
         _extra_tools.extend(
             [
@@ -203,6 +239,19 @@ def build_tool_registry() -> dict[str, Any]:
                 # contract as the rest of this block.
                 "kryon.tools.common.session_tools",
                 "kryon.tools.sqlmap_dump",
+                # WIRING FIX — post-foothold offensive branches, defined but never
+                # registered. Same written-authorization contract as the rest of
+                # this block. kali_redteam (above) is imported first, so on name
+                # collisions (e.g. bloodhound_collect) it wins; these add the
+                # unique tools (kerberoast/asreproast/dcsync, LSASS/SAM dumping,
+                # PtH/PtT, linpeas/gtfobins, credential spray, sqlmap_scan).
+                "kryon.tools.post_exploitation.credential_dumping",
+                "kryon.tools.post_exploitation.lateral_movement",
+                "kryon.tools.lateral_movement.ad_attacks",
+                "kryon.tools.lateral_movement.pth_attacks",
+                "kryon.tools.privilege_escalation.linux_privesc",
+                "kryon.tools.password_cracking.smart_attacks",
+                "kryon.tools.web.sqlmap",
             ]
         )
     for mod_path in _extra_tools:

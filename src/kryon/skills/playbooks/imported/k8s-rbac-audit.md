@@ -20,6 +20,7 @@ triggers:
     - "auditing-kubernetes-cluster-rbac"
 priority: 5
 required_tools:
+  - kube_hunter_scan
   - run_command
 ---
 

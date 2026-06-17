@@ -6,6 +6,9 @@ triggers:
   keywords: ["s3", "aws bucket", "bucket audit", "s3 misconfig"]
 priority: 20
 required_tools:
+  - s3scanner_scan
+  - audit_s3_config
+  - s3_bucket_finder
   - run_command
 ---
 

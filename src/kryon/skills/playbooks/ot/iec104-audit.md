@@ -14,7 +14,7 @@ triggers:
     - "subestacion"
     - "ande"
     - "endesa"
-    - "endeesa"
+    - ""
     - "edesur"
     - "iec 62351"
 priority: 15
@@ -27,7 +27,7 @@ pre_hooks:
       host: "{ctx.host}"
       port: 2404
     inject_as: iec104_probe_result
-    required: true
+    required: false
     timeout_s: 15
 ---
 

@@ -26,7 +26,7 @@ pre_hooks:
       host: "{ctx.host}"
       port: 102
     inject_as: s7_enum_result
-    required: true
+    required: false
     timeout_s: 20
 ---
 

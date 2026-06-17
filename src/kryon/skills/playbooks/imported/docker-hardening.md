@@ -6,6 +6,8 @@ triggers:
   keywords: ["docker hardening", "container security", "docker bench", "rootless container"]
 priority: 22
 required_tools:
+  - docker_bench_security
+  - audit_dockerfile_text
   - run_command
 ---
 

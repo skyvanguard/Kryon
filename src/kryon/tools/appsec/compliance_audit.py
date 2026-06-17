@@ -60,6 +60,14 @@ _FRAMEWORK_PREFIX = {
     "core-banking": ("CBH-",),  # core-banking hardening baseline
     "cbh": ("CBH-",),
     "banking": ("BCP-", "SWIFT-", "ATM-", "CBH-"),  # everything banking-regulatory
+    # OT / ICS deterministic checks (compliance/checks/ot/*). Registered in the
+    # runner but were unreachable by name — no prefix entry here, no alias below.
+    "modbus": ("MOD-",),
+    "dnp3": ("DNP3-",),
+    "s7": ("S7-",),
+    "iec104": ("IEC104-",),
+    "mqtt": ("MQTT-",),
+    "ot": ("MOD-", "DNP3-", "S7-", "IEC104-", "MQTT-"),  # all OT/ICS protocols
     "all": (),
 }
 
@@ -168,6 +176,27 @@ def run_compliance_audit(
         "tomcat": "tomcat",
         "apache-tomcat": "tomcat",
         "coyote": "tomcat",
+        # Banking-regulatory YAML frameworks — _FRAMEWORK_PREFIX had the prefixes
+        # but the alias didn't list them, so they returned "unknown framework".
+        "bcp-py": "bcp-py",
+        "bcp": "bcp-py",
+        "swift-csp": "swift-csp",
+        "swift": "swift-csp",
+        "atm-security": "atm-security",
+        "atm": "atm-security",
+        "core-banking": "core-banking",
+        "cbh": "core-banking",
+        "banking": "banking",
+        # OT / ICS protocol audits (segment-targeted).
+        "modbus": "modbus",
+        "dnp3": "dnp3",
+        "s7": "s7",
+        "iec104": "iec104",
+        "iec-104": "iec104",
+        "mqtt": "mqtt",
+        "ot": "ot",
+        "ics": "ot",
+        "scada": "ot",
         "all": "all",
     }
     # CIS Controls v8.1 is not a prefix filter — it crosswalks ALL deterministic

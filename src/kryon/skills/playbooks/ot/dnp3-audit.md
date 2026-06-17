@@ -30,7 +30,7 @@ pre_hooks:
       host: "{ctx.host}"
       port: 20000
     inject_as: dnp3_probe_result
-    required: true
+    required: false
     timeout_s: 15
 ---
 

@@ -23,7 +23,7 @@ pre_hooks:
       host: "{ctx.host}"
       port: 1883
     inject_as: mqtt_audit_result
-    required: true
+    required: false
     timeout_s: 10
 ---
 
