@@ -61,3 +61,68 @@ def test_multiple_reemitted_ids_all_get_responses():
     last = max(i for i, m in enumerate(out) if m.get("role") == "assistant" and m.get("tool_calls"))
     resp_ids = {out[j].get("tool_call_id") for j in range(last + 1, len(out)) if out[j].get("role") == "tool"}
     assert {"c1", "c2"} <= resp_ids
+
+
+# ---------------------------------------------------------------------------
+# Role alternation for strict templates (Mistral / Devstral)
+# ---------------------------------------------------------------------------
+
+
+def _no_illegal_user(out):
+    """No `user` may directly follow a `tool` or another `user`."""
+    roles = [m.get("role") for m in out]
+    for i in range(1, len(roles)):
+        if roles[i] == "user":
+            assert roles[i - 1] not in ("tool", "user"), f"user at {i} follows {roles[i - 1]}: {roles}"
+
+
+def test_user_after_tool_gets_assistant_bridge():
+    """Repro of the live britimp/investigate crash: the ReflectiveRunner injects
+    a reflection `user` right after tool results. Mistral's template raises
+    "roles must alternate ... except for tool calls and results". fix_message_list
+    must insert a bridging assistant so the turn is closed."""
+    msgs = [
+        {"role": "system", "content": "protocol"},
+        {"role": "user", "content": "audit www.britimp.com.py"},
+        _asst("c1"),
+        {"role": "tool", "tool_call_id": "c1", "content": "html home"},
+        _asst("c2"),
+        {"role": "tool", "tool_call_id": "c2", "content": "html contacto"},
+        {"role": "user", "content": "reflection: are you making progress?"},  # illegal for Mistral
+    ]
+    out = fix_message_list(msgs)
+    _no_illegal_user(out)
+    # The reflection turn itself is preserved (just bridged).
+    assert any(m.get("role") == "user" and "reflection" in (m.get("content") or "") for m in out)
+
+
+def test_consecutive_users_get_bridge():
+    msgs = [
+        {"role": "user", "content": "u1"},
+        {"role": "user", "content": "u2"},
+    ]
+    _no_illegal_user(fix_message_list(msgs))
+
+
+def test_already_alternating_history_is_unchanged():
+    msgs = [
+        {"role": "system", "content": "s"},
+        {"role": "user", "content": "u1"},
+        {"role": "assistant", "content": "a1"},
+        {"role": "user", "content": "u2"},
+    ]
+    out = fix_message_list(msgs)
+    assert [m["role"] for m in out] == ["system", "user", "assistant", "user"]
+
+
+def test_normal_tool_flow_keeps_no_bridge():
+    """A normal assistant->tool->assistant flow (model answers after the tool)
+    must NOT get a spurious bridge."""
+    msgs = [
+        {"role": "user", "content": "go"},
+        _asst("c1"),
+        {"role": "tool", "tool_call_id": "c1", "content": "r1"},
+        {"role": "assistant", "content": "done, here is the result"},
+    ]
+    out = fix_message_list(msgs)
+    assert [m["role"] for m in out] == ["user", "assistant", "tool", "assistant"]

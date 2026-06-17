@@ -269,7 +269,38 @@ def fix_message_list(messages):  # pylint: disable=R0914,R0915,R0912
         if msg.get("content") is None and not msg.get("tool_calls"):
             msg["content"] = ""
 
-    return final
+    # Stage 5: enforce user/assistant alternation for strict templates.
+    return _enforce_role_alternation(final)
+
+
+# Minimal assistant turn used to bridge an illegal user-after-tool / user-after-
+# user sequence. Strict chat templates (Mistral / Devstral) raise a jinja
+# exception ("roles must alternate user and assistant ... except for tool calls
+# and results") when a user message follows a tool result without an assistant
+# closing the turn — which is exactly what the ReflectiveRunner does when it
+# injects a reflection turn after a batch of tool calls. Permissive templates
+# (Qwen) tolerate it; this normalization makes the history valid for both.
+_BRIDGE_ASSISTANT_CONTENT = "Continúo."
+
+
+def _enforce_role_alternation(messages: list) -> list:
+    """Insert a minimal assistant turn wherever a ``user`` message directly
+    follows another ``user`` or a ``tool`` message, so the conversation keeps
+    the strict user/assistant alternation that Mistral-family templates require.
+
+    Tool-call/tool-result blocks are part of the assistant's turn, so a ``user``
+    after a ``tool`` means the assistant turn was never closed — we close it with
+    a bridge. No-op for already-alternating histories (the common case).
+    """
+    out: list = []
+    prev_role: str | None = None
+    for msg in messages:
+        role = msg.get("role")
+        if role == "user" and prev_role in ("user", "tool"):
+            out.append({"role": "assistant", "content": _BRIDGE_ASSISTANT_CONTENT})
+        out.append(msg)
+        prev_role = role
+    return out
 
 
 def get_language_from_code_block(lang_identifier):
