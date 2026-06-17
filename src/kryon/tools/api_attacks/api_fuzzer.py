@@ -323,7 +323,8 @@ def fuzz_api_endpoint(
         ],
     }
 
-    active_types = [t.strip() for t in payload_types.split(",")]
+    # Dedup: a repeated payload type re-runs its whole payload set (one curl each).
+    active_types = list(dict.fromkeys(t.strip() for t in payload_types.split(",") if t.strip()))
     results = {
         "target": url,
         "method": method,

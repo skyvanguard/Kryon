@@ -113,7 +113,13 @@ def enrich_ioc(
     logger.info("enrich_ioc called type=%s value=%s sources=%s", ioc_type, ioc_value, sources)
     results = [f"IOC Enrichment: {ioc_type} = {ioc_value}", "=" * 40]
 
-    source_list = ["virustotal", "shodan", "abuseipdb", "otx"] if sources == "all" else sources.split(",")
+    # Dedup the CSV branch: a repeated source = a duplicated external threat-intel
+    # API call (wasted quota).
+    source_list = (
+        ["virustotal", "shodan", "abuseipdb", "otx"]
+        if sources == "all"
+        else list(dict.fromkeys(s.strip() for s in sources.split(",") if s.strip()))
+    )
 
     for source in source_list:
         source = source.strip()

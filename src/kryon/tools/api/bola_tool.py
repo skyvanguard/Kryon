@@ -114,7 +114,9 @@ def detect_bola(
             }
         )
 
-    ids = [s.strip() for s in foreign_ids_csv.split(",") if s.strip()]
+    # Dedup: a repeated id would fire the same live BOLA probe twice (wasted
+    # budget, skewed counts) under fire mode.
+    ids = list(dict.fromkeys(s.strip() for s in foreign_ids_csv.split(",") if s.strip()))
     if not ids:
         return json.dumps({"error": "no foreign_ids supplied"})
     ids = ids[:max_ids_per_endpoint]

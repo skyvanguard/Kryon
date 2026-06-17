@@ -259,6 +259,9 @@ def dvr_fingerprint(target: str, ports: str = "80,443,8000,8080") -> str:
     if not port_list:
         return f"dvr_fingerprint: no valid ports in '{ports}'"
 
+    # Dedup: a repeated port = a duplicated HTTP fingerprint of the same target:port.
+    port_list = list(dict.fromkeys(port_list))
+
     results: list[DvrFingerprint] = []
     for port in port_list:
         scheme = "https" if port in (443, 8443) else "http"

@@ -118,7 +118,10 @@ def credential_spray(
     Returns:
         str: Credential spray results
     """
-    target_list = [t.strip() for t in targets.split(",") if t.strip()]
+    # Dedup: a repeated host in the CSV would run a FULL hydra credential-spray
+    # against it twice — double load and, worse, double the account-lockout risk
+    # (critical in banking engagements). Normalize before the expensive loop.
+    target_list = list(dict.fromkeys(t.strip() for t in targets.split(",") if t.strip()))
 
     if not username_list:
         username_list = "/usr/share/seclists/Usernames/top-usernames-shortlist.txt"
