@@ -20,8 +20,46 @@ from kryon.cli.queue_cmd import (
     _build_engage_argv,
     _process_queue,
     _resolve_engage_bin,
+    _run_one,
 )
 from kryon.queue import EngagementQueue
+
+
+def test_run_one_timeout_kills_child_and_reports_124(monkeypatch):
+    """A wedged `kryon engage` child must be killed at the wall timeout, not hang
+    the worker (and thus the parallel pool's __exit__). _run_one returns exit 124
+    and forwards the budget to subprocess.run."""
+    import kryon.cli.queue_cmd as qc
+
+    def _fake_run(argv, **kwargs):
+        assert kwargs.get("timeout") == 5  # budget forwarded to the child
+        raise subprocess.TimeoutExpired(cmd=argv, timeout=5)
+
+    monkeypatch.setattr(qc.subprocess, "run", _fake_run)
+    iid, rc, err = _run_one(["kryon", "engage"], "item-1", timeout=5)
+    assert iid == "item-1"
+    assert rc == 124
+    assert "timed out" in err
+
+
+def test_run_one_forwards_timeout_on_success(monkeypatch):
+    """The per-item timeout reaches subprocess.run on the happy path too."""
+    import kryon.cli.queue_cmd as qc
+
+    captured: dict = {}
+
+    class _Proc:
+        returncode = 0
+        stderr = ""
+
+    def _fake_run(argv, **kwargs):
+        captured["timeout"] = kwargs.get("timeout")
+        return _Proc()
+
+    monkeypatch.setattr(qc.subprocess, "run", _fake_run)
+    iid, rc, _ = _run_one(["x"], "i", timeout=3600)
+    assert captured["timeout"] == 3600
+    assert rc == 0
 
 
 @pytest.fixture

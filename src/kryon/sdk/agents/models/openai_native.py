@@ -31,6 +31,7 @@ coupling is tracked separately (P1: extract a litellm-free base module).
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -52,6 +53,27 @@ if TYPE_CHECKING:
     from ..items import TResponseInputItem
     from ..tool import Tool
     from .interface import ModelTracing
+
+
+# Transient-fault retry policy for the native call. A local llama.cpp server can
+# answer 5xx mid-run (overload, or "Failed to parse tool call arguments" when the
+# model emits a malformed tool_call); a single one used to abort engage/REPL runs.
+_TRANSIENT_RETRIES = 2
+_TRANSIENT_BACKOFF_S = 1.5
+
+
+def _is_transient_model_error(e: Exception) -> bool:
+    """True for faults worth a short-backoff retry: HTTP 5xx, connection/timeout
+    blips, or a local model's malformed-tool_call parse error (a 500 from
+    llama.cpp). Deterministic parse errors may recur, but with temp>0 a retry can
+    re-sample a valid tool_call, and genuine 5xx overload clears on retry."""
+    name = type(e).__name__.lower()
+    msg = str(e).lower()
+    if getattr(e, "status_code", None) in (500, 502, 503, 504):
+        return True
+    if any(k in name for k in ("internalservererror", "apiconnectionerror", "apitimeout")):
+        return True
+    return "parse tool call" in msg or "failed to parse tool call" in msg
 
 
 class OpenAINativeModel(OpenAIChatCompletionsModel):
@@ -129,23 +151,33 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
         client = self._get_client()
 
         async def _create():
-            """Single native call, with the one litellm-path workaround worth
-            keeping: if the provider rejects an over-long tool_call_id, truncate
-            all ids to 40 chars and retry once."""
-            try:
-                return await client.chat.completions.create(**kwargs)
-            except Exception as e:  # noqa: BLE001
-                msg = str(e)
-                if "tool_call_id" in msg and ("maximum length" in msg or "string too long" in msg):
-                    for m in kwargs.get("messages", []):
-                        tcid = m.get("tool_call_id")
-                        if isinstance(tcid, str) and len(tcid) > 40:
-                            m["tool_call_id"] = tcid[:40]
-                        for tc in m.get("tool_calls", []) or []:
-                            if isinstance(tc, dict) and isinstance(tc.get("id"), str) and len(tc["id"]) > 40:
-                                tc["id"] = tc["id"][:40]
+            """Single native call, with two recovery paths worth keeping:
+            1. over-long tool_call_id → truncate all ids to 40 chars and retry once;
+            2. transient server faults (5xx, a local model's malformed-tool_call
+               parse error, connection blips) → short-backoff retry instead of
+               aborting. A single 500 "Failed to parse tool call arguments" used to
+               kill engage / REPL runs outright (the reflective_runner nudge only
+               covers `kryon investigate`); this is the common adapter layer so the
+               safety net reaches every call site."""
+            for _attempt in range(_TRANSIENT_RETRIES + 1):
+                try:
                     return await client.chat.completions.create(**kwargs)
-                raise
+                except Exception as e:  # noqa: BLE001
+                    msg = str(e)
+                    if "tool_call_id" in msg and ("maximum length" in msg or "string too long" in msg):
+                        for m in kwargs.get("messages", []):
+                            tcid = m.get("tool_call_id")
+                            if isinstance(tcid, str) and len(tcid) > 40:
+                                m["tool_call_id"] = tcid[:40]
+                            for tc in m.get("tool_calls", []) or []:
+                                if isinstance(tc, dict) and isinstance(tc.get("id"), str) and len(tc["id"]) > 40:
+                                    tc["id"] = tc["id"][:40]
+                        return await client.chat.completions.create(**kwargs)
+                    if _attempt < _TRANSIENT_RETRIES and _is_transient_model_error(e):
+                        await asyncio.sleep(_TRANSIENT_BACKOFF_S * (_attempt + 1))
+                        continue
+                    raise
+            raise RuntimeError("unreachable")  # pragma: no cover
 
         if stream:
             stream_obj = await _create()

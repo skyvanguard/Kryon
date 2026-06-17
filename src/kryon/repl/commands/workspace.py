@@ -563,6 +563,9 @@ class WorkspaceCommand(Command):
                     capture_output=True,
                     text=True,
                     check=False,
+                    # Generous cap so an arbitrary user command can't hang the REPL
+                    # forever (interactive/wedged); long jobs tune the env var.
+                    timeout=float(os.environ.get("KRYON_WORKSPACE_CMD_TIMEOUT_S", "600")),
                 )
 
                 console.print(f"[dim]$ {command}[/dim]")
@@ -605,6 +608,9 @@ class WorkspaceCommand(Command):
                 text=True,
                 check=False,
                 cwd=workspace_dir,
+                # Generous cap so an arbitrary user command can't hang the REPL
+                # forever (interactive/wedged); long jobs tune the env var.
+                timeout=float(os.environ.get("KRYON_WORKSPACE_CMD_TIMEOUT_S", "600")),
             )
 
             console.print(f"[dim]$ {command}[/dim]")

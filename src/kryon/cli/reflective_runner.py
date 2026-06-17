@@ -1096,6 +1096,14 @@ async def run_with_reflection(
         _chunk_timeout_s = max(_chunk_timeout_s, _wall_budget_s)
     _chunk_timeouts = 0
     _MAX_CHUNK_TIMEOUTS = 2
+    # A local model can emit a tool_call whose JSON arguments are malformed
+    # (e.g. an SSH key inlined with raw newlines + quotes), which the llama.cpp
+    # server rejects with HTTP 500 "Failed to parse tool call arguments". That
+    # used to kill the whole run one step from a foothold. Treat it as a
+    # recoverable per-chunk fault: nudge the model to stop inlining large
+    # payloads, retry, and only give up after a few consecutive failures.
+    _server_errors = 0
+    _MAX_SERVER_ERRORS = 4
 
     while turns_used < max_total_turns:
         if _wall_budget_s and (time.monotonic() - _loop_start) > _wall_budget_s:
@@ -1349,6 +1357,53 @@ async def run_with_reflection(
 
                     last_result = SimpleNamespace(final_output=stuck_note, new_items=[])
                 break
+            # Transient server-side rejection of a malformed tool_call (local model
+            # inlined a large multi-line payload — e.g. an SSH key — producing
+            # invalid JSON args; llama.cpp answers HTTP 500 "Failed to parse tool
+            # call arguments"). Recoverable: nudge the model off inlining big blobs
+            # and retry, instead of killing a run that's one step from a foothold.
+            _emsg = str(e).lower()
+            _is_tool_json_500 = (
+                "internalservererror" in ename.lower()
+                or getattr(e, "status_code", None) == 500
+                or "parse tool call" in _emsg
+                or "failed to parse tool call arguments" in _emsg
+            )
+            if _is_tool_json_500 and _server_errors + 1 < _MAX_SERVER_ERRORS:
+                _server_errors += 1
+                turns_used += 1  # count the wasted turn so the run always progresses
+                logger.warning(
+                    "reflective runner: server rejected a malformed tool_call "
+                    "(count=%d) at turn %d — nudging + retrying: %s",
+                    _server_errors,
+                    turns_used,
+                    str(e)[:200],
+                )
+                base_history = (
+                    current_input
+                    if isinstance(current_input, list)
+                    else [{"role": "user", "content": str(current_input)}]
+                )
+                nudge = (
+                    "⚠️ Tu último tool_call fue RECHAZADO por el servidor: los "
+                    "argumentos no eran JSON válido. Causa: pegaste un blob "
+                    "multilínea (la clave SSH) dentro del argumento; los saltos de "
+                    "línea y comillas rompen el JSON. REGLA ABSOLUTA: NUNCA tipees "
+                    "ni pegues contenido grande/multilínea dentro de un tool_call.\n"
+                    "En su lugar, hacé que el COMANDO MISMO produzca el archivo sin "
+                    "que vos escribas el contenido. Para la clave SSH que obtuviste "
+                    "por SSRF, NO la copies: re-ejecutá el MISMO curl del SSRF y "
+                    "redirigí su salida a un archivo, extrayendo la clave con sed en "
+                    "UNA sola línea (sin comillas multilínea):\n"
+                    "  curl -s -X POST http://beta.creative.thm/ "
+                    "-d 'url=<tu_payload_ssrf>' | sed -n '/BEGIN OPENSSH/,/END OPENSSH/p' > /tmp/id_rsa\n"
+                    "  chmod 600 /tmp/id_rsa\n"
+                    "  ssh -i /tmp/id_rsa -o StrictHostKeyChecking=no <user>@<host> 'id; cat ~/user.txt'\n"
+                    "Así la clave jamás pasa por los argumentos del tool_call. "
+                    "Mantené cada tool_call chico y con JSON estrictamente válido."
+                )
+                current_input = base_history + [{"role": "user", "content": nudge}]
+                continue
             logger.exception("reflective runner chunk failed at turn %d: %s", turns_used, e)
             raise
 

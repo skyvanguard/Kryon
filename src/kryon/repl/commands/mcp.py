@@ -561,7 +561,6 @@ Example: `/mcp add burp 13`
             # Try to get existing loop
             asyncio.get_running_loop()
             # If we're in a loop, we need to use a different approach
-            import concurrent.futures
             import sys
             from io import StringIO
 
@@ -579,9 +578,11 @@ Example: `/mcp add burp 13`
                 finally:
                     sys.stderr = original_stderr
 
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(run_in_thread)
-                return future.result(timeout=30)
+            # run_with_timeout (not a `with` executor): a hung MCP RPC must not
+            # block on the pool's __exit__ join despite the result timeout.
+            from kryon.util.concurrency import run_with_timeout
+
+            return run_with_timeout(run_in_thread, wall_timeout=30)
 
         except RuntimeError:
             # No running loop, we can use asyncio.run
@@ -1333,7 +1334,6 @@ def get_mcp_tools_for_agent(agent_name: str) -> list[FunctionTool]:
                 # Try to get existing loop or create new one
                 try:
                     asyncio.get_running_loop()
-                    import concurrent.futures
 
                     def run_in_thread():
                         new_loop = asyncio.new_event_loop()
@@ -1343,9 +1343,11 @@ def get_mcp_tools_for_agent(agent_name: str) -> list[FunctionTool]:
                         finally:
                             new_loop.close()
 
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(run_in_thread)
-                        mcp_tools = future.result(timeout=10)
+                    # run_with_timeout: a hung list_tools() RPC must not block on
+                    # the pool's __exit__ join despite the result timeout.
+                    from kryon.util.concurrency import run_with_timeout
+
+                    mcp_tools = run_with_timeout(run_in_thread, wall_timeout=10)
                 except RuntimeError:
                     mcp_tools = asyncio.run(get_tools())
 

@@ -4259,17 +4259,31 @@ def _invoke_orchestrated_engagement(
             console.print(f"  [cyan]▸[/cyan] phase: {phase.name}")
             text = asyncio.run(_run_phase(phase))
         except Exception as exc:  # pragma: no cover
-            console.print(f"  [yellow]phase '{phase.name}' failed: {exc}[/yellow]")
-            phase.status = PhaseStatus.FAILED
-            audit_log.append(
-                tool_name="phase_run",
-                args={"phase": phase.name, "agent_key": phase.agent_key, "max_turns": phase.max_turns},
-                result={"error": str(exc)},
-                phase=phase.name,
-                duration_ms=int((_time.monotonic() - phase_start) * 1000),
-                status="failed",
-            )
-            continue
+            from kryon.sdk.agents.models.openai_native import _is_transient_model_error
+
+            # A transient model fault (5xx / malformed-tool_call) that survived the
+            # adapter's own retries shouldn't burn the phase AND push the plan
+            # toward the circuit-breaker abort. Give it one clean retry first.
+            text = None
+            if _is_transient_model_error(exc):
+                console.print(f"  [yellow]phase '{phase.name}' hit a transient model fault — retrying once[/yellow]")
+                try:
+                    text = asyncio.run(_run_phase(phase))
+                    exc = None  # type: ignore[assignment]
+                except Exception as exc2:  # noqa: BLE001
+                    exc = exc2
+            if exc is not None:
+                console.print(f"  [yellow]phase '{phase.name}' failed: {exc}[/yellow]")
+                phase.status = PhaseStatus.FAILED
+                audit_log.append(
+                    tool_name="phase_run",
+                    args={"phase": phase.name, "agent_key": phase.agent_key, "max_turns": phase.max_turns},
+                    result={"error": str(exc)},
+                    phase=phase.name,
+                    duration_ms=int((_time.monotonic() - phase_start) * 1000),
+                    status="failed",
+                )
+                continue
         if text:
             summary_lines.append(f"[{phase.name}] {text.strip()[:500]}")
             parsed = _parse_agent_findings(text, target_host=target)

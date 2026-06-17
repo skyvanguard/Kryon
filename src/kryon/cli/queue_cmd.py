@@ -167,11 +167,16 @@ def _build_engage_argv(
     return argv
 
 
-def _run_one(argv: list[str], item_id: str) -> tuple[str, int, str]:
+def _run_one(argv: list[str], item_id: str, *, timeout: float | None = None) -> tuple[str, int, str]:
     """Run one engage invocation. Returns (item_id, exit_code, stderr_tail).
 
     Never raises — failures surface via exit code so the worker pool
     can drain the rest of the queue.
+
+    ``timeout`` (seconds) bounds the child so a single wedged ``kryon engage``
+    (e.g. its own scanner hanging without a timeout) can't block the worker
+    forever — and thus the parallel pool's ``__exit__`` join. ``None`` disables
+    it. On expiry ``subprocess.run`` kills the child and we report exit 124.
     """
     try:
         proc = subprocess.run(
@@ -179,9 +184,12 @@ def _run_one(argv: list[str], item_id: str) -> tuple[str, int, str]:
             capture_output=True,
             text=True,
             check=False,
+            timeout=timeout,
         )
         stderr_tail = (proc.stderr or "").strip().splitlines()[-1] if proc.stderr else ""
         return item_id, proc.returncode, stderr_tail[:200]
+    except subprocess.TimeoutExpired:
+        return item_id, 124, f"timed out after {timeout:.0f}s — child killed"[:200]
     except (OSError, subprocess.SubprocessError) as exc:
         return item_id, 127, f"spawn failed: {exc}"[:200]
 
@@ -196,6 +204,10 @@ def _process_queue(args) -> int:
 
     engage_bin = _resolve_engage_bin(args.engage_bin)
     concurrency = max(1, args.concurrency)
+    # Per-item wall timeout so one wedged `kryon engage` child can't hang a worker
+    # (and the pool's __exit__ join) forever. Generous default — a full compliance
+    # audit can be long; tune with KRYON_QUEUE_ITEM_TIMEOUT_S (0 disables).
+    _item_timeout: float | None = float(os.environ.get("KRYON_QUEUE_ITEM_TIMEOUT_S", "3600")) or None
     limit = max(0, args.limit)
 
     q = EngagementQueue.load()
@@ -241,7 +253,7 @@ def _process_queue(args) -> int:
         for item in pending:
             argv = _claim_and_build(item)
             print(f"  → {item.item_id} {item.target}")
-            _, rc, err = _run_one(argv, item.item_id)
+            _, rc, err = _run_one(argv, item.item_id, timeout=_item_timeout)
             ok = rc == 0
             q.mark_finished(item.item_id, ok=ok, error=err if not ok else "")
             q.save()
@@ -258,7 +270,9 @@ def _process_queue(args) -> int:
             argvs[item.item_id] = _claim_and_build(item)
 
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
-            futures = {pool.submit(_run_one, argv, iid): iid for iid, argv in argvs.items()}
+            futures = {
+                pool.submit(_run_one, argv, iid, timeout=_item_timeout): iid for iid, argv in argvs.items()
+            }
             for fut in as_completed(futures):
                 iid, rc, err = fut.result()
                 ok = rc == 0

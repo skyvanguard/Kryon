@@ -320,11 +320,13 @@ def get_container_info(container_id):
             - color (str): A string representing the display color (e.g., for UI rendering).
     """
     try:
-        # Get the container's image name.
+        # Get the container's image name. timeout= so a wedged docker daemon can't
+        # stall the status bar on every REPL refresh (these run constantly).
         image = subprocess.run(
             ["docker", "inspect", "--format", "{{.Config.Image}}", container_id],
             capture_output=True,
             text=True,
+            timeout=5,
         ).stdout.strip()
 
         # Determine the appropriate icon and color based on the image type.
@@ -341,6 +343,7 @@ def get_container_info(container_id):
             ["docker", "ps", "--filter", f"id={container_id}", "--format", "{{.Status}}"],
             capture_output=True,
             text=True,
+            timeout=5,
         ).stdout.strip()
 
         if not running:
