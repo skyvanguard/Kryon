@@ -529,7 +529,7 @@ class CompactCommand(Command):
             # Pass the compact model if set
             if self.compact_model:
                 # Temporarily override the model for this operation
-                original_model = os.environ.get("KRYON_MODEL", "Kryon-MOE-35B")
+                original_model = os.environ.get("KRYON_MODEL", "kryon-devstral-24b")
                 os.environ["KRYON_MODEL"] = self.compact_model
                 try:
                     result = MEMORY_COMMAND_INSTANCE.handle_save([memory_name], preserve_history=False)

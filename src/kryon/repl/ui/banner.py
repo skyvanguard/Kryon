@@ -452,7 +452,7 @@ def display_quick_guide(console: Console):
     )
 
     # Get current environment variable values
-    current_model = os.getenv("KRYON_MODEL", "Kryon-MOE-35B")
+    current_model = os.getenv("KRYON_MODEL", "kryon-devstral-24b")
     current_agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
 
     config_text = Text.assemble(
@@ -621,7 +621,7 @@ def _get_context() -> dict:
         "version": version,
         "codename": getattr(kryon, "__codename__", "Genesis"),
         "agent": os.getenv("KRYON_AGENT_TYPE", "recon_scout"),
-        "model": os.getenv("KRYON_MODEL", "Kryon-MOE-35B"),
+        "model": os.getenv("KRYON_MODEL", "kryon-devstral-24b"),
         "cwd": os.getcwd(),
     }
 

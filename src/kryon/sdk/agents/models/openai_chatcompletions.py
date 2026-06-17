@@ -187,7 +187,7 @@ def _ensure_litellm_configured():
     # own repair pass.
     litellm.modify_params = True
 
-    if os.getenv("KRYON_MODEL", "Kryon-MOE-35B") in ("o3-mini", "gemini-1.5-pro"):
+    if os.getenv("KRYON_MODEL", "kryon-devstral-24b") in ("o3-mini", "gemini-1.5-pro"):
         litellm.drop_params = True
 
     _litellm_configured = True
@@ -1459,7 +1459,7 @@ class OpenAIChatCompletionsModel(Model):
                 # Fix Google Gemini OpenAI compatibility issues.
                 # When using the OpenAI-compatible API to call tools with Google Gemini
                 # tool_call.id is returned as an empty string.
-                if "openai/gemini" in os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "Kryon-MOE-35B")):
+                if "openai/gemini" in os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "kryon-devstral-24b")):
                     for tool_call in assistant_msg.tool_calls:
                         if tool_call.id is None or tool_call.id == "":
                             tool_call.id = uuid.uuid4().hex[:16]

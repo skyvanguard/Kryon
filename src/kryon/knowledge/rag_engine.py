@@ -42,7 +42,7 @@ class RAGEngine:
         return {
             "api_key": os.getenv("OPENAI_API_KEY", ""),
             "base_url": os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-            "model": os.getenv("KRYON_RAG_MODEL", os.getenv("KRYON_MODEL", "Kryon-MOE-35B")),
+            "model": os.getenv("KRYON_RAG_MODEL", os.getenv("KRYON_MODEL", "kryon-devstral-24b")),
         }
 
     def add_knowledge(self, content: str, source: str, metadata: dict | None = None) -> str:
@@ -180,7 +180,7 @@ class RAGEngine:
                 base_url=self.llm_config["base_url"],
             )
             response = client.chat.completions.create(
-                model=self.llm_config.get("model", "Kryon-MOE-35B"),
+                model=self.llm_config.get("model", "kryon-devstral-24b"),
                 messages=[
                     {"role": "system", "content": "You are KRYON, an advanced cybersecurity AI assistant."},
                     {"role": "user", "content": prompt},

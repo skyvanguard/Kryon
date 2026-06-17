@@ -334,7 +334,7 @@ def _get_injection_detector_agent():
             # Falls back to KRYON_MODEL only if the dedicated env is unset.
             _guardrail_model = os.getenv(
                 "KRYON_GUARDRAIL_MODEL",
-                os.getenv("KRYON_MODEL", "Kryon-MOE-35B"),
+                os.getenv("KRYON_MODEL", "kryon-devstral-24b"),
             )
             from kryon.agents.base import chat_model_cls as _chat_model_cls
 

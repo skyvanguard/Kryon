@@ -354,5 +354,5 @@ def test_local_reviewer_defaults(monkeypatch):
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
     monkeypatch.delenv("KRYON_SOURCE_REVIEW_BASE_URL", raising=False)
     r = OllamaReviewer()  # alias of LocalReviewer (OpenAI-compatible / llama.cpp)
-    assert r.model == "Kryon-MOE-35B"
+    assert r.model == "kryon-devstral-24b"
     assert "8080" in r.host and r.host.endswith("/v1")

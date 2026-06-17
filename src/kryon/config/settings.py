@@ -10,7 +10,7 @@ duplicated and prone to divergence.
 Usage:
     from kryon.config import settings
     s = settings()              # cached, reads env once
-    s.model                     # "Kryon-MOE-35B" (or KRYON_MODEL)
+    s.model                     # "kryon-devstral-24b" (or KRYON_MODEL)
     settings(refresh=True)      # re-read env (tests / after setenv)
 
 `kryon config` (see cli/config_cmd.py) dumps the effective values.
@@ -56,7 +56,7 @@ class KryonSettings:
     """Immutable snapshot of Kryon's core config. Build via ``from_env()``."""
 
     # --- LLM / model ---
-    model: str = "Kryon-MOE-35B"
+    model: str = "kryon-devstral-24b"
     openai_base_url: str | None = None
     # Don't store the real key in __repr__/dumps — see redacted_dict().
     openai_api_key: str = "not-set"
@@ -88,7 +88,7 @@ class KryonSettings:
     @classmethod
     def from_env(cls) -> KryonSettings:
         return cls(
-            model=os.getenv("KRYON_MODEL", "Kryon-MOE-35B"),
+            model=os.getenv("KRYON_MODEL", "kryon-devstral-24b"),
             openai_base_url=os.getenv("OPENAI_BASE_URL") or None,
             openai_api_key=os.getenv("OPENAI_API_KEY", "not-set"),
             local_llm=_env_bool("KRYON_LOCAL_LLM", False),

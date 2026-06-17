@@ -55,11 +55,11 @@ async def _ping_llm() -> ReadinessCheck:
         }
         if base_url:
             # Generic OpenAI-compatible endpoint (llama-server / Ollama /v1 / DeepSeek).
-            kwargs["model"] = f"openai/{os.environ.get('KRYON_MODEL', 'Kryon-MOE-35B')}"
+            kwargs["model"] = f"openai/{os.environ.get('KRYON_MODEL', 'kryon-devstral-24b')}"
             kwargs["api_base"] = base_url
             kwargs["api_key"] = os.environ.get("OPENAI_API_KEY", "llama")
         else:
-            kwargs["model"] = "Kryon-MOE-35B"
+            kwargs["model"] = "kryon-devstral-24b"
         try:
             import litellm
 

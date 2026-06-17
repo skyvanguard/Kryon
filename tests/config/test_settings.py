@@ -19,7 +19,7 @@ def test_defaults_match_documented_values(monkeypatch):
     ):
         monkeypatch.delenv(var, raising=False)
     s = KryonSettings.from_env()
-    assert s.model == "Kryon-MOE-35B"
+    assert s.model == "kryon-devstral-24b"
     assert s.openai_base_url is None
     assert s.local_llm is False
     assert s.use_litellm is False  # native model is the default

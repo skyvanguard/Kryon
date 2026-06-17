@@ -3,7 +3,7 @@
 Anthropic's Claude "Mythos" read the Firefox 150 source and surfaced 271
 vulnerabilities by *pure reasoning over code* — no fuzzing harness. This
 module is Kryon's local equivalent: point a strong reasoning model
-(default ``Kryon-MOE-35B``) at a source tree and have it review the
+(default ``kryon-devstral-24b``) at a source tree and have it review the
 actual file contents file-by-file, then expand coverage via *variant
 analysis* (found a dangerous pattern once → grep the tree for the same
 sink and review those sites too).
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # Config
 # ---------------------------------------------------------------------------
 
-DEFAULT_MODEL = "Kryon-MOE-35B"
+DEFAULT_MODEL = "kryon-devstral-24b"
 
 # Source extensions worth reviewing. Kept deliberately broad; triage ranks
 # within this set so a low-signal file just sinks to the bottom.
@@ -607,7 +607,7 @@ def _pin_file(f: SourceFinding, rel: str) -> SourceFinding:
 
 
 class LocalReviewer:
-    """Default ``Reviewer`` — asks the local reasoning model (Kryon-MOE-35B
+    """Default ``Reviewer`` — asks the local reasoning model (kryon-devstral-24b
     via llama.cpp) to review one file and parses its JSON reply, over the
     OpenAI-compatible ``/v1/chat/completions`` endpoint (stdlib urllib, no
     optional deps)."""

@@ -248,7 +248,7 @@ class AutonomousDecision:
             response = requests.post(
                 f"{self.llm_config['base_url']}/api/generate",
                 json={
-                    "model": self.llm_config.get("model", "Kryon-MOE-35B"),
+                    "model": self.llm_config.get("model", "kryon-devstral-24b"),
                     "prompt": prompt,
                     "stream": False,
                     "options": {
@@ -539,7 +539,7 @@ Return ONLY valid JSON array, no other text:
 """
 
             response = client.chat.completions.create(
-                model=os.getenv("KRYON_MODEL", "Kryon-MOE-35B"),
+                model=os.getenv("KRYON_MODEL", "kryon-devstral-24b"),
                 messages=[
                     {
                         "role": "system",

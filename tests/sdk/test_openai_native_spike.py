@@ -45,7 +45,7 @@ def test_deepseek_reasoning_autoroutes_to_litellm(monkeypatch):
         assert base.chat_model_cls() is OpenAIChatCompletionsModel, m
 
     # Non-reasoning DeepSeek (V3 chat) + local/other models → native default.
-    for m in ("deepseek-chat", "Kryon-MOE-35B", "gpt-4o-mini"):
+    for m in ("deepseek-chat", "kryon-devstral-24b", "gpt-4o-mini"):
         monkeypatch.setenv("KRYON_MODEL", m)
         assert base.chat_model_cls() is OpenAINativeModel, m
 
@@ -253,7 +253,7 @@ async def test_native_fetch_stream_returns_response_tuple():
     client = MagicMock()
     client.chat.completions.create = create
 
-    model = OpenAINativeModel(model="Kryon-MOE-35B", openai_client=client)
+    model = OpenAINativeModel(model="kryon-devstral-24b", openai_client=client)
     result = await model._fetch_response(
         system_instructions=None,
         input="hi",

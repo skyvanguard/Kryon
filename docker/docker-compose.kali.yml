@@ -34,14 +34,14 @@ services:
     env_file:
       - .env.docker
     environment:
-      # LLM principal: llama.cpp (llama-server) con el MoE Kryon-MOE-35B.
+      # LLM principal: llama.cpp (llama-server) con kryon-devstral-24b (Devstral, dense).
       # NOTA: este bloque environment PISA a env_file (.env.docker) para
       # estas vars — los defaults de acá son la fuente de verdad efectiva.
       - OPENAI_API_KEY=${OPENAI_API_KEY:-llama}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://llama-server:8080/v1}
       # Modo LLM local (parsers robustos + usage patch). Reemplaza al flag OLLAMA.
       - KRYON_LOCAL_LLM=${KRYON_LOCAL_LLM:-true}
-      - KRYON_MODEL=${KRYON_MODEL:-Kryon-MOE-35B}
+      - KRYON_MODEL=${KRYON_MODEL:-kryon-devstral-24b}
       # Modelos locales necesitan forzar tool-calling los primeros N turnos.
       - KRYON_FORCE_TOOL_TURNS=${KRYON_FORCE_TOOL_TURNS:-8}
       - KRYON_DEBUG=${KRYON_DEBUG:-0}
@@ -124,7 +124,7 @@ services:
       # halves KV VRAM and lets -c reach 24576 (24K) at ~11.7/12 GB — enough for
       # the unified agent's ~10K system prompt + multi-turn SAST (verified: it
       # found JNDI/OGNL sinks live; emits native tool_calls; responds to the
-      # StuckDetector instead of looping). Served under the "Kryon-MOE-35B" alias
+      # StuckDetector instead of looping). Served under the "kryon-devstral-24b" alias
       # so the rest of the stack is unchanged. To go back to the faster (but
       # shallower) dense 8B, flip -m to /models/qwen3-8b-q4km.gguf, drop the
       # --cache-type-k/v lines, set -c 32768 and re-add --reasoning-budget 0.
@@ -165,7 +165,7 @@ services:
       - "8"
       - --jinja
       - -a
-      - Kryon-MOE-35B
+      - kryon-devstral-24b
       - --host
       - 0.0.0.0
       - --port

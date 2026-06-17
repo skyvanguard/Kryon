@@ -13,12 +13,17 @@ import os
 
 # Default local-only. NUNCA debe ser un frontier API (banca: sin fuga de datos
 # a terceros). El runtime real lo fija KRYON_MODEL; esto es el fallback.
-DEFAULT_MODEL = "Kryon-MOE-35B"
+DEFAULT_MODEL = "kryon-devstral-24b"
 
 # Substrings (case-insensitive) que marcan un modelo como reasoning-class
-# (chain-of-thought visible → bump de turnos por fase + gates de grounding).
+# (bump de turnos por fase + gates de grounding).
 REASONING_MARKERS: tuple[str, ...] = (
-    "moe",  # Kryon-MOE-35B (Qwen3.6-35B-A3B) emite <think>
+    # kryon-devstral-24b (Devstral-Small-2-24B) NO emite <think>, pero lo
+    # tratamos como reasoning-class para que herede el turn-bump 5→8 que le
+    # sirve al tool-use multi-turn. Rename de "Kryon-MOE-35B" preservando
+    # comportamiento (2026-06-16).
+    "devstral",
+    "moe",  # legacy Qwen3.6-35B-A3B (sigue en el volume para A/B) — emite <think>
     "r1-",
     "-r1",
     "deepseek-r1",

@@ -193,7 +193,7 @@ class CodeAgent(Agent):
     def __init__(  # pylint: disable=too-many-arguments,too-many-locals # noqa: E501
         self,
         name: str = "CodeAgent",
-        model: str = "Kryon-MOE-35B",
+        model: str = "kryon-devstral-24b",
         instructions: Union[str, Callable[[], str]] = None,
         tools: list[Callable] = None,
         additional_authorized_imports: list[str] | None = None,

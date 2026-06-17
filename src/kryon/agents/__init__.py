@@ -59,7 +59,7 @@ from kryon.sdk.agents.handoffs import handoff as handoff
 __path__ = pkgutil.extend_path(__path__, __name__)
 
 # Get model from environment or use default
-model = os.environ.get("KRYON_MODEL", "Kryon-MOE-35B")
+model = os.environ.get("KRYON_MODEL", "kryon-devstral-24b")
 
 
 PATTERNS = ["hierarchical", "swarm", "chain_of_thought", "auction_based", "recursive"]

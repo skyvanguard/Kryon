@@ -483,7 +483,7 @@ def test_local_llm_flag_set_from_canonical_env(monkeypatch):
             "base_url": httpx.URL("http://fake"),
         },
     )()
-    model = OpenAIChatCompletionsModel(model="Kryon-MOE-35B", openai_client=dummy_client)  # type: ignore
+    model = OpenAIChatCompletionsModel(model="kryon-devstral-24b", openai_client=dummy_client)  # type: ignore
 
     assert model.is_local_llm is True
     # _fetch_response now re-detects via the SAME helper → no disagreement.

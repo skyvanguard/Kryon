@@ -8,7 +8,7 @@ from .interface import Model, ModelProvider
 from .openai_chatcompletions import OpenAIChatCompletionsModel
 from .openai_responses import OpenAIResponsesModel
 
-DEFAULT_MODEL: str = "Kryon-MOE-35B"
+DEFAULT_MODEL: str = "kryon-devstral-24b"
 
 
 _http_client: httpx.AsyncClient | None = None
