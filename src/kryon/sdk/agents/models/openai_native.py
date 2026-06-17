@@ -32,6 +32,7 @@ coupling is tracked separately (P1: extract a litellm-free base module).
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -46,6 +47,7 @@ from .openai_chatcompletions import (
     OpenAIChatCompletionsModel,
     ToolConverter,
     _merge_history_and_converter,
+    _should_force_directive_tool_choice,
 )
 
 if TYPE_CHECKING:
@@ -127,6 +129,21 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
         converted_tools = [ToolConverter.to_openai(t) for t in tools] if tools else []
         for handoff in handoffs:
             converted_tools.append(ToolConverter.convert_handoff_tool(handoff))
+
+        # KRYON_FORCE_TOOL_TURNS + FASE 11.Q — force tool-use for the first N LLM
+        # calls of the turn (so the model chains tools instead of narrating) and on
+        # a high-confidence planner directive. This lived ONLY in the litellm path,
+        # so the env var was a silent no-op on the native default — exactly the path
+        # deepseek-chat uses. _turn_llm_calls is incremented by the inherited
+        # get_response and reset per-turn by add_to_message_history, so it's valid
+        # here too.
+        if converted_tools:
+            _force_tool_turns = int(os.environ.get("KRYON_FORCE_TOOL_TURNS", "8"))
+            if self._turn_llm_calls <= _force_tool_turns:
+                tool_choice = "required"
+            elif _should_force_directive_tool_choice(True, tool_choice):
+                tool_choice = "required"
+        self._last_effective_tool_choice = tool_choice
 
         agent_model = getattr(model_settings, "agent_model", None)
         # Forward reasoning_effort when set (F184 / KRYON_REASONING_EFFORT).

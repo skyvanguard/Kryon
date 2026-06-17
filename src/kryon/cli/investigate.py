@@ -717,9 +717,16 @@ def _format_findings_for_prompt(findings: list) -> str:
         severity = getattr(f, "severity", "?")
         host = getattr(f, "host", "?")
         message = getattr(f, "message", "")
+        evidence = getattr(f, "evidence", "")
         lines.append(f"- **{cwe}** ({severity}) · `{rule}` · {host}")
         if message:
-            lines.append(f"    {message[:200]}")
+            # 400 (not 200) so the SSRF message's pivot instruction isn't cut.
+            lines.append(f"    {message[:400]}")
+        # Render the evidence — the concrete proof (the /etc/passwd leak, the path
+        # listing, the pivot). Without it the model gets "SSRF confirmed" but not
+        # what backs it, weakening its ability to extend/validate (the task above).
+        if evidence:
+            lines.append(f"    └ evidencia: {str(evidence)[:300]}")
     lines.append("")
     return "\n".join(lines)
 

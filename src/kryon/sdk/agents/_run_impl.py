@@ -620,7 +620,15 @@ class RunImpl:
                     )
                     if isinstance(e, AgentsException):
                         raise e
-                    raise UserError(f"Error running tool {func_tool.name}: {e}") from e
+                    # Return the error AS the tool's observation instead of aborting
+                    # the whole run. A tool implementation that throws (nmap timeout,
+                    # sqlmap parse crash, a flaky network call) shouldn't kill the
+                    # engagement — the model should see "tool X failed: ..." and adapt,
+                    # the same way an unknown-tool error is already fed back. Matches
+                    # the Claude Code / OpenAI Agents SDK convention. AgentsException
+                    # (framework faults) still propagates above.
+                    logger.warning("tool %s raised; returning error as observation: %s", func_tool.name, e)
+                    return f"⚠️ Error running tool {func_tool.name}: {e}"
 
                 if config.trace_include_sensitive_data:
                     span_fn.span_data.output = result

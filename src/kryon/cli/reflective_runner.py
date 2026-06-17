@@ -816,6 +816,35 @@ def _chunk_text_from_capture(capture_hooks: Any) -> str:
     return "".join(parts)
 
 
+def _salvage_chunk_intel(capture_hooks: Any, accumulated_facts: Any, tool_history: list) -> Any:
+    """Recover facts + planner subcalls from the in-flight capture when a chunk
+    exits ABNORMALLY (timeout / server-500), so the next chunk isn't blind.
+
+    The MaxTurns/Stuck paths already do this; timeout and 500 used to ``continue``
+    and drop everything the chunk captured before dying — a model that ran useful
+    tools and then hit a 500 lost that intel and re-explored from scratch. Mutates
+    ``tool_history`` in place; returns the updated ``accumulated_facts``.
+    """
+    try:
+        ct = _chunk_text_from_capture(capture_hooks)
+        if ct:
+            accumulated_facts = accumulated_facts.merge(_extract_facts_from_chunk(ct))
+    except Exception as e:  # noqa: BLE001
+        logger.debug("salvage facts failed: %s", e)
+    try:
+        for sub_args in _drain_planner_subcalls():
+            tool_history.append(
+                _ToolCallRecord(
+                    tool_name="planner_subcall",
+                    args_hash=_hash_args(sub_args),
+                    args_preview=sub_args[:200],
+                )
+            )
+    except Exception as e:  # noqa: BLE001
+        logger.debug("salvage subcalls failed: %s", e)
+    return accumulated_facts
+
+
 def _extract_chunk_text(result: Any) -> str:
     """Concatenate the textual content of all ModelResponses in a chunk.
 
@@ -1189,6 +1218,9 @@ async def run_with_reflection(
             # counter, and after a couple of consecutive timeouts break out.
             _chunk_timeouts += 1
             turns_used += chunk_size
+            # Salvage any intel the chunk captured before it hung, so the next
+            # chunk doesn't re-explore blind.
+            accumulated_facts = _salvage_chunk_intel(capture_hooks, accumulated_facts, tool_history)
             logger.warning(
                 "reflective runner: chunk timed out after %.0fs (count=%d) — advancing",
                 _chunk_timeout_s,
@@ -1395,6 +1427,9 @@ async def run_with_reflection(
                     turns_used,
                     str(e)[:200],
                 )
+                # Salvage the chunk's captured intel before retrying — the tools it
+                # ran before the 500 are real progress and shouldn't be lost.
+                accumulated_facts = _salvage_chunk_intel(capture_hooks, accumulated_facts, tool_history)
                 base_history = (
                     current_input
                     if isinstance(current_input, list)
@@ -1613,13 +1648,19 @@ async def run_with_reflection(
         except Exception as e:  # noqa: BLE001
             logger.debug("intra-turn degeneracy probe failed: %s", e)
 
-        # FASE 1 (G1+G2) — extract structured facts from this chunk and
-        # merge into the cross-chunk accumulator. The render of this
-        # accumulator gets injected into the reflection prompt below so
-        # the model always sees "what we know" in structured form rather
-        # than having to reconstruct it from a truncated transcript.
+        # FASE 1 (G1+G2) — extract structured facts from this chunk and merge into
+        # the cross-chunk accumulator. CRITICAL: the per-tool parsers need the RAW
+        # tool output (nmap/ldapsearch/GetNPUsers), which lives in the capture hooks
+        # — NOT in `chunk_text`. `_extract_chunk_text(result)` only ever yields the
+        # model's `final_output` (ModelResponse has no `.message`/`.content`), so on
+        # the happy path the fact extractor used to see only the model's polished
+        # prose and the whole intel pipeline ran near-empty. Feed it the captured
+        # raw tool outputs (▸-marked, the same source the unhappy paths use), plus
+        # the model text for the generic hint/hash pass.
         try:
-            chunk_facts = _extract_facts_from_chunk(chunk_text)
+            capture_text = _chunk_text_from_capture(capture_hooks)
+            fact_source = (capture_text + "\n" + chunk_text).strip() or chunk_text
+            chunk_facts = _extract_facts_from_chunk(fact_source)
             accumulated_facts = accumulated_facts.merge(chunk_facts)
         except Exception as e:  # noqa: BLE001
             logger.debug("fact extraction probe failed: %s", e)
