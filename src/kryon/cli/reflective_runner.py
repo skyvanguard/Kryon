@@ -1101,9 +1101,13 @@ async def run_with_reflection(
     # server rejects with HTTP 500 "Failed to parse tool call arguments". That
     # used to kill the whole run one step from a foothold. Treat it as a
     # recoverable per-chunk fault: nudge the model to stop inlining large
-    # payloads, retry, and only give up after a few consecutive failures.
+    # payloads, retry, and give up after a few failures. COST GUARD: each retry
+    # re-processes the full prompt (~tens of K tokens), so the cap is low AND we
+    # bail immediately if the model re-emits the SAME error despite the nudge
+    # (a stubborn local model won't change — retrying just burns tokens/$).
     _server_errors = 0
-    _MAX_SERVER_ERRORS = 4
+    _MAX_SERVER_ERRORS = 3
+    _last_500_fingerprint: str | None = None
 
     while turns_used < max_total_turns:
         if _wall_budget_s and (time.monotonic() - _loop_start) > _wall_budget_s:
@@ -1369,8 +1373,20 @@ async def run_with_reflection(
                 or "parse tool call" in _emsg
                 or "failed to parse tool call arguments" in _emsg
             )
-            if _is_tool_json_500 and _server_errors + 1 < _MAX_SERVER_ERRORS:
+            # Fingerprint the failing payload (the "last read:" blob tail). If the
+            # model re-emits the SAME malformed tool_call despite the nudge, it's
+            # stubborn — bail now instead of burning more full-prompt retries.
+            _fp = _emsg.split("last read:", 1)[-1][:80] if "last read:" in _emsg else _emsg[:80]
+            _repeated_500 = _is_tool_json_500 and _fp == _last_500_fingerprint
+            if _repeated_500:
+                logger.warning(
+                    "reflective runner: model re-emitted the SAME malformed tool_call "
+                    "after a nudge at turn %d — giving up (retrying would just burn tokens)",
+                    turns_used,
+                )
+            if _is_tool_json_500 and not _repeated_500 and _server_errors + 1 < _MAX_SERVER_ERRORS:
                 _server_errors += 1
+                _last_500_fingerprint = _fp
                 turns_used += 1  # count the wasted turn so the run always progresses
                 logger.warning(
                     "reflective runner: server rejected a malformed tool_call "

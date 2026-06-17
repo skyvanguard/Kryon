@@ -63,17 +63,22 @@ _TRANSIENT_BACKOFF_S = 1.5
 
 
 def _is_transient_model_error(e: Exception) -> bool:
-    """True for faults worth a short-backoff retry: HTTP 5xx, connection/timeout
-    blips, or a local model's malformed-tool_call parse error (a 500 from
-    llama.cpp). Deterministic parse errors may recur, but with temp>0 a retry can
-    re-sample a valid tool_call, and genuine 5xx overload clears on retry."""
+    """True ONLY for INFRA-transient faults worth a cheap retry: HTTP 5xx from
+    overload, connection/timeout blips. These clear on retry.
+
+    The malformed-tool_call parse error is deliberately EXCLUDED: it's the model
+    generating invalid JSON (deterministic at low temp), so retrying the same
+    request just burns tokens without changing the outcome. That case is handled
+    one layer up by the reflective_runner's nudge (which changes the input), with
+    its own determinism cap — retrying it blindly here would compound into ~N×M
+    wasted calls."""
     name = type(e).__name__.lower()
     msg = str(e).lower()
+    if "parse tool call" in msg:  # model-deterministic, not infra-transient
+        return False
     if getattr(e, "status_code", None) in (500, 502, 503, 504):
         return True
-    if any(k in name for k in ("internalservererror", "apiconnectionerror", "apitimeout")):
-        return True
-    return "parse tool call" in msg or "failed to parse tool call" in msg
+    return any(k in name for k in ("internalservererror", "apiconnectionerror", "apitimeout"))
 
 
 class OpenAINativeModel(OpenAIChatCompletionsModel):

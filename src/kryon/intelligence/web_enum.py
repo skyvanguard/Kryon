@@ -18,12 +18,17 @@ from __future__ import annotations
 import base64
 import ipaddress
 import json
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
 # Correct wordlists per phase (the whole point — the LLM kept picking wrong ones).
-DEFAULT_DIR_WORDLIST = "/usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt"
+# COST GUARD: default to common.txt (~4.7k) — raft-medium (~30k) made the dir-enum
+# take ~6min against a slow target before the LLM emitted a token, burning the wall
+# budget. raft-medium is opt-in via KRYON_WEBENUM_DEEP=true for a thorough sweep.
+DEFAULT_DIR_WORDLIST = "/usr/share/seclists/Discovery/Web-Content/common.txt"
+DEEP_DIR_WORDLIST = "/usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt"
 DEFAULT_VHOST_WORDLIST = "/usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt"
 # Used if the seclists path is missing (older images).
 FALLBACK_DIR_WORDLIST = "/usr/share/wordlists/dirb/common.txt"
@@ -134,7 +139,7 @@ def run_web_enum(
     *,
     runner: Runner,
     vhost_domain: str | None = None,
-    dir_wordlist: str = DEFAULT_DIR_WORDLIST,
+    dir_wordlist: str | None = None,
     vhost_wordlist: str = DEFAULT_VHOST_WORDLIST,
     timeout: int = 180,
     enable_vhost: bool = True,
@@ -146,6 +151,12 @@ def run_web_enum(
     a hostname (not an IP). ``runner`` executes a shell command and returns
     stdout (injected for tests).
     """
+    # Resolve the dir wordlist: fast common.txt by default, raft-medium only when
+    # the operator opts into a deep sweep (KRYON_WEBENUM_DEEP=true).
+    if dir_wordlist is None:
+        _deep = os.environ.get("KRYON_WEBENUM_DEEP", "").strip().lower() in ("1", "true", "yes")
+        dir_wordlist = DEEP_DIR_WORDLIST if _deep else DEFAULT_DIR_WORDLIST
+
     discoveries: list[WebDiscovery] = []
     parsed = urlparse(url)
     host = parsed.hostname or ""

@@ -961,8 +961,11 @@ class LLMHunter:
         final_text = ""
         timed_out = False
         try:
+            # Pass max_turns explicitly — otherwise it silently falls to the global
+            # DEFAULT_MAX_TURNS (40) and KRYON_HUNT_MAX_TURNS is a dead no-op, so the
+            # operator can neither raise nor (for cost) lower the per-hunter cap.
             result = await asyncio.wait_for(
-                Runner.run(agent, job.prompt),
+                Runner.run(agent, job.prompt, max_turns=self.max_turns),
                 timeout=self.timeout_s,
             )
             try:
@@ -1728,7 +1731,22 @@ async def hunt_zero_days(
 
     spawn_tasks: list[asyncio.Task] = []
     job_map: dict[str, HunterJob] = {}
+    # COST GUARD: optional global wall budget across ALL hunters (the per-hunter
+    # timeout only bounds one). With budget files × max_turns LLM calls each, a
+    # paid model (DeepSeek) can run up a large bill; KRYON_WALL_BUDGET_S>0 stops
+    # spawning more hunters once the run's spent its time budget.
+    import time as _time
+
+    _hunt_start = _time.monotonic()
+    _wall_budget_s = float(os.environ.get("KRYON_WALL_BUDGET_S", "0") or 0)
     for entry in top[:budget]:
+        if _wall_budget_s > 0 and (_time.monotonic() - _hunt_start) > _wall_budget_s:
+            logger.warning(
+                "hunt_zero_days: wall budget %.0fs exceeded — stopping spawn at %d file(s)",
+                _wall_budget_s,
+                len(job_map),
+            )
+            break
         file_rel = entry.get("file", "")
         if not file_rel:
             continue

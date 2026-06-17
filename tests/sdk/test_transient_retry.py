@@ -33,11 +33,14 @@ def test_5xx_status_is_transient():
     assert _is_transient_model_error(_StatusErr(504))
 
 
-def test_malformed_tool_call_parse_error_is_transient():
-    assert _is_transient_model_error(
+def test_malformed_tool_call_parse_error_is_NOT_retried_here():
+    # The parse error is the model emitting bad JSON (deterministic at low temp):
+    # retrying the same request burns tokens for nothing. It's handled one layer
+    # up by the reflective_runner nudge, not by a blind adapter retry.
+    assert not _is_transient_model_error(
         Exception("Error code: 500 - Failed to parse tool call arguments as JSON")
     )
-    assert _is_transient_model_error(Exception("parse tool call failed"))
+    assert not _is_transient_model_error(Exception("parse tool call failed"))
 
 
 def test_error_class_names_are_transient():

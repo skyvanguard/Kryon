@@ -4215,6 +4215,22 @@ def _invoke_orchestrated_engagement(
         except Exception as exc:  # pragma: no cover — non-fatal
             console.print(f"  [dim]pre-hooks skipped for '{phase.name}': {exc}[/dim]")
 
+        # F-CTXMGMT — COST GUARD: engage reuses ONE agent across ALL plan phases,
+        # so its model.message_history accumulates over the whole engagement. Since
+        # the full history is re-sent every turn, input tokens grow QUADRATICALLY
+        # over a long engagement (the snowball the reflective_runner already cures,
+        # but engage calls Runner.run directly and was the hole). Trim OLD large
+        # tool outputs before each phase. Same kill-switch: KRYON_MICRO_COMPACT=false.
+        if os.environ.get("KRYON_MICRO_COMPACT", "true").strip().lower() != "false":
+            try:
+                _model = getattr(agent, "model", None)
+                if _model is not None and hasattr(_model, "message_history"):
+                    from kryon.services.micro_compact import micro_compact_history
+
+                    micro_compact_history(_model.message_history)
+            except Exception:  # noqa: BLE001 — context mgmt must never break the run
+                pass
+
         # F123 — Register the active ActionLog so every tool call inside
         # this phase lands as its own audit entry. Cleared in finally so
         # one phase's audit doesn't bleed into the next phase or into
@@ -4259,31 +4275,22 @@ def _invoke_orchestrated_engagement(
             console.print(f"  [cyan]▸[/cyan] phase: {phase.name}")
             text = asyncio.run(_run_phase(phase))
         except Exception as exc:  # pragma: no cover
-            from kryon.sdk.agents.models.openai_native import _is_transient_model_error
-
-            # A transient model fault (5xx / malformed-tool_call) that survived the
-            # adapter's own retries shouldn't burn the phase AND push the plan
-            # toward the circuit-breaker abort. Give it one clean retry first.
-            text = None
-            if _is_transient_model_error(exc):
-                console.print(f"  [yellow]phase '{phase.name}' hit a transient model fault — retrying once[/yellow]")
-                try:
-                    text = asyncio.run(_run_phase(phase))
-                    exc = None  # type: ignore[assignment]
-                except Exception as exc2:  # noqa: BLE001
-                    exc = exc2
-            if exc is not None:
-                console.print(f"  [yellow]phase '{phase.name}' failed: {exc}[/yellow]")
-                phase.status = PhaseStatus.FAILED
-                audit_log.append(
-                    tool_name="phase_run",
-                    args={"phase": phase.name, "agent_key": phase.agent_key, "max_turns": phase.max_turns},
-                    result={"error": str(exc)},
-                    phase=phase.name,
-                    duration_ms=int((_time.monotonic() - phase_start) * 1000),
-                    status="failed",
-                )
-                continue
+            # Mark FAILED — do NOT re-run the whole phase. Genuine 5xx blips are
+            # already retried cheaply at the adapter (per-call); what survives to
+            # here is either a deterministic fault (re-running the phase would burn
+            # all its tokens and fail identically) or a persistent outage (no point
+            # paying for a full phase replay). The circuit-breaker still guards.
+            console.print(f"  [yellow]phase '{phase.name}' failed: {exc}[/yellow]")
+            phase.status = PhaseStatus.FAILED
+            audit_log.append(
+                tool_name="phase_run",
+                args={"phase": phase.name, "agent_key": phase.agent_key, "max_turns": phase.max_turns},
+                result={"error": str(exc)},
+                phase=phase.name,
+                duration_ms=int((_time.monotonic() - phase_start) * 1000),
+                status="failed",
+            )
+            continue
         if text:
             summary_lines.append(f"[{phase.name}] {text.strip()[:500]}")
             parsed = _parse_agent_findings(text, target_host=target)
