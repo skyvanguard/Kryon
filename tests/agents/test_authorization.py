@@ -123,3 +123,23 @@ def test_active_combines_scope_and_tier(monkeypatch):
     # out-of-scope active tool: blocked by scope
     assert auth.authorize("nmap_scan", _args(target="8.8.8.8"))[0] is False
     reset_authorization()
+
+
+def test_parse_dt_variants():
+    from kryon.agents.authorization import _parse_dt
+
+    assert _parse_dt("2026-06-18T02:00:00Z").tzinfo is not None
+    assert _parse_dt("2026-06-18T02:00:00").tzinfo is not None
+    assert _parse_dt("garbage") is None
+    assert _parse_dt("") is None
+
+
+def test_get_authorization_with_window(monkeypatch):
+    monkeypatch.delenv("KRYON_SCOPE", raising=False)
+    monkeypatch.delenv("KRYON_MAX_TIER", raising=False)
+    monkeypatch.setenv("KRYON_ENGAGEMENT_END", "2020-01-01T00:00:00Z")  # past
+    reset_authorization()
+    auth = get_authorization()
+    assert auth is not None
+    assert auth.authorize("web_fetch_smart", _args(url="http://x"))[0] is False
+    reset_authorization()

@@ -103,3 +103,21 @@ async def test_action_budget_stops_the_run(monkeypatch):
         assert len(ran) == 1
     finally:
         reset_killswitch()
+
+
+def test_parse_dt_variants():
+    from kryon.agents.killswitch import _parse_dt
+
+    assert _parse_dt("2026-06-18T06:00:00Z").tzinfo is not None
+    assert _parse_dt("2026-06-18T06:00:00").tzinfo is not None  # naive → UTC
+    assert _parse_dt("not-a-date") is None
+    assert _parse_dt("") is None
+
+
+def test_non_digit_max_actions_ignored(monkeypatch):
+    monkeypatch.setenv("KRYON_MAX_ACTIONS", "lots")  # non-digit → ignored
+    monkeypatch.delenv("KRYON_KILL_FILE", raising=False)
+    monkeypatch.delenv("KRYON_DEADLINE", raising=False)
+    reset_killswitch()
+    assert get_killswitch() is None
+    reset_killswitch()

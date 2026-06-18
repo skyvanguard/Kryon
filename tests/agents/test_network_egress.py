@@ -73,3 +73,61 @@ def test_openai_base_url_host_auto_allowed(monkeypatch):
     monkeypatch.delenv("KRYON_SCOPE_DENY", raising=False)
     ok, msg = apply_egress(dry_run=True)
     assert "172.20.0.5" in msg  # LLM host auto-allowed
+
+
+def test_resolve_url_and_domain(monkeypatch):
+    import kryon.agents.network_egress as ne
+
+    monkeypatch.setattr(ne.socket, "getaddrinfo", lambda *a, **k: [(2, 1, 6, "", ("93.184.216.34", 0))])
+    assert ne._resolve_to_cidr("http://example.com/path") == "93.184.216.34"
+    assert ne._resolve_to_cidr("*.example.com") == "93.184.216.34"
+    assert ne._resolve_to_cidr("10.0.0.0/24") == "10.0.0.0/24"  # already a CIDR
+    assert ne._resolve_to_cidr("") is None
+
+
+def test_resolve_unresolvable_returns_none(monkeypatch):
+    import socket
+
+    import kryon.agents.network_egress as ne
+
+    def _boom(*a, **k):
+        raise socket.gaierror("nope")
+
+    monkeypatch.setattr(ne.socket, "getaddrinfo", _boom)
+    assert ne._resolve_to_cidr("nonexistent.invalid") is None
+
+
+def test_apply_non_dry_run_success(monkeypatch):
+    import kryon.agents.network_egress as ne
+
+    monkeypatch.setenv("KRYON_SCOPE", "10.0.0.0/24")
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    calls = []
+    monkeypatch.setattr(ne.subprocess, "run", lambda c, **k: calls.append(c))
+    ok, msg = ne.apply_egress(dry_run=False)
+    assert ok is True and "applied" in msg and len(calls) > 0
+
+
+def test_apply_non_dry_run_failure(monkeypatch):
+    import kryon.agents.network_egress as ne
+
+    monkeypatch.setenv("KRYON_SCOPE", "10.0.0.0/24")
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+
+    def _boom(c, **k):
+        raise OSError("iptables: Permission denied")
+
+    monkeypatch.setattr(ne.subprocess, "run", _boom)
+    ok, msg = ne.apply_egress(dry_run=False)
+    assert ok is False and "FAILED" in msg
+
+
+def test_main_apply_path(monkeypatch, capsys):
+    import kryon.agents.network_egress as ne
+
+    monkeypatch.setenv("KRYON_SCOPE", "10.0.0.0/24")
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.setattr(ne.subprocess, "run", lambda c, **k: None)
+    rc = ne.main(["apply"])
+    assert rc == 0
+    assert "[dry-run]" not in capsys.readouterr().out

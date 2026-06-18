@@ -179,3 +179,40 @@ def test_large_non_network_integer_not_blocked():
     # no network indicator → the int isn't decoded as an IP.
     assert g.check_call("run_command", _args(command="sleep 99999999"))[0] is True
     assert g.check_call("run_command", _args(command="python s.py --id 123456789"))[0] is True
+
+
+# ---------------------------------------------------------------------------
+# Edge coverage: int-IP decode bounds, list targets, invalid deny, caching
+# ---------------------------------------------------------------------------
+
+
+def test_obfuscated_ip_decode_edges():
+    from kryon.agents.scope_gate import _decode_int_ip, _obfuscated_ips
+
+    assert _decode_int_ip("0xZZZZ") is None          # invalid hex
+    assert _decode_int_ip("16000000") is None         # below 1.0.0.0 → not an IP
+    assert _obfuscated_ips("nmap 16000000") == []     # gated, out of range
+
+
+def test_list_valued_target_arg():
+    g = _gate("10.65.168.0/24")
+    assert g.check_call("multi_scan", _args(targets=["8.8.8.8", "1.1.1.1"]))[0] is False
+    assert g.check_call("multi_scan", _args(targets=["10.65.168.5"]))[0] is True
+
+
+def test_invalid_deny_cidr_ignored():
+    g = ScopeGate([_classify("10.0.0.0/24")], ["not-a-cidr"])  # bad deny → skipped, no crash
+    assert g.check_call("nmap_scan", _args(target="10.0.0.5"))[0] is True
+
+
+def test_non_dict_json_args_allowed():
+    g = _gate("10.0.0.0/24")
+    assert g.check_call("x", "[1, 2, 3]")[0] is True  # JSON array, not an object
+
+
+def test_get_scope_gate_cached(monkeypatch):
+    monkeypatch.setenv("KRYON_SCOPE", "10.0.0.0/24")
+    reset_scope_gate()
+    first = get_scope_gate()
+    assert get_scope_gate() is first  # cached (same instance)
+    reset_scope_gate()
