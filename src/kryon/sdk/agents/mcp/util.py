@@ -153,8 +153,11 @@ class MCPUtil:
 
                     with warnings.catch_warnings():
                         warnings.filterwarnings("ignore", category=RuntimeWarning)
-                        # Force reconnection
-                        server.session = None  # Clear the old session
+                        # Force reconnection. Use cleanup() (takes the server's
+                        # _cleanup_lock and tears down the exit_stack) instead of poking
+                        # server.session = None from outside the lock — the raw assignment
+                        # raced concurrent call_tool/list_tools and could double-initialize.
+                        await server.cleanup()
                         await server.connect()
                         logger.debug(f"Successfully reconnected to MCP server for tool {tool.name}")
                         # Retry the tool call
@@ -186,6 +189,19 @@ class MCPUtil:
             logger.debug(f"MCP tool {tool.name} completed.")
         else:
             logger.debug(f"MCP tool {tool.name} returned {result}")
+
+        # MCP protocol: isError=True means the tool FAILED, even when it carries
+        # content. The old code only treated empty content as an error, so a failed
+        # tool's error message reached the model as a successful result — in an
+        # offensive context the agent could read an exploit's error text as proof it
+        # worked. Surface it explicitly as an error instead.
+        if getattr(result, "isError", False):
+            try:
+                err = result.content[0].model_dump_json() if result.content else ""
+            except Exception:  # noqa: BLE001
+                err = str(getattr(result, "content", ""))
+            logger.warning("MCP tool %s returned isError=True: %s", tool.name, err)
+            return f"ERROR from MCP tool {tool.name}: {err or 'tool reported an error'}"
 
         # The MCP tool result is a list of content items, whereas OpenAI tool outputs are a single
         # string. We'll try to convert.
