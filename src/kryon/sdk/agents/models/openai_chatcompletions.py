@@ -303,6 +303,45 @@ def _extract_reasoning(assistant_msg) -> str | None:
     return None
 
 
+def _recover_tool_calls_from_content(content: str | None, tool_names: set[str]) -> list | None:
+    """Recover a tool call a local server left in CONTENT instead of the parsed
+    ``tool_calls`` field. GLM-4 via llama.cpp emits the call as text —
+    ``<func_name>\\n<json_args>`` — and REPEATS it (no stop token), so it never
+    reaches ``tool_calls`` and the agent can't act. When ``tool_calls`` is empty but
+    content names a KNOWN tool followed by valid JSON, synthesize the call from the
+    FIRST occurrence (dropping the repetition). Gated on KRYON_LOCAL_LLM by the caller.
+    Returns openai-shaped tool_call objects, or None when nothing parseable is found.
+    """
+    if not content or not tool_names:
+        return None
+    import uuid as _uuid
+
+    from openai.types.chat.chat_completion_message_tool_call import (
+        ChatCompletionMessageToolCall,
+        Function,
+    )
+
+    decoder = json.JSONDecoder()
+    for m in re.finditer(r"([A-Za-z_][A-Za-z0-9_.]*)\s*\n\s*(?=\{)", content):
+        name = m.group(1)
+        if name not in tool_names:
+            continue
+        try:
+            obj, _ = decoder.raw_decode(content[m.end() :])
+        except ValueError:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        return [
+            ChatCompletionMessageToolCall(
+                id=f"call_{_uuid.uuid4().hex[:8]}",
+                type="function",
+                function=Function(name=name, arguments=json.dumps(obj)),
+            )
+        ]
+    return None
+
+
 # --- Tool-calling guardrails -------------------------------------------------
 # Synthetic user-role prefixes produced by Kryon's session layer (MAGIC DOC
 # auto-updates, intent-change hooks, piped tool output). These should NOT
@@ -1449,6 +1488,21 @@ class OpenAIChatCompletionsModel(Model):
             # Tool calls will be added atomically with their responses
             # to prevent incomplete message history on interruption
             assistant_msg = response.choices[0].message
+            # Tolerant local-model recovery: some local servers (GLM-4 via llama.cpp)
+            # leave the tool call in `content` as `<func>\n<json>` (and repeat it)
+            # instead of parsing it into `tool_calls`. Under KRYON_LOCAL_LLM, recover it
+            # from content so the agent can act — first occurrence only (drops the loop).
+            if not getattr(assistant_msg, "tool_calls", None) and os.environ.get(
+                "KRYON_LOCAL_LLM", ""
+            ).strip().lower() in ("1", "true", "yes"):
+                _names = {n for t in tools if (n := getattr(t, "name", None))}
+                _recovered = _recover_tool_calls_from_content(
+                    getattr(assistant_msg, "content", None), _names
+                )
+                if _recovered:
+                    assistant_msg.tool_calls = _recovered
+                    assistant_msg.content = None
+                    logger.debug("recovered %d tool call(s) from content (local-model format)", len(_recovered))
             if hasattr(assistant_msg, "tool_calls") and assistant_msg.tool_calls:
                 # Store pending tool calls but don't add to history yet
                 if not hasattr(self, "_pending_tool_calls"):

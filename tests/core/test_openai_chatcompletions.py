@@ -488,3 +488,40 @@ def test_local_llm_flag_set_from_canonical_env(monkeypatch):
     assert model.is_local_llm is True
     # _fetch_response now re-detects via the SAME helper → no disagreement.
     assert _detect_local_llm() is True
+
+
+# ---------------------------------------------------------------------------
+# Tolerant local-model tool-call recovery (GLM-4 via llama.cpp emits the call as
+# `<func>\n<json>` in content and repeats it instead of parsing it into tool_calls)
+# ---------------------------------------------------------------------------
+
+
+def test_recover_tool_call_from_repeated_content():
+    from kryon.sdk.agents.models.openai_chatcompletions import _recover_tool_calls_from_content
+
+    # The exact shape observed live: the call repeated ~20x, never parsed.
+    content = 'nmap_scan\n{"target": "10.0.0.5"}' * 20
+    rec = _recover_tool_calls_from_content(content, {"nmap_scan", "web_fetch_smart"})
+    assert rec is not None and len(rec) == 1  # first occurrence only — drops the loop
+    assert rec[0].function.name == "nmap_scan"
+    import json as _json
+
+    assert _json.loads(rec[0].function.arguments) == {"target": "10.0.0.5"}
+
+
+def test_recover_ignores_unknown_tool_and_plain_text():
+    from kryon.sdk.agents.models.openai_chatcompletions import _recover_tool_calls_from_content
+
+    assert _recover_tool_calls_from_content('foo_unknown\n{"x": 1}', {"nmap_scan"}) is None
+    assert _recover_tool_calls_from_content("A normal answer, no tool call here.", {"nmap_scan"}) is None
+    assert _recover_tool_calls_from_content(None, {"nmap_scan"}) is None
+    assert _recover_tool_calls_from_content('nmap_scan\n{"target":"x"}', set()) is None  # no tools
+
+
+def test_recover_picks_first_valid_json_not_garbage():
+    from kryon.sdk.agents.models.openai_chatcompletions import _recover_tool_calls_from_content
+
+    # name followed by invalid JSON for the first match, valid for a later one
+    content = 'web_fetch_smart\nnot-json-here\nweb_fetch_smart\n{"url": "http://t"}'
+    rec = _recover_tool_calls_from_content(content, {"web_fetch_smart"})
+    assert rec is not None and rec[0].function.name == "web_fetch_smart"
