@@ -8,10 +8,19 @@ import os
 import platform
 import threading
 import time
+from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+try:
+    # Transitive dependency (robust, cross-platform). Used to serialize the usage-file
+    # read-modify-write ACROSS processes (queue process --concurrency spawns separate
+    # kryon engage processes; the in-process threading.Lock can't coordinate them).
+    from filelock import FileLock as _FileLock
+except ImportError:  # degrade gracefully — in-process lock only
+    _FileLock = None
 
 # session_id lives in a ContextVar, not a plain instance attribute: the tracker is
 # a process-wide singleton, so a shared attribute let concurrent in-process sessions
@@ -31,7 +40,10 @@ class GlobalUsageTracker:
     """
 
     _instance = None
-    _lock = threading.Lock()
+    # RLock (reentrant): track_usage holds the lock and calls _save_usage_data, which
+    # re-acquires it. A plain Lock would self-deadlock now that the save runs inside the
+    # locked critical section (moved there so load-modify-save is one atomic section).
+    _lock = threading.RLock()
 
     def __new__(cls):
         if cls._instance is None:
@@ -49,6 +61,30 @@ class GlobalUsageTracker:
     @session_id.setter
     def session_id(self, value: str | None) -> None:
         _session_id_var.set(value)
+
+    @contextmanager
+    def _cross_process_guard(self):
+        """Best-effort inter-process lock around the usage-file read-modify-write so
+        concurrent `kryon engage` processes don't lose each other's updates. Degrades
+        to a no-op (in-process lock only) if filelock is absent or held past a short
+        timeout — a metrics write must never hang the run. Yields EXACTLY once and
+        always releases (the body running under the lock or best-effort without it)."""
+        lock = getattr(self, "_file_lock", None)
+        locked = False
+        if lock is not None:
+            try:
+                lock.acquire(timeout=2)
+                locked = True
+            except Exception:  # noqa: BLE001 — timeout/error: proceed best-effort, no lock
+                locked = False
+        try:
+            yield
+        finally:
+            if locked:
+                try:
+                    lock.release()
+                except Exception:  # noqa: BLE001
+                    pass
 
     def __init__(self):
         if self._initialized:
@@ -72,6 +108,8 @@ class GlobalUsageTracker:
 
         self.usage_file = Path.home() / ".kryon" / "usage.json"
         self.usage_file.parent.mkdir(parents=True, exist_ok=True)
+        # Inter-process lock for the read-modify-write (see module import note).
+        self._file_lock = _FileLock(str(self.usage_file) + ".lock") if _FileLock else None
 
         # Load existing usage data
         self.usage_data = self._load_usage_data()
@@ -293,10 +331,11 @@ class GlobalUsageTracker:
             return
 
         try:
-            with self._lock:
-                # Reload INSIDE the lock so the load-modify-save is atomic within the
-                # process (the load used to sit outside the lock, leaving a window where
-                # a concurrent thread's update was read stale and then overwritten).
+            with self._cross_process_guard(), self._lock:
+                # Reload INSIDE both locks so the whole load-modify-save is atomic
+                # across processes (filelock) AND threads (self._lock): the load used to
+                # sit outside, and the save (below) outside too, so a concurrent writer's
+                # update was read stale and then overwritten.
                 current_data = self._load_usage_data()
                 # IMPORTANT: Don't just take the max - we need to properly sync the data
                 # If the file has been updated by another instance, use those values as the base
@@ -373,8 +412,10 @@ class GlobalUsageTracker:
 
                             break
 
-            # Save after every update for better consistency across instances
-            self._save_usage_data()
+                # Save INSIDE the locks so load-modify-save is one atomic critical
+                # section (it used to save after releasing the lock — a window for a
+                # concurrent writer to slip in and get overwritten).
+                self._save_usage_data()
 
         except KeyboardInterrupt:
             # Don't block on Ctrl+C

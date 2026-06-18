@@ -4265,7 +4265,11 @@ class OpenAIChatCompletionsModel(Model):
             tool_use = delta.tool_use
             return [
                 {
-                    "index": 0,
+                    # Index by the tool_use id, not a hardcoded 0: a turn can carry
+                    # several distinct tool_use blocks, and index 0 made them all
+                    # accumulate into the same slot (name/args concatenated → corrupt).
+                    # Continuation deltas of one block share its id, so they still merge.
+                    "index": tool_use.get("id", f"tool_{time.time_ns()}"),
                     "id": tool_use.get("id", f"tool_{time.time_ns()}"),
                     "type": "function",
                     "function": {
@@ -4278,7 +4282,11 @@ class OpenAIChatCompletionsModel(Model):
             tool_use = delta["tool_use"]
             return [
                 {
-                    "index": 0,
+                    # Index by the tool_use id, not a hardcoded 0: a turn can carry
+                    # several distinct tool_use blocks, and index 0 made them all
+                    # accumulate into the same slot (name/args concatenated → corrupt).
+                    # Continuation deltas of one block share its id, so they still merge.
+                    "index": tool_use.get("id", f"tool_{time.time_ns()}"),
                     "id": tool_use.get("id", f"tool_{time.time_ns()}"),
                     "type": "function",
                     "function": {

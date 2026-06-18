@@ -274,24 +274,29 @@ class Runner:
                     )
 
                     if current_turn == 1:
-                        input_guardrail_results, turn_result = await asyncio.gather(
-                            cls._run_input_guardrails(
-                                starting_agent,
-                                starting_agent.input_guardrails + (run_config.input_guardrails or []),
-                                copy.deepcopy(input),
-                                context_wrapper,
-                            ),
-                            cls._run_single_turn(
-                                agent=current_agent,
-                                all_tools=all_tools,
-                                original_input=original_input,
-                                generated_items=generated_items,
-                                hooks=hooks,
-                                context_wrapper=context_wrapper,
-                                run_config=run_config,
-                                should_run_agent_start_hooks=should_run_agent_start_hooks,
-                                tool_use_tracker=tool_use_tracker,
-                            ),
+                        # Run input guardrails BEFORE the first turn, not concurrently
+                        # with it. gather(guardrails, turn) let the turn-1 tools execute
+                        # before a tripped guardrail could raise — so a scope/authorization
+                        # guardrail couldn't actually stop the first action. Sequential =
+                        # defense-in-depth: a tripwire now aborts before any tool runs.
+                        # (The tool-layer scope cage still guards every call; this also
+                        # covers non-scope guardrails and runs with no cage declared.)
+                        input_guardrail_results = await cls._run_input_guardrails(
+                            starting_agent,
+                            starting_agent.input_guardrails + (run_config.input_guardrails or []),
+                            copy.deepcopy(input),
+                            context_wrapper,
+                        )
+                        turn_result = await cls._run_single_turn(
+                            agent=current_agent,
+                            all_tools=all_tools,
+                            original_input=original_input,
+                            generated_items=generated_items,
+                            hooks=hooks,
+                            context_wrapper=context_wrapper,
+                            run_config=run_config,
+                            should_run_agent_start_hooks=should_run_agent_start_hooks,
+                            tool_use_tracker=tool_use_tracker,
                         )
                     else:
                         turn_result = await cls._run_single_turn(
