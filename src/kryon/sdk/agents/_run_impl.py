@@ -608,6 +608,22 @@ class RunImpl:
                         f"BLOCKED by engagement cage: {_why}. This action is OUTSIDE the authorized "
                         "engagement (scope / time window / action tier). Do NOT retry it."
                     )
+            # KILL-SWITCH — hard external stop (kill-file / deadline / action budget).
+            # Raises KillSwitchTripped (an AgentsException) so it STOPS the run rather
+            # than being swallowed into an observation the model could ignore.
+            try:
+                from kryon.agents.killswitch import get_killswitch
+
+                _ks = get_killswitch()
+            except Exception:  # noqa: BLE001 — never crash the run
+                _ks = None
+            if _ks is not None:
+                _tripped, _ksw = _ks.check_and_count()
+                if _tripped:
+                    from kryon.agents.killswitch import KillSwitchTripped
+
+                    logger.warning("kill-switch TRIPPED before tool %s: %s", func_tool.name, _ksw)
+                    raise KillSwitchTripped(f"kill-switch tripped: {_ksw}")
             with function_span(func_tool.name) as span_fn:
                 if config.trace_include_sensitive_data:
                     span_fn.span_data.input = tool_call.arguments

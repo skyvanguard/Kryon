@@ -444,6 +444,16 @@ in the container (needs `NET_ADMIN`, already granted):
 ```bash
 python -m kryon.agents.network_egress apply        # default DROP egress except scope + DNS + LLM
 python -m kryon.agents.network_egress              # dry-run: print the iptables ruleset
+```
+
+Kill-switch — hard external stop for an autonomous run (checked at the tool layer;
+tripping STOPS the run). Bounds HOW MUCH the agent acts and lets a human pull the
+plug. Any one set turns it on:
+
+```bash
+KRYON_KILL_FILE=/tmp/kryon.stop        # `touch` this file to abort mid-run
+KRYON_DEADLINE=2026-06-18T06:00:00Z    # hard wall-clock stop
+KRYON_MAX_ACTIONS=200                  # cap total tool calls this run
 
 # Live-probe gates (DOUBLE gate: env + fire=True argument)
 KRYON_BOLA_FIRE=true                   # detect_bola live HTTP
