@@ -211,6 +211,18 @@ def invoke_kryon(prompt: str, timeout: int = 600) -> str:
         # to kryon-gpt-oss (F189 validated: 18 findings avg vs kryon-14b's
         # empty `[]` returns for active pentest prompts).
         bench_model = os.environ.get("KRYON_BENCH_MODEL", "kryon-gpt-oss")
+        # Bound the pre-LLM deterministic webexploit/nuclei sweep (default 600s
+        # would dominate each case) + force tool-use for the local model. Tunable
+        # from the host; sensible bench defaults.
+        wx_timeout = os.environ.get("KRYON_WEBEXPLOIT_TIMEOUT_S", "45")
+        force_turns = os.environ.get("KRYON_FORCE_TOOL_TURNS", "8")
+        # Bound EVERY deterministic phase: the bench targets (PortSwigger docs) are
+        # real WAF'd sites, so the offensive sweeps hang on SSL reads and the long
+        # default timeouts (ssrf 360s) would make each case crawl. The bench scores
+        # the agent's reasoning, not the deterministic sweep — keep it short.
+        ssrf_to = os.environ.get("KRYON_SSRF_TIMEOUT_S", "30")
+        wenum_to = os.environ.get("KRYON_WEBENUM_TIMEOUT_S", "30")
+        det_to = os.environ.get("KRYON_DETERMINISTIC_TIMEOUT_S", "30")
         cmd = ["docker", "exec",
                "-e", "KRYON_RED_TEAM=true",
                "-e", f"KRYON_MODEL={bench_model}",
@@ -218,6 +230,11 @@ def invoke_kryon(prompt: str, timeout: int = 600) -> str:
                "-e", f"KRYON_RAG_MODEL={bench_model}",
                "-e", f"KRYON_GUARDRAIL_MODEL={bench_model}",
                "-e", f"KRYON_COMPLIANCE_NARRATOR_MODEL={bench_model}",
+               "-e", f"KRYON_WEBEXPLOIT_TIMEOUT_S={wx_timeout}",
+               "-e", f"KRYON_SSRF_TIMEOUT_S={ssrf_to}",
+               "-e", f"KRYON_WEBENUM_TIMEOUT_S={wenum_to}",
+               "-e", f"KRYON_DETERMINISTIC_TIMEOUT_S={det_to}",
+               "-e", f"KRYON_FORCE_TOOL_TURNS={force_turns}",
                "kryon",
                "kryon", "investigate", prompt,
                "--active", "--max-turns", "10", "--reflect-every", "5"]
