@@ -7,6 +7,7 @@ tool calls that execute in parallel, breaking the sequential LLM->Tools->LLM bot
 
 import asyncio
 import logging
+import threading
 import time
 import uuid
 from collections import defaultdict
@@ -65,13 +66,18 @@ class ParallelToolExecutor:
         if self._executor_task:
             await self._executor_task
 
-        # Cancel any remaining tasks
-        for task in self.active_tasks:
+        # Snapshot active_tasks under the lock — _run_executor reassigns the list
+        # concurrently, so iterating it directly could miss tasks (leaving them
+        # uncancelled) or trip over a mid-reassignment.
+        async with self._lock:
+            tasks = list(self.active_tasks)
+
+        for task in tasks:
             if not task.done():
                 task.cancel()
 
-        if self.active_tasks:
-            await asyncio.gather(*self.active_tasks, return_exceptions=True)
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def submit_tool_call(
         self,
@@ -217,13 +223,22 @@ class ParallelToolExecutor:
 
 # Global instance for shared tool execution
 _global_executor: ParallelToolExecutor | None = None
+_global_executor_lock = threading.Lock()
 
 
 def get_parallel_tool_executor() -> ParallelToolExecutor:
-    """Get or create the global parallel tool executor."""
+    """Get or create the global parallel tool executor.
+
+    Double-checked locking: without the lock, two threads racing the first call
+    could each construct an executor and the second would orphan the first (whose
+    instance was already handed to a mixin), splitting pending_calls/active_tasks
+    across two live executors and silently timing out tool calls.
+    """
     global _global_executor
     if _global_executor is None:
-        _global_executor = ParallelToolExecutor()
+        with _global_executor_lock:
+            if _global_executor is None:
+                _global_executor = ParallelToolExecutor()
     return _global_executor
 
 

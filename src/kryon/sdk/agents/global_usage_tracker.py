@@ -8,9 +8,16 @@ import os
 import platform
 import threading
 import time
+from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+# session_id lives in a ContextVar, not a plain instance attribute: the tracker is
+# a process-wide singleton, so a shared attribute let concurrent in-process sessions
+# (e.g. the /parallel command running several agents) clobber each other's id and
+# misattribute usage. A ContextVar isolates it per async context / task.
+_session_id_var: ContextVar[str | None] = ContextVar("kryon_usage_session_id", default=None)
 
 # Import fcntl only on Unix-like systems
 if platform.system() != "Windows":
@@ -33,6 +40,15 @@ class GlobalUsageTracker:
                     cls._instance = super().__new__(cls)
                     cls._instance._initialized = False
         return cls._instance
+
+    @property
+    def session_id(self) -> str | None:
+        """Per-context session id (ContextVar-backed) — see module note."""
+        return _session_id_var.get()
+
+    @session_id.setter
+    def session_id(self, value: str | None) -> None:
+        _session_id_var.set(value)
 
     def __init__(self):
         if self._initialized:
@@ -277,11 +293,11 @@ class GlobalUsageTracker:
             return
 
         try:
-            # For concurrent access safety, reload data before updating
-            # This ensures we don't lose updates from other KRYON instances
-            current_data = self._load_usage_data()
-
             with self._lock:
+                # Reload INSIDE the lock so the load-modify-save is atomic within the
+                # process (the load used to sit outside the lock, leaving a window where
+                # a concurrent thread's update was read stale and then overwritten).
+                current_data = self._load_usage_data()
                 # IMPORTANT: Don't just take the max - we need to properly sync the data
                 # If the file has been updated by another instance, use those values as the base
                 if current_data:

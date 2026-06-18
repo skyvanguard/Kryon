@@ -57,9 +57,11 @@ class ParallelHistoryIsolation:
             isolated_histories = {}
             for i in range(min(num_agents, len(agent_ids))):
                 agent_id = agent_ids[i]
-                # Each agent gets its own deep copy
-                isolated_histories[agent_id] = self.create_isolated_history(base_history)
-                self._isolated_histories[agent_id] = isolated_histories[agent_id]
+                # Each agent gets its own deep copy, and the caller's copy stays
+                # independent of the one we retain (same-object aliasing broke isolation).
+                isolated = self.create_isolated_history(base_history)
+                self._isolated_histories[agent_id] = isolated
+                isolated_histories[agent_id] = copy.deepcopy(isolated)
 
             return isolated_histories
 
@@ -209,10 +211,13 @@ class ParallelHistoryIsolation:
             # Create isolated histories
             isolated_histories = {}
             for agent_name, agent_id in agent_configs:
-                # Each agent gets its own deep copy
+                # Each agent gets its own deep copy. The copy handed to the caller must
+                # be INDEPENDENT of the one we retain in self._isolated_histories — they
+                # used to be the same object, so the caller mutating its history silently
+                # mutated our tracked copy, defeating the isolation this class promises.
                 isolated_history = self.create_isolated_history(base_history)
-                isolated_histories[agent_id] = isolated_history
                 self._isolated_histories[agent_id] = isolated_history
+                isolated_histories[agent_id] = copy.deepcopy(isolated_history)
 
                 # Also update AGENT_MANAGER with the isolated copy
                 AGENT_MANAGER.clear_history(agent_name)
