@@ -27,16 +27,45 @@ logger = logging.getLogger(__name__)
 # Names should match how they appear in tool_call_id or the preceding
 # assistant tool_calls[].function.name.
 LARGE_OUTPUT_TOOLS: set[str] = {
+    # generic / web
     "nmap",
     "run_command",
+    "nuclei",
     "nuclei_scan",
     "whatweb_scan",
     "gobuster",
+    "feroxbuster",
+    "ffuf",
+    "wfuzz",
     "nikto",
-    "curl_request",
     "dirb",
+    "curl_request",
     "execute_code",
     "duckduckgo_search",
+    "web_fetch_smart",  # GET-only HTTP, up to 500KB → the biggest single offender
+    "wpscan",
+    # network / scanning
+    "masscan",
+    "rustscan",
+    "sslscan",
+    "testssl",
+    "dnsrecon",
+    "amass",
+    "subfinder",
+    # exploitation / enum (offensive, large semi-structured output)
+    "sqlmap",
+    "sqlmap_scan",
+    "sqlmap_dump_database",
+    "hydra",
+    "medusa",
+    "enum4linux",
+    "smbclient",
+    "smbmap",
+    "crackmapexec",
+    "nxc",
+    "netexec",
+    "ldapsearch",
+    "searchsploit",
 }
 
 _HEAD = 500  # chars to keep from the start

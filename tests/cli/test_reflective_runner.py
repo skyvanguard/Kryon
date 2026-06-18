@@ -446,3 +446,40 @@ class TestHooksIntegrationWithReflectiveRunner:
         assert len(chain) == 1
         assert chain[0]["tool"] == "fake_tool"
         assert chain[0]["output_preview"] == "out"
+
+
+# ---------------------------------------------------------------------------
+# Scaffolding hardening: facts_signature breadth + chunk-text from .output
+# ---------------------------------------------------------------------------
+
+
+def test_facts_signature_moves_on_host_service_path_progress():
+    from kryon.cli.reflective_runner import _facts_signature
+    from kryon.intelligence.fact_extractor import ExtractedFacts
+
+    base = ExtractedFacts()
+    # Progress ONLY in hosts/services/paths/versions (not the original 5 fields).
+    grew_hosts = ExtractedFacts(hosts=("10.0.0.5",))
+    grew_services = ExtractedFacts(services=((22, "ssh"),))
+    grew_paths = ExtractedFacts(paths=("/admin",))
+    grew_versions = ExtractedFacts(versions=(("nginx", "1.18"),))
+    for f in (grew_hosts, grew_services, grew_paths, grew_versions):
+        assert _facts_signature(f) != _facts_signature(base), f
+
+
+def test_extract_chunk_text_reads_model_response_output():
+    from kryon.cli.reflective_runner import _extract_chunk_text
+
+    # ModelResponse shape: text lives in .output message items, .message is absent,
+    # final_output is empty (a tool-calling turn). The old code returned "".
+    msg_item = SimpleNamespace(content=[SimpleNamespace(text="thinking thinking thinking")])
+    resp = SimpleNamespace(output=[msg_item])
+    result = SimpleNamespace(raw_responses=[resp], final_output="")
+    assert "thinking thinking thinking" in _extract_chunk_text(result)
+
+
+def test_extract_chunk_text_falls_back_to_final_output():
+    from kryon.cli.reflective_runner import _extract_chunk_text
+
+    result = SimpleNamespace(raw_responses=[], final_output="just the summary")
+    assert _extract_chunk_text(result) == "just the summary"

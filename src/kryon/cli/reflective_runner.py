@@ -195,12 +195,19 @@ def _facts_signature(facts: Any) -> str:
     not enough to claim progress on their own."""
     if facts is None:
         return ""
+    # Count ALL high-value fields, not just the original five — discovering a new
+    # host / service / path / version IS progress, and omitting them made the stall
+    # detector fire falsely while the agent was genuinely advancing on those axes.
     return (
         f"u={len(getattr(facts, 'users', ()))}"
         f"_h={len(getattr(facts, 'hashes', ()))}"
         f"_c={len(getattr(facts, 'creds', ()))}"
         f"_s={len(getattr(facts, 'shares', ()))}"
         f"_d={len(getattr(facts, 'domains', ()))}"
+        f"_ho={len(getattr(facts, 'hosts', ()))}"
+        f"_se={len(getattr(facts, 'services', ()))}"
+        f"_pa={len(getattr(facts, 'paths', ()))}"
+        f"_ve={len(getattr(facts, 'versions', ()))}"
     )
 
 
@@ -861,8 +868,6 @@ def _extract_chunk_text(result: Any) -> str:
     for r in raw:
         msg = getattr(r, "message", None) or r
         content = getattr(msg, "content", None)
-        if content is None:
-            continue
         if isinstance(content, str):
             parts.append(content)
         elif isinstance(content, list):
@@ -873,6 +878,21 @@ def _extract_chunk_text(result: Any) -> str:
                         parts.append(text)
                 elif isinstance(item, str):
                     parts.append(item)
+        # ModelResponse shape (the native default): the model's text lives in
+        # `.output` message items, NOT `.message.content` (which is absent → the
+        # old code fell straight to final_output, leaving the degeneracy detector
+        # inert on every tool-calling turn). Pull text from message items only;
+        # tool-call items carry no `.content`, so their args never pollute the
+        # n-gram degeneracy signal.
+        for out_item in getattr(r, "output", None) or []:
+            oc = getattr(out_item, "content", None)
+            if isinstance(oc, str):
+                parts.append(oc)
+            elif isinstance(oc, list):
+                for c in oc:
+                    t = getattr(c, "text", None) or (c.get("text") if isinstance(c, dict) else None)
+                    if isinstance(t, str):
+                        parts.append(t)
     if not parts:
         fo = getattr(result, "final_output", None)
         if fo:
@@ -1600,7 +1620,11 @@ async def run_with_reflection(
             break
 
         # Inject reflection user message for the next chunk.
-        stuck = _is_stuck(tool_history, threshold=stuck_threshold)
+        # Only judge "stuck" on chunks that actually called tools. _is_stuck reads
+        # the GLOBAL history tail, so a chunk that emits NO tool call (the model
+        # narrating / concluding) would otherwise keep matching the stale tail and
+        # falsely escalate "repeated X" — when in fact the model stopped looping.
+        stuck = _is_stuck(tool_history, threshold=stuck_threshold) if new_records else None
         # Escalate a persistent stuck pattern to a hard stop. _is_stuck only
         # warns via the reflection prompt; a weak agentic model ignores it and
         # re-issues the same tool+args indefinitely (qwen3-8b: ~48× one URL).
@@ -1626,7 +1650,10 @@ async def run_with_reflection(
                 )
                 operator_input_requested = True
                 break
-        else:
+        elif new_records:
+            # A chunk that called a DIFFERENT tool breaks the loop → reset. A chunk
+            # with no tool call holds the counter (handled above) instead of
+            # resetting, so alternating "repeat / narrate / repeat" can't evade it.
             consecutive_stuck_count = 0
         last_output = ""
         try:

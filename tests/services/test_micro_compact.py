@@ -57,3 +57,26 @@ def test_truncated_output_keeps_head_and_tail():
 
 def test_empty_history_is_noop():
     assert micro_compact_history([]) == 0
+
+
+def _asst_named(cid: str, name: str) -> dict:
+    return {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [{"id": cid, "type": "function", "function": {"name": name, "arguments": "{}"}}],
+    }
+
+
+def test_compacts_offensive_tools_now_in_allowlist():
+    # Regression: sqlmap / web_fetch_smart (≤500KB) / ffuf / hydra / nxc produce
+    # large output but were absent from LARGE_OUTPUT_TOOLS → never compacted →
+    # context bloat. They must compact now.
+    for name in ("sqlmap", "web_fetch_smart", "ffuf", "hydra", "nxc", "enum4linux"):
+        hist = [
+            {"role": "system", "content": "s"},
+            {"role": "user", "content": "u"},
+            _asst_named("c0", name),
+            {"role": "tool", "tool_call_id": "c0", "content": "X" * 4000},
+            {"role": "assistant", "content": "next step"},
+        ]
+        assert micro_compact_history(hist) == 1, name
