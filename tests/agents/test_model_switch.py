@@ -27,8 +27,8 @@ from kryon.agents.base import (
         ("kryon-devstral-24b", False),  # local → native
         ("deepseek-chat", False),       # V3 chat → native
         ("gpt-4o", False),              # plain OpenAI-compat → native
-        ("deepseek-reasoner", True),    # thinking → litellm (reasoning_content round-trip)
-        ("deepseek-v4-thinking", True),
+        ("deepseek-reasoner", False),   # thinking → native too (native round-trips reasoning_content)
+        ("deepseek-v4-thinking", False),
     ],
 )
 def test_routing(monkeypatch, model, litellm):
@@ -36,6 +36,29 @@ def test_routing(monkeypatch, model, litellm):
     monkeypatch.delenv("KRYON_USE_LITELLM", raising=False)
     cls = chat_model_cls()
     assert (cls.__name__ == "OpenAIChatCompletionsModel") is litellm
+
+
+def test_native_round_trips_reasoning_content():
+    """deepseek-reasoner works on the native path: the assistant's reasoning_content
+    survives the full native message pipeline (merge → fix_message_list → the openai
+    client's wire serialization), so it's echoed back next turn and the API doesn't
+    400. This is what let reasoner drop off the litellm-forced route."""
+    from openai._utils import maybe_transform
+    from openai.types.chat.completion_create_params import CompletionCreateParamsNonStreaming
+
+    from kryon.sdk.agents.models.openai_chatcompletions import _merge_history_and_converter
+    from kryon.util import fix_message_list
+
+    hist = [
+        {"role": "user", "content": "go"},
+        {"role": "assistant", "content": "ok", "reasoning_content": "CHAIN-OF-THOUGHT"},
+        {"role": "user", "content": "next"},
+    ]
+    merged = _merge_history_and_converter(hist, [])
+    fixed = fix_message_list(merged)
+    body = maybe_transform({"model": "deepseek-reasoner", "messages": fixed}, CompletionCreateParamsNonStreaming)
+    asst = [m for m in body["messages"] if m.get("role") == "assistant"]
+    assert asst and asst[0].get("reasoning_content") == "CHAIN-OF-THOUGHT"
 
 
 def test_use_litellm_escape_hatch(monkeypatch):

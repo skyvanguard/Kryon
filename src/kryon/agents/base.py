@@ -63,18 +63,17 @@ def chat_model_cls() -> type[OpenAIChatCompletionsModel]:
 
     Escape hatch: ``KRYON_USE_LITELLM=true`` restores the litellm-backed model.
 
-    Auto-exception: DeepSeek "thinking" models (deepseek-reasoner / deepseek-v4-*,
-    NOT deepseek-chat) REQUIRE the assistant's ``reasoning_content`` to be echoed
-    back on every subsequent turn, or the API 400s mid-run
-    ('The reasoning_content in the thinking mode must be passed back to the API.').
-    The native path doesn't round-trip it; litellm's DeepSeek provider does — so
-    those models are auto-routed to the litellm backend. Everything else (local
-    MoE, deepseek-chat, plain OpenAI-compatible) stays on the litellm-free native
-    default. Selecting the litellm class does NOT import litellm (the import stays
-    lazy inside its ``_fetch_response``), so the P1 import invariant holds.
+    DeepSeek "thinking" models (deepseek-reasoner / deepseek-v4-*) REQUIRE the
+    assistant's ``reasoning_content`` to be echoed back every turn or the API 400s.
+    This used to force them onto litellm — but the native path ALREADY round-trips
+    it: the store lives in the shared ``get_response``/``stream_response`` (native
+    inherits them), and ``_merge_history_and_converter`` + ``fix_message_list`` +
+    the openai client's serialization all preserve the field (verified empirically).
+    So reasoner now stays on the native default too; only ``KRYON_USE_LITELLM``
+    selects litellm. (Full litellm removal is staged behind a live reasoner test.)
     """
     s = settings(refresh=True)
-    if s.use_litellm or _needs_litellm_for_reasoning(s.model):
+    if s.use_litellm:
         return OpenAIChatCompletionsModel
     from kryon.sdk.agents.models.openai_native import OpenAINativeModel
 
@@ -82,10 +81,10 @@ def chat_model_cls() -> type[OpenAIChatCompletionsModel]:
 
 
 def _needs_litellm_for_reasoning(model: str | None) -> bool:
-    """True for DeepSeek thinking models that need litellm's reasoning_content
-    round-trip. Mirrors ``openai_chatcompletions._preserves_reasoning_in_history``:
-    ``deepseek`` in the name but NOT ``deepseek-chat`` (the non-reasoning V3 chat
-    model, which works fine on the native path)."""
+    """Identifies a DeepSeek thinking model (``deepseek`` but not ``deepseek-chat``).
+
+    NO LONGER used for routing — the native path round-trips reasoning_content, so
+    these stay native. Kept as a predicate until litellm is fully removed."""
     s = (model or "").lower()
     return "deepseek" in s and "deepseek-chat" not in s
 
