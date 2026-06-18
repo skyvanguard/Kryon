@@ -31,7 +31,7 @@
 
 ## What is KRYON?
 
-KRYON is a **general autonomous offensive-security agent** — recon, authorized pentesting, vulnerability hunting, DFIR, and compliance audits from a single prompt. It runs **locally** on a 12 GB-VRAM GPU using `Kryon-MOE-35B` (a `llama-server` / llama.cpp **alias** that, by default, serves **gpt-oss-20b** — an OpenAI MoE 21B-A3.6B in MXFP4, ~11.3 GB GGUF — which outperformed the original Qwen3.6-35B-A3B on the agentic tool-use bench), so **zero API cost** and **zero data leaving the engagement perimeter**.
+KRYON is a **general autonomous offensive-security agent** — recon, authorized pentesting, vulnerability hunting, DFIR, and compliance audits from a single prompt. It runs **locally** on a 12 GB-VRAM GPU using `kryon-devstral-24b` (a `llama-server` / llama.cpp **alias** serving **Devstral-Small-2-24B** — a Mistral *dense* 24B tool-use specialist, IQ3_XXS ~8.8 GB GGUF with q8_0 KV cache — adopted over the earlier gpt-oss/Qwen MoE for more reliable native tool-calling), so **zero API cost** and **zero data leaving the engagement perimeter**. The runtime is fully OpenAI-compatible, so swapping to a cloud model (DeepSeek, OpenAI) is a one-env-var change when raw capability matters more than locality.
 
 > **Direction (v2.x):** the product is a *general* offensive/compliance agent. **Banking/financial services (LATAM/Paraguay) is one strong vertical** — backed by a real moat (BCP Res. 12/2021 deterministic checks, local-first, pricing in guaraníes) — **not the whole product**. Several banking playbooks are methodology *templates*, not turnkey scanners; see [Banking Status](#banking-vertical--honest-status) for what runs end-to-end vs. what's a starter frame.
 
@@ -67,12 +67,12 @@ $ kryon investigate "audita https://target.com"
 | Component | Count |
 |-----------|:-----:|
 | Skill playbooks (`.md`) | **106** (42 core + 11 CWE + 4 banking + 5 OT + 40 imported + 1 zero-day) |
-| `@function_tool` implementations | **348** across ~150 modules |
+| `@function_tool` implementations | **348** defined; **175 banca-safe / 241 under `KRYON_RED_TEAM`** wired into the selectable registry (offensive branches — credential dumping, lateral movement, AD, cloud, DFIR — were connected this branch) |
 | CLI entry points | 19 subcommands |
 | API endpoints (FastAPI) | 136 |
 | Compliance frameworks | 9 (PCI-DSS, OWASP, NIST CSF, CIS, MITRE ATT&CK, SWIFT CSP, FAPI, HIPAA, SOC2) |
 | Production-capable audit modules | 7 (PCI-DSS · Proxmox · FortiGate · Unifi · Asterisk · Windows Server · Tomcat) |
-| Default model | `Kryon-MOE-35B` (alias; serves **gpt-oss-20b** MoE 21B-A3.6B MXFP4 ~11.3 GB by default) via llama.cpp |
+| Default model | `kryon-devstral-24b` (alias; serves **Devstral-Small-2-24B**, Mistral dense, IQ3_XXS ~8.8 GB + q8_0 KV) via llama.cpp |
 | LLM runtime | `llama-server` (llama.cpp), tool-calling via `--jinja` |
 
 ### Core capabilities
@@ -83,9 +83,12 @@ $ kryon investigate "audita https://target.com"
 - **CVE applicability gate (F180-F183)** — drops findings whose products do not apply to the target stack (e.g. JAMon-JSP CVE on a Node.js host).
 - **Self-improving loop (F1-F3, F77.G.5)** — every successful engagement writes a draft skill; Wilson-scored selection ranks proven playbooks first; pattern detector clusters chains and auto-synthesizes new skills.
 - **Hybrid mode (F203.M)** — 11 deterministic detectors (HTTP, MySQL, SSH, BGP, cookies, …) run BEFORE the LLM in `investigate`; findings injected as ground truth. Web bench recall: 25% → 100%.
-- **Local-first by design** — Kryon-MOE-35B (gpt-oss-20b by default) via llama.cpp on 12 GB VRAM. Zero per-engagement cost. Banking data never leaves the engagement host.
+- **Local-first by design** — `kryon-devstral-24b` (Devstral-Small-2-24B) via llama.cpp on 12 GB VRAM. Zero per-engagement cost. Banking data never leaves the engagement host. OpenAI-compatible runtime → DeepSeek/OpenAI is a one-flag swap.
 - **Banca-safe by default** — passive recon, throttled nmap (`-T2 --min-rate 50`), no live HTTP unless `KRYON_*_FIRE=true` AND `fire=True` argument (double gate).
 - **Safe-modification protocol** — diagnose (read-only) → propose (table + STOP) → backup → apply → verify → rollback on failure.
+- **Deterministic offensive enumeration & exploitation** — `investigate --active` runs, before the LLM: web content enumeration (dirs + vhosts via ffuf, correct wordlists; `common.txt` default, `raft-medium` under `KRYON_WEBENUM_DEEP`) and an SSRF prober (auto-discovers the sink param via file-read *or* loopback-port divergence, then port-scans `127.0.0.1`). Confirmed SSRF + reachable internal ports are injected as ground truth — verified live: SSRF → internal `:1337` → SSH key on a TryHackMe box.
+- **Full offensive arsenal wired** — credential dumping (LSASS/SAM/Kerberos), lateral movement (psexec/wmi/smb), AD attacks (kerberoast/dcsync/bloodhound), privesc, plus cloud-posture / DFIR / container / threat-intel branches were *defined but orphaned*; now registered (read-only/analytical ungated, intrusive gated behind `KRYON_RED_TEAM`) and named in the relevant skills' `required_tools` so the budget actually selects them.
+- **Hardened agentic scaffolding** — the reflective intel pipeline now parses the **raw tool outputs** (not the model's prose) into structured facts → next-action; tool-forcing works on the native path (DeepSeek); transient model 500s recover instead of aborting; a tool that throws returns its error as an observation rather than killing the run.
 
 ---
 
@@ -314,8 +317,8 @@ CWE map override: `~/.kryon/cwe_map.yaml` (template at `docs/examples/cwe_map.ya
                        ▼
               ┌────────────────────────┐
               │ llama-server (llama.cpp)│
-              │  Kryon-MOE-35B          │
-              │  Qwen3.6-35B-A3B MoE    │
+              │  kryon-devstral-24b     │
+              │  Devstral-Small-2-24B   │
               └────────────────────────┘
 ```
 
@@ -351,7 +354,7 @@ CWE map override: `~/.kryon/cwe_map.yaml` (template at `docs/examples/cwe_map.ya
 
 - **Python 3.10+** (managed by [`uv`](https://github.com/astral-sh/uv))
 - **Docker** (Kali Linux + 200+ security tools pre-installed)
-- **GPU recommended**: 12 GB VRAM for `Kryon-MOE-35B` (Qwen3.6-35B-A3B MoE, UD-Q4_K_XL) via llama.cpp
+- **GPU recommended**: 12 GB VRAM for `kryon-devstral-24b` (Devstral-Small-2-24B, IQ3_XXS + q8_0 KV) via llama.cpp
 - **GitHub CLI** (`gh`) for `/skill import` from upstream catalog
 
 ### Docker deployment (recommended)
@@ -368,9 +371,9 @@ docker compose -f docker/docker-compose.kali.yml \
                -f docker/docker-compose.override.yml \
                --env-file docker/.env.docker up -d
 
-# The production model (Kryon-MOE-35B) is served by the `llama-server`
-# service of the compose file — it mounts the Qwen3.6-35B-A3B MoE GGUF
-# (UD-Q4_K_XL, ~21 GB) and exposes an OpenAI-compatible API on :8080
+# The production model (kryon-devstral-24b) is served by the `llama-server`
+# service of the compose file — it mounts the Devstral-Small-2-24B GGUF
+# (IQ3_XXS ~8.8 GB) and exposes an OpenAI-compatible API on :8080
 # with tool-calling enabled via `--jinja`. There is no model-build step:
 # llama.cpp loads the GGUF directly on startup. Verify it is up with:
 docker exec kryon curl -s http://llama-server:8080/v1/models
@@ -390,7 +393,7 @@ docker exec -it kryon kryon
 
 ```bash
 # docker/.env.docker
-KRYON_MODEL=Kryon-MOE-35B              # Qwen3.6-35B-A3B MoE via llama.cpp
+KRYON_MODEL=kryon-devstral-24b        # Devstral-Small-2-24B (Mistral dense) via llama.cpp
 KRYON_AGENT_TYPE=kryon
 KRYON_UNIFIED=true
 KRYON_FORCE_TOOL_TURNS=8               # local LLM tool-calling reliability
@@ -525,13 +528,13 @@ kryon queue process --concurrency 1 --framework pci_dss --orchestrated --auto-ap
 
 | Provider | Recommended | Config | Notes |
 |----------|-------------|--------|-------|
-| **llama.cpp (local)** | **`Kryon-MOE-35B`** | `KRYON_MODEL=Kryon-MOE-35B` | **DEFAULT.** Qwen3.6-35B-A3B MoE, UD-Q4_K_XL, ~21 GB GGUF. Served by `llama-server`, tool-calling via `--jinja`. |
+| **llama.cpp (local)** | **`kryon-devstral-24b`** | `KRYON_MODEL=kryon-devstral-24b` | **DEFAULT.** Devstral-Small-2-24B (Mistral dense), IQ3_XXS ~8.8 GB GGUF + q8_0 KV cache. Served by `llama-server`, native tool-calling via `--jinja`. |
+| DeepSeek | `deepseek-chat` (V3), `deepseek-reasoner` (R1) | `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `KRYON_LOCAL_LLM=false` | Cloud, OpenAI-compatible — recommended when raw capability beats locality (banking data leaves perimeter). `deepseek-chat` uses the native path; `deepseek-reasoner` auto-routes to litellm for `reasoning_content`. |
 | OpenAI | GPT-4o, o3 | `OPENAI_API_KEY` | Cloud — banking data leaves perimeter. |
 | Anthropic | Claude Sonnet 4.6 | `ANTHROPIC_API_KEY` | Cloud. |
-| DeepSeek | DeepSeek V3, R1 | `DEEPSEEK_API_KEY` | Cloud. |
 | OpenRouter | 200+ models | `OPENROUTER_API_KEY` | Cloud. |
 
-**Recommended**: `Kryon-MOE-35B` (Qwen3.6-35B-A3B MoE) — local, zero API cost, tool calling via llama.cpp's `--jinja` template. Fits 12 GB VRAM (MoE experts offloaded to CPU, attention on GPU). Banca-safe sampling defaults (`--temp 0.3`) are baked into the `llama-server` command in the compose file.
+**Recommended (local)**: `kryon-devstral-24b` (Devstral-Small-2-24B) — local, zero API cost, native tool-calling via llama.cpp's `--jinja`. Fits 12 GB VRAM (~8.4 GB at `-c 20480` with q8_0 KV, ~27 tok/s). The local 24B reliably *runs* the harness (tools, intel pipeline, 0 hallucinated findings) but has **low recall** — it does not always convert exploration into confirmed findings (Juice Shop bench: 100% precision / 10% recall). For higher recall on a finished harness, swap to **DeepSeek** (one env var). Banca-safe sampling defaults (`--temp 0.15`) are baked into the `llama-server` command in the compose file.
 
 ---
 
