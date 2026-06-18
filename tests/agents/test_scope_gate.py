@@ -142,3 +142,40 @@ def test_malformed_args_dont_block():
 def test_classify(entry, rtype):
     r = _classify(entry)
     assert r is not None and r.rule_type == rtype
+
+
+# ---------------------------------------------------------------------------
+# Obfuscated-IP bypass hardening + file-reference false positives
+# ---------------------------------------------------------------------------
+
+
+def test_decimal_ip_bypass_blocked():
+    g = _gate("10.65.168.0/24")
+    # 8.8.8.8 == 134744072 — slips the dotted-quad regex without normalization.
+    assert g.check_call("run_command", _args(command="nmap 134744072"))[0] is False
+
+
+def test_hex_ip_bypass_blocked():
+    g = _gate("10.65.168.0/24")
+    assert g.check_call("run_command", _args(command="curl http://x; nmap 0x08080808"))[0] is False
+
+
+def test_in_scope_decimal_ip_allowed():
+    import ipaddress
+
+    g = _gate("10.65.168.0/24")
+    dec = str(int(ipaddress.ip_address("10.65.168.5")))
+    assert g.check_call("run_command", _args(command=f"nmap {dec}"))[0] is True
+
+
+def test_file_references_not_over_blocked():
+    g = _gate("10.65.168.0/24,*.creative.thm")
+    for cmd in ("python exploit.py", "cat config.php", "ffuf -w rockyou.txt -u http://beta.creative.thm/FUZZ"):
+        assert g.check_call("run_command", _args(command=cmd))[0] is True, cmd
+
+
+def test_large_non_network_integer_not_blocked():
+    g = _gate("10.65.168.0/24")
+    # no network indicator → the int isn't decoded as an IP.
+    assert g.check_call("run_command", _args(command="sleep 99999999"))[0] is True
+    assert g.check_call("run_command", _args(command="python s.py --id 123456789"))[0] is True
