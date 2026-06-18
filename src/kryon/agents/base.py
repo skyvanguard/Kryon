@@ -6,10 +6,50 @@ agent module only needs to specify its unique parts (name, instructions,
 tools, guardrails, handoffs).
 """
 
+import logging
+
 from openai import AsyncOpenAI
 
 from kryon.config import settings
 from kryon.sdk.agents import Agent, OpenAIChatCompletionsModel
+
+logger = logging.getLogger(__name__)
+
+# Substrings that mark a cloud (paid, off-perimeter) model.
+_CLOUD_MARKERS = ("deepseek", "gpt-", "o1", "o3", "o4-", "claude", "gemini", "openai/")
+# API-key values that mean "not actually configured".
+_PLACEHOLDER_KEYS = {"", "not-set", "llama", "none", "placeholder", "sk-xxx"}
+
+
+def is_cloud_model(model: str | None) -> bool:
+    """True for a cloud provider model (paid, leaves the engagement perimeter)."""
+    s = (model or "").lower()
+    return any(m in s for m in _CLOUD_MARKERS)
+
+
+def validate_model_config() -> tuple[bool, list[str]]:
+    """Fail-fast check for the selected model. Returns (ok, issues). A cloud model
+    needs a real API key (and DeepSeek its own base_url + KRYON_LOCAL_LLM=false) —
+    catching it here avoids a cryptic mid-run 401/timeout that wastes a paid run."""
+    s = settings(refresh=True)
+    issues: list[str] = []
+    if is_cloud_model(s.model):
+        if (s.openai_api_key or "").strip().lower() in _PLACEHOLDER_KEYS:
+            issues.append(
+                f"model '{s.model}' is a cloud model but OPENAI_API_KEY is unset/placeholder "
+                f"('{s.openai_api_key}') — set a real key."
+            )
+        if "deepseek" in (s.model or "").lower() and "deepseek" not in (s.openai_base_url or "").lower():
+            issues.append(
+                "DeepSeek selected but OPENAI_BASE_URL does not point at DeepSeek "
+                "(set OPENAI_BASE_URL=https://api.deepseek.com)."
+            )
+        if s.local_llm:
+            issues.append(
+                f"KRYON_LOCAL_LLM=true with cloud model '{s.model}' — set KRYON_LOCAL_LLM=false "
+                "(the local-LLM parsers/usage patch assume a local server)."
+            )
+    return (not issues), issues
 
 
 def chat_model_cls() -> type[OpenAIChatCompletionsModel]:
@@ -58,6 +98,10 @@ def get_default_model() -> OpenAIChatCompletionsModel:
     base_url the AsyncOpenAI client targets api.openai.com.
     """
     s = settings(refresh=True)
+    ok, issues = validate_model_config()
+    if not ok:
+        for i in issues:
+            logger.warning("model config: %s", i)
     return chat_model_cls()(
         model=s.model,
         openai_client=AsyncOpenAI(api_key=s.openai_api_key, base_url=s.openai_base_url),

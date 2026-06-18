@@ -454,6 +454,22 @@ plug. Any one set turns it on:
 KRYON_KILL_FILE=/tmp/kryon.stop        # `touch` this file to abort mid-run
 KRYON_DEADLINE=2026-06-18T06:00:00Z    # hard wall-clock stop
 KRYON_MAX_ACTIONS=200                  # cap total tool calls this run
+```
+
+#### Switch to DeepSeek (higher recall, off-perimeter)
+
+The hardened harness is model-agnostic; flipping to a stronger cloud model is one
+step. `deepseek-chat` (V3) uses the native path; `deepseek-reasoner` (R1)
+auto-routes to litellm for the `reasoning_content` round-trip. Misconfig (missing
+key / wrong base_url / stale `KRYON_LOCAL_LLM`) is flagged fail-fast at startup so
+a paid run isn't wasted.
+
+```bash
+KRYON_MODEL=deepseek-chat
+OPENAI_BASE_URL=https://api.deepseek.com
+OPENAI_API_KEY=sk-...                   # real DeepSeek key
+KRYON_LOCAL_LLM=false                   # cloud, not the local server
+```
 
 # Live-probe gates (DOUBLE gate: env + fire=True argument)
 KRYON_BOLA_FIRE=true                   # detect_bola live HTTP
