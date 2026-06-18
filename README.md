@@ -422,6 +422,13 @@ KRYON_REASONING_EFFORT=medium          # F184 — only when pre-hooks active
 KRYON_PHASE_TURNS=10                   # F166 — bump from auto-8
 KRYON_RED_TEAM=true                    # Unlock 21 red-team tools
 
+# SCOPE CAGE — hard target enforcement at the tool-execution layer. Declaring a
+# scope turns the cage ON: every tool call is validated against it BEFORE running,
+# so the agent physically cannot reach an unauthorized target (not a prompt — a
+# technical gate). The "written authorization" as code. Unset = cage off.
+KRYON_SCOPE=10.65.168.0/24,*.creative.thm,https://app.target.com
+KRYON_SCOPE_DENY=10.65.168.1           # optional hard deny (e.g. the gateway)
+
 # Live-probe gates (DOUBLE gate: env + fire=True argument)
 KRYON_BOLA_FIRE=true                   # detect_bola live HTTP
 KRYON_GRAPHQL_FIRE=true                # graphql_recon live HTTP

@@ -589,6 +589,25 @@ class RunImpl:
         config: RunConfig,
     ) -> list[FunctionToolResult]:
         async def run_single_tool(func_tool: FunctionTool, tool_call: ResponseFunctionToolCall) -> Any:
+            # SCOPE CAGE — if an engagement scope is declared (KRYON_SCOPE), validate
+            # the tool's target BEFORE it runs. Out-of-scope → refuse with an
+            # observation the model can adapt to, so the tool never touches an
+            # unauthorized target regardless of what the model decided. Lazy import
+            # to avoid the agents <-> sdk.agents import cycle; never fail the run.
+            try:
+                from kryon.agents.scope_gate import get_scope_gate
+
+                _gate = get_scope_gate()
+            except Exception:  # noqa: BLE001 — the cage must never crash the run
+                _gate = None
+            if _gate is not None:
+                _ok, _why = _gate.check_call(func_tool.name, tool_call.arguments)
+                if not _ok:
+                    logger.warning("scope cage BLOCKED tool %s: %s", func_tool.name, _why)
+                    return (
+                        f"BLOCKED by scope cage: {_why}. This target is OUTSIDE the authorized "
+                        "engagement scope. Do NOT retry it — choose an in-scope target."
+                    )
             with function_span(func_tool.name) as span_fn:
                 if config.trace_include_sensitive_data:
                     span_fn.span_data.input = tool_call.arguments
