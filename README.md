@@ -435,6 +435,15 @@ KRYON_ENGAGEMENT_END=2026-06-18T06:00:00Z
 #   WHAT — action tier ceiling: passive < active < exploit < post. Tools above
 #   the ceiling are refused (e.g. 'active' allows scanning, blocks exploit/post)
 KRYON_MAX_TIER=active
+```
+
+Network egress cage (defense-in-depth, OS level — caps subprocess tools + obfuscated
+targets the software gate's regex can miss). Generated from `KRYON_SCOPE`, applied
+in the container (needs `NET_ADMIN`, already granted):
+
+```bash
+python -m kryon.agents.network_egress apply        # default DROP egress except scope + DNS + LLM
+python -m kryon.agents.network_egress              # dry-run: print the iptables ruleset
 
 # Live-probe gates (DOUBLE gate: env + fire=True argument)
 KRYON_BOLA_FIRE=true                   # detect_bola live HTTP
