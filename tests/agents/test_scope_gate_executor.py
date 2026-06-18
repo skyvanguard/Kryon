@@ -12,7 +12,7 @@ import json
 
 import pytest
 
-from kryon.agents.scope_gate import reset_scope_gate
+from kryon.agents.authorization import reset_authorization
 from kryon.sdk.agents import Agent, Runner
 from kryon.sdk.agents.tool import function_tool
 from tests.core.test_responses import get_function_tool_call, get_text_message
@@ -34,7 +34,7 @@ def _tool_with_recorder():
 @pytest.mark.asyncio
 async def test_out_of_scope_call_blocked_before_execution(monkeypatch):
     monkeypatch.setenv("KRYON_SCOPE", "10.0.0.0/24")
-    reset_scope_gate()
+    reset_authorization()
     try:
         probe, ran = _tool_with_recorder()
         model = FakeModel()
@@ -51,15 +51,15 @@ async def test_out_of_scope_call_blocked_before_execution(monkeypatch):
         assert ran == []
         # The model received a BLOCKED observation it can adapt to.
         convo = " ".join(str(x) for x in result.to_input_list())
-        assert "BLOCKED by scope cage" in convo
+        assert "BLOCKED by engagement cage" in convo
     finally:
-        reset_scope_gate()
+        reset_authorization()
 
 
 @pytest.mark.asyncio
 async def test_in_scope_call_runs_normally(monkeypatch):
     monkeypatch.setenv("KRYON_SCOPE", "10.0.0.0/24")
-    reset_scope_gate()
+    reset_authorization()
     try:
         probe, ran = _tool_with_recorder()
         model = FakeModel()
@@ -76,13 +76,13 @@ async def test_in_scope_call_runs_normally(monkeypatch):
         convo = " ".join(str(x) for x in result.to_input_list())
         assert "RAN against 10.0.0.5" in convo
     finally:
-        reset_scope_gate()
+        reset_authorization()
 
 
 @pytest.mark.asyncio
 async def test_no_scope_means_no_enforcement(monkeypatch):
     monkeypatch.delenv("KRYON_SCOPE", raising=False)
-    reset_scope_gate()
+    reset_authorization()
     try:
         probe, ran = _tool_with_recorder()
         model = FakeModel()
@@ -97,4 +97,4 @@ async def test_no_scope_means_no_enforcement(monkeypatch):
         # Cage inactive → the out-of-scope target runs (backward compatible).
         assert ran == ["8.8.8.8"]
     finally:
-        reset_scope_gate()
+        reset_authorization()

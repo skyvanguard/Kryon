@@ -589,24 +589,24 @@ class RunImpl:
         config: RunConfig,
     ) -> list[FunctionToolResult]:
         async def run_single_tool(func_tool: FunctionTool, tool_call: ResponseFunctionToolCall) -> Any:
-            # SCOPE CAGE — if an engagement scope is declared (KRYON_SCOPE), validate
-            # the tool's target BEFORE it runs. Out-of-scope → refuse with an
-            # observation the model can adapt to, so the tool never touches an
-            # unauthorized target regardless of what the model decided. Lazy import
-            # to avoid the agents <-> sdk.agents import cycle; never fail the run.
+            # ENGAGEMENT CAGE — if an engagement authorization is declared (scope /
+            # time window / action tier), validate this tool call BEFORE it runs.
+            # Violations → refuse with an observation the model can adapt to, so the
+            # agent stays inside its written authorization even running autonomously.
+            # Lazy import to avoid the agents <-> sdk.agents cycle; never crash the run.
             try:
-                from kryon.agents.scope_gate import get_scope_gate
+                from kryon.agents.authorization import get_authorization
 
-                _gate = get_scope_gate()
+                _auth = get_authorization()
             except Exception:  # noqa: BLE001 — the cage must never crash the run
-                _gate = None
-            if _gate is not None:
-                _ok, _why = _gate.check_call(func_tool.name, tool_call.arguments)
+                _auth = None
+            if _auth is not None:
+                _ok, _why = _auth.authorize(func_tool.name, tool_call.arguments)
                 if not _ok:
-                    logger.warning("scope cage BLOCKED tool %s: %s", func_tool.name, _why)
+                    logger.warning("engagement cage BLOCKED tool %s: %s", func_tool.name, _why)
                     return (
-                        f"BLOCKED by scope cage: {_why}. This target is OUTSIDE the authorized "
-                        "engagement scope. Do NOT retry it — choose an in-scope target."
+                        f"BLOCKED by engagement cage: {_why}. This action is OUTSIDE the authorized "
+                        "engagement (scope / time window / action tier). Do NOT retry it."
                     )
             with function_span(func_tool.name) as span_fn:
                 if config.trace_include_sensitive_data:
