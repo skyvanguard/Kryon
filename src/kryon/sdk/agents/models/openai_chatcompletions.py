@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import hashlib
-import inspect
 import json
 import logging
 import os
@@ -1244,7 +1243,6 @@ class OpenAIChatCompletionsModel(Model):
                 # Use estimated tokens if API returns zeroes or implausible values
                 if input_tokens == 0 or input_tokens < (len(str(input)) // 10):  # Sanity check
                     input_tokens = estimated_input_tokens
-                    input_tokens + output_tokens
 
                 # # Debug information
                 # print(f"\nDEBUG CONSISTENT TOKEN COUNTS - API tokens: input={input_tokens}, output={output_tokens}, total={total_tokens}")
@@ -2898,6 +2896,12 @@ class OpenAIChatCompletionsModel(Model):
                         "role": "assistant",
                         "content": state.text_content_index_and_output[1].text,
                     }
+                    # Preserve reasoning_content on a text-only turn too, or the next
+                    # request drops it and DeepSeek thinking models 400 ("reasoning_content
+                    # must be passed back"). The tool-call path already does this; this is
+                    # the same fix for the turn that ends in text instead of a tool call.
+                    if accumulated_reasoning_content and _preserves_reasoning_in_history(str(self.model)):
+                        asst_msg["reasoning_content"] = accumulated_reasoning_content
                     self.add_to_message_history(asst_msg)
                     # Log the assistant message
                     self.logger.log_assistant_message(state.text_content_index_and_output[1].text)
@@ -4800,14 +4804,11 @@ class _Converter:
                     tool_args = tool_call_details.get("arguments", {})
                     execution_info = tool_call_details.get("execution_info", {})
 
-                # Get token counts from the OpenAIChatCompletionsModel if available
-                model_instance = None
-                for frame in inspect.stack():
-                    if "self" in frame.frame.f_locals:
-                        self_obj = frame.frame.f_locals["self"]
-                        if isinstance(self_obj, OpenAIChatCompletionsModel):
-                            model_instance = self_obj
-                            break
+                # Token counts come from the model passed in as `model_instance`
+                # (every caller passes model_instance=self). This replaced an
+                # inspect.stack() walk that ran per tool output in the hot path —
+                # O(full stack) each call and fragile to call-chain changes. None-safe
+                # getattr below handles the rare caller that doesn't pass it.
 
                 # Always create a token_info dictionary, even if some values are zero
                 token_info = {

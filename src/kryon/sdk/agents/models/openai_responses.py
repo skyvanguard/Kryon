@@ -54,7 +54,6 @@ class OpenAIResponsesModel(Model):
         model: str | ChatModel,
         openai_client: AsyncOpenAI,
     ) -> None:
-        print(f"\nDEBUG: OpenAIResponsesModel initialized with model: {model}\n")
         self.model = model
         self._client = openai_client
 

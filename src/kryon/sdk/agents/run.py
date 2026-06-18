@@ -431,7 +431,10 @@ class Runner:
             A run result containing all the inputs, guardrail results and the output of the last
             agent. Agents may perform handoffs, so we don't know the specific type of the output.
         """
-        return asyncio.get_event_loop().run_until_complete(
+        # asyncio.run (not the deprecated get_event_loop().run_until_complete): this
+        # is a sync entry point, so a fresh loop is correct. Raises if called from a
+        # running loop — which is the right failure (use the async `run` there).
+        return asyncio.run(
             cls.run(
                 starting_agent,
                 input,

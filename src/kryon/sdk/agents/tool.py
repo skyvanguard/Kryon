@@ -270,7 +270,7 @@ def function_tool(
                     func_with_args = functools.partial(the_func, *args, **kwargs_dict)
 
                 # Run in thread pool executor to prevent blocking
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 result = await loop.run_in_executor(None, func_with_args)
 
             if _debug.DONT_LOG_TOOL_DATA:
