@@ -761,6 +761,119 @@ def _parse_web_fetch_smart(output: str) -> ExtractedFacts:
     )
 
 
+def _parse_hydra(output: str) -> ExtractedFacts:
+    """Successful-login lines from credential bruteforce tools. The cracked
+    ``(user, pass)`` pair is the single most actionable fact — it feeds the
+    SSH / lateral-movement chain rules directly (no re-cracking needed).
+
+    hydra:  ``[22][ssh] host: 10.0.0.5   login: admin   password: hunter2``
+    medusa: ``ACCOUNT FOUND: [ssh] Host: 10.0.0.5 User: admin Password: hunter2 [SUCCESS]``
+    """
+    creds: list[tuple[str, str]] = []
+    services: list[tuple[int, str]] = []
+    hosts: list[str] = []
+
+    for m in re.finditer(
+        r"\[(\d{1,5})\]\[(\w+)\]\s+host:\s*(\S+)\s+login:\s*(\S+)\s+password:\s*(\S+)",
+        output,
+        re.IGNORECASE,
+    ):
+        port, svc, host, login, pw = m.groups()
+        creds.append((login, pw))
+        try:
+            services.append((int(port), svc.lower()))
+        except ValueError:
+            pass
+        hosts.append(host)
+
+    for m in re.finditer(
+        r"ACCOUNT FOUND:\s*\[(\w+)\]\s*Host:\s*(\S+)\s+User:\s*(\S+)\s+Password:\s*(\S+)\s*\[SUCCESS\]",
+        output,
+        re.IGNORECASE,
+    ):
+        svc, host, login, pw = m.groups()
+        creds.append((login, pw))
+        hosts.append(host)
+
+    return ExtractedFacts(
+        creds=_dedup_sorted_pairs(tuple(creds)),
+        services=_dedup_sorted_pairs_int(tuple(services)),
+        hosts=_dedup_sorted(tuple(hosts)),
+    )
+
+
+def _parse_sqlmap(output: str) -> ExtractedFacts:
+    """sqlmap output → the confirmed-injectable signal + the vulnerable
+    parameter + the back-end DBMS + enumerated databases. Lets the chain
+    planner pipeline to ``--dbs`` / ``--dump`` instead of re-detecting.
+    """
+    hints: list[str] = []
+    versions: list[tuple[str, str]] = []
+    paths: list[str] = []
+    low = output.lower()
+
+    for m in re.finditer(r"parameter:\s*'?([A-Za-z0-9_\[\]-]+)'?\s*\(", output, re.IGNORECASE):
+        hints.append(f"sqli-param:{m.group(1)}")
+    if any(s in low for s in ("is vulnerable", "injectable", "sqlmap identified", "sqlmap resumed")):
+        hints.append("sqli-confirmed")
+
+    m = re.search(r"back-end DBMS:?\s*([A-Za-z0-9 .]+)", output, re.IGNORECASE)
+    if m:
+        versions.append(("dbms", m.group(1).strip().splitlines()[0][:40]))
+
+    if "available databases" in low:
+        for m in re.finditer(r"\[\*\]\s+([A-Za-z0-9_$-]+)", output):
+            paths.append(f"db:{m.group(1)}")
+
+    return ExtractedFacts(
+        hints=_dedup_sorted(tuple(hints)),
+        versions=_dedup_sorted_pairs(tuple(versions)),
+        paths=_dedup_sorted(tuple(paths)),
+    )
+
+
+def _parse_dir_brute(output: str) -> ExtractedFacts:
+    """Directory / endpoint brute-force output (gobuster / feroxbuster / dirb).
+    Discovered paths feed the planner's "explore secondary surface" rules
+    (admin panels, backups, API roots). (ffuf ``-json`` is parsed by web_enum.)
+    """
+    paths: list[str] = []
+    # gobuster dir: "/admin                (Status: 200) [Size: 1234]"
+    for m in re.finditer(r"(/[A-Za-z0-9_./%-]+)\s*\(status:\s*\d{3}\)", output, re.IGNORECASE):
+        paths.append(m.group(1))
+    # dirb: "+ http://x/admin (CODE:200|SIZE:1234)"
+    for m in re.finditer(r"\+\s+https?://\S+?(/[A-Za-z0-9_./%-]+)\s*\(code:\s*\d{3}", output, re.IGNORECASE):
+        paths.append(m.group(1))
+    # feroxbuster: "200      GET ...  http://x/admin"
+    for m in re.finditer(r"^\s*\d{3}\s+\w+\s+.*?\shttps?://\S+?(/[A-Za-z0-9_./%-]+)\s*$", output, re.MULTILINE):
+        paths.append(m.group(1))
+    facts = ExtractedFacts(paths=_dedup_sorted(tuple(p for p in paths if p and p != "/")))
+    # Merge the generic pass so dir-brute output ALSO yields the existing
+    # signals (discovered:<file>.php app-entry-point hints, robots Disallow,
+    # CTF hints) — not just the structured paths.
+    return facts.merge(_parse_generic(output))
+
+
+def _parse_nuclei(output: str) -> ExtractedFacts:
+    """nuclei finding lines: ``[template-id] [protocol] [severity] url``.
+    Surfaces the matched template id (often a CVE) + severity as hints so the
+    planner can act on a known-CVE hit instead of re-scanning.
+    """
+    hints: list[str] = []
+    for m in re.finditer(
+        r"\[([A-Za-z0-9._-]+)\]\s*\[[a-z]+\]\s*\[(critical|high|medium|low|info)\]",
+        output,
+        re.IGNORECASE,
+    ):
+        tid, sev = m.group(1), m.group(2).lower()
+        if sev in ("critical", "high", "medium"):
+            hints.append(f"nuclei:{tid}")
+            cve = re.search(r"CVE-\d{4}-\d{4,7}", tid, re.IGNORECASE)
+            if cve:
+                hints.append(f"cve:{cve.group(0).upper()}")
+    return ExtractedFacts(hints=_dedup_sorted(tuple(hints)))
+
+
 def _parse_generic(output: str) -> ExtractedFacts:
     """Fallback parser for unknown tools. Scrapes high-signal patterns:
     krb5 hashes, NTLM dumps, and CTF hint phrases. Conservative — does
@@ -841,6 +954,13 @@ _DISPATCH: tuple[tuple[str, Callable[[str], ExtractedFacts]], ...] = (
     ("crackmapexec", _parse_nxc),
     ("nmap", _parse_nmap),
     ("web_fetch_smart", _parse_web_fetch_smart),
+    ("hydra", _parse_hydra),
+    ("medusa", _parse_hydra),
+    ("sqlmap", _parse_sqlmap),
+    ("gobuster", _parse_dir_brute),
+    ("feroxbuster", _parse_dir_brute),
+    ("dirb", _parse_dir_brute),
+    ("nuclei", _parse_nuclei),
 )
 
 
@@ -910,6 +1030,22 @@ def extract_facts(tool_invocation: str, output: str) -> ExtractedFacts:
             if anti_pattern_hints:
                 parsed = parsed.merge(ExtractedFacts(hints=anti_pattern_hints))
             return parsed
+    # Cracked credentials (hydra / medusa) — the most actionable fact, so check
+    # before the generic pass. Very specific patterns, no false-positive risk.
+    if "account found:" in head or re.search(
+        r"\[\d{1,5}\]\[\w+\]\s+host:.*login:.*password:", output, re.IGNORECASE
+    ):
+        return _attach_hints(_parse_hydra(output))
+    # sqlmap (back-end DBMS line is sqlmap-specific and can sit deep in output).
+    if "back-end dbms" in output.lower() or ("sqlmap" in head and "parameter:" in output.lower()):
+        return _attach_hints(_parse_sqlmap(output))
+    # nuclei finding lines: ``[template] [proto] [severity]``.
+    if re.search(r"\[[A-Za-z0-9._-]+\]\s*\[[a-z]+\]\s*\[(?:critical|high|medium)\]", output, re.IGNORECASE):
+        return _attach_hints(_parse_nuclei(output))
+    # gobuster/feroxbuster/dirb discovered paths (nmap already matched above).
+    if re.search(r"/[A-Za-z0-9_./%-]+\s*\(status:\s*\d{3}\)", output, re.IGNORECASE):
+        return _attach_hints(_parse_dir_brute(output))
+
     generic = _parse_generic(output)
     if anti_pattern_hints:
         generic = generic.merge(ExtractedFacts(hints=anti_pattern_hints))

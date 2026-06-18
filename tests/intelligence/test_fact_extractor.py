@@ -654,3 +654,68 @@ def test_web_param_path_drives_planner_to_sqlmap() -> None:
     assert rec is not None
     assert "sqlmap" in rec.args
     assert "/item?id=3" in rec.args
+
+
+# ---------------------------------------------------------------------------
+# Gap #2 — new parsers: hydra/medusa, sqlmap, dir-brute, nuclei. Each turns a
+# tool the agent commonly runs into facts that feed an existing chain rule,
+# so the autonomous chain doesn't dead-end after that tool.
+# ---------------------------------------------------------------------------
+
+
+def test_hydra_extracts_cracked_creds() -> None:
+    sample = "[22][ssh] host: 10.0.0.5   login: admin   password: hunter2"
+    facts = extract_facts("hydra", sample)
+    assert ("admin", "hunter2") in facts.creds
+    assert (22, "ssh") in facts.services
+    assert "10.0.0.5" in facts.hosts
+
+
+def test_medusa_format_creds() -> None:
+    sample = "ACCOUNT FOUND: [ssh] Host: 10.0.0.5 User: root Password: toor [SUCCESS]"
+    facts = extract_facts("medusa", sample)
+    assert ("root", "toor") in facts.creds
+
+
+def test_hydra_content_dispatch_without_tool_name() -> None:
+    # The reflective runner passes "▸ run_command\n<output>" — no tool name.
+    sample = "▸ run_command\n[21][ftp] host: 1.2.3.4   login: anonymous   password: anon"
+    facts = extract_facts("", sample)
+    assert ("anonymous", "anon") in facts.creds
+
+
+def test_sqlmap_extracts_injectable_dbms_and_databases() -> None:
+    sample = (
+        "Parameter: id (GET)\n"
+        "[INFO] GET parameter 'id' is vulnerable.\n"
+        "back-end DBMS: MySQL >= 5.0\n"
+        "available databases [2]:\n[*] acme\n[*] information_schema\n"
+    )
+    facts = extract_facts("", sample)  # content-dispatch via "back-end dbms"
+    assert "sqli-confirmed" in facts.hints
+    assert "sqli-param:id" in facts.hints
+    assert ("dbms", "MySQL") in facts.versions
+    assert "db:acme" in facts.paths
+
+
+def test_nuclei_extracts_cve_and_filters_info() -> None:
+    sample = (
+        "[CVE-2021-44228] [http] [critical] http://t/api\n"
+        "[tech-detect] [http] [info] http://t/\n"
+    )
+    facts = extract_facts("nuclei", sample)
+    assert "cve:CVE-2021-44228" in facts.hints
+    assert "nuclei:CVE-2021-44228" in facts.hints
+    # info-severity hits are dropped (noise)
+    assert not any("tech-detect" in h for h in facts.hints)
+
+
+def test_dir_brute_extracts_paths_and_keeps_php_app_hints() -> None:
+    sample = (
+        "/admin                (Status: 200) [Size: 1234]\n"
+        "/login.php            (Status: 302)\n"
+    )
+    facts = extract_facts("gobuster", sample)
+    assert "/admin" in facts.paths
+    # the generic php-app-page detection still fires (merged in)
+    assert "discovered:login.php" in facts.hints
