@@ -5413,6 +5413,14 @@ def run_engage(args: argparse.Namespace) -> int:
                 findings.extend(run_webapp_probes(svc, _wascheme))
             except Exception:  # noqa: BLE001 — never break the sweep
                 pass
+            # Default-credential checks (live confirmation gated by KRYON_RED_TEAM).
+            try:
+                from kryon.cli.default_creds import run_default_cred_checks
+
+                _dcscheme = "https" if (svc.service == "https" or svc.port in (443, 8443)) else "http"
+                findings.extend(run_default_cred_checks(svc, _dcscheme))
+            except Exception:  # noqa: BLE001 — never break the sweep
+                pass
             # Full F57 web sweep (crawl + surface discovery + injection +
             # headless cookie/PP/DOM-XSS + nuclei) on web services — ACTIVE
             # only (KRYON_RED_TEAM), so banca-safe engagements are unchanged.

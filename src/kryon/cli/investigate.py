@@ -288,6 +288,13 @@ def _run_deterministic_phase(
             findings.extend(run_webapp_probes(svc, "https" if (scheme == "https" or port in (443, 8443)) else "http"))
         except Exception:  # noqa: BLE001
             pass
+        # Default-credential checks (live confirmation gated by KRYON_RED_TEAM).
+        try:
+            from kryon.cli.default_creds import run_default_cred_checks
+
+            findings.extend(run_default_cred_checks(svc, "https" if (scheme == "https" or port in (443, 8443)) else "http"))
+        except Exception:  # noqa: BLE001
+            pass
 
     # SSH — F203.N.2 creds-aware deep audit
     elif scheme == "ssh" or port in (22, 2222):
