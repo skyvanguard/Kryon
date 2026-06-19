@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 
-from kryon.cli.engage import _SEV_RANK, DiscoveredService, Finding
+from kryon.cli.engage import DiscoveredService, Finding, make_finding
 from kryon.cli.service_probes import _http_get
 
 # product key → list of (user, password) shipped/commonly-left defaults.
@@ -35,8 +35,7 @@ def _red_team() -> bool:
 
 
 def _finding(svc: DiscoveredService, rule_id: str, sev: str, msg: str, evidence: str, fix: str) -> Finding:
-    return Finding(cwe="CWE-1392", severity=sev, host=svc.host, rule_id=rule_id, message=msg,
-                   evidence=evidence, remediation=fix, severity_rank=_SEV_RANK.get(sev, 99))
+    return make_finding("CWE-1392", sev, svc.host, rule_id, msg, evidence=evidence, remediation=fix)
 
 
 def _test_basic(svc: DiscoveredService, scheme: str, path: str, creds: list[tuple[str, str]]) -> tuple[str, str] | None:

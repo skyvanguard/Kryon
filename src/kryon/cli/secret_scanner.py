@@ -14,7 +14,7 @@ import math
 import re
 from dataclasses import dataclass
 
-from kryon.cli.engage import _SEV_RANK, Finding
+from kryon.cli.engage import Finding, make_finding
 
 
 @dataclass(frozen=True)
@@ -109,13 +109,12 @@ def scan_secrets(text: str, source: str = "") -> list[SecretMatch]:
 def to_findings(matches: list[SecretMatch], host: str, source: str) -> list[Finding]:
     """Convert SecretMatch records into engage Findings (one per match)."""
     return [
-        Finding(
-            cwe="CWE-798", severity=mt.severity, host=host, rule_id=mt.rule_id,
-            message=f"Secreto expuesto en {source}: {mt.kind} (host {host}).",
+        make_finding(
+            "CWE-798", mt.severity, host, mt.rule_id,
+            f"Secreto expuesto en {source}: {mt.kind} (host {host}).",
             evidence=f"{mt.kind} en {source}:{mt.line} → {mt.redacted}",
             remediation="Rotar el secreto YA; removerlo del recurso expuesto; usar un secret manager / "
                         "variables de entorno fuera del docroot.",
-            severity_rank=_SEV_RANK.get(mt.severity, 99),
         )
         for mt in matches
     ]

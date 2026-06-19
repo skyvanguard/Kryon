@@ -16,7 +16,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 
-from kryon.cli.engage import _SEV_RANK, Finding
+from kryon.cli.engage import Finding, make_finding
 
 _T = 8.0
 
@@ -128,11 +128,10 @@ def to_finding(v: OracleVerdict, url: str, param: str, host: str) -> Finding | N
     if not v.confirmed:
         return None
     cwe, sev = _TECH.get(v.technique, ("CWE-707", "HIGH"))
-    return Finding(cwe=cwe, severity=sev, host=host, rule_id=f"verified-{v.technique}",
-                   message=f"CONFIRMADO {v.technique} en {url} (param {param}).",
-                   evidence=f"Oráculo determinista: {v.evidence}",
-                   remediation="Usar consultas parametrizadas / encoding contextual / allowlist de redirect; este hallazgo está verificado (no es FP).",
-                   severity_rank=_SEV_RANK.get(sev, 99))
+    return make_finding(cwe, sev, host, f"verified-{v.technique}",
+                        f"CONFIRMADO {v.technique} en {url} (param {param}).",
+                        evidence=f"Oráculo determinista: {v.evidence}",
+                        remediation="Usar consultas parametrizadas / encoding contextual / allowlist de redirect; este hallazgo está verificado (no es FP).")
 
 
 def run_verification(url: str, param: str, host: str) -> list[Finding]:

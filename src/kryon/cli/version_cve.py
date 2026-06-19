@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from kryon.cli.engage import _SEV_RANK, Finding
+from kryon.cli.engage import Finding, make_finding
 
 _Ver = tuple[int, ...]
 
@@ -95,13 +95,12 @@ def to_findings(hits: list[CVEHit], host: str, port: int, banner: str) -> list[F
     out: list[Finding] = []
     for h in hits:
         exp = " · exploit público disponible (Metasploit/ExploitDB)" if h.exploit else ""
-        out.append(Finding(
-            cwe="CWE-1395", severity=h.severity, host=host, rule_id=f"cve-{h.cve.lower()}",
-            message=f"{h.cve} aplicable en {host}:{port} — {h.name}{exp}.",
+        out.append(make_finding(
+            "CWE-1395", h.severity, host, f"cve-{h.cve.lower()}",
+            f"{h.cve} aplicable en {host}:{port} — {h.name}{exp}.",
             evidence=f"Banner '{banner[:80]}' en rango afectado por {h.cve} "
                      "(verificar: el banner es spoofeable y puede tener fix backported)",
             remediation=f"Actualizar el componente fuera del rango de {h.cve}; confirmar el parche real (no solo el banner).",
-            severity_rank=_SEV_RANK.get(h.severity, 99),
         ))
     return out
 

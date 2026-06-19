@@ -127,16 +127,15 @@ def scan_path(root: str, max_files: int = 2000) -> list[SastFinding]:
 
 def to_findings(sast: list[SastFinding], host: str = "local"):
     """Convert to engage Findings (needs_verification — pattern SAST has FPs)."""
-    from kryon.cli.engage import _SEV_RANK, Finding  # noqa: PLC0415
+    from kryon.cli.engage import make_finding  # noqa: PLC0415
 
     return [
-        Finding(
-            cwe=s.cwe, severity=s.severity, host=host, rule_id=s.rule_id,
-            message=f"{s.rule_id} ({s.cwe}) en {s.file}:{s.line}",
+        make_finding(
+            s.cwe, s.severity, host, s.rule_id,
+            f"{s.rule_id} ({s.cwe}) en {s.file}:{s.line}",
             evidence=f"{s.file}:{s.line} → {s.snippet}",
             remediation="Revisar el sink: parametrizar consultas / evitar shell+concat / deserialización segura / "
                         "secret manager. Hallazgo de patrón determinista — confirmar explotabilidad.",
-            severity_rank=_SEV_RANK.get(s.severity, 99),
             confidence=s.confidence,
             needs_verification=True,
         )

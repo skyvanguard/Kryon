@@ -6,7 +6,7 @@ e-mail spoofing/phishing risk, and is a recurring compliance gap.
 
 from __future__ import annotations
 
-from kryon.cli.engage import _SEV_RANK, Finding
+from kryon.cli.engage import Finding, make_finding
 
 # Known services whose dangling CNAME enables subdomain takeover (non-exhaustive).
 _TAKEOVER_FINGERPRINTS = (
@@ -20,8 +20,7 @@ _DKIM_SELECTORS = ("default", "google", "selector1", "selector2", "k1", "dkim", 
 
 
 def _df(domain: str, cwe: str, sev: str, rule_id: str, msg: str, evidence: str, fix: str) -> Finding:
-    return Finding(cwe=cwe, severity=sev, host=domain, rule_id=rule_id, message=msg,
-                   evidence=evidence, remediation=fix, severity_rank=_SEV_RANK[sev])
+    return make_finding(cwe, sev, domain, rule_id, msg, evidence=evidence, remediation=fix)
 
 
 def _txt(name: str) -> list[str]:

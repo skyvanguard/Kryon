@@ -75,6 +75,38 @@ class Finding:
 _SEV_RANK = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
 
 
+def make_finding(
+    cwe: str,
+    severity: str,
+    host: str,
+    rule_id: str,
+    message: str,
+    *,
+    evidence: str = "",
+    remediation: str = "",
+    remediation_command: str = "",
+    target_host: str = "",
+    confidence: float = 1.0,
+    needs_verification: bool = False,
+) -> Finding:
+    """Canonical Finding factory — fills severity_rank from the severity so call
+    sites never reconstruct the (Finding + _SEV_RANK) boilerplate by hand."""
+    return Finding(
+        cwe=cwe,
+        severity=severity,
+        host=host,
+        rule_id=rule_id,
+        message=message,
+        evidence=evidence,
+        remediation=remediation,
+        remediation_command=remediation_command,
+        target_host=target_host,
+        severity_rank=_SEV_RANK.get(severity, 99),
+        confidence=confidence,
+        needs_verification=needs_verification,
+    )
+
+
 # -----------------------------------------------------------------------------
 # Phase 1 — discovery
 # -----------------------------------------------------------------------------
