@@ -66,6 +66,13 @@ _SENSITIVE_FILES = (
 _BACKUPS = ("/config.php.bak", "/.env.bak", "/backup.sql", "/database.sql", "/web.config.bak", "/wp-config.php.bak")
 
 
+def _extract_secrets(body: str, svc: DiscoveredService, path: str) -> list[Finding]:
+    """Turn an exposed file's body into concrete secret findings (deterministic)."""
+    from kryon.cli.secret_scanner import scan_secrets, to_findings  # noqa: PLC0415
+
+    return to_findings(scan_secrets(body, path), svc.host, f"{path}")
+
+
 def _check_sensitive_files(svc: DiscoveredService, scheme: str) -> list[Finding]:
     out: list[Finding] = []
     for path, rule, cwe, sev, sig, label, fix in _SENSITIVE_FILES:
@@ -73,6 +80,7 @@ def _check_sensitive_files(svc: DiscoveredService, scheme: str) -> list[Finding]
         if r and r[0] == 200 and r[1] and sig(r[1]):
             out.append(_f(svc, cwe, sev, rule, f"{label} ({scheme}://{svc.host}:{svc.port}{path}).",
                           f"GET {path} → 200 con contenido que matchea la firma", fix))
+            out.extend(_extract_secrets(r[1], svc, path))  # extract the actual creds
     # Backup/source files — a 200 with non-HTML body is the signal.
     for path in _BACKUPS:
         r = _http_get(svc.host, svc.port, path, scheme=scheme)
@@ -81,6 +89,7 @@ def _check_sensitive_files(svc: DiscoveredService, scheme: str) -> list[Finding]
                           f"Archivo de backup/fuente expuesto en {path}.",
                           f"GET {path} → 200 ({len(r[1])} bytes, no-HTML)",
                           "Remover backups del docroot; bloquear extensiones .bak/.old/.sql/~."))
+            out.extend(_extract_secrets(r[1], svc, path))
             break  # one backup hit is enough signal
     return out
 
