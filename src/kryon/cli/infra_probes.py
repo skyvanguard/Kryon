@@ -1,8 +1,9 @@
-"""Batch K — deterministic detectors for infrastructure services that ship
+"""Batch K/N — deterministic detectors for infrastructure services that ship
 without auth by default and are rarely locked down: Docker Registry v2 (image/
 secret leak), anonymous MQTT brokers (IoT/OT), NATS, Java RMI registry
 (deserialization RCE surface), open git daemon (anonymous clone), no-auth
-Cassandra, and exposed Neo4j. Each is CONFIRMED by a protocol response.
+Cassandra, exposed Neo4j, JDWP (unauth RCE), and Cisco Smart Install
+(CVE-2018-0171). Each is CONFIRMED by a protocol response.
 
 READ-ONLY, graceful. Imports utilities from service_probes (one-way; engage
 imports the probe modules lazily, so no import cycle). Complements the existing
@@ -124,6 +125,35 @@ def _check_cassandra(svc: DiscoveredService) -> Finding | None:
     return None
 
 
+def _check_jdwp(svc: DiscoveredService) -> Finding | None:
+    """Java Debug Wire Protocol exposed: the server echoes the 'JDWP-Handshake'
+    string → trivial unauthenticated RCE (arbitrary bytecode via the debugger)."""
+    resp = _tcp(svc.host, svc.port, b"JDWP-Handshake", 32)
+    if resp and resp[:14] == b"JDWP-Handshake":
+        return _f(
+            svc, "CWE-306", "CRITICAL", "jdwp-exposed",
+            f"JDWP (debug de la JVM) expuesto en {svc.host}:{svc.port} — RCE trivial sin autenticación.",
+            "El server ecoó 'JDWP-Handshake' (el debugger permite ejecutar bytecode arbitrario)",
+            "Nunca correr la JVM con -agentlib:jdwp/-Xdebug en producción; no exponer el puerto de debug.",
+        )
+    return None
+
+
+def _check_smart_install(svc: DiscoveredService) -> Finding | None:
+    """Cisco Smart Install (4786) active: responds to the SMI probe with the SMI
+    header → CVE-2018-0171 surface (unauth config exfil / TFTP trigger / RCE)."""
+    probe = bytes.fromhex("00000001000000010000000000000004000000080000000100000000")
+    resp = _tcp(svc.host, svc.port, probe, 64)
+    if resp and resp[:4] == b"\x00\x00\x00\x01":  # SMI version header echoed
+        return _f(
+            svc, "CWE-306", "HIGH", "cisco-smart-install",
+            f"Cisco Smart Install activo en {svc.host}:{svc.port} — CVE-2018-0171 (exfil de config / RCE sin auth).",
+            "Respuesta con header SMI (version 0x00000001) al probe de Smart Install",
+            "Deshabilitar Smart Install ('no vstack'); filtrar TCP/4786; aplicar el advisory de Cisco.",
+        )
+    return None
+
+
 def _check_neo4j(svc: DiscoveredService, scheme: str = "http") -> Finding | None:
     """Neo4j HTTP API exposed; unauthenticated query endpoint = full graph access."""
     root = _http_get(svc.host, svc.port, "/", scheme=scheme)
@@ -159,6 +189,8 @@ _TCP_PROBES = (
     ("rmi", lambda s: s.port in (1099, 1098, 11099), _check_rmi),
     ("git-daemon", lambda s: s.port == 9418, _check_git_daemon),
     ("cassandra", lambda s: s.port in (9042, 9142), _check_cassandra),
+    ("jdwp", lambda s: s.port in (8000, 5005, 8787, 9999, 18000), _check_jdwp),
+    ("smart-install", lambda s: s.port == 4786, _check_smart_install),
 )
 
 

@@ -21,7 +21,7 @@ def test_run_amp_probes_graceful_on_dead_ports():
 
 
 def test_dispatch_table_well_formed():
-    assert len(_AMP_PROBES) == 4
+    assert len(_AMP_PROBES) == 5
     for matches, probe in _AMP_PROBES:
         assert callable(matches) and callable(probe)
 
@@ -77,3 +77,27 @@ def test_mdns_exposed(monkeypatch):
 def test_mdns_query_not_response_returns_none(monkeypatch):
     monkeypatch.setattr(amp, "_udp", lambda *a, **k: b"\x00\x00\x00\x00\x00\x01\x00\x00" + b"\x00" * 20)
     assert amp._check_mdns(_svc(5353)) is None
+
+
+# ---------------------------------------------------------------------------
+# Batch N — CLDAP amplification (389/udp)
+# ---------------------------------------------------------------------------
+
+
+def test_cldap_probe_well_formed():
+    from kryon.cli.amp_probes import _CLDAP_PROBE
+
+    assert _CLDAP_PROBE[0] == 0x30  # LDAP message SEQUENCE
+    assert b"objectClass" in _CLDAP_PROBE  # present filter
+
+
+def test_cldap_amplification_detected(monkeypatch):
+    monkeypatch.setattr(amp, "_udp", lambda *a, **k: b"\x30\x84\x00\x00\x00\x10" + b"\x00" * 16)
+    assert amp._check_cldap(_svc(389)).rule_id == "cldap-amplification"
+
+
+def test_cldap_no_response_returns_none(monkeypatch):
+    monkeypatch.setattr(amp, "_udp", lambda *a, **k: None)
+    assert amp._check_cldap(_svc(389)) is None
+    monkeypatch.setattr(amp, "_udp", lambda *a, **k: b"\xffnot-ldap")
+    assert amp._check_cldap(_svc(389)) is None

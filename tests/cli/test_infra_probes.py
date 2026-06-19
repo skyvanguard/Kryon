@@ -22,7 +22,7 @@ def test_run_infra_probes_graceful_on_dead_ports():
 
 
 def test_dispatch_tables_well_formed():
-    assert len(_HTTP_PROBES) == 2 and len(_TCP_PROBES) == 5
+    assert len(_HTTP_PROBES) == 2 and len(_TCP_PROBES) == 7
     for _n, m, p in (*_HTTP_PROBES, *_TCP_PROBES):
         assert callable(m) and callable(p)
 
@@ -118,3 +118,32 @@ def test_neo4j_authed_is_low(monkeypatch):
 def test_neo4j_absent_returns_none(monkeypatch):
     monkeypatch.setattr(ip, "_http_get", lambda *a, **k: (200, "<html>nginx</html>"))
     assert ip._check_neo4j(_svc(7474)) is None
+
+
+# ---------------------------------------------------------------------------
+# Batch N — JDWP (unauth RCE) + Cisco Smart Install (CVE-2018-0171)
+# ---------------------------------------------------------------------------
+
+
+def test_jdwp_exposed_is_critical(monkeypatch):
+    monkeypatch.setattr(ip, "_tcp", lambda *a, **k: b"JDWP-Handshake")
+    f = ip._check_jdwp(_svc(8000))
+    assert f is not None and f.rule_id == "jdwp-exposed" and f.severity == "CRITICAL"
+
+
+def test_jdwp_http_server_returns_none(monkeypatch):
+    monkeypatch.setattr(ip, "_tcp", lambda *a, **k: b"HTTP/1.1 400 Bad Request\r\n")
+    assert ip._check_jdwp(_svc(8000)) is None
+    monkeypatch.setattr(ip, "_tcp", lambda *a, **k: None)
+    assert ip._check_jdwp(_svc(8000)) is None
+
+
+def test_smart_install_detected(monkeypatch):
+    monkeypatch.setattr(ip, "_tcp", lambda *a, **k: b"\x00\x00\x00\x01\x00\x00\x00\x03" + b"\x00" * 8)
+    f = ip._check_smart_install(_svc(4786))
+    assert f is not None and f.rule_id == "cisco-smart-install" and f.severity == "HIGH"
+
+
+def test_smart_install_absent_returns_none(monkeypatch):
+    monkeypatch.setattr(ip, "_tcp", lambda *a, **k: b"\xde\xad\xbe\xef")
+    assert ip._check_smart_install(_svc(4786)) is None

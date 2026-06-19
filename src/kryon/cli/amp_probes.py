@@ -84,11 +84,43 @@ def _check_mdns(svc: DiscoveredService) -> Finding | None:
     return None
 
 
+# CLDAP rootDSE searchRequest (messageID 1, baseObject "", scope base, filter
+# present=objectClass, no attributes) — the canonical amplification probe.
+_CLDAP_PROBE = bytes.fromhex(
+    "30840000002d"          # SEQUENCE (len 45)
+    "020101"                # messageID = 1
+    "63840000 0024"         # [APPLICATION 3] searchRequest (len 36)
+    "0400"                  # baseObject ""
+    "0a0100"                # scope = baseObject
+    "0a0100"                # derefAliases = never
+    "020100"                # sizeLimit = 0
+    "020100"                # timeLimit = 0
+    "010100"                # typesOnly = false
+    "870b 6f626a656374436c617373"  # filter present = "objectClass"
+    "3084 00000000".replace(" ", "")  # attributes = {}
+)
+
+
+def _check_cldap(svc: DiscoveredService) -> Finding | None:
+    """CLDAP (connectionless LDAP over UDP) responds to a rootDSE query → DDoS
+    amplification reflector (classic on exposed Active Directory domain controllers)."""
+    resp = _udp(svc.host, svc.port, _CLDAP_PROBE, 1024)
+    if resp and len(resp) >= 2 and resp[0] == 0x30:  # an LDAP message (SEQUENCE) came back
+        return _f(
+            svc, "CWE-406", "MEDIUM", "cldap-amplification",
+            f"CLDAP responde por UDP en {svc.host}:{svc.port} — reflector de amplificación DDoS (típico en AD DCs).",
+            "searchRequest rootDSE (UDP) → respuesta LDAP",
+            "Filtrar 389/udp en el perímetro; los DC sólo necesitan CLDAP en la red interna.",
+        )
+    return None
+
+
 _AMP_PROBES = (
     (lambda s: s.port == 53, _check_dns_open_resolver),
     (lambda s: s.port == 11211, _check_memcached_udp),
     (lambda s: s.port == 137, _check_netbios_ns),
     (lambda s: s.port == 5353, _check_mdns),
+    (lambda s: s.port == 389, _check_cldap),
 )
 
 
