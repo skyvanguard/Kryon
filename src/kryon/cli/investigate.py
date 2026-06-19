@@ -367,6 +367,10 @@ def _run_deterministic_phase(
         from kryon.cli.legacy_probes import run_legacy_probes
 
         findings.extend(run_legacy_probes(_gsvc))
+        # Infra services (Docker Registry/MQTT/NATS/RMI/git daemon/Cassandra/Neo4j).
+        from kryon.cli.infra_probes import run_infra_probes
+
+        findings.extend(run_infra_probes(_gsvc, "https" if scheme == "https" else "http"))
         # CVE-specific TLS probe (Heartbleed) on likely-TLS ports.
         if scheme == "https" or port in (443, 8443, 993, 995, 465, 636, 990, 5061, 9443):
             from kryon.cli.tls_probes import run_tls_probes
