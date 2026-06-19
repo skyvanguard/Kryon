@@ -21,7 +21,7 @@ def test_run_amp_probes_graceful_on_dead_ports():
 
 
 def test_dispatch_table_well_formed():
-    assert len(_AMP_PROBES) == 5
+    assert len(_AMP_PROBES) == 10
     for matches, probe in _AMP_PROBES:
         assert callable(matches) and callable(probe)
 
@@ -101,3 +101,49 @@ def test_cldap_no_response_returns_none(monkeypatch):
     assert amp._check_cldap(_svc(389)) is None
     monkeypatch.setattr(amp, "_udp", lambda *a, **k: b"\xffnot-ldap")
     assert amp._check_cldap(_svc(389)) is None
+
+
+# ---------------------------------------------------------------------------
+# Batch T — rpcbind-UDP / CoAP / RIPv1 / QOTD / WS-Discovery
+# ---------------------------------------------------------------------------
+
+
+def test_batch_t_dispatch_count():
+    assert len(_AMP_PROBES) == 10
+
+
+def test_rpcbind_udp_dump(monkeypatch):
+    monkeypatch.setattr(amp, "_udp", lambda *a, **k: b"rkyn\x00\x00\x00\x01" + b"\x00" * 40)  # xid echo + REPLY
+    assert amp._check_rpcbind_udp(_svc(111)).rule_id == "rpcbind-udp-amplification"
+
+
+def test_rpcbind_wrong_xid_none(monkeypatch):
+    monkeypatch.setattr(amp, "_udp", lambda *a, **k: b"XXXX\x00\x00\x00\x01")
+    assert amp._check_rpcbind_udp(_svc(111)) is None
+
+
+def test_coap_response(monkeypatch):
+    # ver1 (0x40) ACK + code 2.05 (0x45).
+    monkeypatch.setattr(amp, "_udp", lambda *a, **k: b"\x60\x45\x12\x34</.well-known/core>")
+    assert amp._check_coap(_svc(5683)).rule_id == "coap-amplification"
+
+
+def test_ripv1_response(monkeypatch):
+    monkeypatch.setattr(amp, "_udp", lambda *a, **k: b"\x02\x01\x00\x00\x00\x02\x00\x00" + b"\x00" * 16)
+    assert amp._check_ripv1(_svc(520)).rule_id == "ripv1-amplification"
+
+
+def test_qotd_response(monkeypatch):
+    monkeypatch.setattr(amp, "_udp", lambda *a, **k: b"An apple a day keeps the doctor away.\r\n")
+    assert amp._check_qotd(_svc(17)).rule_id == "qotd-amplification"
+
+
+def test_wsdiscovery_probematches(monkeypatch):
+    monkeypatch.setattr(amp, "_udp", lambda *a, **k: b"<d:ProbeMatches><d:XAddrs>http://x/onvif</d:XAddrs></d:ProbeMatches>")
+    assert amp._check_wsdiscovery(_svc(3702)).rule_id == "wsdiscovery-exposed"
+
+
+def test_batch_t_no_fp_on_silence(monkeypatch):
+    monkeypatch.setattr(amp, "_udp", lambda *a, **k: None)
+    for port in (111, 5683, 520, 17, 3702):
+        assert run_amp_probes(_svc(port)) == []

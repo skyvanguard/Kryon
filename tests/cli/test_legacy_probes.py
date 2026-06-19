@@ -23,7 +23,7 @@ def test_run_legacy_probes_graceful_on_dead_ports():
 
 
 def test_dispatch_table_well_formed():
-    assert len(_LEGACY_PROBES) == 6
+    assert len(_LEGACY_PROBES) == 9
     for matches, probe in _LEGACY_PROBES:
         assert callable(matches) and callable(probe)
 
@@ -86,3 +86,34 @@ def test_finger_leak_detected(monkeypatch):
 def test_finger_no_user_info_returns_none(monkeypatch):
     monkeypatch.setattr(lp, "_tcp", lambda *a, **k: b"connection closed")
     assert lp._check_finger(_svc(79)) is None
+
+
+# ---------------------------------------------------------------------------
+# Batch T — TR-069 / SIP / echo
+# ---------------------------------------------------------------------------
+
+
+def test_tr069_rompager(monkeypatch):
+    monkeypatch.setattr(lp, "_tcp", lambda *a, **k: b"HTTP/1.1 401 Unauthorized\r\nServer: RomPager/4.07\r\n\r\n")
+    assert lp._check_tr069(_svc(7547)).rule_id == "tr069-cwmp-exposed"
+
+
+def test_tr069_plain_http_none(monkeypatch):
+    monkeypatch.setattr(lp, "_tcp", lambda *a, **k: b"HTTP/1.1 200 OK\r\nServer: nginx\r\n\r\n")
+    assert lp._check_tr069(_svc(7547)) is None
+
+
+def test_sip_options(monkeypatch):
+    monkeypatch.setattr(lp, "_udp", lambda *a, **k: b"SIP/2.0 200 OK\r\nUser-Agent: Asterisk PBX 18.0\r\n\r\n")
+    f = lp._check_sip(_svc(5060))
+    assert f is not None and f.rule_id == "sip-exposed" and "Asterisk" in f.evidence
+
+
+def test_echo_reflects(monkeypatch):
+    monkeypatch.setattr(lp, "_tcp", lambda *a, **k: b"kryon-echo-probe")
+    assert lp._check_echo(_svc(7)).rule_id == "echo-service-open"
+
+
+def test_echo_no_reflection_none(monkeypatch):
+    monkeypatch.setattr(lp, "_tcp", lambda *a, **k: b"different response")
+    assert lp._check_echo(_svc(7)) is None

@@ -115,12 +115,89 @@ def _check_cldap(svc: DiscoveredService) -> Finding | None:
     return None
 
 
+def _check_rpcbind_udp(svc: DiscoveredService) -> Finding | None:
+    """rpcbind/portmapper DUMP over UDP → lists every RPC program (NFS/mountd/etc)
+    and is a ~28x amplification reflector."""
+    xid = b"rkyn"
+    call = (xid + b"\x00\x00\x00\x00\x00\x00\x00\x02"  # CALL, rpcvers 2
+            b"\x00\x01\x86\xa0\x00\x00\x00\x02\x00\x00\x00\x04"  # prog 100000, vers 2, proc 4 (DUMP)
+            b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")  # null cred + verf
+    resp = _udp(svc.host, svc.port, call, 1024)
+    if resp and len(resp) >= 8 and resp[:4] == xid and resp[4:8] == b"\x00\x00\x00\x01":  # REPLY
+        return _f(svc, "CWE-406", "MEDIUM", "rpcbind-udp-amplification",
+                  f"rpcbind/portmapper responde por UDP en {svc.host}:{svc.port} — reflector de amplificación (~28x) + lista de servicios RPC.",
+                  "PMAPPROC_DUMP (UDP) → reply con la tabla de programas RPC",
+                  "Filtrar 111/udp en el perímetro; usar rpcbind -w + restricciones; preferir NFSv4 (sin portmapper).")
+    return None
+
+
+def _check_coap(svc: DiscoveredService) -> Finding | None:
+    """CoAP responder (5683/udp): GET /.well-known/core → IoT amplification reflector."""
+    pkt = b"\x40\x01\x12\x34\xbb.well-known\x04core"
+    resp = _udp(svc.host, svc.port, pkt, 1024)
+    if resp and len(resp) >= 4 and (resp[0] & 0xC0) == 0x40 and (resp[1] >> 5) == 2:  # CoAP 2.xx response
+        return _f(svc, "CWE-406", "MEDIUM", "coap-amplification",
+                  f"CoAP responde por UDP en {svc.host}:{svc.port} — dispositivo IoT + reflector de amplificación.",
+                  "GET /.well-known/core → respuesta CoAP 2.xx",
+                  "Restringir CoAP a la red IoT; usar DTLS; filtrar 5683/udp en el perímetro.")
+    return None
+
+
+def _check_ripv1(svc: DiscoveredService) -> Finding | None:
+    """RIPv1 (520/udp): a request gets the full routing table — high (~131x) amplification."""
+    req = b"\x01\x01\x00\x00\x00\x00\x00\x00" + b"\x00" * 12 + b"\x00\x00\x00\x10"  # request, AFI 0, metric 16
+    resp = _udp(svc.host, svc.port, req, 1024)
+    if resp and len(resp) >= 4 and resp[0] == 0x02 and resp[1] == 0x01:  # RIPv1 response
+        return _f(svc, "CWE-406", "MEDIUM", "ripv1-amplification",
+                  f"RIPv1 expuesto en {svc.host}:{svc.port} — protocolo de ruteo sin auth + reflector (~131x).",
+                  "RIP request → response con la tabla de rutas",
+                  "Deshabilitar RIPv1 (usar OSPF/RIPv2 con auth); filtrar 520/udp; no anunciar rutas a redes no confiables.")
+    return None
+
+
+def _check_qotd(svc: DiscoveredService) -> Finding | None:
+    """QOTD (17/udp): empty datagram → quote text; classic ~140x amplifier."""
+    resp = _udp(svc.host, svc.port, b"\r\n", 512)
+    if resp and len(resp) > 2:
+        return _f(svc, "CWE-406", "LOW", "qotd-amplification",
+                  f"QOTD (Quote of the Day) abierto en {svc.host}:{svc.port}/udp — reflector de amplificación (~140x).",
+                  f"Datagrama vacío → respuesta de {len(resp)} bytes",
+                  "Deshabilitar el servicio simple-TCP/IP 'qotd' (inutil operativamente); filtrar 17/udp.")
+    return None
+
+
+def _check_wsdiscovery(svc: DiscoveredService) -> Finding | None:
+    """WS-Discovery (3702/udp) Probe → ProbeMatches; device enumeration + amplification."""
+    probe = (
+        b'<?xml version="1.0" encoding="utf-8"?>'
+        b'<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" '
+        b'xmlns:a="http://schemas.xmlsoap.org/ws/2004/08/addressing" '
+        b'xmlns:d="http://schemas.xmlsoap.org/ws/2005/04/discovery">'
+        b'<s:Header><a:Action>http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe</a:Action>'
+        b'<a:MessageID>urn:uuid:11111111-2222-3333-4444-555555555555</a:MessageID>'
+        b'<a:To>urn:schemas-xmlsoap-org:ws:2005:04:discovery</a:To></s:Header>'
+        b'<s:Body><d:Probe/></s:Body></s:Envelope>'
+    )
+    resp = _udp(svc.host, svc.port, probe, 2048)
+    if resp and (b"ProbeMatches" in resp or b"XAddrs" in resp):
+        return _f(svc, "CWE-406", "LOW", "wsdiscovery-exposed",
+                  f"WS-Discovery responde por UDP en {svc.host}:{svc.port} — enumeración de dispositivos + reflector de amplificación.",
+                  "Probe → ProbeMatches (URLs de servicios del device expuestas)",
+                  "Filtrar 3702/udp en el perímetro; deshabilitar WS-Discovery en dispositivos expuestos.")
+    return None
+
+
 _AMP_PROBES = (
     (lambda s: s.port == 53, _check_dns_open_resolver),
     (lambda s: s.port == 11211, _check_memcached_udp),
     (lambda s: s.port == 137, _check_netbios_ns),
     (lambda s: s.port == 5353, _check_mdns),
     (lambda s: s.port == 389, _check_cldap),
+    (lambda s: s.port == 111, _check_rpcbind_udp),
+    (lambda s: s.port == 5683, _check_coap),
+    (lambda s: s.port == 520, _check_ripv1),
+    (lambda s: s.port == 17, _check_qotd),
+    (lambda s: s.port == 3702, _check_wsdiscovery),
 )
 
 

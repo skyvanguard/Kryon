@@ -104,6 +104,58 @@ def _check_finger(svc: DiscoveredService) -> Finding | None:
     return None
 
 
+def _check_tr069(svc: DiscoveredService) -> Finding | None:
+    """TR-069 CWMP (7547): the CPE WAN management plane on an embedded HTTP server
+    (RomPager/GoAhead/gSOAP) — the Mirai/Eircom RCE vector when exposed to WAN."""
+    resp = _tcp(svc.host, svc.port, b"GET / HTTP/1.0\r\nHost: kryon\r\n\r\n", 1024)
+    if resp and (b"RomPager" in resp or b"GoAhead" in resp or b"gSOAP" in resp
+                 or (b"WWW-Authenticate" in resp and b"Digest" in resp)):
+        return _f(
+            svc, "CWE-284", "HIGH", "tr069-cwmp-exposed",
+            f"TR-069 CWMP expuesto en {svc.host}:{svc.port} — plano de gestión del CPE alcanzable (vector Mirai).",
+            "GET / → servidor embebido (RomPager/GoAhead/gSOAP) o auth Digest del CWMP",
+            "El CWMP solo debe hablar con el ACS del ISP; filtrar 7547 desde la WAN; parchear el firmware del CPE.",
+        )
+    return None
+
+
+def _check_sip(svc: DiscoveredService) -> Finding | None:
+    """SIP server (5060): OPTIONS → a SIP/2.0 status line confirms a PBX/proxy
+    (enumeration + INVITE-amplification surface)."""
+    req = (f"OPTIONS sip:probe@{svc.host} SIP/2.0\r\n"
+           "Via: SIP/2.0/UDP kryon:5060;branch=z9hG4bKkryon\r\n"
+           "From: <sip:kryon@kryon>;tag=1\r\nTo: <sip:probe@%s>\r\n"
+           "Call-ID: kryon-probe\r\nCSeq: 1 OPTIONS\r\nMax-Forwards: 70\r\nContent-Length: 0\r\n\r\n"
+           % svc.host).encode("latin-1")
+    resp = _udp(svc.host, svc.port, req, 1024)
+    if resp and resp[:7] == b"SIP/2.0":
+        ua = ""
+        for line in resp.split(b"\r\n"):
+            if line.lower().startswith((b"user-agent:", b"server:")):
+                ua = line.decode("latin-1", "replace")[:60]
+                break
+        return _f(
+            svc, "CWE-200", "MEDIUM", "sip-exposed",
+            f"Servidor SIP/VoIP expuesto en {svc.host}:{svc.port} — superficie de enumeración + amplificación por INVITE.",
+            f"OPTIONS → respuesta SIP/2.0{(' · ' + ua) if ua else ''}",
+            "Restringir SIP a troncales/redes conocidas; fail2ban; deshabilitar respuestas a OPTIONS anónimos.",
+        )
+    return None
+
+
+def _check_echo(svc: DiscoveredService) -> Finding | None:
+    """echo service (7): reflects whatever you send — legacy simple-TCP/IP reflector."""
+    resp = _tcp(svc.host, svc.port, b"kryon-echo-probe", 32)
+    if resp and resp[:16] == b"kryon-echo-probe":
+        return _f(
+            svc, "CWE-406", "LOW", "echo-service-open",
+            f"Servicio echo abierto en {svc.host}:{svc.port} — simple-TCP/IP legacy (reflector de amplificación).",
+            "Lo enviado fue reflejado intacto",
+            "Deshabilitar los simple-TCP/IP services (echo/discard/daytime/chargen); sin uso operativo.",
+        )
+    return None
+
+
 # Port → legacy/IoT detectors.
 _LEGACY_PROBES = (
     (lambda s: 6000 <= s.port <= 6005, _check_x11),
@@ -112,6 +164,9 @@ _LEGACY_PROBES = (
     (lambda s: s.port == 631, _check_cups),
     (lambda s: s.port == 47808, _check_bacnet),
     (lambda s: s.port == 79, _check_finger),
+    (lambda s: s.port == 7547, _check_tr069),
+    (lambda s: s.port == 5060, _check_sip),
+    (lambda s: s.port == 7, _check_echo),
 )
 
 
