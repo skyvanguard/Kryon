@@ -340,6 +340,54 @@ def _check_ldap_anon(svc: DiscoveredService) -> Finding | None:
     return None
 
 
+def _check_nfs_rpcbind(svc: DiscoveredService) -> Finding | None:
+    """rpcbind/portmapper (111) exposed; flags NFS/mountd registered = exported FS.
+    portmap v2 DUMP (proc 4) over TCP — read-only, lists registered RPC programs."""
+    call = (
+        b"\x12\x34\x56\x78\x00\x00\x00\x00\x00\x00\x00\x02"  # XID, CALL, rpcvers 2
+        b"\x00\x01\x86\xa0\x00\x00\x00\x02\x00\x00\x00\x04"  # prog 100000, vers 2, proc 4 (DUMP)
+        b"\x00\x00\x00\x00\x00\x00\x00\x00"  # cred null
+        b"\x00\x00\x00\x00\x00\x00\x00\x00"  # verf null
+    )
+    framed = struct.pack(">I", 0x80000000 | len(call)) + call  # TCP RPC record marker
+    resp = _tcp(svc.host, svc.port, framed, 4096)
+    if resp is None or len(resp) < 24:
+        return None
+    # NFS = 100003 (0x000186a3), mountd = 100005 (0x000186a5)
+    if b"\x00\x01\x86\xa3" in resp or b"\x00\x01\x86\xa5" in resp:
+        return _f(
+            svc, "CWE-306", "HIGH", "nfs-exposed",
+            f"NFS/mountd registrado en rpcbind expuesto en {svc.host}:{svc.port}.",
+            "portmap DUMP listó el programa NFS (100003)/mountd (100005) — exports accesibles vía showmount",
+            "Restringir exports (no_root_squash off, allowlist de hosts) + firewall a 111/2049/mountd.",
+        )
+    return _f(
+        svc, "CWE-200", "LOW", "rpcbind-exposed",
+        f"rpcbind/portmapper expuesto en {svc.host}:{svc.port} (enumeración de servicios RPC).",
+        f"portmap DUMP devolvió {len(resp)} bytes con programas registrados",
+        "Firewall a 111; deshabilitar rpcbind si no se usa NFS/NIS.",
+    )
+
+
+def _check_mssql(svc: DiscoveredService) -> Finding | None:
+    """MSSQL exposed — TDS pre-login confirms the engine and leaks the version."""
+    payload = bytes.fromhex("0000001a0006010020000102002100010300220004ff")
+    version = b"\x00" * 6 + b"\x00"
+    body = payload + version
+    pkt = struct.pack(">BBH", 0x12, 0x01, len(body) + 8) + b"\x00\x00\x00\x00" + body
+    resp = _tcp(svc.host, svc.port, pkt, 256)
+    if resp is None or resp[:1] != b"\x04":  # TDS server response packet
+        return None
+    # The VERSION token payload (major.minor) sits just past the option table.
+    ver = f"{resp[10]}.{resp[11]}" if len(resp) > 11 else ""
+    return _f(
+        svc, "CWE-200", "LOW", "mssql-exposed",
+        f"Microsoft SQL Server expuesto en {svc.host}:{svc.port} (TDS responde al pre-login).",
+        f"Pre-login TDS respondió{(' versión ~' + ver) if ver else ''} — superficie de brute-force/CVE",
+        "Restringir 1433 a red interna/VPN; forzar Force Encryption; deshabilitar sa o usar password fuerte.",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Dispatch table consumed by engage / investigate: (matcher) -> detector
 # Matcher receives the DiscoveredService; True = run that detector.
@@ -359,6 +407,8 @@ PROBES: tuple[tuple[str, object, object], ...] = (
     ("ntp", lambda s: s.service == "ntp" or s.port == 123, _check_ntp_monlist),
     ("smtp", lambda s: s.service in ("smtp", "submission") or s.port in (25, 587), _check_smtp),
     ("ldap", lambda s: s.service in ("ldap", "ldaps") or s.port in (389, 636), _check_ldap_anon),
+    ("nfs", lambda s: s.service in ("rpcbind", "nfs", "portmapper") or s.port == 111, _check_nfs_rpcbind),
+    ("mssql", lambda s: s.service in ("ms-sql-s", "ms-sql") or s.port == 1433, _check_mssql),
 )
 
 

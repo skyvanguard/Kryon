@@ -50,6 +50,8 @@ def test_run_service_probes_never_raises_and_returns_list():
         (3389, "rdp"),
         (5432, "postgres"),
         (389, "ldap"),
+        (111, "nfs"),
+        (1433, "mssql"),
     ],
 )
 def test_dispatch_matches_port_to_detector(port, expected_rule_substr):
