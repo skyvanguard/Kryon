@@ -356,6 +356,10 @@ def _run_deterministic_phase(
         from kryon.cli.ad_probes import run_ad_probes
 
         findings.extend(run_ad_probes(_gsvc))
+        # DNS / email-security posture (SPF/DMARC/DKIM + subdomain takeover) — domain-keyed.
+        from kryon.cli.dns_probes import run_dns_probes
+
+        findings.extend(run_dns_probes(host))
     except Exception:  # noqa: BLE001 — never break the hybrid phase
         pass
 
