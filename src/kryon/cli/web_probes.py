@@ -159,15 +159,56 @@ def _ctx(scheme: str):
     return c
 
 
+# API documentation surface — exposing the full API contract (every endpoint +
+# params) to anonymous users is an information-disclosure / attack-surface finding.
+_SWAGGER_PATHS = (
+    "/swagger-ui.html", "/swagger-ui/index.html", "/v2/api-docs", "/v3/api-docs",
+    "/openapi.json", "/swagger.json", "/api-docs",
+)
+
+
+def _check_swagger(svc: DiscoveredService, scheme: str) -> Finding | None:
+    for path in _SWAGGER_PATHS:
+        r = _http_get(svc.host, svc.port, path, scheme=scheme)
+        if not (r and r[0] == 200):
+            continue
+        body = r[1] or ""
+        is_spec = ('"swagger"' in body or '"openapi"' in body) and '"paths"' in body
+        is_ui = "swagger-ui" in body.lower() or "Swagger UI" in body
+        if is_spec or is_ui:
+            return _f(svc, "CWE-200", "LOW", "swagger-exposed",
+                      f"Documentación de API (Swagger/OpenAPI) expuesta en {svc.host}:{svc.port}{path}.",
+                      f"GET {path} → 200 (contrato completo de la API: endpoints, params, modelos)",
+                      "Restringir Swagger/OpenAPI a entornos no productivos o detrás de auth.")
+    return None
+
+
+def _check_wordpress(svc: DiscoveredService, scheme: str) -> list[Finding]:
+    out: list[Finding] = []
+    users = _http_get(svc.host, svc.port, "/wp-json/wp/v2/users", scheme=scheme)
+    if users and users[0] == 200 and '"slug"' in (users[1] or "") and ('"name"' in users[1] or '"id"' in users[1]):
+        out.append(_f(svc, "CWE-200", "MEDIUM", "wordpress-user-enum",
+                      f"WordPress filtra el listado de usuarios vía REST API en {svc.host}:{svc.port}.",
+                      "GET /wp-json/wp/v2/users → 200 con slugs/nombres (enumeración de usuarios para brute-force)",
+                      "Bloquear /wp-json/wp/v2/users (plugin o regla del server); restringir la REST API."))
+    xmlrpc = _http_get(svc.host, svc.port, "/xmlrpc.php", scheme=scheme)
+    if xmlrpc and xmlrpc[0] in (200, 405) and "XML-RPC server accepts POST requests only" in (xmlrpc[1] or ""):
+        out.append(_f(svc, "CWE-799", "MEDIUM", "wordpress-xmlrpc",
+                      f"WordPress xmlrpc.php habilitado en {svc.host}:{svc.port} — amplificación de brute-force y pingback DDoS.",
+                      "GET /xmlrpc.php → 'XML-RPC server accepts POST requests only' (system.multicall, pingback)",
+                      "Deshabilitar xmlrpc.php si no se usa (regla del server o plugin)."))
+    return out
+
+
 def run_web_probes(svc: DiscoveredService, scheme: str = "http") -> list[Finding]:
     """Run every web probe against an HTTP(S) service. Never raises."""
     out: list[Finding] = []
-    for fn in (_check_sensitive_files, _check_admin_panels):
+    for fn in (_check_sensitive_files, _check_admin_panels, _check_wordpress):
         try:
             out.extend(fn(svc, scheme))
         except Exception:  # noqa: BLE001
             continue
-    for fn in (_check_directory_listing, _check_http_trace, _check_webdav):
+    for fn in (_check_directory_listing, _check_http_trace, _check_webdav, _check_swagger):
         try:
             f = fn(svc, scheme)
             if f:

@@ -274,6 +274,13 @@ def _run_deterministic_phase(
             findings.extend(run_web_probes(svc, "https" if (scheme == "https" or port in (443, 8443)) else "http"))
         except Exception:  # noqa: BLE001
             pass
+        # Dev/admin/big-data app UIs (Jenkins, Grafana, Kibana, Prometheus, Hadoop, Spark).
+        try:
+            from kryon.cli.app_probes import run_app_probes
+
+            findings.extend(run_app_probes(svc, "https" if (scheme == "https" or port in (443, 8443)) else "http"))
+        except Exception:  # noqa: BLE001
+            pass
 
     # SSH — F203.N.2 creds-aware deep audit
     elif scheme == "ssh" or port in (22, 2222):

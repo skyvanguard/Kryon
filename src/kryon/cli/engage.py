@@ -5341,6 +5341,15 @@ def run_engage(args: argparse.Namespace) -> int:
                 findings.extend(run_web_probes(svc, _wscheme))
             except Exception:  # noqa: BLE001 — never break the sweep
                 pass
+            # Dev/admin/big-data app UIs (Jenkins, Grafana, Kibana, Prometheus,
+            # Hadoop YARN, Spark — several allow unauth RCE).
+            try:
+                from kryon.cli.app_probes import run_app_probes
+
+                _ascheme = "https" if (svc.service == "https" or svc.port in (443, 8443)) else "http"
+                findings.extend(run_app_probes(svc, _ascheme))
+            except Exception:  # noqa: BLE001 — never break the sweep
+                pass
             # Full F57 web sweep (crawl + surface discovery + injection +
             # headless cookie/PP/DOM-XSS + nuclei) on web services — ACTIVE
             # only (KRYON_RED_TEAM), so banca-safe engagements are unchanged.
