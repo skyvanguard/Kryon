@@ -13,6 +13,8 @@ RCE / data-leak (CWE-306/502), a different and higher-value class of finding.
 
 from __future__ import annotations
 
+import struct
+
 from kryon.cli.engage import DiscoveredService, Finding
 from kryon.cli.service_probes import _f, _http_get, _tcp
 
@@ -178,10 +180,150 @@ def _check_neo4j(svc: DiscoveredService, scheme: str = "http") -> Finding | None
     )
 
 
+# --------------------------------------------------------------------------
+# Batch S — additional data stores / brokers / secret-mgmt
+# --------------------------------------------------------------------------
+
+
+def _check_epmd(svc: DiscoveredService) -> Finding | None:
+    """Erlang Port Mapper Daemon: NAMES_REQ enumerates the cluster's nodes (and
+    their distribution ports — the real attack surface via the Erlang cookie)."""
+    resp = _tcp(svc.host, svc.port, b"\x00\x01\x6e", 1024)  # len=1, 'n' = NAMES_REQ
+    if resp and len(resp) >= 4 and b" at port " in resp:
+        nodes = resp[4:].decode("latin-1", "replace").replace("\n", " ").strip()
+        return _f(svc, "CWE-200", "HIGH", "epmd-exposed",
+                  f"Erlang EPMD expuesto en {svc.host}:{svc.port} — enumera nodos del cluster (RabbitMQ/CouchDB/Ejabberd).",
+                  f"NAMES_REQ → {nodes[:120]}",
+                  "Filtrar 4369 + el rango de puertos de distribución; proteger el ~/.erlang.cookie; bind a red interna.")
+    return None
+
+
+def _check_oracle_tns(svc: DiscoveredService) -> Finding | None:
+    """Oracle TNS listener: a connect packet elicits a TNS-framed reply; an
+    unrestricted (COMMAND=version) leaks the version → CVE matching."""
+    data = b"(CONNECT_DATA=(COMMAND=version))"
+    hdr = (b"\x00\x00\x00\x00\x01\x00\x00\x00"
+           b"\x01\x36\x01\x2c\x00\x00\x08\x00\x7f\xff\x4f\x98\x00\x00\x00\x01"
+           + struct.pack(">H", len(data)) + b"\x00\x34\x00\x00\x00\x00\x01\x01"
+           + b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+    pkt = struct.pack(">H", len(hdr) + len(data)) + hdr[2:] + data
+    resp = _tcp(svc.host, svc.port, pkt, 1024)
+    if resp and len(resp) >= 5 and resp[4] in (0x02, 0x04, 0x06, 0x0b, 0x0c):  # TNS accept/refuse/data/resend/marker
+        ver = ""
+        for marker in (b"VSNNUM", b"Version", b"TNSLSNR"):
+            if marker in resp:
+                ver = resp[resp.index(marker):resp.index(marker) + 60].decode("latin-1", "replace")
+                break
+        return _f(svc, "CWE-200", "HIGH", "oracle-tns-exposed",
+                  f"Oracle TNS listener expuesto en {svc.host}:{svc.port} — info-leak / version disclosure.",
+                  f"Respuesta TNS{(' · ' + ver) if ver else ''}",
+                  "Restringir el listener (VALID_NODE_CHECKING + ACL); ADMIN_RESTRICTIONS=ON; no exponer 1521.")
+    return None
+
+
+def _check_cockroach(svc: DiscoveredService) -> Finding | None:
+    """CockroachDB (Postgres wire) in --insecure mode answers AuthenticationOk
+    to a startup with no password."""
+    msg = b"user\x00root\x00database\x00defaultdb\x00\x00"
+    startup = struct.pack(">I", 8 + len(msg)) + struct.pack(">I", 196608) + msg
+    resp = _tcp(svc.host, svc.port, startup, 64)
+    if resp and resp[:1] == b"R" and len(resp) >= 9 and int.from_bytes(resp[5:9], "big") == 0:  # AuthenticationOk
+        return _f(svc, "CWE-1392", "HIGH", "cockroachdb-insecure",
+                  f"CockroachDB en modo --insecure en {svc.host}:{svc.port} — sin TLS ni autenticación.",
+                  "StartupMessage(user=root) → AuthenticationOk (sin password)",
+                  "Arrancar con --certs-dir (modo seguro); exigir TLS + auth; nunca exponer 26257 sin cifrado.")
+    return None
+
+
+def _check_redis_sentinel(svc: DiscoveredService) -> Finding | None:
+    """Redis Sentinel without auth leaks the HA topology (master IPs/ports)."""
+    resp = _tcp(svc.host, svc.port, b"INFO sentinel\r\n", 512)
+    if resp and b"sentinel_masters:" in resp and b"NOAUTH" not in resp:
+        return _f(svc, "CWE-200", "MEDIUM", "redis-sentinel-exposed",
+                  f"Redis Sentinel sin auth en {svc.host}:{svc.port} — expone la topología HA (masters reales).",
+                  "INFO sentinel → sentinel_masters sin requerir AUTH",
+                  "Setear requirepass en Sentinel (Redis 5+); bind a la red interna; no exponer 26379.")
+    return None
+
+
+def _check_amqp(svc: DiscoveredService) -> Finding | None:
+    """Raw AMQP 0-9-1 broker (the one a 15672 mgmt-UI check can't see)."""
+    resp = _tcp(svc.host, svc.port, b"AMQP\x00\x00\x09\x01", 512)
+    if resp and (resp[:1] == b"\x01" or resp[:4] == b"AMQP"):  # Connection.Start frame or proto-header reply
+        return _f(svc, "CWE-1392", "MEDIUM", "amqp-broker-exposed",
+                  f"Broker AMQP expuesto en {svc.host}:{svc.port} — verificar credenciales por defecto (guest/guest).",
+                  "Header AMQP 0-9-1 → respuesta del broker (Connection.Start)",
+                  "Deshabilitar el usuario guest o restringirlo a localhost; TLS (5671); auth fuerte por vhost.")
+    return None
+
+
+def _check_minio(svc: DiscoveredService, scheme: str = "http") -> Finding | None:
+    """Anonymous S3-compatible object store (MinIO et al.): ListBuckets without
+    a signature = every bucket/object is enumerable."""
+    r = _http_get(svc.host, svc.port, "/", scheme=scheme)
+    if r and r[0] == 200 and "<ListAllMyBucketsResult" in r[1]:
+        return _f(svc, "CWE-284", "HIGH", "object-store-public-buckets",
+                  f"Object store S3-compatible con ListBuckets anónimo en {svc.host}:{svc.port} — datos enumerables.",
+                  "GET / → <ListAllMyBucketsResult> sin firma AWS (acceso anónimo)",
+                  "Exigir autenticación/políticas de bucket; nunca dejar el acceso anónimo en el object store.")
+    return None
+
+
+def _check_vault(svc: DiscoveredService, scheme: str = "http") -> Finding | None:
+    """HashiCorp Vault /sys/health: unsealed over plaintext = secrets at risk."""
+    r = _http_get(svc.host, svc.port, "/v1/sys/health", scheme=scheme)
+    if not (r and "sealed" in r[1] and ("version" in r[1] or "cluster_name" in r[1])):
+        return None
+    body = r[1].replace(" ", "")
+    if '"sealed":false' in body:
+        sev = "CRITICAL" if scheme == "http" else "HIGH"
+        return _f(svc, "CWE-306", sev, "vault-unsealed",
+                  f"HashiCorp Vault UNSEALED y alcanzable en {svc.host}:{svc.port}{' (sin TLS)' if scheme == 'http' else ''}.",
+                  "GET /v1/sys/health → sealed:false (los secretos están desencriptados en memoria)",
+                  "Sellar Vault salvo durante operación; exigir TLS; restringir 8200 a la red de aplicaciones.")
+    return _f(svc, "CWE-200", "LOW", "vault-exposed",
+              f"HashiCorp Vault alcanzable en {svc.host}:{svc.port} (sealed).",
+              "GET /v1/sys/health respondió (Vault expuesto a la red)",
+              "Restringir 8200 a la red interna; TLS obligatorio.")
+
+
+def _check_portainer(svc: DiscoveredService, scheme: str = "http") -> Finding | None:
+    """Portainer with no admin initialized = anyone can claim admin of the Docker host."""
+    status = _http_get(svc.host, svc.port, "/api/system/status", scheme=scheme)
+    is_portainer = status and status[0] == 200 and ("Version" in status[1] or "Edition" in status[1])
+    if not is_portainer:
+        return None
+    chk = _http_get(svc.host, svc.port, "/api/users/admin/check", scheme=scheme)
+    if chk and chk[0] == 404:
+        return _f(svc, "CWE-862", "CRITICAL", "portainer-uninitialized",
+                  f"Portainer SIN admin inicializado en {svc.host}:{svc.port} — cualquiera puede reclamar el admin del daemon Docker.",
+                  "GET /api/users/admin/check → 404 (POST /api/users/admin/init toma control total)",
+                  "Inicializar el admin de inmediato detrás de la red de management; nunca exponer Portainer sin setup.")
+    return _f(svc, "CWE-1392", "LOW", "portainer-exposed",
+              f"Portainer expuesto en {svc.host}:{svc.port} — verificar credenciales y acceso de red.",
+              "GET /api/system/status → 200 (Portainer alcanzable)",
+              "Restringir Portainer a la red de management/VPN; MFA; credenciales fuertes.")
+
+
+def _check_arango(svc: DiscoveredService, scheme: str = "http") -> Finding | None:
+    """ArangoDB with authentication disabled (--server.authentication false)."""
+    r = _http_get(svc.host, svc.port, "/_api/version", scheme=scheme)
+    if r and r[0] == 200 and "arango" in r[1].lower() and "version" in r[1].lower():
+        return _f(svc, "CWE-306", "HIGH", "arangodb-no-auth",
+                  f"ArangoDB con autenticación deshabilitada en {svc.host}:{svc.port} — acceso total a la base.",
+                  "GET /_api/version → 200 sin 401 (auth off)",
+                  "Activar server.authentication=true; cambiar la contraseña de root; restringir 8529.")
+    return None
+
+
 # (name, port matcher, detector). HTTP detectors take (svc, scheme); the rest take (svc).
 _HTTP_PROBES = (
     ("docker-registry", lambda s: s.port in (5000, 5001), _check_docker_registry),
     ("neo4j", lambda s: s.port == 7474, _check_neo4j),
+    ("minio", lambda s: s.port in (9000, 9001), _check_minio),
+    ("vault", lambda s: s.port == 8200, _check_vault),
+    ("portainer", lambda s: s.port in (9000, 9443), _check_portainer),
+    ("arango", lambda s: s.port == 8529, _check_arango),
 )
 _TCP_PROBES = (
     ("mqtt", lambda s: s.port in (1883, 8883), _check_mqtt),
@@ -191,6 +333,11 @@ _TCP_PROBES = (
     ("cassandra", lambda s: s.port in (9042, 9142), _check_cassandra),
     ("jdwp", lambda s: s.port in (8000, 5005, 8787, 9999, 18000), _check_jdwp),
     ("smart-install", lambda s: s.port == 4786, _check_smart_install),
+    ("epmd", lambda s: s.port == 4369, _check_epmd),
+    ("oracle-tns", lambda s: s.port in (1521, 1522, 1523, 1524, 1525, 1526), _check_oracle_tns),
+    ("cockroachdb", lambda s: s.port == 26257, _check_cockroach),
+    ("redis-sentinel", lambda s: s.port == 26379, _check_redis_sentinel),
+    ("amqp", lambda s: s.port in (5672, 5671), _check_amqp),
 )
 
 
