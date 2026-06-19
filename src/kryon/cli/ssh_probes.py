@@ -8,7 +8,6 @@ Imports _f from service_probes (one-way; no import cycle).
 
 from __future__ import annotations
 
-import re
 import socket
 
 from kryon.cli.engage import DiscoveredService, Finding
@@ -104,20 +103,6 @@ def _check_weak_algos(svc: DiscoveredService, kex, hostkey, enc, mac) -> Finding
     return None
 
 
-def _check_banner_cve(svc: DiscoveredService, banner: str) -> Finding | None:
-    m = re.search(r"OpenSSH[_-](\d+)\.(\d+)", banner)
-    if not m:
-        return None
-    major, minor = int(m.group(1)), int(m.group(2))
-    ver = (major, minor)
-    if (8, 5) <= ver <= (9, 7):  # regreSSHion reintroduction range
-        return _f(svc, "CWE-1395", "HIGH", "ssh-regresshion-candidate",
-                  f"OpenSSH {major}.{minor} en {svc.host}:{svc.port} — rango afectado por regreSSHion (CVE-2024-6387, RCE root).",
-                  f"Banner: {banner[:80]} (verificar: el banner es spoofeable y muchas distros backportean el fix)",
-                  "Actualizar OpenSSH ≥ 9.8p1; mitigar con LoginGraceTime=0; confirmar parche real (no solo banner).")
-    return None
-
-
 def run_ssh_probes(svc: DiscoveredService) -> list[Finding]:
     """SSH handshake-based posture (Terrapin + weak algos + banner→CVE). Never raises."""
     out: list[Finding] = []
@@ -131,11 +116,11 @@ def run_ssh_probes(svc: DiscoveredService) -> list[Finding]:
     kex, hostkey, enc_cs, enc_sc, mac_cs, mac_sc = (lists[i].split(",") for i in range(6))
     enc = enc_sc or enc_cs
     mac = mac_sc or mac_cs
-    for f in (
-        _check_terrapin(svc, kex, enc, mac),
-        _check_weak_algos(svc, kex, hostkey, enc, mac),
-        _check_banner_cve(svc, banner),
-    ):
+    for f in (_check_terrapin(svc, kex, enc, mac), _check_weak_algos(svc, kex, hostkey, enc, mac)):
         if f:
             out.append(f)
+    # Banner → applicable-CVE correlation (regreSSHion + username-enum + agent RCE).
+    from kryon.cli.version_cve import correlate_banner  # noqa: PLC0415
+
+    out.extend(correlate_banner(banner, svc.host, svc.port))
     return out

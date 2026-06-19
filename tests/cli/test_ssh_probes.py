@@ -36,14 +36,13 @@ def test_modern_algorithms_clean():
                                 ["aes256-gcm@openssh.com"], ["hmac-sha2-256-etm@openssh.com"]) is None
 
 
-def test_banner_cve_regresshion_in_range():
-    f = sp._check_banner_cve(_S, "SSH-2.0-OpenSSH_9.6p1 Ubuntu")
-    assert f is not None and f.rule_id == "ssh-regresshion-candidate" and f.severity == "HIGH"
+def test_banner_cve_correlation_via_engine():
+    # banner→CVE is now owned by version_cve; regreSSHion in range, clean out of range.
+    from kryon.cli.version_cve import correlate_banner
 
-
-def test_banner_cve_out_of_range():
-    assert sp._check_banner_cve(_S, "SSH-2.0-OpenSSH_9.8p1") is None
-    assert sp._check_banner_cve(_S, "SSH-2.0-OpenSSH_8.2p1") is None
+    hits = correlate_banner("SSH-2.0-OpenSSH_9.6p1 Ubuntu", "h", 22)
+    assert any(f.rule_id == "cve-cve-2024-6387" for f in hits)
+    assert correlate_banner("SSH-2.0-OpenSSH_9.8p1", "h", 22) == []
 
 
 class _FakeSock:
@@ -84,5 +83,5 @@ def test_read_handshake_parses_lists(monkeypatch):
     stream = b"SSH-2.0-OpenSSH_9.6p1\r\n" + _kexinit_packet(lists)
     monkeypatch.setattr(sp.socket, "create_connection", lambda *a, **k: _FakeSock(stream))
     out = sp.run_ssh_probes(_S)
-    # 9.6 banner → regreSSHion candidate; modern algos → no weak/terrapin.
-    assert any(f.rule_id == "ssh-regresshion-candidate" for f in out)
+    # 9.6 banner → regreSSHion CVE via the correlation engine; modern algos → no weak/terrapin.
+    assert any(f.rule_id == "cve-cve-2024-6387" for f in out)
