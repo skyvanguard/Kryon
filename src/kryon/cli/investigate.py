@@ -351,9 +351,11 @@ def _run_deterministic_phase(
     try:
         from kryon.cli.service_probes import run_service_probes
 
-        findings.extend(
-            run_service_probes(DiscoveredService(host=host, port=port, state="open", service=scheme or ""))
-        )
+        _gsvc = DiscoveredService(host=host, port=port, state="open", service=scheme or "")
+        findings.extend(run_service_probes(_gsvc))
+        from kryon.cli.ad_probes import run_ad_probes
+
+        findings.extend(run_ad_probes(_gsvc))
     except Exception:  # noqa: BLE001 — never break the hybrid phase
         pass
 

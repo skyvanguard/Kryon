@@ -5311,9 +5311,15 @@ def run_engage(args: argparse.Namespace) -> int:
         from kryon.cli.service_probes import run_service_probes
     except ImportError:
         run_service_probes = None
+    try:
+        from kryon.cli.ad_probes import run_ad_probes
+    except ImportError:
+        run_ad_probes = None
     for svc in open_svcs:
         if run_service_probes is not None:
             findings.extend(run_service_probes(svc))
+        if run_ad_probes is not None:
+            findings.extend(run_ad_probes(svc))
         if svc.service in ("http", "http-proxy", "https") or svc.port in (80, 443, 8080, 8443):
             findings.extend(_check_http(svc))
             # F199.J — Run the Python http.server detector on the same
