@@ -141,6 +141,32 @@ def _check_tls_rpt(domain: str) -> Finding | None:
                "Publicar TLS-RPT (_smtp._tls TXT con rua=mailto:) para recibir reportes de fallos de entrega TLS.")
 
 
+def _check_axfr(domain: str) -> Finding | None:
+    """Zone transfer (AXFR) allowed from a public NS = full zone dump (every
+    hostname/record). Try each authoritative NS; report the first that answers."""
+    try:
+        import dns.query  # noqa: PLC0415
+        import dns.resolver  # noqa: PLC0415
+        import dns.zone  # noqa: PLC0415
+
+        ns_names = [str(r.target).rstrip(".") for r in dns.resolver.resolve(domain, "NS", lifetime=5)]
+    except Exception:  # noqa: BLE001 — no NS / no dnspython
+        return None
+    for ns in ns_names:
+        try:
+            ns_ip = str(dns.resolver.resolve(ns, "A", lifetime=5)[0])
+            zone = dns.zone.from_xfr(dns.query.xfr(ns_ip, domain, lifetime=8))
+            n = len(list(zone.nodes))
+            if n > 0:
+                return _df(domain, "CWE-200", "HIGH", "dns-zone-transfer",
+                           f"Transferencia de zona (AXFR) permitida en {domain} vía {ns} — dump completo de la zona.",
+                           f"AXFR a {ns} ({ns_ip}) devolvió {n} registros",
+                           "Restringir AXFR a los secundarios autorizados (allow-transfer { ... } / ACL en el NS).")
+        except Exception:  # noqa: BLE001 — refused / timeout on this NS → try next
+            continue
+    return None
+
+
 def _check_subdomain_takeover(domain: str) -> Finding | None:
     target = _cname(domain)
     if not target:
@@ -178,7 +204,7 @@ def run_dns_probes(domain: str) -> list[Finding]:
     if "." not in domain or domain.endswith(".local"):
         return []
     out: list[Finding] = []
-    for fn in (_check_spf, _check_dmarc, _check_dkim, _check_caa, _check_mta_sts, _check_tls_rpt, _check_subdomain_takeover):
+    for fn in (_check_spf, _check_dmarc, _check_dkim, _check_caa, _check_mta_sts, _check_tls_rpt, _check_axfr, _check_subdomain_takeover):
         try:
             f = fn(domain)
             if f:

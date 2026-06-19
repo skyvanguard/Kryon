@@ -109,13 +109,76 @@ def _check_heartbleed(svc: DiscoveredService) -> Finding | None:
     return None
 
 
+def _host_matches_san(host: str, names: list[str]) -> bool:
+    host = host.lower().rstrip(".")
+    for n in names:
+        n = n.lower().rstrip(".")
+        if n == host:
+            return True
+        if n.startswith("*.") and "." in host and host.split(".", 1)[1] == n[2:]:
+            return True
+    return False
+
+
+def _check_cert_validation(svc: DiscoveredService) -> list[Finding]:
+    """Certificate without a SAN extension, or whose SAN/CN doesn't cover the
+    target hostname (skipped for IP literals — SNI/hostname don't apply)."""
+    import ipaddress  # noqa: PLC0415
+    import ssl  # noqa: PLC0415
+
+    try:
+        ipaddress.ip_address(svc.host)
+        return []  # IP target → no hostname to validate
+    except ValueError:
+        pass
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    try:
+        with socket.create_connection((svc.host, svc.port), timeout=_T) as s, ctx.wrap_socket(
+            s, server_hostname=svc.host
+        ) as ss:
+            der = ss.getpeercert(binary_form=True)
+    except (OSError, ValueError):
+        return []
+    if not der:
+        return []
+    out: list[Finding] = []
+    try:
+        from cryptography import x509  # noqa: PLC0415
+        from cryptography.x509.oid import ExtensionOID  # noqa: PLC0415
+
+        cert = x509.load_der_x509_certificate(der)
+        try:
+            san = cert.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+            names = san.value.get_values_for_type(x509.DNSName)
+        except x509.ExtensionNotFound:
+            names = []
+            out.append(_f(svc, "CWE-295", "LOW", "tls-cert-no-san",
+                f"Certificado TLS sin extensión SubjectAlternativeName en {svc.host}:{svc.port} (solo CN, deprecado).",
+                "El certificado no tiene SAN; los navegadores modernos lo rechazan",
+                "Reemitir el certificado con SAN (los clientes ignoran el CN desde 2017)."))
+        if names and not _host_matches_san(svc.host, names):
+            out.append(_f(svc, "CWE-297", "MEDIUM", "tls-cert-hostname-mismatch",
+                f"Certificado TLS no cubre el hostname {svc.host} en {svc.host}:{svc.port}.",
+                f"SAN={','.join(names[:5])} no incluye {svc.host}",
+                "Emitir el certificado para el hostname correcto (o agregar el SAN faltante)."))
+    except Exception:  # noqa: BLE001 — cert parse best-effort
+        pass
+    return out
+
+
 def run_tls_probes(svc: DiscoveredService) -> list[Finding]:
-    """CVE-specific TLS probes (Heartbleed). Never raises."""
+    """CVE-specific TLS probes (Heartbleed) + cert hostname/SAN validation. Never raises."""
     out: list[Finding] = []
     try:
         f = _check_heartbleed(svc)
         if f:
             out.append(f)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        out.extend(_check_cert_validation(svc))
     except Exception:  # noqa: BLE001
         pass
     return out

@@ -292,6 +292,13 @@ def _run_deterministic_phase(
     # SSH — F203.N.2 creds-aware deep audit
     elif scheme == "ssh" or port in (22, 2222):
         svc = DiscoveredService(host=host, port=port, state="open", service="ssh")
+        # Handshake-based posture (Terrapin / weak algos / banner→CVE) — read-only, no creds.
+        try:
+            from kryon.cli.ssh_probes import run_ssh_probes
+
+            findings.extend(run_ssh_probes(svc))
+        except Exception:  # noqa: BLE001
+            pass
         ssh_target = f"{ssh_user}@{host}" if ssh_user else None
         # _check_ssh reads KRYON_SSH_PORT / KRYON_SSH_KEY_PATH from env
         prior_port = os.environ.get("KRYON_SSH_PORT")
@@ -391,6 +398,10 @@ def _run_deterministic_phase(
         from kryon.cli.ot_probes import run_ot_probes
 
         findings.extend(run_ot_probes(_gsvc))
+        # IMAP/POP3 cleartext-auth posture (self-gates on 143/110).
+        from kryon.cli.mail_probes import run_mail_probes
+
+        findings.extend(run_mail_probes(_gsvc))
         # CVE-specific TLS probe (Heartbleed) on likely-TLS ports.
         if scheme == "https" or port in (443, 8443, 993, 995, 465, 636, 990, 5061, 9443):
             from kryon.cli.tls_probes import run_tls_probes

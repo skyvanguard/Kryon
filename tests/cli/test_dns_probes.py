@@ -87,3 +87,36 @@ def test_tls_rpt_missing_only_with_mx(monkeypatch):
     assert dp._check_tls_rpt("acme.com").rule_id == "tls-rpt-missing"
     monkeypatch.setattr(dp, "_has_mx", lambda d: False)
     assert dp._check_tls_rpt("acme.com") is None
+
+
+# ---------------------------------------------------------------------------
+# Batch R — DNS zone transfer (AXFR)
+# ---------------------------------------------------------------------------
+
+
+def _patch_dns(monkeypatch, xfr):
+    import types
+
+    import dns.query
+    import dns.resolver
+    import dns.zone
+
+    monkeypatch.setattr(dns.resolver, "resolve", lambda name, rtype, lifetime=5: (
+        [types.SimpleNamespace(target="ns1.acme.com.")] if rtype == "NS" else ["10.0.0.1"]))
+    monkeypatch.setattr(dns.query, "xfr", xfr)
+    monkeypatch.setattr(dns.zone, "from_xfr",
+                        lambda x: types.SimpleNamespace(nodes={"@": 1, "www": 1, "mail": 1}))
+
+
+def test_axfr_open_detected(monkeypatch):
+    _patch_dns(monkeypatch, lambda ip, domain, lifetime=8: iter([]))
+    f = dp._check_axfr("acme.com")
+    assert f is not None and f.rule_id == "dns-zone-transfer" and f.severity == "HIGH"
+
+
+def test_axfr_refused_returns_none(monkeypatch):
+    def _boom(ip, domain, lifetime=8):
+        raise RuntimeError("transfer refused")
+
+    _patch_dns(monkeypatch, _boom)
+    assert dp._check_axfr("acme.com") is None

@@ -5336,6 +5336,14 @@ def run_engage(args: argparse.Namespace) -> int:
     except ImportError:
         run_ot_probes = None
     try:
+        from kryon.cli.ssh_probes import run_ssh_probes
+    except ImportError:
+        run_ssh_probes = None
+    try:
+        from kryon.cli.mail_probes import run_mail_probes
+    except ImportError:
+        run_mail_probes = None
+    try:
         from kryon.cli.tls_probes import run_tls_probes
     except ImportError:
         run_tls_probes = None
@@ -5354,6 +5362,10 @@ def run_engage(args: argparse.Namespace) -> int:
             findings.extend(run_amp_probes(svc))
         if run_ot_probes is not None:
             findings.extend(run_ot_probes(svc))
+        if run_ssh_probes is not None and (svc.service == "ssh" or svc.port in (22, 2222)):
+            findings.extend(run_ssh_probes(svc))
+        if run_mail_probes is not None:
+            findings.extend(run_mail_probes(svc))
         if run_vpn_probes is not None and (
             svc.service in ("https", "ssl") or svc.port in (443, 4443, 8443, 10443)
         ):
