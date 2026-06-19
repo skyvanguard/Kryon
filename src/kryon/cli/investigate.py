@@ -363,7 +363,16 @@ def _run_deterministic_phase(
         from kryon.cli.ad_probes import run_ad_probes
 
         findings.extend(run_ad_probes(_gsvc))
-        # DNS / email-security posture (SPF/DMARC/DKIM + subdomain takeover) — domain-keyed.
+        # Legacy/IoT services (X11/IPMI/TFTP/CUPS/BACnet/finger).
+        from kryon.cli.legacy_probes import run_legacy_probes
+
+        findings.extend(run_legacy_probes(_gsvc))
+        # CVE-specific TLS probe (Heartbleed) on likely-TLS ports.
+        if scheme == "https" or port in (443, 8443, 993, 995, 465, 636, 990, 5061, 9443):
+            from kryon.cli.tls_probes import run_tls_probes
+
+            findings.extend(run_tls_probes(_gsvc))
+        # DNS / email-security posture (SPF/DMARC/DKIM/CAA/MTA-STS/TLS-RPT + takeover) — domain-keyed.
         from kryon.cli.dns_probes import run_dns_probes
 
         findings.extend(run_dns_probes(host))

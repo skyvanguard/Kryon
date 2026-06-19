@@ -64,6 +64,44 @@ def _check_smb_signing(svc: DiscoveredService) -> Finding | None:
     return None
 
 
+def _smbv1_negotiate_packet() -> bytes:
+    """NetBIOS-framed SMBv1 SMB_COM_NEGOTIATE offering only the 'NT LM 0.12' dialect."""
+    header = (
+        b"\xffSMB"  # ProtocolId (SMBv1)
+        b"\x72"  # Command 0x72 = NEGOTIATE
+        b"\x00\x00\x00\x00"  # NT Status
+        b"\x18"  # Flags
+        b"\x01\x28"  # Flags2
+        b"\x00\x00"  # PIDHigh
+        + b"\x00" * 8  # SecurityFeatures
+        + b"\x00\x00"  # Reserved
+        b"\x00\x00"  # TID
+        b"\x2f\x4b"  # PIDLow
+        b"\x00\x00"  # UID
+        b"\x00\x00"  # MID
+    )
+    body = b"\x00" + b"\x0c\x00" + b"\x02NT LM 0.12\x00"  # WordCount, ByteCount, dialect
+    smb = header + body
+    return b"\x00" + len(smb).to_bytes(3, "big") + smb
+
+
+def _check_smbv1(svc: DiscoveredService) -> Finding | None:
+    """SMBv1 enabled = EternalBlue / MS17-010 / WannaCry surface. A host with SMBv1
+    disabled answers the SMBv1 negotiate with an SMB2 (\\xfeSMB) response or resets;
+    a host with SMBv1 enabled answers with an SMBv1 (\\xffSMB) negotiate response."""
+    resp = _tcp(svc.host, svc.port, _smbv1_negotiate_packet(), 256)
+    if resp is None or len(resp) < 9 or resp[4:8] != b"\xffSMB":
+        return None  # SMB2-only / reset / not SMB → SMBv1 not enabled
+    if resp[8] != 0x72:  # the response must be to our NEGOTIATE
+        return None
+    return _f(
+        svc, "CWE-477", "HIGH", "smbv1-enabled",
+        f"SMBv1 habilitado en {svc.host}:{svc.port} — protocolo obsoleto (superficie EternalBlue/MS17-010/WannaCry).",
+        "El server respondió un SMBv1 NEGOTIATE (\\xffSMB) al dialecto 'NT LM 0.12'",
+        "Deshabilitar SMBv1 (GPO / Remove-WindowsFeature FS-SMB1); exigir SMBv2/3 con signing.",
+    )
+
+
 def _check_winrm(svc: DiscoveredService) -> Finding | None:
     """WinRM (Windows Remote Management) exposed — remote command exec surface."""
     import urllib.error  # noqa: PLC0415
@@ -103,9 +141,9 @@ def run_ad_probes(svc: DiscoveredService) -> list[Finding]:
     out: list[Finding] = []
     try:
         if svc.service in ("microsoft-ds", "netbios-ssn", "smb") or svc.port in (445, 139):
-            f = _check_smb_signing(svc)
-            if f:
-                out.append(f)
+            for f in (_check_smb_signing(svc), _check_smbv1(svc)):
+                if f:
+                    out.append(f)
     except Exception:  # noqa: BLE001
         pass
     try:

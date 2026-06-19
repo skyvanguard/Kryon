@@ -329,27 +329,37 @@ def _check_ntp_monlist(svc: DiscoveredService) -> Finding | None:
     return None
 
 
-def _check_smtp(svc: DiscoveredService) -> Finding | None:
-    """SMTP offering AUTH over cleartext (no STARTTLS) — credential exposure."""
+def _check_smtp(svc: DiscoveredService) -> list[Finding]:
+    """SMTP hygiene: AUTH over cleartext (no STARTTLS) + VRFY user enumeration."""
+    vrfy = ""
     try:
         with socket.create_connection((svc.host, svc.port), timeout=_T) as s:
             s.settimeout(_T)
             if not s.recv(256).startswith(b"220"):
-                return None
+                return []
             s.sendall(b"EHLO kryon.local\r\n")
             caps = s.recv(512).decode("latin-1", "replace")
+            s.sendall(b"VRFY root\r\n")
+            vrfy = s.recv(256).decode("latin-1", "replace")
     except (TimeoutError, OSError):
-        return None
-    has_auth = "AUTH" in caps.upper()
-    has_tls = "STARTTLS" in caps.upper()
-    if has_auth and not has_tls:
-        return _f(
+        return []
+    out: list[Finding] = []
+    if "AUTH" in caps.upper() and "STARTTLS" not in caps.upper():
+        out.append(_f(
             svc, "CWE-319", "MEDIUM", "smtp-cleartext-auth",
             f"SMTP ofrece AUTH sin STARTTLS en {svc.host}:{svc.port} (credenciales en texto plano).",
             "EHLO anunció AUTH pero no STARTTLS",
             "Habilitar STARTTLS y rechazar AUTH sobre conexiones no cifradas.",
-        )
-    return None
+        ))
+    # 250/251 to VRFY = definitive existence answer (enumeration). 252 is non-committal; ignore.
+    if vrfy[:3] in ("250", "251"):
+        out.append(_f(
+            svc, "CWE-200", "LOW", "smtp-vrfy-enabled",
+            f"SMTP VRFY habilitado en {svc.host}:{svc.port} — enumeración de cuentas locales.",
+            f"VRFY root → {vrfy.strip()[:60]}",
+            "Deshabilitar VRFY/EXPN (Postfix: disable_vrfy_command=yes).",
+        ))
+    return out
 
 
 def _check_ldap_anon(svc: DiscoveredService) -> Finding | None:
@@ -686,6 +696,12 @@ def _check_tls(svc: DiscoveredService) -> list[Finding]:
                     f"Certificado TLS self-signed en {svc.host}:{svc.port}.",
                     f"issuer == subject ({cert.subject.rfc4514_string()[:60]})",
                     "Usar un cert emitido por una CA confiable; self-signed habilita MITM."))
+            key_size = getattr(cert.public_key(), "key_size", None)
+            if key_size and key_size < 2048:
+                out.append(_f(svc, "CWE-326", "MEDIUM", "tls-weak-key",
+                    f"Clave del certificado TLS débil ({key_size} bits) en {svc.host}:{svc.port}.",
+                    f"public_key key_size={key_size} (< 2048)",
+                    "Reemitir el certificado con RSA ≥ 2048 bits (o ECDSA P-256)."))
         except Exception:  # noqa: BLE001 — cert parse best-effort
             pass
 

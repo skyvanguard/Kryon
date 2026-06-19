@@ -47,3 +47,38 @@ def test_run_ad_probes_graceful_on_dead_hosts():
     for port in (445, 5985, 5986, 139):
         svc = DiscoveredService(host="127.0.0.1", port=port, state="open", service="")
         assert isinstance(run_ad_probes(svc), list)  # never raises
+
+
+# ---------------------------------------------------------------------------
+# Batch G — SMBv1 enabled (EternalBlue/MS17-010 surface)
+# ---------------------------------------------------------------------------
+
+
+def test_smbv1_negotiate_packet_well_formed():
+    from kryon.cli.ad_probes import _smbv1_negotiate_packet
+
+    pkt = _smbv1_negotiate_packet()
+    assert int.from_bytes(pkt[1:4], "big") == len(pkt) - 4  # NetBIOS length matches
+    assert pkt[4:8] == b"\xffSMB"  # SMBv1 magic
+    assert pkt[8] == 0x72  # NEGOTIATE command
+
+
+def test_smbv1_enabled_detected(monkeypatch):
+    from kryon.cli.ad_probes import _check_smbv1
+
+    # \xffSMB response to our NEGOTIATE (cmd 0x72) = SMBv1 spoken.
+    resp = b"\x00\x00\x00\x20" + b"\xffSMB" + b"\x72" + b"\x00" * 50
+    monkeypatch.setattr(ad, "_tcp", lambda *a, **k: resp)
+    f = _check_smbv1(DiscoveredService(host="x", port=445, state="open", service="smb"))
+    assert f is not None and f.rule_id == "smbv1-enabled" and f.severity == "HIGH"
+
+
+def test_smbv1_disabled_returns_none(monkeypatch):
+    from kryon.cli.ad_probes import _check_smbv1
+
+    # SMB2 (\xfeSMB) reply = SMBv1 disabled → no finding.
+    resp = b"\x00\x00\x00\x20" + b"\xfeSMB" + b"\x00" * 50
+    monkeypatch.setattr(ad, "_tcp", lambda *a, **k: resp)
+    assert _check_smbv1(DiscoveredService(host="x", port=445, state="open", service="smb")) is None
+    monkeypatch.setattr(ad, "_tcp", lambda *a, **k: None)  # no response
+    assert _check_smbv1(DiscoveredService(host="x", port=445, state="open", service="smb")) is None

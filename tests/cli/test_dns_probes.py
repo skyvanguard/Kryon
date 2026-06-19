@@ -49,3 +49,41 @@ def test_dmarc_reject_ok(monkeypatch):
 def test_dkim_found_ok(monkeypatch):
     monkeypatch.setattr(dp, "_txt", lambda name: ["v=DKIM1; k=rsa; p=MIGf..."] if name.startswith("default.") else [])
     assert dp._check_dkim("acme.com") is None
+
+
+# ---------------------------------------------------------------------------
+# Batch J — CAA / MTA-STS / TLS-RPT
+# ---------------------------------------------------------------------------
+
+
+def test_caa_missing(monkeypatch):
+    monkeypatch.setattr(dp, "_caa", lambda name: [])
+    assert dp._check_caa("acme.com").rule_id == "caa-missing"
+
+
+def test_caa_present_ok(monkeypatch):
+    monkeypatch.setattr(dp, "_caa", lambda name: ['0 issue "letsencrypt.org"'])
+    assert dp._check_caa("acme.com") is None
+
+
+def test_mta_sts_missing_only_with_mx(monkeypatch):
+    monkeypatch.setattr(dp, "_has_mx", lambda d: True)
+    monkeypatch.setattr(dp, "_txt", lambda name: [])
+    assert dp._check_mta_sts("acme.com").rule_id == "mta-sts-missing"
+    # No MX → not applicable, no finding.
+    monkeypatch.setattr(dp, "_has_mx", lambda d: False)
+    assert dp._check_mta_sts("acme.com") is None
+
+
+def test_mta_sts_present_ok(monkeypatch):
+    monkeypatch.setattr(dp, "_has_mx", lambda d: True)
+    monkeypatch.setattr(dp, "_txt", lambda name: ["v=STSv1; id=20240101"])
+    assert dp._check_mta_sts("acme.com") is None
+
+
+def test_tls_rpt_missing_only_with_mx(monkeypatch):
+    monkeypatch.setattr(dp, "_has_mx", lambda d: True)
+    monkeypatch.setattr(dp, "_txt", lambda name: [])
+    assert dp._check_tls_rpt("acme.com").rule_id == "tls-rpt-missing"
+    monkeypatch.setattr(dp, "_has_mx", lambda d: False)
+    assert dp._check_tls_rpt("acme.com") is None

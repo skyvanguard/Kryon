@@ -91,6 +91,56 @@ def _check_dkim(domain: str) -> Finding | None:
                "Configurar DKIM (firmar el correo saliente) y alinearlo con SPF/DMARC.")
 
 
+def _caa(name: str) -> list[str]:
+    try:
+        import dns.resolver  # noqa: PLC0415
+
+        ans = dns.resolver.resolve(name, "CAA", lifetime=5)
+        return [str(r) for r in ans]
+    except Exception:  # noqa: BLE001 — no CAA / timeout
+        return []
+
+
+def _has_mx(domain: str) -> bool:
+    try:
+        import dns.resolver  # noqa: PLC0415
+
+        return len(dns.resolver.resolve(domain, "MX", lifetime=5)) > 0
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _check_caa(domain: str) -> Finding | None:
+    if _caa(domain):
+        return None
+    return _df(domain, "CWE-295", "LOW", "caa-missing",
+               f"El dominio {domain} no tiene registro CAA — cualquier CA puede emitir certificados.",
+               "Sin RR CAA en el apex",
+               "Publicar CAA restringiendo la emisión a la(s) CA(s) autorizada(s) (issue \"letsencrypt.org\").")
+
+
+def _check_mta_sts(domain: str) -> Finding | None:
+    if not _has_mx(domain):
+        return None  # no email → MTA-STS not applicable
+    if any("v=stsv1" in t.lower() for t in _txt(f"_mta-sts.{domain}")):
+        return None
+    return _df(domain, "CWE-319", "LOW", "mta-sts-missing",
+               f"El dominio {domain} recibe correo pero no tiene MTA-STS — el SMTP entrante puede degradarse a texto plano.",
+               "Sin TXT 'v=STSv1' en _mta-sts",
+               "Publicar el TXT _mta-sts + la policy HTTPS (mode: enforce) para forzar TLS en el correo entrante.")
+
+
+def _check_tls_rpt(domain: str) -> Finding | None:
+    if not _has_mx(domain):
+        return None
+    if any("v=tlsrptv1" in t.lower() for t in _txt(f"_smtp._tls.{domain}")):
+        return None
+    return _df(domain, "CWE-778", "LOW", "tls-rpt-missing",
+               f"El dominio {domain} recibe correo pero no tiene TLS-RPT — sin visibilidad de fallos de TLS en SMTP.",
+               "Sin TXT 'v=TLSRPTv1' en _smtp._tls",
+               "Publicar TLS-RPT (_smtp._tls TXT con rua=mailto:) para recibir reportes de fallos de entrega TLS.")
+
+
 def _check_subdomain_takeover(domain: str) -> Finding | None:
     target = _cname(domain)
     if not target:
@@ -128,7 +178,7 @@ def run_dns_probes(domain: str) -> list[Finding]:
     if "." not in domain or domain.endswith(".local"):
         return []
     out: list[Finding] = []
-    for fn in (_check_spf, _check_dmarc, _check_dkim, _check_subdomain_takeover):
+    for fn in (_check_spf, _check_dmarc, _check_dkim, _check_caa, _check_mta_sts, _check_tls_rpt, _check_subdomain_takeover):
         try:
             f = fn(domain)
             if f:
