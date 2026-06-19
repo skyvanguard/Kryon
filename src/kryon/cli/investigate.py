@@ -885,6 +885,17 @@ def run_investigate(args: argparse.Namespace) -> int:
             f"(max {args.sast_max_files} files, model "
             f"{os.environ.get('KRYON_SOURCE_REVIEW_MODEL', 'kryon-foundation-sec')})"
         )
+        # Deterministic SAST ruleset FIRST (cheap, reproducible floor), then the
+        # LLM source review for the subtle/contextual bugs.
+        try:
+            from kryon.intelligence.sast_rules import scan_path, to_findings
+
+            sast = scan_path(hints["code_path"], max_files=max(args.sast_max_files * 20, 500))
+            if sast:
+                console.print(f"[cyan]🧬 deterministic SAST:[/cyan] {len(sast)} pattern hit(s)")
+                deterministic_findings.extend(to_findings(sast, host=hints["code_path"]))
+        except Exception:  # noqa: BLE001
+            pass
         sr = _run_source_review_phase(hints["code_path"], max_files=args.sast_max_files)
         if sr:
             deterministic_findings.extend(sr)
