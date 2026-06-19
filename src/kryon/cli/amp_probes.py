@@ -1,0 +1,106 @@
+"""Batch L — UDP reflector / amplification + info-leak posture for services not
+already covered by the Batch-A amplifiers (SSDP/CharGen/NTP/SNMP): open DNS
+resolver, memcached over UDP, NetBIOS name service, and mDNS. Each sends ONE
+small UDP probe and checks for a response (read-only recon, never an attack).
+
+Imports utilities from service_probes (one-way; engage imports the probe modules
+lazily, so no import cycle).
+"""
+
+from __future__ import annotations
+
+from kryon.cli.engage import DiscoveredService, Finding
+from kryon.cli.service_probes import _f, _udp
+
+
+def _dns_query(qname: str, qtype: int = 1) -> bytes:
+    header = b"\x13\x37\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00"  # id, RD flag, qd=1
+    q = b"".join(bytes([len(p)]) + p.encode("ascii") for p in qname.split(".")) + b"\x00"
+    return header + q + qtype.to_bytes(2, "big") + b"\x00\x01"  # qtype, qclass IN
+
+
+def _check_dns_open_resolver(svc: DiscoveredService) -> Finding | None:
+    """Recursive query for an external name succeeds → open resolver (DDoS
+    amplification reflector + DNS cache-poisoning exposure)."""
+    resp = _udp(svc.host, svc.port, _dns_query("dns.google"), 512)
+    if resp and len(resp) >= 12:
+        ra = resp[3] & 0x80  # Recursion Available
+        rcode = resp[3] & 0x0F
+        ancount = int.from_bytes(resp[6:8], "big")
+        if ra and rcode == 0 and ancount > 0:
+            return _f(
+                svc, "CWE-406", "MEDIUM", "dns-open-resolver",
+                f"Resolver DNS abierto en {svc.host}:{svc.port}/udp — reflector de amplificación DDoS + cache poisoning.",
+                "Query recursiva externa (dns.google) respondida con RA + answers",
+                "Deshabilitar la recursión para clientes externos (allow-recursion a la red interna); BCP38.",
+            )
+    return None
+
+
+def _check_memcached_udp(svc: DiscoveredService) -> Finding | None:
+    """memcached reachable over UDP → notorious amplification reflector (factor ~10000x)."""
+    pkt = b"\x00\x00\x00\x00\x00\x01\x00\x00stats\r\n"  # UDP frame header + stats
+    resp = _udp(svc.host, svc.port, pkt, 1024)
+    if resp and b"STAT " in resp:
+        return _f(
+            svc, "CWE-406", "HIGH", "memcached-udp-amplification",
+            f"memcached responde por UDP en {svc.host}:{svc.port} — reflector de amplificación (CVE-2018-1000115).",
+            "stats por UDP → respuesta con líneas STAT",
+            "Deshabilitar el listener UDP (-U 0); bind a 127.0.0.1; firewall del puerto 11211.",
+        )
+    return None
+
+
+def _check_netbios_ns(svc: DiscoveredService) -> Finding | None:
+    """NetBIOS Name Service node-status (NBSTAT '*') → leaks hostname/domain/MAC + amplifies."""
+    pkt = (
+        b"\xa2\x48\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00"
+        b"\x20CKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\x00"  # encoded wildcard "*"
+        b"\x00\x21\x00\x01"  # qtype NBSTAT, class IN
+    )
+    resp = _udp(svc.host, svc.port, pkt, 512)
+    if resp and len(resp) >= 12 and resp[:2] == b"\xa2\x48":  # our trans-id echoed
+        return _f(
+            svc, "CWE-200", "MEDIUM", "netbios-ns-exposed",
+            f"NetBIOS Name Service expuesto en {svc.host}:{svc.port}/udp — filtra hostname/dominio/MAC + amplifica.",
+            "NBSTAT node-status → tabla de nombres NetBIOS",
+            "Deshabilitar NetBIOS over TCP/IP donde no se use; filtrar 137/udp en el perímetro.",
+        )
+    return None
+
+
+def _check_mdns(svc: DiscoveredService) -> Finding | None:
+    """mDNS responder reachable off-link → service/host enumeration + amplification."""
+    qname = b"\x09_services\x07_dns-sd\x04_udp\x05local\x00"
+    pkt = b"\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00" + qname + b"\x00\x0c\x00\x01"  # PTR, IN
+    resp = _udp(svc.host, svc.port, pkt, 1024)
+    if resp and len(resp) >= 12 and (resp[2] & 0x80):  # QR response bit set
+        return _f(
+            svc, "CWE-200", "LOW", "mdns-exposed",
+            f"mDNS responde en {svc.host}:{svc.port}/udp fuera de la red local — enumeración de servicios/hosts.",
+            "Query _services._dns-sd._udp.local → respuesta mDNS",
+            "Restringir mDNS a la red local (no rutear 5353/udp); deshabilitar si no se usa.",
+        )
+    return None
+
+
+_AMP_PROBES = (
+    (lambda s: s.port == 53, _check_dns_open_resolver),
+    (lambda s: s.port == 11211, _check_memcached_udp),
+    (lambda s: s.port == 137, _check_netbios_ns),
+    (lambda s: s.port == 5353, _check_mdns),
+)
+
+
+def run_amp_probes(svc: DiscoveredService) -> list[Finding]:
+    """Run matching UDP reflector / info-leak probes. Never raises."""
+    out: list[Finding] = []
+    for matches, probe in _AMP_PROBES:
+        try:
+            if matches(svc):
+                f = probe(svc)
+                if f:
+                    out.append(f)
+        except Exception:  # noqa: BLE001
+            continue
+    return out

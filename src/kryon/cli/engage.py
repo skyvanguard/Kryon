@@ -5324,6 +5324,10 @@ def run_engage(args: argparse.Namespace) -> int:
     except ImportError:
         run_infra_probes = None
     try:
+        from kryon.cli.amp_probes import run_amp_probes
+    except ImportError:
+        run_amp_probes = None
+    try:
         from kryon.cli.tls_probes import run_tls_probes
     except ImportError:
         run_tls_probes = None
@@ -5338,6 +5342,8 @@ def run_engage(args: argparse.Namespace) -> int:
         if run_infra_probes is not None:
             _ischeme = "https" if (svc.service == "https" or svc.port in (443, 8443, 5001)) else "http"
             findings.extend(run_infra_probes(svc, _ischeme))
+        if run_amp_probes is not None:
+            findings.extend(run_amp_probes(svc))
         if run_tls_probes is not None and (
             svc.service in ("https", "ssl", "imaps", "pop3s", "smtps", "ldaps", "ftps") or svc.port in _TLS_PORTS
         ):

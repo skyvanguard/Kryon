@@ -702,6 +702,22 @@ def _check_tls(svc: DiscoveredService) -> list[Finding]:
                     f"Clave del certificado TLS débil ({key_size} bits) en {svc.host}:{svc.port}.",
                     f"public_key key_size={key_size} (< 2048)",
                     "Reemitir el certificado con RSA ≥ 2048 bits (o ECDSA P-256)."))
+            sig = getattr(cert.signature_hash_algorithm, "name", "") or ""
+            if sig.lower() in ("md5", "sha1"):
+                out.append(_f(svc, "CWE-327", "MEDIUM", "tls-weak-signature",
+                    f"Certificado TLS firmado con {sig.upper()} en {svc.host}:{svc.port} — algoritmo de firma roto.",
+                    f"signature_hash_algorithm={sig}",
+                    "Reemitir el certificado con SHA-256+; rechazar cadenas firmadas con MD5/SHA-1."))
+            try:
+                nb = getattr(cert, "not_valid_before_utc", None) or cert.not_valid_before  # noqa: DTZ001
+                validity_days = (na - nb).days
+                if validity_days > 398:
+                    out.append(_f(svc, "CWE-295", "LOW", "tls-cert-long-validity",
+                        f"Certificado TLS con validez excesiva ({validity_days} días) en {svc.host}:{svc.port}.",
+                        f"notBefore→notAfter = {validity_days} días (> 398, límite CA/B Forum)",
+                        "Emitir certificados con vigencia ≤ 398 días; automatizar la rotación (ACME)."))
+            except Exception:  # noqa: BLE001
+                pass
         except Exception:  # noqa: BLE001 — cert parse best-effort
             pass
 
