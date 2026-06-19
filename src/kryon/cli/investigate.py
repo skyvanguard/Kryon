@@ -267,45 +267,15 @@ def _run_deterministic_phase(
         findings.extend(_safe_call(_check_security_headers, svc))
         # F203.N.1 — Python http.server directory listing
         findings.extend(_safe_call(_check_python_simplehttp_exposed, svc))
-        # Web sensitive-file / leaky-endpoint / dangerous-method probes
-        try:
-            from kryon.cli.web_probes import run_web_probes
-
-            findings.extend(run_web_probes(svc, "https" if (scheme == "https" or port in (443, 8443)) else "http"))
-        except Exception:  # noqa: BLE001
-            pass
-        # Dev/admin/big-data app UIs (Jenkins, Grafana, Kibana, Prometheus, Hadoop, Spark).
-        try:
-            from kryon.cli.app_probes import run_app_probes
-
-            findings.extend(run_app_probes(svc, "https" if (scheme == "https" or port in (443, 8443)) else "http"))
-        except Exception:  # noqa: BLE001
-            pass
-        # Application-layer exposures (Laravel/Spring-actuator2/config/ELMAH/GraphQL/CORS/consoles).
-        try:
-            from kryon.cli.webapp_probes import run_webapp_probes
-
-            findings.extend(run_webapp_probes(svc, "https" if (scheme == "https" or port in (443, 8443)) else "http"))
-        except Exception:  # noqa: BLE001
-            pass
-        # Default-credential checks (live confirmation gated by KRYON_RED_TEAM).
-        try:
-            from kryon.cli.default_creds import run_default_cred_checks
-
-            findings.extend(run_default_cred_checks(svc, "https" if (scheme == "https" or port in (443, 8443)) else "http"))
-        except Exception:  # noqa: BLE001
-            pass
+        # The web/app/webapp/default-cred probe modules now run via
+        # probe_registry.run_all_probes(_gsvc) in the gap-closer section below
+        # (gated on HTTP) — no longer wired individually per branch.
 
     # SSH — F203.N.2 creds-aware deep audit
     elif scheme == "ssh" or port in (22, 2222):
         svc = DiscoveredService(host=host, port=port, state="open", service="ssh")
-        # Handshake-based posture (Terrapin / weak algos / banner→CVE) — read-only, no creds.
-        try:
-            from kryon.cli.ssh_probes import run_ssh_probes
-
-            findings.extend(run_ssh_probes(svc))
-        except Exception:  # noqa: BLE001
-            pass
+        # Handshake posture (Terrapin / weak algos / banner→CVE) runs via the
+        # registry gap-closer below; here we do the creds-aware deep audit.
         ssh_target = f"{ssh_user}@{host}" if ssh_user else None
         # _check_ssh reads KRYON_SSH_PORT / KRYON_SSH_KEY_PATH from env
         prior_port = os.environ.get("KRYON_SSH_PORT")
@@ -377,44 +347,15 @@ def _run_deterministic_phase(
     # Gap-closer service probes (Redis/Mongo/Elastic/SNMP/FTP/RDP/VNC/rsync/Postgres/
     # NTP/LDAP/Telnet/SMTP) — for when the target URL points at a non-web service port.
     try:
-        from kryon.cli.service_probes import run_service_probes
+        # All port/scheme-gated probe modules (service/ad/legacy/infra/amp/ot/mail/
+        # ssh/tls/web/app/webapp/default-creds/vpn) run through the registry — the
+        # same single wiring engage uses. Adding a detector is a one-line registry edit.
+        from kryon.cli.probe_registry import run_all_probes
 
         _gsvc = DiscoveredService(host=host, port=port, state="open", service=scheme or "")
-        findings.extend(run_service_probes(_gsvc))
-        from kryon.cli.ad_probes import run_ad_probes
-
-        findings.extend(run_ad_probes(_gsvc))
-        # Legacy/IoT services (X11/IPMI/TFTP/CUPS/BACnet/finger).
-        from kryon.cli.legacy_probes import run_legacy_probes
-
-        findings.extend(run_legacy_probes(_gsvc))
-        # Infra services (Docker Registry/MQTT/NATS/RMI/git daemon/Cassandra/Neo4j).
-        from kryon.cli.infra_probes import run_infra_probes
-
-        findings.extend(run_infra_probes(_gsvc, "https" if scheme == "https" else "http"))
-        # UDP reflectors / info-leak (open DNS resolver, memcached-UDP, NetBIOS-NS, mDNS).
-        from kryon.cli.amp_probes import run_amp_probes
-
-        findings.extend(run_amp_probes(_gsvc))
-        # Edge-VPN appliances (Fortinet/Citrix/GlobalProtect/Pulse-Ivanti) — read-only fingerprint.
-        if scheme == "https" or port in (443, 4443, 8443, 10443):
-            from kryon.cli.vpn_probes import run_vpn_probes
-
-            findings.extend(run_vpn_probes(_gsvc, "https"))
-        # ICS/SCADA/OT identification (Modbus/S7/IEC-104/DNP3/EtherNet-IP/OPC-UA/ATG/Fox) — read-only.
-        from kryon.cli.ot_probes import run_ot_probes
-
-        findings.extend(run_ot_probes(_gsvc))
-        # IMAP/POP3 cleartext-auth posture (self-gates on 143/110).
-        from kryon.cli.mail_probes import run_mail_probes
-
-        findings.extend(run_mail_probes(_gsvc))
-        # CVE-specific TLS probe (Heartbleed) on likely-TLS ports.
-        if scheme == "https" or port in (443, 8443, 993, 995, 465, 636, 990, 5061, 9443):
-            from kryon.cli.tls_probes import run_tls_probes
-
-            findings.extend(run_tls_probes(_gsvc))
-        # DNS / email-security posture (SPF/DMARC/DKIM/CAA/MTA-STS/TLS-RPT + takeover) — domain-keyed.
+        findings.extend(run_all_probes(_gsvc))
+        # DNS / email-security posture (SPF/DMARC/DKIM/CAA/MTA-STS/TLS-RPT + takeover) —
+        # domain-keyed (not service-keyed), so it stays out of the registry.
         from kryon.cli.dns_probes import run_dns_probes
 
         findings.extend(run_dns_probes(host))

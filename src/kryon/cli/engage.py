@@ -5339,73 +5339,17 @@ def run_engage(args: argparse.Namespace) -> int:
     # Gap-closer probes (Redis/Mongo/Elastic no-auth, SNMP, FTP, RDP, VNC, rsync,
     # Postgres-trust, NTP, LDAP, Telnet, SMTP) — read-only, never raise. Lazy import
     # to avoid the engage <-> service_probes cycle (engage is fully loaded by now).
+    # All deterministic probe modules run through one registry (probe_registry):
+    # service/ad/legacy/infra/amp/ot/mail/ssh/tls + web/app/webapp/default-creds/vpn,
+    # each gated by port/scheme. Adding a detector is a one-line registry entry —
+    # no more hand-wiring here and in investigate.
     try:
-        from kryon.cli.service_probes import run_service_probes
+        from kryon.cli.probe_registry import run_all_probes
     except ImportError:
-        run_service_probes = None
-    try:
-        from kryon.cli.ad_probes import run_ad_probes
-    except ImportError:
-        run_ad_probes = None
-    try:
-        from kryon.cli.legacy_probes import run_legacy_probes
-    except ImportError:
-        run_legacy_probes = None
-    try:
-        from kryon.cli.infra_probes import run_infra_probes
-    except ImportError:
-        run_infra_probes = None
-    try:
-        from kryon.cli.amp_probes import run_amp_probes
-    except ImportError:
-        run_amp_probes = None
-    try:
-        from kryon.cli.vpn_probes import run_vpn_probes
-    except ImportError:
-        run_vpn_probes = None
-    try:
-        from kryon.cli.ot_probes import run_ot_probes
-    except ImportError:
-        run_ot_probes = None
-    try:
-        from kryon.cli.ssh_probes import run_ssh_probes
-    except ImportError:
-        run_ssh_probes = None
-    try:
-        from kryon.cli.mail_probes import run_mail_probes
-    except ImportError:
-        run_mail_probes = None
-    try:
-        from kryon.cli.tls_probes import run_tls_probes
-    except ImportError:
-        run_tls_probes = None
-    _TLS_PORTS = (443, 8443, 993, 995, 465, 636, 990, 5061, 9443)
+        run_all_probes = None
     for svc in open_svcs:
-        if run_service_probes is not None:
-            findings.extend(run_service_probes(svc))
-        if run_ad_probes is not None:
-            findings.extend(run_ad_probes(svc))
-        if run_legacy_probes is not None:
-            findings.extend(run_legacy_probes(svc))
-        if run_infra_probes is not None:
-            _ischeme = "https" if (svc.service == "https" or svc.port in (443, 8443, 5001)) else "http"
-            findings.extend(run_infra_probes(svc, _ischeme))
-        if run_amp_probes is not None:
-            findings.extend(run_amp_probes(svc))
-        if run_ot_probes is not None:
-            findings.extend(run_ot_probes(svc))
-        if run_ssh_probes is not None and (svc.service == "ssh" or svc.port in (22, 2222)):
-            findings.extend(run_ssh_probes(svc))
-        if run_mail_probes is not None:
-            findings.extend(run_mail_probes(svc))
-        if run_vpn_probes is not None and (
-            svc.service in ("https", "ssl") or svc.port in (443, 4443, 8443, 10443)
-        ):
-            findings.extend(run_vpn_probes(svc, "https"))
-        if run_tls_probes is not None and (
-            svc.service in ("https", "ssl", "imaps", "pop3s", "smtps", "ldaps", "ftps") or svc.port in _TLS_PORTS
-        ):
-            findings.extend(run_tls_probes(svc))
+        if run_all_probes is not None:
+            findings.extend(run_all_probes(svc))
         if svc.service in ("http", "http-proxy", "https") or svc.port in (80, 443, 8080, 8443):
             findings.extend(_check_http(svc))
             # F199.J — Run the Python http.server detector on the same
@@ -5418,41 +5362,9 @@ def run_engage(args: argparse.Namespace) -> int:
             # F202.U — cookie security flags (HttpOnly, Secure, SameSite).
             # Banking-critical: missing HttpOnly = XSS session takeover.
             findings.extend(_check_http_cookie_flags(svc))
-            # Web sensitive-file / leaky-endpoint / dangerous-method probes
-            # (.git, .env, actuator, server-status, TRACE/WebDAV, admin panels).
-            try:
-                from kryon.cli.web_probes import run_web_probes
-
-                _wscheme = "https" if (svc.service == "https" or svc.port in (443, 8443)) else "http"
-                findings.extend(run_web_probes(svc, _wscheme))
-            except Exception:  # noqa: BLE001 — never break the sweep
-                pass
-            # Dev/admin/big-data app UIs (Jenkins, Grafana, Kibana, Prometheus,
-            # Hadoop YARN, Spark — several allow unauth RCE).
-            try:
-                from kryon.cli.app_probes import run_app_probes
-
-                _ascheme = "https" if (svc.service == "https" or svc.port in (443, 8443)) else "http"
-                findings.extend(run_app_probes(svc, _ascheme))
-            except Exception:  # noqa: BLE001 — never break the sweep
-                pass
-            # Application-layer web exposures (Laravel/Spring-actuator2/config-leaks/
-            # ELMAH/GraphQL/CORS/app-consoles).
-            try:
-                from kryon.cli.webapp_probes import run_webapp_probes
-
-                _wascheme = "https" if (svc.service == "https" or svc.port in (443, 8443)) else "http"
-                findings.extend(run_webapp_probes(svc, _wascheme))
-            except Exception:  # noqa: BLE001 — never break the sweep
-                pass
-            # Default-credential checks (live confirmation gated by KRYON_RED_TEAM).
-            try:
-                from kryon.cli.default_creds import run_default_cred_checks
-
-                _dcscheme = "https" if (svc.service == "https" or svc.port in (443, 8443)) else "http"
-                findings.extend(run_default_cred_checks(svc, _dcscheme))
-            except Exception:  # noqa: BLE001 — never break the sweep
-                pass
+            # NOTE: the web/app/webapp/default-cred probe modules now run via
+            # probe_registry.run_all_probes (above), gated on HTTP — no longer
+            # wired individually here.
             # Full F57 web sweep (crawl + surface discovery + injection +
             # headless cookie/PP/DOM-XSS + nuclei) on web services — ACTIVE
             # only (KRYON_RED_TEAM), so banca-safe engagements are unchanged.
