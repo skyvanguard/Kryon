@@ -380,6 +380,10 @@ def _run_deterministic_phase(
             from kryon.cli.vpn_probes import run_vpn_probes
 
             findings.extend(run_vpn_probes(_gsvc, "https"))
+        # ICS/SCADA/OT identification (Modbus/S7/IEC-104/DNP3/EtherNet-IP/OPC-UA/ATG/Fox) — read-only.
+        from kryon.cli.ot_probes import run_ot_probes
+
+        findings.extend(run_ot_probes(_gsvc))
         # CVE-specific TLS probe (Heartbleed) on likely-TLS ports.
         if scheme == "https" or port in (443, 8443, 993, 995, 465, 636, 990, 5061, 9443):
             from kryon.cli.tls_probes import run_tls_probes
