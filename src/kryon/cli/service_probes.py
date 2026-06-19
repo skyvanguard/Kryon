@@ -620,6 +620,91 @@ def _check_chargen(svc: DiscoveredService) -> Finding | None:
 
 
 # ---------------------------------------------------------------------------
+# TLS/SSL hygiene (read-only handshake): cert validity + weak protocol/cipher
+# ---------------------------------------------------------------------------
+
+
+def _tls_accepts(host: str, port: int, version) -> bool:
+    import ssl  # noqa: PLC0415
+
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    try:
+        ctx.minimum_version = version
+        ctx.maximum_version = version
+        ctx.set_ciphers("ALL:@SECLEVEL=0")  # modern OpenSSL won't even offer legacy otherwise
+    except (ValueError, OSError):
+        return False
+    try:
+        with socket.create_connection((host, port), timeout=_T) as s, ctx.wrap_socket(s, server_hostname=host):
+            return True
+    except (OSError, ValueError):
+        return False
+
+
+def _check_tls(svc: DiscoveredService) -> list[Finding]:
+    """Expired/self-signed/soon-to-expire cert, legacy TLS 1.0/1.1 accepted, weak
+    negotiated cipher. Read-only TLS handshake; cert parse via cryptography (soft)."""
+    import ssl  # noqa: PLC0415
+
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    try:
+        with socket.create_connection((svc.host, svc.port), timeout=_T) as s, ctx.wrap_socket(
+            s, server_hostname=svc.host
+        ) as ss:
+            der = ss.getpeercert(binary_form=True)
+            cipher = (ss.cipher() or ("", "", 0))[0]
+    except (OSError, ValueError):
+        return []  # not TLS / unreachable
+
+    out: list[Finding] = []
+    if der:
+        try:
+            from datetime import datetime, timezone  # noqa: PLC0415
+
+            from cryptography import x509  # noqa: PLC0415
+
+            cert = x509.load_der_x509_certificate(der)
+            try:
+                na, now = cert.not_valid_after_utc, datetime.now(timezone.utc)
+            except AttributeError:
+                na, now = cert.not_valid_after, datetime.utcnow()  # noqa: DTZ003
+            days = (na - now).days
+            if days < 0:
+                out.append(_f(svc, "CWE-298", "HIGH", "tls-cert-expired",
+                    f"Certificado TLS EXPIRADO en {svc.host}:{svc.port} (venció hace {-days} días).",
+                    f"notAfter={na.isoformat()}", "Renovar el certificado; automatizar con ACME/Let's Encrypt."))
+            elif days < 30:
+                out.append(_f(svc, "CWE-298", "LOW", "tls-cert-expiring",
+                    f"Certificado TLS vence en {days} días en {svc.host}:{svc.port}.",
+                    f"notAfter={na.isoformat()}", "Renovar antes del vencimiento; automatizar la rotación."))
+            if cert.issuer == cert.subject:
+                out.append(_f(svc, "CWE-295", "MEDIUM", "tls-cert-self-signed",
+                    f"Certificado TLS self-signed en {svc.host}:{svc.port}.",
+                    f"issuer == subject ({cert.subject.rfc4514_string()[:60]})",
+                    "Usar un cert emitido por una CA confiable; self-signed habilita MITM."))
+        except Exception:  # noqa: BLE001 — cert parse best-effort
+            pass
+
+    if cipher and any(w in cipher.upper() for w in ("RC4", "3DES", "DES-CBC", "NULL", "EXPORT", "-MD5")):
+        out.append(_f(svc, "CWE-327", "MEDIUM", "tls-weak-cipher",
+            f"Cipher TLS débil negociado en {svc.host}:{svc.port}: {cipher}.",
+            f"El server prefiere {cipher}",
+            "Deshabilitar RC4/3DES/DES/NULL/EXPORT; usar AEAD (AES-GCM/ChaCha20)."))
+
+    for ver, label in ((ssl.TLSVersion.TLSv1, "TLS 1.0"), (ssl.TLSVersion.TLSv1_1, "TLS 1.1")):
+        if _tls_accepts(svc.host, svc.port, ver):
+            out.append(_f(svc, "CWE-327", "MEDIUM", "tls-legacy-protocol",
+                f"{label} aceptado en {svc.host}:{svc.port} (protocolo obsoleto/inseguro).",
+                f"Handshake forzado con {label} tuvo éxito",
+                f"Deshabilitar {label} y SSLv3; exigir TLS 1.2+ (idealmente 1.3)."))
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Dispatch table consumed by engage / investigate: (matcher) -> detector
 # Matcher receives the DiscoveredService; True = run that detector.
 # ---------------------------------------------------------------------------
@@ -657,6 +742,9 @@ PROBES: tuple[tuple[str, object, object], ...] = (
     # Batch A — amplification
     ("ssdp", lambda s: s.port == 1900, _check_ssdp),
     ("chargen", lambda s: s.port == 19, _check_chargen),
+    # Batch C — TLS hygiene (returns a list)
+    ("tls", lambda s: s.service in ("https", "ssl", "imaps", "pop3s", "smtps", "ldaps", "ftps")
+        or s.port in (443, 8443, 993, 995, 465, 636, 990, 5061, 9443), _check_tls),
 )
 
 
@@ -667,7 +755,9 @@ def run_service_probes(svc: DiscoveredService) -> list[Finding]:
         try:
             if matches(svc):
                 f = probe(svc)
-                if f:
+                if isinstance(f, list):  # some probes (TLS) emit multiple findings
+                    out.extend(f)
+                elif f:
                     out.append(f)
         except Exception:  # noqa: BLE001 — a probe must never break the sweep
             continue
