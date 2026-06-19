@@ -10,7 +10,6 @@ injectable request hook and are unit-testable offline.
 from __future__ import annotations
 
 import os
-import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -30,30 +29,10 @@ class OracleVerdict:
 
 def _request(url: str) -> tuple[int, dict[str, str], str, float] | None:
     """GET url (no redirects) → (status, headers_lower, body, elapsed_s) or None."""
-    class _NoRedirect(urllib.request.HTTPRedirectHandler):
-        def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001, D102
-            return None
+    from kryon.cli.probe_http import request  # noqa: PLC0415
 
-    import ssl  # noqa: PLC0415
-
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    opener = urllib.request.build_opener(_NoRedirect(), urllib.request.HTTPSHandler(context=ctx))
-    req = urllib.request.Request(url, headers={"User-Agent": "kryon-oracle"})
-    t0 = time.monotonic()
-    try:
-        with opener.open(req, timeout=_T) as r:  # noqa: S310
-            return r.status, {k.lower(): v for k, v in r.headers.items()}, r.read(20000).decode("latin-1", "replace"), time.monotonic() - t0
-    except urllib.error.HTTPError as e:
-        body = ""
-        try:
-            body = e.read(8000).decode("latin-1", "replace")
-        except Exception:  # noqa: BLE001
-            pass
-        return e.code, {k.lower(): v for k, v in (e.headers or {}).items()}, body, time.monotonic() - t0
-    except (OSError, ValueError):
-        return None
+    r = request(url=url, follow_redirects=False, timeout=_T, max_body=20000, user_agent="kryon-oracle")
+    return (r.status, r.headers, r.body, r.elapsed) if r else None
 
 
 def _with_param(url: str, param: str, value: str) -> str:

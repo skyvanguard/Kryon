@@ -21,42 +21,13 @@ from kryon.cli.service_probes import _f
 _T = 5.0
 
 
-class _NoRedirect:
-    """urllib redirect handler that stops at the 3xx so we can read its cookies."""
-
-    def http_error_302(self, req, fp, code, msg, headers):  # noqa: D401, ANN001
-        return fp
-
-    http_error_301 = http_error_303 = http_error_307 = http_error_302
-
-
 def _vpn_get(host: str, port: int, path: str, scheme: str) -> tuple[int, str, str] | None:
     """GET path; return (status, set_cookie_joined_lower, body) or None. No redirects."""
-    import urllib.error  # noqa: PLC0415
-    import urllib.request  # noqa: PLC0415
+    from kryon.cli.probe_http import request  # noqa: PLC0415
 
-    handlers: list = [_NoRedirect()]
-    if scheme == "https":
-        import ssl  # noqa: PLC0415
-
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        handlers.append(urllib.request.HTTPSHandler(context=ctx))
-    opener = urllib.request.build_opener(*handlers)
-    req = urllib.request.Request(f"{scheme}://{host}:{port}{path}", headers={"User-Agent": "Mozilla/5.0 kryon-probe"})
-    try:
-        with opener.open(req, timeout=_T) as r:  # noqa: S310 — fixed scheme, read-only GET
-            cookies = " ".join(v for k, v in r.headers.items() if k.lower() == "set-cookie").lower()
-            return r.status, cookies, r.read(6000).decode("latin-1", "replace")
-    except urllib.error.HTTPError as e:
-        try:
-            cookies = " ".join(v for k, v in (e.headers or {}).items() if k.lower() == "set-cookie").lower()
-            return e.code, cookies, e.read(4000).decode("latin-1", "replace")
-        except Exception:  # noqa: BLE001
-            return e.code, "", ""
-    except (OSError, ValueError):
-        return None
+    r = request(host, port, path, scheme=scheme, follow_redirects=False, timeout=_T,
+                max_body=6000, user_agent="Mozilla/5.0 kryon-probe")
+    return (r.status, r.cookies, r.body) if r else None
 
 
 def _appliance(svc: DiscoveredService, rule_id: str, product: str, cve: str, evidence: str) -> Finding:

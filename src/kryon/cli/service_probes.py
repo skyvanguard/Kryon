@@ -55,31 +55,10 @@ def _udp(host: str, port: int, payload: bytes, recv: int = 512, timeout: float =
 def _http_get(host: str, port: int, path: str, scheme: str = "http", auth: str = "") -> tuple[int, str] | None:
     """GET a path; return (status, body[:4000]) or None on connection error. 401/403
     surface as their status so callers can tell "auth enforced" from "open"."""
-    import base64  # noqa: PLC0415
-    import urllib.error  # noqa: PLC0415
-    import urllib.request  # noqa: PLC0415
+    from kryon.cli.probe_http import request  # noqa: PLC0415
 
-    headers = {"User-Agent": "kryon-probe"}
-    if auth:
-        headers["Authorization"] = "Basic " + base64.b64encode(auth.encode()).decode()
-    try:
-        req = urllib.request.Request(f"{scheme}://{host}:{port}{path}", headers=headers)
-        ctx = None
-        if scheme == "https":
-            import ssl  # noqa: PLC0415
-
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-        with urllib.request.urlopen(req, timeout=_T, context=ctx) as r:  # noqa: S310 — fixed scheme
-            return r.status, r.read(4000).decode("latin-1", "replace")
-    except urllib.error.HTTPError as e:
-        try:
-            return e.code, e.read(2000).decode("latin-1", "replace")
-        except Exception:  # noqa: BLE001
-            return e.code, ""
-    except (OSError, ValueError):
-        return None
+    r = request(host, port, path, scheme=scheme, auth=auth, timeout=_T)
+    return (r.status, r.body) if r else None
 
 
 # ---------------------------------------------------------------------------

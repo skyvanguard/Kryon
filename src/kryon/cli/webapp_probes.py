@@ -18,49 +18,18 @@ _T = 5.0
 
 
 def _post(host: str, port: int, path: str, scheme: str, body: bytes, ctype: str = "application/json") -> tuple[int, str] | None:
-    import urllib.error  # noqa: PLC0415
-    import urllib.request  # noqa: PLC0415
+    from kryon.cli.probe_http import request  # noqa: PLC0415
 
-    ctx = None
-    if scheme == "https":
-        import ssl  # noqa: PLC0415
-
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-    req = urllib.request.Request(f"{scheme}://{host}:{port}{path}", data=body,
-                                 headers={"User-Agent": "kryon-probe", "Content-Type": ctype})
-    try:
-        with urllib.request.urlopen(req, timeout=_T, context=ctx) as r:  # noqa: S310
-            return r.status, r.read(4000).decode("latin-1", "replace")
-    except urllib.error.HTTPError as e:
-        try:
-            return e.code, e.read(2000).decode("latin-1", "replace")
-        except Exception:  # noqa: BLE001
-            return e.code, ""
-    except (OSError, ValueError):
-        return None
+    r = request(host, port, path, scheme=scheme, method="POST", data=body,
+                headers={"Content-Type": ctype}, timeout=_T)
+    return (r.status, r.body) if r else None
 
 
 def _cors_headers(host: str, port: int, scheme: str, origin: str) -> dict[str, str] | None:
-    import urllib.error  # noqa: PLC0415
-    import urllib.request  # noqa: PLC0415
+    from kryon.cli.probe_http import request  # noqa: PLC0415
 
-    ctx = None
-    if scheme == "https":
-        import ssl  # noqa: PLC0415
-
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-    req = urllib.request.Request(f"{scheme}://{host}:{port}/", headers={"User-Agent": "kryon-probe", "Origin": origin})
-    try:
-        with urllib.request.urlopen(req, timeout=_T, context=ctx) as r:  # noqa: S310
-            return {k.lower(): v for k, v in r.headers.items()}
-    except urllib.error.HTTPError as e:
-        return {k.lower(): v for k, v in (e.headers or {}).items()}
-    except (OSError, ValueError):
-        return None
+    r = request(host, port, "/", scheme=scheme, headers={"Origin": origin}, timeout=_T)
+    return r.headers if r else None
 
 
 def _check_laravel_ignition(svc: DiscoveredService, scheme: str) -> Finding | None:
