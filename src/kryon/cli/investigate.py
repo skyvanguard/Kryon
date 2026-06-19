@@ -267,6 +267,13 @@ def _run_deterministic_phase(
         findings.extend(_safe_call(_check_security_headers, svc))
         # F203.N.1 — Python http.server directory listing
         findings.extend(_safe_call(_check_python_simplehttp_exposed, svc))
+        # Web sensitive-file / leaky-endpoint / dangerous-method probes
+        try:
+            from kryon.cli.web_probes import run_web_probes
+
+            findings.extend(run_web_probes(svc, "https" if (scheme == "https" or port in (443, 8443)) else "http"))
+        except Exception:  # noqa: BLE001
+            pass
 
     # SSH — F203.N.2 creds-aware deep audit
     elif scheme == "ssh" or port in (22, 2222):

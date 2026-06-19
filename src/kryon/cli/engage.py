@@ -5326,6 +5326,15 @@ def run_engage(args: argparse.Namespace) -> int:
             # F202.U — cookie security flags (HttpOnly, Secure, SameSite).
             # Banking-critical: missing HttpOnly = XSS session takeover.
             findings.extend(_check_http_cookie_flags(svc))
+            # Web sensitive-file / leaky-endpoint / dangerous-method probes
+            # (.git, .env, actuator, server-status, TRACE/WebDAV, admin panels).
+            try:
+                from kryon.cli.web_probes import run_web_probes
+
+                _wscheme = "https" if (svc.service == "https" or svc.port in (443, 8443)) else "http"
+                findings.extend(run_web_probes(svc, _wscheme))
+            except Exception:  # noqa: BLE001 — never break the sweep
+                pass
             # Full F57 web sweep (crawl + surface discovery + injection +
             # headless cookie/PP/DOM-XSS + nuclei) on web services — ACTIVE
             # only (KRYON_RED_TEAM), so banca-safe engagements are unchanged.
