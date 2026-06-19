@@ -339,6 +339,17 @@ def _run_deterministic_phase(
         svc_smb = DiscoveredService(host=host, port=445, state="open", service="smb")
         findings.extend(_safe_call(_check_smb_anonymous_shares, svc_smb))
 
+    # Gap-closer service probes (Redis/Mongo/Elastic/SNMP/FTP/RDP/VNC/rsync/Postgres/
+    # NTP/LDAP/Telnet/SMTP) — for when the target URL points at a non-web service port.
+    try:
+        from kryon.cli.service_probes import run_service_probes
+
+        findings.extend(
+            run_service_probes(DiscoveredService(host=host, port=port, state="open", service=scheme or ""))
+        )
+    except Exception:  # noqa: BLE001 — never break the hybrid phase
+        pass
+
     return findings
 
 

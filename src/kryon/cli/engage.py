@@ -5304,7 +5304,16 @@ def run_engage(args: argparse.Namespace) -> int:
         _banner(console, "Fase 2 — RESUMED (skipping deterministic checks; using checkpoint findings)")
     else:
         _banner(console, "Fase 2 — evaluación por servicio")
+    # Gap-closer probes (Redis/Mongo/Elastic no-auth, SNMP, FTP, RDP, VNC, rsync,
+    # Postgres-trust, NTP, LDAP, Telnet, SMTP) — read-only, never raise. Lazy import
+    # to avoid the engage <-> service_probes cycle (engage is fully loaded by now).
+    try:
+        from kryon.cli.service_probes import run_service_probes
+    except ImportError:
+        run_service_probes = None
     for svc in open_svcs:
+        if run_service_probes is not None:
+            findings.extend(run_service_probes(svc))
         if svc.service in ("http", "http-proxy", "https") or svc.port in (80, 443, 8080, 8443):
             findings.extend(_check_http(svc))
             # F199.J — Run the Python http.server detector on the same
