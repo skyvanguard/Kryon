@@ -12,7 +12,6 @@ Classification: RESTRICTED
 import json
 import logging
 import os
-import pickle
 import sys
 import time
 from pathlib import Path
@@ -88,11 +87,16 @@ class SimpleVectorDatabase:
 
         if self.vectors_file.exists():
             try:
+                # np.load(allow_pickle=False) is safe; pickle.load was an arbitrary-code
+                # execution sink if the vectors file was attacker-controlled.
                 with open(self.vectors_file, "rb") as f:
-                    self.vectors = pickle.load(f)  # nosec B301 # nosemgrep: avoid-pickle  # noqa: S301
+                    data = np.load(f, allow_pickle=False)
+                    ids = data["ids"].tolist()
+                    mat = data["mat"]
+                    self.vectors = {ids[i]: mat[i] for i in range(len(ids))}
             except Exception:
                 logging.getLogger(__name__).warning(
-                    "Corrupted vectors.pkl — resetting: %s",
+                    "Corrupted/legacy vectors file — resetting: %s",
                     self.vectors_file,
                 )
                 self.vectors_file.unlink(missing_ok=True)
@@ -109,9 +113,14 @@ class SimpleVectorDatabase:
                 ensure_ascii=False,
             )
 
-        # Save vectors
+        # Save vectors as npz (np.load(allow_pickle=False) is safe; pickle was an RCE sink).
+        ids = list(self.vectors.keys())
         with open(self.vectors_file, "wb") as f:
-            pickle.dump(self.vectors, f)  # nosemgrep: avoid-pickle
+            np.savez(
+                f,
+                ids=np.array(ids),  # unicode string array (not object → safe to load)
+                mat=np.array([self.vectors[i] for i in ids], dtype=np.float32) if ids else np.zeros((0, 0), dtype=np.float32),
+            )
 
     def _get_embedding_model(self):
         """Get or initialize embedding model."""

@@ -33,6 +33,8 @@ router = APIRouter(tags=["knowledge"], dependencies=[Depends(require_api_key)])
 
 _scrape_tasks: dict[str, dict] = {}
 _scrape_tasks_lock = asyncio.Lock()
+# Strong refs to the background scrape tasks so the GC can't collect them mid-run.
+_scrape_bg_tasks: set = set()
 _SCRAPE_TASKS_MAX = 50
 
 
@@ -159,7 +161,9 @@ async def start_scrape(req: ScrapeRequest) -> ScrapeResponse:
             _scrape_tasks[task_id]["documents_added"] = count
             _scrape_tasks[task_id]["errors"] = errors
 
-    asyncio.create_task(_run_scrape())
+    _bt = asyncio.create_task(_run_scrape())
+    _scrape_bg_tasks.add(_bt)
+    _bt.add_done_callback(_scrape_bg_tasks.discard)
 
     logger.info("Scrape task started: id=%s sources=%s", task_id, req.sources)
     return ScrapeResponse(

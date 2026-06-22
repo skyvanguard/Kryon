@@ -20,7 +20,6 @@ Classification: CORE INFRASTRUCTURE
 import atexit
 import hashlib
 import json
-import pickle
 import threading
 import time
 from collections import OrderedDict
@@ -255,9 +254,11 @@ class LLMResponseCache:
         """Save cache to disk for persistence."""
         with self._lock:
             try:
-                # Save cache entries
-                with open(self.cache_file, "wb") as f:
-                    pickle.dump(dict(self._cache), f)  # nosemgrep: avoid-pickle
+                # Save cache entries as JSON (was pickle — pickle.load is an arbitrary-code
+                # execution sink if the cache file is attacker-controlled). LLM cache values
+                # are JSON-serializable; default=str keeps any odd value from crashing the save.
+                with open(self.cache_file, "w", encoding="utf-8") as f:
+                    json.dump(dict(self._cache), f, default=str)
 
                 # Save metadata
                 with open(self.metadata_file, "w") as f:
@@ -271,10 +272,10 @@ class LLMResponseCache:
         """Load cache from disk if available."""
         with self._lock:
             try:
-                # Load cache entries
+                # Load cache entries (JSON; an old pickle file fails to parse → start fresh).
                 if self.cache_file.exists():
-                    with open(self.cache_file, "rb") as f:
-                        cache_dict = pickle.load(f)  # nosemgrep: avoid-pickle
+                    with open(self.cache_file, encoding="utf-8") as f:
+                        cache_dict = json.load(f)
                         self._cache = OrderedDict(cache_dict)
 
                 # Load metadata

@@ -129,8 +129,10 @@ class KryonTUI(App):
 
         try:
             loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(Runner.run(self._current_agent, input=input_items, max_turns=10))
-            loop.close()
+            try:
+                result = loop.run_until_complete(Runner.run(self._current_agent, input=input_items, max_turns=10))
+            finally:
+                loop.close()  # close in finally — a failed turn must not leak the loop (+ selector fds)
 
             output = result.final_output or ""
             agent_name = result.last_agent.name if result.last_agent else "Agent"

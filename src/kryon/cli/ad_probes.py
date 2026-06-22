@@ -110,11 +110,14 @@ def _check_winrm(svc: DiscoveredService) -> Finding | None:
     if r is None:
         return None
     status, server = r.status, r.headers.get("server", "")
-    if status in (401, 405) and ("Microsoft-HTTPAPI" in server or scheme == "https" or status == 405):
+    # Require the actual WinRM signature (Microsoft-HTTPAPI). The old
+    # `or scheme=="https" or status==405` matched ANY 401/405 over HTTPS or any 405 —
+    # a plain nginx/Apache+TLS returning 401 to /wsman was reported as WinRM (FP).
+    if status in (401, 405) and "Microsoft-HTTPAPI" in server:
         return _f(
             svc, "CWE-200", "MEDIUM", "winrm-exposed",
             f"WinRM expuesto en {svc.host}:{svc.port} ({scheme}) — superficie de ejecución remota.",
-            f"GET /wsman → {status} (Server: {server or 'Microsoft-HTTPAPI'})",
+            f"GET /wsman → {status} (Server: {server})",
             "Restringir WinRM a hosts de management/VPN; usar HTTPS (5986) + auth fuerte; no exponer a internet.",
         )
     return None

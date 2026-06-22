@@ -122,13 +122,21 @@ class BrowserManager:
 
 def _run_async(coro):
     """Helper to run async functions synchronously"""
+    own_loop = False
     try:
         loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            raise RuntimeError("closed")
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+        own_loop = True  # we created it → we must close it (was leaked per invocation)
 
-    return loop.run_until_complete(coro)
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        if own_loop:
+            loop.close()
 
 
 @function_tool

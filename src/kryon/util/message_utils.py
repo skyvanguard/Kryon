@@ -179,14 +179,16 @@ def fix_message_list(messages):  # pylint: disable=R0914,R0915,R0912
                 fn = tc.get("function") or {}
                 assistant_tool_names.setdefault(tool_id, fn.get("name") or "unknown_function")
 
-    # Collect tool responses keyed by tool_id. If the same id appears
-    # twice (LLM retry, replayed history), prefer the LAST one — same
-    # tie-break as the legacy code, which updated tool_idx on each
-    # encounter without dedup.
-    tool_responses = {}
+    # Collect tool responses per id as a FIFO queue, preserving ORDER. The model can
+    # reuse a tool_call_id across turns (DeepSeek after a reflection turn); the old
+    # last-wins dict then crossed the outputs — turn-1's assistant got turn-2's result
+    # and turn-1's result was lost. A per-id queue pairs each call with its OWN response.
+    from collections import deque  # noqa: PLC0415
+
+    tool_responses: dict[str, deque] = {}
     for msg in cleaned:
         if msg.get("role") == "tool" and msg.get("tool_call_id"):
-            tool_responses[msg["tool_call_id"]] = msg
+            tool_responses.setdefault(msg["tool_call_id"], deque()).append(msg)
 
     # Stage 3: emit the final list. For each non-tool message:
     #   - emit it as-is
@@ -234,16 +236,15 @@ def fix_message_list(messages):  # pylint: disable=R0914,R0915,R0912
                 tool_id = tc.get("id")
                 if not tool_id:
                     continue
-                tool_msg = tool_responses.get(tool_id)
-                if tool_msg is None or tool_id in consumed_tool_ids:
-                    # Either no response exists, OR the response was already
-                    # attached to an EARLIER assistant (the model re-emitted a
-                    # tool_call_id from a previous turn — seen with DeepSeek
-                    # after a reflection turn). Strict providers require a tool
-                    # response immediately after THIS assistant too, so
-                    # synthesize a fresh one instead of skipping (the skip left
-                    # the assistant with tool_calls and no responses → 400
-                    # "insufficient tool messages following tool_calls").
+                queue = tool_responses.get(tool_id)
+                tool_msg = queue.popleft() if queue else None
+                if tool_msg is None:
+                    # No (more) real responses for this id — either none existed, or all
+                    # of them were already consumed by earlier assistants that reused the
+                    # same id. Strict providers still require a tool message right after
+                    # THIS assistant, so synthesize a fresh one (the skip left the
+                    # assistant with tool_calls and no responses → 400 "insufficient
+                    # tool messages following tool_calls").
                     fn = tc.get("function") or {}
                     tool_name = fn.get("name") or "unknown_function"
                     tool_msg = {

@@ -55,7 +55,9 @@ def _check_nats(svc: DiscoveredService) -> Finding | None:
     resp = _tcp(svc.host, svc.port, b"", 1024)  # NATS sends INFO {...} on connect
     if resp and resp.startswith(b"INFO "):
         text = resp.decode("latin-1", "replace")
-        if '"auth_required":true' not in text.replace(" ", ""):
+        # Positive evidence of no-auth. The old "absence of auth_required:true" flagged a
+        # NATS using nkeys/TLS-cert auth (no flag) or an old build w/o the field as anonymous (FP).
+        if '"auth_required":false' in text.replace(" ", ""):
             return _f(
                 svc, "CWE-306", "HIGH", "nats-no-auth",
                 f"Servidor NATS sin autenticación en {svc.host}:{svc.port} — pub/sub anónimo a todos los subjects.",

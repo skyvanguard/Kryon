@@ -18,7 +18,6 @@ Classification: CORE INFRASTRUCTURE
 import asyncio
 import atexit
 import json
-import pickle
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -91,8 +90,16 @@ class AsyncVectorDatabase:
                 self.metadatas = data.get("metadatas", {})
 
         if self.vectors_file.exists():
-            with open(self.vectors_file, "rb") as f:
-                self.vectors = pickle.load(f)  # nosemgrep: avoid-pickle
+            try:
+                # np.load(allow_pickle=False) is safe; pickle.load was an RCE sink.
+                with open(self.vectors_file, "rb") as f:
+                    data = np.load(f, allow_pickle=False)
+                    ids = data["ids"].tolist()
+                    mat = data["mat"]
+                    self.vectors = {ids[i]: mat[i] for i in range(len(ids))}
+            except Exception:  # noqa: BLE001 — corrupted/legacy file → rebuild
+                self.vectors_file.unlink(missing_ok=True)
+                self.vectors = {}
 
     async def _save_async(self):
         """Save database to disk (async)."""
@@ -116,8 +123,13 @@ class AsyncVectorDatabase:
 
     def _save_vectors(self):
         """Save vectors to disk (sync - called in executor)."""
+        ids = list(self.vectors.keys())
         with open(self.vectors_file, "wb") as f:
-            pickle.dump(self.vectors, f)  # nosemgrep: avoid-pickle
+            np.savez(
+                f,
+                ids=np.array(ids),
+                mat=np.array([self.vectors[i] for i in ids], dtype=np.float32) if ids else np.zeros((0, 0), dtype=np.float32),
+            )
 
     def _get_embedding_model(self):
         """Get or initialize embedding model (sync)."""

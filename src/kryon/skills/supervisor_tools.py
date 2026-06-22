@@ -32,6 +32,10 @@ from kryon.sdk.agents import function_tool
 
 logger = logging.getLogger(__name__)
 
+# Strong refs to fire-and-forget background tasks so the GC can't collect them
+# mid-execution (CPython only keeps a weak ref to scheduled tasks).
+_BG_TASKS: set = set()
+
 _MAX_PARALLEL = int(os.environ.get("KRYON_HUNTER_PARALLELISM", "2"))
 # F5.1.a — lift artificial constraints. Mythos/ARTEMIS agents run for
 # hours with hundreds of turns; 15 min was my own overcorrection.
@@ -330,8 +334,12 @@ def spawn_hunter(
         # If we're already inside a running loop, schedule; otherwise run.
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            # Schedule as a task; the tool returns immediately
-            loop.create_task(pool.spawn(job))
+            # Schedule as a task; the tool returns immediately. Retain a strong ref
+            # (+ discard on done) so the GC can't collect the task mid-flight — otherwise
+            # the hunter we report as 'started' may never actually run.
+            _t = loop.create_task(pool.spawn(job))
+            _BG_TASKS.add(_t)
+            _t.add_done_callback(_BG_TASKS.discard)
             # Assign a provisional ID so the planner can refer to it
             if not job.hunter_id:
                 job.hunter_id = f"h_{uuid.uuid4().hex[:10]}"
@@ -362,7 +370,8 @@ def terminate_hunter(hunter_id: str, reason: str = "") -> str:
         loop = asyncio.get_event_loop()
         if loop.is_running():
             task = loop.create_task(pool.terminate(hunter_id, reason))
-            # fire-and-forget: the cancellation propagates
+            _BG_TASKS.add(task)  # retain so the cancellation task isn't GC'd before it runs
+            task.add_done_callback(_BG_TASKS.discard)
             terminated = True
         else:
             terminated = asyncio.run(pool.terminate(hunter_id, reason))
