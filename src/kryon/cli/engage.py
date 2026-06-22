@@ -55,7 +55,11 @@ from kryon.util.env import is_red_team
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass  # INTENTIONALLY MUTABLE (not frozen like the value-snapshot finding-like
+# types): the scoring/grounding pipeline adjusts ``confidence`` /
+# ``needs_verification`` in place after construction (see scoring.confidence,
+# validation.grounding). Don't make this frozen without converting those mutations
+# to dataclasses.replace().
 class Finding:
     cwe: str
     severity: str

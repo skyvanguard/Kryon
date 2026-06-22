@@ -10,7 +10,7 @@ engage imports the probe modules lazily, so no cycle).
 from __future__ import annotations
 
 from kryon.cli.engage import DiscoveredService, Finding
-from kryon.cli.service_probes import _f, _http_get, run_table
+from kryon.cli.probe_base import _f, _http_get, run_table
 
 
 def _check_jenkins(svc: DiscoveredService, scheme: str) -> Finding | None:

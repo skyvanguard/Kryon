@@ -10,8 +10,7 @@ Each signature is specific enough that a catch-all 200 page won't false-trigger.
 from __future__ import annotations
 
 from kryon.cli.engage import DiscoveredService, Finding
-from kryon.cli.probe_base import DEFAULT_T as _T
-from kryon.cli.service_probes import _f, _http_get
+from kryon.cli.probe_base import DEFAULT_T as _T, _f, _http_get
 
 
 def _looks_html(body: str) -> bool:

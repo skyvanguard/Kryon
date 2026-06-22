@@ -10,7 +10,7 @@ lazily, so no import cycle).
 from __future__ import annotations
 
 from kryon.cli.engage import DiscoveredService, Finding
-from kryon.cli.service_probes import _f, _udp, run_table
+from kryon.cli.probe_base import _f, _udp, run_table
 
 
 def _dns_query(qname: str, qtype: int = 1) -> bytes:

@@ -14,7 +14,7 @@ from __future__ import annotations
 import struct
 
 from kryon.cli.engage import DiscoveredService, Finding
-from kryon.cli.service_probes import _f, _tcp, run_table
+from kryon.cli.probe_base import _f, _tcp, run_table
 
 _T = 5.0
 

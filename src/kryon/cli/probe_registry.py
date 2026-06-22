@@ -17,6 +17,7 @@ import importlib
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from kryon.cli.engage import DiscoveredService, Finding
 from kryon.cli.probe_base import TLS_PORTS as _TLS_PORTS, TLS_SERVICES as _TLS_SERVICES
 
 # Gate predicates over a DiscoveredService (duck-typed: .host, .port, .service).
@@ -98,7 +99,7 @@ def _resolve() -> list[tuple[_Entry, Callable]]:
     return out
 
 
-def run_all_probes(svc) -> list:  # noqa: ANN001
+def run_all_probes(svc: DiscoveredService) -> list[Finding]:
     """Run every registered probe whose gate matches the service. Never raises."""
     out: list = []
     sch = scheme_for(svc)

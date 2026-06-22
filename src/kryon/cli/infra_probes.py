@@ -16,7 +16,7 @@ from __future__ import annotations
 import struct
 
 from kryon.cli.engage import DiscoveredService, Finding
-from kryon.cli.service_probes import _f, _http_get, _tcp, run_table
+from kryon.cli.probe_base import _f, _http_get, _tcp, run_table
 
 
 def _check_docker_registry(svc: DiscoveredService, scheme: str = "http") -> Finding | None:

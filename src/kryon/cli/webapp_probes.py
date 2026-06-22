@@ -12,7 +12,7 @@ Imports _f + _http_get from service_probes (one-way; no import cycle).
 from __future__ import annotations
 
 from kryon.cli.engage import DiscoveredService, Finding
-from kryon.cli.service_probes import _f, _http_get, run_table
+from kryon.cli.probe_base import _f, _http_get, run_table
 
 _T = 5.0
 

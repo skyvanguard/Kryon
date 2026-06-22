@@ -9,8 +9,7 @@ from __future__ import annotations
 import socket
 
 from kryon.cli.engage import DiscoveredService, Finding
-from kryon.cli.probe_base import DEFAULT_T as _T
-from kryon.cli.service_probes import _f
+from kryon.cli.probe_base import DEFAULT_T as _T, _f
 
 
 def _banner_and_caps(host: str, port: int, query: bytes, ok_prefix: bytes) -> str | None:
