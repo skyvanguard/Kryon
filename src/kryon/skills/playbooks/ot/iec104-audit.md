@@ -14,7 +14,6 @@ triggers:
     - "subestacion"
     - "ande"
     - "endesa"
-    - ""
     - "edesur"
     - "iec 62351"
 priority: 15
