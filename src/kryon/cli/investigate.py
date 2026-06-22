@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Any
 
 from kryon.util.concurrency import run_with_timeout as _run_with_timeout
+from kryon.util.env import is_red_team
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +100,26 @@ def _classify_intent(prompt: str) -> dict[str, Any]:
         hints["keywords"].extend(["xss", "cwe-79"])
 
     return hints
+
+
+def _enforce_passive_toolset(agent) -> int:
+    """Technical passive gate: drop every tool above the ``passive`` tier from the
+    agent's toolset (nmap/nuclei/sqlmap/hydra/run_command/… and unknown tools, which
+    classify as ``active``). Returns the count removed. This makes passive mode a
+    real restriction instead of a prompt the model can ignore."""
+    from kryon.agents.authorization import _TIERS, _tool_tier  # noqa: PLC0415
+
+    tools = getattr(agent, "tools", None)
+    if not tools:
+        return 0
+    kept, dropped = [], 0
+    for t in tools:
+        if _tool_tier(getattr(t, "name", "")) <= _TIERS["passive"]:
+            kept.append(t)
+        else:
+            dropped += 1
+    agent.tools = kept
+    return dropped
 
 
 def _build_investigate_prompt(user_prompt: str, hints: dict[str, Any], active: bool) -> str:
@@ -814,6 +835,15 @@ def run_investigate(args: argparse.Namespace) -> int:
         except Exception as e:  # noqa: BLE001 — best effort
             console.print(f"[yellow]skill swap warning: {e}[/yellow]")
 
+    # SECURITY — passive mode is a TECHNICAL gate, not a prompt suggestion.
+    # Strip every non-passive-tier tool (nmap/nuclei/sqlmap/hydra/run_command/…)
+    # from the agent so the prompt is no longer the only thing keeping the run
+    # read-only (closes the prompt-only passive-gate bug).
+    if not active:
+        dropped = _enforce_passive_toolset(agent)
+        if dropped:
+            console.print(f"[dim]passive mode: {dropped} active tool(s) removed from the agent (use --active to enable)[/dim]")
+
     full_prompt = _build_investigate_prompt(prompt, hints, active=active)
 
     # F203.M — Hybrid mode: run deterministic checks ANTES del agent, inyectar
@@ -950,8 +980,11 @@ def run_investigate(args: argparse.Namespace) -> int:
         # deterministic web-vuln coverage (SQLi/XSS/LFI/SSTI/cmd-inj/XXE/IDOR/
         # SSRF/CORS/JWT/git-leak) + opt-in nuclei known-CVE library. This is the
         # autonomous wiring of the F57 pipeline (was /webpentest-only).
-        if active:
-            enable_nuclei = os.environ.get("KRYON_RED_TEAM", "").strip().lower() in ("1", "true", "yes")
+        # Aligns with engage: the payload-injection sweep requires KRYON_RED_TEAM,
+        # not just --active (sending exploit payloads is the highest-intrusiveness
+        # step, so it carries the same explicit gate in both entry points).
+        if active and is_red_team():
+            enable_nuclei = True  # past the RED_TEAM gate → full sweep incl. nuclei
             # Comprehensive sweep (surface discovery + injection over dozens of
             # endpoints + headless cookie check + authenticated IDOR/mass-assign)
             # is heavy on rich targets; 600s default so its findings aren't

@@ -23,18 +23,13 @@ or pass `--red-team` to the CLI (see kryon.cli._original wiring).
 
 from __future__ import annotations
 
-import os
-
 _RED_TEAM_VAR = "KRYON_RED_TEAM"
 
 
 def is_red_team_enabled() -> bool:
-    return os.environ.get(_RED_TEAM_VAR, "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
+    from kryon.util.env import is_red_team  # noqa: PLC0415
+
+    return is_red_team()
 
 
 def require_red_team(module_name: str) -> None:

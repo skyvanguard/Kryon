@@ -245,7 +245,7 @@ class TestWriteProbe:
         assert r.write_attempt is False
         assert r.write_succeeded is None
 
-    def test_write_succeeds_when_caller_opts_in(self, patch_socket) -> None:
+    def test_write_succeeds_when_caller_opts_in(self, patch_socket, monkeypatch) -> None:
         from kryon.tools.ot.modbus_scan import modbus_scan
 
         # Build a Write Single Coil OK reply: function 0x05 + address + value echoed.
@@ -260,9 +260,24 @@ class TestWriteProbe:
         ]
         patch_socket(replies)
 
+        # The write is double-gated: attempt_write alone is not enough; both
+        # KRYON_RED_TEAM and KRYON_OT_WRITE_FIRE must be set (defence in depth).
+        monkeypatch.setenv("KRYON_RED_TEAM", "true")
+        monkeypatch.setenv("KRYON_OT_WRITE_FIRE", "true")
         r = modbus_scan("10.0.0.5", attempt_write=True)
         assert r.write_attempt is True
         assert r.write_succeeded is True
+
+    def test_write_blocked_without_double_gate(self, patch_socket, monkeypatch) -> None:
+        from kryon.tools.ot.modbus_scan import modbus_scan
+
+        monkeypatch.delenv("KRYON_RED_TEAM", raising=False)
+        monkeypatch.delenv("KRYON_OT_WRITE_FIRE", raising=False)
+        patch_socket([_read_coils_exception(1, 1), _read_coils_exception(2, 1), b""])
+        # attempt_write=True but gate closed → write skipped, reported as not attempted.
+        r = modbus_scan("10.0.0.5", attempt_write=True)
+        assert r.write_attempt is False
+        assert r.write_succeeded is None
 
 
 # ---------- Frame parsing edge cases ----------

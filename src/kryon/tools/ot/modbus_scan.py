@@ -192,6 +192,15 @@ def _probe_device_identification(host: str, port: int, unit_id: int) -> dict[str
     return out
 
 
+def _ot_write_allowed() -> bool:
+    """Double-gate for OT write operations: both KRYON_RED_TEAM and
+    KRYON_OT_WRITE_FIRE must be set. Writing to a PLC is the single most dangerous
+    action in the repo, so it is never enabled by a kwarg/default alone."""
+    from kryon.util.env import env_bool, is_red_team  # noqa: PLC0415
+
+    return is_red_team() and env_bool("KRYON_OT_WRITE_FIRE")
+
+
 def modbus_scan(
     host: str,
     *,
@@ -234,9 +243,14 @@ def modbus_scan(
     # Step 3 — device identification (best-effort, optional).
     device = _probe_device_identification(host, port, unit_id)
 
-    # Step 4 — write probe (gated).
+    # Step 4 — write probe (DOUBLE-GATED). Writing a coil can physically actuate
+    # equipment, so the function never trusts the kwarg alone: even with
+    # attempt_write=True it requires the explicit KRYON_RED_TEAM + KRYON_OT_WRITE_FIRE
+    # double-gate (defence in depth — the most dangerous OT op must not depend on a
+    # default). If the gate is closed, the write is skipped and reported as not attempted.
+    write_attempted = attempt_write and _ot_write_allowed()
     write_ok: bool | None = None
-    if attempt_write:
+    if write_attempted:
         # Address 9999 is rarely a real coil — avoids accidentally
         # actuating a real-world relay if the caller misconfigured.
         # 0x0000 OFF (anything non-zero would be ON).
@@ -256,6 +270,6 @@ def modbus_scan(
         unauth_read_holding=holding_ok,
         device_identification=device,
         response_unit_ids=(unit_id,) if (coils_ok or holding_ok) else (),
-        write_attempt=attempt_write,
+        write_attempt=write_attempted,
         write_succeeded=write_ok,
     )

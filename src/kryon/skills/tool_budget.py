@@ -6,8 +6,9 @@ based on active skills. Caps at max_tools to keep schema tokens under control.
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
+
+from kryon.util.env import is_red_team
 
 logger = logging.getLogger(__name__)
 
@@ -207,7 +208,7 @@ def build_tool_registry() -> dict[str, Any]:
     # under RED_TEAM (intrusive, require existing access + written authorization)
     # — they were defined but never registered, leaving the offensive agent without
     # credential dumping, lateral movement, AD attacks, or privesc.
-    if os.environ.get("KRYON_RED_TEAM", "").lower() in ("1", "true", "yes"):
+    if is_red_team():
         _extra_tools.extend(
             [
                 # API attacks — fuzzing, credential testing, JWT analysis
@@ -295,7 +296,7 @@ def select_tools(
     # be promoted ALLEGED → VERIFIED. These RUN the real exploit tool against
     # the target, so they're offered ONLY under KRYON_RED_TEAM (off in the
     # banking default; that profile already requires written authorization).
-    if os.environ.get("KRYON_RED_TEAM", "").strip().lower() in ("1", "true", "yes"):
+    if is_red_team():
         selected_names |= EXPLOIT_VALIDATION_TOOLS
         selected_names |= POST_EXPLOITATION_TOOLS
     if forbidden_tool_names:

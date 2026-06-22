@@ -50,6 +50,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from kryon.util.env import is_red_team
+
 logger = logging.getLogger(__name__)
 
 
@@ -5369,7 +5371,7 @@ def run_engage(args: argparse.Namespace) -> int:
             # headless cookie/PP/DOM-XSS + nuclei) on web services — ACTIVE
             # only (KRYON_RED_TEAM), so banca-safe engagements are unchanged.
             # Reuses the investigate phase to map BankingFinding → engage.Finding.
-            if os.environ.get("KRYON_RED_TEAM", "").strip().lower() in ("1", "true", "yes"):
+            if is_red_team():
                 _scheme = "https" if (svc.service == "https" or svc.port in (443, 8443)) else "http"
                 _base = f"{_scheme}://{svc.host}:{svc.port}"
                 try:

@@ -9,13 +9,13 @@ injectable request hook and are unit-testable offline.
 
 from __future__ import annotations
 
-import os
 import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 
 from kryon.cli.engage import Finding, make_finding
+from kryon.util.env import is_red_team
 
 _T = 8.0
 
@@ -115,7 +115,7 @@ def to_finding(v: OracleVerdict, url: str, param: str, host: str) -> Finding | N
 
 def run_verification(url: str, param: str, host: str) -> list[Finding]:
     """Run all oracles against a candidate URL+param. Gated by KRYON_RED_TEAM (active)."""
-    if os.environ.get("KRYON_RED_TEAM", "").lower() not in ("1", "true", "yes"):
+    if not is_red_team():
         return []
     out: list[Finding] = []
     for verify in (verify_sqli, verify_xss, verify_open_redirect):

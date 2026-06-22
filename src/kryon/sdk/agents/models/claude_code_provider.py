@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 import re
 import subprocess
 import uuid
@@ -25,6 +24,8 @@ from openai.types.responses import (
     ResponseOutputMessage,
     ResponseOutputText,
 )
+
+from kryon.util.env import is_red_team
 
 from ..items import ModelResponse, TResponseInputItem, TResponseOutputItem, TResponseStreamEvent
 from ..tool import FunctionTool, Tool
@@ -273,7 +274,7 @@ class ClaudeCodeModel(Model):
         # engagement (KRYON_RED_TEAM=true). Previously this was appended on EVERY call
         # — including passive `investigate` and internal evals — disabling the model's
         # own safeguards unconditionally. Gated now so the default stays conservative.
-        if os.environ.get("KRYON_RED_TEAM", "").strip().lower() in ("1", "true", "yes"):
+        if is_red_team():
             cmd.extend(
                 [
                     "--append-system-prompt",

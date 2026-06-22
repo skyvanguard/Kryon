@@ -9,10 +9,9 @@ action; live confirmation is gated like the rest of the active stack.
 
 from __future__ import annotations
 
-import os
-
 from kryon.cli.engage import DiscoveredService, Finding, make_finding
 from kryon.cli.service_probes import _http_get
+from kryon.util.env import is_red_team
 
 # product key → list of (user, password) shipped/commonly-left defaults.
 DEFAULT_CRED_MATRIX: dict[str, list[tuple[str, str]]] = {
@@ -27,11 +26,10 @@ DEFAULT_CRED_MATRIX: dict[str, list[tuple[str, str]]] = {
     "nagios": [("nagiosadmin", "nagiosadmin")],
 }
 
-_ACTIVE = "KRYON_RED_TEAM"
 
 
 def _red_team() -> bool:
-    return os.environ.get(_ACTIVE, "").lower() in ("1", "true", "yes")
+    return is_red_team()
 
 
 def _finding(svc: DiscoveredService, rule_id: str, sev: str, msg: str, evidence: str, fix: str) -> Finding:
