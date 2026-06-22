@@ -84,11 +84,32 @@ _NET_INDICATORS = (
 )
 
 
+# IPv4-mapped / 6to4 IPv6 tokens whose embedded IPv4 must be checked against scope —
+# e.g. ::ffff:7f00:1 and ::ffff:8.8.8.8 both carry an IPv4 the dotted-quad regex misses.
+_IPV6_RE = re.compile(r"(?<![\w:])((?:[0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F.:]{1,4})(?![\w])")
+
+
+def _mapped_ipv4s(text: str) -> list[str]:
+    """Extract the embedded IPv4 of any IPv4-mapped IPv6 token (a cage-bypass form)."""
+    out: list[str] = []
+    for tok in _IPV6_RE.findall(text):
+        try:
+            ip = ipaddress.ip_address(tok.strip("[]"))
+        except ValueError:
+            continue
+        if ip.version == 6 and ip.ipv4_mapped is not None:
+            out.append(str(ip.ipv4_mapped))
+    return out
+
+
 def _obfuscated_ips(text: str) -> list[str]:
     low = text.lower()
-    if not any(ind in low for ind in _NET_INDICATORS):
-        return []
-    return [ip for tok in _INT_IP_RE.findall(text) if (ip := _decode_int_ip(tok))]
+    # IPv4-mapped IPv6 is unambiguously an address (no false-positive risk), so it's
+    # extracted regardless of the network-indicator gate that protects the int-decode.
+    out = _mapped_ipv4s(text)
+    if any(ind in low for ind in _NET_INDICATORS):
+        out.extend(ip for tok in _INT_IP_RE.findall(text) if (ip := _decode_int_ip(tok)))
+    return out
 
 
 def _is_localhost(host: str) -> bool:

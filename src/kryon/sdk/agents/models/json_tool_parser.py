@@ -90,23 +90,27 @@ def _to_openai_tool_call(obj: dict) -> dict:
     name = str(obj.get(_NAME_KEY, ""))
     raw_args = obj.get(_ARGS_KEY)
 
+    # `arguments` MUST normalize to a JSON OBJECT string. A model that emits a scalar
+    # (arguments: 99 / null / "x") or a list would otherwise yield args the run loop
+    # can't **-unpack — coerce those to an empty object "{}" so schema validation reports
+    # missing args cleanly instead of crashing on **args.
     if isinstance(raw_args, dict):
         raw_args.pop("ctf", None)
         args_str = json.dumps(raw_args)
     elif isinstance(raw_args, str):
-        # Args already a JSON string — round-trip to strip `ctf` when possible,
-        # otherwise preserve verbatim so the schema validator can surface it.
         try:
             parsed = json.loads(raw_args)
-            if isinstance(parsed, dict):
-                parsed.pop("ctf", None)
-                args_str = json.dumps(parsed)
-            else:
-                args_str = json.dumps(raw_args)
         except (json.JSONDecodeError, ValueError):
-            args_str = raw_args
+            parsed = None
+        if isinstance(parsed, dict):
+            parsed.pop("ctf", None)
+            args_str = json.dumps(parsed)
+        elif parsed is None and raw_args.strip().startswith("{"):
+            args_str = raw_args  # looks like an object but didn't parse — let the validator surface it
+        else:
+            args_str = "{}"  # scalar/list payload → not valid tool args
     else:
-        args_str = json.dumps(raw_args)
+        args_str = "{}"  # int / list / None — not a valid arguments object
 
     return {
         "id": f"call_{uuid.uuid4().hex[:8]}",

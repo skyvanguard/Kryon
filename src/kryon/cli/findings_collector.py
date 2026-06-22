@@ -54,8 +54,11 @@ class CLIFindingsCollector:
             if not any(kw in content.lower() for kw in _FINDING_SIGNALS):
                 continue
             for finding in self._try_parse_findings(content):
-                # Dedup by title+asset (IDs are random on each parse)
-                dedup_key = f"{finding.title}|{finding.affected_asset}"
+                # Dedup by title+asset+description (IDs are random per parse). title+asset
+                # alone collapsed DISTINCT findings whenever affected_asset defaulted to
+                # "unknown" (e.g. two different issues parsed from the same blob) — the
+                # description discriminates so real findings aren't lost.
+                dedup_key = f"{finding.title}|{finding.affected_asset}|{(getattr(finding, 'description', '') or '')[:200]}"
                 if dedup_key not in self._seen_ids:
                     findings.append(finding)
                     self._seen_ids.add(dedup_key)
