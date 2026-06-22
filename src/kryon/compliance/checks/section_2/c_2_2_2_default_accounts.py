@@ -20,16 +20,19 @@ from kryon.compliance.runner import register_check, run_cmd
 
 def _check_empty_shadow(ctx: CheckContext) -> tuple[str, str, list[str]]:
     """Return (sub_verdict, raw_output, offending_accounts)."""
+    # Only TRULY empty password fields ($2=="") are a finding. The old condition also
+    # matched $2=="!" (a LOCKED account, which is SAFE) and printed its username; the
+    # Python re-filter then checked `username.startswith("!")` (a username never does)
+    # so locked accounts were reported as empty-password → false FAIL (PCI 2.2.2 CRITICAL)
+    # on any host with a `user:!:...` shadow line.
     stdout, stderr, rc = run_cmd(
         ctx,
-        ["awk", "-F:", '($2==""||$2=="!"){print $1}', "/etc/shadow"],
+        ["awk", "-F:", '($2==""){print $1}', "/etc/shadow"],
         timeout_s=5,
     )
     if rc != 0:
         return "N/A", (stderr or stdout)[:512], []
-    # "!" and "*" mean locked accounts, not empty; we filtered only "" above.
-    # Some awk versions list !/! as locked — re-filter in Python to be safe.
-    offenders = [line.strip() for line in stdout.splitlines() if line.strip() and not line.startswith("!")]
+    offenders = [line.strip() for line in stdout.splitlines() if line.strip()]
     return ("FAIL" if offenders else "PASS"), stdout, offenders
 
 

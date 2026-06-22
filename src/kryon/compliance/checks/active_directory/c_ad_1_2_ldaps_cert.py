@@ -95,7 +95,11 @@ class _LdapsCertCheck:
             try:
                 exp = datetime.strptime(notafter.strip(), "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc)
                 days = (exp - datetime.now(timezone.utc)).days
-                parsed["days_to_expiry"] = days
+                # days_to_expiry drifts daily → store the STABLE absolute notAfter + buckets
+                # in the hashed evidence_parsed; exact days only in the issue text (un-hashed).
+                parsed["cert_notafter_utc"] = exp.isoformat()
+                parsed["cert_expired"] = days < 0
+                parsed["cert_expires_within_30d"] = 0 <= days < 30
                 if days < 0:
                     issues.append(f"LDAPS cert expired {-days}d ago")
                 elif days < 30:

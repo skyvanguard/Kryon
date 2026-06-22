@@ -104,10 +104,13 @@ class _KrbtgtRotationCheck:
         age_days = (datetime.now(timezone.utc) - last_changed).days
 
         issues: list[str] = []
+        # age_days is derived from datetime.now() → changes daily; it must NOT enter
+        # evidence_parsed (reproducibility-hashed). The stable identity is the absolute
+        # last_changed timestamp + a bucket. Exact age stays in the issue text (un-hashed).
         parsed = {
             "pwdLastSet_raw": pwd_last,
             "last_changed_utc": last_changed.isoformat(),
-            "age_days": age_days,
+            "krbtgt_age_over_180d": age_days > 180,
             "kvn": kvn or "?",
         }
 

@@ -99,7 +99,9 @@ class _RadiusHygieneCheck:
                 secret_lengths.append(len(sec_m.group(1)))
             if not name_m:
                 continue
-            if any(0 < length < _MIN_SECRET_LEN for length in secret_lengths):
+            # length 0 = blank secret (the WORST case) — the old `0 < length` guard
+            # excluded it, so an empty shared secret passed as "not weak" (fail-open).
+            if any(length < _MIN_SECRET_LEN for length in secret_lengths):
                 weak.append(name_m.group(1))
 
         issues = [f"RADIUS profile '{n}' has a shared secret < {_MIN_SECRET_LEN} chars" for n in sorted(set(weak))]

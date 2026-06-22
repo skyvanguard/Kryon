@@ -116,13 +116,18 @@ class _PasswordPolicyCheck:
         elif lockout_th > 10:
             issues.append(f"lockoutThreshold={lockout_th} (should be <=10)")
         # maxPwdAge — negative LDAP interval. |val| / 1e7 / 86400 = days.
+        # AD stores "never expires" as a literal 0 (NOT a negative interval), so the
+        # old `max_age < 0` guard skipped the whole block for that case → passwords that
+        # never expire went undetected (PASS). Handle 0 explicitly.
         max_age_days: int | None = None
-        if max_age is not None and max_age < 0:
+        if max_age == 0:
+            issues.append("maxPwdAge=0 (passwords never expire)")
+        elif max_age is not None and max_age < 0:
             max_age_days = abs(max_age) // 10_000_000 // 86400
             if max_age_days > 90:
                 issues.append(f"maxPwdAge={max_age_days}d (should be <=90)")
             elif max_age_days == 0:
-                issues.append("maxPwdAge=0 (passwords never expire)")
+                issues.append("maxPwdAge rounds to 0d (passwords effectively never expire)")
 
         verdict = "PASS" if not issues else "FAIL"
 
