@@ -35,14 +35,15 @@ def _esc(s: str) -> str:
 
 
 def _sort_results(results: list[dict]) -> list[dict]:
-    """Sort by verdict (FAIL first) then severity then control_id."""
+    """Sort by verdict (FAIL first) then severity then control_id. Defensive .get()
+    so a partial/foreign-shaped CheckResult dict can't KeyError the whole PDF."""
     return sorted(
         results,
         key=lambda r: (
-            0 if r["verdict"] == "FAIL" else 1 if r["verdict"] == "ERROR" else 2,
+            0 if r.get("verdict") == "FAIL" else 1 if r.get("verdict") == "ERROR" else 2,
             _SEV_ORDER.get(r.get("severity", "INFO"), 9),
-            r["section"],
-            r["control_id"],
+            str(r.get("section", "")),
+            str(r.get("control_id", "")),
         ),
     )
 
@@ -115,7 +116,7 @@ def _summary_table(results: list[dict]) -> str:
 
 
 def _finding_card(r: dict, narrative: dict | None) -> str:
-    verdict = r["verdict"]
+    verdict = r.get("verdict", "ERROR")
     css_class = f"verdict-{verdict.replace('/', '')}"
     ev = r.get("evidence_parsed") or {}
     parsed_json = json.dumps(ev, indent=2, ensure_ascii=False)
@@ -142,10 +143,10 @@ def _finding_card(r: dict, narrative: dict | None) -> str:
     return f"""
     <div class="finding-card {css_class}">
       <div class="finding-head">
-        <span class="finding-title">PCI {r["control_id"]} — {_esc(r.get("control_title", ""))}</span>
+        <span class="finding-title">PCI {r.get("control_id", "?")} — {_esc(r.get("control_title", ""))}</span>
         {_verdict_badge(verdict)}
       </div>
-      <div class="finding-meta">Sección {r["section"]} · Severidad {r.get("severity", "")} · Host {host}</div>
+      <div class="finding-meta">Sección {r.get("section", "?")} · Severidad {r.get("severity", "")} · Host {host}</div>
 
       <div class="section-block">
         <span class="section-label">Evidencia determinística</span>
@@ -169,7 +170,7 @@ def _finding_card(r: dict, narrative: dict | None) -> str:
 
 def _appendix_evidence(r: dict) -> str:
     return f"""
-    <h3>PCI {_esc(r["control_id"])} — {_esc(r.get("control_title", ""))}</h3>
+    <h3>PCI {_esc(r.get("control_id", "?"))} — {_esc(r.get("control_title", ""))}</h3>
     <div class="section-block">
       <span class="section-label">Comando</span>
       <pre class="evidence">{_esc(r.get("evidence_command", ""))}</pre>
@@ -241,7 +242,7 @@ def _risk_level(counts: dict[str, int]) -> tuple[str, str]:
 
 def _detect_framework(results: list[dict]) -> str:
     """Infer framework from control_id prefixes."""
-    prefixes = {r["control_id"].split("-")[0].split(".")[0] for r in results}
+    prefixes = {r.get("control_id", "").split("-")[0].split(".")[0] for r in results}
     if prefixes == {"PVE"}:
         return "proxmox"
     if prefixes == {"AD"}:
@@ -271,9 +272,15 @@ def render_html(
     """
     audit_date = audit_date or datetime.now()
     narratives = narratives or {}
-    counts = {v: sum(1 for r in results if r["verdict"] == v) for v in ("PASS", "FAIL", "N/A", "ERROR")}
+    # Count EVERY verdict present (default missing → ERROR) so the columns reconcile with
+    # `total`; the old hardcoded 4-key dict silently dropped any other verdict (e.g. the
+    # CIS crosswalk's "MANUAL"), making total != sum(columns).
+    counts = {"PASS": 0, "FAIL": 0, "N/A": 0, "ERROR": 0}
+    for r in results:
+        v = r.get("verdict", "ERROR")
+        counts[v] = counts.get(v, 0) + 1
     total = len(results)
-    cards = "\n".join(_finding_card(r, narratives.get(r["control_id"])) for r in _sort_results(results))
+    cards = "\n".join(_finding_card(r, narratives.get(r.get("control_id", ""))) for r in _sort_results(results))
     appendix = "\n".join(_appendix_evidence(r) for r in _sort_results(results))
     css = _css().replace("var(--hash)", f'"{repro_hash[:16]}..."')
 

@@ -67,5 +67,12 @@ def render_findings_table(findings: list[Finding], include_evidence: bool = True
 
 
 def _escape(text: str) -> str:
-    """Escape HTML special characters."""
-    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    """Escape HTML special characters (incl. the single quote, for attribute contexts)."""
+    return (
+        str(text)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&#39;")
+    )

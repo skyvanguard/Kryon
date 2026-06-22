@@ -161,8 +161,12 @@ class ReportGenerator:
 
             result = raw
             for key, value in kwargs.items():
-                # Replace {{ key }} patterns
-                result = re.sub(r"\{\{\s*" + key + r"\s*\}\}", str(value), result)
+                # Replace {{ key }} patterns. Use a function replacement so `value` is
+                # inserted LITERALLY — passing it as the 2nd arg to re.sub treats `\1`,
+                # `\g<..>`, or a trailing `\` in the value (LLM-derived evidence/titles)
+                # as backreferences → re.error crashing the whole report. re.escape(key)
+                # guards against regex metacharacters in the key.
+                result = re.sub(r"\{\{\s*" + re.escape(key) + r"\s*\}\}", lambda _m, v=str(value): v, result)
             # Remove unmatched {% %} blocks (conditionals we don't need to evaluate)
             result = re.sub(r"\{%.*?%\}", "", result)
             return result

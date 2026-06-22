@@ -39,8 +39,12 @@ def render_executive_summary(findings: list[Finding], client_name: str = "", sco
         "CRITICAL" if critical > 0 else "HIGH" if high > 0 else "MODERATE" if by_sev.get("medium", 0) > 0 else "LOW"
     )
 
-    client_str = f" for <strong>{client_name}</strong>" if client_name else ""
-    scope_str = f" targeting <code>{scope}</code>" if scope else ""
+    # Escape target/LLM-derived values — they reach HTML→PDF and could inject markup
+    # or break layout (findings_table already escapes its cells; these were raw).
+    from kryon.reporting.sections.findings_table import _escape  # noqa: PLC0415
+
+    client_str = f" for <strong>{_escape(client_name)}</strong>" if client_name else ""
+    scope_str = f" targeting <code>{_escape(scope)}</code>" if scope else ""
 
     # Opt-in LLM narrative. Demos / CI keep the deterministic-only
     # path because reports are diffed against snapshots.
@@ -77,7 +81,7 @@ def render_executive_summary(findings: list[Finding], client_name: str = "", sco
         crit_findings = [f for f in findings if f.severity == Severity.CRITICAL]
         summary += "\n        <h3>Critical Issues Requiring Immediate Attention</h3>\n        <ul>\n"
         for f in crit_findings[:5]:
-            summary += f"            <li><strong>{f.title}</strong> — {f.affected_asset}</li>\n"
+            summary += f"            <li><strong>{_escape(f.title)}</strong> — {_escape(f.affected_asset)}</li>\n"
         summary += "        </ul>\n"
 
     summary += "    </div>"
