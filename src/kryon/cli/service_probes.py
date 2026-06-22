@@ -678,7 +678,7 @@ PROBES: tuple[tuple[str, object, object], ...] = (
     ("ldap", lambda s: s.service in ("ldap", "ldaps") or s.port in (389, 636), _check_ldap_anon),
     ("nfs", lambda s: s.service in ("rpcbind", "nfs", "portmapper") or s.port == 111, _check_nfs_rpcbind),
     ("mssql", lambda s: s.service in ("ms-sql-s", "ms-sql") or s.port == 1433, _check_mssql),
-    # Batch A — data stores
+    # data stores
     ("memcached", lambda s: s.service == "memcache" or s.port == 11211, _check_memcached),
     ("zookeeper", lambda s: s.service == "zookeeper" or s.port == 2181, _check_zookeeper),
     ("couchdb", lambda s: s.port == 5984, _check_couchdb),
@@ -688,14 +688,14 @@ PROBES: tuple[tuple[str, object, object], ...] = (
     ("influxdb", lambda s: s.port == 8086, _check_influxdb),
     ("clickhouse", lambda s: s.port == 8123, _check_clickhouse),
     ("rabbitmq", lambda s: s.port == 15672, _check_rabbitmq_mgmt),
-    # Batch A — container / orchestration
+    # container / orchestration
     ("docker", lambda s: s.port in (2375, 2376), _check_docker_api),
     ("kubelet", lambda s: s.port == 10250, _check_kubelet),
     ("k8s-api", lambda s: s.port in (6443, 8443), _check_k8s_api),
-    # Batch A — amplification
+    # amplification
     ("ssdp", lambda s: s.port == 1900, _check_ssdp),
     ("chargen", lambda s: s.port == 19, _check_chargen),
-    # Batch C — TLS hygiene (returns a list)
+    # TLS hygiene (returns a list)
     ("tls", lambda s: s.service in TLS_SERVICES or s.port in TLS_PORTS, _check_tls),
 )
 

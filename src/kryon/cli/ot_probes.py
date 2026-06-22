@@ -1,4 +1,4 @@
-"""Batch P — ICS/SCADA/OT exposure. Wires the already-validated read-only OT
+"""ICS/SCADA/OT exposure. Wires the already-validated read-only OT
 probes from ``kryon.tools.ot`` (Modbus/S7comm/IEC-104/DNP3) into the engage
 dispatch — they existed but were never reachable from a normal engage/investigate
 sweep — and adds EtherNet/IP, OPC-UA, Veeder-Root ATG, and Niagara Fox.

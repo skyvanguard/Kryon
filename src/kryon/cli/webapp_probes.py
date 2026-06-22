@@ -1,4 +1,4 @@
-"""Batch Q — application-layer web exposures with FP-safe structural signatures:
+"""application-layer web exposures with FP-safe structural signatures:
 Laravel Ignition RCE, Spring Actuator tier-2 (jolokia/gateway/threaddump/mappings),
 leaked app config files, ASP.NET ELMAH/trace.axd, GraphQL introspection, CORS
 reflected-origin+credentials, and exposed admin consoles (Tomcat/JBoss/WebLogic).

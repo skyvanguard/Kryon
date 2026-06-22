@@ -1,4 +1,4 @@
-"""Batch R — IMAP/POP3 cleartext-auth posture. A mail server that does not offer
+"""IMAP/POP3 cleartext-auth posture. A mail server that does not offer
 STARTTLS/STLS (and doesn't disable plaintext login) lets credentials cross the
 wire in the clear. Complements the SMTP cleartext-AUTH check already in
 service_probes. READ-ONLY (CAPABILITY/CAPA only), graceful.

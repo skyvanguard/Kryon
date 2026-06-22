@@ -1,4 +1,4 @@
-"""Batch H — deterministic detectors for legacy / IoT / OT services that should
+"""deterministic detectors for legacy / IoT / OT services that should
 not be exposed: unauthenticated X11, IPMI (hash-dump surface), open TFTP, CUPS,
 BACnet (OT), and finger (user-info leak). Each is CONFIRMED by a protocol response
 (not just an open port). READ-ONLY, graceful.

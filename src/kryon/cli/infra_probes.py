@@ -1,4 +1,4 @@
-"""Batch K/N — deterministic detectors for infrastructure services that ship
+"""deterministic detectors for infrastructure services that ship
 without auth by default and are rarely locked down: Docker Registry v2 (image/
 secret leak), anonymous MQTT brokers (IoT/OT), NATS, Java RMI registry
 (deserialization RCE surface), open git daemon (anonymous clone), no-auth
@@ -181,7 +181,7 @@ def _check_neo4j(svc: DiscoveredService, scheme: str = "http") -> Finding | None
 
 
 # --------------------------------------------------------------------------
-# Batch S — additional data stores / brokers / secret-mgmt
+# additional data stores / brokers / secret-mgmt
 # --------------------------------------------------------------------------
 
 

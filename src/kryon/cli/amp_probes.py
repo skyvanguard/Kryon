@@ -1,4 +1,4 @@
-"""Batch L — UDP reflector / amplification + info-leak posture for services not
+"""UDP reflector / amplification + info-leak posture for services not
 already covered by the Batch-A amplifiers (SSDP/CharGen/NTP/SNMP): open DNS
 resolver, memcached over UDP, NetBIOS name service, and mDNS. Each sends ONE
 small UDP probe and checks for a response (read-only recon, never an attack).

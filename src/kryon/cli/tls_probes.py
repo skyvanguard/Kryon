@@ -1,4 +1,4 @@
-"""Batch I — Heartbleed (CVE-2014-0160) deterministic probe. Sends a TLS
+"""Heartbleed (CVE-2014-0160) deterministic probe. Sends a TLS
 ClientHello advertising the heartbeat extension, then a malformed heartbeat
 request, and checks whether the server returns a heartbeat response longer than
 the (tiny) payload we sent — the canonical, library-free detection.

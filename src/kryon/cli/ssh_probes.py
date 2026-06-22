@@ -1,4 +1,4 @@
-"""Batch R — SSH posture by parsing the unauthenticated handshake (banner +
+"""SSH posture by parsing the unauthenticated handshake (banner +
 SSH_MSG_KEXINIT, both sent before key exchange, so fully READ-ONLY, no auth).
 One probe yields: Terrapin (CVE-2023-48795), weak kex/cipher/MAC/hostkey
 algorithms, and a banner→CVE map (regreSSHion CVE-2024-6387).

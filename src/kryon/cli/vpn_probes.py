@@ -1,4 +1,4 @@
-"""Batch O — edge VPN / remote-access appliance exposure. Fortinet SSL-VPN,
+"""edge VPN / remote-access appliance exposure. Fortinet SSL-VPN,
 Citrix NetScaler/Gateway, Palo Alto GlobalProtect, Pulse/Ivanti Connect Secure.
 These are the most-exploited perimeter products (CISA KEV / ransomware entry).
 
