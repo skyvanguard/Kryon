@@ -436,8 +436,8 @@ async def prompt_injection_guardrail(
                         },
                         tripwire_triggered=True,
                     )
-            except Exception:
-                pass
+            except ValueError:
+                pass  # invalid base64 — skip this match; unexpected errors propagate (fail-closed, not silent)
 
     # If we detect obvious patterns, block immediately
     # Increased threshold to reduce false positives on legitimate testing
@@ -587,8 +587,8 @@ async def command_execution_guardrail(ctx: RunContextWrapper, agent: Agent, outp
                         },
                         tripwire_triggered=True,
                     )
-            except Exception:
-                pass
+            except ValueError:
+                pass  # invalid base64 — skip this match; unexpected errors propagate (fail-closed, not silent)
 
     # Check for base32 decoding commands (PoC5 mitigation)
     # This catches when agent tries to decode injected base32 commands
@@ -629,8 +629,8 @@ async def command_execution_guardrail(ctx: RunContextWrapper, agent: Agent, outp
                             },
                             tripwire_triggered=True,
                         )
-                except Exception:
-                    pass
+                except ValueError:
+                    pass  # invalid base32 — skip; unexpected errors propagate (fail-closed)
 
     # Check if output contains IP addresses with common exploit patterns
     if re.search(r"\d+\.\d+\.\d+\.\d+.*4444", output_text):

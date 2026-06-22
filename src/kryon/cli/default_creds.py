@@ -33,7 +33,8 @@ def _red_team() -> bool:
 
 
 def _finding(svc: DiscoveredService, rule_id: str, sev: str, msg: str, evidence: str, fix: str) -> Finding:
-    return make_finding("CWE-1392", sev, svc.host, rule_id, msg, evidence=evidence, remediation=fix)
+    # host:port like the other service-scoped probes (was svc.host — inconsistent dedup).
+    return make_finding("CWE-1392", sev, f"{svc.host}:{svc.port}", rule_id, msg, evidence=evidence, remediation=fix)
 
 
 def _test_basic(svc: DiscoveredService, scheme: str, path: str, creds: list[tuple[str, str]]) -> tuple[str, str] | None:

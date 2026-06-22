@@ -41,7 +41,7 @@ def test_banner_cve_correlation_via_engine():
     from kryon.cli.version_cve import correlate_banner
 
     hits = correlate_banner("SSH-2.0-OpenSSH_9.6p1 Ubuntu", "h", 22)
-    assert any(f.rule_id == "cve-cve-2024-6387" for f in hits)
+    assert any(f.rule_id == "cve-2024-6387" for f in hits)
     assert correlate_banner("SSH-2.0-OpenSSH_9.8p1", "h", 22) == []
 
 
@@ -84,4 +84,4 @@ def test_read_handshake_parses_lists(monkeypatch):
     monkeypatch.setattr(sp.socket, "create_connection", lambda *a, **k: _FakeSock(stream))
     out = sp.run_ssh_probes(_S)
     # 9.6 banner → regreSSHion CVE via the correlation engine; modern algos → no weak/terrapin.
-    assert any(f.rule_id == "cve-cve-2024-6387" for f in out)
+    assert any(f.rule_id == "cve-2024-6387" for f in out)

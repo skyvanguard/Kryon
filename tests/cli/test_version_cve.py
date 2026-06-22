@@ -52,7 +52,7 @@ def test_product_mismatch_no_hit():
 
 def test_to_findings_shape():
     out = correlate_banner("Apache Tomcat/7.0.34", "10.0.0.9", 8080)
-    assert out and out[0].rule_id == "cve-cve-2020-1938" and out[0].cwe == "CWE-1395"
+    assert out and out[0].rule_id == "cve-2020-1938" and out[0].cwe == "CWE-1395"
     assert "exploit público" in out[0].message and "10.0.0.9" in out[0].message
 
 

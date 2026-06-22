@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import re
 
 from kryon.intelligence.models import IoC
+
+logger = logging.getLogger(__name__)
 
 # Regex patterns for IoC extraction
 _IPV4_RE = re.compile(r"\b(?:(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\b")
@@ -129,8 +132,10 @@ class IoCExtractor:
                                 "tags": result.get("detection_names", []),
                             }
                         )
-            except Exception:
-                pass
+            except Exception:  # noqa: BLE001 — feed enrichment is best-effort; keep the IOC un-enriched
+                # Logged (not silently swallowed) so a real bug in the scoring/model_copy
+                # path is traceable instead of hidden behind the expected network failure.
+                logger.debug("IOC enrichment failed for %s", getattr(ioc, "value", "?"), exc_info=True)
             enriched.append(ioc)
 
         return enriched

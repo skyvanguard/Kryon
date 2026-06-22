@@ -96,7 +96,7 @@ def to_findings(hits: list[CVEHit], host: str, port: int, banner: str) -> list[F
     for h in hits:
         exp = " · exploit público disponible (Metasploit/ExploitDB)" if h.exploit else ""
         out.append(make_finding(
-            "CWE-1395", h.severity, host, f"cve-{h.cve.lower()}",
+            "CWE-1395", h.severity, host, h.cve.lower(),  # rule_id = "cve-2024-6387" (no double prefix)
             f"{h.cve} aplicable en {host}:{port} — {h.name}{exp}.",
             evidence=f"Banner '{banner[:80]}' en rango afectado por {h.cve} "
                      "(verificar: el banner es spoofeable y puede tener fix backported)",
