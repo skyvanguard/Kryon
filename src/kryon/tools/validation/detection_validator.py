@@ -47,7 +47,7 @@ def validate_detection(
             f"Configure siem_endpoint to enable live validation."
         )
 
-    if not validate_external_url(siem_endpoint):
+    if validate_external_url(siem_endpoint):  # truthy = blocked reason (was inverted: it rejected SAFE URLs and let unsafe ones through)
         return f"Error: SIEM endpoint URL blocked by SSRF policy: {siem_endpoint}"
 
     safe_endpoint = shlex.quote(siem_endpoint)
@@ -104,7 +104,7 @@ def check_siem_alert(
     if not siem_endpoint:
         return "Error: No SIEM endpoint configured. Set siem_endpoint parameter."
 
-    if not validate_external_url(siem_endpoint):
+    if validate_external_url(siem_endpoint):  # truthy = blocked reason (was inverted: it rejected SAFE URLs and let unsafe ones through)
         return f"Error: SIEM endpoint URL blocked by SSRF policy: {siem_endpoint}"
 
     safe_endpoint = shlex.quote(siem_endpoint)
