@@ -14,7 +14,7 @@ from __future__ import annotations
 import struct
 
 from kryon.cli.engage import DiscoveredService, Finding
-from kryon.cli.service_probes import _f, _tcp
+from kryon.cli.service_probes import _f, _tcp, run_table
 
 _T = 5.0
 
@@ -142,13 +142,4 @@ _OT_PROBES = (
 
 def run_ot_probes(svc: DiscoveredService) -> list[Finding]:
     """Run matching ICS/SCADA/OT identification probes (read-only). Never raises."""
-    out: list[Finding] = []
-    for matches, probe in _OT_PROBES:
-        try:
-            if matches(svc):
-                f = probe(svc)
-                if f:
-                    out.append(f)
-        except Exception:  # noqa: BLE001 — a probe (or a missing tools.ot dep) must never break the sweep
-            continue
-    return out
+    return run_table(svc, _OT_PROBES)

@@ -16,7 +16,7 @@ service_probes (one-way; engage imports the probe modules lazily, no cycle).
 from __future__ import annotations
 
 from kryon.cli.engage import DiscoveredService, Finding
-from kryon.cli.service_probes import _f
+from kryon.cli.service_probes import _f, run_table
 
 _T = 5.0
 
@@ -94,12 +94,4 @@ _VPN_PROBES = (_check_fortinet, _check_citrix, _check_globalprotect, _check_puls
 
 def run_vpn_probes(svc: DiscoveredService, scheme: str = "https") -> list[Finding]:
     """Fingerprint exposed edge-VPN appliances (read-only). Never raises."""
-    out: list[Finding] = []
-    for probe in _VPN_PROBES:
-        try:
-            f = probe(svc, scheme)
-            if f:
-                out.append(f)
-        except Exception:  # noqa: BLE001
-            continue
-    return out
+    return run_table(svc, _VPN_PROBES, scheme)

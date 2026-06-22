@@ -16,7 +16,7 @@ from __future__ import annotations
 import struct
 
 from kryon.cli.engage import DiscoveredService, Finding
-from kryon.cli.service_probes import _f, _http_get, _tcp
+from kryon.cli.service_probes import _f, _http_get, _tcp, run_table
 
 
 def _check_docker_registry(svc: DiscoveredService, scheme: str = "http") -> Finding | None:
@@ -343,21 +343,4 @@ _TCP_PROBES = (
 
 def run_infra_probes(svc: DiscoveredService, scheme: str = "http") -> list[Finding]:
     """Run matching infrastructure-service probes. Never raises."""
-    out: list[Finding] = []
-    for _name, matches, probe in _HTTP_PROBES:
-        try:
-            if matches(svc):
-                f = probe(svc, scheme)
-                if f:
-                    out.append(f)
-        except Exception:  # noqa: BLE001
-            continue
-    for _name, matches, probe in _TCP_PROBES:
-        try:
-            if matches(svc):
-                f = probe(svc)
-                if f:
-                    out.append(f)
-        except Exception:  # noqa: BLE001
-            continue
-    return out
+    return run_table(svc, _HTTP_PROBES, scheme) + run_table(svc, _TCP_PROBES)

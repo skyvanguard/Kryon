@@ -22,9 +22,9 @@ from kryon.cli.engage import DiscoveredService, Finding
 # Low-level primitives live in probe_base now; re-exported here so the ~13 modules
 # that do `from kryon.cli.service_probes import _f, _tcp, _udp, _http_get` (and the
 # tests that monkeypatch them) keep working unchanged.
-from kryon.cli.probe_base import DEFAULT_T as _T, TLS_PORTS, TLS_SERVICES, _f, _http_get, _tcp, _udp
+from kryon.cli.probe_base import DEFAULT_T as _T, TLS_PORTS, TLS_SERVICES, _f, _http_get, _tcp, _udp, run_table
 
-__all__ = ["TLS_PORTS", "TLS_SERVICES", "_f", "_http_get", "_tcp", "_udp"]
+__all__ = ["TLS_PORTS", "TLS_SERVICES", "_f", "_http_get", "_tcp", "_udp", "run_table"]
 
 
 # ---------------------------------------------------------------------------
@@ -717,15 +717,4 @@ PROBES: tuple[tuple[str, object, object], ...] = (
 
 def run_service_probes(svc: DiscoveredService) -> list[Finding]:
     """Run every matching probe against a discovered service. Never raises."""
-    out: list[Finding] = []
-    for _name, matches, probe in PROBES:
-        try:
-            if matches(svc):
-                f = probe(svc)
-                if isinstance(f, list):  # some probes (TLS) emit multiple findings
-                    out.extend(f)
-                elif f:
-                    out.append(f)
-        except Exception:  # noqa: BLE001 — a probe must never break the sweep
-            continue
-    return out
+    return run_table(svc, PROBES)

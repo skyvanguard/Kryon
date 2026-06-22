@@ -10,7 +10,7 @@ lazily, so no import cycle).
 from __future__ import annotations
 
 from kryon.cli.engage import DiscoveredService, Finding
-from kryon.cli.service_probes import _f, _udp
+from kryon.cli.service_probes import _f, _udp, run_table
 
 
 def _dns_query(qname: str, qtype: int = 1) -> bytes:
@@ -203,13 +203,4 @@ _AMP_PROBES = (
 
 def run_amp_probes(svc: DiscoveredService) -> list[Finding]:
     """Run matching UDP reflector / info-leak probes. Never raises."""
-    out: list[Finding] = []
-    for matches, probe in _AMP_PROBES:
-        try:
-            if matches(svc):
-                f = probe(svc)
-                if f:
-                    out.append(f)
-        except Exception:  # noqa: BLE001
-            continue
-    return out
+    return run_table(svc, _AMP_PROBES)

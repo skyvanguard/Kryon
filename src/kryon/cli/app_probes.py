@@ -10,7 +10,7 @@ engage imports the probe modules lazily, so no cycle).
 from __future__ import annotations
 
 from kryon.cli.engage import DiscoveredService, Finding
-from kryon.cli.service_probes import _f, _http_get
+from kryon.cli.service_probes import _f, _http_get, run_table
 
 
 def _check_jenkins(svc: DiscoveredService, scheme: str) -> Finding | None:
@@ -105,13 +105,4 @@ _APP_PROBES = (
 
 def run_app_probes(svc: DiscoveredService, scheme: str = "http") -> list[Finding]:
     """Run matching dev/admin app-UI probes against an HTTP(S) service. Never raises."""
-    out: list[Finding] = []
-    for matches, probe in _APP_PROBES:
-        try:
-            if matches(svc):
-                f = probe(svc, scheme)
-                if f:
-                    out.append(f)
-        except Exception:  # noqa: BLE001 — a probe must never break the sweep
-            continue
-    return out
+    return run_table(svc, _APP_PROBES, scheme)

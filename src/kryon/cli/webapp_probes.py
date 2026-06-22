@@ -12,7 +12,7 @@ Imports _f + _http_get from service_probes (one-way; no import cycle).
 from __future__ import annotations
 
 from kryon.cli.engage import DiscoveredService, Finding
-from kryon.cli.service_probes import _f, _http_get
+from kryon.cli.service_probes import _f, _http_get, run_table
 
 _T = 5.0
 
@@ -175,17 +175,4 @@ _SINGLE_PROBES = (_check_laravel_ignition, _check_graphql, _check_cors)
 
 def run_webapp_probes(svc: DiscoveredService, scheme: str = "http") -> list[Finding]:
     """Application-layer web exposure probes. Never raises."""
-    out: list[Finding] = []
-    for fn in _LIST_PROBES:
-        try:
-            out.extend(fn(svc, scheme))
-        except Exception:  # noqa: BLE001
-            continue
-    for fn in _SINGLE_PROBES:
-        try:
-            f = fn(svc, scheme)
-            if f:
-                out.append(f)
-        except Exception:  # noqa: BLE001
-            continue
-    return out
+    return run_table(svc, _LIST_PROBES + _SINGLE_PROBES, scheme)

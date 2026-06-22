@@ -65,3 +65,36 @@ def _http_get(host: str, port: int, path: str, scheme: str = "http", auth: str =
 
     r = request(host, port, path, scheme=scheme, auth=auth, timeout=timeout)
     return (r.status, r.body) if r else None
+
+
+def _unpack(entry):
+    """Normalize a dispatch-table entry → (matcher, detector). Accepts a bare
+    callable (no matcher → always run), a 2-tuple (matcher, detector), or a
+    3-tuple (name, matcher, detector)."""
+    if callable(entry):
+        return None, entry
+    if len(entry) == 2:
+        return entry[0], entry[1]
+    return entry[1], entry[2]  # (name, matcher, detector)
+
+
+def run_table(svc, table, scheme: str | None = None) -> list[Finding]:
+    """Run a probe dispatch table against a service — the one dispatch loop every
+    ``run_*_probes`` shares. Each entry is a bare detector or a (matcher, detector)
+    / (name, matcher, detector) tuple; a missing/None matcher always runs. Detectors
+    are called ``detector(svc, scheme)`` when ``scheme`` is given, else ``detector(svc)``,
+    and may return a Finding, a list of Findings, or None. One probe never breaks the rest."""
+    out: list[Finding] = []
+    for entry in table:
+        try:
+            matcher, detector = _unpack(entry)
+            if matcher is not None and not matcher(svc):
+                continue
+            res = detector(svc, scheme) if scheme is not None else detector(svc)
+            if isinstance(res, list):
+                out.extend(res)
+            elif res:
+                out.append(res)
+        except Exception:  # noqa: BLE001 — a probe must never break the sweep
+            continue
+    return out

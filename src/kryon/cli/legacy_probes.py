@@ -10,7 +10,7 @@ lazily, so no import cycle).
 from __future__ import annotations
 
 from kryon.cli.engage import DiscoveredService, Finding
-from kryon.cli.service_probes import _f, _http_get, _tcp, _udp
+from kryon.cli.service_probes import _f, _http_get, _tcp, _udp, run_table
 
 
 def _check_x11(svc: DiscoveredService) -> Finding | None:
@@ -172,13 +172,4 @@ _LEGACY_PROBES = (
 
 def run_legacy_probes(svc: DiscoveredService) -> list[Finding]:
     """Run matching legacy/IoT probes against a discovered service. Never raises."""
-    out: list[Finding] = []
-    for matches, probe in _LEGACY_PROBES:
-        try:
-            if matches(svc):
-                f = probe(svc)
-                if f:
-                    out.append(f)
-        except Exception:  # noqa: BLE001 — a probe must never break the sweep
-            continue
-    return out
+    return run_table(svc, _LEGACY_PROBES)
