@@ -104,28 +104,14 @@ def _check_smbv1(svc: DiscoveredService) -> Finding | None:
 
 def _check_winrm(svc: DiscoveredService) -> Finding | None:
     """WinRM (Windows Remote Management) exposed — remote command exec surface."""
-    import urllib.error  # noqa: PLC0415
-    import urllib.request  # noqa: PLC0415
+    from kryon.cli.probe_http import request  # noqa: PLC0415
 
     scheme = "https" if svc.port == 5986 else "http"
-    ctx = None
-    if scheme == "https":
-        import ssl  # noqa: PLC0415
-
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-    server = ""
-    status = 0
-    try:
-        req = urllib.request.Request(f"{scheme}://{svc.host}:{svc.port}/wsman", headers={"User-Agent": "kryon"})
-        with urllib.request.urlopen(req, timeout=_T, context=ctx) as r:  # noqa: S310
-            status, server = r.status, r.headers.get("Server", "")
-    except urllib.error.HTTPError as e:  # 405/401 is the EXPECTED WinRM response to GET
-        status = e.code
-        server = e.headers.get("Server", "") if e.headers else ""
-    except (OSError, ValueError):
+    # 405/401 is the EXPECTED WinRM response to a GET; request() surfaces it as the response.
+    r = request(svc.host, svc.port, "/wsman", scheme=scheme, timeout=_T)
+    if r is None:
         return None
+    status, server = r.status, r.headers.get("server", "")
     if status in (401, 405) and ("Microsoft-HTTPAPI" in server or scheme == "https" or status == 405):
         return _f(
             svc, "CWE-200", "MEDIUM", "winrm-exposed",

@@ -9,9 +9,6 @@ Each signature is specific enough that a catch-all 200 page won't false-trigger.
 
 from __future__ import annotations
 
-import urllib.error
-import urllib.request
-
 from kryon.cli.engage import DiscoveredService, Finding
 from kryon.cli.service_probes import _f, _http_get
 
@@ -106,29 +103,25 @@ def _check_directory_listing(svc: DiscoveredService, scheme: str) -> Finding | N
 
 def _check_http_trace(svc: DiscoveredService, scheme: str) -> Finding | None:
     """HTTP TRACE enabled = Cross-Site Tracing (XST) — echoes request incl. cookies."""
-    try:
-        req = urllib.request.Request(f"{scheme}://{svc.host}:{svc.port}/", method="TRACE")
-        ctx = _ctx(scheme)
-        with urllib.request.urlopen(req, timeout=_T, context=ctx) as r:  # noqa: S310
-            body = r.read(400).decode("latin-1", "replace")
-            if r.status == 200 and "TRACE /" in body:
-                return _f(svc, "CWE-200", "LOW", "http-trace-enabled",
-                          f"Método HTTP TRACE habilitado en {scheme}://{svc.host}:{svc.port} (XST).",
-                          "TRACE / → 200 con el request reflejado",
-                          "Deshabilitar TRACE (TraceEnable off / nginx: solo métodos permitidos).")
-    except (urllib.error.HTTPError, OSError, ValueError):
-        return None
+    from kryon.cli.probe_http import request  # noqa: PLC0415
+
+    r = request(svc.host, svc.port, "/", scheme=scheme, method="TRACE", timeout=_T, max_body=400)
+    if r and r.status == 200 and "TRACE /" in r.body:
+        return _f(svc, "CWE-200", "LOW", "http-trace-enabled",
+                  f"Método HTTP TRACE habilitado en {scheme}://{svc.host}:{svc.port} (XST).",
+                  "TRACE / → 200 con el request reflejado",
+                  "Deshabilitar TRACE (TraceEnable off / nginx: solo métodos permitidos).")
     return None
 
 
 def _check_webdav(svc: DiscoveredService, scheme: str) -> Finding | None:
     """WebDAV / dangerous write methods advertised in the OPTIONS Allow header."""
-    try:
-        req = urllib.request.Request(f"{scheme}://{svc.host}:{svc.port}/", method="OPTIONS")
-        with urllib.request.urlopen(req, timeout=_T, context=_ctx(scheme)) as r:  # noqa: S310
-            allow = (r.headers.get("Allow", "") + " " + r.headers.get("DAV", "")).upper()
-    except (urllib.error.HTTPError, OSError, ValueError):
+    from kryon.cli.probe_http import request  # noqa: PLC0415
+
+    r = request(svc.host, svc.port, "/", scheme=scheme, method="OPTIONS", timeout=_T)
+    if r is None:
         return None
+    allow = (r.headers.get("allow", "") + " " + r.headers.get("dav", "")).upper()
     dangerous = [m for m in ("PUT", "DELETE", "PROPFIND", "MKCOL", "COPY", "MOVE") if m in allow]
     if "PUT" in dangerous or "PROPFIND" in dangerous:
         return _f(svc, "CWE-650", "MEDIUM", "webdav-write-methods",
@@ -157,15 +150,6 @@ def _check_admin_panels(svc: DiscoveredService, scheme: str) -> list[Finding]:
     return out
 
 
-def _ctx(scheme: str):
-    if scheme != "https":
-        return None
-    import ssl  # noqa: PLC0415
-
-    c = ssl.create_default_context()
-    c.check_hostname = False
-    c.verify_mode = ssl.CERT_NONE
-    return c
 
 
 # API documentation surface — exposing the full API contract (every endpoint +

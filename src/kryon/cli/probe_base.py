@@ -16,6 +16,7 @@ this is first imported via a probe module).
 from __future__ import annotations
 
 import socket
+import ssl
 
 from kryon.cli.engage import DiscoveredService, Finding, make_finding
 
@@ -65,6 +66,47 @@ def _http_get(host: str, port: int, path: str, scheme: str = "http", auth: str =
 
     r = request(host, port, path, scheme=scheme, auth=auth, timeout=timeout)
     return (r.status, r.body) if r else None
+
+
+def _noverify_ctx() -> ssl.SSLContext:
+    """A TLS-client context that does NOT validate the cert — probes inspect the
+    cert/handshake themselves, they don't trust it."""
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
+def peer_cert(host: str, port: int, timeout: float = DEFAULT_T) -> tuple[bytes | None, str] | None:
+    """Raw TLS handshake → (DER cert bytes, negotiated cipher name), or None if the
+    target isn't TLS / is unreachable. The single place the cert-inspection probes
+    (cert expiry/SAN/hostname, weak cipher/key) get the peer certificate."""
+    ctx = _noverify_ctx()
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as s, ctx.wrap_socket(
+            s, server_hostname=host
+        ) as ss:
+            return ss.getpeercert(binary_form=True), (ss.cipher() or ("", "", 0))[0]
+    except (OSError, ValueError):
+        return None
+
+
+def tls_handshake_ok(host: str, port: int, version, timeout: float = DEFAULT_T) -> bool:
+    """True if the server completes a handshake when min/max TLS are pinned to
+    ``version`` (with SECLEVEL=0 so modern OpenSSL will still offer legacy protocols).
+    Used to detect that an obsolete TLS 1.0/1.1 is still accepted."""
+    ctx = _noverify_ctx()
+    try:
+        ctx.minimum_version = version
+        ctx.maximum_version = version
+        ctx.set_ciphers("ALL:@SECLEVEL=0")
+    except (ValueError, OSError):
+        return False
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as s, ctx.wrap_socket(s, server_hostname=host):
+            return True
+    except (OSError, ValueError):
+        return False
 
 
 def _unpack(entry):

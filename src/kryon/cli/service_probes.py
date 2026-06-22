@@ -22,7 +22,18 @@ from kryon.cli.engage import DiscoveredService, Finding
 # Low-level primitives live in probe_base now; re-exported here so the ~13 modules
 # that do `from kryon.cli.service_probes import _f, _tcp, _udp, _http_get` (and the
 # tests that monkeypatch them) keep working unchanged.
-from kryon.cli.probe_base import DEFAULT_T as _T, TLS_PORTS, TLS_SERVICES, _f, _http_get, _tcp, _udp, run_table
+from kryon.cli.probe_base import (
+    DEFAULT_T as _T,
+    TLS_PORTS,
+    TLS_SERVICES,
+    _f,
+    _http_get,
+    _tcp,
+    _udp,
+    peer_cert,
+    run_table,
+    tls_handshake_ok,
+)
 
 __all__ = ["TLS_PORTS", "TLS_SERVICES", "_f", "_http_get", "_tcp", "_udp", "run_table"]
 
@@ -570,41 +581,15 @@ def _check_chargen(svc: DiscoveredService) -> Finding | None:
 # ---------------------------------------------------------------------------
 
 
-def _tls_accepts(host: str, port: int, version) -> bool:
-    import ssl  # noqa: PLC0415
-
-    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    try:
-        ctx.minimum_version = version
-        ctx.maximum_version = version
-        ctx.set_ciphers("ALL:@SECLEVEL=0")  # modern OpenSSL won't even offer legacy otherwise
-    except (ValueError, OSError):
-        return False
-    try:
-        with socket.create_connection((host, port), timeout=_T) as s, ctx.wrap_socket(s, server_hostname=host):
-            return True
-    except (OSError, ValueError):
-        return False
-
-
 def _check_tls(svc: DiscoveredService) -> list[Finding]:
     """Expired/self-signed/soon-to-expire cert, legacy TLS 1.0/1.1 accepted, weak
     negotiated cipher. Read-only TLS handshake; cert parse via cryptography (soft)."""
     import ssl  # noqa: PLC0415
 
-    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    try:
-        with socket.create_connection((svc.host, svc.port), timeout=_T) as s, ctx.wrap_socket(
-            s, server_hostname=svc.host
-        ) as ss:
-            der = ss.getpeercert(binary_form=True)
-            cipher = (ss.cipher() or ("", "", 0))[0]
-    except (OSError, ValueError):
+    pc = peer_cert(svc.host, svc.port, _T)
+    if pc is None:
         return []  # not TLS / unreachable
+    der, cipher = pc
 
     out: list[Finding] = []
     if der:
@@ -664,7 +649,7 @@ def _check_tls(svc: DiscoveredService) -> list[Finding]:
             "Deshabilitar RC4/3DES/DES/NULL/EXPORT; usar AEAD (AES-GCM/ChaCha20)."))
 
     for ver, label in ((ssl.TLSVersion.TLSv1, "TLS 1.0"), (ssl.TLSVersion.TLSv1_1, "TLS 1.1")):
-        if _tls_accepts(svc.host, svc.port, ver):
+        if tls_handshake_ok(svc.host, svc.port, ver):
             out.append(_f(svc, "CWE-327", "MEDIUM", "tls-legacy-protocol",
                 f"{label} aceptado en {svc.host}:{svc.port} (protocolo obsoleto/inseguro).",
                 f"Handshake forzado con {label} tuvo éxito",

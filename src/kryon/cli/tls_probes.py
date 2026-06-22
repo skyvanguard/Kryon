@@ -124,23 +124,16 @@ def _check_cert_validation(svc: DiscoveredService) -> list[Finding]:
     """Certificate without a SAN extension, or whose SAN/CN doesn't cover the
     target hostname (skipped for IP literals — SNI/hostname don't apply)."""
     import ipaddress  # noqa: PLC0415
-    import ssl  # noqa: PLC0415
+
+    from kryon.cli.probe_base import peer_cert  # noqa: PLC0415
 
     try:
         ipaddress.ip_address(svc.host)
         return []  # IP target → no hostname to validate
     except ValueError:
         pass
-    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    try:
-        with socket.create_connection((svc.host, svc.port), timeout=_T) as s, ctx.wrap_socket(
-            s, server_hostname=svc.host
-        ) as ss:
-            der = ss.getpeercert(binary_form=True)
-    except (OSError, ValueError):
-        return []
+    pc = peer_cert(svc.host, svc.port, _T)
+    der = pc[0] if pc else None
     if not der:
         return []
     out: list[Finding] = []
