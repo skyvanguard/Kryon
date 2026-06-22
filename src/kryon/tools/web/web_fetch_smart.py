@@ -250,6 +250,14 @@ def web_fetch_smart(
     if not (url.startswith("http://") or url.startswith("https://")):
         return json.dumps({"error": f"unsupported scheme in url: {url}"})
 
+    # SSRF guard — block cloud-metadata / link-local / reserved hosts (credential theft),
+    # but allow private/loopback so internal-network & CTF targets still work.
+    from kryon.tools.common._url_validation import validate_external_url  # noqa: PLC0415
+
+    ssrf_err = validate_external_url(url, allow_private=True)
+    if ssrf_err:
+        return json.dumps({"error": f"blocked by SSRF guard: {ssrf_err}"})
+
     try:
         status, headers, body, final_url = _fetch_raw(url, timeout=timeout_s, max_size=max_size, user_agent=_DEFAULT_UA)
     except urllib.error.HTTPError as e:

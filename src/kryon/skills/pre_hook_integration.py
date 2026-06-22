@@ -97,11 +97,27 @@ def build_tool_callables_from_agent(agent: Any) -> dict[str, ToolCallable]:
     return callables
 
 
+# Host/URL/path-safe charset. ctx values get substituted into pre_hook commands that
+# may run under a shell, so a value with a shell metacharacter (; | & $ ` ( ) < > ' "
+# space newline …) is rejected here at the source — closing the command-injection vector
+# where KRYON_TARGET_HOST (or any env-sourced ctx var) carried an attacker payload.
+_SAFE_CTX_RE = re.compile(r"\A[A-Za-z0-9._:/@\-]*\Z")
+
+
+def _safe_ctx(value: str) -> str:
+    """Return value if it's free of shell metacharacters, else "" (the hook then
+    substitutes empty and degrades gracefully — never injects)."""
+    return value if _SAFE_CTX_RE.match(value or "") else ""
+
+
 def build_turn_ctx(user_input: str) -> dict[str, Any]:
     """Compose the per-turn ctx dict consumed by template substitution.
 
     Variables (all optional, missing → "" at substitution):
       host, ssh_user, ssh_key_path, ssh_port, target, session_id, client_name
+
+    Every value is sanitized to a host/URL/path charset (no shell metacharacters)
+    so a malicious KRYON_TARGET_HOST / user input can't inject into a hook command.
     """
     detected_host = ""
     if user_input:
@@ -110,13 +126,13 @@ def build_turn_ctx(user_input: str) -> dict[str, Any]:
             detected_host = m.group(1)
 
     return {
-        "host": os.environ.get("KRYON_TARGET_HOST", "") or detected_host,
-        "ssh_user": os.environ.get("KRYON_SSH_USER", ""),
-        "ssh_key_path": os.environ.get("KRYON_SSH_KEY", ""),
-        "ssh_port": os.environ.get("KRYON_SSH_PORT", "22"),
-        "target": detected_host or os.environ.get("KRYON_TARGET_HOST", ""),
-        "session_id": os.environ.get("KRYON_SESSION_ID", ""),
-        "client_name": os.environ.get("KRYON_CLIENT_NAME", ""),
+        "host": _safe_ctx(os.environ.get("KRYON_TARGET_HOST", "") or detected_host),
+        "ssh_user": _safe_ctx(os.environ.get("KRYON_SSH_USER", "")),
+        "ssh_key_path": _safe_ctx(os.environ.get("KRYON_SSH_KEY", "")),
+        "ssh_port": _safe_ctx(os.environ.get("KRYON_SSH_PORT", "22")),
+        "target": _safe_ctx(detected_host or os.environ.get("KRYON_TARGET_HOST", "")),
+        "session_id": _safe_ctx(os.environ.get("KRYON_SESSION_ID", "")),
+        "client_name": _safe_ctx(os.environ.get("KRYON_CLIENT_NAME", "")),
     }
 
 
