@@ -368,7 +368,14 @@ class SkillCommand(Command):
             return True
 
         _PROMOTED_DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
-        target = _PROMOTED_DRAFTS_DIR / f"{name}.md"
+        target = (_PROMOTED_DRAFTS_DIR / f"{name}.md").resolve()
+        # Defense-in-depth: read_draft already rejects unsafe names, but ensure the write
+        # target can't escape the staging dir (path traversal via name).
+        try:
+            target.relative_to(_PROMOTED_DRAFTS_DIR.resolve())
+        except ValueError:
+            console.print(f"[red]refusing unsafe draft name: {name}[/red]")
+            return True
         if target.exists():
             console.print(
                 f"[yellow]{target} already exists — refusing to overwrite. "

@@ -82,6 +82,33 @@ def write_json_atomic(path: Path, data: Any) -> None:
         logger.warning("state write failed: %s", exc)
 
 
+def update_json_locked(path: Path, mutator, *, default: Any) -> Any:
+    """Read-modify-write ``path`` under a SINGLE lock acquisition — the only race-free way
+    to claim/transition shared state (separate read_json_locked + write_json_atomic calls
+    have a TOCTOU window between them). ``mutator(data)`` gets the current JSON (or
+    ``default`` if missing/corrupt) and returns ``(new_data | None, result)``: when
+    ``new_data`` is not None it is written atomically; ``result`` is returned to the caller.
+    On lock timeout it proceeds best-effort (correct for a single writer)."""
+
+    def _do() -> Any:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else default
+        except (json.JSONDecodeError, OSError):
+            data = default
+        new_data, result = mutator(data)
+        if new_data is not None:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            _atomic_replace(path, json.dumps(new_data, ensure_ascii=False, indent=2))
+        return result
+
+    try:
+        with _lock_for(path).acquire(timeout=LOCK_TIMEOUT_S):
+            return _do()
+    except Timeout:
+        logger.warning("state lock busy for %s — read-modify-write best-effort", path)
+        return _do()
+
+
 def _atomic_replace(path: Path, payload: str) -> None:
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".", suffix=".tmp")
     try:

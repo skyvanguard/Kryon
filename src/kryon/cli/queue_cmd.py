@@ -232,8 +232,10 @@ def _process_queue(args) -> int:
     failed = 0
 
     def _claim_and_build(item):
-        q.mark_started(item.item_id)
-        q.save()
+        # Atomic claim: returns None if another concurrent `queue process` worker already
+        # took this item (prevents double-running the same engagement).
+        if not q.claim_atomic(item.item_id):
+            return None
         argv = _build_engage_argv(
             engage_bin=engage_bin,
             target=item.target,
@@ -252,11 +254,13 @@ def _process_queue(args) -> int:
     if concurrency == 1:
         for item in pending:
             argv = _claim_and_build(item)
+            if argv is None:
+                print(f"  ↷ {item.item_id} already claimed by another worker — skipping")
+                continue
             print(f"  → {item.item_id} {item.target}")
             _, rc, err = _run_one(argv, item.item_id, timeout=_item_timeout)
             ok = rc == 0
-            q.mark_finished(item.item_id, ok=ok, error=err if not ok else "")
-            q.save()
+            q.finish_atomic(item.item_id, ok=ok, error=err if not ok else "")
             if ok:
                 print(f"    ✓ completed ({item.item_id})")
                 succeeded += 1
@@ -264,10 +268,15 @@ def _process_queue(args) -> int:
                 print(f"    ✗ failed exit={rc} ({item.item_id}) {err}")
                 failed += 1
     else:
-        # Parallel — claim all first to avoid worker contention on save().
+        # Parallel — atomically claim each first (skipping any already taken by a
+        # concurrent worker) to avoid double-running and save() contention.
         argvs: dict[str, list[str]] = {}
         for item in pending:
-            argvs[item.item_id] = _claim_and_build(item)
+            argv = _claim_and_build(item)
+            if argv is not None:
+                argvs[item.item_id] = argv
+        if not argvs:
+            print("  (all pending items already claimed by another worker)")
 
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
             futures = {
@@ -276,8 +285,7 @@ def _process_queue(args) -> int:
             for fut in as_completed(futures):
                 iid, rc, err = fut.result()
                 ok = rc == 0
-                q.mark_finished(iid, ok=ok, error=err if not ok else "")
-                q.save()
+                q.finish_atomic(iid, ok=ok, error=err if not ok else "")
                 if ok:
                     print(f"  ✓ {iid} completed")
                     succeeded += 1

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -44,8 +45,10 @@ def cap_tool_output(content: str, tool_name: str = "tool") -> str:
 
     # Clean tool name for filesystem
     safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in tool_name)[:30]
+    # PID + uuid suffix so two tools capping in the SAME second (the old HHMMSS-only name)
+    # don't overwrite each other's saved output.
     timestamp = datetime.now(timezone.utc).strftime("%H%M%S")
-    filename = f"{safe_name}_{timestamp}.txt"
+    filename = f"{safe_name}_{timestamp}_{os.getpid()}_{uuid.uuid4().hex[:8]}.txt"
     filepath = Path(TOOL_OUTPUT_DIR) / filename
 
     try:

@@ -37,6 +37,21 @@ def get_drafts_dir() -> Path:
     return Path.home() / ".kryon" / "drafts"
 
 
+def _draft_path(name: str) -> Path | None:
+    """Resolve <drafts_dir>/<name>.md, rejecting any name that escapes the drafts dir.
+    `name` is operator-supplied (/skill review|discard|promote <name>), so without this
+    `/skill review ../../../../etc/passwd` would read/delete arbitrary .md files."""
+    if not name or "/" in name or "\\" in name or name.startswith(".") or ".." in name:
+        return None
+    d = get_drafts_dir().resolve()
+    path = (d / f"{name}.md").resolve()
+    try:
+        path.relative_to(d)
+    except ValueError:
+        return None
+    return path
+
+
 def list_existing_names() -> set[str]:
     """Return the set of draft names currently on disk (no .md suffix)."""
     d = get_drafts_dir()
@@ -60,17 +75,17 @@ def write_draft(draft: SkillDraft) -> Path:
 
 
 def read_draft(name: str) -> str | None:
-    """Return the raw markdown for one draft, or None if absent."""
-    path = get_drafts_dir() / f"{name}.md"
-    if not path.is_file():
+    """Return the raw markdown for one draft, or None if absent / name unsafe."""
+    path = _draft_path(name)
+    if path is None or not path.is_file():
         return None
     return path.read_text(encoding="utf-8")
 
 
 def delete_draft(name: str) -> bool:
-    """Remove one draft from disk. Returns True if it existed."""
-    path = get_drafts_dir() / f"{name}.md"
-    if not path.is_file():
+    """Remove one draft from disk. Returns True if it existed (False if name unsafe)."""
+    path = _draft_path(name)
+    if path is None or not path.is_file():
         return False
     path.unlink()
     logger.info("draft deleted: %s", path)

@@ -122,6 +122,33 @@ class EngagementQueue:
                 return True
         return False
 
+    def claim_atomic(self, item_id: str) -> bool:
+        """Atomically claim a pending item for execution. Under the state lock, re-reads
+        the ON-DISK queue and only transitions the item to 'running' if it is still
+        'pending' there — returning True iff THIS caller won the claim. This is what makes
+        `queue process` safe against two concurrent workers double-running the same
+        engagement (mark_started+save on a stale in-memory snapshot did not)."""
+        from kryon.util.atomic_state import update_json_locked
+
+        def _mutate(data):
+            items = data.get("items", []) if isinstance(data, dict) else []
+            for d in items:
+                if d.get("item_id") == item_id:
+                    if d.get("status") != "pending":
+                        return None, False  # already claimed by another worker — no write
+                    d["status"] = "running"
+                    d["started_at"] = _now_iso()
+                    return {"items": items}, True
+            return None, False
+
+        won = update_json_locked(self.state_path, _mutate, default={"items": []})
+        if won:
+            for i in self.items:  # keep the in-memory snapshot consistent
+                if i.item_id == item_id:
+                    i.status = "running"
+                    i.started_at = _now_iso()
+        return bool(won)
+
     def mark_finished(self, item_id: str, *, ok: bool, error: str = "") -> bool:
         for i in self.items:
             if i.item_id == item_id:
@@ -131,6 +158,28 @@ class EngagementQueue:
                     i.error = error
                 return True
         return False
+
+    def finish_atomic(self, item_id: str, *, ok: bool, error: str = "") -> bool:
+        """Atomically transition ONE item to completed/failed on disk (read-modify-write
+        under the state lock), instead of mark_finished + save() which rewrote the whole
+        in-memory snapshot and could clobber another worker's concurrent claims."""
+        from kryon.util.atomic_state import update_json_locked
+
+        status = "completed" if ok else "failed"
+
+        def _mutate(data):
+            items = data.get("items", []) if isinstance(data, dict) else []
+            for d in items:
+                if d.get("item_id") == item_id:
+                    d["status"] = status
+                    d["finished_at"] = _now_iso()
+                    if error:
+                        d["error"] = error
+                    return {"items": items}, True
+            return None, False
+
+        update_json_locked(self.state_path, _mutate, default={"items": []})
+        return self.mark_finished(item_id, ok=ok, error=error)  # sync in-memory
 
     def remove(self, item_id: str) -> bool:
         before = len(self.items)
