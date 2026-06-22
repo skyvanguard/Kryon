@@ -118,9 +118,11 @@ def _ajp_probe(host: str, port: int = 8009) -> bool:
                 resp = s.recv(8)
             except (TimeoutError, OSError):
                 resp = b""
-            # CPong response starts with 0xAB 0xCD (server-to-container
-            # magic) or any AJP/1.3 framing. Any response = listener.
-            return len(resp) > 0 or True  # TCP handshake alone is enough
+            # A real AJP/1.3 connector answers CPing with CPong, whose packet starts with
+            # the server->container magic "AB" (0x41 0x42). Require it: the old
+            # `len(resp) > 0 or True` was ALWAYS True, so ANY service listening on 8009
+            # (or even a bare TCP accept) was reported as Ghostcat CVE-2020-1938 CRITICAL.
+            return len(resp) >= 2 and resp[0] == 0x41 and resp[1] == 0x42
     except (TimeoutError, OSError, ConnectionRefusedError):
         return False
 

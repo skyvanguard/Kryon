@@ -26,7 +26,6 @@ import json
 import logging
 import os
 import re
-import shlex
 import socket
 import subprocess
 import urllib.error
@@ -77,7 +76,7 @@ class DiscoveryReport:
 _NMAP_HOST_RE = re.compile(r"Nmap scan report for ([^\s]+)(?:\s+\(([\d.]+)\))?")
 
 
-def _build_subnet_sweep_cmd(cidr: str) -> str:
+def _build_subnet_sweep_cmd(cidr: str) -> list[str]:
     """F196 — Build the subnet sweep command honoring KRYON_NMAP_* env.
 
     Default behaviour (no env set) keeps the legacy `-T4` aggressive
@@ -85,16 +84,27 @@ def _build_subnet_sweep_cmd(cidr: str) -> str:
     --min-rate / --max-parallelism) to throttle the discovery sweep
     so it doesn't saturate the segment during business hours.
     """
-    timing_env = os.environ.get("KRYON_NMAP_TIMING", "").strip()
-    timing_flag = f"-T{timing_env.lstrip('T')}" if timing_env else "-T4"
+    # argv form (run with shell=False) — the env vars are attacker-influenceable, and a
+    # shell string interpolated them UNQUOTED (only cidr was shlex.quote'd), so e.g.
+    # KRYON_NMAP_MIN_RATE='50; rm -rf x' was command injection. Validate as numeric and
+    # build a list so nothing reaches a shell parser (matches the engage.py F202.S hardening).
+    timing_flag = "-T4"
+    t = os.environ.get("KRYON_NMAP_TIMING", "").strip().lstrip("T")
+    if t.isdigit() and 0 <= int(t) <= 5:
+        timing_flag = f"-T{t}"
+
+    cmd = ["nmap", "-sn", timing_flag]
 
     min_rate_env = os.environ.get("KRYON_NMAP_MIN_RATE", "").strip()
-    min_rate_extra = f" --min-rate {min_rate_env}" if min_rate_env else ""
+    if min_rate_env.isdigit():
+        cmd += ["--min-rate", min_rate_env]
 
     max_par_env = os.environ.get("KRYON_NMAP_MAX_PARALLELISM", "").strip()
-    max_par_extra = f" --max-parallelism {max_par_env}" if max_par_env else ""
+    if max_par_env.isdigit():
+        cmd += ["--max-parallelism", max_par_env]
 
-    return f"nmap -sn {timing_flag}{min_rate_extra}{max_par_extra} {shlex.quote(cidr)}"
+    cmd.append(cidr)
+    return cmd
 
 
 def discover_subnet(cidr: str, *, timeout_s: int = 60) -> list[DiscoveredAsset]:
@@ -103,7 +113,7 @@ def discover_subnet(cidr: str, *, timeout_s: int = 60) -> list[DiscoveredAsset]:
     raises so the CLI can fall back to subdomain-only mode."""
     cmd = _build_subnet_sweep_cmd(cidr)
     try:
-        proc = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout_s, check=False)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s, check=False)
     except (subprocess.TimeoutExpired, OSError) as exc:
         logger.warning("nmap subnet sweep failed: %s", exc)
         return []
