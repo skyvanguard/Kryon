@@ -10,9 +10,8 @@ import cycle).
 from __future__ import annotations
 
 from kryon.cli.engage import DiscoveredService, Finding
+from kryon.cli.probe_base import DEFAULT_T as _T
 from kryon.cli.service_probes import _f, _tcp
-
-_T = 4.0
 
 
 def _smb2_negotiate_packet() -> bytes:
