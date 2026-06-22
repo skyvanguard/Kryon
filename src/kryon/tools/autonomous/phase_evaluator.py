@@ -148,6 +148,11 @@ def dedup_findings_by_rule_and_host(existing: list[Any], candidates: list[Any]) 
     parsing LLM-emitted findings to avoid the retry-doubles-findings bug
     where the same finding gets re-emitted on a retry pass.
     """
+    # NOTE: dedup is by (rule_id, host) ON PURPOSE — its job is to catch retry
+    # re-emissions of the SAME finding even when the LLM re-words the message (see
+    # test_dedup_skips_findings_with_same_rule_and_host). Adding a message discriminator
+    # would defeat that, so we deliberately keep the coarse key here (unlike
+    # findings_collector, where the title|asset key collapsed truly-distinct findings).
     seen: set[tuple[str, str]] = set()
     for f in existing:
         seen.add((str(getattr(f, "rule_id", "")), str(getattr(f, "host", ""))))
