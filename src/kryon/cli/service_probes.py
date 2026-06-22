@@ -17,48 +17,14 @@ from __future__ import annotations
 import socket
 import struct
 
-from kryon.cli.engage import DiscoveredService, Finding, make_finding
+from kryon.cli.engage import DiscoveredService, Finding
 
-_T = 4.0  # default probe timeout (s)
+# Low-level primitives live in probe_base now; re-exported here so the ~13 modules
+# that do `from kryon.cli.service_probes import _f, _tcp, _udp, _http_get` (and the
+# tests that monkeypatch them) keep working unchanged.
+from kryon.cli.probe_base import DEFAULT_T as _T, TLS_PORTS, TLS_SERVICES, _f, _http_get, _tcp, _udp
 
-
-def _f(svc: DiscoveredService, cwe: str, sev: str, rule_id: str, msg: str, evidence: str, fix: str) -> Finding:
-    return make_finding(cwe, sev, f"{svc.host}:{svc.port}", rule_id, msg, evidence=evidence, remediation=fix)
-
-
-def _tcp(host: str, port: int, send: bytes = b"", recv: int = 512, timeout: float = _T) -> bytes | None:
-    """Open TCP, optionally send, read up to ``recv`` bytes. None on any failure."""
-    try:
-        with socket.create_connection((host, port), timeout=timeout) as s:
-            s.settimeout(timeout)
-            if send:
-                s.sendall(send)
-            return s.recv(recv)
-    except (TimeoutError, OSError):
-        return None
-
-
-def _udp(host: str, port: int, payload: bytes, recv: int = 512, timeout: float = _T) -> bytes | None:
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.settimeout(timeout)
-        try:
-            s.sendto(payload, (host, port))
-            data, _ = s.recvfrom(recv)
-            return data
-        finally:
-            s.close()
-    except (TimeoutError, OSError):
-        return None
-
-
-def _http_get(host: str, port: int, path: str, scheme: str = "http", auth: str = "") -> tuple[int, str] | None:
-    """GET a path; return (status, body[:4000]) or None on connection error. 401/403
-    surface as their status so callers can tell "auth enforced" from "open"."""
-    from kryon.cli.probe_http import request  # noqa: PLC0415
-
-    r = request(host, port, path, scheme=scheme, auth=auth, timeout=_T)
-    return (r.status, r.body) if r else None
+__all__ = ["TLS_PORTS", "TLS_SERVICES", "_f", "_http_get", "_tcp", "_udp"]
 
 
 # ---------------------------------------------------------------------------
@@ -745,8 +711,7 @@ PROBES: tuple[tuple[str, object, object], ...] = (
     ("ssdp", lambda s: s.port == 1900, _check_ssdp),
     ("chargen", lambda s: s.port == 19, _check_chargen),
     # Batch C — TLS hygiene (returns a list)
-    ("tls", lambda s: s.service in ("https", "ssl", "imaps", "pop3s", "smtps", "ldaps", "ftps")
-        or s.port in (443, 8443, 993, 995, 465, 636, 990, 5061, 9443), _check_tls),
+    ("tls", lambda s: s.service in TLS_SERVICES or s.port in TLS_PORTS, _check_tls),
 )
 
 

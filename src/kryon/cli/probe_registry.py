@@ -17,9 +17,9 @@ import importlib
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from kryon.cli.probe_base import TLS_PORTS as _TLS_PORTS, TLS_SERVICES as _TLS_SERVICES
+
 # Gate predicates over a DiscoveredService (duck-typed: .host, .port, .service).
-_TLS_SERVICES = ("https", "ssl", "imaps", "pop3s", "smtps", "ldaps", "ftps")
-_TLS_PORTS = (443, 8443, 993, 995, 465, 636, 990, 5061, 9443)
 _HTTP_SERVICES = ("http", "http-proxy", "https")
 _HTTP_PORTS = (80, 443, 8080, 8443)
 _VPN_PORTS = (443, 4443, 8443, 10443)
