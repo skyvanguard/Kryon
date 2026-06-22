@@ -115,7 +115,9 @@ def _env_float(name: str, default: float) -> float:
 def resolve_policy() -> EngagementPolicy:
     """Read the active env, apply F153 auto-strict for reasoning models,
     and return a frozen ``EngagementPolicy``."""
-    model = os.environ.get("KRYON_MODEL", "kryon-14b").strip()
+    # Live env read (CLI sets KRYON_MODEL from args before this runs; settings() is
+    # cached so it wouldn't reflect that). Canonical default — was a divergent "kryon-14b".
+    model = os.environ.get("KRYON_MODEL", "kryon-devstral-24b").strip()
     reasoning = is_reasoning_model(model)
 
     # F159 — Opt-in deep reasoning. ``KRYON_DEEP_REASONING=true`` makes

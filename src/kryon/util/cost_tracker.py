@@ -76,7 +76,9 @@ def get_model_name(model) -> str:
     """Extract a string model name from various model inputs."""
     if isinstance(model, str):
         return model
-    return os.environ.get("KRYON_MODEL", "qwen3:8b")
+    # Canonical default (was a divergent "qwen3:8b" → wrong cost tariff for a model
+    # the runtime never uses). Live env read to match the rest of the model resolution.
+    return os.environ.get("KRYON_MODEL", "kryon-devstral-24b")
 
 
 def get_model_input_tokens(model) -> int:

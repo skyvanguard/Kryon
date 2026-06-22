@@ -453,7 +453,7 @@ def display_quick_guide(console: Console):
 
     # Get current environment variable values
     current_model = os.getenv("KRYON_MODEL", "kryon-devstral-24b")
-    current_agent_type = os.getenv("KRYON_AGENT_TYPE", "recon_scout")
+    current_agent_type = os.getenv("KRYON_AGENT_TYPE", "kryon")
 
     config_text = Text.assemble(
         ("Quick Start Workflows", "bold cyan underline"),
@@ -620,7 +620,7 @@ def _get_context() -> dict:
     return {
         "version": version,
         "codename": getattr(kryon, "__codename__", "Genesis"),
-        "agent": os.getenv("KRYON_AGENT_TYPE", "recon_scout"),
+        "agent": os.getenv("KRYON_AGENT_TYPE", "kryon"),
         "model": os.getenv("KRYON_MODEL", "kryon-devstral-24b"),
         "cwd": os.getcwd(),
     }
