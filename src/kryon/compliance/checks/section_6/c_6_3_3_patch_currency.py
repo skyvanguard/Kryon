@@ -102,7 +102,10 @@ class _C633Check:
         )
         age_days = _parse_last_upgrade_days(dpkg_out)
 
-        # Verdict
+        # Verdict. NOTE: `age_days` is derived from datetime.now() so it changes daily;
+        # it must NOT enter evidence_parsed (which is reproducibility-hashed) — only a
+        # STABLE bucket does. The exact day count goes to evidence_stdout (not hashed).
+        within_30d = age_days is not None and age_days <= 30
         if sec_count > 0:
             verdict = "FAIL"
             reason = f"{sec_count} security update(s) pending"
@@ -111,10 +114,10 @@ class _C633Check:
             reason = "no upgrade history found in /var/log/dpkg.log*"
         elif age_days > 30:
             verdict = "FAIL"
-            reason = f"last upgrade {age_days} days ago (> 30)"
+            reason = "last upgrade more than 30 days ago"
         else:
             verdict = "PASS"
-            reason = f"no pending security updates; last upgrade {age_days} days ago"
+            reason = "no pending security updates; last upgrade within 30 days"
 
         return CheckResult(
             control_id=self.control_id,
@@ -122,11 +125,12 @@ class _C633Check:
             section=self.section,
             verdict=verdict,
             evidence_command="apt list --upgradable ; grep 'upgrade' /var/log/dpkg.log*",
-            evidence_stdout=upg_out[:2048] + "\n\n--- dpkg.log tail ---\n" + dpkg_out[:2048],
+            evidence_stdout=(f"last_upgrade_age_days={age_days}\n" + upg_out[:2048]
+                             + "\n\n--- dpkg.log tail ---\n" + dpkg_out[:2048]),
             evidence_stderr=upg_err[:512],
             evidence_parsed={
                 "security_updates_pending": sec_count,
-                "last_upgrade_age_days": age_days,
+                "last_upgrade_within_30d": within_30d,  # stable bucket (was the daily age_days)
                 "reason": reason,
             },
             remediation_static=self.remediation_static,

@@ -72,14 +72,17 @@ class CheckResult:
         (different per invocation). Everything else must be byte-stable
         across runs on the same target.
         """
+        # evidence_stdout/stderr are RAW command output — they carry timestamps, PIDs,
+        # uptime, dpkg ordering and network jitter, so they are NOT byte-stable across
+        # runs and must NOT be hashed (this was the bug that broke reproducibility). The
+        # reproducible identity of a check is its verdict + the STRUCTURED parsed facts
+        # + the static metadata.
         return {
             "control_id": self.control_id,
             "control_title": self.control_title,
             "section": self.section,
             "verdict": self.verdict,
             "evidence_command": self.evidence_command,
-            "evidence_stdout": self.evidence_stdout,
-            "evidence_stderr": self.evidence_stderr,
             "evidence_parsed": self.evidence_parsed,
             "remediation_static": self.remediation_static,
             "severity": self.severity,

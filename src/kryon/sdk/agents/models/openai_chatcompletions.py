@@ -1205,6 +1205,23 @@ class OpenAIChatCompletionsModel(Model):
 
                 raise
 
+            # Guard: an OpenAI-compat endpoint (llama.cpp/DeepSeek) can return a 200 with
+            # an EMPTY `choices` list (content-filter, partial error, empty body). Every
+            # downstream `response.choices[0]` would then raise IndexError and abort the
+            # whole run. Inject a synthetic empty assistant turn so the run loop handles it
+            # gracefully (empty content, no tool calls) instead of crashing.
+            if not getattr(response, "choices", None):
+                import types as _types  # noqa: PLC0415
+
+                logger.warning("model returned an empty choices list; substituting an empty assistant turn")
+                response.choices = [
+                    _types.SimpleNamespace(
+                        message=_types.SimpleNamespace(role="assistant", content="", tool_calls=None, reasoning_content=None),
+                        finish_reason="stop",
+                        index=0,
+                    )
+                ]
+
             if _debug.DONT_LOG_MODEL_DATA:
                 logger.debug("Received model response")
             else:
