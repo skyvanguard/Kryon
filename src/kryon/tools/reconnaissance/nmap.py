@@ -194,30 +194,30 @@ def nmap(
     if os_detection and "-O" not in nmap_flags:
         nmap_flags += " -O"
 
-    # Optimize full port scans: add speed flags and a BOUNDED timeout. STARVATION FIX — a
-    # naked `nmap -p-` over VPN used to run up to 600s+300s ≈ the reflective runner's 900s chunk
-    # budget, blocking the whole turn so the deterministic chain-planner autoexec (which only
-    # fires between chunks) never got control. We now (a) hand nmap a self-bounding
-    # --host-timeout + --max-retries 1 so it gives up on a slow host instead of hanging, and
-    # (b) cap the subprocess at KRYON_NMAP_FULL_TIMEOUT_S (default 240s) — small enough that a
-    # model's redundant full-scan can't starve the loop. Tunable for thorough offline scans.
+    # STARVATION FIX (UNIVERSAL — every nmap variant, not just -p-). A model-issued slow nmap
+    # (-p-, or 1-1000 -sV -O, etc.) over VPN used to run up to ~the reflective runner's 900s chunk
+    # budget, consuming the whole turn so the deterministic chain-planner autoexec (which only
+    # fires between chunks) never got control (the run died at turn 2). Bound EVERY scan: hand
+    # nmap a self-bounding --host-timeout + --max-retries 1 (it aborts a slow host instead of
+    # hanging) and cap the subprocess at KRYON_NMAP_FULL_TIMEOUT_S (default 240s). Tunable up for
+    # thorough offline scans; a redundant model scan can no longer starve the loop.
+    try:
+        full_timeout = int(os.getenv("KRYON_NMAP_FULL_TIMEOUT_S") or 240)
+    except ValueError:
+        full_timeout = 240
+    if "--host-timeout" not in nmap_flags:
+        nmap_flags += f" --host-timeout {max(60, full_timeout - 30)}s"
+    if "--max-retries" not in nmap_flags:
+        nmap_flags += " --max-retries 1"
+
     is_full = _is_full_port_scan(ports, nmap_flags)
     if is_full:
-        try:
-            full_timeout = int(os.getenv("KRYON_NMAP_FULL_TIMEOUT_S") or 240)
-        except ValueError:
-            full_timeout = 240
         # Default aggressive flags for full-port scans over VPN. F195: env
         # overrides take precedence via _apply_throttle_env below.
         if "-T" not in nmap_flags and not os.getenv("KRYON_NMAP_TIMING"):
             nmap_flags += " -T4"
         if "--min-rate" not in nmap_flags and not os.getenv("KRYON_NMAP_MIN_RATE"):
             nmap_flags += " --min-rate 1000"
-        # Self-bound: nmap aborts the host near the subprocess cap instead of hanging on it.
-        if "--host-timeout" not in nmap_flags:
-            nmap_flags += f" --host-timeout {max(60, full_timeout - 30)}s"
-        if "--max-retries" not in nmap_flags:
-            nmap_flags += " --max-retries 1"
         nmap_flags = _apply_throttle_env(nmap_flags)
         # For full port scans, skip version detection first (too slow)
         # Do a fast SYN scan to find open ports, then detailed scan
@@ -241,4 +241,5 @@ def nmap(
 
     nmap_flags = _apply_throttle_env(nmap_flags)
     command = f"nmap {nmap_flags} {target}"
-    return run_command(command, ctf=ctf)
+    # Bounded too (the --host-timeout above self-limits; this caps the subprocess as a backstop).
+    return run_command(command, ctf=ctf, timeout=full_timeout)
