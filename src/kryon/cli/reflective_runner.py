@@ -141,6 +141,28 @@ async def _maybe_autoexec(next_action: Any, host: str, *, enabled: bool, adheren
     return ""
 
 
+def _facts_from_loot(text: str) -> Any:
+    """Parse '[LOOT <path>] <hash>' lines from an autoexec output into ExtractedFacts so the
+    harvested hash ADVANCES the chain — web-loot abstains once a hash is known, instead of
+    re-looting every reflection turn. Bare 32/40-hex aren't recognized by the generic chunk
+    fact extractor, so this is loot-marker-scoped (no false positives on arbitrary hex)."""
+    if "[LOOT" not in text:
+        return None
+    try:
+        import re as _re  # noqa: PLC0415
+
+        from kryon.intelligence.fact_extractor import ExtractedFacts  # noqa: PLC0415
+
+        hashes = [
+            m.group(1).lower()
+            for m in _re.finditer(r"\[LOOT[^\]]*\][^\n]*?\b([a-f0-9]{32}|[a-f0-9]{40})\b", text, _re.I)
+        ]
+        return ExtractedFacts(hashes=tuple(dict.fromkeys(hashes))) if hashes else None
+    except Exception as e:  # noqa: BLE001 — never break the chunk
+        logger.debug("loot fact parse skipped: %s", e)
+        return None
+
+
 # Default reflection cadence — every 4 turns (~3-4 tool calls).
 _DEFAULT_REFLECT_EVERY = 4
 # Stuck threshold: 2 identical (tool_name, args_hash) consecutive triggers warning.
@@ -1431,6 +1453,10 @@ async def run_with_reflection(
                     next_action_mt, _host_mt, enabled=_planner_autoexec_enabled(),
                     adherence=_adherence, turns_used=turns_used,
                 )
+                if _autoexec_block_mt:
+                    _loot_facts_mt = _facts_from_loot(_autoexec_block_mt)
+                    if _loot_facts_mt is not None:
+                        accumulated_facts = accumulated_facts.merge(_loot_facts_mt)
 
                 facts_block_mt = ""
                 if not accumulated_facts.is_empty():
@@ -1915,6 +1941,10 @@ async def run_with_reflection(
         _autoexec_block = await _maybe_autoexec(
             next_action, _host, enabled=_planner_autoexec_enabled(), adherence=_adherence, turns_used=turns_used
         )
+        if _autoexec_block:
+            _loot_facts = _facts_from_loot(_autoexec_block)
+            if _loot_facts is not None:
+                accumulated_facts = accumulated_facts.merge(_loot_facts)
 
         # G7 (FASE 4) — update stall window AFTER the planner has
         # produced (or not produced) this chunk's recommendation. The
