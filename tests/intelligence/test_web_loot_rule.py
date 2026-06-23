@@ -9,22 +9,24 @@ from kryon.intelligence.exploit_chain_planner import _rule_web_loot_credentials,
 from kryon.intelligence.fact_extractor import ExtractedFacts
 
 
-def test_fires_on_http_with_discovered_paths():
-    rec = _rule_web_loot_credentials(ExtractedFacts(services=((80, "http"),), paths=("/content/",)), [], "")
+def test_fires_self_contained_on_bare_http():
+    # Self-contained: fires on HTTP alone (no facts.paths needed) and probes its own
+    # curated dir list including the CMS backup convention that leaks LazyAdmin's hash.
+    rec = _rule_web_loot_credentials(ExtractedFacts(services=((80, "http"),)), [], "")
     assert rec is not None
     assert rec.confidence >= 0.92
-    assert "[LOOT" in rec.args and "mysql_backup" in rec.args
+    assert "[LOOT" in rec.args and "mysql_backup" in rec.args and "/content/" in rec.args
 
 
-def test_injects_discovered_paths():
-    # gobuster-discovered /content must appear in the loot command's base list.
-    rec = _rule_web_loot_credentials(ExtractedFacts(services=((80, "http"),), paths=("/content/",)), [], "")
-    assert "/content/" in rec.args
+def test_appends_discovered_paths_when_present():
+    rec = _rule_web_loot_credentials(ExtractedFacts(services=((80, "http"),), paths=("/secretapp/",)), [], "")
+    assert "/secretapp/" in rec.args
 
 
-def test_abstains_on_bare_http_before_recon():
-    # No discovered paths yet → let gobuster/ffuf run first; don't preempt RCE rules.
-    assert _rule_web_loot_credentials(ExtractedFacts(services=((80, "http"),)), [], "") is None
+def test_abstains_on_code_exec_signal():
+    # An eval/REPL-RCE target belongs to the code-exec rules, not web-loot.
+    f = ExtractedFacts(services=((80, "http"),), hints=("invalid syntax",))
+    assert _rule_web_loot_credentials(f, [], "") is None
 
 
 def test_abstains_when_creds_already_known():
