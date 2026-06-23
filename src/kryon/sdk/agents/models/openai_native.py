@@ -83,6 +83,38 @@ def _is_transient_model_error(e: Exception) -> bool:
     return any(k in name for k in ("internalservererror", "apiconnectionerror", "apitimeout"))
 
 
+# Reasoning-only-dud recovery. Thinking models (verified live: Qwen3.5-9B) intermittently
+# return a response with empty content AND no tool_calls but a populated reasoning_content —
+# they "thought" inside <think> and never emitted the answer or a tool call. Two shapes seen
+# live on LazyAdmin: finish_reason="stop" (thought and stopped) and finish_reason="length"
+# (over-thought 6.5K chars and hit the -n generation cap before acting). Either way the agent
+# loop sees an empty final response and halts mid-engagement (the run died at turn 2/12).
+# Re-issuing the call with tool_choice="required" forces the lost reasoning into an action.
+_REASONING_STOP_RETRIES = 2
+_REASONING_DUD_FINISH = ("stop", "length")
+
+
+def _is_reasoning_only_stop(resp: Any) -> bool:
+    """True for a thinking-model dud: finish_reason in (stop, length), empty content, no
+    tool_calls, but non-empty reasoning_content (it thought without ever acting)."""
+    try:
+        choices = getattr(resp, "choices", None) or []
+        if not choices:
+            return False
+        ch = choices[0]
+        if getattr(ch, "finish_reason", None) not in _REASONING_DUD_FINISH:
+            return False
+        m = getattr(ch, "message", None)
+        if getattr(m, "tool_calls", None):
+            return False
+        if (getattr(m, "content", None) or "").strip():
+            return False
+        reasoning = getattr(m, "reasoning_content", None) or getattr(m, "reasoning", None) or ""
+        return bool(reasoning.strip())
+    except Exception:  # noqa: BLE001 — detection must never raise
+        return False
+
+
 class OpenAINativeModel(OpenAIChatCompletionsModel):
     """Same model, native HTTP layer. Only ``_fetch_response`` differs."""
 
@@ -218,4 +250,52 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
                 parallel_tool_calls=bool(parallel_tool_calls) if parallel_tool_calls is not NOT_GIVEN else False,
             )
             return response, stream_obj
-        return await _create()
+        _resp = await _create()
+        # Reasoning-only-stop recovery (see _is_reasoning_only_stop). Gated on KRYON_LOCAL_LLM
+        # (the quirk is a local thinking-model behavior) and only when tools are offered (so
+        # there's something to force). tool_choice="required" makes the model emit a tool_call
+        # instead of stopping after <think> — turning the lost reasoning into an action.
+        if (
+            os.environ.get("KRYON_LOCAL_LLM", "").lower() in ("1", "true", "yes")
+            and kwargs.get("tools") not in (None, NOT_GIVEN)
+            and _is_reasoning_only_stop(_resp)
+        ):
+            _retry_kwargs = {**kwargs, "tool_choice": "required"}
+            if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
+                print("⟳ [openai_native] reasoning-only dud — retrying with tool_choice=required")
+            for _ in range(_REASONING_STOP_RETRIES):
+                logger.info("openai_native: reasoning-only stop — retrying with tool_choice=required")
+                try:
+                    _resp = await client.chat.completions.create(**_retry_kwargs)
+                except Exception as _e:  # noqa: BLE001 — fall back to the original dud response
+                    logger.debug("reasoning-only-stop retry failed: %s", _e)
+                    break
+                if not _is_reasoning_only_stop(_resp):
+                    break
+        # DEBUG (KRYON_DEBUG_RESPONSE) — ground-truth dump of what the model actually
+        # returned, to diagnose empty-output / reasoning-only stalls in the agent loop.
+        if os.environ.get("KRYON_DEBUG_RESPONSE"):
+            try:
+                import json as _json  # noqa: PLC0415
+
+                _ch = (_resp.choices or [None])[0]
+                _m = getattr(_ch, "message", None)
+                _rec = {
+                    "finish_reason": getattr(_ch, "finish_reason", None),
+                    "content_len": len(getattr(_m, "content", None) or ""),
+                    "reasoning_len": len(
+                        getattr(_m, "reasoning_content", None) or getattr(_m, "reasoning", None) or ""
+                    ),
+                    "n_tool_calls": len(getattr(_m, "tool_calls", None) or []),
+                    "tool_names": [getattr(getattr(tc, "function", None), "name", "?") for tc in (getattr(_m, "tool_calls", None) or [])],
+                    "content_head": (getattr(_m, "content", None) or "")[:160],
+                }
+                with open(
+                    os.path.expanduser(os.environ.get("KRYON_DEBUG_RESPONSE_PATH", "~/.kryon/resp_debug.jsonl")),
+                    "a",
+                    encoding="utf-8",
+                ) as _f:
+                    _f.write(_json.dumps(_rec, ensure_ascii=False) + "\n")
+            except Exception as _e:  # noqa: BLE001 — debug must never break the call
+                logger.debug("response debug skipped: %s", _e)
+        return _resp
