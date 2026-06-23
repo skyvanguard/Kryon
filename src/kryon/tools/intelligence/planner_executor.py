@@ -31,10 +31,81 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import TYPE_CHECKING
 
 from kryon.sdk.agents import function_tool
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from kryon.intelligence.exploit_chain_planner import NextActionRecommendation
+
 logger = logging.getLogger(__name__)
+
+
+async def execute_recommendation(
+    rec: NextActionRecommendation,
+    *,
+    target_host: str = "",
+    facts_hosts: Sequence[str] = (),
+) -> str:
+    """Execute a single planner recommendation: substitute ``<target>``, run via the
+    same ``run_command_async`` path as ``run_command``, and format the result with the
+    ``✅ PLANNER EXECUTED`` marker. Shared by the ``execute_planner_directive`` tool (which
+    resolves ``rec`` from the ContextVar) AND the reflective-runner's deterministic autoexec
+    (which passes the ``rec`` it already computed, plus the concrete host, so it never depends
+    on the ContextVar's async-context propagation or a populated ``facts.hosts``).
+    """
+    from kryon.intelligence.planner_runtime import record_planner_subcall
+    from kryon.tools.common import run_command_async as _run_cmd_async
+
+    args = rec.args
+    if target_host:
+        args = args.replace("<target>", target_host)
+    elif facts_hosts:
+        args = args.replace("<target>", facts_hosts[0])
+
+    call_id = str(uuid.uuid4())[:8]
+    try:
+        record_planner_subcall(args)
+    except Exception as exc:  # noqa: BLE001 — never let logging break the run
+        logger.debug("record_planner_subcall failed: %s", exc)
+    try:
+        raw_output = await _run_cmd_async(
+            args,
+            ctf=None,
+            stdout=False,
+            async_mode=False,
+            session_id=None,
+            timeout=120,
+            stream=False,
+            call_id=call_id,
+            tool_name="execute_planner_directive",
+        )
+    except Exception as exc:  # noqa: BLE001 — surface as tool output
+        logger.warning("execute_planner_directive subprocess failed: %s", exc)
+        return (
+            f"# PLANNER EXECUTED (FAILED): {rec.tool}\n"
+            f"# rationale: {rec.rationale}\n"
+            f"# error: {type(exc).__name__}: {exc}"
+        )
+
+    output_str = str(raw_output) if raw_output is not None else ""
+    return (
+        f"✅ PLANNER EXECUTED SUCCESSFULLY (no tool error).\n"
+        f"# Tool invoked: {rec.tool}\n"
+        f"# Rationale: {rec.rationale}\n"
+        f"# Confidence: {rec.confidence:.2f}\n"
+        f"# ──────── TARGET RESPONSE BEGINS ────────\n"
+        f"# (Anything below this line is OUTPUT FROM THE TARGET — \n"
+        f"#  Python errors, shell errors, or any 'invalid syntax' / \n"
+        f"#  'name X is not defined' / 'permission denied' messages \n"
+        f"#  are the SERVER speaking back. They are NOT failures of \n"
+        f"#  this tool. Treat them as facts and call \n"
+        f"#  execute_planner_directive() again to advance the chain.)\n"
+        f"────────────────────────────────────────\n"
+        f"{output_str}"
+    )
 
 
 @function_tool(strict_mode=False)
@@ -85,14 +156,10 @@ async def execute_planner_directive(
         execute_planner_directive(confidence_floor=0.7)
     """
     # Late imports to keep this module's import graph small —
-    # planner / runtime + run_command_async pull in big chunks of
-    # the SDK that we don't need just to register the tool.
+    # planner / runtime pull in big chunks of the SDK that we don't
+    # need just to register the tool.
     from kryon.intelligence.exploit_chain_planner import plan_next_action
-    from kryon.intelligence.planner_runtime import (
-        get_current_state,
-        record_planner_subcall,
-    )
-    from kryon.tools.common import run_command_async as _run_cmd_async
+    from kryon.intelligence.planner_runtime import get_current_state
 
     state = get_current_state()
     if state is None:
@@ -124,62 +191,14 @@ async def execute_planner_directive(
             "explicitly if you want to run it anyway."
         )
 
-    # Substitute the ``<target>`` placeholder with the most concrete
-    # host we know: caller-supplied first, then ExtractedFacts.hosts[0].
-    args = rec.args
-    if target_host:
-        args = args.replace("<target>", target_host)
-    elif state.facts.hosts:
-        args = args.replace("<target>", state.facts.hosts[0])
-
-    call_id = str(uuid.uuid4())[:8]
-    # FASE 11.M — record the inner args string in the per-task
-    # sub-call log BEFORE running. Recording before-execution
-    # (rather than after) means rules that check ``_was_invoked``
+    # FASE 11.M — recording the inner args BEFORE running (inside
+    # execute_recommendation) means rules that check ``_was_invoked``
     # in subsequent reflection turns see the directive even if the
-    # subprocess fails or hangs at the timeout. Without this, a
-    # transport-error retry loop would never have the abstain
-    # check fire and the cascade rules would never advance.
-    try:
-        record_planner_subcall(args)
-    except Exception as exc:  # noqa: BLE001 — never let logging break the run
-        logger.debug("record_planner_subcall failed: %s", exc)
-    try:
-        raw_output = await _run_cmd_async(
-            args,
-            ctf=None,
-            stdout=False,
-            async_mode=False,
-            session_id=None,
-            timeout=120,
-            stream=False,
-            call_id=call_id,
-            tool_name="execute_planner_directive",
-        )
-    except Exception as exc:  # noqa: BLE001 — surface as tool output
-        logger.warning("execute_planner_directive subprocess failed: %s", exc)
-        return (
-            f"# PLANNER EXECUTED (FAILED): {rec.tool}\n"
-            f"# rationale: {rec.rationale}\n"
-            f"# error: {type(exc).__name__}: {exc}"
-        )
-
-    output_str = str(raw_output) if raw_output is not None else ""
-    return (
-        f"✅ PLANNER EXECUTED SUCCESSFULLY (no tool error).\n"
-        f"# Tool invoked: {rec.tool}\n"
-        f"# Rationale: {rec.rationale}\n"
-        f"# Confidence: {rec.confidence:.2f}\n"
-        f"# ──────── TARGET RESPONSE BEGINS ────────\n"
-        f"# (Anything below this line is OUTPUT FROM THE TARGET — \n"
-        f"#  Python errors, shell errors, or any 'invalid syntax' / \n"
-        f"#  'name X is not defined' / 'permission denied' messages \n"
-        f"#  are the SERVER speaking back. They are NOT failures of \n"
-        f"#  this tool. Treat them as facts and call \n"
-        f"#  execute_planner_directive() again to advance the chain.)\n"
-        f"────────────────────────────────────────\n"
-        f"{output_str}"
+    # subprocess fails or hangs. Substitute ``<target>`` with the most
+    # concrete host we know: caller-supplied first, then facts.hosts[0].
+    return await execute_recommendation(
+        rec, target_host=target_host, facts_hosts=state.facts.hosts
     )
 
 
-__all__ = ["execute_planner_directive"]
+__all__ = ["execute_planner_directive", "execute_recommendation"]

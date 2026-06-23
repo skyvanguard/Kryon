@@ -81,6 +81,66 @@ def _planner_autoexec_enabled() -> bool:
     return env_bool("KRYON_PLANNER_AUTOEXEC") and is_red_team()
 
 
+def _trace_turn(turns_used: int, facts: Any, next_action: Any, gate: bool) -> None:
+    """Per-turn JSONL snapshot (KRYON_REFLECT_TRACE) of what the planner sees and whether the
+    autoexec will fire. Called from BOTH reflection paths so the trace is complete regardless
+    of branch. NOTE: on Windows+GitBash the path env var must be passed with MSYS_NO_PATHCONV=1
+    or it gets mangled to C:/Program Files/Git/... and the write fails silently."""
+    if not os.environ.get("KRYON_REFLECT_TRACE"):
+        return
+    try:
+        import json as _json  # noqa: PLC0415
+
+        rec = {
+            "turn": turns_used,
+            "services": list(facts.services),
+            "hosts": list(facts.hosts)[:3],
+            "paths": list(facts.paths)[:6],
+            "creds_n": len(facts.creds),
+            "hints": list(facts.hints)[:4],
+            "next_action_tool": (next_action.tool if next_action else None),
+            "next_action_args0": (next_action.args[:60] if next_action else None),
+            "confidence": (next_action.confidence if next_action else None),
+            "autoexec_gate": gate,
+            "will_autoexec": bool(next_action and next_action.confidence >= 0.92 and gate),
+        }
+        tp = os.path.expanduser(os.environ.get("KRYON_REFLECT_TRACE_PATH", "~/.kryon/reflect_trace.jsonl"))
+        with open(tp, "a", encoding="utf-8") as tf:
+            tf.write(_json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception as e:  # noqa: BLE001 — tracing must never break the chunk
+        logger.debug("reflect trace skipped: %s", e)
+
+
+async def _maybe_autoexec(next_action: Any, host: str, *, enabled: bool, adherence: Any, turns_used: int) -> str:
+    """UNIFIED Tier 1.1 autoexec — called from BOTH the MaxTurns and the main reflection paths
+    (previously only the main path had it, so on MaxTurns chunks the directive was injected as
+    text only and the model could ignore it). Executes a ≥0.92 directive DIRECTLY from the rec
+    we already computed (via the shared ``execute_recommendation``), substituting the concrete
+    host — so it never depends on the ContextVar's async-context propagation or a populated
+    facts.hosts (the two bugs that made every prior live autoexec produce un-substituted
+    ``<target>`` garbage). Returns the block to inject next turn, or ""."""
+    if not (next_action is not None and next_action.confidence >= 0.92 and enabled):
+        return ""
+    try:
+        from kryon.tools.intelligence.planner_executor import execute_recommendation  # noqa: PLC0415
+
+        out = await execute_recommendation(next_action, target_host=host)
+        if out and "[NO DIRECTIVE]" not in out and "[NO RUNTIME]" not in out:
+            try:
+                adherence.record_action(tool="execute_planner_directive")  # forced adherence
+            except Exception as e:  # noqa: BLE001
+                logger.debug("adherence record_action skipped: %s", e)
+            if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
+                print(f"\n⚙️  [reflective-runner] auto-executed {next_action.tool} at turn {turns_used}")
+            return (
+                "\n\n# PLANNER AUTO-EXECUTED (deterministic — do NOT re-run this; "
+                "build on the result below):\n" + str(out)[:4000] + "\n"
+            )
+    except Exception as e:  # noqa: BLE001 — autoexec failure must not break the chunk
+        logger.debug("planner autoexec skipped: %s", e)
+    return ""
+
+
 # Default reflection cadence — every 4 turns (~3-4 tool calls).
 _DEFAULT_REFLECT_EVERY = 4
 # Stuck threshold: 2 identical (tool_name, args_hash) consecutive triggers warning.
@@ -1357,6 +1417,21 @@ async def run_with_reflection(
                         f"next_action={'yes' if next_action_mt else 'no'}"
                     )
 
+                # Refresh the ContextVar (for the model's next-chunk directive tool call) +
+                # trace + UNIFIED autoexec — same as the main path, so a ≥0.92 directive fires
+                # deterministically even when the chunk exhausted its turn budget (previously
+                # this branch only injected the directive as text).
+                try:
+                    _set_planner_state(accumulated_facts, prior_args_mt)
+                except Exception as ee:  # noqa: BLE001 — best-effort
+                    logger.debug("MaxTurns planner state set failed: %s", ee)
+                _trace_turn(turns_used, accumulated_facts, next_action_mt, _planner_autoexec_enabled())
+                _host_mt = accumulated_facts.hosts[0] if accumulated_facts.hosts else ""
+                _autoexec_block_mt = await _maybe_autoexec(
+                    next_action_mt, _host_mt, enabled=_planner_autoexec_enabled(),
+                    adherence=_adherence, turns_used=turns_used,
+                )
+
                 facts_block_mt = ""
                 if not accumulated_facts.is_empty():
                     facts_block_mt = accumulated_facts.render_for_prompt() + "\n"
@@ -1385,6 +1460,7 @@ async def run_with_reflection(
                     f"Ran out of {chunk_size} turns without a final answer. "
                     f"Pause + decide: (a) emit final summary with what you have, "
                     f"or (b) pick ONE next decisive tool call (no repetition).\n"
+                    f"{_autoexec_block_mt}"
                 )
                 current_input = base_history + [{"role": "user", "content": reflection_msg}]
                 continue
@@ -1807,31 +1883,7 @@ async def run_with_reflection(
         except Exception as e:  # noqa: BLE001 — best-effort, never bubble
             logger.debug("planner runtime state set failed: %s", e)
 
-        # DEBUG INSTRUMENTATION (KRYON_REFLECT_TRACE) — per-turn snapshot of exactly why a
-        # rule does/doesn't reach the autoexec: the facts the planner sees, what it returned,
-        # and whether the autoexec gate passed. Writes one JSONL line per turn.
-        if os.environ.get("KRYON_REFLECT_TRACE"):
-            try:
-                import json as _json  # noqa: PLC0415
-
-                _gate = _planner_autoexec_enabled()
-                _trace = {
-                    "turn": turns_used,
-                    "services": list(accumulated_facts.services),
-                    "paths": list(accumulated_facts.paths)[:6],
-                    "creds_n": len(accumulated_facts.creds),
-                    "hints": list(accumulated_facts.hints)[:4],
-                    "next_action_tool": (next_action.tool if next_action else None),
-                    "next_action_args0": (next_action.args[:60] if next_action else None),
-                    "confidence": (next_action.confidence if next_action else None),
-                    "autoexec_gate": _gate,
-                    "will_autoexec": bool(next_action and next_action.confidence >= 0.92 and _gate),
-                }
-                _tp = os.path.expanduser(os.environ.get("KRYON_REFLECT_TRACE_PATH", "~/.kryon/reflect_trace.jsonl"))
-                with open(_tp, "a", encoding="utf-8") as _tf:
-                    _tf.write(_json.dumps(_trace, ensure_ascii=False) + "\n")
-            except Exception as _e:  # noqa: BLE001 — tracing must never break the chunk
-                logger.debug("reflect trace skipped: %s", _e)
+        _trace_turn(turns_used, accumulated_facts, next_action, _planner_autoexec_enabled())
 
         if next_action is not None and os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
             print(
@@ -1856,30 +1908,13 @@ async def run_with_reflection(
         except Exception as e:  # noqa: BLE001 — telemetry is best-effort
             logger.debug("adherence telemetry skipped: %s", e)
 
-        # Tier 1.1 — deterministic execution of a high-confidence directive instead of
-        # injecting "please run this" and hoping. Double-gated (KRYON_PLANNER_AUTOEXEC AND
-        # red-team profile) so it's OFF for banking/passive runs. We run the directive via
-        # the SAME path as execute_planner_directive and inject its OUTPUT next turn, so the
-        # model narrates the result rather than deciding whether to obey (the gap FASE 11.J
-        # tried to close with ever-harder prompt wording).
-        _autoexec_block = ""
-        if next_action is not None and next_action.confidence >= 0.92 and _planner_autoexec_enabled():
-            try:
-                from kryon.tools.intelligence.planner_executor import (  # noqa: PLC0415
-                    execute_planner_directive,
-                )
-
-                out = await execute_planner_directive._raw_fn(target_host="")
-                if out and "[NO DIRECTIVE]" not in out:
-                    _autoexec_block = (
-                        "\n\n# PLANNER AUTO-EXECUTED (deterministic — do NOT re-run this; "
-                        "build on the result below):\n" + str(out)[:4000] + "\n"
-                    )
-                    _adherence.record_action(tool="execute_planner_directive")  # forced adherence
-                    if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
-                        print(f"\n⚙️  [reflective-runner] auto-executed directive {next_action.tool} at turn {turns_used}")
-            except Exception as e:  # noqa: BLE001 — autoexec failure must not break the chunk
-                logger.debug("planner autoexec skipped: %s", e)
+        # Tier 1.1 — deterministic execution of a high-confidence directive (unified helper,
+        # also used by the MaxTurns path) instead of injecting "please run this" and hoping.
+        # Double-gated (KRYON_PLANNER_AUTOEXEC AND red-team) so it's OFF for banking/passive.
+        _host = accumulated_facts.hosts[0] if accumulated_facts.hosts else ""
+        _autoexec_block = await _maybe_autoexec(
+            next_action, _host, enabled=_planner_autoexec_enabled(), adherence=_adherence, turns_used=turns_used
+        )
 
         # G7 (FASE 4) — update stall window AFTER the planner has
         # produced (or not produced) this chunk's recommendation. The

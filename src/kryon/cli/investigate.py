@@ -221,17 +221,27 @@ def _seed_initial_facts(url: str, findings: list) -> Any:
     from kryon.intelligence.fact_extractor import ExtractedFacts  # noqa: PLC0415
 
     services: set[tuple[int, str]] = set()
+    hosts: set[str] = set()
     parsed = urlparse(url)
     if parsed.scheme in ("http", "https"):
         port = parsed.port or (443 if parsed.scheme == "https" else 80)
         services.add((port, parsed.scheme))
+    if parsed.hostname:
+        hosts.add(parsed.hostname)
     for f in findings or []:
         asset = str(getattr(f, "affected_asset", "") or getattr(f, "host", "") or "")
         for m in re.finditer(r":(\d{1,5})\b", asset):
             port = int(m.group(1))
             if 1 <= port <= 65535:
                 services.add((port, _PORT_TO_SVC.get(port, "")))
-    return ExtractedFacts(services=tuple(sorted(services))) if services else None
+        # bare host portion (strip :port) — feeds the <target> substitution so the
+        # autoexec'd directive runs against a concrete host, not the literal placeholder.
+        host_part = re.sub(r":\d+.*$", "", asset).strip()
+        if host_part and "/" not in host_part:
+            hosts.add(host_part)
+    if not (services or hosts):
+        return None
+    return ExtractedFacts(services=tuple(sorted(services)), hosts=tuple(sorted(hosts)))
 
 
 def _run_deterministic_phase(
