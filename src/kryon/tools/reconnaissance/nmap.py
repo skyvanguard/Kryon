@@ -194,15 +194,30 @@ def nmap(
     if os_detection and "-O" not in nmap_flags:
         nmap_flags += " -O"
 
-    # Optimize full port scans: add speed flags and use longer timeout
+    # Optimize full port scans: add speed flags and a BOUNDED timeout. STARVATION FIX — a
+    # naked `nmap -p-` over VPN used to run up to 600s+300s ≈ the reflective runner's 900s chunk
+    # budget, blocking the whole turn so the deterministic chain-planner autoexec (which only
+    # fires between chunks) never got control. We now (a) hand nmap a self-bounding
+    # --host-timeout + --max-retries 1 so it gives up on a slow host instead of hanging, and
+    # (b) cap the subprocess at KRYON_NMAP_FULL_TIMEOUT_S (default 240s) — small enough that a
+    # model's redundant full-scan can't starve the loop. Tunable for thorough offline scans.
     is_full = _is_full_port_scan(ports, nmap_flags)
     if is_full:
+        try:
+            full_timeout = int(os.getenv("KRYON_NMAP_FULL_TIMEOUT_S") or 240)
+        except ValueError:
+            full_timeout = 240
         # Default aggressive flags for full-port scans over VPN. F195: env
         # overrides take precedence via _apply_throttle_env below.
         if "-T" not in nmap_flags and not os.getenv("KRYON_NMAP_TIMING"):
             nmap_flags += " -T4"
         if "--min-rate" not in nmap_flags and not os.getenv("KRYON_NMAP_MIN_RATE"):
             nmap_flags += " --min-rate 1000"
+        # Self-bound: nmap aborts the host near the subprocess cap instead of hanging on it.
+        if "--host-timeout" not in nmap_flags:
+            nmap_flags += f" --host-timeout {max(60, full_timeout - 30)}s"
+        if "--max-retries" not in nmap_flags:
+            nmap_flags += " --max-retries 1"
         nmap_flags = _apply_throttle_env(nmap_flags)
         # For full port scans, skip version detection first (too slow)
         # Do a fast SYN scan to find open ports, then detailed scan
@@ -211,16 +226,16 @@ def nmap(
             fast_flags = nmap_flags.replace("-sV", "").replace("-sC", "").strip()
             fast_flags = re.sub(r"\s+", " ", fast_flags)
             fast_cmd = f"nmap {fast_flags} {target}"
-            fast_result = run_command(fast_cmd, ctf=ctf, timeout=600)
+            fast_result = run_command(fast_cmd, ctf=ctf, timeout=full_timeout)
 
             # Extract open ports from fast scan
             open_ports = re.findall(r"(\d+)/tcp\s+open", fast_result)
             if open_ports:
-                # Phase 2: Detailed scan only on open ports — also throttled.
+                # Phase 2: Detailed scan only on the open ports (fast, bounded too).
                 port_list = ",".join(open_ports)
                 detail_flags = _apply_throttle_env("-sV -sC")
                 detail_cmd = f"nmap {detail_flags} -p {port_list} {target}"
-                return run_command(detail_cmd, ctf=ctf, timeout=300)
+                return run_command(detail_cmd, ctf=ctf, timeout=min(full_timeout, 180))
             else:
                 return fast_result  # No open ports found
 
