@@ -34,6 +34,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Web exploitation
     wpscan \
     dirb \
+    # ExploitDB — searchsploit drives the version->known-exploit chain-planner rule
+    # (_rule_searchsploit_known_exploits): fingerprinted CMS/product -> 45k+ public PoCs.
+    exploitdb \
     # Password attacks
     hashcat \
     seclists \
