@@ -72,6 +72,15 @@ from kryon.intelligence.tool_templates import (
 logger = logging.getLogger(__name__)
 
 
+def _planner_autoexec_enabled() -> bool:
+    """Tier 1.1 deterministic directive execution. DOUBLE-GATED, OFF by default:
+    requires KRYON_PLANNER_AUTOEXEC=true AND an active red-team profile, so banking /
+    passive runs never auto-fire an offensive directive."""
+    from kryon.util.env import env_bool, is_red_team  # noqa: PLC0415
+
+    return env_bool("KRYON_PLANNER_AUTOEXEC") and is_red_team()
+
+
 # Default reflection cadence — every 4 turns (~3-4 tool calls).
 _DEFAULT_REFLECT_EVERY = 4
 # Stuck threshold: 2 identical (tool_name, args_hash) consecutive triggers warning.
@@ -1078,6 +1087,7 @@ async def run_with_reflection(
 
     _adherence = AdherenceTracker()
     _adh_th_len = 0  # tool_history length at the last injection (to find the model's action)
+    _autoexec_block = ""  # Tier 1.1: result of a deterministically-executed directive, injected next turn
     # F203.H — accumulate new_items across chunks so downstream consumers
     # (e.g. write_back_from_investigate) see the full tool call history,
     # not just the items from the last chunk.
@@ -1806,6 +1816,31 @@ async def run_with_reflection(
         except Exception as e:  # noqa: BLE001 — telemetry is best-effort
             logger.debug("adherence telemetry skipped: %s", e)
 
+        # Tier 1.1 — deterministic execution of a high-confidence directive instead of
+        # injecting "please run this" and hoping. Double-gated (KRYON_PLANNER_AUTOEXEC AND
+        # red-team profile) so it's OFF for banking/passive runs. We run the directive via
+        # the SAME path as execute_planner_directive and inject its OUTPUT next turn, so the
+        # model narrates the result rather than deciding whether to obey (the gap FASE 11.J
+        # tried to close with ever-harder prompt wording).
+        _autoexec_block = ""
+        if next_action is not None and next_action.confidence >= 0.92 and _planner_autoexec_enabled():
+            try:
+                from kryon.tools.intelligence.planner_executor import (  # noqa: PLC0415
+                    execute_planner_directive,
+                )
+
+                out = await execute_planner_directive._raw_fn(target_host="")
+                if out and "[NO DIRECTIVE]" not in out:
+                    _autoexec_block = (
+                        "\n\n# PLANNER AUTO-EXECUTED (deterministic — do NOT re-run this; "
+                        "build on the result below):\n" + str(out)[:4000] + "\n"
+                    )
+                    _adherence.record_action(tool="execute_planner_directive")  # forced adherence
+                    if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
+                        print(f"\n⚙️  [reflective-runner] auto-executed directive {next_action.tool} at turn {turns_used}")
+            except Exception as e:  # noqa: BLE001 — autoexec failure must not break the chunk
+                logger.debug("planner autoexec skipped: %s", e)
+
         # G7 (FASE 4) — update stall window AFTER the planner has
         # produced (or not produced) this chunk's recommendation. The
         # check fires only when the deque is full of identical entries
@@ -1906,6 +1941,10 @@ async def run_with_reflection(
             stall_detected=stall_detected,
             premature_summary_detected=premature_summary_detected,
         )
+        # Tier 1.1 — if we auto-executed the directive this chunk, hand the model the OUTPUT
+        # (authoritative, like a pre_hook) instead of a "please run it" directive.
+        if _autoexec_block:
+            reflection_msg = reflection_msg + _autoexec_block
 
         if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
             print(
