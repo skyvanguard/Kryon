@@ -1807,6 +1807,32 @@ async def run_with_reflection(
         except Exception as e:  # noqa: BLE001 — best-effort, never bubble
             logger.debug("planner runtime state set failed: %s", e)
 
+        # DEBUG INSTRUMENTATION (KRYON_REFLECT_TRACE) — per-turn snapshot of exactly why a
+        # rule does/doesn't reach the autoexec: the facts the planner sees, what it returned,
+        # and whether the autoexec gate passed. Writes one JSONL line per turn.
+        if os.environ.get("KRYON_REFLECT_TRACE"):
+            try:
+                import json as _json  # noqa: PLC0415
+
+                _gate = _planner_autoexec_enabled()
+                _trace = {
+                    "turn": turns_used,
+                    "services": list(accumulated_facts.services),
+                    "paths": list(accumulated_facts.paths)[:6],
+                    "creds_n": len(accumulated_facts.creds),
+                    "hints": list(accumulated_facts.hints)[:4],
+                    "next_action_tool": (next_action.tool if next_action else None),
+                    "next_action_args0": (next_action.args[:60] if next_action else None),
+                    "confidence": (next_action.confidence if next_action else None),
+                    "autoexec_gate": _gate,
+                    "will_autoexec": bool(next_action and next_action.confidence >= 0.92 and _gate),
+                }
+                _tp = os.path.expanduser(os.environ.get("KRYON_REFLECT_TRACE_PATH", "~/.kryon/reflect_trace.jsonl"))
+                with open(_tp, "a", encoding="utf-8") as _tf:
+                    _tf.write(_json.dumps(_trace, ensure_ascii=False) + "\n")
+            except Exception as _e:  # noqa: BLE001 — tracing must never break the chunk
+                logger.debug("reflect trace skipped: %s", _e)
+
         if next_action is not None and os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
             print(
                 f"\n🎯 [reflective-runner] next_action at turn {turns_used}: "
