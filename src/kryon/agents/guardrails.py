@@ -394,7 +394,33 @@ async def prompt_injection_guardrail(
     else:
         input_text = str(input)
 
-    # Quick pattern-based check first (fast)
+    # Quick pattern-based check first (fast). Under an authorized red-team engagement the
+    # operator's OWN offensive prompt + the injected recon context (URLs with ;&? like the
+    # FTP listing's `?C=N;O=D`, CVE text, the word "exploit") legitimately trip the
+    # aggressive user-input detector — this false-positived to a hard tripwire on a live
+    # Spice Hut run (0 tool calls). In red-team mode use the high-confidence-only structural
+    # detector built for untrusted recon data, which still catches real instruction-override
+    # injection but not bare metacharacters / command words / offensive intent.
+    from kryon.util.env import is_red_team  # noqa: PLC0415
+
+    red_team = is_red_team()
+    if red_team:
+        # Self-contained red-team path: the high-confidence structural detector emits ONLY
+        # real injection signals (instruction-override, note-to-system, homograph-hidden
+        # commands), so ANY match blocks; otherwise allow. This skips the aggressive
+        # count-based + AI-judge paths below that false-positive on authorized offensive input.
+        has_patterns, patterns = detect_tool_output_injection(input_text)
+        if has_patterns:
+            return GuardrailFunctionOutput(
+                output_info={"detected_patterns": patterns, "action": "blocked",
+                             "reason": "Structural prompt injection detected in red-team input"},
+                tripwire_triggered=True,
+            )
+        return GuardrailFunctionOutput(
+            output_info={"action": "allowed", "mode": "red_team"},
+            tripwire_triggered=False,
+        )
+
     has_patterns, patterns = detect_injection_patterns(input_text)
 
     # CRITICAL: Block immediately if Unicode homograph bypass detected
@@ -451,9 +477,10 @@ async def prompt_injection_guardrail(
             tripwire_triggered=True,
         )
 
-    # For borderline cases, use AI detection (slower but more accurate)
-    # Only use AI detection for cases with very strong indicators
-    if has_patterns and len(patterns) >= 3:
+    # For borderline cases, use AI detection (slower but more accurate). Skipped under
+    # red-team: the local judge model flagged the offensive prompt as "injection" with
+    # high confidence (the other half of the Spice Hut false-positive).
+    if has_patterns and len(patterns) >= 3 and not red_team:
         try:
             # Skip AI detection for system messages or empty inputs
             if "User input is empty" in input_text or "role': 'tool'" in input_text:
