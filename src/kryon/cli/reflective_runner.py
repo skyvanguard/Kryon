@@ -1072,6 +1072,12 @@ async def run_with_reflection(
     turns_used = 0
     tool_history: list[_ToolCallRecord] = []
     last_result: Any = None
+    # Tier-2 scaffolding telemetry: track whether the model FOLLOWS the high-confidence
+    # planner directives we inject, or ignores them. Best-effort, opt-in flush.
+    from kryon.intelligence.planner_adherence import AdherenceTracker  # noqa: PLC0415
+
+    _adherence = AdherenceTracker()
+    _adh_th_len = 0  # tool_history length at the last injection (to find the model's action)
     # F203.H — accumulate new_items across chunks so downstream consumers
     # (e.g. write_back_from_investigate) see the full tool call history,
     # not just the items from the last chunk.
@@ -1613,6 +1619,10 @@ async def run_with_reflection(
                 _clear_planner_state()
             except Exception:  # noqa: BLE001
                 pass
+            try:
+                _adherence.flush()
+            except Exception:  # noqa: BLE001
+                pass
             return result
 
         # Stop if we've consumed the budget.
@@ -1780,6 +1790,22 @@ async def run_with_reflection(
                 f"confidence={next_action.confidence:.2f}"
             )
 
+        # Tier-2 telemetry — resolve the PREVIOUS injection against the tool the model
+        # actually issued since then (first real tool_history entry after the injection),
+        # then record this chunk's high-confidence injection. Fully guarded: telemetry
+        # must never break the chunk.
+        try:
+            new_calls = [r for r in tool_history[_adh_th_len:] if r.tool_name != "planner_subcall"]
+            if new_calls:
+                _adherence.record_action(tool=new_calls[0].tool_name)
+            if next_action is not None and next_action.confidence >= 0.92:
+                _adherence.record_injection(
+                    turn=turns_used, tool=next_action.tool, confidence=next_action.confidence
+                )
+                _adh_th_len = len(tool_history)
+        except Exception as e:  # noqa: BLE001 — telemetry is best-effort
+            logger.debug("adherence telemetry skipped: %s", e)
+
         # G7 (FASE 4) — update stall window AFTER the planner has
         # produced (or not produced) this chunk's recommendation. The
         # check fires only when the deque is full of identical entries
@@ -1938,6 +1964,10 @@ async def run_with_reflection(
     # max-total-turns exit path too. Mirrors the early-return branch.
     try:
         _clear_planner_state()
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        _adherence.flush()
     except Exception:  # noqa: BLE001
         pass
     return last_result
