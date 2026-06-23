@@ -1105,6 +1105,15 @@ async def run_with_reflection(
     # and the flaky output→fact extraction to repopulate what the deterministic phase already
     # knows. This is what makes service-triggered rules fire AUTONOMOUSLY.
     accumulated_facts: ExtractedFacts = initial_facts or _EMPTY_FACTS
+    # Seed the planner ContextVar at INIT (not just at reflection turns) so the very first
+    # turn's execute_planner_directive tool call — which the model often issues before any
+    # reflection — already sees the deterministic-phase services and can return/run a
+    # high-confidence directive instead of an empty-state no-op.
+    if initial_facts is not None:
+        try:
+            _set_planner_state(initial_facts, [])
+        except Exception as e:  # noqa: BLE001 — best-effort seed
+            logger.debug("initial planner-state seed failed: %s", e)
 
     # G7 (FASE 4) — stall detector state. Tracks the last N
     # recommendations the planner emitted plus the facts signature at
