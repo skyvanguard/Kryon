@@ -294,6 +294,28 @@ class TestRunWithReflection:
             )
         assert mock_run.call_count >= 2
 
+    def test_empty_final_output_does_not_end_run_immediately(self):
+        """Empty final_output (thinking-model reasoning-only dud) must NOT end the run at the
+        first chunk — the runner falls back (autoexec/nudge) and continues, bounded so it still
+        terminates. Regression: Qwen3.5 died at turn 2/12 emitting an empty output."""
+        empty = _fake_result(turn_count=2, final_output="")  # the dud
+        with patch.object(
+            __import__("kryon.sdk.agents.run", fromlist=["Runner"]).Runner,
+            "run",
+            new=AsyncMock(return_value=empty),
+        ) as mock_run:
+            asyncio.run(
+                run_with_reflection(
+                    agent=object(),
+                    initial_input="hi",
+                    reflect_every=4,
+                    max_total_turns=20,
+                )
+            )
+        # Empty output is converted to continuations (vs the 1 call a real final_output gets),
+        # and the run still terminates (the fallback is bounded — no infinite loop).
+        assert mock_run.call_count >= 2
+
     def test_input_evolves_after_reflection_injected(self):
         """Second call to Runner.run gets the reflection-augmented history."""
         tool_item = SimpleNamespace(raw_item=SimpleNamespace(name="curl", arguments={}))

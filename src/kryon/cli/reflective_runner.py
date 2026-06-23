@@ -445,6 +445,9 @@ def _has_foothold(facts: ExtractedFacts) -> bool:
 # stuck model doesn't loop forever and the operator always sees SOME
 # output. Override via ``KRYON_PREMATURE_MAX_REJECTIONS`` if needed.
 _DEFAULT_PREMATURE_MAX_REJECTIONS = 2
+# Max times the runner converts an EMPTY final_output (thinking-model reasoning-only dud) into
+# a deterministic-autoexec/nudge continuation instead of ending the run.
+_MAX_EMPTY_OUTPUT_FALLBACKS = 3
 
 
 def _detect_premature_summary(
@@ -1228,6 +1231,12 @@ async def run_with_reflection(
     except ValueError:
         premature_max_rejections = _DEFAULT_PREMATURE_MAX_REJECTIONS
 
+    # Empty-output fallback budget. When the model finishes a chunk with an EMPTY final_output
+    # (a thinking-model reasoning-only dud — Qwen3.5 stops after <think> without acting), instead
+    # of ending the run we fall back to the deterministic autoexec (if a high-conf directive
+    # exists) or a nudge, and continue. Bounded so a permanently-dead model still terminates.
+    empty_output_count = 0
+
     # F1.5 — wall-clock budget guard-rail. Protege el saldo (perfil API) y evita
     # runs colgados: si el loop excede KRYON_WALL_BUDGET_S segundos, aborta limpio
     # entre chunks. 0/unset = sin límite (comportamiento previo).
@@ -1678,6 +1687,54 @@ async def run_with_reflection(
                 final_output_text = str(fo) if fo else ""
             except Exception:  # noqa: BLE001
                 final_output_text = ""
+
+            # EMPTY-OUTPUT FALLBACK — the model finished the chunk with nothing actionable (a
+            # thinking-model reasoning-only dud: Qwen3.5 stops after <think> without a tool_call
+            # or text, and even tool_choice=required retries can stay stuck). Rather than ending
+            # the run, fall back to the DETERMINISTIC chain so it survives the model's flakiness:
+            # if the planner has a high-confidence directive, autoexec it + inject the result;
+            # else inject a "produce a concrete action" nudge. Then continue. Bounded.
+            if not final_output_text.strip() and empty_output_count < _MAX_EMPTY_OUTPUT_FALLBACKS:
+                empty_output_count += 1
+                _prior_eo = [r.args_preview for r in tool_history]
+                _next_eo = None
+                try:
+                    _next_eo = plan_next_action(accumulated_facts, prior_tool_args=_prior_eo, intent="")
+                    _set_planner_state(accumulated_facts, _prior_eo)
+                except Exception as e:  # noqa: BLE001
+                    logger.debug("empty-output planner probe failed: %s", e)
+                _eo_block = ""
+                if _next_eo is not None and _next_eo.confidence >= 0.92 and _planner_autoexec_enabled():
+                    _host_eo = accumulated_facts.hosts[0] if accumulated_facts.hosts else ""
+                    _eo_block = await _maybe_autoexec(
+                        _next_eo, _host_eo, enabled=True, adherence=_adherence, turns_used=turns_used
+                    )
+                    if _eo_block:
+                        _eo_facts = _facts_from_loot(_eo_block)
+                        if _eo_facts is not None:
+                            accumulated_facts = accumulated_facts.merge(_eo_facts)
+                if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
+                    print(
+                        f"\n♻️  [reflective-runner] EMPTY final_output at turn {turns_used} "
+                        f"({empty_output_count}/{_MAX_EMPTY_OUTPUT_FALLBACKS}) — "
+                        f"{'autoexec+continue' if _eo_block else 'nudge+continue'}"
+                    )
+                try:
+                    base_history = result.to_input_list()
+                except Exception:  # noqa: BLE001
+                    base_history = [{"role": "user", "content": str(current_input)}]
+                _eo_nudge = (
+                    "\n\nTu turno anterior no produjo NINGUNA acción ni respuesta (solo "
+                    "razonamiento interno). NO cierres la run.\n"
+                    + (
+                        "El planner ejecutó la directiva determinista por vos — construí sobre "
+                        "el resultado de abajo y emití el siguiente tool call concreto:\n" + _eo_block
+                        if _eo_block
+                        else "Emití UN tool call concreto ahora (no más razonamiento sin acción)."
+                    )
+                )
+                current_input = base_history + [{"role": "user", "content": _eo_nudge}]
+                continue
 
             should_reject_final, reject_msg = (False, "")
             try:
