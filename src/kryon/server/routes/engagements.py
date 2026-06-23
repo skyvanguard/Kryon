@@ -9,7 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from kryon.server.auth import require_api_key
 from kryon.server.auth.deps import get_current_user
-from kryon.server.auth.isolation import require_resource_access, verify_client_access
+from kryon.server.auth.isolation import (
+    get_accessible_client_ids,
+    require_resource_access,
+    verify_client_access,
+)
 from kryon.server.auth.models import User
 from kryon.server.deps import get_engagement_manager
 from kryon.server.exceptions import not_found
@@ -48,12 +52,19 @@ async def create_engagement(
 
 @router.get("/engagements")
 async def list_engagements(
-    status: str | None = None, offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=500)
+    status: str | None = None,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    user: User | None = Depends(get_current_user),
 ) -> list[dict]:
     """List all engagements, optionally filtered by status."""
     manager = get_engagement_manager()
     status_filter = [status] if status else None
     engagements = manager.store.list_engagements(status_filter=status_filter, offset=offset, limit=limit)
+    # Restrict scoped users to engagements of their assigned clients.
+    accessible = get_accessible_client_ids(user, manager.store)
+    if accessible is not None:
+        engagements = [e for e in engagements if e.client_name in accessible]
     return [e.model_dump(mode="json") for e in engagements]
 
 

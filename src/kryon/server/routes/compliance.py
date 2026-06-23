@@ -7,6 +7,10 @@ import json
 from fastapi import APIRouter, Depends, Query
 
 from kryon.server.auth import require_api_key
+from kryon.server.auth.deps import get_current_user
+from kryon.server.auth.isolation import get_accessible_client_ids
+from kryon.server.auth.models import User
+from kryon.server.exceptions import not_found
 from kryon.server.logging_config import get_logger
 from kryon.server.models import ComplianceAssessRequest
 
@@ -33,7 +37,7 @@ async def list_frameworks() -> dict:
 
 
 @router.post("/compliance/assess")
-async def assess_compliance(body: ComplianceAssessRequest) -> dict:
+async def assess_compliance(body: ComplianceAssessRequest, user: User | None = Depends(get_current_user)) -> dict:
     """Assess findings against a compliance framework."""
     from kryon.compliance import map_findings_to_framework
     from kryon.intelligence.models import Finding
@@ -41,8 +45,21 @@ async def assess_compliance(body: ComplianceAssessRequest) -> dict:
 
     store = get_store()
 
+    # Restrict scoped users to their assigned clients — never assess across all
+    # clients when client_id is omitted for a non-admin caller.
+    client_id = body.client_id
+    accessible = get_accessible_client_ids(user, store)
+    if accessible is not None:
+        if not client_id:
+            if len(accessible) == 1:
+                client_id = next(iter(accessible))
+            else:
+                raise not_found("Findings", "scope")
+        elif client_id not in accessible:
+            raise not_found("Findings", client_id)
+
     # Get findings from DB
-    findings_records = store.list_all_findings(client_id=body.client_id or None, limit=500)
+    findings_records = store.list_all_findings(client_id=client_id or None, limit=500)
     findings = []
     for fr in findings_records:
         try:
@@ -61,19 +78,29 @@ async def assess_compliance(body: ComplianceAssessRequest) -> dict:
             continue
 
     report = map_findings_to_framework(findings, body.framework)
-    logger.info("Compliance assessment completed: framework=%s client=%s", body.framework, body.client_id)
+    logger.info("Compliance assessment completed: framework=%s client=%s", body.framework, client_id)
     return report.model_dump()
 
 
 @router.get("/compliance/zero-trust")
 async def zero_trust_assessment(
     client_id: str = Query("", description="Client ID"),
+    user: User | None = Depends(get_current_user),
 ) -> dict:
     """Run Zero Trust maturity assessment."""
     from kryon.intelligence.models import Finding
     from kryon.server.deps import get_store
 
     store = get_store()
+    accessible = get_accessible_client_ids(user, store)
+    if accessible is not None:
+        if not client_id:
+            if len(accessible) == 1:
+                client_id = next(iter(accessible))
+            else:
+                raise not_found("Findings", "scope")
+        elif client_id not in accessible:
+            raise not_found("Findings", client_id)
     findings_records = store.list_all_findings(client_id=client_id or None, limit=500)
     findings = []
     for fr in findings_records:

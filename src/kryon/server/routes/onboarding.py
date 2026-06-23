@@ -11,6 +11,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from kryon.server.auth import require_api_key
+from kryon.server.auth.deps import get_current_user
+from kryon.server.auth.isolation import require_resource_access, verify_client_access
+from kryon.server.auth.models import User
 from kryon.server.deps import get_store
 from kryon.server.exceptions import not_found
 from kryon.server.logging_config import get_logger
@@ -116,8 +119,10 @@ async def complete_onboarding(session_id: str) -> dict:
 
 
 @router.post("/onboarding/credentials")
-async def save_credential(body: CredentialBody) -> dict:
+async def save_credential(body: CredentialBody, user: User | None = Depends(get_current_user)) -> dict:
     """Save an encrypted credential."""
+    # client_id is operator-supplied → verify the caller may write to that client (BOLA guard).
+    verify_client_access(user, body.client_id, get_store())
     encryption_key = os.environ.get("KRYON_CREDENTIAL_KEY", "")
     if not encryption_key:
         raise HTTPException(status_code=500, detail="Server configuration error")
@@ -146,16 +151,23 @@ async def save_credential(body: CredentialBody) -> dict:
 
 
 @router.get("/onboarding/credentials/{client_id}")
-async def list_credentials(client_id: str) -> list[dict]:
+async def list_credentials(client_id: str, user: User | None = Depends(get_current_user)) -> list[dict]:
     """List credentials (metadata only, no decryption)."""
     store = get_store()
+    require_resource_access(user, client_id, store, kind="Credential", resource_id=client_id)
     return store.list_credentials(client_id)
 
 
 @router.delete("/onboarding/credentials/{cred_id}")
-async def delete_credential(cred_id: str) -> dict:
+async def delete_credential(cred_id: str, user: User | None = Depends(get_current_user)) -> dict:
     """Delete a credential."""
     store = get_store()
+    # Resolve the credential's owning client and guard before deleting (BOLA — a foreign
+    # cred_id is indistinguishable from a missing one).
+    cred = store.get_credential(cred_id)
+    if cred is None:
+        raise not_found("Credential", cred_id)
+    require_resource_access(user, cred["client_id"], store, kind="Credential", resource_id=cred_id)
     if not store.delete_credential(cred_id):
         logger.warning("Credential not found for delete: %s", cred_id)  # nosemgrep: python-logger-credential-disclosure
         raise not_found("Credential", cred_id)

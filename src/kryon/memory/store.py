@@ -1554,6 +1554,16 @@ class MemoryStore:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    def get_credential(self, cred_id: str) -> dict | None:
+        """Return credential METADATA (incl. client_id, NO encrypted secret) for one id,
+        or None. Used to resolve ownership before a by-id delete (BOLA guard)."""
+        conn = self._get_conn()
+        row = conn.execute(
+            "SELECT id, client_id, credential_type, label, created_at FROM credentials WHERE id = ?",
+            (cred_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
     def delete_credential(self, cred_id: str) -> bool:
         conn = self._get_conn()
         cur = conn.execute("DELETE FROM credentials WHERE id = ?", (cred_id,))

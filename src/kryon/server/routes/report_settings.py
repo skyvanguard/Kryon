@@ -9,6 +9,9 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from kryon.server.auth import require_api_key
+from kryon.server.auth.deps import get_current_user
+from kryon.server.auth.isolation import require_resource_access, verify_client_access
+from kryon.server.auth.models import User
 from kryon.server.deps import get_store
 from kryon.server.exceptions import not_found
 from kryon.server.logging_config import get_logger
@@ -35,9 +38,10 @@ async def list_templates() -> list[dict]:
 
 
 @router.post("/reports/branding")
-async def save_branding(body: BrandingBody) -> dict:
+async def save_branding(body: BrandingBody, user: User | None = Depends(get_current_user)) -> dict:
     """Save or update branding config for a client."""
     store = get_store()
+    verify_client_access(user, body.client_id, store)
     now = datetime.now(timezone.utc).isoformat()
     existing = store.get_branding(body.client_id)
     branding_id = existing["id"] if existing else str(uuid.uuid4())
@@ -55,9 +59,10 @@ async def save_branding(body: BrandingBody) -> dict:
 
 
 @router.get("/reports/branding/{client_id}")
-async def get_branding(client_id: str) -> dict:
+async def get_branding(client_id: str, user: User | None = Depends(get_current_user)) -> dict:
     """Get branding config for a client."""
     store = get_store()
+    require_resource_access(user, client_id, store, kind="Branding", resource_id=client_id)
     branding = store.get_branding(client_id)
     if not branding:
         logger.warning("Branding not found: client=%s", client_id)

@@ -1,4 +1,13 @@
-"""Report generation API endpoints."""
+"""Report generation API endpoints.
+
+ISOLATION TODO (3rd bug-hunt G5): these endpoints are NOT yet cross-client (BOLA)
+isolated. Reports are filesystem-only (``~/.kryon/reports/``) and carry no structured
+client_id — the filename is a lossy ``_safe_slug(client_name)``, so it can't be mapped
+back to a store client_id to guard against. Closing this properly requires persisting
+reports in the store WITH a client_id (or a client_name→client_id map). Left explicitly
+un-guarded rather than shipping a guess that would break the single-tenant flow.
+Under single-tenant API-key mode (the supported deployment) this has no impact.
+"""
 
 from __future__ import annotations
 
