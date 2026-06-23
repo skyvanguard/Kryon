@@ -1050,6 +1050,7 @@ async def run_with_reflection(
     max_total_turns: int = 30,
     run_config: Any = None,
     stuck_threshold: int = _DEFAULT_STUCK_THRESHOLD,
+    initial_facts: ExtractedFacts | None = None,
 ) -> Any:
     """Run an agent with periodic reflection turn injection.
 
@@ -1099,7 +1100,11 @@ async def run_with_reflection(
     # model "forgets" what tools previously revealed when reflection
     # turns get long; injecting this block into every reflection keeps
     # the picture coherent across the chunked run.
-    accumulated_facts: ExtractedFacts = _EMPTY_FACTS
+    # Seed from the deterministic-phase facts (open services etc.) so the chain-planner
+    # rules fire from turn 1 — instead of waiting for the LLM to (maybe) re-run nmap/gobuster
+    # and the flaky output→fact extraction to repopulate what the deterministic phase already
+    # knows. This is what makes service-triggered rules fire AUTONOMOUSLY.
+    accumulated_facts: ExtractedFacts = initial_facts or _EMPTY_FACTS
 
     # G7 (FASE 4) — stall detector state. Tracks the last N
     # recommendations the planner emitted plus the facts signature at

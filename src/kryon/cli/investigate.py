@@ -204,6 +204,36 @@ def _safe_call(fn, *args, **kwargs):
     return r if isinstance(r, list) else [r]
 
 
+_PORT_TO_SVC = {
+    80: "http", 443: "https", 8080: "http", 8000: "http", 8443: "https",
+    22: "ssh", 21: "ftp", 445: "smb", 139: "smb", 3306: "mysql", 5432: "postgres",
+    25: "smtp", 23: "telnet", 110: "pop3", 143: "imap", 27017: "mongodb", 6379: "redis",
+}
+
+
+def _seed_initial_facts(url: str, findings: list) -> Any:
+    """Seed ExtractedFacts.services from the target URL + the deterministic phase's findings
+    (which already know the open services) so the chain-planner's service-triggered rules
+    fire from turn 1 — instead of depending on the LLM to re-run nmap and the flaky
+    output→fact extraction. Returns None when nothing is seedable."""
+    from urllib.parse import urlparse  # noqa: PLC0415
+
+    from kryon.intelligence.fact_extractor import ExtractedFacts  # noqa: PLC0415
+
+    services: set[tuple[int, str]] = set()
+    parsed = urlparse(url)
+    if parsed.scheme in ("http", "https"):
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        services.add((port, parsed.scheme))
+    for f in findings or []:
+        asset = str(getattr(f, "affected_asset", "") or getattr(f, "host", "") or "")
+        for m in re.finditer(r":(\d{1,5})\b", asset):
+            port = int(m.group(1))
+            if 1 <= port <= 65535:
+                services.add((port, _PORT_TO_SVC.get(port, "")))
+    return ExtractedFacts(services=tuple(sorted(services))) if services else None
+
+
 def _run_deterministic_phase(
     url: str,
     *,
@@ -1090,6 +1120,7 @@ def run_investigate(args: argparse.Namespace) -> int:
                 reflect_every=reflect_every,
                 max_total_turns=max_turns,
                 run_config=get_run_config(),
+                initial_facts=_seed_initial_facts(args.url or "", deterministic_findings),
             )
         return await Runner.run(
             agent,
