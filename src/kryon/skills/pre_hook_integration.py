@@ -143,9 +143,21 @@ def collect_active_pre_hooks(agent: Any) -> list[PreHookSpec]:
     (already sorted by the loader).
     """
     skills = getattr(agent, "_active_skills", None) or []
+    # Offensive profile: skip compliance-audit pre_hooks. A compliance skill (e.g.
+    # windows-server-audit) can match an offensive engagement by target tech, and its
+    # run_compliance_audit pre_hook then floods the turn with dozens of WIN-x.x/PCI findings —
+    # which derailed the model into regurgitating them as a giant malformed tool call (a 500
+    # that killed the AttacktiveDirectory run before the offensive chain could start). Compliance
+    # audits belong to compliance engagements, not red-team. The findings themselves stay
+    # available via `kryon engage`; this only stops them from polluting an offensive turn.
+    from kryon.util.env import is_red_team  # noqa: PLC0415
+
+    skip_compliance = is_red_team()
     flat: list[PreHookSpec] = []
     for skill in skills:
         for hook in getattr(skill, "pre_hooks", None) or ():
+            if skip_compliance and getattr(hook, "tool", "") == "run_compliance_audit":
+                continue
             flat.append(hook)
     return flat
 

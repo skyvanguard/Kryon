@@ -49,6 +49,28 @@ class _FakeAgent:
         self._active_skills = skills
 
 
+class _FakeHook:
+    def __init__(self, tool: str) -> None:
+        self.tool = tool
+        self.python = None
+
+
+def test_collect_skips_compliance_pre_hooks_under_red_team(monkeypatch) -> None:
+    """Offensive (KRYON_RED_TEAM) runs must NOT run run_compliance_audit pre_hooks — a compliance
+    skill matching by tech (windows-server-audit) flooded an AttacktiveDirectory turn with WIN-x.x
+    findings and the model regurgitated them into a malformed 500 that killed the run."""
+    skill = _FakeSkill("windows-server-audit", (_FakeHook("run_compliance_audit"), _FakeHook("nmap")))
+    agent = _FakeAgent(tools=[], skills=[skill])
+
+    monkeypatch.setenv("KRYON_RED_TEAM", "true")
+    tools = [h.tool for h in collect_active_pre_hooks(agent)]
+    assert "run_compliance_audit" not in tools and "nmap" in tools
+
+    monkeypatch.setenv("KRYON_RED_TEAM", "false")
+    tools2 = [h.tool for h in collect_active_pre_hooks(agent)]
+    assert "run_compliance_audit" in tools2  # compliance engagements still run it
+
+
 # ---------- build_tool_callables_from_agent ----------
 
 
