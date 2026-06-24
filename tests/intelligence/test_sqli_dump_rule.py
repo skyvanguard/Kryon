@@ -43,6 +43,15 @@ def test_drops_static_assets():
     assert "/post" in rec.args
 
 
+def test_drops_auth_forms():
+    # /login + /register are POST auth, not GET ?id= injectable — probing them burns the timeout
+    facts = ExtractedFacts(
+        services=((80, "http"),), hosts=("x",), paths=("/login", "/register", "/post", "/user")
+    )
+    rec = _rule_sqli_dump(facts, [], "")
+    assert "for b in /post /user;" in rec.args  # only content paths probed, auth dropped
+
+
 def test_abstains_without_web_or_paths():
     assert _rule_sqli_dump(ExtractedFacts(services=((80, "http"),), hosts=("x",)), [], "") is None
     assert _rule_sqli_dump(ExtractedFacts(hosts=("x",), paths=("/a",)), [], "") is None
