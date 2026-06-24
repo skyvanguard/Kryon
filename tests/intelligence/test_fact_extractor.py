@@ -650,7 +650,12 @@ def test_web_param_path_drives_planner_to_sqlmap() -> None:
     sample = '{"final_url": "http://10.10.10.10/", "body": "go to /item?id=3"}'
     facts = extract_facts("web_fetch_smart http://10.10.10.10/", sample)
     assert "/item?id=3" in facts.paths
-    rec = plan_next_action(facts, [], "audita http://10.10.10.10")
+    # On an http target the cheap credential-loot + searchsploit fingerprint run first; once they
+    # have, the parametrized path drives the targeted sqlmap step (the fix #2 chain). Mark both as
+    # already run so we assert the sqlmap link of the chain, not the steps that precede it.
+    rec = plan_next_action(
+        facts, ["# loot_web [LOOT] ran", "searchsploit fingerprint ran"], "audita http://10.10.10.10"
+    )
     assert rec is not None
     assert "sqlmap" in rec.args
     assert "/item?id=3" in rec.args
