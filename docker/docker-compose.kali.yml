@@ -128,7 +128,10 @@ services:
       # so the rest of the stack is unchanged. To go back to the faster (but
       # shallower) dense 8B, flip -m to /models/qwen3-8b-q4km.gguf, drop the
       # --cache-type-k/v lines, set -c 32768 and re-add --reasoning-budget 0.
-      - /models/Devstral-Small-2-24B-IQ3_XXS.gguf
+      # SWAP TEST (Qwen3.5-9B Q8_0, salió 2026-03): 9B denso, full GPU, tool_calls.
+      # Revertir: comentar la línea Qwen + descomentar la Devstral.
+      # - /models/Devstral-Small-2-24B-IQ3_XXS.gguf
+      - /models/Qwen3.5-9B-Q8_0.gguf
       - -ngl
       - "99"
       - -fa
@@ -147,18 +150,28 @@ services:
       # the agent acts (micro_compact F-CTXMGMT trims history, not the prompt). 20K
       # covers prompt+findings + trimmed history; more headroom → shrink the prompt.
       - -c
-      - "20480"
+      # Qwen3.5-9B Q8 (9.1GB) KV cache ~16 MiB/1K tokens (atención eficiente). 131072 (128K)
+      # mide ~11.2GB/12GB (~1GB margen). Techo VRAM ~160K; nativo 262K. 20480 para Devstral.
+      - "131072"
       # Generation cap — bounds a verbose CoT turn + stops history snowballing.
       - -n
       - "2000"
-      # temp 0.6 — Qwen3's recommended sampling for non-thinking mode (0.3 is
-      # fine too for banca-safe determinism; 0.6 balances tool-use reliability).
+      # Qwen3.5 NON-THINKING sampling (temp 0.7 / top_p 0.8 / top_k 20). ROOT-CAUSE FIX: the
+      # thinking output (a <think> block parsed into reasoning_content with EMPTY content) reads
+      # as a reasoning-only dud in our llama.cpp+SDK harness, which killed every live run this
+      # session (Qwen scores 79.1% on TAU2-Bench under its OWN vLLM parser, but ours mishandles
+      # the thinking format). The temp-1.0 thinking sampling made it WORSE (more/longer reasoning
+      # → more duds). Disabling thinking (--chat-template-kwargs enable_thinking=false) makes it
+      # emit content/tool_calls directly — the deterministic chain-planner compensates for the
+      # slightly weaker per-step reasoning. Revert to temp 0.15 for banking-safe compliance runs.
+      - --chat-template-kwargs
+      - '{"enable_thinking": false}'
       - --temp
-      - "0.15"
-      # Disable Qwen3 "thinking" mode. Qwen3 models default to emitting a long
-      # <think> block; left on it burns the token budget in reasoning_content
-      # and delays content/tool_calls. --reasoning-budget 0 forces direct
-      # answers / immediate tool use (verified: emits native tool_calls).
+      - "0.7"
+      - --top-p
+      - "0.8"
+      - --top-k
+      - "20"
       - --parallel
       - "1"
       # -t 8: usar SOLO los 8 P-cores del Core Ultra 9 275HX (hibrido 8P+16E).
