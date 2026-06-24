@@ -443,6 +443,22 @@ def _parse_smbclient_shares(output: str) -> ExtractedFacts:
     return ExtractedFacts(shares=_dedup_sorted(tuple(shares)))
 
 
+def _parse_etc_passwd(output: str) -> ExtractedFacts:
+    """Extract login users from a leaked /etc/passwd (LFI / path traversal / RCE). Keeps root and
+    accounts with a real login shell (uid 0 or >=1000, or a /home dir); drops daemon/service/nologin
+    accounts. Feeds facts.users so the chain pivots to SSH/credential attacks on real users — e.g.
+    the LFI probe on THM Team leaks dale + gyles for the SSH stage."""
+    users: list[str] = []
+    for m in re.finditer(
+        r"^([a-z_][a-z0-9_-]{0,31}):[^:]*:(\d+):\d+:[^:]*:([^:]*):(\S*)\s*$", output, re.MULTILINE
+    ):
+        name, uid, home, shell = m.group(1), int(m.group(2)), m.group(3), m.group(4)
+        is_login = shell.endswith(("sh", "bash", "zsh", "fish")) and "nologin" not in shell
+        if name == "root" or (is_login and (uid >= 1000 or home.startswith("/home"))):
+            users.append(name)
+    return ExtractedFacts(users=tuple(dict.fromkeys(users)))
+
+
 def _parse_kerbrute(output: str) -> ExtractedFacts:
     """kerbrute userenum output: ``[+] VALID USERNAME: user@domain.local``. The deterministic
     AD-enum rule runs ldapsearch (rootDSE → domain) + kerbrute (users) in one command, so this
@@ -1028,6 +1044,10 @@ def extract_facts(tool_invocation: str, output: str) -> ExtractedFacts:
         return parsed
 
     head = output[:400].lower()
+    # Leaked /etc/passwd (LFI / path traversal / RCE) — the root:...:0:0: line is an unambiguous
+    # signature. Pull the real login users so the chain pivots to SSH/brute (Team LFI -> dale/gyles).
+    if re.search(r"^root:[^:]*:0:0:", output, re.MULTILINE):
+        return _attach_hints(_parse_etc_passwd(output))
     # kerbrute userenum (+ optional concatenated ldapsearch rootDSE) — very specific marker.
     if "valid username:" in output.lower():
         return _attach_hints(_parse_kerbrute(output))

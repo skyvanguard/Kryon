@@ -222,6 +222,7 @@ def _seed_initial_facts(url: str, findings: list) -> Any:
 
     services: set[tuple[int, str]] = set()
     hosts: set[str] = set()
+    paths: set[str] = set()
     parsed = urlparse(url)
     if parsed.scheme in ("http", "https"):
         port = parsed.port or (443 if parsed.scheme == "https" else 80)
@@ -246,9 +247,25 @@ def _seed_initial_facts(url: str, findings: list) -> Any:
         host_part = re.sub(r":\d+.*$", "", asset).strip()
         if host_part and "/" not in host_part:
             hosts.add(host_part)
-    if not (services or hosts):
+        # Web-enum discoveries → facts so the planner CHAINS them (enumerate dirs, probe for LFI),
+        # instead of only the model reading them as text and (often) ignoring them. The ffuf-found
+        # dirs/vhosts are the entry points to the next stage (e.g. /scripts -> script.php?page= LFI,
+        # dev.team.thm dev vhost). Knowledge from the wordlist; generic across web boxes.
+        rule_id = str(getattr(f, "rule_id", "") or "")
+        if rule_id == "WEB-ENUM-DIR":
+            # evidence listing: "/scripts (301), /assets (301), /robots.txt (200), ..."
+            for m in re.finditer(r"(/[A-Za-z0-9._~/-]+)", str(getattr(f, "evidence", "") or "")):
+                paths.add(m.group(1))
+        elif rule_id == "WEB-ENUM-VHOST":
+            # message: "virtual host discovered: dev.team.thm (HTTP 200) — added to /etc/hosts"
+            m = re.search(r"discovered:\s*([A-Za-z0-9][A-Za-z0-9.-]+)", str(getattr(f, "message", "") or ""))
+            if m:
+                hosts.add(m.group(1))
+    if not (services or hosts or paths):
         return None
-    return ExtractedFacts(services=tuple(sorted(services)), hosts=tuple(sorted(hosts)))
+    return ExtractedFacts(
+        services=tuple(sorted(services)), hosts=tuple(sorted(hosts)), paths=tuple(sorted(paths))
+    )
 
 
 def _run_deterministic_phase(
