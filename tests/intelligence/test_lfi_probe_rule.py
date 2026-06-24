@@ -47,7 +47,7 @@ def test_abstains_when_already_run():
 
 def test_sqlmap_wins_param_path_lfi_takes_dirs():
     # a ?id= param is SQLi territory; the LFI probe must not preempt sqlmap on it
-    prior = ["# loot_web [LOOT] ran", "searchsploit ran"]
+    prior = ["service_scan --top-ports 2000", "# loot_web [LOOT] ran", "searchsploit ran"]
     sqli = ExtractedFacts(services=((80, "http"),), hosts=("x",), paths=("/item?id=3",))
     assert "sqlmap" in (plan_next_action(sqli, prior_tool_args=prior, intent="").args or "")
 

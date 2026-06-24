@@ -654,7 +654,7 @@ def test_web_param_path_drives_planner_to_sqlmap() -> None:
     # have, the parametrized path drives the targeted sqlmap step (the fix #2 chain). Mark both as
     # already run so we assert the sqlmap link of the chain, not the steps that precede it.
     rec = plan_next_action(
-        facts, ["# loot_web [LOOT] ran", "searchsploit fingerprint ran"], "audita http://10.10.10.10"
+        facts, ["service_scan --top-ports 2000", "# loot_web [LOOT] ran", "searchsploit fingerprint ran"], "audita http://10.10.10.10"
     )
     assert rec is not None
     assert "sqlmap" in rec.args

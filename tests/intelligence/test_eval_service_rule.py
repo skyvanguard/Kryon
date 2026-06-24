@@ -43,5 +43,6 @@ def test_command_gates_payload_behind_eval_signature():
 
 
 def test_plan_selects_eval_rce_on_raw_service():
-    rec = plan_next_action(_SVC, prior_tool_args=[], intent="")
+    # recon-first runs first on a sparse surface; mark it done so we assert the eval link
+    rec = plan_next_action(_SVC, prior_tool_args=["nmap ... --top-ports 2000 (service_scan)"], intent="")
     assert rec is not None and "EVAL-RCE" in rec.args
