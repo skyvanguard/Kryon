@@ -330,7 +330,7 @@ def _recommendation_signature(rec: Any) -> str:
     if rec is None:
         return ""
     tool = getattr(rec, "tool", "") or ""
-    args = (getattr(rec, "args", "") or "")[:200]
+    args = (getattr(rec, "args", "") or "")[:2000]
     return f"{tool}|{args}"
 
 
@@ -663,7 +663,7 @@ def _extract_tool_calls(new_items: list[Any]) -> list[_ToolCallRecord]:
             _ToolCallRecord(
                 tool_name=tool_name,
                 args_hash=_hash_args(args_obj),
-                args_preview=str(args_obj)[:200],
+                args_preview=str(args_obj)[:2000],
             )
         )
     return records
@@ -961,7 +961,7 @@ def _salvage_chunk_intel(capture_hooks: Any, accumulated_facts: Any, tool_histor
                 _ToolCallRecord(
                     tool_name="planner_subcall",
                     args_hash=_hash_args(sub_args),
-                    args_preview=sub_args[:200],
+                    args_preview=sub_args[:2000],
                 )
             )
     except Exception as e:  # noqa: BLE001
@@ -1447,7 +1447,7 @@ async def run_with_reflection(
                         synthetic_mt = _ToolCallRecord(
                             tool_name="planner_subcall",
                             args_hash=_hash_args(sub_args),
-                            args_preview=sub_args[:200],
+                            args_preview=sub_args[:2000],
                         )
                         tool_history.append(synthetic_mt)
                 except Exception as ee:  # noqa: BLE001
@@ -1677,7 +1677,7 @@ async def run_with_reflection(
             synthetic = _ToolCallRecord(
                 tool_name="planner_subcall",
                 args_hash=_hash_args(sub_args),
-                args_preview=sub_args[:200],
+                args_preview=sub_args[:2000],
             )
             tool_history.append(synthetic)
             new_records.append(synthetic)
