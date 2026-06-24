@@ -324,6 +324,29 @@ def enumerate_ad(
                 if group and group not in results["groups"]:
                     results["groups"].append(group)
 
+    # 1.5 Anonymous LDAP user enumeration — modern AD restricts anonymous RPC/SAMR (enum4linux +
+    # rpcclient enumdomusers return access-denied), but LDAP anonymous READ is frequently still allowed.
+    # This is the path that works on e.g. THM Operation Endgame, where `ldapsearch -x` lists 330 users
+    # while enum4linux/rpcclient get nothing. Derive the base DN from the domain and pull sAMAccountName.
+    base_dn = ",".join(f"DC={part}" for part in domain.split(".") if part)
+    if base_dn:
+        if username and password:
+            bind = f"-D {shlex.quote(f'{username}@{domain}')} -w {shlex.quote(password)}"
+        else:
+            bind = "-x"  # anonymous simple bind
+        ldsearch_cmd = (
+            f"ldapsearch {bind} -H ldap://{safe_dc} -b {shlex.quote(base_dn)} "
+            f"'(&(objectClass=user)(objectCategory=person))' sAMAccountName"
+        )
+        ldsearch_output = _run_cmd(ldsearch_cmd, timeout=120)
+        results["output"]["ldapsearch_users"] = ldsearch_output[:4000]
+        for line in ldsearch_output.split("\n"):
+            if line.lower().startswith("samaccountname:"):
+                user = line.split(":", 1)[1].strip()
+                # drop machine accounts ($) and empties; keep human users for AS-REP/spray
+                if user and not user.endswith("$") and user not in results["users"]:
+                    results["users"].append(user)
+
     # 2. ldapdomaindump for LDAP data
     if username and password:
         ldap_cmd = (
