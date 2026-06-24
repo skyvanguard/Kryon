@@ -443,6 +443,25 @@ def _parse_smbclient_shares(output: str) -> ExtractedFacts:
     return ExtractedFacts(shares=_dedup_sorted(tuple(shares)))
 
 
+def _parse_kerbrute(output: str) -> ExtractedFacts:
+    """kerbrute userenum output: ``[+] VALID USERNAME: user@domain.local``. The deterministic
+    AD-enum rule runs ldapsearch (rootDSE → domain) + kerbrute (users) in one command, so this
+    also harvests the domain from a concatenated ``namingContexts: DC=X,DC=Y`` line. Feeds
+    facts.users + facts.domains → the AS-REP-roast / kerberoast rules fire."""
+    users: list[str] = []
+    domains: list[str] = []
+    for m in re.finditer(r"VALID USERNAME:\s*([A-Za-z0-9._$-]+)@([A-Za-z0-9.-]+)", output, re.IGNORECASE):
+        users.append(m.group(1))
+        domains.append(m.group(2).lower())
+    for m in re.finditer(
+        r"(?:namingcontexts|defaultnamingcontext)\s*:\s*(DC=[^\s,]+(?:,DC=[^\s,]+)+)", output, re.IGNORECASE
+    ):
+        fqdn = _dn_to_fqdn(m.group(1))
+        if fqdn:
+            domains.append(fqdn)
+    return ExtractedFacts(users=_dedup_sorted(tuple(users)), domains=_dedup_sorted(tuple(domains)))
+
+
 def _parse_nmap(output: str) -> ExtractedFacts:
     """nmap text output. Look for ``PORT     STATE SERVICE`` table lines.
 
@@ -1009,6 +1028,9 @@ def extract_facts(tool_invocation: str, output: str) -> ExtractedFacts:
         return parsed
 
     head = output[:400].lower()
+    # kerbrute userenum (+ optional concatenated ldapsearch rootDSE) — very specific marker.
+    if "valid username:" in output.lower():
+        return _attach_hints(_parse_kerbrute(output))
     if "dn:" in head and ("samaccountname" in head or "namingcontext" in head):
         return _attach_hints(_parse_ldapsearch(output))
     if "sharename" in head and "type" in head and "comment" in head:
