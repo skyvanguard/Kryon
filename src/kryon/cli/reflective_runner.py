@@ -163,6 +163,27 @@ def _facts_from_loot(text: str) -> Any:
         return None
 
 
+def _facts_from_autoexec(block: str) -> Any:
+    """Merge ALL intel an autoexec'd directive surfaced into ExtractedFacts so the chain advances.
+    Combines the web-loot [LOOT]-hash parser with the GENERAL extract_facts (which dispatches to
+    _parse_kerbrute/_parse_ldapsearch/_parse_nmap/_parse_secretsdump/...). Without the general
+    pass, an AD-enum directive's 'VALID USERNAME: user@domain' output never reached facts.users,
+    so the AS-REP-roast rule never fired and the run died on empty-output duds (AttacktiveDirectory)."""
+    if not block:
+        return None
+    merged = None
+    try:
+        merged = _facts_from_loot(block)
+    except Exception as e:  # noqa: BLE001
+        logger.debug("loot parse skipped: %s", e)
+    try:
+        general = extract_facts("run_command", block)
+        merged = general if merged is None else merged.merge(general)
+    except Exception as e:  # noqa: BLE001 — never break the chunk
+        logger.debug("autoexec general fact parse skipped: %s", e)
+    return merged
+
+
 # Default reflection cadence — every 4 turns (~3-4 tool calls).
 _DEFAULT_REFLECT_EVERY = 4
 # Stuck threshold: 2 identical (tool_name, args_hash) consecutive triggers warning.
@@ -446,8 +467,10 @@ def _has_foothold(facts: ExtractedFacts) -> bool:
 # output. Override via ``KRYON_PREMATURE_MAX_REJECTIONS`` if needed.
 _DEFAULT_PREMATURE_MAX_REJECTIONS = 2
 # Max times the runner converts an EMPTY final_output (thinking-model reasoning-only dud) into
-# a deterministic-autoexec/nudge continuation instead of ending the run.
-_MAX_EMPTY_OUTPUT_FALLBACKS = 3
+# a deterministic-autoexec/nudge continuation instead of ending the run. Each fallback autoexec's
+# the next deterministic directive and merges its facts, so the count doubles as a budget for the
+# deterministic chain to carry itself (enum -> AS-REP -> crack -> secretsdump) when the model bails.
+_MAX_EMPTY_OUTPUT_FALLBACKS = 6
 
 
 def _detect_premature_summary(
@@ -1463,7 +1486,7 @@ async def run_with_reflection(
                     adherence=_adherence, turns_used=turns_used,
                 )
                 if _autoexec_block_mt:
-                    _loot_facts_mt = _facts_from_loot(_autoexec_block_mt)
+                    _loot_facts_mt = _facts_from_autoexec(_autoexec_block_mt)
                     if _loot_facts_mt is not None:
                         accumulated_facts = accumulated_facts.merge(_loot_facts_mt)
 
@@ -1710,7 +1733,7 @@ async def run_with_reflection(
                         _next_eo, _host_eo, enabled=True, adherence=_adherence, turns_used=turns_used
                     )
                     if _eo_block:
-                        _eo_facts = _facts_from_loot(_eo_block)
+                        _eo_facts = _facts_from_autoexec(_eo_block)
                         if _eo_facts is not None:
                             accumulated_facts = accumulated_facts.merge(_eo_facts)
                 if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
@@ -1999,7 +2022,7 @@ async def run_with_reflection(
             next_action, _host, enabled=_planner_autoexec_enabled(), adherence=_adherence, turns_used=turns_used
         )
         if _autoexec_block:
-            _loot_facts = _facts_from_loot(_autoexec_block)
+            _loot_facts = _facts_from_autoexec(_autoexec_block)
             if _loot_facts is not None:
                 accumulated_facts = accumulated_facts.merge(_loot_facts)
 
