@@ -18,9 +18,18 @@ _WEB = ExtractedFacts(
 def test_fires_on_discovered_web_surface():
     rec = _rule_lfi_probe(_WEB, [], "")
     assert rec is not None
+    assert rec.confidence >= 0.92  # must clear the deterministic-autoexec tier
     assert "etc/passwd" in rec.args and "LFI-HIT" in rec.args
     # probes every discovered host, not just the apex (the LFI was on the dev vhost)
     assert "dev.team.thm" in rec.args and "team.thm" in rec.args
+
+
+def test_exploits_to_ssh_keys_from_real_users():
+    # stage 2: re-use the working LFI to read each real home dir's private key (not guessed users)
+    rec = _rule_lfi_probe(_WEB, [], "")
+    assert "id_rsa" in rec.args and "id_ed25519" in rec.args
+    assert "/home/" in rec.args and "BEGIN .*PRIVATE KEY" in rec.args
+    assert "LFI-KEY" in rec.args and "ssh -i" in rec.args
 
 
 def test_abstains_without_discovered_paths():
