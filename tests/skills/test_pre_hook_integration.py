@@ -214,6 +214,9 @@ async def test_maybe_run_returns_empty_when_no_hooks() -> None:
 async def test_maybe_run_invokes_hook_and_returns_block(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # The suite defaults KRYON_RED_TEAM=true (conftest); run_compliance_audit pre_hooks are now
+    # skipped under red-team, so exercise the compliance-runs path with the offensive gate off.
+    monkeypatch.setenv("KRYON_RED_TEAM", "false")
     monkeypatch.setenv("KRYON_TARGET_HOST", "192.168.1.1")
     monkeypatch.setenv("KRYON_SSH_USER", "auditor")
 
