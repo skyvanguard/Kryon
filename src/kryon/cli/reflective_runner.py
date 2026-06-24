@@ -1471,10 +1471,17 @@ async def run_with_reflection(
                     logger.debug("MaxTurns planner path failed: %s", ee)
 
                 if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
+                    _na_mt = (
+                        f"{next_action_mt.tool}:{(next_action_mt.args or '')[:60]} (c={next_action_mt.confidence})"
+                        if next_action_mt
+                        else "NONE"
+                    )
+                    _svc_mt = sorted({p for p, _ in accumulated_facts.services})
                     print(
                         f"\n🪞 [reflective-runner] MaxTurns-path intel: "
                         f"facts_empty={accumulated_facts.is_empty()} "
-                        f"next_action={'yes' if next_action_mt else 'no'}"
+                        f"next_action={'yes' if next_action_mt else 'no'} | "
+                        f"NA={_na_mt} | facts.services={_svc_mt}"
                     )
 
                 # Refresh the ContextVar (for the model's next-chunk directive tool call) +
@@ -1987,6 +1994,15 @@ async def run_with_reflection(
             )
         except Exception as e:  # noqa: BLE001 — planner failure must not break the chunk
             logger.debug("exploit_chain_planner probe failed: %s", e)
+
+        if os.environ.get("KRYON_REFLECT_DEBUG", "").lower() in ("1", "true", "yes"):
+            _na = (
+                f"{next_action.tool}:{(next_action.args or '')[:55]} (c={next_action.confidence})"
+                if next_action
+                else "NONE"
+            )
+            _svc = sorted({p for p, _ in accumulated_facts.services})
+            print(f"\n🔎 [planner] turn {turns_used}: next_action={_na} | facts.services={_svc}")
 
         # FASE 6 — refresh the runtime ContextVar so the
         # ``execute_planner_directive`` function_tool can re-run the
