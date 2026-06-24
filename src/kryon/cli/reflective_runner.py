@@ -1197,6 +1197,12 @@ async def run_with_reflection(
     _adherence = AdherenceTracker()
     _adh_th_len = 0  # tool_history length at the last injection (to find the model's action)
     _autoexec_block = ""  # Tier 1.1: result of a deterministically-executed directive, injected next turn
+    # Args of every directive the runner has auto-executed. Folded into prior_tool_args so the
+    # planner ABSTAINS rules it already ran — even when the executor's subcall never makes it back
+    # into tool_history (the ContextVar drain is async-context-fragile, F6/F11.M). Without this the
+    # deterministic chain re-fires its first matching rule forever and never advances to the next
+    # step while the model rabbit-holes (Team: LFI rule never reached behind web-loot/searchsploit).
+    _autoexec_history: list[str] = []
     # F203.H — accumulate new_items across chunks so downstream consumers
     # (e.g. write_back_from_investigate) see the full tool call history,
     # not just the items from the last chunk.
@@ -1324,7 +1330,7 @@ async def run_with_reflection(
         try:
             _set_planner_state(
                 accumulated_facts,
-                [r.args_preview for r in tool_history],
+                [r.args_preview for r in tool_history] + _autoexec_history,
             )
         except Exception as e:  # noqa: BLE001
             logger.debug("planner runtime state pre-set failed: %s", e)
@@ -1455,7 +1461,7 @@ async def run_with_reflection(
 
                 next_action_mt: NextActionRecommendation | None = None
                 try:
-                    prior_args_mt = [r.args_preview for r in tool_history]
+                    prior_args_mt = [r.args_preview for r in tool_history] + _autoexec_history
                     next_action_mt = plan_next_action(
                         accumulated_facts,
                         prior_tool_args=prior_args_mt,
@@ -1486,6 +1492,8 @@ async def run_with_reflection(
                     adherence=_adherence, turns_used=turns_used,
                 )
                 if _autoexec_block_mt:
+                    if next_action_mt is not None and getattr(next_action_mt, "args", ""):
+                        _autoexec_history.append(next_action_mt.args[:2000])
                     _loot_facts_mt = _facts_from_autoexec(_autoexec_block_mt)
                     if _loot_facts_mt is not None:
                         accumulated_facts = accumulated_facts.merge(_loot_facts_mt)
@@ -1719,7 +1727,7 @@ async def run_with_reflection(
             # else inject a "produce a concrete action" nudge. Then continue. Bounded.
             if not final_output_text.strip() and empty_output_count < _MAX_EMPTY_OUTPUT_FALLBACKS:
                 empty_output_count += 1
-                _prior_eo = [r.args_preview for r in tool_history]
+                _prior_eo = [r.args_preview for r in tool_history] + _autoexec_history
                 _next_eo = None
                 try:
                     _next_eo = plan_next_action(accumulated_facts, prior_tool_args=_prior_eo, intent="")
@@ -1733,6 +1741,8 @@ async def run_with_reflection(
                         _next_eo, _host_eo, enabled=True, adherence=_adherence, turns_used=turns_used
                     )
                     if _eo_block:
+                        if getattr(_next_eo, "args", ""):
+                            _autoexec_history.append(_next_eo.args[:2000])
                         _eo_facts = _facts_from_autoexec(_eo_block)
                         if _eo_facts is not None:
                             accumulated_facts = accumulated_facts.merge(_eo_facts)
@@ -1968,7 +1978,7 @@ async def run_with_reflection(
         # reflection prompt simply doesn't include the recommendation
         # block when there's nothing solid to recommend.
         next_action: NextActionRecommendation | None = None
-        prior_args = [r.args_preview for r in tool_history]
+        prior_args = [r.args_preview for r in tool_history] + _autoexec_history
         try:
             next_action = plan_next_action(
                 accumulated_facts,
@@ -2022,6 +2032,11 @@ async def run_with_reflection(
             next_action, _host, enabled=_planner_autoexec_enabled(), adherence=_adherence, turns_used=turns_used
         )
         if _autoexec_block:
+            # Remember we ran this directive so the planner abstains it next turn and the
+            # deterministic chain ADVANCES (web-loot -> searchsploit -> LFI -> ...) regardless of
+            # whether the model cooperates or what it does in parallel.
+            if next_action is not None and getattr(next_action, "args", ""):
+                _autoexec_history.append(next_action.args[:2000])
             _loot_facts = _facts_from_autoexec(_autoexec_block)
             if _loot_facts is not None:
                 accumulated_facts = accumulated_facts.merge(_loot_facts)

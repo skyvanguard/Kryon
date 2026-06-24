@@ -65,3 +65,28 @@ def test_passwd_leak_parses_login_users():
     assert "dale" in f.users and "gyles" in f.users and "root" in f.users
     # service/nologin accounts are dropped
     assert "daemon" not in f.users and "syslog" not in f.users
+
+
+def test_deterministic_chain_advances_to_lfi_not_loops():
+    """The reflective runner folds each auto-executed directive's args into prior_tool_args (so the
+    planner abstains rules it already ran). Simulate that: from a Team-like web surface, accumulating
+    the auto-exec'd directives must ADVANCE web-loot -> searchsploit -> ... -> LFI within a few steps
+    instead of looping the first rule forever (the bug that left Team's LFI rule never reached)."""
+    from kryon.intelligence.exploit_chain_planner import plan_next_action
+
+    facts = ExtractedFacts(
+        services=((80, "apache"),),
+        hosts=("dev.team.thm", "team.thm"),
+        paths=("/assets", "/css?family=X:200", "/images", "/index.html", "/robots.txt", "/scripts"),
+    )
+    autoexec_history: list[str] = []
+    saw_lfi = False
+    for _ in range(8):
+        rec = plan_next_action(facts, prior_tool_args=list(autoexec_history), intent="")
+        if rec is None:
+            break
+        if "lfi_probe" in rec.args:
+            saw_lfi = True
+            break
+        autoexec_history.append(rec.args[:2000])  # the runner records what it ran
+    assert saw_lfi, f"chain never reached the LFI rule; ran {len(autoexec_history)} steps"
