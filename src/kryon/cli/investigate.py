@@ -228,6 +228,13 @@ def _seed_initial_facts(url: str, findings: list) -> Any:
         services.add((port, parsed.scheme))
     if parsed.hostname:
         hosts.add(parsed.hostname)
+    elif url:
+        # Bare host/IP without a scheme (e.g. --url 10.65.160.62 for an AD DC): seed it as a
+        # host WITHOUT guessing an http service — so the autoexec's <target> substitution works
+        # on a non-web target without mis-firing the web-loot rule on a phantom :80.
+        bare = url.split("/")[0].split(":")[0].strip()
+        if bare and re.fullmatch(r"[A-Za-z0-9._-]+", bare):
+            hosts.add(bare)
     for f in findings or []:
         asset = str(getattr(f, "affected_asset", "") or getattr(f, "host", "") or "")
         for m in re.finditer(r":(\d{1,5})\b", asset):
