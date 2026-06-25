@@ -65,3 +65,35 @@ def test_all_abstain_once_run():
     rid = ExtractedFacts(services=((445, "smb"),), hosts=H)
     assert _rule_rid_cycle_then_roast(rid, ["[RID-USERS]"], "") is None
     assert _rule_privesc_cve_check(ExtractedFacts(services=((22, "ssh"),), hosts=H, creds=(("a", "b"),)), ["[PRIVESC-CVE ...]"], "") is None
+
+
+def test_file_upload_bypass_plants_and_finds_shell():
+    from kryon.intelligence.exploit_chain_planner import _rule_file_upload_bypass
+    rec = _rule_file_upload_bypass(ExtractedFacts(services=((80, "http"),), hosts=H), [], "")
+    assert rec is not None and "UPLOAD-RCE" in rec.args
+    assert "GIF89a" in rec.args and "phtml" in rec.args  # magic-byte + ext bypass
+    assert "krsh" in rec.args and "?0=id" in rec.args  # plants + verifies shell
+    assert _rule_file_upload_bypass(ExtractedFacts(services=((22, "ssh"),), hosts=H), [], "") is None
+    assert _rule_file_upload_bypass(ExtractedFacts(services=((80, "http"),), hosts=H), ["[UPLOAD-RCE x]"], "") is None
+
+
+def test_lfi_logpoison_confirms_then_poisons():
+    from kryon.intelligence.exploit_chain_planner import _rule_lfi_to_logpoison_rce
+    rec = _rule_lfi_to_logpoison_rce(ExtractedFacts(services=((80, "http"),), hosts=H), [], "")
+    assert rec is not None and "LOGPOISON-RCE" in rec.args
+    assert "etc/passwd" in rec.args and "access.log" in rec.args  # confirm LFI then poison log
+    assert "User-Agent" in rec.args or "system($_GET[0])" in rec.args
+    assert _rule_lfi_to_logpoison_rce(ExtractedFacts(services=((22, "ssh"),), hosts=H), [], "") is None
+
+
+def test_seimpersonate_fires_on_creds_and_winrm():
+    from kryon.intelligence.exploit_chain_planner import _rule_seimpersonate_printspoofer
+    rec = _rule_seimpersonate_printspoofer(
+        ExtractedFacts(services=((5985, "winrm"),), hosts=H, creds=(("bob", "pw"),)), [], ""
+    )
+    assert rec is not None and "SeImpersonate" in rec.args and "PrintSpoofer" in rec.args
+    # needs both creds AND winrm
+    assert _rule_seimpersonate_printspoofer(ExtractedFacts(services=((5985, "winrm"),), hosts=H), [], "") is None
+    assert _rule_seimpersonate_printspoofer(
+        ExtractedFacts(services=((22, "ssh"),), hosts=H, creds=(("a", "b"),)), [], ""
+    ) is None
