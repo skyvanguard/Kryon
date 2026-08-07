@@ -1,0 +1,86 @@
+"""Audit middleware — automatically logs mutating API requests."""
+
+from __future__ import annotations
+
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.requests import Request
+from starlette.responses import Response
+
+# HTTP methods that mutate state
+_AUDITED_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
+
+# Only trust X-Forwarded-For from these proxies
+_TRUSTED_PROXIES = {"127.0.0.1", "::1"}
+
+
+class AuditMiddleware(BaseHTTPMiddleware):
+    """Logs POST/PUT/DELETE requests to the audit log."""
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        response = await call_next(request)
+
+        if request.method in _AUDITED_METHODS and request.url.path.startswith("/api/"):
+            try:
+                from kryon.server.audit import log_action
+
+                client_host = request.client.host if request.client else "unknown"
+                ip = client_host
+                if client_host in _TRUSTED_PROXIES:
+                    forwarded = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+                    if forwarded:
+                        ip = forwarded
+
+                # Attribute the action to the authenticated user by decoding the
+                # JWT from the Authorization header (auth deps run per-route, not
+                # in middleware, so we can't rely on request.state here). Without
+                # this the audit log records only an IP, never a "who".
+                user_id = None
+                username = None
+                auth_header = request.headers.get("Authorization", "")
+                if auth_header.startswith("Bearer "):
+                    try:
+                        from kryon.server.auth.jwt_auth import decode_token
+
+                        payload = decode_token(auth_header[7:])
+                        user_id = payload.get("sub")
+                        username = payload.get("username") or user_id
+                    except Exception:
+                        pass  # invalid/expired token — fall back to IP-only
+
+                # Extract resource info from path (skip /api/v1/ prefix)
+                parts = request.url.path.strip("/").split("/")
+                # parts: ["api", "v1", "resource", "id"] or ["api", "resource", "id"]
+                offset = 2 if len(parts) > 1 and parts[1].startswith("v") else 1
+                resource_type = parts[offset] if len(parts) > offset else "unknown"
+                resource_id = parts[offset + 1] if len(parts) > offset + 1 else None
+
+                log_action(
+                    action=f"{request.method} {request.url.path}",
+                    resource_type=resource_type,
+                    resource_id=resource_id,
+                    user_id=user_id,
+                    username=username,
+                    ip_address=ip,
+                    details={"status_code": response.status_code},
+                )
+                # Forward audit event to SIEM integrations
+                try:
+                    from kryon.integrations import get_integration_manager
+                    from kryon.integrations.models import SIEMEvent
+
+                    await get_integration_manager().forward_event(
+                        SIEMEvent(
+                            event_type="audit",
+                            severity="info",
+                            title=f"{request.method} {request.url.path}",
+                            description=f"API {request.method} on {resource_type}",
+                            metadata={"status_code": response.status_code, "resource_id": resource_id or ""},
+                            user=username or ip,
+                        )
+                    )
+                except Exception:
+                    pass  # Never fail due to SIEM forwarding
+            except Exception:
+                pass  # Never fail a request due to audit logging
+
+        return response

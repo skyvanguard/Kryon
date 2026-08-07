@@ -1,0 +1,41 @@
+<svg viewBox="0 0 322 88" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="KRYON">
+  <title>KRYON</title>
+  <!-- Custom geometric wordmark (drawn outlines, not a system font — identical
+       everywhere). O is a hexagon echoing the logo core. Cyan glint sweeps the
+       letters, synced to the logo's scan (3.6s). Pure SMIL. -->
+  <defs>
+    <linearGradient id="wm-band" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#000"/>
+      <stop offset="0.5" stop-color="#fff"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+    <mask id="wm-sweep">
+      <rect x="-120" y="0" width="120" height="88" fill="url(#wm-band)">
+        <animate attributeName="x" values="-120;322" dur="3.6s"
+                 calcMode="spline" keyTimes="0;1" keySplines="0.5 0 0.5 1" repeatCount="indefinite"/>
+      </rect>
+    </mask>
+    <g id="wm-letters">
+      <!-- K -->
+      <polygon points="16,12 28,12 28,76 16,76"/>
+      <polygon points="28,44 52,12 66,12 42,44"/>
+      <polygon points="28,44 52,76 66,76 42,44"/>
+      <!-- R -->
+      <polygon points="76,12 88,12 88,76 76,76"/>
+      <path fill-rule="evenodd" d="M88,12 L110,12 L122,24 L122,35 L110,46 L88,46 Z M88,25 L104,25 L110,29.5 L104,35 L88,35 Z"/>
+      <polygon points="92,46 106,46 122,76 108,76"/>
+      <!-- Y -->
+      <polygon points="132,12 146,12 163,47 149,47"/>
+      <polygon points="182,12 168,12 149,47 163,47"/>
+      <polygon points="150,47 162,47 162,76 150,76"/>
+      <!-- O (hexagon — echoes the logo core) -->
+      <path fill-rule="evenodd" d="M218,12 L246,28 L246,60 L218,76 L190,60 L190,28 Z M218,27 L233,35.5 L233,52.5 L218,61 L203,52.5 L203,35.5 Z"/>
+      <!-- N -->
+      <polygon points="256,12 268,12 268,76 256,76"/>
+      <polygon points="294,12 306,12 306,76 294,76"/>
+      <polygon points="268,12 280,12 306,76 294,76"/>
+    </g>
+  </defs>
+  <use href="#wm-letters" fill="#2f6ea6"/>
+  <use href="#wm-letters" fill="#8af4ff" mask="url(#wm-sweep)"/>
+</svg>

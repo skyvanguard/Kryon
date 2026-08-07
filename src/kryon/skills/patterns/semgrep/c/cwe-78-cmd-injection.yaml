@@ -1,0 +1,56 @@
+rules:
+  - id: kryon.cwe-78.system-with-variable
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      system() with non-literal argument — command injection risk. CWE-78.
+    metadata:
+      cwe: "CWE-78: OS Command Injection"
+      cwe-id: 78
+      kryon_alias: [CWE-77, CWE-88]
+      confidence: HIGH
+    patterns:
+      - pattern: system($X)
+      - pattern-not: system("...")
+      - pattern-not-inside: |
+          $T $FUNC(...) {
+            ...
+            const char *$X = "...";
+            ...
+            system($X);
+            ...
+          }
+
+  - id: kryon.cwe-78.popen-with-variable
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      popen() with non-literal command — command injection risk. CWE-78.
+    metadata:
+      cwe: "CWE-78"
+      cwe-id: 78
+      confidence: HIGH
+    patterns:
+      - pattern: popen($X, ...)
+      - pattern-not: popen("...", ...)
+
+  - id: kryon.cwe-78.exec-family
+    languages: [c, cpp]
+    severity: WARNING
+    message: |
+      exec*() family with non-literal program path — privileged escalation
+      / injection risk. CWE-78.
+    metadata:
+      cwe: "CWE-78"
+      cwe-id: 78
+      confidence: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: execl($X, ...)
+          - pattern: execlp($X, ...)
+          - pattern: execv($X, ...)
+          - pattern: execvp($X, ...)
+      - pattern-not: execl("...", ...)
+      - pattern-not: execlp("...", ...)
+      - pattern-not: execv("...", ...)
+      - pattern-not: execvp("...", ...)

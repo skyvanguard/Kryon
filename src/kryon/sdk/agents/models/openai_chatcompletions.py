@@ -1,0 +1,5146 @@
+from __future__ import annotations
+
+import asyncio
+import dataclasses
+import hashlib
+import json
+import logging
+import os
+import re
+import sys
+import time
+import uuid
+from collections.abc import AsyncIterator, Iterable
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
+
+import tiktoken
+
+# Silence LiteLLM's noisy INFO logs (logs every single API call). Setting the
+# log level by NAME does not import litellm — it's safe at module scope. The
+# litellm module itself is imported LAZILY (see _ensure_litellm_configured),
+# because litellm is the NON-DEFAULT backend (KRYON_USE_LITELLM=true) and both
+# importing it and its global-flag mutation are deferred until a litellm-path
+# method actually runs. The default OpenAINativeModel never triggers it.
+logging.getLogger("LiteLLM").setLevel(logging.WARNING)
+logging.getLogger("litellm").setLevel(logging.WARNING)
+from openai import NOT_GIVEN, AsyncOpenAI, AsyncStream, NotGiven
+
+# Create custom InputTokensDetails class since it's not available in current OpenAI version
+from openai._models import BaseModel
+from openai.types import ChatModel
+from openai.types.chat import (
+    ChatCompletion,
+    ChatCompletionAssistantMessageParam,
+    ChatCompletionChunk,
+    ChatCompletionContentPartImageParam,
+    ChatCompletionContentPartParam,
+    ChatCompletionContentPartTextParam,
+    ChatCompletionDeveloperMessageParam,
+    ChatCompletionMessage,
+    ChatCompletionMessageParam,
+    ChatCompletionMessageToolCallParam,
+    ChatCompletionSystemMessageParam,
+    ChatCompletionToolChoiceOptionParam,
+    ChatCompletionToolMessageParam,
+    ChatCompletionUserMessageParam,
+)
+from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
+from openai.types.chat.completion_create_params import ResponseFormat
+from openai.types.completion_usage import CompletionUsage
+from openai.types.responses import (
+    EasyInputMessageParam,
+    Response,
+    ResponseCompletedEvent,
+    ResponseContentPartAddedEvent,
+    ResponseContentPartDoneEvent,
+    ResponseCreatedEvent,
+    ResponseFileSearchToolCallParam,
+    ResponseFunctionCallArgumentsDeltaEvent,
+    ResponseFunctionToolCall,
+    ResponseFunctionToolCallParam,
+    ResponseInputContentParam,
+    ResponseInputImageParam,
+    ResponseInputTextParam,
+    ResponseOutputItem,
+    ResponseOutputItemAddedEvent,
+    ResponseOutputItemDoneEvent,
+    ResponseOutputMessage,
+    ResponseOutputMessageParam,
+    ResponseOutputRefusal,
+    ResponseOutputText,
+    ResponseRefusalDeltaEvent,
+    ResponseTextDeltaEvent,
+    ResponseUsage,
+)
+from openai.types.responses.response_input_param import FunctionCallOutput, ItemReference, Message
+from openai.types.responses.response_usage import OutputTokensDetails
+
+from kryon.sdk.agents.global_usage_tracker import GLOBAL_USAGE_TRACKER
+from kryon.sdk.agents.parallel_isolation import PARALLEL_ISOLATION
+from kryon.sdk.agents.run_to_jsonl import get_session_recorder
+from kryon.sdk.agents.simple_agent_manager import AGENT_MANAGER
+from kryon.util import (
+    _LIVE_STREAMING_PANELS,
+    COST_TRACKER,
+    calculate_model_cost,
+    cli_print_agent_messages,
+    cli_print_tool_output,
+    create_agent_streaming_context,
+    finish_agent_streaming,
+    get_ollama_api_base,
+    start_active_timer,
+    start_claude_thinking_if_applicable,
+    start_idle_timer,
+    stop_active_timer,
+    stop_idle_timer,
+    update_agent_streaming_content,
+)
+
+
+class InputTokensDetails(BaseModel):
+    prompt_tokens: int
+    """The number of prompt tokens."""
+    cached_tokens: int = 0
+    """The number of cached tokens."""
+
+
+# Custom ResponseUsage that makes prompt_tokens/input_tokens and completion_tokens/output_tokens compatible
+class CustomResponseUsage(ResponseUsage):
+    """
+    Custom ResponseUsage class that provides compatibility between different field naming conventions.
+    Works with both input_tokens/output_tokens and prompt_tokens/completion_tokens.
+    """
+
+    @property
+    def prompt_tokens(self) -> int:
+        """Alias for input_tokens to maintain compatibility"""
+        return self.input_tokens
+
+    @property
+    def completion_tokens(self) -> int:
+        """Alias for output_tokens to maintain compatibility"""
+        return self.output_tokens
+
+
+from .. import _debug
+from ..agent_output import AgentOutputSchema
+from ..exceptions import AgentsException, UserError
+from ..handoffs import Handoff
+from ..items import ModelResponse, TResponseInputItem, TResponseOutputItem, TResponseStreamEvent
+from ..logger import logger
+from ..tool import FunctionTool, Tool
+from ..tracing import generation_span
+from ..tracing.span_data import GenerationSpanData
+from ..tracing.spans import Span
+from ..usage import Usage
+from ..version import __version__
+from .fake_id import FAKE_RESPONSES_ID
+from .interface import Model, ModelTracing
+
+if TYPE_CHECKING:
+    from ..model_settings import ModelSettings
+
+
+_litellm_configured = False
+
+
+def _ensure_litellm_configured():
+    """Lazily import litellm and apply Kryon's global config (idempotent).
+
+    Returns the litellm module. Call this at the top of any litellm-path method
+    that references ``litellm.*`` — it binds the name AND applies the one-time
+    flag setup. The default ``OpenAINativeModel`` overrides ``_fetch_response``
+    and never calls this, so importing this module no longer pulls litellm in
+    (the P1 goal: a litellm-free default import path).
+    """
+    import litellm  # noqa: PLC0415 — deliberately lazy (non-default backend)
+
+    global _litellm_configured
+    if _litellm_configured:
+        return litellm
+
+    # Suppress debug info from litellm
+    litellm.suppress_debug_info = True
+
+    # On a FAILED call, litellm's failure_handler builds a StandardLoggingObject
+    # and runs get_error_information -> format_tb over the exception traceback.
+    # With a deep traceback (the agent loop) this pegs the CPU for minutes — the
+    # investigate "hang" seen end-to-end was here, not in inference. Kryon uses
+    # none of litellm's logging callbacks, so disabling them lets a failed call
+    # propagate immediately to our own retry/error handling instead of blocking
+    # the event loop.
+    litellm.success_callback = []
+    litellm.failure_callback = []
+    litellm._async_success_callback = []
+    litellm._async_failure_callback = []
+    litellm.callbacks = []
+    litellm.turn_off_message_logging = True
+
+    # Let litellm repair the message list to satisfy strict providers (DeepSeek/
+    # OpenAI reject an assistant tool_calls message not followed by a tool
+    # response for every tool_call_id). Our fix_message_list handles dict-shaped
+    # history but misses some object-shaped turns; modify_params is litellm's
+    # own repair pass.
+    litellm.modify_params = True
+
+    if os.getenv("KRYON_MODEL", "kryon-local") in ("o3-mini", "gemini-1.5-pro"):
+        litellm.drop_params = True
+
+    _litellm_configured = True
+    return litellm
+
+
+def _detect_local_llm() -> bool:
+    """True when pointed at a LOCAL OpenAI-compatible endpoint (llama.cpp / vLLM
+    / Ollama) — enables the robust tool-call parsers + usage patch.
+
+    ``KRYON_LOCAL_LLM`` is the canonical flag; ``OLLAMA`` is the deprecated
+    alias kept for backward compat. A value of ``"false"`` (case-insensitive)
+    disables it. SINGLE SOURCE OF TRUTH: both ``__init__`` and ``_fetch_response``
+    call this, so the streaming and non-streaming paths can no longer disagree
+    on local-vs-remote (the old non-streaming path checked only ``OLLAMA`` and
+    silently reset the flag mid-run).
+    """
+    from kryon.util.env import is_local_llm
+
+    return is_local_llm()
+
+
+def _msg_signature(m: dict) -> tuple:
+    """Identity of a chat message, ignoring enrichments (reasoning_content) and
+    cache_control, so the SAME turn rendered two different ways compares equal."""
+    content = m.get("content")
+    content_key = content if isinstance(content, (str, type(None))) else repr(content)
+    tcs = m.get("tool_calls")
+    tc_key = None
+    if tcs:
+        tc_key = tuple(
+            (c.get("id"), (c.get("function") or {}).get("name"), (c.get("function") or {}).get("arguments"))
+            for c in tcs
+        )
+    return (m.get("role"), content_key, tc_key, m.get("tool_call_id"))
+
+
+def _merge_history_and_converter(message_history, converter_messages) -> list:
+    """P5 — Build the request messages from the authoritative ENRICHED
+    ``message_history`` plus only the converter messages it doesn't already
+    represent.
+
+    The fork keeps ``message_history`` (which carries reasoning_content + exact
+    tool_call formatting) AND the Runner passes the full conversation as ``input``
+    every turn. Converting both and concatenating sent the whole conversation
+    TWICE — ~2x input tokens, degraded provider cache, and a confusingly
+    duplicated context. We take ``message_history`` as the single source of truth
+    and append only converter messages with an unseen signature, so item types
+    history didn't capture are still preserved (no data loss).
+    """
+    out: list = []
+    for msg in message_history or []:
+        m = msg.copy()
+        m.pop("cache_control", None)
+        out.append(m)
+    seen = {_msg_signature(m) for m in out}
+    for m in converter_messages or []:
+        sig = _msg_signature(m)
+        if sig not in seen:
+            out.append(m)
+            seen.add(sig)
+    return out
+
+
+_USER_AGENT = f"Agents/Python {__version__}"
+_HEADERS = {"User-Agent": _USER_AGENT}
+
+
+# --- Reasoning-content helpers -----------------------------------------------
+# Different reasoning providers expose chain-of-thought under different field
+# names: DeepSeek uses `reasoning_content`, Groq (Qwen3 / GPT-OSS) uses
+# `reasoning`, some Anthropic-flavoured paths use `thinking`. These helpers
+# centralise the model-aware lookup so callers don't have to know the per-
+# provider naming.
+def _model_emits_reasoning(model_str: str) -> bool:
+    """True when the model emits a separate reasoning field on responses.
+    Used to decide whether to render a thinking panel and to extract
+    reasoning for cost accounting."""
+    s = model_str.lower()
+    if "deepseek" in s and "deepseek-chat" not in s:
+        return True
+    if "qwen3" in s or "qwq" in s:
+        return True
+    if "gpt-oss" in s and "safeguard" not in s:
+        return True
+    return False
+
+
+def _preserves_reasoning_in_history(model_str: str) -> bool:
+    """True when the model's API REQUIRES reasoning_content to be passed
+    back in subsequent requests (DeepSeek API spec).
+
+    Groq explicitly REJECTS messages that carry reasoning_content with
+    HTTP 400 'property reasoning_content is unsupported', so we must NOT
+    preserve it for Groq even though Groq emits reasoning on responses.
+    Anthropic's redacted_thinking flow is more complex and out of scope
+    here.
+    """
+    s = model_str.lower()
+    return "deepseek" in s and "deepseek-chat" not in s
+
+
+def _extract_reasoning(assistant_msg) -> str | None:
+    """Pull reasoning out of a chat-completion message, regardless of which
+    field the provider used. Returns None when no reasoning is present."""
+    for attr in ("reasoning_content", "reasoning", "thinking"):
+        val = getattr(assistant_msg, attr, None)
+        if val:
+            return str(val)
+    if isinstance(assistant_msg, dict):
+        for key in ("reasoning_content", "reasoning", "thinking"):
+            val = assistant_msg.get(key)
+            if val:
+                return str(val)
+    return None
+
+
+def _recover_tool_calls_from_content(content: str | None, tool_names: set[str]) -> list | None:
+    """Recover a tool call a local server left in CONTENT instead of the parsed
+    ``tool_calls`` field. GLM-4 via llama.cpp emits the call as text —
+    ``<func_name>\\n<json_args>`` — and REPEATS it (no stop token), so it never
+    reaches ``tool_calls`` and the agent can't act. When ``tool_calls`` is empty but
+    content names a KNOWN tool followed by valid JSON, synthesize the call from the
+    FIRST occurrence (dropping the repetition). Gated on KRYON_LOCAL_LLM by the caller.
+    Returns openai-shaped tool_call objects, or None when nothing parseable is found.
+    """
+    if not content or not tool_names:
+        return None
+    import uuid as _uuid
+
+    from openai.types.chat.chat_completion_message_tool_call import (
+        ChatCompletionMessageToolCall,
+        Function,
+    )
+
+    decoder = json.JSONDecoder()
+    for m in re.finditer(r"([A-Za-z_][A-Za-z0-9_.]*)\s*\n\s*(?=\{)", content):
+        name = m.group(1)
+        if name not in tool_names:
+            continue
+        try:
+            obj, _ = decoder.raw_decode(content[m.end() :])
+        except ValueError:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        return [
+            ChatCompletionMessageToolCall(
+                id=f"call_{_uuid.uuid4().hex[:8]}",
+                type="function",
+                function=Function(name=name, arguments=json.dumps(obj)),
+            )
+        ]
+    return None
+
+
+# --- Tool-calling guardrails -------------------------------------------------
+# Synthetic user-role prefixes produced by Kryon's session layer (MAGIC DOC
+# auto-updates, intent-change hooks, piped tool output). These should NOT
+# reset the per-turn interaction counter that drives KRYON_FORCE_TOOL_TURNS.
+_SYNTHETIC_USER_PREFIXES = (
+    "[SESSION CONTEXT]",
+    "[INTENT CHANGE",
+    "[TOOL OUTPUT",
+    "[MAGIC DOC]",
+)
+
+# Patterns that flag an assistant message as a "prose plan" — text that
+# imitates tool calls with markdown/backticks but emits no structured
+# tool_calls. Once these enter the history the local model mimics them
+# and stops emitting real tool_calls. Keep them OUT of message_history.
+_PROSE_PLAN_PATTERNS = (
+    re.compile(r"```\s*\n?\s*AN[ÁA]LISIS\b", re.IGNORECASE),
+    re.compile(r"\bPLAN\s*\(\s*ejecutando\s*#", re.IGNORECASE),
+    re.compile(r"^\s*\d+\.\s*`[a-z_]+\s*\(", re.MULTILINE),
+    re.compile(
+        r"`(?:run_command|nuclei_scan|nmap_scan|query_knowledge_base|whatweb_scan|gobuster_scan|recall_similar_experiences|add_to_memory_semantic|duckduckgo_search|wpscan)\s*\(",
+        re.IGNORECASE,
+    ),
+)
+# Minimum content length to consider a message for prose-plan filtering.
+# Short messages ("¡Hola!", refusals) must NEVER be filtered.
+_PROSE_PLAN_MIN_LEN = 200
+# Environment kill-switch. Set to "false" to disable the filter (for debugging).
+_PROSE_PLAN_FILTER_ENABLED = os.getenv("KRYON_STRIP_PROSE_PLANS", "true").lower() != "false"
+
+
+def _safe_model_dump(obj: Any) -> dict[str, Any]:
+    """FASE 11.H — duck-typed ``model_dump()`` replacement.
+
+    Ollama's OpenAI-compatible API sometimes returns
+    ``response.choices[0].message`` as a ``types.SimpleNamespace``
+    (not a Pydantic model) when tool calls land in non-standard
+    response shapes. Calling ``.model_dump()`` on that raises
+    ``AttributeError: 'types.SimpleNamespace' object has no attribute
+    '__pydantic_extra__'`` and crashes the whole turn.
+
+    Pyrat bench (2026-05-26) hit this immediately after the model
+    confirmed the Python REPL foothold via ``kryon-probe``, which
+    bricked the post-foothold introspection chain.
+
+    Fallback order:
+      1. ``obj.model_dump()``         — Pydantic models (canonical path)
+      2. ``vars(obj)``                — SimpleNamespace + plain objects
+      3. ``dict(obj)``                — Mapping-like (covers some
+                                        litellm wrappers)
+      4. ``{"_repr": repr(obj)}``     — last resort so we never crash
+    """
+    try:
+        dump = getattr(obj, "model_dump", None)
+        if callable(dump):
+            return dump()
+    except Exception:  # noqa: BLE001 — fall through to less-strict path
+        pass
+    try:
+        return dict(vars(obj))
+    except TypeError:
+        pass
+    try:
+        return dict(obj)
+    except (TypeError, ValueError):
+        pass
+    return {"_repr": repr(obj)}
+
+
+def _patch_response_usage_for_litellm(response: Any) -> None:
+    """FASE 11.H — inject ``output_tokens_details`` so LiteLLM's
+    standard-logging path can pydantic-validate the usage dict.
+
+    LiteLLM ``ResponseAPIUsage`` (pydantic v2) treats
+    ``output_tokens_details`` as a required field, but Ollama's
+    OpenAI-compatible API returns usage as
+    ``{"prompt_tokens": N, "completion_tokens": M, "total_tokens":
+    N+M, "input_tokens": N, "output_tokens": M}`` — no _details
+    subfields. Every turn emitted two noisy ValidationError tracebacks
+    to stderr (cosmetic but drowns real signal in the bench logs).
+
+    Inject the minimal shape LiteLLM expects so the validator passes.
+    Best-effort: never raise.
+    """
+    try:
+        usage = getattr(response, "usage", None)
+        if usage is None:
+            return
+        # dict-shaped usage (Ollama path)
+        if isinstance(usage, dict):
+            usage.setdefault(
+                "output_tokens_details",
+                {"reasoning_tokens": 0},
+            )
+            usage.setdefault(
+                "input_tokens_details",
+                {"cached_tokens": 0},
+            )
+            return
+        # object-shaped usage (Pydantic model from OpenAI direct)
+        if not hasattr(usage, "output_tokens_details"):
+            try:
+                usage.output_tokens_details = {"reasoning_tokens": 0}
+            except Exception:  # noqa: BLE001 — frozen pydantic, skip
+                pass
+        if not hasattr(usage, "input_tokens_details"):
+            try:
+                usage.input_tokens_details = {"cached_tokens": 0}
+            except Exception:  # noqa: BLE001
+                pass
+    except Exception:  # noqa: BLE001 — never let this crash the run
+        pass
+
+
+def _is_prose_plan_contamination(content: str) -> bool:
+    """Return True when an assistant *text-only* message exhibits the
+    prose-plan failure mode (markdown-formatted tool calls as narrative).
+    """
+    if not _PROSE_PLAN_FILTER_ENABLED:
+        return False
+    if not isinstance(content, str) or len(content) < _PROSE_PLAN_MIN_LEN:
+        return False
+    hits = sum(1 for pat in _PROSE_PLAN_PATTERNS if pat.search(content))
+    # Require at least 2 pattern matches to avoid over-aggressive filtering.
+    return hits >= 2
+
+
+def _should_reset_counter_for_user(content: Any) -> bool:
+    """Return True for *real* user messages — not synthetic session-context
+    / intent-change / tool-output injections. These should reset
+    interaction_counter so KRYON_FORCE_TOOL_TURNS applies per user turn.
+    """
+    if not isinstance(content, str):
+        return False
+    stripped = content.lstrip()
+    return not any(stripped.startswith(p) for p in _SYNTHETIC_USER_PREFIXES)
+
+
+_DIRECTIVE_FORCE_TRUTHY = {"1", "true", "yes", "on"}
+
+
+def _should_force_directive_tool_choice(has_tools: bool, effective_tool_choice: Any) -> bool:
+    """FASE 11.Q — decide whether the next model call should be upgraded
+    to ``tool_choice="required"`` because the planner has a
+    high-confidence directive ready.
+
+    Pure decision helper so the SDK call site stays a single ``if`` and
+    the branch is unit-testable without touching the real Ollama path.
+
+    Returns True only when ALL hold:
+      * the request actually has tools (otherwise ``required`` is invalid);
+      * the effective choice isn't already ``"required"`` (no-op);
+      * ``KRYON_FORCE_DIRECTIVE_TOOL_CHOICE`` env is truthy (default off
+        for banca-safe compliance audits);
+      * ``has_high_confidence_directive()`` reports a rec ≥ threshold.
+
+    The probe import is local to keep planner_runtime out of the SDK's
+    module-load graph (avoids a circular at install time). Any
+    exception in the probe is swallowed at debug — the SDK loop must
+    never be broken by a planner glitch.
+    """
+    if not has_tools:
+        return False
+    if effective_tool_choice == "required":
+        return False
+    env_value = os.environ.get("KRYON_FORCE_DIRECTIVE_TOOL_CHOICE", "false")
+    if env_value.lower() not in _DIRECTIVE_FORCE_TRUTHY:
+        return False
+    # A capable model DRIVES — never hard-force it to tool_choice="required" on a
+    # planner directive. This is the SDK-level sibling of render_for_prompt's
+    # `_hard_ok = not is_capable_model()` gate: has_high_confidence_directive()
+    # clones the 0.92 threshold but not that gate, so without this a capable
+    # model gets straitjacketed where the prompt block only nudges it.
+    from kryon.util.env import is_capable_model  # noqa: PLC0415
+
+    if is_capable_model():
+        return False
+    try:
+        from kryon.intelligence.planner_runtime import (
+            has_high_confidence_directive,
+        )
+
+        return bool(has_high_confidence_directive())
+    except Exception as exc:  # noqa: BLE001 — never break SDK loop
+        logger.debug("FASE 11.Q directive probe failed; falling back: %s", exc)
+        return False
+
+
+# Global registry to track active model instances
+# This allows us to access instance-based histories for commands like /history
+import contextvars
+import weakref
+
+# DEPRECATED: Use AGENT_REGISTRY instead
+ACTIVE_MODEL_INSTANCES = {}
+
+# Persistent message history store for agents without active instances
+# This allows /load and /flush commands to work even when agents aren't running
+PERSISTENT_MESSAGE_HISTORIES = {}
+
+# Context variable to track the current active model per async context
+_current_model_context = contextvars.ContextVar("current_model", default=None)
+
+
+def set_current_active_model(model):
+    """Set the current active model for tool execution context."""
+    _current_model_context.set(weakref.ref(model) if model else None)
+
+
+def get_current_active_model():
+    """Get the current active model."""
+    model_ref = _current_model_context.get()
+    if model_ref:
+        return model_ref()
+    return None
+
+
+def get_agent_message_history(agent_name: str) -> list:
+    """Get message history for a specific agent.
+
+    With SimpleAgentManager, this is much simpler - we only have one active agent.
+    """
+    # Remove any ID suffix if present (e.g., "[P1]")
+    if "[" in agent_name and agent_name.endswith("]"):
+        base_name = agent_name.rsplit("[", 1)[0].strip()
+    else:
+        base_name = agent_name
+
+    # Get history from SimpleAgentManager
+    return AGENT_MANAGER.get_message_history(base_name)
+
+
+def get_all_agent_histories() -> dict:
+    """Get all agent message histories.
+
+    With SimpleAgentManager, we only track the active agent's history.
+    """
+    return AGENT_MANAGER.get_all_histories()
+
+
+def clear_agent_history(agent_name: str):
+    """Clear history for a specific agent.
+
+    With SimpleAgentManager, this is much simpler.
+    """
+    # Remove any ID suffix if present
+    if "[" in agent_name and agent_name.endswith("]"):
+        base_name = agent_name.rsplit("[", 1)[0].strip()
+    else:
+        base_name = agent_name
+
+    # Clear from SimpleAgentManager
+    AGENT_MANAGER.clear_history(base_name)
+
+    # Also clear the current instance if it matches
+    active_agent = AGENT_MANAGER.get_active_agent()
+    if active_agent and hasattr(active_agent, "message_history"):
+        if hasattr(active_agent, "agent_name") and active_agent.agent_name == base_name:
+            active_agent.message_history.clear()
+            # Reset context usage for this agent
+            os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
+
+
+def clear_all_histories():
+    """Clear all agent histories."""
+    # Clear from SimpleAgentManager
+    AGENT_MANAGER.clear_all_histories()
+
+    # Clear active agent's history if present
+    active_agent = AGENT_MANAGER.get_active_agent()
+    if active_agent and hasattr(active_agent, "message_history"):
+        active_agent.message_history.clear()
+
+    # Clear all persistent histories
+    PERSISTENT_MESSAGE_HISTORIES.clear()
+
+    # Reset context usage since all histories are cleared
+    os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
+
+
+@dataclass
+class _StreamingState:
+    started: bool = False
+    text_content_index_and_output: tuple[int, ResponseOutputText] | None = None
+    refusal_content_index_and_output: tuple[int, ResponseOutputRefusal] | None = None
+    function_calls: dict[int, ResponseFunctionToolCall] = field(default_factory=dict)
+    _seq: int = 0
+
+    def next_seq(self) -> int:
+        """Return next sequence number for streaming events."""
+        seq = self._seq
+        self._seq += 1
+        return seq
+
+
+# Add a new function for consistent token counting using tiktoken
+def _check_reasoning_compatibility(messages):
+    """
+    Check if message history is compatible with Claude reasoning/thinking.
+
+    According to Claude 4 docs, when reasoning is enabled, the final assistant
+    message must start with a thinking block. If there are assistant messages
+    with regular text content, reasoning should be disabled.
+
+    Args:
+        messages: List of message dictionaries
+
+    Returns:
+        bool: True if compatible with reasoning, False otherwise
+    """
+    if not messages:
+        return True  # Empty messages are compatible
+
+    # Find the last assistant message
+    last_assistant_msg = None
+    for msg in reversed(messages):
+        if msg.get("role") == "assistant":
+            last_assistant_msg = msg
+            break
+
+    if not last_assistant_msg:
+        return True  # No assistant messages, compatible
+
+    # Check if the last assistant message has regular text content
+    content = last_assistant_msg.get("content")
+    if content:
+        # If it's a string with text content, not compatible
+        if isinstance(content, str) and content.strip():
+            return False
+        # If it's a list, check for text content blocks
+        elif isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict):
+                    if block.get("type") == "text" and block.get("text", "").strip():
+                        return False
+
+    # Check if message has tool_calls (these are compatible)
+    if last_assistant_msg.get("tool_calls"):
+        return True
+
+    # If no content or only thinking blocks, it's compatible
+    return True
+
+
+def count_tokens_with_tiktoken(text_or_messages):
+    """
+    Count tokens consistently using tiktoken library.
+    Works with both strings and message lists.
+    Returns a tuple of (input_tokens, reasoning_tokens).
+    """
+    if not text_or_messages:
+        return 0, 0
+
+    try:
+        # Try to use cl100k_base encoding (used by GPT-4 and GPT-3.5-turbo)
+        encoding = tiktoken.get_encoding("cl100k_base")
+    except Exception:
+        # Fall back to GPT-2 encoding if cl100k is not available
+        try:
+            encoding = tiktoken.get_encoding("gpt2")
+        except Exception:
+            # If tiktoken fails, fall back to character estimate
+            if isinstance(text_or_messages, str):
+                return len(text_or_messages) // 4, 0
+            elif isinstance(text_or_messages, list):
+                total_len = 0
+                for msg in text_or_messages:
+                    if isinstance(msg, dict) and "content" in msg:
+                        if isinstance(msg["content"], str):
+                            total_len += len(msg["content"])
+                return total_len // 4, 0
+            else:
+                return 0, 0
+
+    # Process different input types
+    if isinstance(text_or_messages, str):
+        token_count = len(encoding.encode(text_or_messages))
+        return token_count, 0
+    elif isinstance(text_or_messages, list):
+        total_tokens = 0
+        reasoning_tokens = 0
+
+        # Add tokens for the messages format (ChatML format overhead)
+        # Each message has a base overhead (usually ~4 tokens)
+        total_tokens += len(text_or_messages) * 4
+
+        for msg in text_or_messages:
+            if isinstance(msg, dict):
+                # Add tokens for role
+                if "role" in msg:
+                    total_tokens += len(encoding.encode(msg["role"]))
+
+                # Count content tokens
+                if "content" in msg and msg["content"]:
+                    if isinstance(msg["content"], str):
+                        content_tokens = len(encoding.encode(msg["content"]))
+                        total_tokens += content_tokens
+
+                        # Count tokens in assistant messages as reasoning tokens
+                        if msg.get("role") == "assistant":
+                            reasoning_tokens += content_tokens
+                    elif isinstance(msg["content"], list):
+                        for content_part in msg["content"]:
+                            if isinstance(content_part, dict) and "text" in content_part:
+                                part_tokens = len(encoding.encode(content_part["text"]))
+                                total_tokens += part_tokens
+                                if msg.get("role") == "assistant":
+                                    reasoning_tokens += part_tokens
+
+                # Count tool_calls: assistant tool-call messages carry content=None,
+                # so without this the whole tool-call payload (function name + JSON
+                # arguments — long URLs/commands/payloads for an offensive agent) was
+                # counted as ZERO. That fed context_usage + _auto_compact_if_needed a
+                # systematically low number, firing auto-compact late (the request
+                # could exceed the context window before compaction).
+                for tc in msg.get("tool_calls") or []:
+                    if not isinstance(tc, dict):
+                        continue
+                    fn = tc.get("function") or {}
+                    name = fn.get("name") or ""
+                    arguments = fn.get("arguments") or ""
+                    if name:
+                        total_tokens += len(encoding.encode(str(name)))
+                    if arguments:
+                        total_tokens += len(encoding.encode(str(arguments)))
+
+        return total_tokens, reasoning_tokens
+    else:
+        return 0, 0
+
+
+class OpenAIChatCompletionsModel(Model):
+    """OpenAI Chat Completions Model"""
+
+    INTERMEDIATE_LOG_INTERVAL = 5
+
+    def __init__(
+        self,
+        model: str | ChatModel,
+        openai_client: AsyncOpenAI,
+        agent_name: str = "CTF agent",  # Default to CTF agent instead of generic "Agent"
+        agent_id: str | None = None,
+        agent_type: str | None = None,  # The type of agent (e.g., "pentest_agent")
+    ) -> None:
+        self.model = model
+        self._client = openai_client
+        # "Local LLM mode": robust tool-call parsers + litellm usage patch for
+        # llama.cpp / local OpenAI-compat endpoints. Detection is centralized in
+        # _detect_local_llm() (KRYON_LOCAL_LLM canonical, OLLAMA deprecated alias)
+        # so __init__ and _fetch_response can't disagree.
+        self.is_local_llm = _detect_local_llm()
+        self.empty_content_error_shown = False
+
+        # Track interaction counter and token totals for cli display
+        self.interaction_counter = 0
+        # Per-user-turn LLM call counter used exclusively by the Ollama
+        # KRYON_FORCE_TOOL_TURNS gate. Resets when a real user message is
+        # added, so forcing applies to the first N LLM calls *per turn*
+        # instead of once per session. Distinct from interaction_counter,
+        # which tracks session-wide activity for the CLI display.
+        self._turn_llm_calls = 0
+        # Effective tool_choice as passed to Ollama (may differ from model_settings.tool_choice
+        # when KRYON_FORCE_TOOL_TURNS upgrades it to "required"). Captured so
+        # rec_training_data can log what was actually sent, not the raw user value.
+        self._last_effective_tool_choice: Any = None
+        self.total_input_tokens = 0
+        self.total_output_tokens = 0
+        self.total_reasoning_tokens = 0
+        self.total_cost = 0.0
+        self.agent_name = agent_name
+        self.agent_type = agent_type or agent_name.lower().replace(" ", "_")  # For registry tracking
+        self.uses_unified_context = False  # Flag to indicate if using shared message history
+
+        # For SimpleAgentManager, we don't auto-register
+        # The agent will be registered when explicitly created by cli.py
+        self.agent_id = agent_id or AGENT_MANAGER.get_agent_id()
+        self._display_name = self.agent_name
+
+        # Instance-based message history
+        # Check if we have an isolated history for this agent (parallel mode)
+        if agent_id and PARALLEL_ISOLATION.is_parallel_mode():
+            isolated_history = PARALLEL_ISOLATION.get_isolated_history(agent_id)
+            if isolated_history is not None:
+                self.message_history = isolated_history
+            else:
+                self.message_history = []
+        else:
+            # Get or create history from AGENT_MANAGER to ensure we share the same list reference
+            # This is critical for proper history clearing to work
+            existing_history = AGENT_MANAGER.get_message_history(self.agent_name)
+            if existing_history is not None and isinstance(existing_history, list):
+                # Use the existing list reference from AGENT_MANAGER
+                self.message_history = existing_history
+            else:
+                # Create new history and ensure AGENT_MANAGER has it too
+                self.message_history = []
+                if self.agent_name not in AGENT_MANAGER._message_history:
+                    AGENT_MANAGER._message_history[self.agent_name] = self.message_history
+
+        # NOTE: Models should NOT register themselves with AGENT_MANAGER
+        # The agent that owns this model will handle registration
+        # This prevents duplicate registrations with agent keys
+
+        # CRITICAL: Ensure AGENT_MANAGER uses the same list reference as the model
+        # This is necessary for proper history clearing to work
+        if agent_id is not None and not PARALLEL_ISOLATION.is_parallel_mode():
+            if self.agent_name in AGENT_MANAGER._message_history:
+                # Share the same list reference
+                self.message_history = AGENT_MANAGER._message_history[self.agent_name]
+
+        # Instance-based converter
+        self._converter = _Converter()
+
+        # Flags for CLI integration
+        self.disable_rich_streaming = False  # Prevents creating a rich panel in the model
+        self.suppress_final_output = False  # Prevents duplicate output at end of streaming
+
+        # Initialize the session logger
+        self.logger = get_session_recorder()
+
+        # DEPRECATED: Still maintain backward compatibility with ACTIVE_MODEL_INSTANCES
+        # TODO: Remove this after updating all dependent code
+        ACTIVE_MODEL_INSTANCES[(self._display_name, self.agent_id)] = weakref.ref(self)
+
+    def get_full_display_name(self) -> str:
+        """Get the full display name including ID."""
+        return f"{self._display_name} [{self.agent_id}]"
+
+    def __del__(self):
+        """Clean up when the model instance is destroyed."""
+        try:
+            # DEPRECATED: Remove from old registry for backward compatibility
+            if hasattr(self, "_display_name") and hasattr(self, "agent_id"):
+                key = (self._display_name, self.agent_id)
+                if key in ACTIVE_MODEL_INSTANCES:
+                    del ACTIVE_MODEL_INSTANCES[key]
+
+            # SimpleAgentManager handles history persistence
+            # No need to save to PERSISTENT_MESSAGE_HISTORIES
+
+        except Exception:
+            # Ignore any errors during cleanup
+            pass
+
+    def add_to_message_history(self, msg):
+        """Add a message to this instance's history if it's not a duplicate.
+
+        Now only adds to the instance's local history, no global registry.
+        Tool results exceeding the size cap are persisted to disk.
+        Tool outputs are also screened for prompt-injection patterns before
+        they reach the LLM context.
+        """
+        # Cap large tool outputs to preserve context window (ported from Claude Code toolLimits)
+        if msg.get("role") == "tool" and isinstance(msg.get("content"), str) and len(msg["content"]) > 5000:
+            try:
+                from kryon.services.tool_output_cap import cap_tool_output
+
+                tool_id = msg.get("tool_call_id", "")
+                msg = dict(msg)  # don't mutate caller's dict
+                msg["content"] = cap_tool_output(msg["content"], tool_name=tool_id[:20])
+            except Exception:
+                pass
+
+        # Tool-output guardrail (F77.D): tool results come from external
+        # systems (nmap banners, web responses, SSH output) that may carry
+        # adversarial content trying to override the agent's instructions.
+        # Detect known injection patterns synchronously (regex only, no LLM
+        # call → no token cost) and wrap suspicious content with hard
+        # delimiters so the model treats it as DATA, not commands.
+        # Toggle with KRYON_GUARDRAILS=false (same flag as input guardrail).
+        if (
+            msg.get("role") == "tool"
+            and isinstance(msg.get("content"), str)
+            and msg["content"]
+            and os.getenv("KRYON_GUARDRAILS", "true").lower() != "false"
+        ):
+            try:
+                from kryon.agents.guardrails import (
+                    detect_tool_output_injection,
+                    sanitize_external_content,
+                )
+
+                # Use the tool-output-tuned detector (high-confidence only) so
+                # legitimate recon data (JSON, search results, /oauth/token)
+                # isn't flagged — real injection structures still are.
+                is_suspicious, patterns = detect_tool_output_injection(msg["content"])
+                if is_suspicious:
+                    tool_id = msg.get("tool_call_id", "")[:20]
+                    logger.warning(
+                        "tool_output_guardrail: suspicious patterns in tool=%s: %s",
+                        tool_id,
+                        patterns[:3],
+                    )
+                    msg = dict(msg)  # don't mutate caller's dict
+                    msg["content"] = sanitize_external_content(msg["content"])
+            except Exception as _gr_exc:
+                # Best-effort — never break the audit if the guardrail
+                # import or pattern check fails.
+                logger.debug("tool_output_guardrail check failed: %s", _gr_exc)
+
+        # Fix B: drop prose-plan contamination at the source. A text-only
+        # assistant message that mimics tool calls as markdown poisons the
+        # history — the local model imitates the pattern in later turns and
+        # stops emitting real tool_calls. Exclude it from history entirely.
+        # A capable model (KRYON_CAPABLE_MODEL) emits native tool_calls and does NOT
+        # imitate the pattern — dropping its text erases its own reasoning between
+        # turns, so skip this filter for it.
+        from kryon.util.env import is_capable_model  # noqa: PLC0415
+
+        if (
+            not is_capable_model()
+            and msg.get("role") == "assistant"
+            and not msg.get("tool_calls")
+            and _is_prose_plan_contamination(msg.get("content", ""))
+        ):
+            preview = str(msg.get("content", ""))[:80].replace("\n", " ")
+            logger.debug("dropped prose-plan contamination from history: %r", preview)
+            return
+
+        # Fix A: reset the per-turn LLM call counter on each *real* user
+        # message so that KRYON_FORCE_TOOL_TURNS applies per user turn
+        # rather than once per session. Synthetic prefixes
+        # ([SESSION CONTEXT], [INTENT CHANGE], ...) do not count as new turns.
+        # We deliberately do NOT reset interaction_counter (session-wide).
+        if msg.get("role") == "user" and _should_reset_counter_for_user(msg.get("content")):
+            if self._turn_llm_calls != 0:
+                logger.debug("resetting _turn_llm_calls on new user turn (was %d)", self._turn_llm_calls)
+            self._turn_llm_calls = 0
+
+        is_duplicate = False
+
+        if self.message_history:
+            if msg.get("role") in ["system", "user"]:
+                is_duplicate = any(
+                    existing.get("role") == msg.get("role") and existing.get("content") == msg.get("content")
+                    for existing in self.message_history
+                )
+            elif msg.get("role") == "assistant" and msg.get("tool_calls"):
+                # For tool calls, remove any existing message with the same tool call ID
+                # This handles the case where streaming might create duplicate entries
+                tool_call_id = msg["tool_calls"][0].get("id")
+                # Remove duplicates in-place to preserve list reference (important for swarm patterns)
+                indices_to_remove = []
+                for i, existing in enumerate(self.message_history):
+                    if (
+                        existing.get("role") == "assistant"
+                        and existing.get("tool_calls")
+                        and existing["tool_calls"][0].get("id") == tool_call_id
+                    ):
+                        indices_to_remove.append(i)
+                # Remove in reverse order to avoid index shifting
+                for i in reversed(indices_to_remove):
+                    self.message_history.pop(i)
+                is_duplicate = False  # Always add after removing duplicates
+            elif msg.get("role") == "tool":
+                is_duplicate = any(
+                    existing.get("role") == "tool" and existing.get("tool_call_id") == msg.get("tool_call_id")
+                    for existing in self.message_history
+                )
+
+        if not is_duplicate:
+            self.message_history.append(msg)
+            # Also update SimpleAgentManager ONLY if they're not the same list reference
+            # This avoids double-adding when they share the same list
+            manager_history = AGENT_MANAGER.get_message_history(self.agent_name)
+            if manager_history is not self.message_history:
+                AGENT_MANAGER.add_to_history(self.agent_name, msg)
+            # Update isolated history if in parallel mode
+            if PARALLEL_ISOLATION.is_parallel_mode() and self.agent_id:
+                PARALLEL_ISOLATION.update_isolated_history(self.agent_id, msg)
+
+            # Periodic checkpoint: persist message history every N adds so
+            # DeepSeek 5xx / network drops / balance-out don't lose findings
+            # mid-audit. Tunable via KRYON_CHECKPOINT_EVERY (0 disables).
+            try:
+                _ckpt_n = int(os.getenv("KRYON_CHECKPOINT_EVERY", "50"))
+            except ValueError:
+                _ckpt_n = 50
+            if _ckpt_n > 0 and len(self.message_history) % _ckpt_n == 0:
+                try:
+                    from kryon.services.auto_extract import checkpoint_session
+
+                    checkpoint_session(
+                        self.message_history,
+                        getattr(self, "session_id", None) or self.agent_name,
+                    )
+                except Exception:
+                    pass  # never block adds on checkpoint failure
+
+    def set_agent_name(self, name: str) -> None:
+        """Set the agent name for CLI display purposes."""
+        self.agent_name = name
+
+    def _non_null_or_not_given(self, value: Any) -> Any:
+        return value if value is not None else NOT_GIVEN
+
+    async def get_response(
+        self,
+        system_instructions: str | None,
+        input: str | list[TResponseInputItem],
+        model_settings: ModelSettings,
+        tools: list[Tool],
+        output_schema: AgentOutputSchema | None,
+        handoffs: list[Handoff],
+        tracing: ModelTracing,
+    ) -> ModelResponse:
+        # Increment the interaction counter for CLI display
+        self.interaction_counter += 1
+        # Per-turn counter: increments with every LLM call and only resets
+        # when a new real user message arrives (see add_to_message_history).
+        self._turn_llm_calls += 1
+        self._intermediate_logs()
+
+        # Set this as the current active model for tool execution context
+        set_current_active_model(self)
+
+        # Stop idle timer and start active timer to track LLM processing time
+        stop_idle_timer()
+        start_active_timer()
+
+        with generation_span(
+            model=str(self.model),
+            model_config=dataclasses.asdict(model_settings) | {"base_url": str(self._get_client().base_url)},
+            disabled=tracing.is_disabled(),
+        ) as span_generation:
+            # Prepare the messages for consistent token counting
+            # IMPORTANT: Include existing message history for context
+            # Build from the authoritative enriched history + only converter
+            # messages it doesn't already represent (P5: avoid sending the whole
+            # conversation twice, which also doubled this token estimate). The
+            # converter call is kept for its side-effects (flushing pending tool
+            # calls into message_history).
+            converter_messages = self._converter.items_to_messages(input, model_instance=self)
+            converted_messages = _merge_history_and_converter(self.message_history, converter_messages)
+
+            if system_instructions:
+                # Check if we already have a system message
+                has_system = any(msg.get("role") == "system" for msg in converted_messages)
+                if not has_system:
+                    converted_messages.insert(
+                        0,
+                        {
+                            "content": system_instructions,
+                            "role": "system",
+                        },
+                    )
+
+            # Add support for prompt caching for claude (not automatically applied)
+            # Gemini supports it too
+            # https://www.anthropic.com/news/token-saving-updates
+            # Maximize cache efficiency by using up to 4 cache_control blocks
+            if (str(self.model).startswith("claude") or "gemini" in str(self.model)) and len(converted_messages) > 0:
+                # Strategy: Cache the most valuable messages for maximum savings
+                # 1. System message (always first priority)
+                # 2. Long user messages (high token count)
+                # 3. Assistant messages with tool calls (complex context)
+                # 4. Recent context (last message)
+
+                cache_candidates = []
+
+                # Always cache system message if present
+                for i, msg in enumerate(converted_messages):
+                    if msg.get("role") == "system":
+                        cache_candidates.append((i, len(str(msg.get("content", ""))), "system"))
+                        break
+
+                # Find long user messages and assistant messages with tool calls
+                for i, msg in enumerate(converted_messages):
+                    content_len = len(str(msg.get("content", "")))
+                    role = msg.get("role")
+
+                    if role == "user" and content_len > 500:  # Long user messages
+                        cache_candidates.append((i, content_len, "user"))
+                    elif role == "assistant" and msg.get("tool_calls"):  # Tool calls
+                        cache_candidates.append((i, content_len + 200, "assistant_tools"))  # Bonus for tool calls
+
+                # Always consider the last message for recent context
+                if len(converted_messages) > 1:
+                    last_idx = len(converted_messages) - 1
+                    last_msg = converted_messages[last_idx]
+                    last_content_len = len(str(last_msg.get("content", "")))
+                    cache_candidates.append((last_idx, last_content_len, "recent"))
+
+                # Sort by value (content length) and select top 4 unique indices
+                cache_candidates.sort(key=lambda x: x[1], reverse=True)
+                selected_indices = []
+                for idx, _, _msg_type in cache_candidates:
+                    if idx not in selected_indices:
+                        selected_indices.append(idx)
+                        if len(selected_indices) >= 4:  # Max 4 cache blocks
+                            break
+
+                # Apply cache_control to selected messages
+                for idx in selected_indices:
+                    msg_copy = converted_messages[idx].copy()
+                    msg_copy["cache_control"] = {"type": "ephemeral"}
+                    converted_messages[idx] = msg_copy
+
+            # # --- Add to message_history: user, system, and assistant tool call messages ---
+            # # Add system prompt to message_history
+            # if system_instructions:
+            #     sys_msg = {
+            #         "role": "system",
+            #         "content": system_instructions
+            #     }
+            #     self.add_to_message_history(sys_msg)
+
+            # Add user prompt(s) to message_history
+            if isinstance(input, str):
+                user_msg = {"role": "user", "content": input}
+                self.add_to_message_history(user_msg)
+                # Log the user message
+                self.logger.log_user_message(input)
+            elif isinstance(input, list):
+                for item in input:
+                    # Try to extract user messages
+                    if isinstance(item, dict):
+                        if item.get("role") == "user":
+                            user_msg = {"role": "user", "content": item.get("content", "")}
+                            self.add_to_message_history(user_msg)
+                            # Log the user message
+                            if item.get("content"):
+                                self.logger.log_user_message(item.get("content"))
+
+            # IMPORTANT: Ensure the message list has valid tool call/result pairs
+            # This needs to happen before the API call to prevent errors
+            try:
+                from kryon.util import fix_message_list
+
+                converted_messages = fix_message_list(converted_messages)
+            except Exception as exc:  # noqa: BLE001 — best-effort repair
+                # Not fatal, but the usual root cause of a later provider 400.
+                # Debug-log so it's diagnosable instead of vanishing silently.
+                logger.debug("fix_message_list failed (get_response): %s", exc)
+
+            # Get token count estimate before API call for consistent counting
+            estimated_input_tokens, _ = count_tokens_with_tiktoken(converted_messages)
+
+            # Calculate and set context usage for toolbar
+            max_tokens = self._get_model_max_tokens(str(self.model))
+            context_usage = estimated_input_tokens / max_tokens if max_tokens > 0 else 0.0
+            os.environ["KRYON_CONTEXT_USAGE"] = str(context_usage)
+
+            # Check if auto-compaction is needed
+            input, system_instructions, compacted = await self._auto_compact_if_needed(
+                estimated_input_tokens, input, system_instructions
+            )
+
+            # If compaction occurred, recalculate tokens with new input
+            if compacted:
+                converted_messages = self._converter.items_to_messages(input, model_instance=self)
+                if system_instructions:
+                    converted_messages.insert(0, {"role": "system", "content": system_instructions})
+                estimated_input_tokens, _ = count_tokens_with_tiktoken(converted_messages)
+
+            # Pre-check price limit using estimated input tokens and a conservative estimate for output
+            # This prevents starting a request that would immediately exceed the price limit
+            if hasattr(COST_TRACKER, "check_price_limit"):
+                # Use a conservative estimate for output tokens (roughly equal to input)
+                estimated_cost = calculate_model_cost(
+                    str(self.model), estimated_input_tokens, estimated_input_tokens
+                )  # Conservative estimate
+                try:
+                    COST_TRACKER.check_price_limit(estimated_cost)
+                except Exception:
+                    # Stop active timer and start idle timer before re-raising the exception
+                    stop_active_timer()
+                    start_idle_timer()
+                    raise
+
+            try:
+                response = await self._fetch_response(
+                    system_instructions,
+                    input,
+                    model_settings,
+                    tools,
+                    output_schema,
+                    handoffs,
+                    span_generation,
+                    tracing,
+                    stream=False,
+                )
+            except KeyboardInterrupt:
+                # Handle KeyboardInterrupt during API call
+                # Clean up any pending tool calls that weren't executed
+                if hasattr(self, "_pending_tool_calls"):
+                    # Clear all pending tool calls to prevent incomplete history
+                    self._pending_tool_calls.clear()
+
+                # Let the interrupt propagate up to end the current operation
+                stop_active_timer()
+                start_idle_timer()
+
+                raise
+
+            # Guard: an OpenAI-compat endpoint (llama.cpp/DeepSeek) can return a 200 with
+            # an EMPTY `choices` list (content-filter, partial error, empty body). Every
+            # downstream `response.choices[0]` would then raise IndexError and abort the
+            # whole run. Inject a synthetic empty assistant turn so the run loop handles it
+            # gracefully (empty content, no tool calls) instead of crashing.
+            if not getattr(response, "choices", None):
+                import types as _types  # noqa: PLC0415
+
+                logger.warning("model returned an empty choices list; substituting an empty assistant turn")
+                response.choices = [
+                    _types.SimpleNamespace(
+                        message=_types.SimpleNamespace(
+                            role="assistant", content="", tool_calls=None, reasoning_content=None
+                        ),
+                        finish_reason="stop",
+                        index=0,
+                    )
+                ]
+
+            if _debug.DONT_LOG_MODEL_DATA:
+                logger.debug("Received model response")
+            else:
+                logger.debug(
+                    f"LLM resp:\n{json.dumps(_safe_model_dump(response.choices[0].message), indent=2, default=str)}\n"
+                )
+
+            # Ollama fallback: parse tool calls from text content when the model
+            # outputs them as JSON in the message body instead of proper tool_calls
+            if self.is_local_llm:
+                msg = response.choices[0].message
+                has_tool_calls = hasattr(msg, "tool_calls") and msg.tool_calls
+                content = getattr(msg, "content", "") or ""
+
+                # F162 — OpenAI Harmony format (gpt-oss-20b and successors).
+                # Try Harmony parser first; if it finds tool calls, use them
+                # and skip the JSON-in-content fallback below.
+                if not has_tool_calls and content.strip():
+                    from kryon.sdk.agents.models.harmony_parser import (
+                        parse_harmony_tool_calls,
+                    )
+
+                    harmony_calls = parse_harmony_tool_calls(content)
+                    if harmony_calls:
+                        from types import SimpleNamespace
+
+                        msg.tool_calls = [
+                            SimpleNamespace(
+                                id=tc["id"],
+                                type=tc["type"],
+                                function=SimpleNamespace(
+                                    name=tc["function"]["name"],
+                                    arguments=tc["function"]["arguments"],
+                                ),
+                            )
+                            for tc in harmony_calls
+                        ]
+                        msg.content = None
+                        has_tool_calls = True
+
+                # JSON-in-content fallback: local templates without --jinja tool
+                # grammar (DeepHat-V1-7B, Qwen2.5 security fine-tunes) write the
+                # call(s) into content as raw JSON. parse_json_tool_calls scans
+                # for EVERY {"name","arguments"} object so multi-step NDJSON
+                # (e.g. nmap-then-sqlmap on separate lines) is preserved — the
+                # old first-{/last-} extraction silently dropped all but one.
+                if not has_tool_calls and content.strip():
+                    from kryon.sdk.agents.models.json_tool_parser import (
+                        parse_json_tool_calls,
+                    )
+
+                    json_calls = parse_json_tool_calls(content)
+                    if json_calls:
+                        from types import SimpleNamespace
+
+                        logger.debug("Parsed %d tool call(s) from local-model text", len(json_calls))
+                        msg.tool_calls = [
+                            SimpleNamespace(
+                                id=tc["id"],
+                                type=tc["type"],
+                                function=SimpleNamespace(
+                                    name=tc["function"]["name"],
+                                    arguments=tc["function"]["arguments"],
+                                ),
+                            )
+                            for tc in json_calls
+                        ]
+                        msg.content = None  # Clear text so it's not displayed as message
+
+            # Ensure we have reasonable token counts
+            if response.usage:
+                input_tokens = response.usage.prompt_tokens
+                output_tokens = response.usage.completion_tokens
+
+                # Use estimated tokens if API returns zeroes or implausible values
+                if input_tokens == 0 or input_tokens < (len(str(input)) // 10):  # Sanity check
+                    input_tokens = estimated_input_tokens
+
+                # # Debug information
+                # print(f"\nDEBUG CONSISTENT TOKEN COUNTS - API tokens: input={input_tokens}, output={output_tokens}, total={total_tokens}")
+                # print(f"Estimated tokens were: input={estimated_input_tokens}")
+            else:
+                # If no usage info, use our estimates
+                input_tokens = estimated_input_tokens
+                output_tokens = 0
+                # print(f"\nDEBUG CONSISTENT TOKEN COUNTS - No API tokens, using estimates: input={input_tokens}, output={output_tokens}")
+
+            # Update token totals for CLI display
+            self.total_input_tokens += input_tokens
+            self.total_output_tokens += output_tokens
+            reasoning_tokens = 0
+            if (
+                response.usage
+                and hasattr(response.usage, "completion_tokens_details")
+                and response.usage.completion_tokens_details
+                and hasattr(response.usage.completion_tokens_details, "reasoning_tokens")
+            ):
+                reasoning_tokens = response.usage.completion_tokens_details.reasoning_tokens
+                self.total_reasoning_tokens += reasoning_tokens
+
+            # Process costs for non-streaming mode
+            model_name = str(self.model)
+            interaction_cost = calculate_model_cost(model_name, input_tokens, output_tokens)
+
+            # Process the costs through COST_TRACKER only once
+            if interaction_cost > 0.0:
+                # Check price limit before processing
+                if hasattr(COST_TRACKER, "check_price_limit"):
+                    COST_TRACKER.check_price_limit(interaction_cost)
+
+                # Process interaction cost
+                COST_TRACKER.process_interaction_cost(
+                    model_name, input_tokens, output_tokens, reasoning_tokens, interaction_cost
+                )
+
+                # Process total cost
+                total_cost = COST_TRACKER.process_total_cost(
+                    model_name,
+                    self.total_input_tokens,
+                    self.total_output_tokens,
+                    self.total_reasoning_tokens,
+                    None,
+                )
+
+                # Track usage globally
+                GLOBAL_USAGE_TRACKER.track_usage(
+                    model_name=model_name,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost=interaction_cost,
+                    agent_name=self.agent_name,
+                )
+            else:
+                # For free models
+                total_cost = COST_TRACKER.session_total_cost
+
+                # Still track token usage even for free models
+                GLOBAL_USAGE_TRACKER.track_usage(
+                    model_name=model_name,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost=0.0,
+                    agent_name=self.agent_name,
+                )
+
+            # Check if this message contains tool calls
+            tool_output = None
+            should_display_message = True
+
+            if hasattr(response.choices[0].message, "tool_calls") and response.choices[0].message.tool_calls:
+                # For each tool call in the message, get corresponding output if available
+                for tool_call in response.choices[0].message.tool_calls:
+                    call_id = tool_call.id
+
+                    # Check if this tool call has already been displayed
+                    if hasattr(_Converter, "tool_outputs") and call_id in self._converter.tool_outputs:
+                        tool_output_content = self._converter.tool_outputs[call_id]
+
+                        # Check if this is a command sent to an existing async session
+                        is_async_session_input = False
+                        has_auto_output = False
+                        is_regular_command = False
+                        try:
+                            # Handle empty arguments before trying to parse JSON
+                            tool_args = tool_call.function.arguments
+                            if tool_args is None or (isinstance(tool_args, str) and tool_args.strip() == ""):
+                                tool_args = "{}"
+
+                            args = json.loads(tool_args)
+                            # Check if this is a regular command (not a session command)
+                            if (
+                                isinstance(args, dict)
+                                and args.get("command")
+                                and not args.get("session_id")
+                                and not args.get("async_mode")
+                            ):
+                                is_regular_command = True
+                            # Only consider it an async session input if it has session_id AND it's not creating a new session
+                            elif (
+                                isinstance(args, dict)
+                                and args.get("session_id")
+                                and not args.get("async_mode")  # Not creating a new session
+                                and not args.get("creating_session")
+                            ):  # Not marked as session creation
+                                is_async_session_input = True
+                                # Check if this has auto_output flag
+                                has_auto_output = args.get("auto_output", False)
+                        except Exception:
+                            pass
+
+                        # For regular commands that were already shown via streaming, suppress the agent message
+                        if is_regular_command and tool_call.function.name == "run_command":
+                            # Check if this was executed very recently (likely shown via streaming)
+                            if (
+                                hasattr(_Converter, "recent_tool_calls")
+                                and call_id in self._converter.recent_tool_calls
+                            ):
+                                tool_call_info = self._converter.recent_tool_calls[call_id]
+                                if "start_time" in tool_call_info:
+                                    import time
+
+                                    time_since_execution = time.time() - tool_call_info["start_time"]
+                                    # If executed within last 2 seconds, it was likely shown via streaming
+                                    if time_since_execution < 2.0:
+                                        should_display_message = False
+                                        tool_output = None
+                        elif is_async_session_input:
+                            should_display_message = True
+                            tool_output = None
+                        # For async session inputs without auto_output, always show the agent message
+                        elif is_async_session_input and not has_auto_output:
+                            should_display_message = True
+                            tool_output = None
+                        # For session creation messages, also show them
+                        elif (
+                            "Started async session" in tool_output_content
+                            or "session" in tool_output_content.lower()
+                            and "async" in tool_output_content.lower()
+                        ):
+                            should_display_message = True
+                            tool_output = None
+                        else:
+                            # For other tool calls, check if we should suppress based on timing
+                            # Only suppress if this tool was JUST executed (within last 2 seconds)
+                            if (
+                                hasattr(_Converter, "recent_tool_calls")
+                                and call_id in self._converter.recent_tool_calls
+                            ):
+                                tool_call_info = self._converter.recent_tool_calls[call_id]
+                                if "start_time" in tool_call_info:
+                                    import time
+
+                                    time_since_execution = time.time() - tool_call_info["start_time"]
+                                    # Only suppress if this was executed very recently
+                                    if time_since_execution < 2.0:
+                                        should_display_message = False
+                                    else:
+                                        # For older tool calls, show the message
+                                        should_display_message = True
+                        break
+
+            # Additional check: Always show messages that have text content
+            # This ensures agent explanations are not suppressed
+            if (
+                hasattr(response.choices[0].message, "content")
+                and response.choices[0].message.content
+                and str(response.choices[0].message.content).strip()
+            ):
+                # If the message has actual text content, always show it
+                should_display_message = True
+
+            # Display the agent message (this will show the command for async sessions)
+            if should_display_message:
+                # Ensure we're in non-streaming mode for proper markdown parsing
+                previous_stream_setting = os.environ.get("KRYON_STREAM", "false")
+                os.environ["KRYON_STREAM"] = "false"  # Force non-streaming mode for markdown parsing
+
+                # Print the agent message for CLI display
+                cli_print_agent_messages(
+                    agent_name=getattr(self, "agent_name", "Agent"),
+                    message=response.choices[0].message,
+                    counter=getattr(self, "interaction_counter", 0),
+                    model=str(self.model),
+                    debug=False,
+                    interaction_input_tokens=input_tokens,
+                    interaction_output_tokens=output_tokens,
+                    interaction_reasoning_tokens=reasoning_tokens,
+                    total_input_tokens=getattr(self, "total_input_tokens", 0),
+                    total_output_tokens=getattr(self, "total_output_tokens", 0),
+                    total_reasoning_tokens=getattr(self, "total_reasoning_tokens", 0),
+                    interaction_cost=interaction_cost,
+                    total_cost=total_cost,
+                    tool_output=tool_output,  # Pass tool_output only when needed
+                    suppress_empty=True,  # Keep suppress_empty=True as requested
+                )
+
+                # Restore previous streaming setting
+                os.environ["KRYON_STREAM"] = previous_stream_setting
+
+            # --- DEFERRED: Tool calls are no longer added immediately ---
+            # Tool calls will be added atomically with their responses
+            # to prevent incomplete message history on interruption
+            assistant_msg = response.choices[0].message
+            # Tolerant local-model recovery: some local servers (GLM-4 via llama.cpp)
+            # leave the tool call in `content` as `<func>\n<json>` (and repeat it)
+            # instead of parsing it into `tool_calls`. Under KRYON_LOCAL_LLM, recover it
+            # from content so the agent can act — first occurrence only (drops the loop).
+            if not getattr(assistant_msg, "tool_calls", None) and os.environ.get(
+                "KRYON_LOCAL_LLM", ""
+            ).strip().lower() in ("1", "true", "yes"):
+                _names = {n for t in tools if (n := getattr(t, "name", None))}
+                _recovered = _recover_tool_calls_from_content(getattr(assistant_msg, "content", None), _names)
+                if _recovered:
+                    assistant_msg.tool_calls = _recovered
+                    assistant_msg.content = None
+                    logger.debug("recovered %d tool call(s) from content (local-model format)", len(_recovered))
+            if hasattr(assistant_msg, "tool_calls") and assistant_msg.tool_calls:
+                # Store pending tool calls but don't add to history yet
+                if not hasattr(self, "_pending_tool_calls"):
+                    self._pending_tool_calls = {}
+
+                # Fix Google Gemini OpenAI compatibility issues.
+                # When using the OpenAI-compatible API to call tools with Google Gemini
+                # tool_call.id is returned as an empty string.
+                if "openai/gemini" in os.getenv("KRYON_MODEL", os.getenv("KRYON_MODEL", "kryon-local")):
+                    for tool_call in assistant_msg.tool_calls:
+                        if tool_call.id is None or tool_call.id == "":
+                            tool_call.id = uuid.uuid4().hex[:16]
+
+                for tool_call in assistant_msg.tool_calls:
+                    # Handle empty arguments before storing
+                    tool_args = tool_call.function.arguments
+                    if tool_args is None or (isinstance(tool_args, str) and tool_args.strip() == ""):
+                        tool_args = "{}"
+
+                    # Compose a message for the tool call
+                    tool_call_msg = {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": tool_call.id,
+                                "type": tool_call.type,
+                                "function": {
+                                    "name": tool_call.function.name,
+                                    "arguments": tool_args,
+                                },
+                            }
+                        ],
+                    }
+
+                    # Render the thinking panel for any reasoning model so
+                    # the operator sees the chain-of-thought in non-stream.
+                    # Then preserve reasoning_content on the assistant
+                    # message ONLY for providers whose API accepts it back
+                    # (DeepSeek). Groq rejects it with 400 on the next turn.
+                    if _model_emits_reasoning(str(self.model)):
+                        _rc = _extract_reasoning(assistant_msg)
+                        if _rc:
+                            try:
+                                from kryon.util import print_claude_reasoning_simple
+
+                                print_claude_reasoning_simple(_rc, self.agent_name, str(self.model))
+                            except Exception:
+                                pass
+                            if _preserves_reasoning_in_history(str(self.model)):
+                                tool_call_msg["reasoning_content"] = _rc
+
+                    # Store for later atomic addition with response. Key on the
+                    # TRUNCATED id (id[:40]) — that's the call_id propagated in the
+                    # ResponseFunctionToolCall and returned as the tool output's
+                    # call_id, which the flush at _pending_tool_calls[call_id] looks
+                    # up. Keying on the full id here meant a >40-char llama.cpp id
+                    # never matched -> the assistant+tool turn was never flushed to
+                    # message_history (lost from checkpoints/audit) + a permanent leak.
+                    self._pending_tool_calls[tool_call.id[:40]] = tool_call_msg
+
+                    # Save the tool call details for later matching with output
+                    # This is important for non-streaming mode to track tool calls properly
+                    if not hasattr(self._converter, "recent_tool_calls"):
+                        self._converter.recent_tool_calls = {}
+
+                    # Store the tool call by ID for later reference
+                    import time
+
+                    self._converter.recent_tool_calls[tool_call.id] = {
+                        "name": tool_call.function.name,
+                        "arguments": tool_call.function.arguments,
+                        "start_time": time.time(),
+                        "execution_info": {"start_time": time.time()},
+                    }
+
+                # Log the assistant tool call message
+                tool_calls_list = []
+                for tool_call in assistant_msg.tool_calls:
+                    tool_calls_list.append(
+                        {
+                            "id": tool_call.id,
+                            "type": tool_call.type,
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments,
+                            },
+                        }
+                    )
+                self.logger.log_assistant_message(None, tool_calls_list)
+            # If the assistant message is just text, add it as well
+            elif hasattr(assistant_msg, "content") and assistant_msg.content:
+                asst_msg = {"role": "assistant", "content": assistant_msg.content}
+                # Render the thinking panel for any reasoning model, then
+                # preserve the reasoning on the assistant message ONLY for
+                # providers whose API accepts it back. Groq returns
+                # 400 'property reasoning_content is unsupported' otherwise.
+                if _model_emits_reasoning(str(self.model)):
+                    _rc = _extract_reasoning(assistant_msg)
+                    if _rc:
+                        try:
+                            from kryon.util import print_claude_reasoning_simple
+
+                            print_claude_reasoning_simple(_rc, self.agent_name, str(self.model))
+                        except Exception:
+                            pass
+                        if _preserves_reasoning_in_history(str(self.model)):
+                            asst_msg["reasoning_content"] = _rc
+                self.add_to_message_history(asst_msg)
+                # Log the assistant message
+                self.logger.log_assistant_message(assistant_msg.content)
+
+            # En no-streaming, también necesitamos añadir cualquier tool output al message_history
+            # Esto se hace procesando los items de output del ModelResponse
+            items = self._converter.message_to_output_items(response.choices[0].message)
+
+            # Además, necesitamos añadir los tool outputs que se hayan generado
+            # durante la ejecución de las herramientas
+            if hasattr(_Converter, "tool_outputs"):
+                for call_id, output_content in self._converter.tool_outputs.items():
+                    # Verificar si ya existe un mensaje tool con este call_id en message_history
+                    tool_msg_exists = any(
+                        msg.get("role") == "tool" and msg.get("tool_call_id") == call_id for msg in self.message_history
+                    )
+
+                    if not tool_msg_exists:
+                        # Añadir el mensaje tool al message_history
+                        tool_msg = {
+                            "role": "tool",
+                            "tool_call_id": call_id,
+                            "content": output_content,
+                        }
+                        self.add_to_message_history(tool_msg)
+
+            # Log the complete response for the session.
+            # Tools are wrapped to match what actually goes to the API (OpenAI tool format);
+            # tool_choice reflects the effective value after KRYON_FORCE_TOOL_TURNS.
+            effective_tc = self._last_effective_tool_choice
+            logged_tc = effective_tc if effective_tc is not None else model_settings.tool_choice
+            self.logger.rec_training_data(
+                {
+                    "model": str(self.model),
+                    "messages": converted_messages,
+                    "stream": False,
+                    "tools": [ToolConverter.to_openai(t) for t in tools] if tools else [],
+                    "tool_choice": logged_tc,
+                },
+                response,
+                self.total_cost,
+                self.agent_name,
+            )
+
+            usage = (
+                Usage(
+                    requests=1,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    total_tokens=input_tokens + output_tokens,
+                )
+                if response.usage or input_tokens > 0
+                else Usage()
+            )
+            # FASE 11.H — patch the response.usage before any logging
+            # path so LiteLLM's pydantic v2 validator stops emitting
+            # ValidationError tracebacks on every turn (output_tokens_
+            # details / input_tokens_details fields missing from Ollama).
+            _patch_response_usage_for_litellm(response)
+            if tracing.include_data():
+                # _safe_model_dump survives Ollama's types.SimpleNamespace
+                # message shape that the canonical model_dump() crashes on.
+                span_generation.span_data.output = [_safe_model_dump(response.choices[0].message)]
+            span_generation.span_data.usage = {
+                "input_tokens": usage.input_tokens,
+                "output_tokens": usage.output_tokens,
+            }
+
+            items = self._converter.message_to_output_items(response.choices[0].message)
+
+            # For non-streaming responses, make sure we also log token usage with compatible field names
+            # This ensures both streaming and non-streaming use consistent naming
+            if not hasattr(response, "usage"):
+                response.usage = {}
+            if hasattr(response.usage, "prompt_tokens") and not hasattr(response.usage, "input_tokens"):
+                response.usage.input_tokens = response.usage.prompt_tokens
+            if hasattr(response.usage, "completion_tokens") and not hasattr(response.usage, "output_tokens"):
+                response.usage.output_tokens = response.usage.completion_tokens
+
+            # Ensure cost is properly initialized
+            if not hasattr(response, "cost"):
+                response.cost = None
+
+            return ModelResponse(
+                output=items,
+                usage=usage,
+                referenceable_id=None,
+            )
+
+        # Stop active timer and start idle timer when response is complete
+        stop_active_timer()
+        start_idle_timer()
+
+    async def stream_response(
+        self,
+        system_instructions: str | None,
+        input: str | list[TResponseInputItem],
+        model_settings: ModelSettings,
+        tools: list[Tool],
+        output_schema: AgentOutputSchema | None,
+        handoffs: list[Handoff],
+        tracing: ModelTracing,
+    ) -> AsyncIterator[TResponseStreamEvent]:
+        """
+        Yields a partial message as it is generated, as well as the usage information.
+        """
+        # Initialize streaming contexts as None
+        streaming_context = None
+        thinking_context = None
+        stream_interrupted = False
+
+        try:
+            # IMPORTANT: Pre-process input to ensure it's in the correct format
+            # for streaming. This helps prevent errors during stream handling.
+            if not isinstance(input, str):
+                # Convert input items to messages and verify structure
+                try:
+                    input_items = list(input)  # Make sure it's a list
+                    # Pre-verify the input messages to avoid errors during streaming
+                    from kryon.util import fix_message_list
+
+                    # Apply fix_message_list to the input items that are dictionaries
+                    dict_items = [item for item in input_items if isinstance(item, dict)]
+                    if dict_items:
+                        fixed_dict_items = fix_message_list(dict_items)
+
+                        # Replace the original dict items with fixed ones while preserving non-dict items
+                        new_input = []
+                        dict_index = 0
+                        for item in input_items:
+                            if isinstance(item, dict):
+                                if dict_index < len(fixed_dict_items):
+                                    new_input.append(fixed_dict_items[dict_index])
+                                    dict_index += 1
+                            else:
+                                new_input.append(item)
+
+                        # Update input with the fixed version
+                        input = new_input
+                except Exception as exc:  # noqa: BLE001 — best-effort repair
+                    # Continue with original input if pre-processing failed. Not
+                    # critical, so debug (not warning) per the streaming intent —
+                    # but no longer fully invisible when it causes a later 400.
+                    logger.debug("fix_message_list failed (streaming pre-pass): %s", exc)
+
+            # Increment the interaction counter for CLI display
+            self.interaction_counter += 1
+            # Per-turn counter: see get_response for the rationale.
+            self._turn_llm_calls += 1
+            self._intermediate_logs()
+
+            # Stop idle timer and start active timer to track LLM processing time
+            stop_idle_timer()
+            start_active_timer()
+
+            # --- Check if streaming should be shown in rich panel ---
+            should_show_rich_stream = (
+                os.getenv("KRYON_STREAM", "false").lower() == "true" and not self.disable_rich_streaming
+            )
+
+            # Create streaming context if needed
+            if should_show_rich_stream:
+                try:
+                    streaming_context = create_agent_streaming_context(
+                        agent_name=self.agent_name,
+                        counter=self.interaction_counter,
+                        model=str(self.model),
+                    )
+                except Exception:
+                    # Silently fall back to non-streaming display
+                    streaming_context = None
+
+            with generation_span(
+                model=str(self.model),
+                model_config=dataclasses.asdict(model_settings) | {"base_url": str(self._get_client().base_url)},
+                disabled=tracing.is_disabled(),
+            ) as span_generation:
+                # Prepare messages for consistent token counting
+                converted_messages = self._converter.items_to_messages(input, model_instance=self)
+                if system_instructions:
+                    converted_messages.insert(
+                        0,
+                        {
+                            "content": system_instructions,
+                            "role": "system",
+                        },
+                    )
+
+                # Add support for prompt caching for claude (not automatically applied)
+                # Gemini supports it too
+                # https://www.anthropic.com/news/token-saving-updates
+                # Maximize cache efficiency by using up to 4 cache_control blocks
+                if (str(self.model).startswith("claude") or "gemini" in str(self.model)) and len(
+                    converted_messages
+                ) > 0:
+                    # Strategy: Cache the most valuable messages for maximum savings
+                    # 1. System message (always first priority)
+                    # 2. Long user messages (high token count)
+                    # 3. Assistant messages with tool calls (complex context)
+                    # 4. Recent context (last message)
+
+                    cache_candidates = []
+
+                    # Always cache system message if present
+                    for i, msg in enumerate(converted_messages):
+                        if msg.get("role") == "system":
+                            cache_candidates.append((i, len(str(msg.get("content", ""))), "system"))
+                            break
+
+                    # Find long user messages and assistant messages with tool calls
+                    for i, msg in enumerate(converted_messages):
+                        content_len = len(str(msg.get("content", "")))
+                        role = msg.get("role")
+
+                        if role == "user" and content_len > 500:  # Long user messages
+                            cache_candidates.append((i, content_len, "user"))
+                        elif role == "assistant" and msg.get("tool_calls"):  # Tool calls
+                            cache_candidates.append((i, content_len + 200, "assistant_tools"))  # Bonus for tool calls
+
+                    # Always consider the last message for recent context
+                    if len(converted_messages) > 1:
+                        last_idx = len(converted_messages) - 1
+                        last_msg = converted_messages[last_idx]
+                        last_content_len = len(str(last_msg.get("content", "")))
+                        cache_candidates.append((last_idx, last_content_len, "recent"))
+
+                    # Sort by value (content length) and select top 4 unique indices
+                    cache_candidates.sort(key=lambda x: x[1], reverse=True)
+                    selected_indices = []
+                    for idx, _, _msg_type in cache_candidates:
+                        if idx not in selected_indices:
+                            selected_indices.append(idx)
+                            if len(selected_indices) >= 4:  # Max 4 cache blocks
+                                break
+
+                    # Apply cache_control to selected messages
+                    for idx in selected_indices:
+                        msg_copy = converted_messages[idx].copy()
+                        msg_copy["cache_control"] = {"type": "ephemeral"}
+                        converted_messages[idx] = msg_copy
+
+                #    # --- Add to message_history: user, system prompts ---
+                #     if system_instructions:
+                #         sys_msg = {
+                #             "role": "system",
+                #             "content": system_instructions
+                #         }
+                #         self.add_to_message_history(sys_msg)
+
+                if isinstance(input, str):
+                    user_msg = {"role": "user", "content": input}
+                    self.add_to_message_history(user_msg)
+                    # Log the user message
+                    self.logger.log_user_message(input)
+                elif isinstance(input, list):
+                    for item in input:
+                        if isinstance(item, dict):
+                            if item.get("role") == "user":
+                                user_msg = {"role": "user", "content": item.get("content", "")}
+                                self.add_to_message_history(user_msg)
+                                # Log the user message
+                                if item.get("content"):
+                                    self.logger.log_user_message(item.get("content"))
+                # Get token count estimate before API call for consistent counting
+                estimated_input_tokens, _ = count_tokens_with_tiktoken(converted_messages)
+
+                # Check if auto-compaction is needed
+                input, system_instructions, compacted = await self._auto_compact_if_needed(
+                    estimated_input_tokens, input, system_instructions
+                )
+
+                # If compaction occurred, recalculate tokens with new input
+                if compacted:
+                    converted_messages = self._converter.items_to_messages(input, model_instance=self)
+                    if system_instructions:
+                        converted_messages.insert(0, {"role": "system", "content": system_instructions})
+                    estimated_input_tokens, _ = count_tokens_with_tiktoken(converted_messages)
+
+                # Pre-check price limit using estimated input tokens and a conservative estimate for output
+                # This prevents starting a stream that would immediately exceed the price limit
+                if hasattr(COST_TRACKER, "check_price_limit"):
+                    # Use a conservative estimate for output tokens (roughly equal to input)
+                    estimated_cost = calculate_model_cost(
+                        str(self.model), estimated_input_tokens, estimated_input_tokens
+                    )  # Conservative estimate
+                    try:
+                        COST_TRACKER.check_price_limit(estimated_cost)
+                    except Exception:
+                        # Ensure streaming context is cleaned up in case of errors
+                        if streaming_context:
+                            try:
+                                finish_agent_streaming(streaming_context, None)
+                            except Exception:
+                                pass
+                        # Stop active timer and start idle timer before re-raising the exception
+                        stop_active_timer()
+                        start_idle_timer()
+                        raise
+
+                response, stream = await self._fetch_response(
+                    system_instructions,
+                    input,
+                    model_settings,
+                    tools,
+                    output_schema,
+                    handoffs,
+                    span_generation,
+                    tracing,
+                    stream=True,
+                )
+
+                usage: CompletionUsage | None = None
+                state = _StreamingState()
+
+                # Manual token counting (when API doesn't provide it)
+                output_text = ""
+                estimated_output_tokens = 0
+
+                # Initialize a streaming text accumulator for rich display
+                streaming_text_buffer = ""
+                # For tool call streaming, accumulate tool_calls to add to message_history at the end
+                streamed_tool_calls = []
+                # Track DeepSeek reasoning_content across the stream so we
+                # can attach it to assistant messages stored in history.
+                # Per DeepSeek API spec: when tool calls occur, reasoning_content
+                # must be passed back in subsequent requests.
+                accumulated_reasoning_content = ""
+
+                # Initialize Claude thinking display if applicable
+                if should_show_rich_stream:  # Only show thinking in rich streaming mode
+                    thinking_context = start_claude_thinking_if_applicable(
+                        str(self.model), self.agent_name, self.interaction_counter
+                    )
+
+                # Ollama specific: accumulate full content to check for function calls at the end
+                # Some Ollama models output the function call as JSON in the text content
+                ollama_full_content = ""
+                is_local_llm = False
+
+                model_str = str(self.model).lower()
+                base_url_env = os.environ.get("OPENAI_BASE_URL", "").lower()
+                # Prefer explicit signals (env var, base URL pointing at Ollama).
+                # The previous heuristic treated any ":" in the model name as an
+                # Ollama marker, which false-positives on litellm-style IDs like
+                # "groq/llama3:70b". Restrict the heuristic to names that both
+                # (a) match a known local-model prefix and (b) carry the
+                # `family:tag` Ollama convention.
+                _ollama_prefixes = (
+                    "gemma",
+                    "llama",
+                    "qwen",
+                    "mistral",
+                    "dolphin",
+                    "phi",
+                    # NOTE: "deepseek" deliberately excluded — DeepSeek is a
+                    # hosted API. Locally-served deepseek via Ollama is still
+                    # caught by the `"ollama" in base_url_env` /
+                    # `"11434" in base_url_env` checks below.
+                    "yi",
+                    "solar",
+                    "codellama",
+                    "wizardcoder",
+                    "nous",
+                )
+                is_local_llm = bool(
+                    self.is_local_llm
+                    or "ollama" in base_url_env
+                    or "11434" in base_url_env
+                    or "ollama" in model_str
+                    or (":" in model_str and model_str.startswith(_ollama_prefixes))
+                )
+
+                # Add visual separation before agent output
+                if streaming_context and should_show_rich_stream:
+                    # If we're using rich context, we'll add separation through that
+                    pass
+                else:
+                    # Removed clear visual separator to avoid blank lines during streaming
+                    pass
+
+                try:
+                    async for chunk in stream:
+                        # Check if we've been interrupted
+                        if stream_interrupted:
+                            break
+
+                        if not state.started:
+                            state.started = True
+                            yield ResponseCreatedEvent(
+                                response=response,
+                                type="response.created",
+                                sequence_number=state.next_seq(),
+                            )
+
+                        # The usage is only available in the last chunk
+                        if hasattr(chunk, "usage"):
+                            usage = chunk.usage
+                        # For Ollama/LiteLLM streams that don't have usage attribute
+                        else:
+                            usage = None
+
+                        # Handle different stream chunk formats
+                        if hasattr(chunk, "choices") and chunk.choices:
+                            choices = chunk.choices
+                        elif hasattr(chunk, "delta") and chunk.delta:
+                            # Some providers might return delta directly
+                            choices = [{"delta": chunk.delta}]
+                        elif isinstance(chunk, dict) and "choices" in chunk:
+                            choices = chunk["choices"]
+                        # Special handling for Qwen/Ollama chunks
+                        elif isinstance(chunk, dict) and ("content" in chunk or "function_call" in chunk):
+                            # Qwen direct delta format - convert to standard
+                            choices = [{"delta": chunk}]
+                        else:
+                            # Skip chunks that don't contain choice data
+                            continue
+
+                        if not choices or len(choices) == 0:
+                            continue
+
+                        # Get the delta content
+                        delta = None
+                        if hasattr(choices[0], "delta"):
+                            delta = choices[0].delta
+                        elif isinstance(choices[0], dict) and "delta" in choices[0]:
+                            delta = choices[0]["delta"]
+
+                        if not delta:
+                            continue
+
+                        # Handle Claude reasoning content first (before regular content)
+                        reasoning_content = None
+
+                        # Check for reasoning content in different possible formats:
+                        #   - DeepSeek: `reasoning_content`
+                        #   - Groq (Qwen3, GPT-OSS): `reasoning`
+                        #   - Anthropic/Claude: `thinking` (handled below)
+                        if hasattr(delta, "reasoning_content") and delta.reasoning_content is not None:
+                            reasoning_content = delta.reasoning_content
+                        elif hasattr(delta, "reasoning") and delta.reasoning is not None:
+                            reasoning_content = delta.reasoning
+                        elif (
+                            isinstance(delta, dict)
+                            and "reasoning_content" in delta
+                            and delta["reasoning_content"] is not None
+                        ):
+                            reasoning_content = delta["reasoning_content"]
+                        elif isinstance(delta, dict) and "reasoning" in delta and delta["reasoning"] is not None:
+                            reasoning_content = delta["reasoning"]
+
+                        # Also check for thinking_blocks structure (Claude 4 format)
+                        thinking_blocks = None
+                        if hasattr(delta, "thinking_blocks") and delta.thinking_blocks is not None:
+                            thinking_blocks = delta.thinking_blocks
+                        elif (
+                            isinstance(delta, dict)
+                            and "thinking_blocks" in delta
+                            and delta["thinking_blocks"] is not None
+                        ):
+                            thinking_blocks = delta["thinking_blocks"]
+
+                        # Extract reasoning content from thinking blocks if available
+                        if thinking_blocks and not reasoning_content:
+                            for block in thinking_blocks:
+                                if isinstance(block, dict) and block.get("type") == "thinking":
+                                    reasoning_content = block.get("thinking", "")
+                                    break
+                                elif (
+                                    isinstance(block, dict) and block.get("type") == "text" and "thinking" in str(block)
+                                ):
+                                    # Sometimes thinking content comes as text blocks
+                                    reasoning_content = block.get("text", "")
+                                    break
+
+                        # Check for direct thinking field (some Claude models)
+                        if not reasoning_content:
+                            if hasattr(delta, "thinking") and delta.thinking is not None:
+                                reasoning_content = delta.thinking
+                            elif isinstance(delta, dict) and "thinking" in delta and delta["thinking"] is not None:
+                                reasoning_content = delta["thinking"]
+
+                        # Update thinking display if we have reasoning content
+                        if reasoning_content:
+                            # Accumulate so we can preserve it on the
+                            # assistant message stored in history (DeepSeek
+                            # multi-turn requirement when tool calls occur).
+                            accumulated_reasoning_content += reasoning_content
+                            if thinking_context:
+                                # Streaming mode: Update the rich thinking display
+                                from kryon.util import update_claude_thinking_content
+
+                                update_claude_thinking_content(thinking_context, reasoning_content)
+                            else:
+                                # Non-streaming mode: Use simple text output
+                                from kryon.util import (
+                                    detect_claude_thinking_in_stream,
+                                    print_claude_reasoning_simple,
+                                )
+
+                                # Check if model supports reasoning (Claude or DeepSeek)
+                                model_str_lower = str(self.model).lower()
+                                if detect_claude_thinking_in_stream(str(self.model)) or "deepseek" in model_str_lower:
+                                    print_claude_reasoning_simple(reasoning_content, self.agent_name, str(self.model))
+
+                        # Handle text
+                        content = None
+                        if hasattr(delta, "content") and delta.content is not None:
+                            content = delta.content
+                        elif isinstance(delta, dict) and "content" in delta and delta["content"] is not None:
+                            content = delta["content"]
+
+                        if content:
+                            # IMPORTANT: If we have content and thinking_context is active,
+                            # it means thinking is complete and normal content is starting
+                            # Close the thinking display automatically
+                            if thinking_context:
+                                from kryon.util import finish_claude_thinking_display
+
+                                finish_claude_thinking_display(thinking_context)
+                                thinking_context = None  # Clear the context
+
+                            # For Ollama, we need to accumulate the full content to check for function calls
+                            if is_local_llm:
+                                ollama_full_content += content
+
+                            # Add to the streaming text buffer
+                            streaming_text_buffer += content
+
+                            # Update streaming display if enabled - ALWAYS respect KRYON_STREAM setting
+                            # Both thinking and regular content should stream if streaming is enabled
+                            if streaming_context:
+                                # Calculate cost for current interaction
+                                current_cost = calculate_model_cost(
+                                    str(self.model), estimated_input_tokens, estimated_output_tokens
+                                )
+
+                                # Check price limit only for paid models
+                                if (
+                                    current_cost > 0
+                                    and hasattr(COST_TRACKER, "check_price_limit")
+                                    and estimated_output_tokens % 50 == 0
+                                ):
+                                    try:
+                                        COST_TRACKER.check_price_limit(current_cost)
+                                    except Exception:
+                                        # Ensure streaming context is cleaned up
+                                        if streaming_context:
+                                            try:
+                                                finish_agent_streaming(streaming_context, None)
+                                            except Exception:
+                                                pass
+                                        # Stop timers and re-raise the exception
+                                        stop_active_timer()
+                                        start_idle_timer()
+                                        raise
+
+                                # Update session total cost for real-time display
+                                # This is a temporary estimate during streaming that will be properly updated at the end
+                                estimated_session_total = getattr(COST_TRACKER, "session_total_cost", 0.0)
+
+                                # For free models, don't add to the total cost
+                                display_total_cost = estimated_session_total
+                                if current_cost > 0:
+                                    display_total_cost += current_cost
+
+                                # Create token stats with both current interaction cost and updated total cost
+                                token_stats = {
+                                    "input_tokens": estimated_input_tokens,
+                                    "output_tokens": estimated_output_tokens,
+                                    "cost": current_cost,
+                                    "total_cost": display_total_cost,
+                                }
+
+                                update_agent_streaming_content(streaming_context, content, token_stats)
+
+                            # More accurate token counting for text content
+                            output_text += content
+                            token_count, _ = count_tokens_with_tiktoken(output_text)
+                            estimated_output_tokens = token_count
+
+                            # Periodically check price limit during streaming
+                            # This allows early termination if price limit is reached mid-stream
+                            if (
+                                estimated_output_tokens > 0 and estimated_output_tokens % 50 == 0
+                            ):  # Check every ~50 tokens
+                                # Calculate current estimated cost
+                                current_estimated_cost = calculate_model_cost(
+                                    str(self.model), estimated_input_tokens, estimated_output_tokens
+                                )
+
+                                # Check price limit only for paid models
+                                if current_estimated_cost > 0 and hasattr(COST_TRACKER, "check_price_limit"):
+                                    try:
+                                        COST_TRACKER.check_price_limit(current_estimated_cost)
+                                    except Exception:
+                                        # Ensure streaming context is cleaned up
+                                        if streaming_context:
+                                            try:
+                                                finish_agent_streaming(streaming_context, None)
+                                            except Exception:
+                                                pass
+                                        # Stop timers and re-raise the exception
+                                        stop_active_timer()
+                                        start_idle_timer()
+                                        raise
+
+                                # Update the COST_TRACKER with the running cost for accurate display
+                                if hasattr(COST_TRACKER, "interaction_cost"):
+                                    COST_TRACKER.interaction_cost = current_estimated_cost
+
+                                # Also update streaming context if available for live display
+                                if streaming_context:
+                                    # For free models, don't add to the session total
+                                    if current_estimated_cost == 0:
+                                        session_total = getattr(COST_TRACKER, "session_total_cost", 0.0)
+                                    else:
+                                        session_total = (
+                                            getattr(COST_TRACKER, "session_total_cost", 0.0) + current_estimated_cost
+                                        )
+
+                                    updated_token_stats = {
+                                        "input_tokens": estimated_input_tokens,
+                                        "output_tokens": estimated_output_tokens,
+                                        "cost": current_estimated_cost,
+                                        "total_cost": session_total,
+                                    }
+                                    update_agent_streaming_content(streaming_context, "", updated_token_stats)
+
+                            if not state.text_content_index_and_output:
+                                # Initialize a content tracker for streaming text
+                                state.text_content_index_and_output = (
+                                    0 if not state.refusal_content_index_and_output else 1,
+                                    ResponseOutputText(
+                                        text="",
+                                        type="output_text",
+                                        annotations=[],
+                                    ),
+                                )
+                                # Start a new assistant message stream
+                                assistant_item = ResponseOutputMessage(
+                                    id=FAKE_RESPONSES_ID,
+                                    content=[],
+                                    role="assistant",
+                                    type="message",
+                                    status="in_progress",
+                                )
+                                # Notify consumers of the start of a new output message + first content part
+                                yield ResponseOutputItemAddedEvent(
+                                    item=assistant_item,
+                                    output_index=0,
+                                    type="response.output_item.added",
+                                    sequence_number=state.next_seq(),
+                                )
+                                yield ResponseContentPartAddedEvent(
+                                    content_index=state.text_content_index_and_output[0],
+                                    item_id=FAKE_RESPONSES_ID,
+                                    output_index=0,
+                                    part=ResponseOutputText(
+                                        text="",
+                                        type="output_text",
+                                        annotations=[],
+                                    ),
+                                    type="response.content_part.added",
+                                    sequence_number=state.next_seq(),
+                                )
+                            # Emit the delta for this segment of content
+                            yield ResponseTextDeltaEvent(
+                                content_index=state.text_content_index_and_output[0],
+                                delta=content,
+                                item_id=FAKE_RESPONSES_ID,
+                                output_index=0,
+                                type="response.output_text.delta",
+                                sequence_number=state.next_seq(),
+                                logprobs=[],
+                            )
+                            # Accumulate the text into the response part
+                            state.text_content_index_and_output[1].text += content
+
+                        # Handle refusals (model declines to answer)
+                        refusal_content = None
+                        if hasattr(delta, "refusal") and delta.refusal:
+                            refusal_content = delta.refusal
+                        elif isinstance(delta, dict) and "refusal" in delta and delta["refusal"]:
+                            refusal_content = delta["refusal"]
+
+                        if refusal_content:
+                            if not state.refusal_content_index_and_output:
+                                # Initialize a content tracker for streaming refusal text
+                                state.refusal_content_index_and_output = (
+                                    0 if not state.text_content_index_and_output else 1,
+                                    ResponseOutputRefusal(refusal="", type="refusal"),
+                                )
+                                # Start a new assistant message if one doesn't exist yet (in-progress)
+                                assistant_item = ResponseOutputMessage(
+                                    id=FAKE_RESPONSES_ID,
+                                    content=[],
+                                    role="assistant",
+                                    type="message",
+                                    status="in_progress",
+                                )
+                                # Notify downstream that assistant message + first content part are starting
+                                yield ResponseOutputItemAddedEvent(
+                                    item=assistant_item,
+                                    output_index=0,
+                                    type="response.output_item.added",
+                                    sequence_number=state.next_seq(),
+                                )
+                                yield ResponseContentPartAddedEvent(
+                                    content_index=state.refusal_content_index_and_output[0],
+                                    item_id=FAKE_RESPONSES_ID,
+                                    output_index=0,
+                                    part=ResponseOutputText(
+                                        text="",
+                                        type="output_text",
+                                        annotations=[],
+                                    ),
+                                    type="response.content_part.added",
+                                    sequence_number=state.next_seq(),
+                                )
+                            # Emit the delta for this segment of refusal
+                            yield ResponseRefusalDeltaEvent(
+                                content_index=state.refusal_content_index_and_output[0],
+                                delta=refusal_content,
+                                item_id=FAKE_RESPONSES_ID,
+                                output_index=0,
+                                type="response.refusal.delta",
+                                sequence_number=state.next_seq(),
+                            )
+                            # Accumulate the refusal string in the output part
+                            state.refusal_content_index_and_output[1].refusal += refusal_content
+
+                        # Handle tool calls
+                        # Because we don't know the name of the function until the end of the stream, we'll
+                        # save everything and yield events at the end
+                        tool_calls = self._detect_and_format_function_calls(delta)
+
+                        if tool_calls:
+                            for tc_delta in tool_calls:
+                                tc_index = tc_delta.index if hasattr(tc_delta, "index") else tc_delta.get("index", 0)
+                                if tc_index not in state.function_calls:
+                                    state.function_calls[tc_index] = ResponseFunctionToolCall(
+                                        id=FAKE_RESPONSES_ID,
+                                        arguments="",
+                                        name="",
+                                        type="function_call",
+                                        call_id="",
+                                    )
+
+                                tc_function = None
+                                if hasattr(tc_delta, "function"):
+                                    tc_function = tc_delta.function
+                                elif isinstance(tc_delta, dict) and "function" in tc_delta:
+                                    tc_function = tc_delta["function"]
+
+                                if tc_function:
+                                    # Handle both object and dict formats
+                                    args = ""
+                                    if hasattr(tc_function, "arguments"):
+                                        args = tc_function.arguments or ""
+                                    elif isinstance(tc_function, dict) and "arguments" in tc_function:
+                                        args = tc_function.get("arguments", "") or ""
+
+                                    name = ""
+                                    if hasattr(tc_function, "name"):
+                                        name = tc_function.name or ""
+                                    elif isinstance(tc_function, dict) and "name" in tc_function:
+                                        name = tc_function.get("name", "") or ""
+
+                                    state.function_calls[tc_index].arguments += args
+                                    state.function_calls[tc_index].name += name
+
+                                # Handle call_id in both formats
+                                call_id = ""
+                                if hasattr(tc_delta, "id"):
+                                    call_id = tc_delta.id or ""
+                                elif isinstance(tc_delta, dict) and "id" in tc_delta:
+                                    call_id = tc_delta.get("id", "") or ""
+                                else:
+                                    # For Qwen models, generate a predictable ID if none is provided
+                                    if state.function_calls[tc_index].name:
+                                        # Generate a stable ID from the function name and arguments
+                                        call_id = f"call_{hashlib.md5(state.function_calls[tc_index].name.encode()).hexdigest()[:8]}"  # nosemgrep: insecure-hash-algorithm-md5
+
+                                state.function_calls[tc_index].call_id += call_id
+
+                                # --- Accumulate tool call for message_history ---
+                                # Only add if not already present (avoid duplicates in streaming)
+                                # Handle empty arguments before storing
+                                tool_args = state.function_calls[tc_index].arguments
+                                if tool_args is None or (isinstance(tool_args, str) and tool_args.strip() == ""):
+                                    tool_args = "{}"
+
+                                tool_call_msg = {
+                                    "role": "assistant",
+                                    "content": None,
+                                    "tool_calls": [
+                                        {
+                                            "id": state.function_calls[tc_index].call_id,
+                                            "type": "function",
+                                            "function": {
+                                                "name": state.function_calls[tc_index].name,
+                                                "arguments": tool_args,
+                                            },
+                                        }
+                                    ],
+                                }
+                                # Preserve reasoning_content so the next
+                                # request can pass it back per provider spec.
+                                # Only DeepSeek accepts this on input —
+                                # Groq returns 400 if we send it back.
+                                if accumulated_reasoning_content and _preserves_reasoning_in_history(str(self.model)):
+                                    tool_call_msg["reasoning_content"] = accumulated_reasoning_content
+                                # Only add if not already in streamed_tool_calls
+                                if tool_call_msg not in streamed_tool_calls:
+                                    streamed_tool_calls.append(tool_call_msg)
+                                    # Don't add to message history here - wait for tool output
+                                    # to add both tool call and response atomically
+
+                                    # NEW: Display tool call immediately when detected in streaming mode
+                                    # But only if it has complete arguments and name
+                                    if (
+                                        state.function_calls[tc_index].name
+                                        and state.function_calls[tc_index].arguments
+                                        and state.function_calls[tc_index].call_id
+                                    ):
+                                        # First, finish any existing streaming context if it exists
+                                        if streaming_context:
+                                            try:
+                                                finish_agent_streaming(streaming_context, None)
+                                                streaming_context = None
+                                            except Exception:
+                                                pass
+
+                                        # Create a message-like object for displaying the function call
+                                        tool_msg = type(
+                                            "ToolCallStreamDisplay",
+                                            (),
+                                            {
+                                                "content": None,
+                                                "tool_calls": [
+                                                    type(
+                                                        "ToolCallDetail",
+                                                        (),
+                                                        {
+                                                            "function": type(
+                                                                "FunctionDetail",
+                                                                (),
+                                                                {
+                                                                    "name": state.function_calls[tc_index].name,
+                                                                    "arguments": state.function_calls[
+                                                                        tc_index
+                                                                    ].arguments,
+                                                                },
+                                                            ),
+                                                            "id": state.function_calls[tc_index].call_id,
+                                                            "type": "function",
+                                                        },
+                                                    )
+                                                ],
+                                            },
+                                        )
+
+                                        # Display the tool call during streaming
+                                        cli_print_agent_messages(
+                                            agent_name=getattr(self, "agent_name", "Agent"),
+                                            message=tool_msg,
+                                            counter=getattr(self, "interaction_counter", 0),
+                                            model=str(self.model),
+                                            debug=False,
+                                            interaction_input_tokens=estimated_input_tokens,
+                                            interaction_output_tokens=estimated_output_tokens,
+                                            interaction_reasoning_tokens=0,  # Not available during streaming yet
+                                            total_input_tokens=getattr(self, "total_input_tokens", 0)
+                                            + estimated_input_tokens,
+                                            total_output_tokens=getattr(self, "total_output_tokens", 0)
+                                            + estimated_output_tokens,
+                                            total_reasoning_tokens=getattr(self, "total_reasoning_tokens", 0),
+                                            interaction_cost=None,
+                                            total_cost=None,
+                                            tool_output=None,  # Will be shown once tool is executed
+                                            suppress_empty=True,  # Prevent empty panels
+                                        )
+                                        # Set flag to suppress final output to avoid duplication
+                                        self.suppress_final_output = True
+
+                except KeyboardInterrupt:
+                    # Handle interruption during streaming
+                    stream_interrupted = True
+                    print("\n[Streaming interrupted by user]", file=sys.stderr)
+
+                    # Let the exception propagate after cleanup
+                    raise
+
+                except Exception as e:
+                    # Handle other exceptions during streaming
+                    logger.error(f"Error during streaming: {e}")
+                    if "token" in str(e).lower() or "limit" in str(e).lower():
+                        print("\n📏 Token limit exceeded - Response truncated")
+                    raise
+
+                # Special handling for Ollama - check if accumulated text contains a valid function call
+                if is_local_llm and ollama_full_content and len(state.function_calls) == 0:
+                    # Look for JSON object that might be a function call
+                    try:
+                        # Try to extract a JSON object from the content
+                        json_start = ollama_full_content.find("{")
+                        json_end = ollama_full_content.rfind("}") + 1
+
+                        if json_start >= 0 and json_end > json_start:
+                            json_str = ollama_full_content[json_start:json_end]
+                            # Try to parse the JSON
+                            parsed = json.loads(json_str)
+
+                            # Check if it looks like a function call
+                            if "name" in parsed and "arguments" in parsed:
+                                logger.debug(f"Found valid function call in Ollama output: {json_str}")
+
+                                # Create a tool call ID
+                                tool_call_id = f"call_{uuid.uuid4().hex[:8]}"
+
+                                # Ensure arguments is a valid JSON string
+                                arguments_str = ""
+                                if isinstance(parsed["arguments"], dict):
+                                    # Remove 'ctf' field if it exists
+                                    if "ctf" in parsed["arguments"]:
+                                        del parsed["arguments"]["ctf"]
+                                    arguments_str = json.dumps(parsed["arguments"])
+                                elif isinstance(parsed["arguments"], str):
+                                    # If it's already a string, check if it's valid JSON
+                                    try:
+                                        # Try parsing to validate and remove 'ctf' if present
+                                        args_dict = json.loads(parsed["arguments"])
+                                        if isinstance(args_dict, dict) and "ctf" in args_dict:
+                                            del args_dict["ctf"]
+                                        arguments_str = json.dumps(args_dict)
+                                    except Exception:
+                                        # If not valid JSON, encode it as a JSON string
+                                        arguments_str = json.dumps(parsed["arguments"])
+                                else:
+                                    # For any other type, convert to string and then JSON
+                                    arguments_str = json.dumps(str(parsed["arguments"]))
+                                # Add it to our function_calls state
+                                state.function_calls[0] = ResponseFunctionToolCall(
+                                    id=FAKE_RESPONSES_ID,
+                                    arguments=arguments_str,
+                                    name=parsed["name"],
+                                    type="function_call",
+                                    call_id=tool_call_id[:40],
+                                )
+
+                                # Display the tool call in CLI
+                                try:
+                                    # First, finish any existing streaming context if it exists
+                                    if streaming_context:
+                                        try:
+                                            finish_agent_streaming(streaming_context, None)
+                                            streaming_context = None
+                                        except Exception:
+                                            pass
+
+                                    # Create a message-like object to display the function call
+                                    tool_msg = type(
+                                        "ToolCallWrapper",
+                                        (),
+                                        {
+                                            "content": None,
+                                            "tool_calls": [
+                                                type(
+                                                    "ToolCallDetail",
+                                                    (),
+                                                    {
+                                                        "function": type(
+                                                            "FunctionDetail",
+                                                            (),
+                                                            {
+                                                                "name": parsed["name"],
+                                                                "arguments": arguments_str,
+                                                            },
+                                                        ),
+                                                        "id": tool_call_id[:40],
+                                                        "type": "function",
+                                                    },
+                                                )
+                                            ],
+                                        },
+                                    )
+
+                                    # Print the tool call using the CLI utility
+                                    cli_print_agent_messages(
+                                        agent_name=getattr(self, "agent_name", "Agent"),
+                                        message=tool_msg,
+                                        counter=getattr(self, "interaction_counter", 0),
+                                        model=str(self.model),
+                                        debug=False,
+                                        interaction_input_tokens=estimated_input_tokens,
+                                        interaction_output_tokens=estimated_output_tokens,
+                                        interaction_reasoning_tokens=0,  # Not available for Ollama
+                                        total_input_tokens=getattr(self, "total_input_tokens", 0)
+                                        + estimated_input_tokens,
+                                        total_output_tokens=getattr(self, "total_output_tokens", 0)
+                                        + estimated_output_tokens,
+                                        total_reasoning_tokens=getattr(self, "total_reasoning_tokens", 0),
+                                        interaction_cost=None,
+                                        total_cost=None,
+                                        tool_output=None,  # Will be shown once the tool is executed
+                                        suppress_empty=True,  # Suppress empty panels during streaming
+                                    )
+
+                                    # Set flag to suppress final output to avoid duplication
+                                    self.suppress_final_output = True
+                                except Exception as e:
+                                    # Silently log the error - don't disrupt the flow
+                                    logger.debug(f"Display error (non-critical): {e}")
+
+                                # Add to message history
+                                tool_call_msg = {
+                                    "role": "assistant",
+                                    "content": None,
+                                    "tool_calls": [
+                                        {
+                                            "id": tool_call_id,
+                                            "type": "function",
+                                            "function": {
+                                                "name": parsed["name"],
+                                                "arguments": arguments_str,
+                                            },
+                                        }
+                                    ],
+                                }
+
+                                streamed_tool_calls.append(tool_call_msg)
+                                # Don't add to message history here - wait for tool output
+                                # to add both tool call and response atomically
+
+                                logger.debug(f"Added function call: {parsed['name']} with args: {arguments_str}")
+                    except Exception:
+                        pass
+
+                function_call_starting_index = 0
+                if state.text_content_index_and_output:
+                    function_call_starting_index += 1
+                    # Send end event for this content part
+                    yield ResponseContentPartDoneEvent(
+                        content_index=state.text_content_index_and_output[0],
+                        item_id=FAKE_RESPONSES_ID,
+                        output_index=0,
+                        part=state.text_content_index_and_output[1],
+                        type="response.content_part.done",
+                        sequence_number=state.next_seq(),
+                    )
+
+                if state.refusal_content_index_and_output:
+                    function_call_starting_index += 1
+                    # Send end event for this content part
+                    yield ResponseContentPartDoneEvent(
+                        content_index=state.refusal_content_index_and_output[0],
+                        item_id=FAKE_RESPONSES_ID,
+                        output_index=0,
+                        part=state.refusal_content_index_and_output[1],
+                        type="response.content_part.done",
+                        sequence_number=state.next_seq(),
+                    )
+
+                # Actually send events for the function calls
+                for function_call in state.function_calls.values():
+                    # First, a ResponseOutputItemAdded for the function call
+                    yield ResponseOutputItemAddedEvent(
+                        item=ResponseFunctionToolCall(
+                            id=FAKE_RESPONSES_ID,
+                            call_id=function_call.call_id[:40],
+                            arguments=function_call.arguments,
+                            name=function_call.name,
+                            type="function_call",
+                        ),
+                        output_index=function_call_starting_index,
+                        type="response.output_item.added",
+                        sequence_number=state.next_seq(),
+                    )
+                    # Then, yield the args
+                    yield ResponseFunctionCallArgumentsDeltaEvent(
+                        delta=function_call.arguments,
+                        item_id=FAKE_RESPONSES_ID,
+                        output_index=function_call_starting_index,
+                        type="response.function_call_arguments.delta",
+                        sequence_number=state.next_seq(),
+                    )
+                    # Finally, the ResponseOutputItemDone
+                    yield ResponseOutputItemDoneEvent(
+                        item=ResponseFunctionToolCall(
+                            id=FAKE_RESPONSES_ID,
+                            call_id=function_call.call_id[:40],
+                            arguments=function_call.arguments,
+                            name=function_call.name,
+                            type="function_call",
+                        ),
+                        output_index=function_call_starting_index,
+                        type="response.output_item.done",
+                        sequence_number=state.next_seq(),
+                    )
+
+                # Finally, send the Response completed event
+                outputs: list[ResponseOutputItem] = []
+                if state.text_content_index_and_output or state.refusal_content_index_and_output:
+                    assistant_msg = ResponseOutputMessage(
+                        id=FAKE_RESPONSES_ID,
+                        content=[],
+                        role="assistant",
+                        type="message",
+                        status="completed",
+                    )
+                    if state.text_content_index_and_output:
+                        assistant_msg.content.append(state.text_content_index_and_output[1])
+                    if state.refusal_content_index_and_output:
+                        assistant_msg.content.append(state.refusal_content_index_and_output[1])
+                    outputs.append(assistant_msg)
+
+                    # send a ResponseOutputItemDone for the assistant message
+                    yield ResponseOutputItemDoneEvent(
+                        item=assistant_msg,
+                        output_index=0,
+                        type="response.output_item.done",
+                        sequence_number=state.next_seq(),
+                    )
+
+                for function_call in state.function_calls.values():
+                    outputs.append(function_call)
+
+                final_response = response.model_copy()
+                final_response.output = outputs
+
+                # Get final token counts using consistent method
+                input_tokens = estimated_input_tokens
+                output_tokens = estimated_output_tokens
+
+                # Use API token counts if available and reasonable
+                if usage and hasattr(usage, "prompt_tokens") and usage.prompt_tokens > 0:
+                    input_tokens = usage.prompt_tokens
+                if usage and hasattr(usage, "completion_tokens") and usage.completion_tokens > 0:
+                    output_tokens = usage.completion_tokens
+
+                # Create a proper usage object with our token counts
+                final_response.usage = CustomResponseUsage(
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    total_tokens=input_tokens + output_tokens,
+                    output_tokens_details=OutputTokensDetails(
+                        reasoning_tokens=usage.completion_tokens_details.reasoning_tokens
+                        if usage
+                        and hasattr(usage, "completion_tokens_details")
+                        and usage.completion_tokens_details
+                        and hasattr(usage.completion_tokens_details, "reasoning_tokens")
+                        and usage.completion_tokens_details.reasoning_tokens
+                        else 0
+                    ),
+                    input_tokens_details={
+                        "prompt_tokens": input_tokens,
+                        "cached_tokens": usage.prompt_tokens_details.cached_tokens
+                        if usage
+                        and hasattr(usage, "prompt_tokens_details")
+                        and usage.prompt_tokens_details
+                        and hasattr(usage.prompt_tokens_details, "cached_tokens")
+                        and usage.prompt_tokens_details.cached_tokens
+                        else 0,
+                    },
+                )
+
+                yield ResponseCompletedEvent(
+                    response=final_response,
+                    type="response.completed",
+                    sequence_number=state.next_seq(),
+                )
+
+                # Update token totals for CLI display
+                if final_response.usage:
+                    # Always update the total counters with the best available counts
+                    self.total_input_tokens += final_response.usage.input_tokens
+                    self.total_output_tokens += final_response.usage.output_tokens
+                    if final_response.usage.output_tokens_details and hasattr(
+                        final_response.usage.output_tokens_details, "reasoning_tokens"
+                    ):
+                        self.total_reasoning_tokens += final_response.usage.output_tokens_details.reasoning_tokens
+
+                # Prepare final statistics for display
+                interaction_input = final_response.usage.input_tokens if final_response.usage else 0
+                interaction_output = final_response.usage.output_tokens if final_response.usage else 0
+                total_input = getattr(self, "total_input_tokens", 0)
+                total_output = getattr(self, "total_output_tokens", 0)
+
+                # Calculate costs for this model
+                model_name = str(self.model)
+                interaction_cost = calculate_model_cost(model_name, interaction_input, interaction_output)
+                # Get the previous total cost and add this interaction's cost
+                # Don't recalculate cost for all tokens - that causes double-counting
+                previous_total = getattr(COST_TRACKER, "session_total_cost", 0.0)
+                total_cost = previous_total + interaction_cost
+
+                # If interaction cost is zero, this is a free model
+                if interaction_cost == 0:
+                    # For free models, keep existing total and ensure cost tracking system knows it's free
+                    total_cost = getattr(COST_TRACKER, "session_total_cost", 0.0)
+                    if hasattr(COST_TRACKER, "reset_cost_for_local_model"):
+                        COST_TRACKER.reset_cost_for_local_model(model_name)
+
+                # Explicit conversion to float with fallback to ensure they're never None or 0
+                interaction_cost = float(interaction_cost if interaction_cost is not None else 0.0)
+                total_cost = float(total_cost if total_cost is not None else 0.0)
+
+                # Process costs through COST_TRACKER only once per interaction
+                if interaction_cost > 0.0:
+                    # Check price limit before processing the new cost
+                    if hasattr(COST_TRACKER, "check_price_limit"):
+                        try:
+                            COST_TRACKER.check_price_limit(interaction_cost)
+                        except Exception:
+                            # Ensure streaming context is cleaned up
+                            if streaming_context:
+                                try:
+                                    finish_agent_streaming(streaming_context, None)
+                                except Exception:
+                                    pass
+                            # Stop timers and re-raise the exception
+                            stop_active_timer()
+                            start_idle_timer()
+                            raise
+
+                    # Process the interaction cost (updates internal tracking)
+                    COST_TRACKER.process_interaction_cost(
+                        model_name,
+                        interaction_input,
+                        interaction_output,
+                        final_response.usage.output_tokens_details.reasoning_tokens
+                        if final_response.usage
+                        and final_response.usage.output_tokens_details
+                        and hasattr(final_response.usage.output_tokens_details, "reasoning_tokens")
+                        else 0,
+                        interaction_cost,
+                    )
+
+                    # Process the total cost (updates session total correctly)
+                    total_cost = COST_TRACKER.process_total_cost(
+                        model_name,
+                        total_input,
+                        total_output,
+                        getattr(self, "total_reasoning_tokens", 0),
+                        None,  # Let it calculate from tokens
+                    )
+
+                    # Track usage globally
+                    GLOBAL_USAGE_TRACKER.track_usage(
+                        model_name=model_name,
+                        input_tokens=interaction_input,
+                        output_tokens=interaction_output,
+                        cost=interaction_cost,
+                        agent_name=self.agent_name,
+                    )
+                else:
+                    # For free models, still track token usage
+                    GLOBAL_USAGE_TRACKER.track_usage(
+                        model_name=model_name,
+                        input_tokens=interaction_input,
+                        output_tokens=interaction_output,
+                        cost=0.0,
+                        agent_name=self.agent_name,
+                    )
+
+                # Store the total cost for future recording
+                self.total_cost = total_cost
+
+                # Create final stats with explicit type conversion for all values
+                final_stats = {
+                    "interaction_input_tokens": int(interaction_input),
+                    "interaction_output_tokens": int(interaction_output),
+                    "interaction_reasoning_tokens": int(
+                        final_response.usage.output_tokens_details.reasoning_tokens
+                        if final_response.usage
+                        and final_response.usage.output_tokens_details
+                        and hasattr(final_response.usage.output_tokens_details, "reasoning_tokens")
+                        else 0
+                    ),
+                    "total_input_tokens": int(total_input),
+                    "total_output_tokens": int(total_output),
+                    "total_reasoning_tokens": int(getattr(self, "total_reasoning_tokens", 0)),
+                    "interaction_cost": float(interaction_cost),
+                    "total_cost": float(total_cost),
+                }
+
+                # At the end of streaming, finish the streaming context if we were using it
+                if streaming_context:
+                    # Create a direct copy of the costs to ensure they remain as floats
+                    direct_stats = final_stats.copy()
+                    direct_stats["interaction_cost"] = float(interaction_cost)
+                    direct_stats["total_cost"] = float(total_cost)
+                    # Use the direct copy with guaranteed float costs
+                    finish_agent_streaming(streaming_context, direct_stats)
+                    streaming_context = None
+
+                    # Removed extra newline after streaming completes to avoid blank lines
+                    pass
+
+                # Finish Claude thinking display if it was active
+                if thinking_context:
+                    from kryon.util import finish_claude_thinking_display
+
+                    finish_claude_thinking_display(thinking_context)
+
+                    # Note: Content is now displayed during streaming, no need to show it again here
+
+                if tracing.include_data():
+                    # FASE 11.H — same duck-typing safeguard as the
+                    # non-streaming path. Streaming aggregation builds
+                    # ``final_response`` from chunks; in some Ollama
+                    # response shapes it's also a SimpleNamespace.
+                    span_generation.span_data.output = [_safe_model_dump(final_response)]
+
+                span_generation.span_data.usage = {
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                }
+
+                # --- DEFERRED: Tool calls are no longer added immediately ---
+                # Store pending tool calls but don't add to history yet
+                if not hasattr(self, "_pending_tool_calls"):
+                    self._pending_tool_calls = {}
+
+                for tool_call_msg in streamed_tool_calls:
+                    # Extract tool call ID from the message
+                    if tool_call_msg.get("tool_calls"):
+                        for tc in tool_call_msg["tool_calls"]:
+                            # Truncated id — see the non-streaming site above.
+                            self._pending_tool_calls[tc["id"][:40]] = tool_call_msg
+
+                # Log the assistant tool call message if any tool calls were collected
+                if streamed_tool_calls:
+                    tool_calls_list = []
+                    for tool_call_msg in streamed_tool_calls:
+                        for tool_call in tool_call_msg.get("tool_calls", []):
+                            tool_calls_list.append(tool_call)
+                    self.logger.log_assistant_message(None, tool_calls_list)
+
+                # Always log text content if it exists, regardless of suppress_final_output
+                # The suppress_final_output flag is only for preventing duplicate tool call display
+                if state.text_content_index_and_output and state.text_content_index_and_output[1].text:
+                    asst_msg = {
+                        "role": "assistant",
+                        "content": state.text_content_index_and_output[1].text,
+                    }
+                    # Preserve reasoning_content on a text-only turn too, or the next
+                    # request drops it and DeepSeek thinking models 400 ("reasoning_content
+                    # must be passed back"). The tool-call path already does this; this is
+                    # the same fix for the turn that ends in text instead of a tool call.
+                    if accumulated_reasoning_content and _preserves_reasoning_in_history(str(self.model)):
+                        asst_msg["reasoning_content"] = accumulated_reasoning_content
+                    self.add_to_message_history(asst_msg)
+                    # Log the assistant message
+                    self.logger.log_assistant_message(state.text_content_index_and_output[1].text)
+
+                # Reset the suppress flag for future requests
+                self.suppress_final_output = False
+
+                # Log the complete response (streaming path).
+                # Mirror the non-streaming path: wrap tools and log effective tool_choice.
+                effective_tc_stream = self._last_effective_tool_choice
+                logged_tc_stream = (
+                    effective_tc_stream if effective_tc_stream is not None else model_settings.tool_choice
+                )
+                self.logger.rec_training_data(
+                    {
+                        "model": str(self.model),
+                        "messages": converted_messages,
+                        "stream": True,
+                        "tools": [ToolConverter.to_openai(t) for t in tools] if tools else [],
+                        "tool_choice": logged_tc_stream,
+                    },
+                    final_response,
+                    self.total_cost,
+                    self.agent_name,
+                )
+
+                # Stop active timer and start idle timer when streaming is complete
+                stop_active_timer()
+                start_idle_timer()
+
+        except KeyboardInterrupt:
+            # Handle keyboard interruption specifically
+            stream_interrupted = True
+
+            # Ensure message history consistency by adding synthetic tool results
+            # for any tool calls that were added but don't have corresponding results
+            try:
+                # Find all tool calls in recent assistant messages
+                orphaned_tool_calls = []
+                for msg in reversed(self.message_history[-10:]):  # Check recent messages
+                    if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                        for tool_call in msg["tool_calls"]:
+                            call_id = tool_call.get("id")
+                            if call_id:
+                                # Check if this tool call has a corresponding tool result
+                                has_result = any(
+                                    m.get("role") == "tool" and m.get("tool_call_id") == call_id
+                                    for m in self.message_history
+                                )
+                                if not has_result:
+                                    orphaned_tool_calls.append((call_id, tool_call))
+
+                # Add synthetic tool results for orphaned tool calls
+                for call_id, _tool_call in orphaned_tool_calls:
+                    tool_response_msg = {
+                        "role": "tool",
+                        "tool_call_id": call_id,
+                        "content": "Tool execution interrupted",
+                    }
+                    self.add_to_message_history(tool_response_msg)
+
+            except Exception as cleanup_error:
+                # Don't let cleanup errors mask the original KeyboardInterrupt
+                logger.debug(f"Error during interrupt cleanup: {cleanup_error}")
+
+            # Make sure to clean up and re-raise
+            raise
+
+        except Exception as e:
+            # Handle other exceptions
+            logger.error(f"Error in stream_response: {e}")
+            raise
+
+        finally:
+            # Always clean up resources
+            # This block executes whether the try block succeeds, fails, or is interrupted
+
+            # Clean up streaming context
+            if streaming_context:
+                try:
+                    # Check if we need to force stop the streaming panel
+                    if streaming_context.get("is_started", False) and streaming_context.get("live"):
+                        streaming_context["live"].stop()
+
+                    # Remove from active streaming contexts
+                    if hasattr(create_agent_streaming_context, "_active_streaming"):
+                        for key, value in list(create_agent_streaming_context._active_streaming.items()):
+                            if value is streaming_context:
+                                del create_agent_streaming_context._active_streaming[key]
+                                break
+                except Exception as cleanup_error:
+                    logger.debug(f"Error cleaning up streaming context: {cleanup_error}")
+
+            # Clean up thinking context
+            if thinking_context:
+                try:
+                    # Force finish the thinking display
+                    from kryon.util import finish_claude_thinking_display
+
+                    finish_claude_thinking_display(thinking_context)
+                except Exception as cleanup_error:
+                    logger.debug(f"Error cleaning up thinking context: {cleanup_error}")
+
+            # Clean up any live streaming panels
+            if hasattr(cli_print_tool_output, "_streaming_sessions"):
+                # Find any sessions related to this stream
+                for call_id in list(cli_print_tool_output._streaming_sessions.keys()):
+                    if call_id in _LIVE_STREAMING_PANELS:
+                        try:
+                            live = _LIVE_STREAMING_PANELS[call_id]
+                            live.stop()
+                            del _LIVE_STREAMING_PANELS[call_id]
+                        except Exception:
+                            pass
+
+            # Stop active timer and start idle timer
+            try:
+                stop_active_timer()
+                start_idle_timer()
+            except Exception:
+                pass
+
+            # Stream cleanup completed
+
+    @overload
+    async def _fetch_response(
+        self,
+        system_instructions: str | None,
+        input: str | list[TResponseInputItem],
+        model_settings: ModelSettings,
+        tools: list[Tool],
+        output_schema: AgentOutputSchema | None,
+        handoffs: list[Handoff],
+        span: Span[GenerationSpanData],
+        tracing: ModelTracing,
+        stream: Literal[True],
+    ) -> tuple[Response, AsyncStream[ChatCompletionChunk]]: ...
+
+    @overload
+    async def _fetch_response(
+        self,
+        system_instructions: str | None,
+        input: str | list[TResponseInputItem],
+        model_settings: ModelSettings,
+        tools: list[Tool],
+        output_schema: AgentOutputSchema | None,
+        handoffs: list[Handoff],
+        span: Span[GenerationSpanData],
+        tracing: ModelTracing,
+        stream: Literal[False],
+    ) -> ChatCompletion: ...
+
+    async def _fetch_response(
+        self,
+        system_instructions: str | None,
+        input: str | list[TResponseInputItem],
+        model_settings: ModelSettings,
+        tools: list[Tool],
+        output_schema: AgentOutputSchema | None,
+        handoffs: list[Handoff],
+        span: Span[GenerationSpanData],
+        tracing: ModelTracing,
+        stream: bool = False,
+    ) -> ChatCompletion | tuple[Response, AsyncStream[ChatCompletionChunk]]:
+        # Lazily import + configure litellm (this is the litellm backend; the
+        # native default model overrides this method and never reaches here).
+        litellm = _ensure_litellm_configured()
+        # Re-detect local-LLM mode at call time (env may change mid-session),
+        # via the SAME helper __init__ uses. The old code checked only the
+        # deprecated OLLAMA var and reset the flag to False whenever the user
+        # had set KRYON_LOCAL_LLM instead — disagreeing with __init__/streaming.
+        self.is_local_llm = _detect_local_llm()
+
+        # IMPORTANT: Include existing message history for context
+        # P5: authoritative enriched history + only converter messages it
+        # doesn't already represent (avoid sending the conversation twice). The
+        # converter call is kept for its side-effects (flushing pending tool
+        # calls into message_history).
+        converter_messages = self._converter.items_to_messages(input, model_instance=self)
+        converted_messages = _merge_history_and_converter(self.message_history, converter_messages)
+
+        if system_instructions:
+            # Check if we already have a system message
+            has_system = any(msg.get("role") == "system" for msg in converted_messages)
+            if not has_system:
+                converted_messages.insert(
+                    0,
+                    {
+                        "content": system_instructions,
+                        "role": "system",
+                    },
+                )
+
+        # Add support for prompt caching for claude (not automatically applied)
+        # Gemini supports it too
+        # https://www.anthropic.com/news/token-saving-updates
+        # Maximize cache efficiency by using up to 4 cache_control blocks
+        if (str(self.model).startswith("claude") or "gemini" in str(self.model)) and len(converted_messages) > 0:
+            # Strategy: Cache the most valuable messages for maximum savings
+            # 1. System message (always first priority)
+            # 2. Long user messages (high token count)
+            # 3. Assistant messages with tool calls (complex context)
+            # 4. Recent context (last message)
+
+            cache_candidates = []
+
+            # Always cache system message if present
+            for i, msg in enumerate(converted_messages):
+                if msg.get("role") == "system":
+                    cache_candidates.append((i, len(str(msg.get("content", ""))), "system"))
+                    break
+
+            # Find long user messages and assistant messages with tool calls
+            for i, msg in enumerate(converted_messages):
+                content_len = len(str(msg.get("content", "")))
+                role = msg.get("role")
+
+                if role == "user" and content_len > 500:  # Long user messages
+                    cache_candidates.append((i, content_len, "user"))
+                elif role == "assistant" and msg.get("tool_calls"):  # Tool calls
+                    cache_candidates.append((i, content_len + 200, "assistant_tools"))  # Bonus for tool calls
+
+            # Always consider the last message for recent context
+            if len(converted_messages) > 1:
+                last_idx = len(converted_messages) - 1
+                last_msg = converted_messages[last_idx]
+                last_content_len = len(str(last_msg.get("content", "")))
+                cache_candidates.append((last_idx, last_content_len, "recent"))
+
+            # Sort by value (content length) and select top 4 unique indices
+            cache_candidates.sort(key=lambda x: x[1], reverse=True)
+            selected_indices = []
+            for idx, _, _msg_type in cache_candidates:
+                if idx not in selected_indices:
+                    selected_indices.append(idx)
+                    if len(selected_indices) >= 4:  # Max 4 cache blocks
+                        break
+
+            # Apply cache_control to selected messages
+            for idx in selected_indices:
+                msg_copy = converted_messages[idx].copy()
+                msg_copy["cache_control"] = {"type": "ephemeral"}
+                converted_messages[idx] = msg_copy
+        if tracing.include_data():
+            span.span_data.input = converted_messages
+
+        # IMPORTANT: Always sanitize the message list to prevent tool call errors
+        # This is critical to fix common errors with tool/assistant sequences
+        try:
+            from kryon.util import fix_message_list
+
+            prev_length = len(converted_messages)
+            converted_messages = fix_message_list(converted_messages)
+            new_length = len(converted_messages)
+
+            # Log if the message list was changed significantly
+            if new_length != prev_length:
+                logger.debug(f"Message list was fixed: {prev_length} -> {new_length} messages")
+        except Exception:
+            pass
+
+        parallel_tool_calls = True if model_settings.parallel_tool_calls and tools and len(tools) > 0 else NOT_GIVEN
+        tool_choice = self._converter.convert_tool_choice(model_settings.tool_choice)
+        response_format = self._converter.convert_response_format(output_schema)
+        converted_tools = [ToolConverter.to_openai(tool) for tool in tools] if tools else []
+
+        for handoff in handoffs:
+            converted_tools.append(ToolConverter.convert_handoff_tool(handoff))
+
+        if _debug.DONT_LOG_MODEL_DATA:
+            logger.debug("Calling LLM")
+        else:
+            logger.debug(
+                f"{json.dumps(converted_messages, indent=2)}\n"
+                f"Tools:\n{json.dumps(converted_tools, indent=2)}\n"
+                f"Stream: {stream}\n"
+                f"Tool choice: {tool_choice}\n"
+                f"Response format: {response_format}\n"
+                f"Local LLM mode: {self.is_local_llm}\n"
+            )
+
+        # Use NOT_GIVEN for store if not explicitly set to avoid compatibility issues
+        store = self._non_null_or_not_given(model_settings.store)
+
+        # Check if we should use the agent's model instead of self.model
+        # This prioritizes the model from Agent when available
+        agent_model = None
+        if hasattr(model_settings, "agent_model") and model_settings.agent_model:
+            agent_model = model_settings.agent_model
+            logger.debug(f"Using agent model: {agent_model} instead of {self.model}")
+
+        # Prepare kwargs for the API call
+        kwargs = {
+            "model": agent_model if agent_model else self.model,
+            "messages": converted_messages,
+            "tools": converted_tools or NOT_GIVEN,
+            "temperature": self._non_null_or_not_given(model_settings.temperature),
+            "top_p": self._non_null_or_not_given(model_settings.top_p),
+            "frequency_penalty": self._non_null_or_not_given(model_settings.frequency_penalty),
+            "presence_penalty": self._non_null_or_not_given(model_settings.presence_penalty),
+            "max_tokens": self._non_null_or_not_given(model_settings.max_tokens),
+            "tool_choice": tool_choice,
+            "response_format": response_format,
+            "parallel_tool_calls": parallel_tool_calls,
+            "stream": stream,
+            "stream_options": {"include_usage": True} if stream else NOT_GIVEN,
+            "store": store,
+            "extra_headers": _HEADERS,
+        }
+
+        # litellm needs a provider. For an OpenAI-compatible REMOTE endpoint
+        # (DeepSeek, or any custom OPENAI_BASE_URL), a bare model name like
+        # "deepseek-chat" makes litellm raise BadRequestError "LLM Provider NOT
+        # provided" — and then its failure_handler HANGS formatting the
+        # traceback (root cause of the investigate hang). Prefix with "openai/"
+        # + pass api_base/api_key so litellm uses the generic OpenAI-compatible
+        # handler. Skipped for the local path (self.is_local_llm) and for natively
+        # recognised model names (gpt-/o1/o3/claude/gemini).
+        _ll_base = os.environ.get("OPENAI_BASE_URL", "").strip()
+        _ll_model = str(kwargs["model"])
+        if (
+            _ll_base
+            and not self.is_local_llm
+            and "/" not in _ll_model
+            and not _ll_model.lower().startswith(("gpt-", "o1", "o3", "claude", "gemini"))
+        ):
+            kwargs["model"] = f"openai/{_ll_model}"
+            kwargs.setdefault("api_base", _ll_base)
+            kwargs.setdefault("api_key", os.environ.get("OPENAI_API_KEY", "") or "sk-noauth")
+
+        # Determine provider based on model string
+        model_str = str(kwargs["model"]).lower()
+
+        if "/" in model_str:
+            # Handle provider/model format
+            provider = model_str.split("/")[0]
+
+            # Apply provider-specific configurations
+            if provider == "deepseek":
+                litellm.drop_params = True
+                kwargs.pop("parallel_tool_calls", None)
+                kwargs.pop("store", None)  # DeepSeek doesn't support store parameter
+                # Remove tool_choice if no tools are specified
+                if not converted_tools:
+                    kwargs.pop("tool_choice", None)
+
+                # DeepSeek's reasoning_effort accepts only "high" and "max"
+                # ("low" and "medium" are silently mapped to "high"). Pass
+                # through only if the caller explicitly set one — don't
+                # default, to avoid quietly bumping every request to "high"
+                # and burning thinking tokens.
+                if hasattr(model_settings, "reasoning_effort") and model_settings.reasoning_effort:
+                    kwargs["reasoning_effort"] = model_settings.reasoning_effort
+            elif "openrouter.ai" in os.getenv("OPENAI_BASE_URL", "").lower():
+                # OpenRouter — OpenAI-compat aggregator. Standard OpenAI
+                # params apply; reasoning surfaces via the standard
+                # `reasoning` field (no Groq-style reasoning_format hack).
+                litellm.drop_params = True
+                kwargs.pop("store", None)
+                if "gpt-oss" in model_str:
+                    kwargs.pop("parallel_tool_calls", None)
+                if not converted_tools:
+                    kwargs.pop("tool_choice", None)
+            elif "groq.com" in os.getenv("OPENAI_BASE_URL", "").lower() or provider in ("qwen", "openai", "meta-llama"):
+                # Groq with provider-routed names (qwen/qwen3-32b,
+                # openai/gpt-oss-120b, meta-llama/llama-4-scout). Same
+                # scrubbing as bare-name Groq below — kept inline for
+                # consistency with the file's flat-branch style.
+                litellm.drop_params = True
+                kwargs.pop("store", None)
+                # GPT-OSS family does NOT support parallel tool calls.
+                if "gpt-oss" in model_str:
+                    kwargs.pop("parallel_tool_calls", None)
+                if not converted_tools:
+                    kwargs.pop("tool_choice", None)
+                # CRITICAL: Groq reasoning models (qwen3, gpt-oss, qwq)
+                # require reasoning_format=parsed when tools are present.
+                # Default raw + tools = HTTP 400 from Groq.
+                _has_reasoning = "qwen3" in model_str or "gpt-oss" in model_str or "qwq" in model_str
+                if _has_reasoning and converted_tools:
+                    kwargs.setdefault("extra_body", {})
+                    kwargs["extra_body"].setdefault("reasoning_format", "parsed")
+        else:
+            # Handle models without provider prefix
+            if "claude" in model_str or "anthropic" in model_str:
+                litellm.drop_params = True
+                # Remove parameters that Anthropic doesn't support
+                kwargs.pop("store", None)
+                kwargs.pop("parallel_tool_calls", None)
+                # Remove tool_choice if no tools are specified
+                if not converted_tools:
+                    kwargs.pop("tool_choice", None)
+
+                # Add extended reasoning support for Claude models
+                # Supports Claude 3.7, Claude 4, and any model with "thinking" in the name
+                has_reasoning_capability = "thinking" in model_str
+
+                if has_reasoning_capability:
+                    # Clean the model name by removing "thinking" before sending to API
+                    clean_model = kwargs["model"]
+                    if isinstance(clean_model, str) and "thinking" in clean_model.lower():
+                        # Remove "thinking" and clean up any extra spaces/separators
+                        clean_model = re.sub(r"[_-]?thinking[_-]?", "", clean_model, flags=re.IGNORECASE)
+                        clean_model = re.sub(r"[-_]{2,}", "-", clean_model)  # Clean up multiple separators
+                        clean_model = clean_model.strip("-_")  # Clean up leading/trailing separators
+                        kwargs["model"] = clean_model
+
+                    # Check if message history is compatible with reasoning
+                    messages = kwargs.get("messages", [])
+                    is_compatible = _check_reasoning_compatibility(messages)
+
+                    if is_compatible:
+                        kwargs["reasoning_effort"] = "low"  # Use reasoning_effort instead of thinking
+            elif "gemini" in model_str:
+                kwargs.pop("parallel_tool_calls", None)
+            elif "deepseek" in model_str:
+                # Bare DeepSeek names (deepseek-chat, deepseek-reasoner,
+                # deepseek-v4-flash, deepseek-v4-pro) hit the OpenAI-compat
+                # endpoint at api.deepseek.com. Apply the same param scrubbing
+                # as the provider-routed `deepseek/...` branch above.
+                # Note: reasoning_effort accepts only "high"/"max" — "low" and
+                # "medium" map to "high". Don't default it; pass through only
+                # when the caller explicitly set one.
+                litellm.drop_params = True
+                kwargs.pop("parallel_tool_calls", None)
+                kwargs.pop("store", None)
+                if not converted_tools:
+                    kwargs.pop("tool_choice", None)
+                if hasattr(model_settings, "reasoning_effort") and model_settings.reasoning_effort:
+                    kwargs["reasoning_effort"] = model_settings.reasoning_effort
+
+                # Bare V4 names need explicit `thinking` flag in extra_body
+                # to activate reasoning (the legacy `deepseek-reasoner`
+                # alias activates it implicitly). Skipped for deepseek-chat
+                # which is the non-thinking variant.
+                if ("v4-pro" in model_str or "v4-flash" in model_str) and "deepseek-chat" not in model_str:
+                    kwargs.setdefault("extra_body", {})
+                    kwargs["extra_body"].setdefault("thinking", {"type": "enabled"})
+            elif "groq.com" in os.getenv("OPENAI_BASE_URL", "").lower():
+                # Groq with bare-name models (llama-3.3-70b-versatile,
+                # llama-3.1-8b-instant, mixtral-8x7b-32768, etc.). Mirrors
+                # the provider-routed Groq branch above so /-delimited
+                # and bare names get the same param scrubbing.
+                litellm.drop_params = True
+                kwargs.pop("store", None)
+                if "gpt-oss" in model_str:
+                    kwargs.pop("parallel_tool_calls", None)
+                if not converted_tools:
+                    kwargs.pop("tool_choice", None)
+                _has_reasoning = "qwen3" in model_str or "gpt-oss" in model_str or "qwq" in model_str
+                if _has_reasoning and converted_tools:
+                    kwargs.setdefault("extra_body", {})
+                    kwargs["extra_body"].setdefault("reasoning_format", "parsed")
+            elif "qwen" in model_str or ":" in model_str:
+                # Handle Ollama-served models with custom formats (e.g., gpt-4o)
+                # These typically need the Ollama provider
+                litellm.drop_params = True
+                kwargs.pop("parallel_tool_calls", None)
+                kwargs.pop("store", None)  # Ollama doesn't support store parameter
+                # These models may not support certain parameters
+                if not converted_tools:
+                    kwargs.pop("tool_choice", None)
+                # Don't add custom_llm_provider here to avoid duplication with Ollama provider
+                if self.is_local_llm:
+                    # Clean kwargs for ollama to avoid parameter conflicts
+                    for param in ["custom_llm_provider"]:
+                        kwargs.pop(param, None)
+            elif any(x in model_str for x in ["o1", "o3", "o4"]):
+                # Handle OpenAI reasoning models (o1, o3, o4)
+                kwargs.pop("parallel_tool_calls", None)
+                # Add reasoning effort if provided
+                if hasattr(model_settings, "reasoning_effort"):
+                    kwargs["reasoning_effort"] = model_settings.reasoning_effort
+
+        # Filter out NotGiven values to avoid JSON serialization issues
+        filtered_kwargs = {}
+        for key, value in kwargs.items():
+            if value is not NOT_GIVEN:
+                filtered_kwargs[key] = value
+        kwargs = filtered_kwargs
+
+        # Add retry logic for rate limits + transient HTTP failures.
+        # F85.C — transparent retry at the connection layer with
+        # exponential backoff (1s, 5s, 10s, 18s, 40s) for
+        # ConnectionError / APIConnectionError / TimeoutError. These
+        # are network-fabric blips, not model-logic errors, and the
+        # LLM cannot recover from them through self-correction.
+        # Tool-logic errors continue to flow back to the LLM via the
+        # @function_tool wrapper (default_tool_error_function).
+        max_retries = 3
+        retry_count = 0
+        # Connection retries are separate from rate-limit retries so a
+        # network blip during a rate-limit recovery doesn't consume the
+        # rate-limit retry budget.
+        max_connection_retries = 5
+        connection_retry_count = 0
+        connection_backoffs = [1, 5, 10, 18, 40]
+
+        while retry_count < max_retries:
+            try:
+                if self.is_local_llm:
+                    return await self._fetch_response_litellm_ollama(
+                        kwargs, model_settings, tool_choice, stream, parallel_tool_calls
+                    )
+                else:
+                    return await self._fetch_response_litellm_openai(
+                        kwargs, model_settings, tool_choice, stream, parallel_tool_calls
+                    )
+            except (litellm.exceptions.APIConnectionError, litellm.exceptions.Timeout) as e:
+                connection_retry_count += 1
+                if connection_retry_count >= max_connection_retries:
+                    print(f"\n❌ Connection layer failed after {max_connection_retries} retries: {type(e).__name__}")
+                    raise
+                wait = connection_backoffs[connection_retry_count - 1]
+                print(
+                    f"\n🔌 {type(e).__name__} — transient network failure "
+                    f"(attempt {connection_retry_count}/{max_connection_retries}); "
+                    f"waiting {wait}s before retry..."
+                )
+                await asyncio.sleep(wait)
+                continue
+            except litellm.exceptions.RateLimitError as e:
+                retry_count += 1
+                if retry_count >= max_retries:
+                    print(f"\n❌ Rate limit exceeded after {max_retries} retries")
+                    raise
+
+                print(f"\n⏳ Rate limit reached - Too many requests (attempt {retry_count}/{max_retries})")
+                # Try to extract retry delay from error response or use default
+                retry_delay = 60  # Default delay in seconds
+                try:
+                    # Extract the JSON part from the error message
+                    json_str = str(e.message).split("VertexAIException - ")[-1]
+                    error_details = json.loads(json_str)
+
+                    retry_info = next(
+                        (
+                            detail
+                            for detail in error_details.get("error", {}).get("details", [])
+                            if detail.get("@type") == "type.googleapis.com/google.rpc.RetryInfo"
+                        ),
+                        None,
+                    )
+                    if retry_info and "retryDelay" in retry_info:
+                        retry_delay = int(retry_info["retryDelay"].rstrip("s"))
+                except Exception:
+                    # Try other common formats
+                    import re
+
+                    error_str = str(e)
+
+                    # Look for "Retry-After" header or similar patterns
+                    retry_match = re.search(r"retry[_-]?after[:\s]+(\d+)", error_str, re.IGNORECASE)
+                    if retry_match:
+                        retry_delay = int(retry_match.group(1))
+                    # Look for "wait X seconds" patterns
+                    elif wait_match := re.search(r"wait\s+(\d+)\s+seconds?", error_str, re.IGNORECASE):
+                        retry_delay = int(wait_match.group(1))
+                    # Look for explicit retry delay mentions
+                    elif delay_match := re.search(r"retry\s+in\s+(\d+)\s+seconds?", error_str, re.IGNORECASE):
+                        retry_delay = int(delay_match.group(1))
+
+                # Use exponential backoff with jitter if no explicit delay found
+                if retry_count > 1 and retry_delay == 60:
+                    import random
+
+                    retry_delay = min(300, retry_delay * retry_count) + random.randint(0, 10)
+
+                print(f"💤 Waiting {retry_delay}s before retry... (Rate limit protection)")
+                await asyncio.sleep(retry_delay)  # Use async sleep instead of time.sleep
+                continue  # Retry the request
+
+            except litellm.exceptions.BadRequestError as e:
+                error_msg = str(e)
+
+                # Handle Claude reasoning/thinking compatibility errors
+                if (
+                    "Expected `thinking` or `redacted_thinking`, but found `text`" in error_msg
+                    or "When `thinking` is enabled, a final `assistant` message must start with a thinking block"
+                    in error_msg
+                ):
+                    # Retry without reasoning_effort
+                    retry_kwargs = kwargs.copy()
+                    retry_kwargs.pop("reasoning_effort", None)
+
+                    try:
+                        if stream:
+                            response = Response(
+                                id=FAKE_RESPONSES_ID,
+                                created_at=time.time(),
+                                model=self.model,
+                                object="response",
+                                output=[],
+                                tool_choice="auto"
+                                if tool_choice is None or tool_choice == NOT_GIVEN
+                                else cast(Literal["auto", "required", "none"], tool_choice),
+                                top_p=model_settings.top_p,
+                                temperature=model_settings.temperature,
+                                tools=[],
+                                parallel_tool_calls=parallel_tool_calls or False,
+                            )
+                            stream_obj = await litellm.acompletion(**retry_kwargs)
+                            return response, stream_obj
+                        else:
+                            ret = await litellm.acompletion(**retry_kwargs)
+                            return ret
+                    except Exception:
+                        # If retry also fails, raise the original error
+                        raise e from e
+
+                # print(color("BadRequestError encountered: " + str(e), fg="yellow"))
+                if "LLM Provider NOT provided" in str(e):
+                    model_str = str(self.model).lower()
+                    provider = None
+                    is_qwen = "qwen" in model_str or ":" in model_str
+
+                    # Special handling for Qwen models
+                    if is_qwen:
+                        try:
+                            # Use the specialized Qwen approach first
+                            return await self._fetch_response_litellm_ollama(
+                                kwargs, model_settings, tool_choice, stream, parallel_tool_calls
+                            )
+                        except Exception as qwen_e:
+                            print(qwen_e)
+                            # If that fails, try our direct OpenAI approach
+                            qwen_params = kwargs.copy()
+                            qwen_params["api_base"] = get_ollama_api_base()
+                            qwen_params["custom_llm_provider"] = "openai"  # Use openai provider
+
+                            # Make sure tools are passed
+                            if "tools" in kwargs and kwargs["tools"]:
+                                qwen_params["tools"] = kwargs["tools"]
+                            if "tool_choice" in kwargs and kwargs["tool_choice"] is not NOT_GIVEN:
+                                qwen_params["tool_choice"] = kwargs["tool_choice"]
+
+                            try:
+                                if stream:
+                                    # Streaming case
+                                    response = Response(
+                                        id=FAKE_RESPONSES_ID,
+                                        created_at=time.time(),
+                                        model=self.model,
+                                        object="response",
+                                        output=[],
+                                        tool_choice="auto"
+                                        if tool_choice is None or tool_choice == NOT_GIVEN
+                                        else cast(Literal["auto", "required", "none"], tool_choice),
+                                        top_p=model_settings.top_p,
+                                        temperature=model_settings.temperature,
+                                        tools=[],
+                                        parallel_tool_calls=parallel_tool_calls or False,
+                                    )
+                                    stream_obj = await litellm.acompletion(**qwen_params)
+                                    return response, stream_obj
+                                else:
+                                    # Non-streaming case
+                                    ret = await litellm.acompletion(**qwen_params)
+                                    return ret
+                            except Exception as direct_e:
+                                # All approaches failed, log and raise the original error
+                                print(
+                                    f"All Qwen approaches failed. Original error: {str(e)}, Direct error: {str(direct_e)}"
+                                )
+                                raise e from direct_e
+
+                    # Try to detect provider from model string
+                    if "/" in model_str:
+                        provider = model_str.split("/")[0]
+
+                    if provider:
+                        # Add provider-specific settings based on detected provider
+                        provider_kwargs = kwargs.copy()
+                        if provider == "deepseek":
+                            provider_kwargs["custom_llm_provider"] = "deepseek"
+                            provider_kwargs.pop("store", None)  # DeepSeek doesn't support store parameter
+                            provider_kwargs.pop(
+                                "parallel_tool_calls", None
+                            )  # DeepSeek doesn't support parallel tool calls
+
+                            # reasoning_effort: only "high"/"max" are real;
+                            # "low"/"medium" silently map to "high". Don't
+                            # default — pass through only when the caller
+                            # explicitly set one. Mirrors the happy path.
+                            if hasattr(model_settings, "reasoning_effort") and model_settings.reasoning_effort:
+                                provider_kwargs["reasoning_effort"] = model_settings.reasoning_effort
+                        else:
+                            # Unknown provider — only fall back to Ollama if
+                            # the configured base_url actually points at one.
+                            # Otherwise re-raise so transient API errors (429,
+                            # 503) don't get silently redirected to a local
+                            # service that probably isn't running.
+                            _base_url = os.getenv("OPENAI_BASE_URL", "")
+                            if "ollama" in _base_url or "11434" in _base_url:
+                                return await self._fetch_response_litellm_ollama(
+                                    kwargs, model_settings, tool_choice, stream, parallel_tool_calls
+                                )
+                            raise
+
+                # Check for message sequence errors
+                if (
+                    "An assistant message with 'tool_calls'" in str(e)
+                    or "`tool_use` blocks must be followed by a user message with `tool_result`" in str(e)  # noqa: E501 # pylint: disable=C0301
+                    or "`tool_use` ids were found without `tool_result` blocks immediately after" in str(e)  # noqa: E501 # pylint: disable=C0301
+                    or "An assistant message with 'tool_calls' must be followed by tool messages" in str(e)
+                    or "messages with role 'tool' must be a response to a preceeding message with 'tool_calls'"
+                    in str(e)
+                ):
+                    print("⚠️  Message sequence error - Tool calls and results are out of order")
+
+                    # Use the pretty message history printer instead of the simple loop
+                    try:
+                        from kryon.util import print_message_history
+
+                        print("\n📋 Current message sequence:")
+                        print_message_history(kwargs["messages"], title="Message History")
+                    except ImportError:
+                        # Fall back to simple printing if the function isn't available
+                        print("\n📋 Current message sequence:")
+                        for i, msg in enumerate(kwargs["messages"]):
+                            role = msg.get("role", "unknown")
+                            content_type = (
+                                "text"
+                                if isinstance(msg.get("content"), str)
+                                else "list"
+                                if isinstance(msg.get("content"), list)
+                                else "None"
+                                if msg.get("content") is None
+                                else type(msg.get("content")).__name__
+                            )
+                            tool_calls = "with tool_calls" if msg.get("tool_calls") else ""
+                            tool_call_id = (
+                                f", tool_call_id: {msg.get('tool_call_id')}" if msg.get("tool_call_id") else ""
+                            )
+
+                            print(f"  [{i}] {role}{tool_call_id} (content: {content_type}) {tool_calls}")
+
+                    # NOTE: EDGE CASE: Report Agent CTRL C error
+                    #
+                    # This fix CTRL-C error when message list is incomplete
+                    # When a tool is not finished but the LLM generates a tool call
+                    try:
+                        from kryon.util import fix_message_list
+
+                        print("🔧 Auto-fixing message sequence...")
+                        fixed_messages = fix_message_list(kwargs["messages"])
+
+                        # Show the fixed messages if they're different
+                        if fixed_messages != kwargs["messages"]:
+                            try:
+                                from kryon.util import print_message_history
+
+                                print_message_history(fixed_messages, title="Fixed Message Sequence")
+                            except ImportError:
+                                print("✅ Message sequence fixed successfully")
+
+                        kwargs["messages"] = fixed_messages
+                    except Exception:
+                        pass
+
+                    return await self._fetch_response_litellm_openai(
+                        kwargs, model_settings, tool_choice, stream, parallel_tool_calls
+                    )
+
+                # this captures an error related to the fact
+                # that the messages list contains an empty
+                # content position
+                if "expected a string, got null" in str(e):
+                    print("⚠️  Empty content detected - Filling with placeholder")
+                    # Fix for null content in messages
+                    kwargs["messages"] = [
+                        msg if msg.get("content") is not None else {**msg, "content": ""} for msg in kwargs["messages"]
+                    ]
+                    return await self._fetch_response_litellm_openai(
+                        kwargs, model_settings, tool_choice, stream, parallel_tool_calls
+                    )
+
+                # Handle Anthropic error for empty text content blocks
+                if "text content blocks must be non-empty" in str(
+                    e
+                ) or "cache_control cannot be set for empty text blocks" in str(e):  # noqa
+                    # Print the error message only once
+                    print(
+                        "⚠️  Empty text blocks detected - Adding placeholder content"
+                    ) if not self.empty_content_error_shown else None
+                    self.empty_content_error_shown = True
+
+                    # Fix for empty content in messages for Anthropic models
+                    kwargs["messages"] = [
+                        msg if msg.get("content") not in [None, ""] else {**msg, "content": "Empty content block"}
+                        for msg in kwargs["messages"]
+                    ]
+                    return await self._fetch_response_litellm_openai(
+                        kwargs, model_settings, tool_choice, stream, parallel_tool_calls
+                    )
+                # Check for Python formatting errors - NOT context errors
+                if "Cannot specify ',' with 's'" in str(e):
+                    print("\n❌ Python formatting error - Not a context error")
+                    print("⚠️  There's a bug in the code trying to format strings as numbers")
+                    print(f"Error: {str(e)}")
+                    raise
+                # Check for context length errors in BadRequestError
+                if (
+                    "context_length_exceeded" in str(e)
+                    or "prompt is too long" in str(e).lower()
+                    or "maximum context length" in str(e).lower()
+                    or "max_tokens" in str(e)
+                    and "exceeded" in str(e).lower()
+                    or "too many tokens" in str(e).lower()
+                    or "token limit" in str(e).lower()
+                ):
+                    print("\n📦 Context window exceeded - Message history too long")
+
+                    # Try to extract token info from different error formats
+                    import re
+
+                    error_str = str(e)
+
+                    # Pattern 1: "X tokens > Y maximum" (Anthropic)
+                    match1 = re.search(r"(\d+)\s*tokens?\s*>\s*(\d+)\s*maximum", error_str)
+                    # Pattern 2: "requested X tokens...maximum context length is Y" (OpenAI)
+                    match2 = re.search(r"requested\s+(\d+)\s+tokens.*maximum.*?(\d+)", error_str)
+                    # Pattern 3: "This model's maximum context length is X tokens, however you requested Y"
+                    match3 = re.search(r"maximum context length is\s+(\d+).*requested\s+(\d+)", error_str)
+
+                    if match1:
+                        used_tokens = int(match1.group(1))
+                        max_tokens = int(match1.group(2))
+                        print(f"🎯 Actual: {used_tokens:,} / {max_tokens:,} tokens")
+                    elif match2:
+                        used_tokens = int(match2.group(1))
+                        max_tokens = int(match2.group(2))
+                        print(f"🎯 Requested: {used_tokens:,} tokens (max: {max_tokens:,})")
+                    elif match3:
+                        max_tokens = int(match3.group(1))
+                        used_tokens = int(match3.group(2))
+                        print(f"🎯 Requested: {used_tokens:,} tokens (max: {max_tokens:,})")
+                    else:
+                        # Try to use estimated_input_tokens if available in locals
+                        est_tokens = locals().get("estimated_input_tokens")
+                        if est_tokens is not None:
+                            print(f"📊 Estimated tokens: ~{est_tokens:,}")
+                            # Get model's max tokens
+                            model_max = self._get_model_max_tokens(str(self.model))
+                            print(f"🎯 Model limit: {model_max:,} tokens")
+
+                    print("\n💡 Quick fixes:")
+                    print("  • /flush - Clear conversation history")
+                    print("  • /compact - Manually compact context")
+                    print("  • /model <larger-model> - Switch to model with more context")
+
+                    raise
+            else:
+                # Re-raise unhandled BadRequestError
+                raise
+
+    async def _fetch_response_litellm_openai(
+        self,
+        kwargs: dict,
+        model_settings: ModelSettings,
+        tool_choice: ChatCompletionToolChoiceOptionParam | NotGiven,
+        stream: bool,
+        parallel_tool_calls: bool,
+    ) -> ChatCompletion | tuple[Response, AsyncStream[ChatCompletionChunk]]:
+        """
+        Handle standard LiteLLM API calls for OpenAI and compatible models.
+        If a ContextWindowExceededError occurs due to a tool_call id being
+        too long, truncate all tool_call ids in the messages to 40 characters
+        and retry once silently.
+        """
+        litellm = _ensure_litellm_configured()
+        try:
+            if stream:
+                # Standard LiteLLM handling for streaming.
+                # Single call only — there used to be a stray duplicate
+                # `ret = await litellm.acompletion(...)` here that was
+                # discarded but billed. Removed to avoid double billing.
+                stream_obj = await litellm.acompletion(**kwargs)
+
+                response = Response(
+                    id=FAKE_RESPONSES_ID,
+                    created_at=time.time(),
+                    model=self.model,
+                    object="response",
+                    output=[],
+                    tool_choice="auto"
+                    if tool_choice is None or tool_choice == NOT_GIVEN
+                    else cast(Literal["auto", "required", "none"], tool_choice),
+                    top_p=model_settings.top_p,
+                    temperature=model_settings.temperature,
+                    tools=[],
+                    parallel_tool_calls=parallel_tool_calls or False,
+                )
+                return response, stream_obj
+            else:
+                # Standard OpenAI handling for non-streaming
+                if os.environ.get("KRYON_DUMP_MESSAGES"):
+                    try:
+                        import json as _json
+
+                        with open("/tmp/kryon_last_messages.json", "w", encoding="utf-8") as _f:
+                            _json.dump(kwargs.get("messages"), _f, default=str, indent=2)
+                    except Exception:  # noqa: BLE001
+                        pass
+                ret = await litellm.acompletion(**kwargs)
+                return ret
+        except Exception as e:
+            error_msg = str(e)
+            # Handle both OpenAI and Anthropic error messages for tool_call_id
+            if (
+                "string too long" in error_msg
+                or "Invalid 'messages" in error_msg
+                and "tool_call_id" in error_msg
+                and "maximum length" in error_msg
+            ):
+                # Truncate all tool_call ids in all messages to 40 characters
+                messages = kwargs.get("messages", [])
+                for msg in messages:
+                    # Truncate tool_call_id in the message itself if present
+                    if "tool_call_id" in msg and isinstance(msg["tool_call_id"], str) and len(msg["tool_call_id"]) > 40:
+                        msg["tool_call_id"] = msg["tool_call_id"][:40]
+                    # Truncate tool_call ids in tool_calls if present
+                    if "tool_calls" in msg and isinstance(msg["tool_calls"], list):
+                        for tool_call in msg["tool_calls"]:
+                            if (
+                                isinstance(tool_call, dict)
+                                and "id" in tool_call
+                                and isinstance(tool_call["id"], str)
+                                and len(tool_call["id"]) > 40
+                            ):
+                                tool_call["id"] = tool_call["id"][:40]
+                kwargs["messages"] = messages
+                # Retry once, silently.
+                # Same fix as above: drop the discarded duplicate call.
+                if stream:
+                    stream_obj = await litellm.acompletion(**kwargs)
+                    response = Response(
+                        id=FAKE_RESPONSES_ID,
+                        created_at=time.time(),
+                        model=self.model,
+                        object="response",
+                        output=[],
+                        tool_choice="auto"
+                        if tool_choice is None or tool_choice == NOT_GIVEN
+                        else cast(Literal["auto", "required", "none"], tool_choice),
+                        top_p=model_settings.top_p,
+                        temperature=model_settings.temperature,
+                        tools=[],
+                        parallel_tool_calls=parallel_tool_calls or False,
+                    )
+                    return response, stream_obj
+                else:
+                    ret = await litellm.acompletion(**kwargs)
+                    return ret
+            else:
+                raise
+
+    async def _fetch_response_litellm_ollama(
+        self,
+        kwargs: dict,
+        model_settings: ModelSettings,
+        tool_choice: ChatCompletionToolChoiceOptionParam | NotGiven,
+        stream: bool,
+        parallel_tool_calls: bool,
+    ) -> ChatCompletion | tuple[Response, AsyncStream[ChatCompletionChunk]]:
+        """
+        Fetches a response from an Ollama or Qwen model using LiteLLM, ensuring
+        that the 'format' parameter is not set to a JSON string, which can cause
+        issues with the Ollama API.
+
+        Args:
+            kwargs (dict): Parameters for the completion request.
+            model_settings (ModelSettings): Model configuration.
+            tool_choice (ChatCompletionToolChoiceOptionParam | NotGiven): Tool choice.
+            stream (bool): Whether to stream the response.
+            parallel_tool_calls (bool): Whether to allow parallel tool calls.
+
+        Returns:
+            ChatCompletion or tuple[Response, AsyncStream[ChatCompletionChunk]]:
+                The completion response or a tuple for streaming.
+        """
+        litellm = _ensure_litellm_configured()
+        # Extract only supported parameters for Ollama
+        ollama_supported_params = {
+            "model": kwargs.get("model", ""),
+            "messages": kwargs.get("messages", []),
+            "stream": kwargs.get("stream", False),
+        }
+
+        # Add optional parameters if they exist and are not NOT_GIVEN
+        for param in ["temperature", "top_p", "max_tokens"]:
+            if param in kwargs and kwargs[param] is not NOT_GIVEN:
+                ollama_supported_params[param] = kwargs[param]
+
+        # Add extra headers if available
+        if "extra_headers" in kwargs:
+            ollama_supported_params["extra_headers"] = kwargs["extra_headers"]
+
+        # Track whether we have tools for potential fallback
+        has_tools = "tools" in kwargs and kwargs.get("tools") and kwargs.get("tools") is not NOT_GIVEN
+
+        # Add tools for models that support native tool calling
+        if has_tools:
+            ollama_supported_params["tools"] = kwargs.get("tools")
+
+        # Add tool_choice so the model knows it should use tools.
+        # For early turns, force "required" so the local model actually
+        # calls a tool instead of generating explanatory text. This is
+        # the single highest-impact change for Ollama tool-calling
+        # reliability with models like gemma4.
+        effective_tool_choice = tool_choice
+        # Force tool calling for the first N LLM calls of the current user
+        # turn so the model chains tools autonomously (nmap → whatweb →
+        # gobuster → nuclei → ...) instead of stopping to generate text
+        # after each tool. Counter resets on every real user message so
+        # each turn gets a fresh budget (previously this was session-wide
+        # and exhausted after ~8 calls, leaving later turns unforced).
+        from kryon.util.env import force_tool_turns  # noqa: PLC0415
+
+        _force_tool_turns = force_tool_turns()
+        if has_tools and self._turn_llm_calls <= _force_tool_turns:
+            effective_tool_choice = "required"
+        # FASE 11.Q — even after the per-turn budget runs out, the
+        # planner may still surface a high-confidence directive (≥0.92)
+        # in the reflection block. The Robots bench (2026-05-26) showed
+        # qwen3-8b-active emits the directive's narrated tool call only
+        # ~30% of runs with temp 0.6 sampling — the rest of the time it
+        # generates text instead. Forcing ``tool_choice="required"`` for
+        # exactly those calls closes the variance gap without converting
+        # every late turn into a forced tool call (the planner's abstain
+        # check stays the guard against over-firing). Gated by env so
+        # banca-safe (compliance) audits opt out by default; active
+        # pentest profiles set ``KRYON_FORCE_DIRECTIVE_TOOL_CHOICE=true``.
+        if _should_force_directive_tool_choice(has_tools, effective_tool_choice):
+            effective_tool_choice = "required"
+        if effective_tool_choice is not None and effective_tool_choice is not NOT_GIVEN:
+            ollama_supported_params["tool_choice"] = effective_tool_choice
+        # Remember the effective value so rec_training_data logs what was actually sent.
+        self._last_effective_tool_choice = effective_tool_choice
+
+        # Remove None values and filter out unsupported parameters
+        ollama_kwargs = {
+            k: v for k, v in ollama_supported_params.items() if v is not None and k not in ["response_format", "store"]
+        }
+
+        api_base = get_ollama_api_base()
+
+        try:
+            return await self._do_ollama_completion(
+                ollama_kwargs, api_base, model_settings, tool_choice, stream, parallel_tool_calls
+            )
+        except litellm.exceptions.BadRequestError as e:
+            if "does not support tools" not in str(e) or not has_tools:
+                raise
+
+            # Model doesn't support native tool calling — inject tool
+            # descriptions into the system prompt so the model can output
+            # tool calls as JSON text, which get_response() parses via the
+            # text-based tool-call fallback (lines 744-787).
+            logger.debug("Model does not support native tools, falling back to prompt-based tools")
+
+            tools_list = kwargs.get("tools", [])
+            tool_descriptions = []
+            for t in tools_list:
+                func = t.get("function", {}) if isinstance(t, dict) else {}
+                name = func.get("name", "unknown")
+                desc = func.get("description", "")
+                params = func.get("parameters", {})
+                props = params.get("properties", {})
+                required = params.get("required", [])
+                param_lines = []
+                for pname, pinfo in props.items():
+                    req_marker = " (required)" if pname in required else ""
+                    param_lines.append(
+                        f"    - {pname}: {pinfo.get('type', 'any')}{req_marker} — {pinfo.get('description', '')}"
+                    )
+                param_str = "\n".join(param_lines) if param_lines else "    (no parameters)"
+                tool_descriptions.append(f"- {name}: {desc}\n  Parameters:\n{param_str}")
+
+            tool_prompt = (
+                "\n\n## TOOL CALLING (MANDATORY)\n\n"
+                "You have access to tools listed below. You MUST use them to perform actions.\n\n"
+                "CRITICAL RULES:\n"
+                "1. NEVER fabricate, imagine, or simulate tool output. If you need to run nmap, "
+                "you MUST call the run_command tool — do NOT write fake nmap output.\n"
+                "2. NEVER pretend you already ran a command. ALWAYS call the tool first.\n"
+                "3. To call a tool, respond with ONLY a JSON object in this exact format "
+                "(no markdown, no explanation, no other text before or after):\n"
+                '{"name": "tool_name", "arguments": {"param1": "value1"}}\n'
+                "4. After receiving tool output, you may explain the results to the user.\n"
+                "5. If a task requires running a command, ALWAYS use the tool. "
+                "There is NO exception to this rule.\n\n"
+                "Available tools:\n" + "\n".join(tool_descriptions) + "\n\n"
+                "Remember: call the tool FIRST, then discuss results. Never invent output."
+            )
+
+            # Inject into system message or first message
+            fallback_messages = list(ollama_kwargs.get("messages", []))
+            injected = False
+            for i, msg in enumerate(fallback_messages):
+                if msg.get("role") == "system":
+                    fallback_messages[i] = {**msg, "content": msg.get("content", "") + tool_prompt}
+                    injected = True
+                    break
+            if not injected:
+                fallback_messages.insert(0, {"role": "system", "content": tool_prompt.strip()})
+
+            # Add a reminder before the last user message so the model doesn't
+            # forget to use tools (long system prompts cause the 7B model to lose
+            # the tool-calling instruction by the time it generates a response).
+            tool_reminder = (
+                "IMPORTANT REMINDER: You have tools available. If this task requires "
+                "running a command, scanning, or any action — respond with ONLY a JSON "
+                'tool call like: {"name": "tool_name", "arguments": {...}}\n'
+                "Do NOT write a text response if a tool call is needed."
+            )
+            for i in range(len(fallback_messages) - 1, -1, -1):
+                if fallback_messages[i].get("role") == "user":
+                    original = fallback_messages[i].get("content", "")
+                    fallback_messages[i] = {
+                        **fallback_messages[i],
+                        "content": f"{tool_reminder}\n\nUser request: {original}",
+                    }
+                    break
+
+            # Retry without native tools
+            fallback_kwargs = {k: v for k, v in ollama_kwargs.items() if k not in ("tools", "tool_choice")}
+            fallback_kwargs["messages"] = fallback_messages
+
+            return await self._do_ollama_completion(
+                fallback_kwargs, api_base, model_settings, tool_choice, stream, parallel_tool_calls
+            )
+
+    async def _do_ollama_completion(
+        self,
+        ollama_kwargs: dict,
+        api_base: str,
+        model_settings: ModelSettings,
+        tool_choice,
+        stream: bool,
+        parallel_tool_calls: bool,
+    ) -> ChatCompletion:
+        """Execute the actual litellm.acompletion call for Ollama."""
+        litellm = _ensure_litellm_configured()
+        if stream:
+            response = Response(
+                id=FAKE_RESPONSES_ID,
+                created_at=time.time(),
+                model=self.model,
+                object="response",
+                output=[],
+                tool_choice="auto"
+                if tool_choice is None or tool_choice == NOT_GIVEN
+                else cast(Literal["auto", "required", "none"], tool_choice),
+                top_p=model_settings.top_p,
+                temperature=model_settings.temperature,
+                tools=[],
+                parallel_tool_calls=parallel_tool_calls or False,
+            )
+            # Get streaming response
+            stream_obj = await litellm.acompletion(**ollama_kwargs, api_base=api_base, custom_llm_provider="openai")
+            return response, stream_obj
+        else:
+            # Get completion response
+            return await litellm.acompletion(
+                **ollama_kwargs,
+                api_base=api_base,
+                custom_llm_provider="openai",
+            )
+
+    def _get_model_max_tokens(self, model_name: str) -> int:
+        """Context-window size (input tokens) for a model.
+
+        Precedence: ``KRYON_MODEL_MAX_TOKENS`` env override → known-model map →
+        ``pricing.json`` (legacy, cwd-relative, usually absent) → 200k default.
+        The central resolver (config.settings) knows the active DeepSeek V4
+        Flash is 1M — without this the auto-compact threshold used the 200k
+        default and fired at ~160k, throwing away ~84% of the real window.
+        """
+        from kryon.config.settings import _DEFAULT_MODEL_MAX_TOKENS, resolve_model_max_tokens
+
+        override = os.getenv("KRYON_MODEL_MAX_TOKENS")
+        resolved = resolve_model_max_tokens(model_name, override)
+        # A recognized model (or an explicit override) beats the legacy pricing
+        # file; only fall through to pricing.json when the model is unknown.
+        if resolved != _DEFAULT_MODEL_MAX_TOKENS:
+            return resolved
+        try:
+            import pathlib
+
+            pricing_path = pathlib.Path("pricing.json")
+            if pricing_path.exists():
+                with open(pricing_path, encoding="utf-8") as f:
+                    pricing_data = json.load(f)
+                    model_info = pricing_data.get(model_name, {})
+                    return model_info.get("max_input_tokens", _DEFAULT_MODEL_MAX_TOKENS)
+        except Exception:
+            pass
+        # Default if not found anywhere.
+        return _DEFAULT_MODEL_MAX_TOKENS
+
+    async def _auto_compact_if_needed(
+        self,
+        estimated_tokens: int,
+        input: str | list[TResponseInputItem],
+        system_instructions: str | None,
+    ) -> tuple[str | list[TResponseInputItem], str | None, bool]:
+        """Check if auto-compaction is needed and perform it if necessary.
+
+        Returns:
+            tuple: (potentially modified input, potentially modified system_instructions, whether compaction occurred)
+        """
+        # Check if auto-compaction is disabled
+        if os.getenv("KRYON_AUTO_COMPACT", "true").lower() == "false":
+            return input, system_instructions, False
+
+        # Capable models chain from prior evidence (exact hashes/tickets/cookies,
+        # attack-graph edges). The destructive LLM-summary + history.clear() below,
+        # and the hard 4B trim budget=1000, strangle them — the evidence that isn't
+        # on a line the summarizer happens to keep is gone. Resolve once and soften
+        # both paths for capable; the 4B keeps the tight path (its history is noise).
+        try:
+            from kryon.util.env import is_capable_model  # noqa: PLC0415
+
+            _run_capable = is_capable_model()
+        except Exception:  # noqa: BLE001 — env must never break context mgmt
+            _run_capable = False
+
+        max_tokens = self._get_model_max_tokens(str(self.model))
+        threshold_percent = float(os.getenv("KRYON_AUTO_COMPACT_THRESHOLD", "0.8"))
+        threshold = max_tokens * threshold_percent
+
+        if estimated_tokens <= threshold:
+            return input, system_instructions, False
+
+        # --- Layer 3a: deterministic-first. Before the slow, fragile LLM summary
+        # (which DESTROYS the turn-by-turn history), trim old large tool outputs
+        # in place. Both request paths rebuild from self.message_history
+        # (_merge_history_and_converter), so a trim here shrinks every following
+        # turn. If it drops us back under the threshold, skip the LLM summary and
+        # KEEP the history — far better for a capable model that chains from prior
+        # evidence, and it never stalls the run on a slow local summarization.
+        # Gated by the same KRYON_MICRO_COMPACT kill-switch as layer 2.
+        if os.environ.get("KRYON_MICRO_COMPACT", "true").strip().lower() != "false":
+            try:
+                from kryon.services.micro_compact import micro_compact_history
+
+                # Aggressive budget: this is a context emergency, so trim hard
+                # even on a large window (overrides the window-relative default).
+                # BUT a capable model chains from mid-output evidence — give it the
+                # window-relative budget so the trim keeps more than head500/tail200
+                # of each tool output; the 4B keeps the hard 1000.
+                if _run_capable:
+                    from kryon.services.micro_compact import resolve_micro_compact_budget
+
+                    _emergency_budget = resolve_micro_compact_budget(model_max_tokens=max_tokens)
+                else:
+                    _emergency_budget = 1000
+                trimmed = micro_compact_history(self.message_history, budget=_emergency_budget)
+                if trimmed:
+                    new_tokens, _ = count_tokens_with_tiktoken(self.message_history)
+                    if new_tokens <= threshold:
+                        os.environ["KRYON_CONTEXT_USAGE"] = str(new_tokens / max_tokens if max_tokens > 0 else 0.0)
+                        logger.info(
+                            "auto-compact: deterministic trim of %d tool output(s) took "
+                            "history %d → %d tokens (<= threshold) — skipping LLM summary",
+                            trimmed,
+                            estimated_tokens,
+                            new_tokens,
+                        )
+                        return input, system_instructions, False
+            except Exception as e:  # noqa: BLE001 — determinism must never break the run
+                logger.debug("deterministic pre-compaction failed: %s", e)
+
+        # For a capable model, NEVER fall through to the LLM summary + history.clear():
+        # it replaces the turn-by-turn evidence the model chains from (exact hashes,
+        # tickets, cookies, attack-graph edges) with a lossy, kill-chain-unaware summary.
+        # If the deterministic trim above didn't drop us under the threshold, keep the
+        # full history and proceed — a large-window capable model is far better served by
+        # an over-threshold-but-intact history than a destroyed one. (If it truly exceeds
+        # the server window, that's a latency/window problem, not a reason to lose the chain.)
+        if _run_capable:
+            logger.info(
+                "auto-compact: capable model over threshold (%d/%d tokens) — keeping full "
+                "history (skipping destructive LLM summary + clear)",
+                estimated_tokens,
+                max_tokens,
+            )
+            os.environ["KRYON_CONTEXT_USAGE"] = str(estimated_tokens / max_tokens if max_tokens > 0 else 0.0)
+            return input, system_instructions, False
+
+        # Auto-compaction needed — LLM summary fallback (history still too large).
+        from rich.console import Console
+
+        console = Console()
+
+        # Update context usage in environment for toolbar
+        context_usage = estimated_tokens / max_tokens
+        os.environ["KRYON_CONTEXT_USAGE"] = str(context_usage)
+
+        console.print(
+            f"\n[yellow]⚠️  Context usage at {(estimated_tokens / max_tokens) * 100:.1f}% ({estimated_tokens:,}/{max_tokens:,} tokens)[/yellow]"
+        )
+        console.print("[yellow]Triggering automatic context compaction...[/yellow]\n")
+
+        # Import compact command components
+        try:
+            from kryon.repl.commands.memory import MEMORY_COMMAND_INSTANCE
+
+            # Generate AI summary of the conversation
+            summary = await MEMORY_COMMAND_INSTANCE._ai_summarize_history(self.agent_name)
+
+            if summary:
+                # Store the summary
+                from kryon.repl.commands.memory import COMPACTED_SUMMARIES
+
+                COMPACTED_SUMMARIES[self.agent_name] = summary
+
+                # Clear the message history and keep only essential messages
+                self.message_history.clear()
+                # Reset context usage after clearing
+                os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
+
+                # Reset context usage since we cleared history
+                os.environ["KRYON_CONTEXT_USAGE"] = "0.0"
+
+                # Create new input with summary
+                new_system_instructions = system_instructions or ""
+                if new_system_instructions:
+                    new_system_instructions += "\n\n"
+                new_system_instructions += f"Previous conversation summary:\n{summary}"
+
+                # Keep only the current input (user's latest message)
+                if isinstance(input, str):
+                    new_input = input
+                else:
+                    # For list input, keep only user messages
+                    new_input = []
+                    for item in input:
+                        if hasattr(item, "role") and item.role == "user":
+                            new_input.append(item)
+                        elif isinstance(item, dict) and item.get("role") == "user":
+                            new_input.append(item)
+
+                    # If no user messages found, keep the original input
+                    if not new_input:
+                        new_input = input
+
+                # Re-estimate tokens with compacted context
+                test_messages = self._converter.items_to_messages(new_input, model_instance=self)
+                if new_system_instructions:
+                    test_messages.insert(0, {"role": "system", "content": new_system_instructions})
+                new_tokens, _ = count_tokens_with_tiktoken(test_messages)
+
+                console.print(
+                    f"[green]✓ Context compacted: {estimated_tokens:,} → {new_tokens:,} tokens ({(1 - new_tokens / estimated_tokens) * 100:.1f}% reduction)[/green]\n"
+                )
+
+                # Update context usage after compaction
+                new_context_usage = new_tokens / max_tokens if max_tokens > 0 else 0.0
+                os.environ["KRYON_CONTEXT_USAGE"] = str(new_context_usage)
+
+                return new_input, new_system_instructions, True
+
+        except Exception as e:
+            console.print(f"[red]Auto-compaction failed: {e}[/red]")
+            console.print("[yellow]Continuing with full context...[/yellow]\n")
+
+        return input, system_instructions, False
+
+    def _intermediate_logs(self):
+        """No-op. Removed 2026-08-05: this uploaded session logs (prompts,
+        responses, findings) to a third-party endpoint — data exfiltration.
+        See SECURITY incident report."""
+        return
+
+    def _get_client(self) -> AsyncOpenAI:
+        if self._client is None:
+            self._client = AsyncOpenAI()
+        return self._client
+
+    # Helper function to detect and format function calls from various models
+    def _detect_and_format_function_calls(self, delta):
+        """
+        Helper to detect function calls in different formats and normalize them.
+        Handles Qwen specifics where function calls may be formatted differently.
+
+        Returns: List of normalized tool calls or None
+        """
+        # Standard OpenAI-style tool_calls format
+        if hasattr(delta, "tool_calls") and delta.tool_calls:
+            return delta.tool_calls
+        elif isinstance(delta, dict) and "tool_calls" in delta and delta["tool_calls"]:
+            return delta["tool_calls"]
+
+        # Qwen/Ollama function_call format
+        if isinstance(delta, dict) and "function_call" in delta:
+            function_call = delta["function_call"]
+            return [
+                {
+                    "index": 0,
+                    "id": f"call_{time.time_ns()}",  # Generate a unique ID
+                    "type": "function",
+                    "function": {
+                        "name": function_call.get("name", ""),
+                        "arguments": function_call.get("arguments", ""),
+                    },
+                }
+            ]
+
+        if isinstance(delta, dict) and "content" in delta:
+            content = delta["content"]
+            # Try to detect if the content is a JSON string with function call format
+            try:
+                if isinstance(content, str) and "{" in content and "}" in content:
+                    # Try to extract JSON from the content (it might be embedded in text)
+                    json_start = content.find("{")
+                    json_end = content.rfind("}") + 1
+                    if json_start >= 0 and json_end > json_start:
+                        json_str = content[json_start:json_end]
+                        parsed = json.loads(json_str)
+                        if "name" in parsed and "arguments" in parsed:
+                            # This looks like a function call in JSON format
+                            return [
+                                {
+                                    "index": 0,
+                                    "id": f"call_{time.time_ns()}",  # Generate a unique ID
+                                    "type": "function",
+                                    "function": {
+                                        "name": parsed["name"],
+                                        "arguments": json.dumps(parsed["arguments"])
+                                        if isinstance(parsed["arguments"], dict)
+                                        else parsed["arguments"],
+                                    },
+                                }
+                            ]
+            except Exception:
+                # If JSON parsing fails, just continue with normal processing
+                pass
+
+        # Anthropic-style tool_use format
+        if hasattr(delta, "tool_use") and delta.tool_use:
+            tool_use = delta.tool_use
+            return [
+                {
+                    # Index by the tool_use id, not a hardcoded 0: a turn can carry
+                    # several distinct tool_use blocks, and index 0 made them all
+                    # accumulate into the same slot (name/args concatenated → corrupt).
+                    # Continuation deltas of one block share its id, so they still merge.
+                    "index": tool_use.get("id", f"tool_{time.time_ns()}"),
+                    "id": tool_use.get("id", f"tool_{time.time_ns()}"),
+                    "type": "function",
+                    "function": {
+                        "name": tool_use.get("name", ""),
+                        "arguments": tool_use.get("input", "{}"),
+                    },
+                }
+            ]
+        elif isinstance(delta, dict) and "tool_use" in delta and delta["tool_use"]:
+            tool_use = delta["tool_use"]
+            return [
+                {
+                    # Index by the tool_use id, not a hardcoded 0: a turn can carry
+                    # several distinct tool_use blocks, and index 0 made them all
+                    # accumulate into the same slot (name/args concatenated → corrupt).
+                    # Continuation deltas of one block share its id, so they still merge.
+                    "index": tool_use.get("id", f"tool_{time.time_ns()}"),
+                    "id": tool_use.get("id", f"tool_{time.time_ns()}"),
+                    "type": "function",
+                    "function": {
+                        "name": tool_use.get("name", ""),
+                        "arguments": tool_use.get("input", "{}"),
+                    },
+                }
+            ]
+
+        return None
+
+
+class _Converter:
+    def __init__(self):
+        """Initialize converter with instance-based state."""
+        self.recent_tool_calls = {}
+        self.tool_outputs = {}
+
+    def convert_tool_choice(
+        self, tool_choice: Literal["auto", "required", "none"] | str | None
+    ) -> ChatCompletionToolChoiceOptionParam | NotGiven:
+        if tool_choice is None:
+            return "auto"
+        elif tool_choice == "auto":
+            return "auto"
+        elif tool_choice == "required":
+            return "required"
+        elif tool_choice == "none":
+            return "none"
+        else:
+            return {
+                "type": "function",
+                "function": {
+                    "name": tool_choice,
+                },
+            }
+
+    def convert_response_format(self, final_output_schema: AgentOutputSchema | None) -> ResponseFormat | NotGiven:
+        if not final_output_schema or final_output_schema.is_plain_text():
+            return None
+
+        return {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "final_output",
+                "strict": final_output_schema.strict_json_schema,
+                "schema": final_output_schema.json_schema(),
+            },
+        }
+
+    def message_to_output_items(self, message: ChatCompletionMessage) -> list[TResponseOutputItem]:
+        items: list[TResponseOutputItem] = []
+
+        message_item = ResponseOutputMessage(
+            id=FAKE_RESPONSES_ID,
+            content=[],
+            role="assistant",
+            type="message",
+            status="completed",
+        )
+        if message.content:
+            message_item.content.append(ResponseOutputText(text=message.content, type="output_text", annotations=[]))
+        if hasattr(message, "refusal") and message.refusal:
+            message_item.content.append(ResponseOutputRefusal(refusal=message.refusal, type="refusal"))
+        if hasattr(message, "audio") and message.audio:
+            raise AgentsException("🎵 Audio output not supported - Text responses only")
+
+        if message_item.content:
+            items.append(message_item)
+
+        if hasattr(message, "tool_calls") and message.tool_calls:
+            for tool_call in message.tool_calls:
+                items.append(
+                    ResponseFunctionToolCall(
+                        id=FAKE_RESPONSES_ID,
+                        call_id=tool_call.id[:40],
+                        arguments=tool_call.function.arguments,
+                        name=tool_call.function.name,
+                        type="function_call",
+                    )
+                )
+
+        return items
+
+    def maybe_easy_input_message(self, item: Any) -> EasyInputMessageParam | None:
+        if not isinstance(item, dict):
+            return None
+
+        keys = item.keys()
+        # EasyInputMessageParam only has these two keys
+        if keys != {"content", "role"}:
+            return None
+
+        role = item.get("role", None)
+        if role not in ("user", "assistant", "system", "developer"):
+            return None
+
+        if "content" not in item:
+            return None
+
+        return cast(EasyInputMessageParam, item)
+
+    def maybe_input_message(self, item: Any) -> Message | None:
+        if (
+            isinstance(item, dict)
+            and item.get("type") == "message"
+            and item.get("role")
+            in (
+                "user",
+                "system",
+                "developer",
+            )
+        ):
+            return cast(Message, item)
+
+        return None
+
+    def maybe_file_search_call(self, item: Any) -> ResponseFileSearchToolCallParam | None:
+        if isinstance(item, dict) and item.get("type") == "file_search_call":
+            return cast(ResponseFileSearchToolCallParam, item)
+        return None
+
+    def maybe_function_tool_call(self, item: Any) -> ResponseFunctionToolCallParam | None:
+        if isinstance(item, dict) and item.get("type") == "function_call":
+            return cast(ResponseFunctionToolCallParam, item)
+        return None
+
+    def maybe_function_tool_call_output(
+        self,
+        item: Any,
+    ) -> FunctionCallOutput | None:
+        if isinstance(item, dict) and item.get("type") == "function_call_output":
+            return cast(FunctionCallOutput, item)
+        return None
+
+    def maybe_item_reference(self, item: Any) -> ItemReference | None:
+        if isinstance(item, dict) and item.get("type") == "item_reference":
+            return cast(ItemReference, item)
+        return None
+
+    def maybe_response_output_message(self, item: Any) -> ResponseOutputMessageParam | None:
+        # ResponseOutputMessage is only used for messages with role assistant
+        if isinstance(item, dict) and item.get("type") == "message" and item.get("role") == "assistant":
+            return cast(ResponseOutputMessageParam, item)
+        return None
+
+    def extract_text_content(
+        self, content: str | Iterable[ResponseInputContentParam]
+    ) -> str | list[ChatCompletionContentPartTextParam]:
+        all_content = self.extract_all_content(content)
+        if isinstance(all_content, str):
+            return all_content
+        out: list[ChatCompletionContentPartTextParam] = []
+        for c in all_content:
+            if c.get("type") == "text":
+                out.append(cast(ChatCompletionContentPartTextParam, c))
+        return out
+
+    def extract_all_content(
+        self, content: str | Iterable[ResponseInputContentParam]
+    ) -> str | list[ChatCompletionContentPartParam]:
+        if isinstance(content, str):
+            return content
+        out: list[ChatCompletionContentPartParam] = []
+
+        for c in content:
+            if isinstance(c, dict) and c.get("type") == "input_text":
+                casted_text_param = cast(ResponseInputTextParam, c)
+                out.append(
+                    ChatCompletionContentPartTextParam(
+                        type="text",
+                        text=casted_text_param["text"],
+                    )
+                )
+            elif isinstance(c, dict) and c.get("type") == "input_image":
+                casted_image_param = cast(ResponseInputImageParam, c)
+                if "image_url" not in casted_image_param or not casted_image_param["image_url"]:
+                    raise UserError("🖼️ Image URLs required - Upload images to a URL first")
+                out.append(
+                    ChatCompletionContentPartImageParam(
+                        type="image_url",
+                        image_url={
+                            "url": casted_image_param["image_url"],
+                            "detail": casted_image_param["detail"],
+                        },
+                    )
+                )
+            elif isinstance(c, dict) and c.get("type") == "input_file":
+                raise UserError("📄 File uploads not supported - Use image URLs or text content")
+            else:
+                raise UserError("❓ Unrecognized content type - Expected 'input_text' or 'input_image'")
+        return out
+
+    def items_to_messages(
+        self,
+        items: str | Iterable[TResponseInputItem],
+        model_instance=None,
+    ) -> list[ChatCompletionMessageParam]:
+        """
+        Convert a sequence of 'Item' objects into a list of ChatCompletionMessageParam.
+
+        Rules:
+        - EasyInputMessage or InputMessage (role=user) => ChatCompletionUserMessageParam
+        - EasyInputMessage or InputMessage (role=system) => ChatCompletionSystemMessageParam
+        - EasyInputMessage or InputMessage (role=developer) => ChatCompletionDeveloperMessageParam
+        - InputMessage (role=assistant) => Start or flush a ChatCompletionAssistantMessageParam
+        - response_output_message => Also produces/flushes a ChatCompletionAssistantMessageParam
+        - tool calls get attached to the *current* assistant message, or create one if none.
+        - tool outputs => ChatCompletionToolMessageParam
+        """
+
+        if isinstance(items, str):
+            return [
+                ChatCompletionUserMessageParam(
+                    role="user",
+                    content=items,
+                )
+            ]
+
+        result: list[ChatCompletionMessageParam] = []
+        current_assistant_msg: ChatCompletionAssistantMessageParam | None = None
+
+        def flush_assistant_message() -> None:
+            nonlocal current_assistant_msg
+            if current_assistant_msg is not None:
+                # The API doesn't support empty arrays for tool_calls
+                if not current_assistant_msg.get("tool_calls"):
+                    # Ensure content is not None if tool_calls are absent and content is also None
+                    # Some models like Anthropic require some content, even if it's just a placeholder.
+                    if current_assistant_msg.get("content") is None:
+                        current_assistant_msg["content"] = (
+                            "(No text content in this assistant message)"  # Or just an empty string if preferred
+                        )
+                    current_assistant_msg.pop("tool_calls", None)  # Use pop with default to avoid KeyError
+                result.append(current_assistant_msg)
+                current_assistant_msg = None
+
+        def ensure_assistant_message() -> ChatCompletionAssistantMessageParam:
+            nonlocal current_assistant_msg
+            if current_assistant_msg is None:
+                current_assistant_msg = ChatCompletionAssistantMessageParam(role="assistant")
+                current_assistant_msg["tool_calls"] = []
+            return current_assistant_msg
+
+        for item in items:
+            # NEW: Handle 'tool' messages from history
+            if isinstance(item, dict) and item.get("role") == "tool" and "tool_call_id" in item and "content" in item:
+                flush_assistant_message()  # Ensure any pending assistant message is flushed
+                tool_message: ChatCompletionToolMessageParam = {
+                    "role": "tool",
+                    "tool_call_id": item["tool_call_id"],
+                    "content": str(item["content"] or ""),  # Ensure content is a string
+                }
+                result.append(tool_message)
+                continue
+
+            # 0) Assistant messages with tool_calls only (from memory)
+            if isinstance(item, dict) and item.get("role") == "assistant" and item.get("tool_calls"):
+                flush_assistant_message()
+                tool_calls_param: list[ChatCompletionMessageToolCallParam] = []
+                for tc in item["tool_calls"]:
+                    function_details = tc.get("function", {})
+                    arguments = function_details.get("arguments")
+                    # Ensure arguments is a valid JSON string, defaulting to "{}" if empty or None
+                    if arguments is None or (isinstance(arguments, str) and arguments.strip() == ""):
+                        arguments = "{}"
+                    elif isinstance(arguments, dict):
+                        # Ensure it's a string if it's a dict (should already be string per schema)
+                        arguments = json.dumps(arguments)
+
+                    tool_calls_param.append(
+                        ChatCompletionMessageToolCallParam(
+                            id=tc.get("id", "")[:40],
+                            type=tc.get("type", "function"),
+                            function={
+                                "name": function_details.get("name", "unknown_function"),
+                                "arguments": arguments,  # Use sanitized arguments
+                            },
+                        )
+                    )
+                msg_asst: ChatCompletionAssistantMessageParam = {
+                    "role": "assistant",
+                    "content": item.get("content"),  # Content can be None here
+                    "tool_calls": tool_calls_param,
+                }
+                result.append(msg_asst)
+                # Skip further processing for this item
+                continue
+
+            # 1) Check easy input message
+            if easy_msg := self.maybe_easy_input_message(item):
+                role = easy_msg["role"]
+                content = easy_msg["content"]
+
+                if role == "user":
+                    flush_assistant_message()
+                    msg_user: ChatCompletionUserMessageParam = {
+                        "role": "user",
+                        "content": self.extract_all_content(content),
+                    }
+                    result.append(msg_user)
+                elif role == "system":
+                    flush_assistant_message()
+                    msg_system: ChatCompletionSystemMessageParam = {
+                        "role": "system",
+                        "content": self.extract_text_content(content),
+                    }
+                    result.append(msg_system)
+                elif role == "developer":
+                    flush_assistant_message()
+                    msg_developer: ChatCompletionDeveloperMessageParam = {
+                        "role": "developer",
+                        "content": self.extract_text_content(content),
+                    }
+                    result.append(msg_developer)
+                elif role == "assistant":
+                    flush_assistant_message()
+                    msg_assistant: ChatCompletionAssistantMessageParam = {
+                        "role": "assistant",
+                        "content": self.extract_text_content(content),
+                    }
+                    result.append(msg_assistant)
+                else:
+                    raise UserError(f"👥 Invalid role '{role}' - Use: user, assistant, system, or developer")
+
+            # 2) Check input message
+            elif in_msg := self.maybe_input_message(item):
+                role = in_msg["role"]
+                content = in_msg["content"]
+                flush_assistant_message()
+
+                if role == "user":
+                    msg_user = {
+                        "role": "user",
+                        "content": self.extract_all_content(content),
+                    }
+                    result.append(msg_user)
+                elif role == "system":
+                    msg_system = {
+                        "role": "system",
+                        "content": self.extract_text_content(content),
+                    }
+                    result.append(msg_system)
+                elif role == "developer":
+                    msg_developer = {
+                        "role": "developer",
+                        "content": self.extract_text_content(content),
+                    }
+                    result.append(msg_developer)
+                else:
+                    raise UserError(f"👥 Invalid message role '{role}' - Must be: user, system, or developer")
+
+            # 3) response output message => assistant
+            elif resp_msg := self.maybe_response_output_message(item):
+                flush_assistant_message()
+                new_asst = ChatCompletionAssistantMessageParam(role="assistant")
+                contents = resp_msg["content"]
+
+                text_segments = []
+                for c in contents:
+                    if c["type"] == "output_text":
+                        text_segments.append(c["text"])
+                    elif c["type"] == "refusal":
+                        new_asst["refusal"] = c["refusal"]
+                    elif c["type"] == "output_audio":
+                        # Can't handle this, b/c chat completions expects an ID which we dont have
+                        raise UserError("🎵 Audio content must use audio IDs - Direct audio data not supported")
+                    else:
+                        raise UserError("❓ Unknown assistant message content - Check message format")
+
+                if text_segments:
+                    combined = "\n".join(text_segments)
+                    new_asst["content"] = combined
+
+                new_asst["tool_calls"] = []
+                current_assistant_msg = new_asst
+
+            # 4) function/file-search calls => attach to assistant
+            elif file_search := self.maybe_file_search_call(item):
+                asst = ensure_assistant_message()
+                tool_calls = list(asst.get("tool_calls", []))
+                new_tool_call = ChatCompletionMessageToolCallParam(
+                    id=file_search["id"][:40],
+                    type="function",
+                    function={
+                        "name": "file_search_call",
+                        "arguments": json.dumps(
+                            {
+                                "queries": file_search.get("queries", []),
+                                "status": file_search.get("status"),
+                            }
+                        ),
+                    },
+                )
+                tool_calls.append(new_tool_call)
+                asst["tool_calls"] = tool_calls
+
+            elif func_call := self.maybe_function_tool_call(item):
+                asst = ensure_assistant_message()
+                tool_calls = list(asst.get("tool_calls", []))
+
+                # Save the tool call details for later matching with output
+                if not hasattr(self, "recent_tool_calls"):
+                    self.recent_tool_calls = {}
+
+                # Store the tool call by ID for later reference
+                # Also store the current time for execution timing
+                import time
+
+                self.recent_tool_calls[func_call["call_id"]] = {
+                    "name": func_call["name"],
+                    "arguments": func_call["arguments"],
+                    "start_time": time.time(),
+                    "execution_info": {"start_time": time.time()},
+                }
+
+                # F77.D / Fase 8: print "▸ tool args" right when the model decides to
+                # invoke a tool, BEFORE we wait on its execution. With KRYON_STREAM=false
+                # the legacy pipeline only renders AFTER the tool completes, leaving the
+                # user staring at a blank screen for tens of seconds. The completion glyph
+                # ("✓ Ns · summary") is still rendered later via cli_print_tool_output.
+                #
+                # Fase 11: dedup by call_id — items_to_messages() walks the
+                # full history each turn, so without this guard every prior
+                # tool re-emits its "▸" line N times.
+                _tool_name_for_invocation = func_call.get("name", "")
+                _call_id_for_invocation = func_call.get("call_id", "")
+                if _tool_name_for_invocation and _tool_name_for_invocation != "execute_code":
+                    try:
+                        from kryon.util.streaming import _dedup_render_check
+
+                        if not _dedup_render_check("invocation", _call_id_for_invocation):
+                            from rich.console import Console
+
+                            from kryon.repl.ui.tool_call_renderer import (
+                                render_tool_invocation,
+                                summarize_args,
+                            )
+
+                            _args_for_invocation = func_call.get("arguments", "")
+                            if isinstance(_args_for_invocation, str):
+                                try:
+                                    _args_for_invocation = json.loads(_args_for_invocation)
+                                except (json.JSONDecodeError, ValueError):
+                                    _args_for_invocation = {}
+                            _summary = summarize_args(
+                                _tool_name_for_invocation,
+                                _args_for_invocation,
+                            )
+                            render_tool_invocation(
+                                tool_name=_tool_name_for_invocation,
+                                args_summary=_summary,
+                                console=Console(),
+                            )
+                    except Exception:
+                        pass
+
+                arguments = func_call.get("arguments")  # func_call is a dict here
+                # Ensure arguments is a valid JSON string, defaulting to "{}" if empty or None
+                if arguments is None or (isinstance(arguments, str) and arguments.strip() == ""):
+                    arguments = "{}"
+                elif isinstance(arguments, dict):
+                    arguments = json.dumps(arguments)
+
+                new_tool_call = ChatCompletionMessageToolCallParam(
+                    id=func_call["call_id"][:40],
+                    type="function",
+                    function={
+                        "name": func_call["name"],
+                        "arguments": arguments,  # Use sanitized arguments
+                    },
+                )
+                tool_calls.append(new_tool_call)
+                asst["tool_calls"] = tool_calls
+
+            # 5) function call output => tool message
+            elif func_output := self.maybe_function_tool_call_output(item):
+                # Store the output for this call_id
+                call_id = func_output["call_id"]
+                output_content = func_output["output"]
+
+                # IMPORTANT: Truncate call_id to 40 characters for consistency
+                truncated_call_id = call_id[:40] if call_id else call_id
+
+                # Update execution timing if we have the start time
+                if hasattr(self, "recent_tool_calls") and call_id in self.recent_tool_calls:
+                    tool_call_details = self.recent_tool_calls[call_id]  # Renamed for clarity
+                    if "start_time" in tool_call_details:
+                        end_time = time.time()
+                        tool_execution_time = end_time - tool_call_details["start_time"]
+
+                        # Update the execution info
+                        if "execution_info" in tool_call_details:
+                            tool_call_details["execution_info"]["end_time"] = end_time
+                            tool_call_details["execution_info"]["tool_time"] = tool_execution_time
+
+                            # If this is the first tool being executed, record the total time from conversation start
+                            if not hasattr(self, "conversation_start_time"):
+                                self.conversation_start_time = tool_call_details["start_time"]
+
+                            total_time = end_time - getattr(
+                                self, "conversation_start_time", tool_call_details["start_time"]
+                            )
+                            tool_call_details["execution_info"]["total_time"] = total_time
+
+                # Store the output so it can be accessed later
+                if not hasattr(self, "tool_outputs"):
+                    self.tool_outputs = {}
+
+                self.tool_outputs[call_id] = output_content
+
+                # Display the tool output immediately with the matched tool call
+                from kryon.util import cli_print_tool_output
+
+                # Look up the original tool call to get the name and arguments
+                tool_name = "Unknown Tool"
+                tool_args = {}
+                execution_info = {}
+
+                if hasattr(self, "recent_tool_calls") and call_id in self.recent_tool_calls:
+                    tool_call_details = self.recent_tool_calls[call_id]  # Renamed for clarity
+                    tool_name = tool_call_details.get("name", "Unknown Tool")
+                    tool_args = tool_call_details.get("arguments", {})
+                    execution_info = tool_call_details.get("execution_info", {})
+
+                # Token counts come from the model passed in as `model_instance`
+                # (every caller passes model_instance=self). This replaced an
+                # inspect.stack() walk that ran per tool output in the hot path —
+                # O(full stack) each call and fragile to call-chain changes. None-safe
+                # getattr below handles the rare caller that doesn't pass it.
+
+                # Always create a token_info dictionary, even if some values are zero
+                token_info = {
+                    "interaction_input_tokens": getattr(model_instance, "interaction_input_tokens", 0),
+                    "interaction_output_tokens": getattr(model_instance, "interaction_output_tokens", 0),
+                    "interaction_reasoning_tokens": getattr(model_instance, "interaction_reasoning_tokens", 0),
+                    "total_input_tokens": getattr(model_instance, "total_input_tokens", 0),
+                    "total_output_tokens": getattr(model_instance, "total_output_tokens", 0),
+                    "total_reasoning_tokens": getattr(model_instance, "total_reasoning_tokens", 0),
+                    "model": str(getattr(model_instance, "model", "")),
+                    "agent_name": getattr(model_instance, "agent_name", "Agent"),
+                }
+
+                # Use already-calculated costs from COST_TRACKER instead of recalculating
+                if model_instance and hasattr(model_instance, "model"):
+                    from kryon.util import COST_TRACKER
+
+                    # Use the last recorded costs instead of recalculating
+                    token_info["interaction_cost"] = getattr(COST_TRACKER, "last_interaction_cost", 0.0)
+                    token_info["total_cost"] = getattr(COST_TRACKER, "last_total_cost", 0.0)
+
+                # Check if we're in streaming mode
+                is_streaming_enabled = os.environ.get("KRYON_STREAM", "false").lower() == "true"
+
+                # Check if this output was already displayed during streaming
+                # For async sessions, we always display since they don't have real streaming
+                should_display = True
+
+                # If streaming is enabled, check if this was already shown
+                if is_streaming_enabled and hasattr(self, "recent_tool_calls") and call_id in self.recent_tool_calls:
+                    tool_call_info = self.recent_tool_calls[call_id]
+                    # Check if this tool was executed very recently (within last 5 seconds)
+                    # This indicates it was likely shown during streaming
+                    if "start_time" in tool_call_info:
+                        time_since_execution = time.time() - tool_call_info["start_time"]
+                        # For run_command executed recently in streaming mode, skip display
+                        # But always display for async session commands (they have session_id in args)
+                        # and always display for non-run_command tools
+                        if time_since_execution < 5.0 and "_command" in tool_name.lower():
+                            # Parse arguments to check if this is an async session command
+                            try:
+                                args_dict = json.loads(tool_args) if isinstance(tool_args, str) else tool_args
+                                # If it has session_id, it's an async command - always show
+                                if not (isinstance(args_dict, dict) and args_dict.get("session_id")):
+                                    should_display = False
+                            except Exception:
+                                should_display = False
+
+                # Only display if it hasn't been shown during streaming
+                if should_display:
+                    cli_print_tool_output(
+                        tool_name=tool_name,
+                        args=tool_args,
+                        output=output_content,
+                        call_id=call_id,
+                        execution_info=execution_info,
+                        token_info=token_info,
+                    )
+
+                # Continue with normal processing
+                flush_assistant_message()
+
+                # ATOMIC ADDITION: Add pending tool call and response together
+                # This ensures we never have tool calls without responses in history
+                if model_instance and hasattr(model_instance, "_pending_tool_calls"):
+                    # Check if we have a pending tool call for this ID
+                    if call_id in model_instance._pending_tool_calls:
+                        # Add the assistant message with tool call first
+                        pending_msg = model_instance._pending_tool_calls[call_id]
+                        model_instance.add_to_message_history(pending_msg)
+
+                        # Now add the tool response
+                        tool_response_msg = {
+                            "role": "tool",
+                            "tool_call_id": truncated_call_id,
+                            "content": func_output["output"],
+                        }
+                        model_instance.add_to_message_history(tool_response_msg)
+
+                        # Remove from pending
+                        del model_instance._pending_tool_calls[call_id]
+
+                        # Log both messages
+                        if hasattr(model_instance, "logger"):
+                            # Log the tool call with its response
+                            # Note: Tool responses are logged as part of the training data recording,
+                            # not as separate events
+                            pass
+
+                # Now add the tool message with truncated call_id
+                msg: ChatCompletionToolMessageParam = {
+                    "role": "tool",
+                    "tool_call_id": truncated_call_id,
+                    "content": func_output["output"],
+                }
+                result.append(msg)
+
+            # 6) item reference => handle or raise
+            elif self.maybe_item_reference(item):
+                raise UserError("🔗 Item references not supported - Include content directly")
+
+            # 7) If we haven't recognized it => fail or ignore
+            else:
+                raise UserError("❌ Invalid message format - Check documentation for supported types")
+
+        flush_assistant_message()
+        return result
+
+
+class ToolConverter:
+    @classmethod
+    def to_openai(cls, tool: Tool) -> ChatCompletionToolParam:
+        if isinstance(tool, FunctionTool):
+            return {
+                "type": "function",
+                "function": {
+                    "name": tool.name,
+                    "description": tool.description or "",
+                    "parameters": tool.params_json_schema,
+                },
+            }
+
+        raise UserError(
+            f"Hosted tools are not supported with the ChatCompletions API. FGot tool type: {type(tool)}, tool: {tool}"
+        )
+
+    @classmethod
+    def convert_handoff_tool(cls, handoff: Handoff[Any]) -> ChatCompletionToolParam:
+        return {
+            "type": "function",
+            "function": {
+                "name": handoff.tool_name,
+                "description": handoff.tool_description,
+                "parameters": handoff.input_json_schema,
+            },
+        }

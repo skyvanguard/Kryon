@@ -1,0 +1,62 @@
+# F89.3 — Example downstream pipeline using the Kryon template.
+#
+# Drop this in your repository as `.gitlab-ci.yml` (or merge into an
+# existing one). The two stages illustrate the typical flow:
+#
+#   1. `engage`  — runs `kryon engage` on the target, writes
+#                  findings.json as an artifact.
+#   2. `audit`   — consumes the findings artifact, emits SARIF,
+#                  applies the gate.
+#
+# The runner must have Kryon installed and be tagged `kryon`.
+
+stages:
+  - engage
+  - audit
+
+include:
+  - project: 'kryon/kryon'
+    ref: main
+    file: '/.gitlab/ci/kryon-audit.gitlab-ci.yml'
+
+kryon-engage:
+  stage: engage
+  tags:
+    - kryon
+  script:
+    - |
+      # Operator wires KRYON_TARGET in their CI variables.
+      kryon engage \
+        --target "${KRYON_TARGET}" \
+        --emit-findings findings.json
+  artifacts:
+    paths:
+      - findings.json
+    expire_in: 7 days
+
+kryon-security-audit:
+  extends: .kryon-audit
+  stage: audit
+  needs:
+    - job: kryon-engage
+      artifacts: true
+  variables:
+    KRYON_FINDINGS: findings.json
+    KRYON_FAIL_ON: high
+    KRYON_ENGAGEMENT_ID: $CI_PIPELINE_ID
+    KRYON_CLIENT: $CI_PROJECT_NAME
+
+# Optional: separate job that allows MEDIUM findings to pass during
+# rollout. Set KRYON_FAIL_ON to a stricter level (high/critical) once
+# the dashboard is clean.
+kryon-security-audit-soft:
+  extends: .kryon-audit
+  stage: audit
+  needs:
+    - job: kryon-engage
+      artifacts: true
+  variables:
+    KRYON_FAIL_ON: critical
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"

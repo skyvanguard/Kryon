@@ -1,0 +1,75 @@
+/* KRYON TUI Stylesheet
+ * Layout matches app.py compose(): Header → Horizontal[sidebar|chat|info] →
+ * Input → StatusBar → Footer. The Screen stacks vertically; the main
+ * Horizontal takes the remaining height (1fr) so the chat area is visible.
+ */
+
+Screen {
+    layout: vertical;
+}
+
+/* Main row — fills the vertical space between header and input. */
+Screen > Horizontal {
+    height: 1fr;
+}
+
+#agent-sidebar {
+    width: 16;
+    height: 1fr;
+    background: $surface;
+    border-right: solid $primary-darken-1;
+    padding: 0;
+}
+
+#agent-sidebar .agent-item {
+    padding: 0 1;
+    height: 1;
+}
+
+#agent-sidebar .agent-item.--highlight {
+    background: $accent;
+    color: $text;
+    text-style: bold;
+}
+
+#chat-panel {
+    width: 1fr;
+    height: 1fr;
+    padding: 0 1;
+}
+
+#chat {
+    height: 1fr;
+}
+
+#info-panel {
+    width: 28;
+    height: 1fr;
+    background: $surface;
+    border-left: solid $primary-darken-1;
+    padding: 0 1;
+}
+
+#prompt-input {
+    height: 3;
+    width: 1fr;
+    background: $surface;
+    border: solid $primary-darken-1;
+    padding: 0 1;
+}
+
+.section-title {
+    text-style: bold;
+    color: $accent;
+    padding: 0;
+}
+
+#cost-display {
+    height: auto;
+    padding: 0;
+}
+
+#log-display {
+    height: 1fr;
+    padding: 0;
+}

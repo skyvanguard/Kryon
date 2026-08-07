@@ -1,0 +1,485 @@
+"""
+Scan Result Cache
+
+Specialized caching for security scan results with similarity detection,
+deduplication, and intelligent result merging.
+"""
+
+import hashlib
+import json
+import re
+import time
+from datetime import datetime
+from typing import Any
+
+from .cache_manager import CacheManager, get_cache
+
+
+class ScanCache:
+    """
+    Specialized cache for security scan results.
+
+    Features:
+    - Scan result deduplication
+    - Similarity detection (same target, similar parameters)
+    - Result merging from multiple scans
+    - Scan history tracking
+    - Target-based indexing
+    """
+
+    def __init__(self, cache_manager: CacheManager | None = None):
+        """
+        Initialize scan cache.
+
+        Args:
+            cache_manager: Underlying cache manager (uses global if None)
+        """
+        self.cache = cache_manager or get_cache()
+        self.scan_index_key = "kryon:scan_index"
+
+    def _normalize_target(self, target: str) -> str:
+        """
+        Normalize target for consistent caching.
+
+        Args:
+            target: Target URL/IP/domain
+
+        Returns:
+            Normalized target string
+        """
+        # Remove protocol
+        target = re.sub(r"^https?://", "", target)
+
+        # Remove trailing slashes
+        target = target.rstrip("/")
+
+        # Lowercase domain/hostname
+        if "/" in target:
+            parts = target.split("/", 1)
+            target = parts[0].lower() + "/" + parts[1]
+        else:
+            target = target.lower()
+
+        return target
+
+    def _generate_scan_key(self, tool: str, target: str, params: dict[str, Any] | None = None) -> str:
+        """Generate unique key for scan result."""
+        normalized_target = self._normalize_target(target)
+
+        key_data = {"tool": tool, "target": normalized_target, "params": params or {}}
+
+        key_string = json.dumps(key_data, sort_keys=True)
+        return hashlib.sha256(key_string.encode()).hexdigest()
+
+    def _get_scan_index(self) -> dict[str, list[dict[str, Any]]]:
+        """Get scan index (target -> scan metadata)."""
+        index = self.cache.get(self.scan_index_key)
+        if index is None:
+            return {}
+        return index
+
+    def _update_scan_index(self, target: str, tool: str, scan_key: str, params: dict[str, Any] | None = None):
+        """Update scan index with new scan metadata."""
+        index = self._get_scan_index()
+        normalized_target = self._normalize_target(target)
+
+        if normalized_target not in index:
+            index[normalized_target] = []
+
+        # Add scan metadata
+        scan_metadata = {
+            "tool": tool,
+            "scan_key": scan_key,
+            "timestamp": time.time(),
+            "params": params or {},
+        }
+
+        _MAX_INDEX_ENTRIES_PER_TARGET = 50
+        entries = index[normalized_target]
+        entries.append(scan_metadata)
+        # Prune oldest entries if over cap
+        if len(entries) > _MAX_INDEX_ENTRIES_PER_TARGET:
+            index[normalized_target] = entries[-_MAX_INDEX_ENTRIES_PER_TARGET:]
+
+        # Save updated index (no expiration for index)
+        self.cache.set(self.scan_index_key, index, ttl=None)
+
+    def cache_scan(
+        self,
+        tool: str,
+        target: str,
+        result: Any,
+        params: dict[str, Any] | None = None,
+        ttl: int = 7200,  # 2 hours default for scan results
+    ) -> str:
+        """
+        Cache scan result.
+
+        Args:
+            tool: Tool name (nmap, nuclei, etc.)
+            target: Scan target
+            result: Scan result to cache
+            params: Scan parameters
+            ttl: Time-to-live in seconds
+
+        Returns:
+            Cache key
+        """
+        scan_key = self._generate_scan_key(tool, target, params)
+
+        # Wrap result with metadata
+        cached_data = {
+            "tool": tool,
+            "target": target,
+            "result": result,
+            "params": params or {},
+            "cached_at": time.time(),
+            "cached_at_readable": datetime.now().isoformat(),
+        }
+
+        # Cache result
+        self.cache.set(scan_key, cached_data, ttl=ttl)
+
+        # Update index
+        self._update_scan_index(target, tool, scan_key, params)
+
+        return scan_key
+
+    def get_scan(self, tool: str, target: str, params: dict[str, Any] | None = None) -> Any | None:
+        """
+        Get cached scan result.
+
+        Args:
+            tool: Tool name
+            target: Scan target
+            params: Scan parameters
+
+        Returns:
+            Cached result or None
+        """
+        scan_key = self._generate_scan_key(tool, target, params)
+        cached_data = self.cache.get(scan_key)
+
+        if cached_data is not None:
+            return cached_data["result"]
+
+        return None
+
+    def get_scan_metadata(self, tool: str, target: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
+        """
+        Get scan metadata (timestamp, params, etc.).
+
+        Args:
+            tool: Tool name
+            target: Scan target
+            params: Scan parameters
+
+        Returns:
+            Scan metadata or None
+        """
+        scan_key = self._generate_scan_key(tool, target, params)
+        cached_data = self.cache.get(scan_key)
+
+        if cached_data is not None:
+            return {
+                "tool": cached_data["tool"],
+                "target": cached_data["target"],
+                "params": cached_data["params"],
+                "cached_at": cached_data["cached_at"],
+                "cached_at_readable": cached_data["cached_at_readable"],
+                "age_seconds": time.time() - cached_data["cached_at"],
+            }
+
+        return None
+
+    def find_similar_scans(
+        self,
+        target: str,
+        tool: str | None = None,
+        max_age: int | None = None,  # seconds
+    ) -> list[dict[str, Any]]:
+        """
+        Find similar scans for target.
+
+        Args:
+            target: Target to search for
+            tool: Filter by specific tool (optional)
+            max_age: Maximum age of results in seconds (optional)
+
+        Returns:
+            List of similar scan metadata
+        """
+        index = self._get_scan_index()
+        normalized_target = self._normalize_target(target)
+
+        if normalized_target not in index:
+            return []
+
+        similar_scans = []
+        current_time = time.time()
+
+        for scan_meta in index[normalized_target]:
+            # Filter by tool if specified
+            if tool and scan_meta["tool"] != tool:
+                continue
+
+            # Filter by age if specified
+            if max_age:
+                age = current_time - scan_meta["timestamp"]
+                if age > max_age:
+                    continue
+
+            # Get full scan data
+            cached_data = self.cache.get(scan_meta["scan_key"])
+            if cached_data:
+                similar_scans.append(
+                    {
+                        "tool": scan_meta["tool"],
+                        "timestamp": scan_meta["timestamp"],
+                        "age_seconds": current_time - scan_meta["timestamp"],
+                        "params": scan_meta["params"],
+                        "scan_key": scan_meta["scan_key"],
+                    }
+                )
+
+        # Sort by timestamp (newest first)
+        similar_scans.sort(key=lambda x: x["timestamp"], reverse=True)
+
+        return similar_scans
+
+    def get_target_history(self, target: str) -> list[dict[str, Any]]:
+        """
+        Get complete scan history for target.
+
+        Args:
+            target: Target to get history for
+
+        Returns:
+            List of all scans performed on target
+        """
+        return self.find_similar_scans(target)
+
+    def delete_target_scans(self, target: str) -> int:
+        """
+        Delete all cached scans for target.
+
+        Args:
+            target: Target to delete scans for
+
+        Returns:
+            Number of scans deleted
+        """
+        index = self._get_scan_index()
+        normalized_target = self._normalize_target(target)
+
+        if normalized_target not in index:
+            return 0
+
+        # Delete all scan results
+        count = 0
+        for scan_meta in index[normalized_target]:
+            if self.cache.delete(scan_meta["scan_key"]):
+                count += 1
+
+        # Remove from index
+        del index[normalized_target]
+        self.cache.set(self.scan_index_key, index, ttl=None)
+
+        return count
+
+    def get_all_targets(self) -> list[str]:
+        """Get list of all cached targets."""
+        index = self._get_scan_index()
+        return list(index.keys())
+
+    def get_cache_summary(self) -> dict[str, Any]:
+        """
+        Get summary of cached scans.
+
+        Returns:
+            Summary with target count, tool distribution, etc.
+        """
+        index = self._get_scan_index()
+
+        total_targets = len(index)
+        total_scans = sum(len(scans) for scans in index.values())
+
+        # Tool distribution
+        tool_counts = {}
+        for scans in index.values():
+            for scan in scans:
+                tool = scan["tool"]
+                tool_counts[tool] = tool_counts.get(tool, 0) + 1
+
+        # Recent activity (last 24 hours)
+        cutoff_time = time.time() - 86400  # 24 hours
+        recent_scans = 0
+        for scans in index.values():
+            for scan in scans:
+                if scan["timestamp"] > cutoff_time:
+                    recent_scans += 1
+
+        return {
+            "total_targets": total_targets,
+            "total_scans": total_scans,
+            "tool_distribution": tool_counts,
+            "recent_scans_24h": recent_scans,
+            "targets": list(index.keys())[:10],  # First 10 targets
+        }
+
+
+# Global scan cache instance
+_global_scan_cache: ScanCache | None = None
+_scan_cache_lock = __import__("threading").Lock()
+
+
+def get_scan_cache() -> ScanCache:
+    """Get or create global scan cache instance."""
+    global _global_scan_cache
+    if _global_scan_cache is None:
+        with _scan_cache_lock:
+            if _global_scan_cache is None:
+                _global_scan_cache = ScanCache()
+    return _global_scan_cache
+
+
+# F164 — markers that indicate a scan never actually ran. When the wrapped
+# tool returns one of these, we MUST skip the cache write so the next
+# invocation gets a fresh attempt (e.g. after the operator installs the
+# missing binary). Otherwise a single failure poisons the cache for the
+# full TTL window (12h for vuln_scan), which masked a working bench
+# during F163 even though the binary had already been installed mid-session.
+_SCAN_FAILURE_MARKERS: tuple[str, ...] = (
+    "[KRYON_TOOL_ERROR]",
+    "command not found",
+    "not found",  # "/bin/sh: 1: X: not found", "bash: X: not found"
+    "[FTL]",
+    "[FATAL]",
+    "could not find template",
+    "could not run nuclei",
+    "no templates provided for scan",
+)
+
+
+def _is_scan_failure(result: object) -> bool:
+    """True when the result represents a scan that never ran.
+
+    Conservative — only inspects string returns. Non-string returns
+    (dicts, lists) pass through and are cached as usual.
+    Empty strings count as failure: a scan that produces no bytes at
+    all is almost always a missing-binary or fatal-config error, never
+    a real "no findings" result (legit "no findings" outputs from
+    nuclei/sqlmap/etc. always include at least template/loader banners).
+    """
+    if not isinstance(result, str):
+        return False
+    if result == "":
+        return True
+    lowered = result.lower()
+    return any(marker.lower() in lowered for marker in _SCAN_FAILURE_MARKERS)
+
+
+def cache_scan_result(scan_type: str | None = None, ttl: int = 7200):
+    """
+    Decorator factory for caching scan tool results.
+
+    Usage:
+        @cache_scan_result(scan_type="port_scan", ttl=14400)
+        def my_tool(args: str, target: str, ctf=None) -> str:
+            # tool implementation
+            pass
+
+    Args:
+        scan_type: Type of scan (e.g., "port_scan", "vuln_scan")
+        ttl: Time-to-live in seconds (default: 7200 = 2 hours)
+
+    Returns:
+        Decorator function
+
+    Note (F164): Failed scan results (binary missing, fatal template
+    errors, empty output, ``[KRYON_TOOL_ERROR]`` envelopes) are NOT
+    cached. See ``_SCAN_FAILURE_MARKERS``.
+    """
+    from functools import wraps
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Extract target from kwargs or args
+            target = kwargs.get("target")
+            if target is None and len(args) >= 2:
+                target = args[1]  # Second arg is usually target
+
+            # Extract params
+            params = {"scan_type": scan_type, "args": args[0] if len(args) > 0 else None, **kwargs}
+
+            # Try to get from cache
+            if target:
+                scan_cache = get_scan_cache()
+                cached = scan_cache.get_scan(func.__name__, target, params)
+                if cached is not None:
+                    return cached
+
+            # Execute function
+            result = func(*args, **kwargs)
+
+            # Cache result — but skip failures so the next invocation retries.
+            if target and not _is_scan_failure(result):
+                scan_cache = get_scan_cache()
+                scan_cache.cache_scan(func.__name__, target, result, params, ttl)
+
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+def cache_scan(tool: str, target: str, result: Any, params: dict[str, Any] | None = None, ttl: int = 7200) -> str:
+    """
+    Cache scan result directly (convenience function).
+
+    Args:
+        tool: Tool name
+        target: Scan target
+        result: Result to cache
+        params: Scan parameters
+        ttl: Time-to-live in seconds
+
+    Returns:
+        Cache key
+    """
+    scan_cache = get_scan_cache()
+    return scan_cache.cache_scan(tool, target, result, params, ttl)
+
+
+def find_similar_scans(target: str, tool: str | None = None, max_age: int | None = None) -> list[dict[str, Any]]:
+    """
+    Find similar scans (convenience function).
+
+    Args:
+        target: Target to search for
+        tool: Filter by tool (optional)
+        max_age: Max age in seconds (optional)
+
+    Returns:
+        List of similar scans
+    """
+    scan_cache = get_scan_cache()
+    return scan_cache.find_similar_scans(target, tool, max_age)
+
+
+def get_cached_scan(tool: str, target: str, params: dict[str, Any] | None = None) -> Any | None:
+    """
+    Get cached scan result (convenience function).
+
+    Args:
+        tool: Tool name
+        target: Scan target
+        params: Scan parameters
+
+    Returns:
+        Cached result or None
+    """
+    scan_cache = get_scan_cache()
+    return scan_cache.get_scan(tool, target, params)

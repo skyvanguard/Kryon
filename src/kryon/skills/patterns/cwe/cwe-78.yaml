@@ -1,0 +1,31 @@
+cwe: CWE-78
+name: OS Command Injection
+aliases: [CWE-77, CWE-88]
+detection:
+  - regex: "\\bsystem\\s*\\(\\s*[a-zA-Z_]\\w*\\s*\\)"
+    confidence: high
+  - regex: "\\bpopen\\s*\\(\\s*[a-zA-Z_]\\w*\\s*,"
+    confidence: high
+  - regex: "\\bexecl?\\s*\\(\\s*[a-zA-Z_]\\w*\\s*[,)]"
+    confidence: medium
+  - regex: "\\bexeclp\\s*\\(\\s*[a-zA-Z_]\\w*\\s*[,)]"
+    confidence: medium
+  - regex: "\\bexecv\\s*\\(\\s*[a-zA-Z_]\\w*\\s*,"
+    confidence: medium
+  - regex: "\\bsystem\\s*\\([^)]*?(?:\\bargv|\\bgetenv|\\bgets|\\bfgets|\\brecv)"
+    confidence: high
+  - regex: "\\bsprintf\\s*\\([^,]+,[^,]+%s[^)]*?\\)[\\s\\S]*?\\bsystem\\s*\\("
+    confidence: high
+verification:
+  poc_skeleton: |
+    /* Command injection isn't ASAN-detectable; this PoC will exit cleanly.
+       The pattern detection is still valuable for surfacing the call site. */
+    #include <stdlib.h>
+    int main(void) { return system("true"); }
+  asan_class: ""
+escalation_hints:
+  - "Direct shell access -> total system compromise"
+  - "Even with restricted system, $(...) substitution + path manipulation -> RCE"
+fpr_filters:
+  - skip_if_argument_is_string_literal
+  - skip_if_inside_test_or_example_dir

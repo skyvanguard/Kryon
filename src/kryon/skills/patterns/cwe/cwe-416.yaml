@@ -1,0 +1,41 @@
+cwe: CWE-416
+name: Use After Free
+aliases: [CWE-672]
+detection:
+  # F6.3 round 2: tightened distance from 400 -> 150 chars to keep
+  # matches within the same code block, reducing cross-function FPs.
+  # Also added negative lookahead for `= NULL` between free and use.
+  - regex: "\\bfree\\s*\\(\\s*(\\w+)\\s*\\)\\s*;(?:(?!\\1\\s*=\\s*NULL)[\\s\\S]){0,150}?\\1\\s*->"
+    confidence: high
+  - regex: "\\bfree\\s*\\(\\s*(\\w+)\\s*\\)\\s*;(?:(?!\\1\\s*=\\s*NULL)[\\s\\S]){0,150}?\\*\\1"
+    confidence: high
+  - regex: "\\bfree\\s*\\(\\s*(\\w+)\\s*\\)\\s*;(?:(?!\\1\\s*=\\s*NULL)[\\s\\S]){0,150}?\\b\\1\\s*\\["
+    confidence: medium
+  - regex: "\\bfree\\s*\\(\\s*(\\w+)\\s*\\)\\s*;[\\s\\S]{0,150}?(?:strcpy|memcpy|strcat)\\s*\\([^,]*\\1"
+    confidence: high
+  - regex: "\\bfclose\\s*\\(\\s*(\\w+)\\s*\\)\\s*;[\\s\\S]{0,150}?\\bf(?:read|write|gets|printf|seek|tell)\\s*\\([^)]*\\1"
+    confidence: medium
+  # F6.5 round 2: Juliet uses helper print functions for the use-after-free sink
+  - regex: "\\bfree\\s*\\(\\s*(\\w+)\\s*\\)\\s*;(?:(?!\\1\\s*=\\s*NULL)[\\s\\S]){0,200}?\\bprint\\w*\\s*\\([^)]*\\1"
+    confidence: high
+  # printLine(data) / printIntLine(data[0]) etc after free
+  - regex: "\\bfree\\s*\\(\\s*(\\w+)\\s*\\)\\s*;(?:(?!\\1\\s*=\\s*NULL)[\\s\\S]){0,200}?\\b\\1\\s*\\["
+    confidence: high
+verification:
+  poc_skeleton: |
+    #include <stdlib.h>
+    #include <string.h>
+    int main(void) {
+        char *p = malloc(16);
+        strcpy(p, "hello");
+        free(p);
+        return p[0];
+    }
+  asan_class: heap-use-after-free
+escalation_hints:
+  - "UAF read leaks heap layout/contents -> info disclosure"
+  - "UAF write into reallocated chunk with different type -> type confusion -> RCE potential"
+  - "If freed object is in a kernel allocator with controlled re-allocation -> kernel exploit"
+fpr_filters:
+  - skip_if_pointer_reassigned_after_free
+  - skip_if_inside_branch_not_taken

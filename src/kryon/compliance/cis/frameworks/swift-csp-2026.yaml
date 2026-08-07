@@ -1,0 +1,303 @@
+# ---------------------------------------------------------------------------
+# SWIFT Customer Security Programme (CSP) — CSCF v2026 Technical Subset (F40)
+# ---------------------------------------------------------------------------
+# SWIFT CSP Customer Security Controls Framework (CSCF) v2026 defines 32
+# controls: 25 MANDATORY + 7 advisory (v2024 was 24 + 8). Published mid-2025;
+# attestation window July–December 2026 via the KYC-SA portal.
+#
+# Key CSCF v2026 changes vs v2024:
+#   - Control 2.4 "Back Office Data Flow Security" is now MANDATORY (was
+#     advisory). Extends scope beyond the secure zone into back-office
+#     data flows. Not host-verifiable at the OS level -> partner attestation.
+#   - "Customer connectors" (middleware, API consumers, file-transfer
+#     clients) are now MANDATORY in scope for 14 controls (1.2, 1.3, 1.4,
+#     2.2, 2.3, 2.6, 2.7, 3.1, 4.1, 4.2, 5.1, 5.4, 6.1, 6.4). Some Type B
+#     users must reclassify to Type A4.
+#   - Control 4.2 MFA extended to LSO/RSO accounts and external-firewall
+#     administrator access.
+#   - Control 6.1 malware protection: EDR/EPP expanded to non-Windows
+#     components in the secure zone.
+#   - Break-glass / emergency-account protections added; deepfake-awareness
+#     training; AI risk formally acknowledged.
+#
+# Many CSP controls involve SWIFT-specific components (Alliance Access /
+# Entry / Connect, SIL, HSM, SWIFTNet connectivity) that cannot be examined
+# from a generic Linux host. This framework captures the ~17 controls that
+# ARE technically verifiable at the OS/network level for hosts within the
+# SWIFT secure zone. The `section` of each check cites the canonical CSCF
+# v2026 control it evidences; the `SWIFT-x.y` ids are Kryon-internal.
+#
+# Reference: SWIFT CSCF v2026 (CSCF_v2026_202507015.pdf), Customer Security
+# Programme. https://www.swift.com/myswift/customer-security-programme-csp
+# ---------------------------------------------------------------------------
+
+framework:
+  id: swift-csp-2026
+  title: "SWIFT CSP — CSCF v2026 (Technical Subset)"
+  version: "0.2.0"
+  source: "SWIFT Customer Security Controls Framework v2026 (CSCF_v2026_202507015.pdf)"
+  description: >
+    Technical subset of SWIFT CSCF v2026 controls verifiable from a
+    Linux host within the customer's secure zone. Covers environment
+    segregation (CSCF 1.x), reduce attack surface (2.x), credential
+    protection (4.x), identity & privilege segregation (5.x), and
+    detection (6.x). SWIFT-component-specific controls (Alliance Access /
+    Connect config, HSM attestation) and the now-mandatory back-office
+    data-flow control (2.4M) require SWIFT partner attestation and are out
+    of scope for automated OS-level auditing.
+
+checks:
+  # =========================================================================
+  # Principle 1 — Restrict Internet access; protect critical systems from
+  # general IT environment (CSCF 1.x)
+  # =========================================================================
+  - id: "SWIFT-1.1"
+    title: "Secure Zone: host firewall active (default-deny inbound)"
+    section: "1.1"
+    severity: CRITICAL
+    rationale: >
+      SWIFT CSCF 1.1 (SWIFT Environment Protection) requires SWIFT
+      infrastructure to reside in a segregated secure zone. Host firewall
+      is the last-mile control.
+    remediation: "ufw enable con default deny incoming; whitelist solo hosts documentados del SWIFT zone."
+    command: "ufw status verbose 2>/dev/null | grep -iE '^Default:|^Status:' | head -2 || iptables -L INPUT -n | head -2"
+    pass_when:
+      any_of:
+        - all_of:
+            - stdout_contains: "Status: active"
+            - stdout_contains: "deny (incoming)"
+        - stdout_contains: "Chain INPUT (policy DROP"
+
+  - id: "SWIFT-1.2"
+    title: "Secure Zone: no internet-exposed services (0.0.0.0 on non-SWIFT ports)"
+    section: "1.4"
+    severity: CRITICAL
+    rationale: >
+      CSCF 1.4 (Internet Access Restriction) — operator PCs and SWIFT hosts
+      must not expose services to the open Internet. Any LISTEN on 0.0.0.0
+      outside SWIFT port range is a finding. v2026: customer connectors are
+      now mandatory in scope for this control.
+    remediation: "Bind services to localhost or mgmt VLAN only; audit with 'ss -tlnp'."
+    command: "ss -tlnp 2>/dev/null | awk '$4 ~ /0\\.0\\.0\\.0/' | grep -vE ':(22|443|80|2049|2021)' | head -1"
+    pass_when:
+      stdout_empty: true
+
+  # =========================================================================
+  # Principle 2 — Reduce attack surface and vulnerabilities (CSCF 2.x)
+  # =========================================================================
+  - id: "SWIFT-2.1"
+    title: "Patch level: no EOL OS (Debian/Ubuntu/RHEL supported version)"
+    section: "2.7"
+    severity: HIGH
+    rationale: >
+      CSCF 2.7 (Vulnerability Scanning) + 2.2 (Security Updates) require
+      vulnerability management. Running an EOL OS is an immediate
+      self-attestation fail. v2026: customer connectors in scope.
+    remediation: "Upgrade to a supported OS release; in-place dist-upgrade or rebuild."
+    command: "cat /etc/os-release 2>/dev/null | grep -E '^(NAME|VERSION_ID)=' || true"
+    pass_when:
+      not:
+        any_of:
+          - stdout_matches: "VERSION_ID=\"?(14\\.04|16\\.04|18\\.04)\""
+          - stdout_matches: "VERSION_ID=\"?(6|7|8)\"\\s*\\n.*rhel"
+
+  - id: "SWIFT-2.2"
+    title: "System integrity: file integrity monitoring deployed"
+    section: "6.2"
+    severity: HIGH
+    rationale: >
+      CSCF 6.2 (Software Integrity). AIDE/Tripwire/osquery provide the
+      required change-detection baseline.
+    remediation: "apt-get install -y aide && aideinit; schedule daily check."
+    command: "dpkg -l 2>/dev/null | grep -cE '^ii\\s+(aide|tripwire|samhain|osquery|wazuh)' || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  - id: "SWIFT-2.3"
+    title: "Anti-malware / EDR active on SWIFT host"
+    section: "6.1"
+    severity: HIGH
+    rationale: >
+      CSCF 6.1 (Malware Protection) mandatory on all SWIFT secure zone
+      components. v2026: EDR/EPP coverage expanded to non-Windows
+      components in the secure zone.
+    remediation: "Deploy EDR agent (Wazuh, CrowdStrike, Defender) or at minimum clamav with scheduled scan."
+    command: "systemctl list-units --state=active 2>/dev/null | grep -iE 'clamav|wazuh|osquery|defender|crowdstrike|sentinel' | head -1 || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  # =========================================================================
+  # Principle 3 — Physically secure the environment
+  # (control CSCF 3.1 is physical — out of scope for SSH audit)
+  # =========================================================================
+
+  # =========================================================================
+  # Principle 4 — Prevent compromise of credentials (CSCF 4.x)
+  # =========================================================================
+  - id: "SWIFT-4.1"
+    title: "Password policy: minimum complexity enforced (pwquality)"
+    section: "4.1"
+    severity: HIGH
+    rationale: >
+      CSCF 4.1 (Password Policy). pwquality with minlen>=12 and class
+      requirements is baseline.
+    remediation: "apt-get install -y libpam-pwquality; set minlen=12 minclass=4 in /etc/security/pwquality.conf"
+    command: "grep -E '^(minlen|minclass)' /etc/security/pwquality.conf 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "minlen\\s*=\\s*(1[2-9]|[2-9][0-9])"
+
+  - id: "SWIFT-4.2"
+    title: "Multi-factor authentication for operator access"
+    section: "4.2"
+    severity: CRITICAL
+    rationale: >
+      CSCF 4.2 (Multi-Factor Authentication) mandatory for all operators
+      accessing SWIFT services. v2026 EXTENDS MFA to LSO/RSO accounts and
+      external-firewall administrator access. Non-negotiable attestation item.
+    remediation: "pam_google_authenticator o pam_duo + AuthenticationMethods publickey,keyboard-interactive; cubrir LSO/RSO."
+    command: "grep -iE 'pam_(google_authenticator|duo|yubico)' /etc/pam.d/sshd /etc/pam.d/login 2>/dev/null | head -1"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  # =========================================================================
+  # Principle 5 — Manage identities and segregate privileges (CSCF 5.x)
+  # =========================================================================
+  - id: "SWIFT-5.1"
+    title: "Logical access control: shared / generic accounts absent"
+    section: "5.1"
+    severity: HIGH
+    rationale: >
+      CSCF 5.1 (Logical Access Control) — named-individual accounts only.
+      Shared accounts (admin, oracle, swift, ftp) break accountability.
+      v2026: customer connectors in scope.
+    remediation: "Rename or delete generic accounts; create per-operator named accounts."
+    command: "awk -F: '$3>=1000 && $7!~/nologin|false/ {print $1}' /etc/passwd | grep -iE '^(admin|swift|oracle|dba|test|generic|shared|ftp)$' | head -1"
+    pass_when:
+      stdout_empty: true
+
+  - id: "SWIFT-5.2"
+    title: "Token management: SSH key auth only (no password remote)"
+    section: "5.2"
+    severity: CRITICAL
+    rationale: >
+      CSCF 5.2 (Token Management) — authentication tokens (SSH keys) strict
+      management. Enabling password auth reintroduces brute-force surface.
+    remediation: "sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config; systemctl restart sshd"
+    command: "sshd -T 2>/dev/null | grep -iE '^passwordauthentication' || true"
+    pass_when:
+      stdout_matches: "^passwordauthentication\\s+no"
+
+  - id: "SWIFT-5.3"
+    title: "Service accounts: no interactive login"
+    section: "1.2"
+    severity: HIGH
+    rationale: >
+      CSCF 1.2 (Operating System Privileged Account Control) — service
+      accounts with shell access effectively become additional interactive
+      users. v2026: customer connectors in scope.
+    remediation: "For each non-root UID<1000 account: usermod -s /usr/sbin/nologin <svc>"
+    command: "awk -F: '$3<1000 && $7!~/nologin|false|sync/ {print $1}' /etc/passwd | grep -v '^root\\$' | head -1"
+    pass_when:
+      stdout_empty: true
+
+  # =========================================================================
+  # Principle 6 — Detect anomalous activity to systems or transaction
+  # records (CSCF 6.x)
+  # =========================================================================
+  - id: "SWIFT-6.1"
+    title: "Audit logging: auditd active and persistent across reboot"
+    section: "6.4"
+    severity: HIGH
+    rationale: >
+      CSCF 6.4 (Logging and Monitoring). Auditd captures security-relevant
+      kernel events that can feed the SIEM. v2026: customer connectors in scope.
+    remediation: "systemctl enable --now auditd"
+    command: "systemctl is-active auditd 2>/dev/null && systemctl is-enabled auditd 2>/dev/null"
+    pass_when:
+      all_of:
+        - stdout_contains: "active"
+        - stdout_contains: "enabled"
+
+  - id: "SWIFT-6.2"
+    title: "Log forwarding: syslog reenvío remoto configurado"
+    section: "6.4"
+    severity: HIGH
+    rationale: >
+      CSCF 6.4 (Logging and Monitoring) — logs must be centralized outside
+      the SWIFT host so tampering with the local box doesn't destroy evidence.
+    remediation: "rsyslog forward: '*.* @@siem.bank.internal:6514' (RELP/TLS preferido)"
+    command: "grep -rE '^\\s*\\*\\.\\*\\s+@' /etc/rsyslog.d/ /etc/rsyslog.conf 2>/dev/null | head -1 || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: "SWIFT-6.3"
+    title: "Audit log protection: file perms locked to root"
+    section: "6.4"
+    severity: MEDIUM
+    rationale: >
+      CSCF 6.4 (Logging and Monitoring) — log integrity. World-readable log
+      files compromise log chain-of-custody.
+    remediation: "chmod 0600 /var/log/audit/audit.log; chown root:adm"
+    command: "stat -c '%a %U' /var/log/audit/audit.log 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^[06][0-4][0-9]\\s+root"
+
+  - id: "SWIFT-6.4"
+    title: "Time synchronization active (transaction correlation)"
+    section: "6.4"
+    severity: HIGH
+    rationale: >
+      CSCF 6.4 (Logging and Monitoring) requires synchronized clocks across
+      the SWIFT zone for MT/ISO 20022 message timestamp correlation and
+      forensic integrity.
+    remediation: "systemctl enable --now chrony; apuntar a NTP autoritativo del banco o pool.ntp.org (documentado)."
+    command: "timedatectl show 2>/dev/null | grep NTPSynchronized || true"
+    pass_when:
+      stdout_contains: "yes"
+
+  - id: "SWIFT-6.5"
+    title: "IDS/IPS or host-based intrusion detection deployed"
+    section: "6.5"
+    severity: HIGH
+    rationale: >
+      CSCF 6.5 (Intrusion Detection, advisory) — anomaly detection for
+      SWIFT zone hosts. Fail2ban is minimum bar; EDR/HIDS is preferred.
+    remediation: "apt-get install -y fail2ban OR deploy Wazuh/OSSEC agent."
+    command: "dpkg -l 2>/dev/null | grep -cE '^ii\\s+(fail2ban|suricata|snort|osquery|wazuh|auditbeat|ossec)' || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  # =========================================================================
+  # Principle 7 — Plan for incident response and information sharing
+  # (mostly procedural — v2026 adds deepfake awareness to 7.2 training)
+  # =========================================================================
+  - id: "SWIFT-7.1"
+    title: "Backup scheduler present (recovery prereq)"
+    section: "7.1"
+    severity: HIGH
+    rationale: >
+      CSCF 7.1 (Cyber Incident Response Planning) requires tested backups.
+      Automated scheduler is the evidenciable prerequisite.
+    remediation: "Configure systemd-timer or cron running backup job; verify logs nightly."
+    command: "(systemctl list-timers --all 2>/dev/null | grep -iE 'backup|dump|rsnapshot|bacula|borg|restic'; ls /etc/cron.*/*backup* 2>/dev/null) | head -1 || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: "SWIFT-7.2"
+    title: "Disk encryption: rest protection of SWIFT config / logs"
+    section: "2.3"
+    severity: HIGH
+    rationale: >
+      CSCF 2.3 (System Hardening) — at-rest exfil resistance for hosts with
+      SWIFT material state. LUKS/dm-crypt for SWIFT-bearing partitions.
+    remediation: "cryptsetup luksFormat SWIFT-bearing partitions; auto-unlock via key-file or HSM."
+    command: "lsblk -o NAME,TYPE 2>/dev/null | grep -c crypt || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"

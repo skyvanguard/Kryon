@@ -1,0 +1,294 @@
+# ---------------------------------------------------------------------------
+# BCP Paraguay — Resolución 12/2021 — Manual de Seguridad para Entidades
+# Financieras (Technical subset, F41)
+# ---------------------------------------------------------------------------
+# The BCP Resolution 12/2021 is a comprehensive security manual for
+# Paraguayan financial institutions covering physical, procedural, and
+# IT controls. A majority of sections (XX CCTV, XXII-XXIII bóvedas,
+# XXVI controles de acceso físico, XXXIII ATM security) govern PHYSICAL
+# infrastructure not accessible over SSH.
+#
+# This YAML implements the ~18 controls that CAN be verified
+# deterministically from a server perspective, cross-referenced to the
+# BCP Resolution sections. The remaining BCP controls are covered by
+# the companion manual-audit checklist delivered in F47.
+#
+# IDs: ``BCP-<arabic section>.<sub>`` — e.g. BCP-7.1 maps to Section VII
+# "Elementos de Seguridad de la Información", sub-control 1. Arabic
+# numerals keep natural-sort working.
+# ---------------------------------------------------------------------------
+
+framework:
+  id: bcp-py-res-12-2021
+  title: "BCP Paraguay — Res. 12/2021 (Manual Seguridad — Technical Subset)"
+  version: "0.1.0"
+  source: "BCP Resolución 12/2021 — Manual de Seguridad para Entidades Financieras"
+  description: >
+    Subset of BCP Resolución 12/2021 controls that can be verified
+    deterministically over SSH. The resolution is predominantly
+    physical / procedural; this framework captures the IT controls
+    mappable to server / network posture. Physical controls (CCTV
+    cameras, vaults, ATM anchoring, panic buttons) require on-site
+    audit — see the F47 onboarding checklist.
+
+checks:
+  # =========================================================================
+  # Section VII — Elementos de Seguridad de la Información
+  # Available / integrity / confidentiality of information systems.
+  # =========================================================================
+  - id: "BCP-7.1"
+    title: "Confidencialidad: cifrado de volúmenes con datos sensibles"
+    section: "VII"
+    severity: HIGH
+    rationale: >
+      BCP 12/2021 Sección VII exige confidencialidad de la información
+      — cifrado en reposo de volúmenes con datos del cliente.
+    remediation: "cryptsetup luksFormat + luksOpen; agregar a /etc/crypttab; documentar en el inventario de activos."
+    command: "lsblk -o NAME,TYPE 2>/dev/null | grep -c crypt || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  - id: "BCP-7.2"
+    title: "Integridad: file integrity monitoring activo (AIDE/Tripwire)"
+    section: "VII"
+    severity: HIGH
+    rationale: >
+      BCP 12/2021 Sección VII incluye integridad — detectar modificación
+      no autorizada de archivos de sistema y aplicativos.
+    remediation: "apt-get install -y aide && aideinit; scheduler diario + alertas al centro de monitoreo."
+    command: "dpkg -l 2>/dev/null | grep -cE '^ii\\s+(aide|tripwire|samhain|osquery)' || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  - id: "BCP-7.3"
+    title: "Disponibilidad: scheduler de backups documentado"
+    section: "VII"
+    severity: HIGH
+    rationale: >
+      BCP 12/2021 Sección VII exige disponibilidad — backup regular
+      es prerequisito de recuperación ante desastre.
+    remediation: "Configurar cron o systemd-timer que invoque script de backup; verificar logs exitosos últimas 24h."
+    command: "(systemctl list-timers --all 2>/dev/null | grep -iE 'backup|dump|rsnapshot|bacula|borg|restic'; ls /etc/cron.*/*backup* 2>/dev/null) | head -1 || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: "BCP-7.4"
+    title: "Autenticación fuerte: SSH key-based (password auth deshabilitada)"
+    section: "VII"
+    severity: CRITICAL
+    rationale: >
+      BCP 12/2021 Sección VII: "controles lógicos" deben prevenir
+      acceso no autorizado. Autenticación por contraseña sobre SSH
+      permite brute-force sostenido.
+    remediation: "sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config; systemctl restart sshd"
+    command: "sshd -T 2>/dev/null | grep -iE '^passwordauthentication' || true"
+    pass_when:
+      stdout_matches: "^passwordauthentication\\s+no"
+
+  - id: "BCP-7.5"
+    title: "Registro de auditoría: syslog / auditd activo"
+    section: "VII"
+    severity: HIGH
+    rationale: >
+      BCP 12/2021 exige trazabilidad de eventos de seguridad (Sección VII).
+    remediation: "systemctl enable --now auditd rsyslog; configurar reenvío al SIEM del banco."
+    command: "systemctl is-active auditd rsyslog 2>/dev/null | grep -c '^active' || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  - id: "BCP-7.6"
+    title: "Retención de logs: configuración >=90 días"
+    section: "VII"
+    severity: MEDIUM
+    rationale: >
+      BCP 12/2021 requiere trazabilidad histórica para investigaciones.
+      90 días es el mínimo pragmático regulatorio paraguayo (alineado
+      con PCI-DSS 10.5.1 y expectativa SIB en supervisiones).
+    remediation: "Editar /etc/logrotate.d/* con rotate 90; auditd: num_logs=12 max_log_file=50"
+    command: "grep -E '^\\s*rotate\\s+[0-9]+' /etc/logrotate.conf /etc/logrotate.d/* 2>/dev/null | awk '{print $NF}' | sort -un | head -1 || echo 0"
+    pass_when:
+      stdout_matches: "^([3-9][0-9]|[1-9][0-9][0-9]+)\\s*$"
+
+  # =========================================================================
+  # Section XVIII — Medidas de Seguridad Electrónica
+  # =========================================================================
+  - id: "BCP-18.1"
+    title: "IDS/IPS o EDR instalado en host (fail2ban, suricata, wazuh, osquery)"
+    section: "XVIII"
+    severity: HIGH
+    rationale: >
+      BCP 12/2021 Sec. XVIII "dispositivos electrónicos de alta tecnología"
+      — detección de intrusión es parte del estándar.
+    remediation: "apt-get install -y fail2ban OR desplegar agente Wazuh/osquery con alertas al SOC."
+    command: "dpkg -l 2>/dev/null | grep -cE '^ii\\s+(fail2ban|suricata|snort|osquery|wazuh|auditbeat)' || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  - id: "BCP-18.2"
+    title: "Centralización de logs: reenvío a servidor remoto configurado"
+    section: "XVIII"
+    severity: MEDIUM
+    rationale: >
+      BCP 12/2021 Sec. XXI exige Centro de Monitoreo 24/7. Sin reenvío
+      remoto, el SOC no ve eventos locales.
+    remediation: "Agregar '*.* @syslog.bank.internal:514' en /etc/rsyslog.d/50-forward.conf"
+    command: "grep -rE '^\\s*\\*\\.\\*\\s+@' /etc/rsyslog.d/ /etc/rsyslog.conf 2>/dev/null | head -1 || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  # =========================================================================
+  # Section XXI — Central de Monitoreo
+  # =========================================================================
+  - id: "BCP-21.1"
+    title: "Sincronización horaria activa (prereq. para correlación en el SOC)"
+    section: "XXI"
+    severity: HIGH
+    rationale: >
+      BCP 12/2021 Sec. XXI Central de Monitoreo 24/7 correlaciona
+      eventos de múltiples sucursales. Sin tiempo sincronizado el SIEM
+      no puede reconstruir incidentes.
+    remediation: "systemctl enable --now chrony; apuntar a NTP interno del banco (chrony.conf server directive)"
+    command: "timedatectl show 2>/dev/null | grep NTPSynchronized || true"
+    pass_when:
+      stdout_contains: "yes"
+
+  # =========================================================================
+  # Section XXVI — Controles de Acceso (foco lógico / acceso remoto)
+  # =========================================================================
+  - id: "BCP-26.1"
+    title: "MFA requerida para acceso administrativo remoto"
+    section: "XXVI"
+    severity: CRITICAL
+    rationale: >
+      BCP 12/2021 Sec. XXVI — controles de acceso. Para administración
+      remota, MFA es el equivalente lógico del detector de metales físico.
+    remediation: "Instalar pam_google_authenticator o pam_duo; AuthenticationMethods publickey,keyboard-interactive"
+    command: "grep -iE 'pam_(google_authenticator|duo|yubico)' /etc/pam.d/sshd 2>/dev/null; sshd -T 2>/dev/null | grep -iE '^authenticationmethods'"
+    pass_when:
+      any_of:
+        - stdout_contains: "pam_google_authenticator"
+        - stdout_contains: "pam_duo"
+        - stdout_contains: "pam_yubico"
+        - stdout_matches: "authenticationmethods.*keyboard-interactive"
+
+  - id: "BCP-26.2"
+    title: "Lockout por intentos fallidos configurado"
+    section: "XXVI"
+    severity: HIGH
+    rationale: >
+      BCP 12/2021 Sec. XXVI controles de acceso — prevención de
+      password spray requiere bloqueo automático.
+    remediation: "pam_faillock deny=5 unlock_time=900 en /etc/pam.d/common-auth"
+    command: "grep -E 'pam_(faillock|tally2)\\.so.*deny=' /etc/pam.d/common-auth 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "deny=([1-9]|10)\\b"
+
+  - id: "BCP-26.3"
+    title: "Cuentas de servicio sin login interactivo"
+    section: "XXVI"
+    severity: HIGH
+    rationale: >
+      Una cuenta de servicio con shell interactivo es una puerta que
+      nadie vigila — viola el principio de acceso autorizado BCP XXVI.
+    remediation: "Para cada cuenta de servicio: usermod -s /usr/sbin/nologin <svc>"
+    command: "awk -F: '$3<1000 && $7!~/nologin|false|sync/ {print $1}' /etc/passwd | grep -v '^root\\$' | head -1"
+    pass_when:
+      stdout_empty: true
+
+  - id: "BCP-26.4"
+    title: "Solo root con UID 0 (ausencia de cuentas privilegiadas ocultas)"
+    section: "XXVI"
+    severity: CRITICAL
+    rationale: >
+      Una segunda cuenta con UID 0 frecuentemente indica persistencia
+      de malware — finding inmediato en cualquier auditoría BCP.
+    remediation: "Investigar cualquier cuenta UID=0 distinta de root. Deshabilitarla o reasignar UID."
+    command: "awk -F: '($3 == 0) { print $1 }' /etc/passwd"
+    pass_when:
+      stdout_matches: "^root\\s*$"
+
+  # =========================================================================
+  # Section XXIX — Horarios de Oficina (aplicación lógica)
+  # =========================================================================
+  - id: "BCP-29.1"
+    title: "Política de password aging configurada (<=90 días)"
+    section: "XXIX"
+    severity: MEDIUM
+    rationale: >
+      BCP 12/2021 Sec. XXIX horarios/ciclos. La rotación periódica de
+      credenciales es el equivalente temporal en el plano lógico.
+    remediation: "sed -i 's/^PASS_MAX_DAYS.*/PASS_MAX_DAYS 90/' /etc/login.defs"
+    command: "awk '/^PASS_MAX_DAYS/ {print $2}' /etc/login.defs 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^([1-9][0-9]?|[1-8][0-9]|90)\\s*$"
+
+  # =========================================================================
+  # Section XXXIII — Seguridad de Cajeros Automáticos (ATM — capa lógica)
+  # Physical ATM controls (bóveda 10min resistance, anchoring, entintado)
+  # covered by on-site F43 / F47 checklist.
+  # =========================================================================
+  - id: "BCP-33.1"
+    title: "ATM: firewall en host activo (aislamiento VLAN lógico)"
+    section: "XXXIII"
+    severity: CRITICAL
+    rationale: >
+      BCP 12/2021 Sec. XXXIII seguridad ATM. A nivel host el ATM debe
+      rechazar todo tráfico no esencial — primera línea antes de la
+      segmentación VLAN.
+    remediation: "ufw enable con default-deny + allow 443/tcp solo al host application gateway documentado."
+    command: "ufw status 2>/dev/null | head -1 || iptables -L INPUT -n 2>/dev/null | head -1"
+    pass_when:
+      any_of:
+        - stdout_contains: "Status: active"
+        - stdout_contains: "Chain INPUT"
+
+  - id: "BCP-33.2"
+    title: "ATM: reloj sincronizado (alineación con grabación CCTV transaccional)"
+    section: "XXXIII"
+    severity: HIGH
+    rationale: >
+      BCP 12/2021 Sec. XXXIII exige CCTV grabando transacciones. Sin
+      tiempo sincronizado, correlacionar video con movimiento contable
+      es imposible — se anula la evidencia forense.
+    remediation: "systemctl enable --now chrony; chrony.conf apuntando al NTP interno del banco."
+    command: "timedatectl show 2>/dev/null | grep NTPSynchronized || true"
+    pass_when:
+      stdout_contains: "yes"
+
+  - id: "BCP-33.3"
+    title: "ATM: antimalware / application whitelisting activo"
+    section: "XXXIII"
+    severity: CRITICAL
+    rationale: >
+      ATMs son objetivo de malware (Ploutus, Tyupkin, Cutlet Maker).
+      BCP 12/2021 Sec. XXXIII implícito: estado operativo de los
+      componentes electrónicos debe monitorearse.
+    remediation: "Desplegar Application Whitelisting (SELinux/AppArmor enforced + EDR/AV)."
+    command: "(aa-status 2>/dev/null | head -1; getenforce 2>/dev/null; dpkg -l clamav osquery wazuh-agent 2>/dev/null | grep -c '^ii') | head -2"
+    pass_when:
+      any_of:
+        - stdout_contains: "apparmor module is loaded"
+        - stdout_contains: "Enforcing"
+        - stdout_matches: "^[1-9][0-9]*\\s*$"
+
+  - id: "BCP-33.4"
+    title: "ATM: parches de seguridad (no EOL)"
+    section: "XXXIII"
+    severity: HIGH
+    rationale: >
+      BCP 2024 disposición complementaria: ATMs deben operar con
+      sistemas con soporte activo. Windows 7 / 10 EOL en ATMs es
+      ruptura normativa inmediata.
+    remediation: "Migrar a OS soportado; si Windows embedded, verificar ESU (Extended Security Updates)."
+    command: "cat /etc/os-release 2>/dev/null | grep -E '^(NAME|VERSION_ID)=' || true"
+    pass_when:
+      not:
+        any_of:
+          - stdout_matches: "VERSION_ID=\"?(14\\.04|16\\.04|18\\.04)\""
+          - stdout_matches: "VERSION_ID=\"?(6|7)\""

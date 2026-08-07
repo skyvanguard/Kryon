@@ -1,0 +1,90 @@
+# Local development overrides for Kryon + Ollama stack.
+# Usage:
+#   docker compose -f docker/docker-compose.kali.yml -f docker/docker-compose.override.yml up -d
+#
+# Adjustments over docker-compose.kali.yml:
+#   - More memory for gemma4:26b MoE (17GB model, needs headroom)
+#   - Removes Claude Code CLI volume mounts (not used with Ollama backend)
+#   - Adds optional `joern` dataflow service (enable with --profile dataflow)
+
+services:
+  kryon:
+    deploy:
+      resources:
+        limits:
+          cpus: "6"
+          memory: 12G
+        reservations:
+          cpus: "2"
+          memory: 4G
+    # F65: load per-operator secrets (HackerOne token, etc) from a file
+    # OUTSIDE the repository so they never reach git. Base compose file
+    # already declares env_file: .env.docker; compose merges both lists,
+    # so ~/.kryon/secrets.env takes precedence on overlapping vars.
+    # The file lives at ${HOME}/.kryon/secrets.env and must be mode 0600.
+    env_file:
+      - ${HOME}/.kryon/secrets.env
+    environment:
+      # F7: CPGQL server endpoint. Disabled unless the joern service is up.
+      - KRYON_JOERN_URL=${KRYON_JOERN_URL:-ws://joern:8080}
+      - KRYON_JOERN_ENABLED=${KRYON_JOERN_ENABLED:-false}
+    volumes: !override
+      - kryon-workspace:/workspace
+      - kryon-logs:/logs
+      - kryon-config:/home/kryon/.kryon
+      - kryon-knowledge:/home/kryon/.config/chromadb
+      - kryon-cache:/home/kryon/.cache
+      # F27: bind-mount reports to host so PDFs land in ./reports/ directly
+      # (named volume would hide them inside docker). Relative paths in
+      # compose files resolve against the compose file's own directory,
+      # so "../reports" targets the repo root's reports/ dir.
+      - ../reports:/reports
+      # F28: read-only bind-mount ~/.ssh so kryon can ssh to audit targets
+      # using the operator's own keys (same as the human auditor would).
+      # `:ro` is critical — compliance engine must never write or tamper.
+      - ${HOME}/.ssh:/home/kryon/.ssh:ro
+    # F26.1: attach to the ctfnet network so kryon can resolve fake-target
+    # hostnames (pve_fake, dc_fake, juice.local) published by demo/docker-
+    # compose.demo.yml without the operator running `docker network connect`.
+    networks:
+      - default
+      - ctfnet
+
+  # ---------------------------------------------------------------------------
+  # Joern — CPGQL data-flow server (F7). Optional profile.
+  # Enable with: docker compose --profile dataflow up -d
+  # ---------------------------------------------------------------------------
+  joern:
+    build:
+      context: joern
+      dockerfile: Dockerfile
+    container_name: kryon-joern
+    profiles:
+      - dataflow
+    restart: unless-stopped
+    # Shares kryon-workspace read-only so kryon can reference paths like
+    # /workspace/... in CPGQL queries without copying source trees.
+    volumes:
+      - kryon-workspace:/workspace:ro
+      - joern-cpgs:/work/cpgs
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 2G
+    networks:
+      - kryon-mgmt
+    # Server port not exposed to host; kryon reaches it over mgmt network.
+
+volumes:
+  joern-cpgs:
+    driver: local
+
+# F26.1: declare the external ctfnet network so `networks: [ctfnet]` above
+# resolves. We don't create it here (external: true) — it's managed by
+# the demo stack or by docker network create; setup.sh ensures it exists.
+networks:
+  ctfnet:
+    external: true
+  default:

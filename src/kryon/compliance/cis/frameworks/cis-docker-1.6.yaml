@@ -1,0 +1,569 @@
+# ---------------------------------------------------------------------------
+# CIS Docker Benchmark — v1.6.0 (F37)
+# ---------------------------------------------------------------------------
+# Checks for hardening a host running the Docker engine (not the images
+# themselves — CIS has a separate image benchmark). Targets both Docker
+# CE and the daemon bundled with Docker Desktop / Docker Engine 24+.
+#
+# Assumes the target host has docker CLI accessible and that the
+# auditing user can run `docker info` / `docker inspect`.
+# Runs as SSH → localhost, so no Docker-in-Docker concerns.
+# ---------------------------------------------------------------------------
+
+framework:
+  id: cis-docker-1.6
+  title: "CIS Docker Benchmark v1.6.0 — Host Configuration"
+  version: "0.1.0"
+  source: "CIS Docker Community Edition Benchmark v1.6.0 (Feb 2024)"
+  description: >
+    Hardening checks for a host running Docker Engine. Covers host
+    config (Section 1), Docker daemon (2), Docker daemon config files
+    (3), Container runtime (4, sample), Docker operations (5, sample),
+    Docker security operations (6). ~55 checks.
+
+checks:
+  # =========================================================================
+  # Section 1 — Host Configuration
+  # =========================================================================
+  - id: CIS-DKR-1.1.1
+    title: "Ensure a separate partition for /var/lib/docker"
+    section: "1.1"
+    severity: MEDIUM
+    rationale: "Docker uses /var/lib/docker for all container layers + volumes. Dedicated partition prevents disk exhaustion attacks."
+    remediation: "Create separate partition/mount for /var/lib/docker; update fstab"
+    command: "findmnt -n /var/lib/docker 2>/dev/null || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-DKR-1.1.2
+    title: "Ensure only trusted users can control Docker daemon"
+    section: "1.1"
+    severity: HIGH
+    rationale: "Members of the 'docker' group effectively have root via `docker run --privileged`."
+    remediation: "Audit membership of the docker group; getent group docker"
+    command: "getent group docker 2>/dev/null | awk -F: '{print $4}'"
+    pass_when:
+      not:
+        stdout_matches: "[a-zA-Z].*,.*,.*,"
+
+  - id: CIS-DKR-1.1.3
+    title: "Ensure auditing is configured for the Docker daemon"
+    section: "1.1"
+    severity: MEDIUM
+    remediation: "auditctl -w /usr/bin/dockerd -k docker-daemon"
+    command: "auditctl -l 2>/dev/null | grep -E '/usr/bin/dockerd' || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-DKR-1.1.4
+    title: "Ensure auditing is configured for /etc/docker directory"
+    section: "1.1"
+    severity: MEDIUM
+    remediation: "auditctl -w /etc/docker -k docker-config"
+    command: "auditctl -l 2>/dev/null | grep -E '/etc/docker' || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-DKR-1.1.5
+    title: "Ensure auditing is configured for /var/lib/docker"
+    section: "1.1"
+    severity: LOW
+    remediation: "auditctl -w /var/lib/docker -k docker-runtime"
+    command: "auditctl -l 2>/dev/null | grep -E '/var/lib/docker' || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-DKR-1.1.6
+    title: "Ensure auditing is configured for docker.service"
+    section: "1.1"
+    severity: LOW
+    remediation: "auditctl -w /etc/systemd/system/docker.service -k docker-service"
+    command: "auditctl -l 2>/dev/null | grep -E 'docker\\.service' || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-DKR-1.2.1
+    title: "Ensure the container host has been Hardened"
+    section: "1.2"
+    severity: INFO
+    rationale: "Meta-check — confirms a Linux CIS baseline applies. Run the OS-specific CIS framework first."
+    remediation: "Run CIS Ubuntu/Debian/RHEL L1 framework alongside this one"
+    command: "test -f /etc/os-release && cat /etc/os-release | grep -E '^(ID|VERSION_ID)=' || echo 'no os-release'"
+    pass_when:
+      not:
+        stdout_contains: "no os-release"
+
+  - id: CIS-DKR-1.2.2
+    title: "Ensure that the version of Docker is up to date"
+    section: "1.2"
+    severity: HIGH
+    rationale: "Docker < 24.0 has known CVEs (runc escape CVE-2024-21626, etc)."
+    remediation: "apt-get update && apt-get install -y docker-ce  (or dnf upgrade docker-ce)"
+    command: "docker version --format '{{.Server.Version}}' 2>/dev/null | awk -F. '{print $1}'"
+    pass_when:
+      stdout_matches: "^(2[4-9]|[3-9][0-9])"
+
+  # =========================================================================
+  # Section 2 — Docker Daemon Configuration
+  # =========================================================================
+  - id: CIS-DKR-2.1
+    title: "Ensure network traffic is restricted between containers on default bridge"
+    section: "2"
+    severity: MEDIUM
+    remediation: "Set icc=false in /etc/docker/daemon.json and restart dockerd"
+    command: "docker network inspect bridge -f '{{index .Options \"com.docker.network.bridge.enable_icc\"}}' 2>/dev/null"
+    pass_when:
+      any_of:
+        - stdout_matches: "false"
+        - stdout_matches: "^\\s*$"
+
+  - id: CIS-DKR-2.2
+    title: "Ensure the logging level is set to 'info'"
+    section: "2"
+    severity: LOW
+    remediation: "Set log-level=info in /etc/docker/daemon.json"
+    command: "docker info --format '{{.LoggingDriver}}' 2>/dev/null"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-DKR-2.3
+    title: "Ensure Docker is allowed to make changes to iptables"
+    section: "2"
+    severity: LOW
+    rationale: "iptables=true is default and required for networking."
+    remediation: "Ensure daemon.json does NOT set iptables=false"
+    command: "docker info --format '{{json .SecurityOptions}}' 2>/dev/null"
+    pass_when:
+      not:
+        stdout_contains: "iptables=false"
+
+  - id: CIS-DKR-2.4
+    title: "Ensure insecure registries are not used"
+    section: "2"
+    severity: HIGH
+    remediation: "Remove insecure-registries from daemon.json; use TLS-protected registry only"
+    command: "docker info --format '{{json .RegistryConfig.InsecureRegistryCIDRs}}' 2>/dev/null"
+    pass_when:
+      any_of:
+        - stdout_matches: "^\\[\\s*\\]\\s*$"
+        - stdout_matches: "null"
+        - stdout_empty: true
+
+  - id: CIS-DKR-2.5
+    title: "Ensure aufs storage driver is not used"
+    section: "2"
+    severity: LOW
+    rationale: "aufs is deprecated. Modern Docker uses overlay2 or btrfs."
+    remediation: "Configure storage-driver=overlay2 in daemon.json"
+    command: "docker info --format '{{.Driver}}' 2>/dev/null"
+    pass_when:
+      not:
+        stdout_contains: "aufs"
+
+  - id: CIS-DKR-2.6
+    title: "Ensure TLS authentication for Docker daemon is configured (if remote)"
+    section: "2"
+    severity: CRITICAL
+    rationale: "Docker daemon on tcp:// without TLS = remote root on the host."
+    remediation: "Use unix socket only, OR enable TLS with client certs"
+    command: "ss -tlnp 2>/dev/null | grep -E ':(2375|2376)\\b' || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-DKR-2.7
+    title: "Ensure default ulimit is configured appropriately"
+    section: "2"
+    severity: MEDIUM
+    remediation: "Set default-ulimits in /etc/docker/daemon.json"
+    command: "docker info --format '{{json .}}' 2>/dev/null | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get(\"DefaultUlimits\") or \"not_set\")' 2>/dev/null"
+    pass_when:
+      not:
+        stdout_contains: "not_set"
+
+  - id: CIS-DKR-2.8
+    title: "Enable user namespace support"
+    section: "2"
+    severity: HIGH
+    rationale: "userns-remap prevents a container root from being host root."
+    remediation: "Set userns-remap=default in /etc/docker/daemon.json"
+    command: "docker info --format '{{.SecurityOptions}}' 2>/dev/null"
+    pass_when:
+      stdout_contains: "userns"
+
+  - id: CIS-DKR-2.9
+    title: "Ensure the default cgroup usage has been confirmed (cgroupfs v2 preferred)"
+    section: "2"
+    severity: MEDIUM
+    remediation: "Check daemon.json cgroup-parent / confirm cgroup v2 unified hierarchy"
+    command: "docker info --format '{{.CgroupVersion}}' 2>/dev/null"
+    pass_when:
+      stdout_matches: "^[12]\\s*$"
+
+  - id: CIS-DKR-2.10
+    title: "Ensure base device size is not changed until needed"
+    section: "2"
+    severity: LOW
+    remediation: "Leave storage-opt unchanged unless required"
+    command: "docker info --format '{{.Driver}}:{{.DriverStatus}}' 2>/dev/null"
+    pass_when:
+      not:
+        stdout_contains: "Base Device Size:"
+
+  - id: CIS-DKR-2.11
+    title: "Ensure Docker client commands authorization is configured"
+    section: "2"
+    severity: HIGH
+    rationale: "Authorization plugin (authz) prevents unauthorized commands via docker CLI."
+    remediation: "Install and configure docker-authz plugin; set authorization-plugins in daemon.json"
+    command: "docker info --format '{{.Plugins.Authorization}}' 2>/dev/null"
+    pass_when:
+      not:
+        stdout_matches: "^(\\[\\]|<no value>|<nil>|null)\\s*$"
+
+  - id: CIS-DKR-2.12
+    title: "Ensure centralized and remote logging is configured"
+    section: "2"
+    severity: MEDIUM
+    remediation: "Set log-driver=syslog|journald|fluentd|... in daemon.json"
+    command: "docker info --format '{{.LoggingDriver}}' 2>/dev/null"
+    pass_when:
+      not:
+        stdout_matches: "^json-file\\s*$"
+
+  - id: CIS-DKR-2.13
+    title: "Ensure operations on legacy registry (v1) are disabled"
+    section: "2"
+    severity: MEDIUM
+    remediation: "disable-legacy-registry is true by default in Docker 17+; verify no override"
+    command: "grep -i 'disable-legacy-registry' /etc/docker/daemon.json 2>/dev/null || echo 'default'"
+    pass_when:
+      any_of:
+        - stdout_contains: "default"
+        - stdout_contains: "true"
+
+  - id: CIS-DKR-2.14
+    title: "Ensure live restore is enabled"
+    section: "2"
+    severity: LOW
+    remediation: "Set live-restore=true in daemon.json"
+    command: "docker info --format '{{.LiveRestoreEnabled}}' 2>/dev/null"
+    pass_when:
+      stdout_matches: "true"
+
+  - id: CIS-DKR-2.15
+    title: "Ensure Userland Proxy is disabled"
+    section: "2"
+    severity: LOW
+    rationale: "userland-proxy=false uses host kernel for port forwarding — better performance and security."
+    remediation: "Set userland-proxy=false in /etc/docker/daemon.json"
+    command: "grep -i 'userland-proxy' /etc/docker/daemon.json 2>/dev/null || echo 'default'"
+    pass_when:
+      any_of:
+        - stdout_contains: "false"
+        - stdout_contains: "default"
+
+  - id: CIS-DKR-2.16
+    title: "Ensure experimental features are avoided in production"
+    section: "2"
+    severity: MEDIUM
+    remediation: "Set experimental=false in daemon.json"
+    command: "docker info --format '{{.ExperimentalBuild}}' 2>/dev/null"
+    pass_when:
+      stdout_matches: "false"
+
+  - id: CIS-DKR-2.17
+    title: "Ensure containers are restricted from acquiring new privileges"
+    section: "2"
+    severity: HIGH
+    rationale: "no-new-privileges prevents setuid binaries inside containers from escalating."
+    remediation: "Set no-new-privileges=true in daemon.json"
+    command: "grep -i 'no-new-privileges' /etc/docker/daemon.json 2>/dev/null || echo 'default_false'"
+    pass_when:
+      stdout_contains: "true"
+
+  # =========================================================================
+  # Section 3 — Docker Daemon Configuration Files
+  # =========================================================================
+  - id: CIS-DKR-3.1
+    title: "Ensure docker.service file ownership is root:root"
+    section: "3"
+    severity: MEDIUM
+    remediation: "chown root:root /usr/lib/systemd/system/docker.service"
+    command: "stat -c '%U %G' $(systemctl show docker.service -p FragmentPath --value 2>/dev/null) 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^root\\s+root"
+
+  - id: CIS-DKR-3.2
+    title: "Ensure docker.service file permissions are 644 or more restrictive"
+    section: "3"
+    severity: MEDIUM
+    remediation: "chmod 644 /usr/lib/systemd/system/docker.service"
+    command: "stat -c '%a' $(systemctl show docker.service -p FragmentPath --value 2>/dev/null) 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^[0-6][0-4][0-4]\\s*$"
+
+  - id: CIS-DKR-3.3
+    title: "Ensure docker.socket file ownership is root:root"
+    section: "3"
+    severity: MEDIUM
+    remediation: "chown root:root $(systemctl show docker.socket -p FragmentPath --value)"
+    command: "stat -c '%U %G' $(systemctl show docker.socket -p FragmentPath --value 2>/dev/null) 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^root\\s+root"
+
+  - id: CIS-DKR-3.4
+    title: "Ensure docker.socket file permissions are 644 or more restrictive"
+    section: "3"
+    severity: MEDIUM
+    remediation: "chmod 644 on docker.socket file"
+    command: "stat -c '%a' $(systemctl show docker.socket -p FragmentPath --value 2>/dev/null) 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^[0-6][0-4][0-4]\\s*$"
+
+  - id: CIS-DKR-3.5
+    title: "Ensure /etc/docker directory ownership is root:root"
+    section: "3"
+    severity: MEDIUM
+    remediation: "chown root:root /etc/docker"
+    command: "stat -c '%U %G' /etc/docker 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^root\\s+root"
+
+  - id: CIS-DKR-3.6
+    title: "Ensure /etc/docker directory permissions are 755 or more restrictive"
+    section: "3"
+    severity: MEDIUM
+    remediation: "chmod 755 /etc/docker"
+    command: "stat -c '%a' /etc/docker 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^[0-7][0-5][0-5]\\s*$"
+
+  - id: CIS-DKR-3.7
+    title: "Ensure registry certificate file ownership is root:root"
+    section: "3"
+    severity: LOW
+    remediation: "chown root:root /etc/docker/certs.d/*"
+    command: "find /etc/docker/certs.d -type f ! -user root 2>/dev/null | head -1 || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-DKR-3.8
+    title: "Ensure registry certificate file permissions are 444 or more restrictive"
+    section: "3"
+    severity: LOW
+    remediation: "chmod 444 /etc/docker/certs.d/*"
+    command: "find /etc/docker/certs.d -type f -perm /077 2>/dev/null | head -1 || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-DKR-3.9
+    title: "Ensure TLS CA certificate file ownership is root:root"
+    section: "3"
+    severity: MEDIUM
+    remediation: "chown root:root path/to/ca.pem (as referenced in daemon.json)"
+    command: "find /etc/docker -name 'ca.pem' -not -user root 2>/dev/null | head -1 || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-DKR-3.10
+    title: "Ensure TLS server certificate file ownership is root:root"
+    section: "3"
+    severity: MEDIUM
+    remediation: "chown root:root path/to/server-cert.pem"
+    command: "find /etc/docker -name 'server-cert.pem' -not -user root 2>/dev/null | head -1 || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-DKR-3.11
+    title: "Ensure TLS server certificate key file permissions are 400"
+    section: "3"
+    severity: HIGH
+    rationale: "Exposed private key = remote daemon access for anyone with the cert."
+    remediation: "chmod 400 path/to/server-key.pem"
+    command: "find /etc/docker -name 'server-key.pem' -not -perm 400 2>/dev/null | head -1 || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-DKR-3.12
+    title: "Ensure Docker socket file ownership is root:docker"
+    section: "3"
+    severity: HIGH
+    remediation: "chown root:docker /var/run/docker.sock"
+    command: "stat -c '%U %G' /var/run/docker.sock 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^root\\s+docker"
+
+  - id: CIS-DKR-3.13
+    title: "Ensure Docker socket file permissions are 660 or more restrictive"
+    section: "3"
+    severity: HIGH
+    remediation: "chmod 660 /var/run/docker.sock"
+    command: "stat -c '%a' /var/run/docker.sock 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^[0-6][0-6]0\\s*$"
+
+  - id: CIS-DKR-3.14
+    title: "Ensure daemon.json file ownership is root:root"
+    section: "3"
+    severity: MEDIUM
+    remediation: "chown root:root /etc/docker/daemon.json"
+    command: "stat -c '%U %G' /etc/docker/daemon.json 2>/dev/null || echo 'not_present'"
+    pass_when:
+      any_of:
+        - stdout_matches: "^root\\s+root"
+        - stdout_contains: "not_present"
+
+  - id: CIS-DKR-3.15
+    title: "Ensure daemon.json file permissions are 644 or more restrictive"
+    section: "3"
+    severity: MEDIUM
+    remediation: "chmod 644 /etc/docker/daemon.json"
+    command: "stat -c '%a' /etc/docker/daemon.json 2>/dev/null || echo 'not_present'"
+    pass_when:
+      any_of:
+        - stdout_matches: "^[0-6][0-4][0-4]\\s*$"
+        - stdout_contains: "not_present"
+
+  # =========================================================================
+  # Section 4 — Container runtime (sample — rest checked at audit time)
+  # =========================================================================
+  - id: CIS-DKR-4.1
+    title: "Ensure no containers run as root UID 0 (sample across running)"
+    section: "4"
+    severity: HIGH
+    rationale: "Running containers as root can escape to host under certain conditions."
+    remediation: "Build images with USER directive; rebuild containers with --user=<nonroot>"
+    command: "docker ps --quiet 2>/dev/null | xargs -I{} docker inspect --format '{{.Config.User}}' {} 2>/dev/null | sort -u | grep -Ev '^[1-9]' | grep -c ''"
+    pass_when:
+      stdout_matches: "^0\\s*$"
+
+  - id: CIS-DKR-4.2
+    title: "Ensure containers use trusted base images"
+    section: "4"
+    severity: MEDIUM
+    rationale: "Content trust enforces signed images only."
+    remediation: "Enable DOCKER_CONTENT_TRUST=1 globally"
+    command: "env | grep DOCKER_CONTENT_TRUST 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "DOCKER_CONTENT_TRUST=1"
+
+  - id: CIS-DKR-4.3
+    title: "Ensure no unnecessary packages in containers (build-time advisory)"
+    section: "4"
+    severity: INFO
+    remediation: "Use distroless or alpine base; multi-stage builds"
+    command: "echo 'advisory — inspect images manually'"
+    pass_when:
+      stdout_contains: "advisory"
+
+  - id: CIS-DKR-4.4
+    title: "Ensure no container has --privileged flag"
+    section: "4"
+    severity: CRITICAL
+    rationale: "--privileged = container root == host root."
+    remediation: "Recreate containers without --privileged; drop to specific caps instead"
+    command: "docker ps --quiet 2>/dev/null | xargs -I{} docker inspect --format '{{.Name}}:{{.HostConfig.Privileged}}' {} 2>/dev/null | grep ':true' | head -1 || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-DKR-4.5
+    title: "Ensure containers don't share host PID namespace"
+    section: "4"
+    severity: HIGH
+    remediation: "Remove --pid=host from container configs"
+    command: "docker ps --quiet 2>/dev/null | xargs -I{} docker inspect --format '{{.Name}}:{{.HostConfig.PidMode}}' {} 2>/dev/null | grep ':host' | head -1 || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-DKR-4.6
+    title: "Ensure containers don't share host network namespace"
+    section: "4"
+    severity: HIGH
+    remediation: "Remove --network=host"
+    command: "docker ps --quiet 2>/dev/null | xargs -I{} docker inspect --format '{{.Name}}:{{.HostConfig.NetworkMode}}' {} 2>/dev/null | grep ':host' | head -1 || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-DKR-4.7
+    title: "Ensure containers don't mount sensitive host paths (e.g. /etc, /proc, /var/run/docker.sock)"
+    section: "4"
+    severity: CRITICAL
+    remediation: "Audit --volume mounts in container configs"
+    command: "docker ps --quiet 2>/dev/null | xargs -I{} docker inspect --format '{{range .Mounts}}{{.Source}}{{println}}{{end}}' {} 2>/dev/null | grep -E '^(/etc|/proc|/sys|/var/run/docker\\.sock)$' | head -1 || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-DKR-4.8
+    title: "Ensure memory limit is set on containers"
+    section: "4"
+    severity: MEDIUM
+    remediation: "docker run --memory=512m (or equivalent in compose)"
+    command: "docker ps --quiet 2>/dev/null | xargs -I{} docker inspect --format '{{.Name}}:{{.HostConfig.Memory}}' {} 2>/dev/null | grep ':0$' | head -1 || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-DKR-4.9
+    title: "Ensure CPUs are limited on containers"
+    section: "4"
+    severity: LOW
+    remediation: "docker run --cpus=1 (or --cpu-shares)"
+    command: "docker ps --quiet 2>/dev/null | xargs -I{} docker inspect --format '{{.Name}}:{{.HostConfig.NanoCpus}}' {} 2>/dev/null | grep ':0$' | head -1 || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-DKR-4.10
+    title: "Ensure container read-only root filesystem where possible"
+    section: "4"
+    severity: MEDIUM
+    remediation: "docker run --read-only; use volume for writable paths"
+    command: "docker ps --quiet 2>/dev/null | xargs -I{} docker inspect --format '{{.Name}}:{{.HostConfig.ReadonlyRootfs}}' {} 2>/dev/null | grep -c ':true' || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  # =========================================================================
+  # Section 5 — Docker Security Operations (sample)
+  # =========================================================================
+  - id: CIS-DKR-5.1
+    title: "Ensure images are scanned for vulnerabilities"
+    section: "5"
+    severity: MEDIUM
+    remediation: "Use trivy, grype, or docker scout on every image"
+    command: "which trivy grype snyk 2>/dev/null | head -1 || echo 'none'"
+    pass_when:
+      not:
+        stdout_contains: "none"
+
+  - id: CIS-DKR-5.2
+    title: "Ensure docker logs are rotated (max-size, max-file)"
+    section: "5"
+    severity: LOW
+    remediation: "Add log-opts max-size=100m max-file=5 to daemon.json"
+    command: "grep -iE 'max-size|max-file' /etc/docker/daemon.json 2>/dev/null || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-DKR-5.3
+    title: "Ensure swap is disabled (cgroup swap accounting enabled)"
+    section: "5"
+    severity: LOW
+    remediation: "Set swap-limit=true (or cgroup v2 memory.swap.max)"
+    command: "docker info --format '{{.SwapLimit}}' 2>/dev/null"
+    pass_when:
+      stdout_matches: "true"
+
+  - id: CIS-DKR-5.4
+    title: "Ensure only required cap is granted (drop ALL + add needed)"
+    section: "5"
+    severity: HIGH
+    remediation: "For each container: --cap-drop ALL --cap-add NET_BIND_SERVICE (or similar minimal set)"
+    command: "docker ps --quiet 2>/dev/null | xargs -I{} docker inspect --format '{{.Name}}:{{.HostConfig.CapDrop}}:{{.HostConfig.CapAdd}}' {} 2>/dev/null | grep ':\\[\\]' | head -1 || true"
+    pass_when:
+      stdout_empty: true

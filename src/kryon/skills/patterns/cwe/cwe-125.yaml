@@ -1,0 +1,35 @@
+cwe: CWE-125
+name: Out-of-bounds Read
+aliases: [CWE-126, CWE-127]
+detection:
+  - regex: "\\b(\\w+)\\s*\\[\\s*\\w+\\s*[+\\-*]\\s*\\w+\\s*\\]"
+    confidence: low
+  - regex: "\\bmemcpy\\s*\\(\\s*[^,]+,\\s*\\w+\\s*\\+\\s*\\w+\\s*,"
+    confidence: medium
+  - regex: "\\bstrncpy\\s*\\(\\s*[^,]+,\\s*\\w+\\s*\\+\\s*\\w+\\s*,"
+    confidence: medium
+  # F6.3 round 2: was high confidence, demoted to low — generic iterator
+  # access in stream-parsing libs (zlib, libxml) is the dominant FP source
+  - regex: "\\b(\\w+)\\s*->\\s*next_in\\s*\\+\\s*"
+    confidence: low
+  - regex: "\\b(\\w+)\\s*->\\s*\\w+\\s*-\\s*\\w+\\s*-\\s*\\w+"
+    confidence: high
+  - regex: "\\bbuf\\[\\s*\\w+\\s*-\\s*1\\s*\\]"
+    confidence: low
+verification:
+  poc_skeleton: |
+    #include <stdlib.h>
+    #include <stdio.h>
+    int main(void) {
+        int *arr = malloc(4 * sizeof(int));
+        for (int i = 0; i < 4; i++) arr[i] = i;
+        int idx = 10;
+        return arr[idx];
+    }
+  asan_class: heap-buffer-overflow
+escalation_hints:
+  - "OOB read past sensitive data -> memory disclosure (Heartbleed-style)"
+  - "Read of attacker-controlled offset -> arbitrary read primitive"
+fpr_filters:
+  - skip_if_index_is_constant
+  - skip_if_index_bounded_check_present

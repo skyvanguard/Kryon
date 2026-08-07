@@ -1,0 +1,89 @@
+# Sample CIS-style framework — proof-of-concept for F33.
+#
+# 5 real CIS Ubuntu 22.04 L1 Server checks demonstrating every pass_when
+# variant. Used by test_cis_importer.py as the canonical fixture; F34
+# will produce the full 150-check file.
+#
+# Authoring convention: checks sorted lexicographically by id so diffs
+# read naturally and the runtime registry walks them in stable order.
+
+framework:
+  id: cis-sample-ubuntu-l1
+  title: "CIS Ubuntu 22.04 LTS — F33 sample"
+  version: "0.1.0"
+  source: "CIS Benchmark Ubuntu 22.04 LTS v1.0.0 + openSCAP ssg-ubuntu2204-ds.xml"
+  description: "Five-check smoke sample validating the F33 importer."
+
+checks:
+  - id: CIS-1.1.1.1
+    title: "Ensure mounting of cramfs filesystems is disabled"
+    section: "1.1.1"
+    severity: LOW
+    rationale: >
+      cramfs is a compressed read-only Linux filesystem with limited
+      usefulness on servers. Disabling its kernel module reduces the
+      local attack surface.
+    remediation: |
+      echo 'install cramfs /bin/true' > /etc/modprobe.d/cramfs.conf
+      rmmod cramfs || true
+    command: "modprobe -n -v cramfs 2>&1 | tail -1; lsmod | grep -w cramfs || true"
+    pass_when:
+      all_of:
+        - stdout_contains: "install /bin/true"
+        - not:
+            stdout_matches: "^cramfs\\s"
+
+  - id: CIS-1.3.1
+    title: "Ensure AIDE is installed"
+    section: "1.3"
+    severity: MEDIUM
+    rationale: >
+      AIDE (Advanced Intrusion Detection Environment) provides
+      filesystem integrity monitoring — a Req. 11.5 PCI-DSS control.
+    remediation: "apt-get install -y aide aide-common && aideinit"
+    command: "dpkg -s aide 2>/dev/null | grep -E '^Status:'"
+    pass_when:
+      stdout_contains: "install ok installed"
+
+  - id: CIS-5.2.4
+    title: "Ensure SSH PermitRootLogin is disabled"
+    section: "5.2"
+    severity: HIGH
+    rationale: >
+      Remote root login over SSH allows attackers who compromise
+      credentials (or any auth flaw) to gain immediate privileged
+      access. Always disable and require sudo escalation.
+    remediation: |
+      sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+      systemctl restart sshd
+    command: "sshd -T 2>/dev/null | grep -iE '^permitrootlogin'"
+    pass_when:
+      stdout_matches: "^permitrootlogin\\s+no"
+
+  - id: CIS-5.2.5
+    title: "Ensure SSH Protocol 1 is not accepted"
+    section: "5.2"
+    severity: CRITICAL
+    rationale: >
+      SSH Protocol 1 has multiple cryptographic weaknesses. Modern
+      OpenSSH removed it, but misconfigured systems can still accept
+      it via explicit Protocol directive.
+    remediation: "Remove any 'Protocol 1' line from /etc/ssh/sshd_config"
+    command: "grep -iE '^Protocol\\s+1' /etc/ssh/sshd_config 2>/dev/null || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-6.2.1
+    title: "Ensure password fields are not empty in /etc/shadow"
+    section: "6.2"
+    severity: CRITICAL
+    rationale: >
+      An empty password field permits login with no authentication —
+      one of the most severe misconfigurations on any system.
+    remediation: |
+      awk -F: '($2 == "") { print $1 }' /etc/shadow
+      # For each user listed, either set a password or lock with:
+      passwd -l <user>
+    command: 'awk -F: ''($2 == "") { print $1 }'' /etc/shadow'
+    pass_when:
+      stdout_empty: true

@@ -1,0 +1,717 @@
+"""
+Skill loader — parse markdown playbooks with YAML frontmatter, cache them,
+and match them against a target profile.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+_FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+_DEFAULT_SKILL_DIR = Path(__file__).parent / "playbooks"
+
+
+def _keyword_matches(keyword: str, user_lower: str) -> bool:
+    """Whole-word keyword matcher.
+
+    The legacy `keyword in user_lower` substring match was catastrophic
+    for short keywords: `"ad"` (active-directory-recon) matched
+    "segurid**ad**", `"fix"` (safe-modification) would match "pre**fix**",
+    `"spa"` (browser-exploit) would match "e**spa**ña". Result: random
+    skills got loaded for unrelated prompts.
+
+    Whole-word match using `\\b` boundaries restores the intended
+    semantics: `"ad"` matches "ad" / "ad-hoc" / "(ad)" but NOT
+    "seguridad". Multi-word keywords ("active directory", "auditoría
+    web") work the same way — \\b only fires at the outer edges, so the
+    whole phrase has to be present.
+
+    Python's `\\b` is Unicode-aware by default in re module, so accented
+    keywords ("análisis", "auditoría") match natural Spanish text.
+    """
+    pattern = r"\b" + re.escape(keyword.lower()) + r"\b"
+    return re.search(pattern, user_lower) is not None
+
+
+# F130 — Goal kind → preferred skills (priority bump added on top of the
+# skill's declared priority). Generous bumps (50-100) so the goal-aware
+# skill outranks generic high-priority skills (priorities are usually 1-30
+# in the playbook frontmatter).
+_GOAL_KIND_TO_SKILLS: dict[str, dict[str, int]] = {
+    "compliance": {
+        # Pure framework playbooks get the biggest bump.
+        "pci-dss-audit": 100,
+        "audit-bank-full": 80,
+        "fortigate-audit": 60,
+        "unifi-audit": 60,
+        "proxmox-audit": 60,
+        # Generic compliance helpers.
+        "appsec": 30,
+    },
+    "vuln_search": {
+        # Generic vuln hunters first.
+        "vuln-hunter": 90,
+        "appsec": 70,
+        "browser-exploit": 40,
+        "burp-integration": 50,
+        # CTF skill picks up the "find X vuln" intent reasonably well.
+        "ctf-master": 30,
+    },
+    "recon": {
+        "recon-scout": 100,
+        "appsec": 30,
+        # Banking-flavoured recon helpers.
+        "audit-bank-full": 20,
+    },
+    "custom": {},
+}
+
+
+# F130 — Specific framework / vuln_type → extra skill bumps. Layered on
+# top of the generic kind bumps so e.g. COMPLIANCE PCI-DSS surfaces the
+# pci-dss-audit playbook even when the generic compliance bump alone
+# would tie it with other framework skills.
+_FRAMEWORK_TO_SKILLS: dict[str, dict[str, int]] = {
+    "PCI-DSS": {"pci-dss-audit": 50},
+    "HIPAA": {"appsec": 30},
+    "SOC2": {"appsec": 30},
+    "ISO27001": {"audit-bank-full": 30},
+    "GDPR": {"appsec": 30},
+}
+
+_VULN_TYPE_TO_SKILLS: dict[str, dict[str, int]] = {
+    "sqli": {"vuln-hunter": 30, "appsec": 30},
+    "xss": {"vuln-hunter": 30, "browser-exploit": 40},
+    "rce": {"vuln-hunter": 40},
+    "ssrf": {"vuln-hunter": 30, "appsec": 30},
+    "xxe": {"appsec": 30},
+    "lfi": {"vuln-hunter": 30},
+    "open_redirect": {"appsec": 30},
+}
+
+
+def _bumps_from_goal(goal: Any) -> dict[str, int]:
+    """F130 — Map an ``EngagementGoal`` to a ``{skill_name: bump}`` dict.
+
+    Returns an empty dict when ``goal`` is None or its shape isn't what
+    the goal module emits (defensive — callers should be able to pass
+    anything without crashing the loader)."""
+    if goal is None:
+        return {}
+    kind_value = getattr(goal, "kind", None)
+    if kind_value is None:
+        return {}
+    # ``EngagementGoal.kind`` is a ``GoalKind`` Enum where ``.value`` is
+    # the canonical string ("compliance"/"vuln_search"/"recon"/"custom").
+    kind = str(getattr(kind_value, "value", kind_value)).lower()
+    bumps: dict[str, int] = dict(_GOAL_KIND_TO_SKILLS.get(kind, {}))
+
+    params = getattr(goal, "params", {}) or {}
+    if kind == "compliance":
+        framework = str(params.get("framework", "")).upper()
+        for name, extra in _FRAMEWORK_TO_SKILLS.get(framework, {}).items():
+            bumps[name] = bumps.get(name, 0) + extra
+    elif kind == "vuln_search":
+        for vt in params.get("vuln_types", []):
+            for name, extra in _VULN_TYPE_TO_SKILLS.get(str(vt).lower(), {}).items():
+                bumps[name] = bumps.get(name, 0) + extra
+    return bumps
+
+
+@dataclass(frozen=True)
+class Skill:
+    name: str
+    description: str
+    triggers: dict[str, list]  # {tech: [], ports: [], keywords: []}
+    priority: int
+    required_tools: list[str]
+    body: str  # markdown content below frontmatter
+    source_path: Path
+    # Tools this skill explicitly does NOT want available to the agent.
+    # Subtracted from the final tool set AFTER ALWAYS_INCLUDE and
+    # required_tools are unioned. Used to keep certain tools out of
+    # reach even if they're ambient (e.g., hunter skill forbids
+    # run_command/execute_code so the model can't use them as a
+    # side-channel around run_sandboxed).
+    forbidden_tools: tuple = ()  # tuple for frozen dataclass hashability
+    # Deterministic tool invocations executed BEFORE the LLM takes
+    # control. Output gets injected into the system prompt under
+    # `inject_as` keys. Empty tuple = no pre-hooks (default).
+    # See kryon.skills.pre_hook_spec for the schema.
+    pre_hooks: tuple = ()
+
+
+def _parse_yaml_simple(text: str) -> dict[str, Any]:
+    """Parse frontmatter YAML.
+
+    Prefer PyYAML (correct nesting + typing): the hand-rolled fallback below
+    silently mis-nests block-style lists under a parent (e.g. `triggers:` with
+    only `keywords:` as `- item` lines ended up EMPTY, making the skill match
+    every turn). PyYAML is already a dependency (used for pre_hooks), so use it
+    as the primary path and keep the minimal parser only as a fallback for
+    environments where PyYAML is absent or the text isn't a plain mapping.
+    """
+    try:
+        import yaml
+
+        data = yaml.safe_load(text)
+        if isinstance(data, dict):
+            return data
+    except Exception:  # noqa: BLE001 — fall back to the minimal parser
+        pass
+    return _parse_yaml_fallback(text)
+
+
+def _parse_yaml_fallback(text: str) -> dict[str, Any]:
+    """Minimal YAML parser for frontmatter — used only when PyYAML is
+    unavailable or produced a non-mapping. Handles: scalars, lists (inline
+    [...] and block - item), nested dicts (one level)."""
+    result: dict[str, Any] = {}
+    current_key: str | None = None
+    current_list: list | None = None
+    parent_key: str | None = None  # for one-level nesting (e.g., triggers:)
+    parent_dict: dict | None = None
+
+    for line in text.split("\n"):
+        if not line.strip() or line.strip().startswith("#"):
+            continue
+
+        indent = len(line) - len(line.lstrip())
+        stripped = line.strip()
+
+        # Block list item: "  - value"
+        if stripped.startswith("- ") and current_key is not None:
+            target = parent_dict if parent_dict and indent >= 4 else result
+            if current_list is None:
+                current_list = []
+                target[current_key] = current_list
+            val = stripped[2:].strip().strip('"').strip("'")
+            try:
+                val = int(val)
+            except (ValueError, TypeError):
+                pass
+            current_list.append(val)
+            continue
+
+        # Key: value
+        if ":" in stripped:
+            key, _, val = stripped.partition(":")
+            key = key.strip()
+            val = val.strip()
+            current_list = None
+
+            # Detect nesting: indented key under a parent
+            if indent >= 2 and parent_key and parent_dict is not None:
+                current_key = key
+                target = parent_dict
+            else:
+                # Top-level key — reset nesting
+                current_key = key
+                parent_key = None
+                parent_dict = None
+                target = result
+
+            if not val:
+                # This key has no inline value — it starts a nested dict or list
+                if indent == 0:
+                    parent_key = key
+                    parent_dict = {}
+                    result[key] = parent_dict
+                continue
+
+            # Inline list: [a, b, c]
+            if val.startswith("[") and val.endswith("]"):
+                inner = val[1:-1].strip()
+                if not inner:
+                    target[key] = []
+                else:
+                    items = []
+                    for item in inner.split(","):
+                        item = item.strip().strip('"').strip("'")
+                        try:
+                            item = int(item)
+                        except (ValueError, TypeError):
+                            pass
+                        items.append(item)
+                    target[key] = items
+                continue
+
+            # Scalar
+            val = val.strip('"').strip("'")
+            if val.lower() == "true":
+                val = True
+            elif val.lower() == "false":
+                val = False
+            else:
+                try:
+                    val = int(val)
+                except (ValueError, TypeError):
+                    pass
+            target[key] = val
+
+    return result
+
+
+def _coerce_str_list(value: Any) -> list[str]:
+    """Coerce a frontmatter list-field (keywords/tech/required_tools/
+    forbidden_tools) to ``list[str]``.
+
+    A scalar becomes a 1-element list; list/tuple items are stringified (so a bare
+    int keyword like ``403`` becomes ``"403"`` instead of crashing ``.match()``
+    with ``'int' object has no attribute 'lower'``); ``None``/mappings are dropped.
+    This is what the "degrade per-field" comment below promised but only delivered
+    for ``ports``/``priority`` — a scalar ``required_tools``/``forbidden_tools`` was
+    silently iterated character-by-character, and a non-str keyword crashed matching.
+    """
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (list, tuple)):
+        return [str(v) for v in value if v is not None and not isinstance(v, (dict, list, tuple, set))]
+    # A bare scalar (int/float/bool) → stringify as a single item.
+    return [str(value)]
+
+
+def _parse_skill_file(path: Path) -> Skill | None:
+    """Parse one .md file into a Skill object."""
+    try:
+        # utf-8-sig strips a leading BOM: a playbook saved by a Windows editor
+        # with a BOM would otherwise fail the `^---` frontmatter regex and be
+        # dropped silently from the registry.
+        text = path.read_text(encoding="utf-8-sig")
+    except Exception as e:
+        logger.warning("Failed to read skill %s: %s", path, e)
+        return None
+
+    m = _FRONTMATTER_RE.match(text)
+    if not m:
+        logger.warning("No frontmatter in %s", path)
+        return None
+
+    fm_text = m.group(1)
+    fm = _parse_yaml_simple(fm_text)
+    body = text[m.end() :].strip()
+
+    # Pre-hooks support: opt-in. If the skill declares `pre_hooks:`, we
+    # need a YAML parser that handles list-of-dicts (the simple parser
+    # does not). Use PyYAML when present; fall back gracefully and skip
+    # pre_hooks when it's not — the skill still loads.
+    pre_hooks: tuple = ()
+    if "pre_hooks:" in fm_text:
+        try:
+            import yaml  # PyYAML, available in our base deps via transitives
+
+            from kryon.skills.pre_hook_spec import (
+                PreHookSchemaError,
+                parse_pre_hooks,
+            )
+
+            full = yaml.safe_load(fm_text) or {}
+            raw_hooks = full.get("pre_hooks")
+            try:
+                pre_hooks = parse_pre_hooks(
+                    raw_hooks,
+                    source_dir=str(path.parent),
+                )
+            except PreHookSchemaError as schema_err:
+                logger.warning(
+                    "pre_hooks schema error in %s: %s — skipping skill",
+                    path,
+                    schema_err,
+                )
+                return None
+        except ImportError:
+            logger.warning(
+                "skill %s declares pre_hooks but PyYAML is not installed — skill will load WITHOUT pre_hooks",
+                path,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "Failed to parse pre_hooks in %s: %s — skill will load WITHOUT pre_hooks",
+                path,
+                e,
+            )
+
+    triggers = fm.get("triggers", {})
+    if not isinstance(triggers, dict):
+        triggers = {}
+
+    # A single mistyped field (e.g. `priority: high`, `ports: [any]`) must NOT
+    # crash the whole loader — that would take down create_unified_agent() and
+    # `kryon investigate` for every skill, not just this one. Degrade per-field.
+    ports: list[int] = []
+    for p in triggers.get("ports") or []:
+        try:
+            ports.append(int(p))
+        except (ValueError, TypeError):
+            logger.warning("Skill %s: invalid port %r — ignoring", path, p)
+
+    try:
+        priority = int(fm.get("priority", 50))
+    except (ValueError, TypeError):
+        logger.warning("Skill %s: invalid priority %r — defaulting to 50", path, fm.get("priority"))
+        priority = 50
+
+    return Skill(
+        name=fm.get("name", path.stem),
+        description=fm.get("description", ""),
+        triggers={
+            "tech": _coerce_str_list(triggers.get("tech")),
+            "ports": ports,
+            "keywords": _coerce_str_list(triggers.get("keywords")),
+        },
+        priority=priority,
+        required_tools=_coerce_str_list(fm.get("required_tools")),
+        body=body,
+        source_path=path,
+        forbidden_tools=tuple(_coerce_str_list(fm.get("forbidden_tools"))),
+        pre_hooks=pre_hooks,
+    )
+
+
+def _effective_skill_budget(default: int) -> int:
+    """Resolve the skill-body token budget. ``KRYON_SKILL_BUDGET_TOKENS`` overrides;
+    otherwise a capable model (large window) gets a larger budget — the 6000 default
+    was tuned for the 4B-local schema/prompt cost, irrelevant for a capable remote
+    model, and it drops offensive playbooks mid-ranking. Twin of ``_effective_max_tools``
+    in tool_budget.py."""
+    from kryon.util.env import env_int, is_capable_model  # noqa: PLC0415
+
+    override = env_int("KRYON_SKILL_BUDGET_TOKENS", 0)
+    if override > 0:
+        return override
+    if is_capable_model():
+        return max(default, 20000)
+    return default
+
+
+class SkillLoader:
+    """Loads and matches skill playbooks from markdown files."""
+
+    def __init__(self, skill_dirs: list[Path] | None = None):
+        # Copy the caller's list — appending KRYON_SKILLS_DIR must not mutate
+        # the object they passed (aliasing would duplicate the dir on a second
+        # SkillLoader built from the same list).
+        self._dirs = list(skill_dirs) if skill_dirs else [_DEFAULT_SKILL_DIR]
+        extra = os.environ.get("KRYON_SKILLS_DIR")
+        if extra:
+            self._dirs.append(Path(extra))
+        self._cache: dict[Path, tuple[float, Skill]] = {}
+
+    def scan(self) -> list[Skill]:
+        """Parse all .md files in skill directories. Caches by mtime.
+
+        Skips any subdirectory whose name starts with `_` or `.` so that
+        `_drafts/`, `_archive/`, and similar staging areas don't pollute
+        the live skill registry. Drafts promoted via `/skill promote`
+        land in `_drafts/` and become active only after the operator
+        moves them to a regular directory.
+        """
+        skills: list[Skill] = []
+        seen_names: dict[str, Path] = {}
+        for d in self._dirs:
+            if not d.exists():
+                continue
+            # Recursive scan so subdirectories (e.g. imported/) are picked up
+            for md_file in sorted(d.rglob("*.md")):
+                # Honour underscore/dot-prefixed parent dirs as "ignored".
+                if any(part.startswith(("_", ".")) for part in md_file.relative_to(d).parts[:-1]):
+                    continue
+                mtime = md_file.stat().st_mtime
+                cached = self._cache.get(md_file)
+                skill: Skill | None
+                if cached and cached[0] == mtime:
+                    skill = cached[1]
+                else:
+                    skill = _parse_skill_file(md_file)
+                    if skill:
+                        self._cache[md_file] = (mtime, skill)
+                if not skill:
+                    continue
+                # Reject a second file declaring an already-seen skill name:
+                # both would match independently and the composite prompt would
+                # inject BOTH bodies (double token spend), while get_by_name()
+                # would return whichever scanned first.
+                prior = seen_names.get(skill.name)
+                if prior is not None and prior != md_file:
+                    logger.warning(
+                        "Duplicate skill name %r at %s (already defined at %s) — ignoring duplicate",
+                        skill.name,
+                        md_file,
+                        prior,
+                    )
+                    continue
+                seen_names[skill.name] = md_file
+                skills.append(skill)
+        return skills
+
+    def match(
+        self,
+        profile: dict[str, Any] | None = None,
+        user_msg: str = "",
+        # Cap de tokens de skill bodies inyectados al prompt. Se mantiene en 6000:
+        # bajarlo a 3500 dejaba afuera skills primarias grandes (web-pentest ~3.7K,
+        # proxmox-audit) y el match devolvía []. El recorte real del prompt debe
+        # venir de adelgazar esos bodies (con bench antes/después), no del cap.
+        # El ahorro seguro ya se tomó en select_tools (max_tools 30→15).
+        budget_tokens: int = 6000,
+        *,
+        ranking: str | None = None,
+        experience_loader: Any = None,
+        goal: Any = None,
+    ) -> list[Skill]:
+        """Return skills matching the target profile + user message.
+
+        Args:
+            profile: optional target profile dict (tech / ports).
+            user_msg: free text from the operator.
+            budget_tokens: cap on the composed prompt size.
+            ranking: "priority" (legacy default), "hybrid" (priority +
+                experience-based tie-break), or "score" (pure score —
+                experimental, NOT recommended for banking compliance).
+                If None, the env var `KRYON_SKILL_RANKING` is consulted;
+                if that's absent or invalid, "priority" wins.
+            experience_loader: callable returning a list of experience
+                dicts. Only invoked under hybrid/score modes. When None,
+                the runtime defaults to `kryon.learning.list_experiences`;
+                tests inject a stub to avoid ChromaDB.
+        """
+        all_skills = self.scan()
+        if not all_skills:
+            return []
+
+        profile = profile or {}
+        user_lower = user_msg.lower()
+        target_tech = set(t.lower() for t in (profile.get("tech") or []))
+        target_ports = set(profile.get("ports") or [])
+
+        # F130 — Goal-aware bumps. The operator declared an EngagementGoal
+        # via --objective; map the GoalKind + params to a set of skill
+        # names that should be prioritised. The bump adds a constant to
+        # the skill's priority (higher = ranks earlier) so it surfaces
+        # ahead of the generic base skills.
+        goal_skill_bumps = _bumps_from_goal(goal)
+
+        scored: list[tuple[int, Skill]] = []
+        for skill in all_skills:
+            # Defense-in-depth: one malformed skill (e.g. a third-party playbook
+            # imported via updater.py with an odd trigger shape) must never crash
+            # matching for EVERY skill. _coerce_str_list already normalizes the
+            # known cases at parse time; this is the backstop for anything else.
+            try:
+                triggers = skill.triggers
+                matched = False
+
+                # Keyword match (highest signal). Whole-word — see
+                # `_keyword_matches` for why substring is broken.
+                if triggers.get("keywords"):
+                    if any(_keyword_matches(kw, user_lower) for kw in triggers["keywords"]):
+                        matched = True
+
+                # Tech match
+                if not matched and triggers.get("tech"):
+                    if target_tech & set(t.lower() for t in triggers["tech"]):
+                        matched = True
+
+                # Port match
+                if not matched and triggers.get("ports"):
+                    if target_ports & set(triggers["ports"]):
+                        matched = True
+
+                # F130 — Goal bump: if this skill is on the goal's wish list,
+                # accept it even when no other trigger matched, so e.g. a
+                # COMPLIANCE PCI-DSS objective surfaces the pci-dss-audit
+                # skill even against a target whose nmap output didn't
+                # mention PCI.
+                if not matched and skill.name in goal_skill_bumps:
+                    matched = True
+
+                # Base skill (empty triggers) — always matches
+                if not triggers.get("tech") and not triggers.get("ports") and not triggers.get("keywords"):
+                    matched = True
+            except Exception as e:  # noqa: BLE001 — skip the bad skill, keep matching the rest
+                logger.warning("Skill %s: matching error %r — skipping this skill", skill.name, e)
+                continue
+
+            if matched:
+                # F130 — In this codebase priority is sorted ASC
+                # (lower = more important), see rank_skills_hybrid.
+                # So a "bump" SUBTRACTS from the priority to move the
+                # skill to the front. Bumps are designed to dwarf the
+                # 1-40 range used by playbooks so even priority=40 with
+                # a generous bump lands ahead of priority=10 untouched.
+                effective_priority = skill.priority - goal_skill_bumps.get(skill.name, 0)
+                scored.append((effective_priority, skill))
+
+        # Apply ranking (priority by default; hybrid/score consult experiences).
+        effective_ranking = self._resolve_ranking_mode(ranking)
+        scored, scores_by_name = self._apply_ranking_with_scores(
+            scored,
+            effective_ranking,
+            experience_loader,
+        )
+
+        # Accumulate until budget (greedy PACKING, not first-overflow stop). ``break``
+        # abandoned the rest of the ranking the moment one skill didn't fit, so a big
+        # generic skill (web-pentest ~4.4K tok) could evict smaller, more specific ones
+        # (wordpress-audit ~490 tok) that fit easily. ``continue`` skips the one that
+        # doesn't fit and keeps packing the smaller specific skills.
+        # A capable model (large window) can ingest every matched playbook; the 6000
+        # cap was tuned for the 4B's schema-token cost. Lift it so offensive skill
+        # bodies (the tactical playbooks) aren't dropped mid-ranking.
+        budget_tokens = _effective_skill_budget(budget_tokens)
+
+        selected: list[Skill] = []
+        tokens_used = 0
+        for _, skill in scored:
+            est_tokens = len(skill.body) // 4  # rough estimate
+            if tokens_used + est_tokens > budget_tokens:
+                continue
+            selected.append(skill)
+            tokens_used += est_tokens
+
+        # Telemetry — best-effort, never raises (selection_telemetry swallows).
+        try:
+            from kryon.learning.selection_telemetry import log_selection
+
+            candidates_payload = [
+                {
+                    "name": s.name,
+                    "priority": prio,
+                    "score": (scores_by_name[s.name] if scores_by_name and s.name in scores_by_name else None),
+                }
+                for prio, s in scored
+            ]
+            log_selection(
+                user_msg=user_msg,
+                ranking_mode=effective_ranking,
+                candidates=candidates_payload,
+                selected=[s.name for s in selected],
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.debug("selection telemetry skipped: %s", e)
+
+        return selected
+
+    def _resolve_ranking_mode(self, ranking: str | None) -> str:
+        """Resolve final ranking mode: explicit arg > env var > priority.
+
+        F77.G.5 adds 'dual' — Wilson + reusability blend. Still respects
+        priority as primary sort, same banking-safety contract as
+        'hybrid'."""
+        if ranking is None:
+            ranking = os.environ.get("KRYON_SKILL_RANKING", "").strip().lower()
+        if ranking in ("hybrid", "score", "dual"):
+            return ranking
+        return "priority"
+
+    def _apply_ranking_with_scores(
+        self,
+        scored: list[tuple[int, Skill]],
+        ranking: str,
+        experience_loader: Any,
+    ) -> tuple[list[tuple[int, Skill]], dict[str, float] | None]:
+        """Reorder `scored` per ranking mode; also return per-name scores
+        (or None when in priority mode — telemetry then logs score=null).
+
+        Hybrid/score are best-effort: if the experience loader fails
+        (chromadb unavailable, schema mismatch, etc.), fall back to
+        priority and return None for scores.
+        """
+        if ranking == "priority":
+            return sorted(scored, key=lambda x: x[0]), None
+
+        try:
+            experiences = self._load_experiences_for_ranking(experience_loader)
+            from kryon.learning.skill_scorer import (
+                rank_skills_dual,
+                rank_skills_hybrid,
+                rank_skills_score_only,
+                score_skills,
+            )
+
+            # F77.G.5 — pull selection telemetry only for the dual mode
+            # so the legacy hybrid / score paths stay byte-equivalent to
+            # before. Best-effort: if telemetry can't be read, dual
+            # degrades gracefully to Wilson-only ranking.
+            telemetry_records: list[dict[str, Any]] | None = None
+            if ranking == "dual":
+                try:
+                    from kryon.learning.selection_telemetry import read_recent
+
+                    telemetry_records = read_recent(limit=500)
+                except Exception as e:  # noqa: BLE001
+                    logger.debug("dual ranking: telemetry unavailable (%s); ignoring", e)
+                    telemetry_records = None
+
+            skill_names = [s.name for _, s in scored]
+            scores = score_skills(
+                experiences=experiences,
+                skill_names=skill_names,
+                telemetry_records=telemetry_records,
+            )
+            pairs = [(s.name, prio) for prio, s in scored]
+            if ranking == "hybrid":
+                ranker = rank_skills_hybrid
+            elif ranking == "dual":
+                ranker = rank_skills_dual
+            else:
+                ranker = rank_skills_score_only
+            ranked_pairs = ranker(pairs, scores)
+            by_name = {s.name: (prio, s) for prio, s in scored}
+            ordered = [by_name[name] for name, _ in ranked_pairs]
+            # Surface the score the ranker actually used: combined for
+            # dual, Wilson for hybrid/score. Telemetry consumers
+            # downstream (skill scores REPL, exports) get the same
+            # number that drove the decision.
+            if ranking == "dual":
+                scores_by_name = {n: scores[n].combined_score for n in scores}
+            else:
+                scores_by_name = {n: scores[n].confidence_lower for n in scores}
+            return ordered, scores_by_name
+        except Exception as e:  # noqa: BLE001
+            logger.debug("ranking %r failed, falling back to priority: %s", ranking, e)
+            return sorted(scored, key=lambda x: x[0]), None
+
+    def _load_experiences_for_ranking(self, experience_loader: Any) -> list[dict]:
+        """Resolve which loader to call. Tests inject; runtime uses chromadb."""
+        if experience_loader is not None:
+            return experience_loader()
+        # Default: pull from the experience store. Imports lazily so
+        # priority-mode runs never touch chromadb.
+        from kryon.learning import list_experiences
+
+        return list_experiences(limit=500)
+
+    def get_by_name(self, name: str) -> Skill | None:
+        """Direct lookup by skill name."""
+        for skill in self.scan():
+            if skill.name == name:
+                return skill
+        return None
+
+    def required_tool_names(self, skills: list[Skill]) -> set[str]:
+        """Union of required_tools across all given skills."""
+        names: set[str] = set()
+        for skill in skills:
+            names.update(skill.required_tools)
+        return names
+
+    def forbidden_tool_names(self, skills: list[Skill]) -> set[str]:
+        """Union of forbidden_tools — removed from final set even if ambient."""
+        names: set[str] = set()
+        for skill in skills:
+            names.update(skill.forbidden_tools or ())
+        return names
+
+    def list_names(self) -> list[str]:
+        """Return all available skill names."""
+        return [s.name for s in self.scan()]

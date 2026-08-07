@@ -1,0 +1,84 @@
+"""AD/Windows probes — SMB signing (NTLM-relay enabler) + WinRM exposure.
+
+The SMB signing parse is unit-tested against crafted SMB2 NEGOTIATE responses
+(can't assume a live Samba/Windows host); WinRM + the dispatch are graceful-checked."""
+
+from __future__ import annotations
+
+import kryon.cli.ad_probes as ad
+from kryon.cli.ad_probes import _smb2_negotiate_packet, run_ad_probes
+from kryon.cli.engage import DiscoveredService
+
+
+def _fake_smb2_resp(security_mode: int) -> bytes:
+    # NetBIOS(4) + SMB2 header(64, magic at 4) + body StructureSize(2) + SecurityMode(2) + pad
+    return b"\x00\x00\x00\x4e" + b"\xfeSMB" + b"\x00" * 60 + b"\x41\x00" + security_mode.to_bytes(2, "little") + b"\x00" * 10
+
+
+def test_smb2_negotiate_packet_well_formed():
+    pkt = _smb2_negotiate_packet()
+    assert int.from_bytes(pkt[1:4], "big") == len(pkt) - 4  # NetBIOS length matches payload
+    assert pkt[4:8] == b"\xfeSMB"  # SMB2 magic
+
+
+def test_smb_signing_not_required_detected(monkeypatch):
+    # SecurityMode 0x0001 = SIGNING_ENABLED but NOT required → relayable.
+    monkeypatch.setattr(ad, "_tcp", lambda *a, **k: _fake_smb2_resp(0x0001))
+    svc = DiscoveredService(host="10.0.0.5", port=445, state="open", service="smb")
+    f = ad._check_smb_signing(svc)
+    assert f is not None and f.rule_id == "smb-signing-not-required"
+    assert f.cwe == "CWE-287"
+
+
+def test_smb_signing_required_no_finding(monkeypatch):
+    # 0x0003 = SIGNING_ENABLED | SIGNING_REQUIRED → safe, no finding.
+    monkeypatch.setattr(ad, "_tcp", lambda *a, **k: _fake_smb2_resp(0x0003))
+    svc = DiscoveredService(host="10.0.0.5", port=445, state="open", service="smb")
+    assert ad._check_smb_signing(svc) is None
+
+
+def test_smb_signing_non_smb_response(monkeypatch):
+    monkeypatch.setattr(ad, "_tcp", lambda *a, **k: b"not an smb response at all....................")
+    svc = DiscoveredService(host="10.0.0.5", port=445, state="open", service="smb")
+    assert ad._check_smb_signing(svc) is None
+
+
+def test_run_ad_probes_graceful_on_dead_hosts():
+    for port in (445, 5985, 5986, 139):
+        svc = DiscoveredService(host="127.0.0.1", port=port, state="open", service="")
+        assert isinstance(run_ad_probes(svc), list)  # never raises
+
+
+# ---------------------------------------------------------------------------
+# Batch G — SMBv1 enabled (EternalBlue/MS17-010 surface)
+# ---------------------------------------------------------------------------
+
+
+def test_smbv1_negotiate_packet_well_formed():
+    from kryon.cli.ad_probes import _smbv1_negotiate_packet
+
+    pkt = _smbv1_negotiate_packet()
+    assert int.from_bytes(pkt[1:4], "big") == len(pkt) - 4  # NetBIOS length matches
+    assert pkt[4:8] == b"\xffSMB"  # SMBv1 magic
+    assert pkt[8] == 0x72  # NEGOTIATE command
+
+
+def test_smbv1_enabled_detected(monkeypatch):
+    from kryon.cli.ad_probes import _check_smbv1
+
+    # \xffSMB response to our NEGOTIATE (cmd 0x72) = SMBv1 spoken.
+    resp = b"\x00\x00\x00\x20" + b"\xffSMB" + b"\x72" + b"\x00" * 50
+    monkeypatch.setattr(ad, "_tcp", lambda *a, **k: resp)
+    f = _check_smbv1(DiscoveredService(host="x", port=445, state="open", service="smb"))
+    assert f is not None and f.rule_id == "smbv1-enabled" and f.severity == "HIGH"
+
+
+def test_smbv1_disabled_returns_none(monkeypatch):
+    from kryon.cli.ad_probes import _check_smbv1
+
+    # SMB2 (\xfeSMB) reply = SMBv1 disabled → no finding.
+    resp = b"\x00\x00\x00\x20" + b"\xfeSMB" + b"\x00" * 50
+    monkeypatch.setattr(ad, "_tcp", lambda *a, **k: resp)
+    assert _check_smbv1(DiscoveredService(host="x", port=445, state="open", service="smb")) is None
+    monkeypatch.setattr(ad, "_tcp", lambda *a, **k: None)  # no response
+    assert _check_smbv1(DiscoveredService(host="x", port=445, state="open", service="smb")) is None

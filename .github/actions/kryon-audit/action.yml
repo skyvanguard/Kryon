@@ -1,0 +1,100 @@
+# F89.2 — Kryon Security Audit · composite GitHub Action.
+#
+# Runs the Kryon CI entrypoint and uploads the resulting SARIF to
+# GitHub Code Scanning.
+#
+# Requirements (NOT installed by this action):
+#   - A self-hosted runner with Kryon available (pip or container).
+#     The kryon-kali image is 8-12 GB —
+#     it doesn't fit in GitHub-hosted runners' 14 GB tmpfs.
+#   - A prior step that produced a findings JSON (typically
+#     `kryon engage --emit-findings`) — this action consumes that
+#     file; it doesn't orchestrate the engagement itself.
+#
+# Outputs surfaced via $GITHUB_OUTPUT:
+#   - sarif-path     · path to the generated SARIF
+#   - findings-count · total findings count
+#   - critical-count · CRITICAL severity count
+#   - failing-count  · count meeting/exceeding `fail-on` threshold
+
+name: 'Kryon Security Audit'
+description: 'Convert Kryon findings to SARIF + upload to GitHub Code Scanning'
+author: 'Kryon'
+
+inputs:
+  findings:
+    description: 'Path to the findings JSON file (output of `kryon engage --emit-findings`).'
+    required: true
+  sarif-out:
+    description: 'Path to write the SARIF output.'
+    required: false
+    default: 'kryon.sarif'
+  fail-on:
+    description: 'Severity gate (info|low|medium|high|critical|never). Default: high.'
+    required: false
+    default: 'high'
+  upload-sarif:
+    description: 'Upload SARIF to GitHub Code Scanning when true. Default: true.'
+    required: false
+    default: 'true'
+  include-evidence:
+    description: 'Surface evidence into SARIF message.markdown. DEFAULT FALSE (banca-safety: evidence may carry token/PAN fragments).'
+    required: false
+    default: 'false'
+  tool-version:
+    description: 'Tool version string for the SARIF tool driver block.'
+    required: false
+    default: '2.1.0'
+  engagement-id:
+    description: 'Optional engagement id stamped into SARIF run.properties.'
+    required: false
+    default: ''
+  client:
+    description: 'Optional client name stamped into SARIF run.properties.'
+    required: false
+    default: ''
+
+outputs:
+  sarif-path:
+    description: 'Path to the generated SARIF file.'
+    value: ${{ steps.audit.outputs.sarif-path }}
+  findings-count:
+    description: 'Total findings count.'
+    value: ${{ steps.audit.outputs.findings-count }}
+  critical-count:
+    description: 'CRITICAL severity count.'
+    value: ${{ steps.audit.outputs.critical-count }}
+  failing-count:
+    description: 'Findings count meeting/exceeding the fail-on threshold.'
+    value: ${{ steps.audit.outputs.failing-count }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Kryon CI audit
+      id: audit
+      shell: bash
+      run: |
+        EVIDENCE_FLAG=""
+        if [ "${{ inputs.include-evidence }}" = "true" ]; then
+          EVIDENCE_FLAG="--include-evidence"
+        fi
+        python -m scripts.ci.kryon_audit \
+          --findings "${{ inputs.findings }}" \
+          --sarif-out "${{ inputs.sarif-out }}" \
+          --fail-on "${{ inputs.fail-on }}" \
+          --tool-version "${{ inputs.tool-version }}" \
+          --engagement-id "${{ inputs.engagement-id }}" \
+          --client "${{ inputs.client }}" \
+          $EVIDENCE_FLAG
+      # We deliberately do NOT continue-on-error: the audit step's
+      # exit code IS the gate signal. To run the upload regardless,
+      # the next step uses `if: always()`.
+
+    - name: Upload SARIF to Code Scanning
+      if: always() && inputs.upload-sarif == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ inputs.sarif-out }}
+        # Lets Code Scanning group findings by Kryon vs other tools.
+        category: kryon

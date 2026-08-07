@@ -1,0 +1,328 @@
+# ---------------------------------------------------------------------------
+# ATM Security Framework — BCP Paraguay 2024 disposition (F43)
+# ---------------------------------------------------------------------------
+# Based on BCP Paraguay's 2024 ATM/POS disposition + PCI PTS POI v6.2 +
+# ISO 20022 ATM messaging requirements. Covers the ATM stack end-to-end:
+# 1. Physical / peripherals (anti-skimming, camera, PIN pad cert)
+# 2. OS + XFS middleware (Windows 10 IoT, NDC/DDC, firmware)
+# 3. Network + cryptography (TR-31, mTLS to host switch)
+# 4. Operations + card handling (retries, retention, reconciliation)
+#
+# These checks target ATM hosts running Windows 10 IoT Enterprise LTSC
+# (2019/2021) with Diebold Nixdorf Vynamic / NCR APTRA Advance NDC.
+# Auditor accesses ATM via read-only WinRM session from bastion, or
+# SSH-over-Linux gateway where vendor service account allows it.
+# Where a check is inapplicable (e.g. no anti-skim sensor) it passes
+# vacuously — Kryon flags them as INFO in the PDF report.
+# ---------------------------------------------------------------------------
+
+framework:
+  id: atm-security-bcp-2024
+  title: "ATM Security — BCP Paraguay 2024 disposition"
+  version: "0.1.0"
+  source: "BCP PY 2024 ATM disposition + PCI PTS POI v6.2 + ISO 20022"
+  description: >
+    Hardening checks for ATM network hosts (Windows 10 IoT + NDC/DDC
+    middleware). Covers physical anti-skim, OS hardening, cryptographic
+    transport (TR-31 key block), and card-handling operations. Maps to
+    BCP PY 2024 ATM disposition Art. 5-12, PCI-DSS 9.9, and PCI PTS.
+
+checks:
+  # =========================================================================
+  # Section 1 — Physical & peripheral integrity
+  # =========================================================================
+  - id: ATM-1.1
+    title: "Ensure PIN pad is PCI PTS POI v5 or v6 certified (not EPP legacy)"
+    section: "1"
+    severity: CRITICAL
+    rationale: "PIN entry devices below PCI PTS POI v5 (pre-2017) are vulnerable to tamper-bypass attacks and cannot rotate keys via TR-31."
+    remediation: "Replace EPP module with a PCI PTS POI v6.2-certified unit; coordinate with ATM vendor under maintenance contract"
+    command: "reg query 'HKLM\\SOFTWARE\\Vendor\\ATM\\EPP' /v PCI_PTS_VERSION 2>nul || wmic path Win32_PnPEntity where \"Description like '%EPP%'\" get PNPDeviceID,Name /format:list 2>nul || echo NOT_ON_ATM"
+    pass_when:
+      any_of:
+        - stdout_matches: "NOT_ON_ATM"
+        - stdout_matches: "PCI_PTS_VERSION.*(5|6)\\.[0-9]+"
+
+  - id: ATM-1.2
+    title: "Ensure anti-skimming sensor (FDI) is enabled and reporting"
+    section: "1"
+    severity: CRITICAL
+    rationale: "BCP 2024 disp. Art. 6 requires active FDI (Foreign Device Inhibitor) on card readers. Skimmers placed on the bezel must trigger SW_FDI_ALERT."
+    remediation: "Enable FDI module in NDC config; verify sensor calibration via vendor diagnostic tool; wire alert to SIEM"
+    command: "reg query 'HKLM\\SOFTWARE\\Vendor\\ATM\\FDI' /v STATUS 2>nul; type C:\\NDC\\log\\fdi.log 2>nul | findstr /i \"FDI_ALERT\\|FDI_ACTIVE\" | tail -5"
+    pass_when:
+      any_of:
+        - stdout_matches: "STATUS.*ACTIVE"
+        - stdout_matches: "FDI_ACTIVE"
+
+  - id: ATM-1.3
+    title: "Ensure privacy shield on keypad is present and intact"
+    section: "1"
+    severity: MEDIUM
+    rationale: "BCP 2024 disp. Art. 8 requires physical PIN shroud to prevent shoulder-surfing."
+    remediation: "Install or replace PIN shroud per vendor spec; log inspection quarterly"
+    command: "type C:\\ATM-maintenance\\last-inspection.txt 2>nul | findstr /i \"privacy.*shield.*OK\""
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "OK"
+
+  - id: ATM-1.4
+    title: "Ensure overhead camera records continuously during customer sessions"
+    section: "1"
+    severity: HIGH
+    rationale: "BCP 2024 Art. 9 — camera footage with 90-day retention, recording card slot + face + keypad."
+    remediation: "Configure CCTV NVR with 90-day retention; validate sync with ATM session IDs for forensics"
+    command: "wmic service where \"name like 'CCTV%' or name like 'Milestone%' or name like 'Axis%'\" get Name,State 2>nul | findstr /i \"running\" | head -3"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "[Rr]unning"
+
+  - id: ATM-1.5
+    title: "Ensure cash cassette locks have unique combinations per ATM"
+    section: "1"
+    severity: HIGH
+    rationale: "Shared master-key combinations across branches allow a single compromised technician to loot the whole network."
+    remediation: "Rotate combinations per site; record in secure keychain app; audit quarterly"
+    command: "type C:\\ATM-maintenance\\cassette-log.txt 2>nul | findstr /i \"unique.*OK\\|rotated\" | tail -3"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "OK|rotated"
+
+  # =========================================================================
+  # Section 2 — Operating system + XFS middleware
+  # =========================================================================
+  - id: ATM-2.1
+    title: "Ensure ATM host runs Windows 10 IoT Enterprise LTSC (2019 or 2021)"
+    section: "2"
+    severity: HIGH
+    rationale: "Non-IoT Windows editions receive ads/Store updates that break ATM certification. Pre-2019 LTSC is EOL."
+    remediation: "Re-image to Windows 10 IoT Enterprise LTSC 2021 (support until Jan 2032) per vendor Gold Image"
+    command: "wmic os get Caption,Version /format:list 2>nul | findstr /i \"Caption Version\""
+    pass_when:
+      any_of:
+        - stdout_matches: "IoT.*Enterprise.*LTSC"
+        - stdout_matches: "10\\.0\\.(17763|19044|19045)"
+
+  - id: ATM-2.2
+    title: "Ensure Windows Defender Application Control (WDAC) is in enforce mode"
+    section: "2"
+    severity: CRITICAL
+    rationale: "WDAC policy restricts execution to vendor-signed ATM binaries. Audit-only mode lets arbitrary EXEs run."
+    remediation: "Deploy WDAC policy in enforce mode with vendor PCA signature; exclude no paths"
+    command: "powershell -nop -c \"(Get-CimInstance -ClassName Win32_DeviceGuard -Namespace root\\Microsoft\\Windows\\DeviceGuard).CodeIntegrityPolicyEnforcementStatus\" 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "^2$"
+
+  - id: ATM-2.3
+    title: "Ensure BitLocker full-disk encryption is enabled on C: and D:"
+    section: "2"
+    severity: HIGH
+    rationale: "A stolen ATM hard drive contains keys, firmware, and transaction logs. BitLocker with TPM-only or TPM+PIN is required."
+    remediation: "Enable BitLocker via Manage-bde -on C: -RecoveryPassword; escrow key to enterprise AD"
+    command: "manage-bde -status C: 2>nul | findstr /i \"Protection Status\""
+    pass_when:
+      stdout_matches: "Protection On"
+
+  - id: ATM-2.4
+    title: "Ensure unnecessary Windows services are disabled (Print Spooler, RemoteRegistry, WinRM from non-admin)"
+    section: "2"
+    severity: MEDIUM
+    rationale: "ATM hosts should run only NDC/DDC stack + AV + WDAC; everything else is attack surface."
+    remediation: "sc config Spooler start= disabled; sc config RemoteRegistry start= disabled"
+    command: "sc query Spooler 2>nul | findstr STATE; sc query RemoteRegistry 2>nul | findstr STATE"
+    pass_when:
+      not:
+        stdout_matches: "RUNNING"
+
+  - id: ATM-2.5
+    title: "Ensure NDC/DDC middleware is at vendor-supported version with CVE patches"
+    section: "2"
+    severity: HIGH
+    rationale: "NCR APTRA <12.0 and Diebold Vynamic <4.1 have documented RCE paths (CVE-2018-9099, CVE-2021-XXXX)."
+    remediation: "Apply vendor current release bundle; subscribe to vendor PSIRT alerts"
+    command: "reg query 'HKLM\\SOFTWARE\\NCR\\APTRA' /v Version 2>nul; reg query 'HKLM\\SOFTWARE\\Diebold\\Vynamic' /v Version 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "Version.*(12\\.|1[3-9]\\.|4\\.[1-9]|5\\.|6\\.)"
+
+  - id: ATM-2.6
+    title: "Ensure XFS SP (Service Provider) binaries are signed by vendor and code-integrity protected"
+    section: "2"
+    severity: HIGH
+    rationale: "Unsigned or tampered XFS SP DLLs allow cash-out malware (Cutlet Maker, ATMitch family)."
+    remediation: "Verify signatures via sigcheck64.exe -q -u -e C:\\XFS\\*.dll; WDAC signer rules enforce"
+    command: "powershell -nop -c \"Get-AuthenticodeSignature C:\\XFS\\*.dll 2>$null | Where-Object {$_.Status -ne 'Valid'} | Measure-Object | Select-Object -ExpandProperty Count\""
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "^0\\s*$"
+
+  - id: ATM-2.7
+    title: "Ensure auto-login is disabled and screen locks on session end"
+    section: "2"
+    severity: MEDIUM
+    rationale: "Technician sessions must auto-lock; auto-login is a frequent finding on default vendor images."
+    remediation: "reg add HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon /v AutoAdminLogon /d 0"
+    command: "reg query 'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon' /v AutoAdminLogon 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "AutoAdminLogon.*0x0"
+
+  - id: ATM-2.8
+    title: "Ensure USB mass storage is blocked at OS layer (beyond physical lock)"
+    section: "2"
+    severity: HIGH
+    rationale: "Even with cash safe locked, a USB port on the head lets a technician inject malware (Black Box attacks)."
+    remediation: "Set HKLM\\SYSTEM\\CurrentControlSet\\Services\\USBSTOR\\Start = 4 (disabled); enforce via GPO"
+    command: "reg query 'HKLM\\SYSTEM\\CurrentControlSet\\Services\\USBSTOR' /v Start 2>nul"
+    pass_when:
+      stdout_matches: "Start.*0x4"
+
+  # =========================================================================
+  # Section 3 — Network & cryptography
+  # =========================================================================
+  - id: ATM-3.1
+    title: "Ensure ATM-to-host transport is mTLS or IPsec (not plain TCP NDC)"
+    section: "3"
+    severity: CRITICAL
+    rationale: "Plaintext NDC/DDC over the WAN exposes PINs and track data to any MITM in the payment network."
+    remediation: "Enable mTLS via NDC.ini ENCRYPT=TLS; distribute client cert per ATM from bank CA"
+    command: "type C:\\NDC\\ndc.ini 2>nul | findstr /i \"encrypt\\|tls\\|ipsec\" | head -3"
+    pass_when:
+      stdout_matches: "(TLS|IPSEC|ENCRYPT)"
+
+  - id: ATM-3.2
+    title: "Ensure PIN keys are wrapped using TR-31 key block (not legacy variant/X9.17)"
+    section: "3"
+    severity: CRITICAL
+    rationale: "PCI PTS POI v6 mandates TR-31 key blocks with KBPK for symmetric key distribution; pre-TR-31 keys are forbidden from 2022."
+    remediation: "Coordinate with HSM vendor to migrate KPE / KEK to TR-31 format; audit key ceremony"
+    command: "type C:\\ATM\\config\\key-format.txt 2>nul | findstr /i \"TR-31\\|TR31\""
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "TR-?31"
+
+  - id: ATM-3.3
+    title: "Ensure ATM management VLAN is isolated from branch Wi-Fi / guest / POS"
+    section: "3"
+    severity: HIGH
+    rationale: "A flat branch LAN lets a compromised Wi-Fi guest reach the ATM host; VLAN + private IP + firewall is mandatory."
+    remediation: "Move ATMs to dedicated /29 per branch; firewall ACL restricting to host switch + monitoring only"
+    command: "ipconfig /all 2>nul | findstr /i \"IPv4 Address\\|Default Gateway\" | head -4"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: ATM-3.4
+    title: "Ensure TLS to host switch uses TLS 1.2+ and not TLS 1.0/1.1"
+    section: "3"
+    severity: HIGH
+    remediation: "Registry: HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Internet Settings set SecureProtocols = 0xAA0 (TLS1.2)"
+    command: "reg query 'HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Client' /v Enabled 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "Enabled.*0x0"
+
+  - id: ATM-3.5
+    title: "Ensure DNS is resolved via internal bank resolver (not 8.8.8.8 / 1.1.1.1 public)"
+    section: "3"
+    severity: MEDIUM
+    rationale: "Public DNS on ATMs leaks query patterns to third parties and risks DNS spoofing on the WAN."
+    remediation: "Set static DNS to internal recursive resolvers; block outbound :53 to anything else"
+    command: "ipconfig /all 2>nul | findstr /i \"DNS Servers\" | head -4"
+    pass_when:
+      not:
+        stdout_matches: "(8\\.8\\.8\\.8|1\\.1\\.1\\.1|9\\.9\\.9\\.9)"
+
+  - id: ATM-3.6
+    title: "Ensure clock is synchronized to bank-controlled NTP, not public pool"
+    section: "3"
+    severity: MEDIUM
+    rationale: "Transaction timestamps must be consistent with host switch; drift > 5s breaks TR-31 key ceremony + reconciliation."
+    command: "w32tm /query /source 2>nul; w32tm /query /status 2>nul | findstr /i \"last sync\""
+    pass_when:
+      not:
+        stdout_matches: "(pool\\.ntp\\.org|time\\.windows\\.com|time\\.apple\\.com)"
+    remediation: "w32tm /config /manualpeerlist:\"ntp-internal.bank.local,0x8\" /syncfromflags:manual /update"
+
+  # =========================================================================
+  # Section 4 — Operations & card handling
+  # =========================================================================
+  - id: ATM-4.1
+    title: "Ensure wrong-PIN retry limit is <= 3 before card retention"
+    section: "4"
+    severity: HIGH
+    rationale: "BCP 2024 disp. Art. 11: three wrong PINs must retain the card and notify the issuer."
+    remediation: "NDC config: MAX_PIN_RETRIES=3, ON_EXHAUSTED=RETAIN"
+    command: "type C:\\NDC\\config\\pin.cfg 2>nul | findstr /i \"max.*retries\\|pin.*attempts\""
+    pass_when:
+      stdout_matches: "(=\\s*[1-3]\\b)"
+
+  - id: ATM-4.2
+    title: "Ensure cash dispenser reconciles with journal log every shift"
+    section: "4"
+    severity: HIGH
+    rationale: "Unreconciled cash events hide cash-out malware disbursements (Ploutus family)."
+    command: "type C:\\ATM\\journal\\last-recon.log 2>nul | findstr /i \"balanced\\|reconciled\" | tail -1"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "(balanced|reconciled)"
+    remediation: "Enable vendor EOD reconciliation job; diff EJ total vs cassette counter; alert on mismatch"
+
+  - id: ATM-4.3
+    title: "Ensure EJ (Electronic Journal) is forwarded to central log server daily"
+    section: "4"
+    severity: HIGH
+    rationale: "Local-only EJ is destroyed in a successful attack. Central collection is required for forensics + BCP audit."
+    remediation: "Configure NDC EJ forwarder to syslog; retention on central server = 7 years per PCI-DSS 10.5"
+    command: "type C:\\NDC\\ej\\forwarder.cfg 2>nul | findstr /i \"syslog\\|remote\\|forward\""
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "(syslog|remote|forward).*=\\s*\\S"
+
+  - id: ATM-4.4
+    title: "Ensure retained-card box is secured and inventoried weekly"
+    section: "4"
+    severity: MEDIUM
+    rationale: "Retained cards are a PII + cloning target; must be in locked bin with tamper-evident seal."
+    remediation: "Physical audit checklist; cards destroyed via cross-cut shredder if unclaimed after 30 days"
+    command: "type C:\\ATM-maintenance\\retained-card-log.txt 2>nul | findstr /i \"sealed\\|destroyed\" | tail -3"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "(sealed|destroyed)"
+
+  - id: ATM-4.5
+    title: "Ensure customer session transaction receipt does not print full PAN"
+    section: "4"
+    severity: HIGH
+    rationale: "PCI-DSS 3.3 — no more than first 6 + last 4 PAN digits on any customer receipt or journal."
+    remediation: "NDC screen template: replace {PAN} with {MASKED_PAN} in transaction.rcp"
+    command: "type C:\\NDC\\receipts\\transaction.rcp 2>nul | findstr /i \"{PAN}\\|{MASKED_PAN}\""
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_not_matches: "\\{PAN\\}"
+
+  - id: ATM-4.6
+    title: "Ensure fraud-monitoring agent (velocity, geo, amount) is enabled on host switch"
+    section: "4"
+    severity: HIGH
+    rationale: "BCP 2024 Art. 12 requires real-time transaction scoring before disbursement for ATM withdrawals."
+    remediation: "Integrate host switch with FICO Falcon / SAS Fraud Management; set decline threshold per amount tier"
+    command: "type C:\\ATM\\fraud-agent\\status.txt 2>nul | findstr /i \"enabled\\|active\" | head -1"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "(enabled|active)"

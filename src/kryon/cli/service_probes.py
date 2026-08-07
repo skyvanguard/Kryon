@@ -1,0 +1,1001 @@
+"""Deterministic network-service detectors — the gap-closers below the existing
+``_check_*`` set in engage.py. Each confirms a real, common finding by a READ-ONLY
+probe (banca-safe), returns ``Finding`` objects, and degrades to ``None``/[] on any
+error so a probe failure never breaks an engagement.
+
+The high-value findings (open Redis/Mongo/Elastic, public SNMP, anonymous FTP) are
+the ones that appear in nearly every real network sweep but were not covered: the
+DB dispatch only emitted the generic CWE-319 "exposed without TLS", never the
+critical CWE-306 "unauthenticated access". These probes confirm the no-auth access.
+
+Imports the data types from engage at module scope; engage imports THESE lazily
+inside its dispatch, so there is no import cycle (engage is fully loaded by then).
+"""
+
+from __future__ import annotations
+
+import re
+import socket
+import struct
+
+from kryon.cli.engage import DiscoveredService, Finding
+
+# Low-level primitives live in probe_base now; re-exported here so the ~13 modules
+# that do `from kryon.cli.service_probes import _f, _tcp, _udp, _http_get` (and the
+# tests that monkeypatch them) keep working unchanged.
+from kryon.cli.probe_base import (
+    DEFAULT_T as _T,
+    TLS_PORTS,
+    TLS_SERVICES,
+    _f,
+    _http_get,
+    _tcp,
+    _udp,
+    peer_cert,
+    run_table,
+    tls_handshake_ok,
+)
+
+__all__ = ["TLS_PORTS", "TLS_SERVICES", "_f", "_http_get", "_tcp", "_udp", "run_table"]
+
+
+# ---------------------------------------------------------------------------
+# High-value: open data stores (CWE-306 unauthenticated access)
+# ---------------------------------------------------------------------------
+
+
+def _tls_key_is_weak(pub_key) -> tuple[bool, int | None, bool]:
+    """Decide if a TLS cert public key is cryptographically weak, key-TYPE aware.
+
+    ``key_size`` is the modulus bits for RSA/DSA/DH (weak < 2048) but the CURVE bits for EC keys,
+    where 256 (P-256) is strong (≈ RSA-3072). The old check compared every key against 2048, which
+    false-positived ECDSA P-256 certs as "weak 256-bit" (e.g. example.com). Ed25519/Ed448 have no
+    ``key_size`` and are never weak.
+
+    Returns ``(is_weak, key_size, is_ec)``.
+    """
+    from cryptography.hazmat.primitives.asymmetric import ec as _ec  # noqa: PLC0415
+
+    is_ec = isinstance(pub_key, _ec.EllipticCurvePublicKey)
+    key_size = getattr(pub_key, "key_size", None)
+    if key_size is None:
+        return False, None, is_ec  # Ed25519/Ed448 etc. — modern, not weak
+    min_bits = 256 if is_ec else 2048
+    return key_size < min_bits, key_size, is_ec
+
+
+def _check_redis(svc: DiscoveredService) -> Finding | None:
+    """Redis reachable WITHOUT auth. PING returns +PONG when no requirepass;
+    -NOAUTH/-ERR when authentication is enforced."""
+    resp = _tcp(svc.host, svc.port, b"*1\r\n$4\r\nPING\r\n", 64)
+    if resp is None:
+        return None
+    txt = resp.decode("latin-1", "replace")
+    if txt.startswith("+PONG"):
+        return _f(
+            svc,
+            "CWE-306",
+            "CRITICAL",
+            "redis-noauth",
+            f"Redis accesible SIN autenticación en {svc.host}:{svc.port} (respondió PING).",
+            f"PING → {txt.strip()!r} (sin requirepass: lectura/escritura completa, posible RCE vía CONFIG SET)",
+            "Setear 'requirepass' + bind a loopback/red interna; nunca exponer Redis a internet.",
+        )
+    return None
+
+
+def _check_mongodb(svc: DiscoveredService) -> Finding | None:
+    """MongoDB reachable WITHOUT auth — uses pymongo (soft dep, graceful skip).
+    Confirms by listing databases unauthenticated (read-only)."""
+    try:
+        from pymongo import MongoClient  # noqa: PLC0415 — soft dep
+        from pymongo.errors import OperationFailure, PyMongoError
+    except ImportError:
+        return None
+    try:
+        c = MongoClient(svc.host, svc.port, serverSelectionTimeoutMS=3000, connectTimeoutMS=3000)
+        dbs = c.list_database_names()  # raises OperationFailure if auth required
+        c.close()
+    except OperationFailure:
+        return None  # auth enforced — safe
+    except PyMongoError:
+        return None  # unreachable / not mongo
+    return _f(
+        svc,
+        "CWE-306",
+        "CRITICAL",
+        "mongodb-noauth",
+        f"MongoDB accesible SIN autenticación en {svc.host}:{svc.port}.",
+        f"list_database_names() sin credenciales devolvió {len(dbs)} DB(s): {dbs[:5]}",
+        "Habilitar authorization (security.authorization: enabled) + bind interno.",
+    )
+
+
+def _check_elasticsearch(svc: DiscoveredService) -> Finding | None:
+    """Elasticsearch/OpenSearch HTTP API open without auth (200 + cluster JSON)."""
+    import urllib.request  # noqa: PLC0415
+
+    for path in ("/_cluster/health", "/"):
+        try:
+            req = urllib.request.Request(f"http://{svc.host}:{svc.port}{path}", headers={"User-Agent": "kryon"})
+            with urllib.request.urlopen(req, timeout=_T) as r:  # noqa: S310 — fixed scheme
+                body = r.read(800).decode("latin-1", "replace")
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 403):
+                return None  # auth enforced — safe
+            continue
+        except (OSError, ValueError):
+            continue
+        if any(k in body for k in ('"cluster_name"', '"number_of_nodes"', "You Know, for Search", '"cluster_uuid"')):
+            return _f(
+                svc,
+                "CWE-306",
+                "CRITICAL",
+                "elasticsearch-open",
+                f"Elasticsearch/OpenSearch expuesto SIN auth en {svc.host}:{svc.port}.",
+                f"GET {path} → 200 con metadata de cluster (acceso de lectura a todos los índices)",
+                "Habilitar security (xpack/opensearch-security) + auth; nunca exponer 9200 a internet.",
+            )
+    return None
+
+
+# ---------------------------------------------------------------------------
+# High-value: classic exposed services
+# ---------------------------------------------------------------------------
+
+
+def _check_ftp_anon(svc: DiscoveredService) -> Finding | None:
+    """Anonymous FTP login allowed (USER anonymous → 230)."""
+    try:
+        with socket.create_connection((svc.host, svc.port), timeout=_T) as s:
+            s.settimeout(_T)
+            banner = s.recv(256).decode("latin-1", "replace")
+            if not banner.startswith("220"):
+                return None
+            s.sendall(b"USER anonymous\r\n")
+            s.recv(256)
+            s.sendall(b"PASS kryon@example.com\r\n")
+            resp = s.recv(256).decode("latin-1", "replace")
+    except (TimeoutError, OSError):
+        return None
+    if resp.startswith("230"):
+        return _f(
+            svc,
+            "CWE-306",
+            "HIGH",
+            "ftp-anonymous",
+            f"FTP anónimo habilitado en {svc.host}:{svc.port}.",
+            f"USER anonymous / PASS → {resp.strip()!r}",
+            "Deshabilitar login anónimo; usar SFTP/FTPS con credenciales.",
+        )
+    return None
+
+
+def _check_snmp_public(svc: DiscoveredService) -> Finding | None:
+    """SNMP responds to a default community string (public/private). UDP/161."""
+    # SNMPv1 GET sysDescr (1.3.6.1.2.1.1.1.0); community bytes patched per attempt.
+    for community in (b"public", b"private"):
+        pkt = (
+            b"\x30"
+            + bytes([0x1D + len(community)])
+            + b"\x02\x01\x00\x04"
+            + bytes([len(community)])
+            + community
+            + b"\xa0\x19\x02\x04\x00\x00\x00\x01\x02\x01\x00\x02\x01\x00"
+            + b"\x30\x0b\x30\x09\x06\x05\x2b\x06\x01\x02\x01\x05\x00"
+        )
+        resp = _udp(svc.host, svc.port, pkt, 512)
+        if resp and resp[:1] == b"\x30":  # a BER SNMP response sequence
+            return _f(
+                svc,
+                "CWE-1392",
+                "HIGH",
+                "snmp-default-community",
+                f"SNMP responde a la community por defecto '{community.decode()}' en {svc.host}:{svc.port}.",
+                f"GET-request con community '{community.decode()}' devolvió respuesta BER ({len(resp)} bytes)",
+                "Cambiar las community strings por valores fuertes; preferir SNMPv3 con auth+priv.",
+            )
+    return None
+
+
+def _check_telnet(svc: DiscoveredService) -> Finding | None:
+    """Telnet exposed (cleartext admin protocol). Negotiation IAC or login prompt."""
+    resp = _tcp(svc.host, svc.port, b"", 64)
+    if resp is None:
+        return None
+    if resp[:1] == b"\xff" or b"login:" in resp.lower() or b"username:" in resp.lower():
+        return _f(
+            svc,
+            "CWE-319",
+            "MEDIUM",
+            "telnet-exposed",
+            f"Telnet expuesto en {svc.host}:{svc.port} (protocolo en texto plano).",
+            f"Respondió con negociación/banner Telnet ({resp[:16]!r})",
+            "Reemplazar Telnet por SSH; cerrar el puerto 23.",
+        )
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Secondary: handshake-confirmed exposures
+# ---------------------------------------------------------------------------
+
+
+def _check_vnc(svc: DiscoveredService) -> Finding | None:
+    """VNC offering the 'None' (type 1) security type = no-auth screen access."""
+    try:
+        with socket.create_connection((svc.host, svc.port), timeout=_T) as s:
+            s.settimeout(_T)
+            ver = s.recv(12)
+            if not ver.startswith(b"RFB "):
+                return None
+            s.sendall(ver)  # echo the version to proceed
+            data = s.recv(64)
+    except (TimeoutError, OSError):
+        return None
+    # RFB 3.7+: [count][types...]; type 1 == None (no auth)
+    if len(data) >= 2 and data[0] >= 1 and 1 in data[1 : 1 + data[0]]:
+        return _f(
+            svc,
+            "CWE-306",
+            "HIGH",
+            "vnc-noauth",
+            f"VNC ofrece acceso SIN autenticación (security type 'None') en {svc.host}:{svc.port}.",
+            f"Handshake RFB {ver[4:11].decode('latin-1', 'replace')} ofreció el tipo de seguridad None",
+            "Configurar autenticación VNC + tunelizar sobre SSH/VPN; nunca exponer 5900 directo.",
+        )
+    return None
+
+
+def _check_rsync(svc: DiscoveredService) -> Finding | None:
+    """rsync daemon exposed (@RSYNCD banner) — often lists modules without auth."""
+    resp = _tcp(svc.host, svc.port, b"", 64)
+    if resp is None or not resp.startswith(b"@RSYNCD:"):
+        return None
+    return _f(
+        svc,
+        "CWE-306",
+        "MEDIUM",
+        "rsync-daemon-exposed",
+        f"Daemon rsync expuesto en {svc.host}:{svc.port}.",
+        f"Banner {resp.strip()[:40]!r} (los módulos suelen ser listables/accesibles sin auth)",
+        "Requerir 'auth users'+'secrets file' por módulo, o tunelizar rsync sobre SSH.",
+    )
+
+
+def _check_rdp(svc: DiscoveredService) -> Finding | None:
+    """RDP exposed; flags missing NLA (CredSSP) which widens the attack surface."""
+    cr = bytes.fromhex("030000130ee000000000000100080003000000")
+    resp = _tcp(svc.host, svc.port, cr, 64)
+    if resp is None or resp[:2] != b"\x03\x00":
+        return None
+    # X.224 negotiation response (type 0x02) carries the selectedProtocol byte:
+    # 0=standard (no NLA), 1=TLS-only (STILL no NLA), 2=CredSSP/NLA, 4=RDSTLS,
+    # 8=HYBRID_EX. NLA requires selectedProtocol >= 2 — the old code tested
+    # resp[15] for *any* nonzero value, so a TLS-only server (proto=1, still
+    # brute-forceable) was misreported as "con NLA" (a security false-negative).
+    nla = len(resp) > 15 and resp[11] == 0x02 and resp[15] >= 0x02
+    if not nla:
+        return _f(
+            svc,
+            "CWE-287",
+            "MEDIUM",
+            "rdp-no-nla",
+            f"RDP expuesto sin NLA (Network Level Authentication) en {svc.host}:{svc.port}.",
+            f"Negociación X.224 respondió sin requerir CredSSP/TLS ({resp[:20].hex()})",
+            "Forzar NLA + restringir RDP a VPN/jump-host; aplicar parches (BlueKeep CVE-2019-0708).",
+        )
+    return _f(
+        svc,
+        "CWE-200",
+        "LOW",
+        "rdp-exposed",
+        f"RDP expuesto en {svc.host}:{svc.port} (con NLA).",
+        "Servicio RDP alcanzable; superficie de ataque/brute-force.",
+        "Restringir RDP a VPN/jump-host aunque tenga NLA.",
+    )
+
+
+def _check_postgres_trust(svc: DiscoveredService) -> Finding | None:
+    """PostgreSQL with 'trust' auth — connects with NO password (AuthenticationOk)."""
+    params = b"user\x00postgres\x00database\x00postgres\x00\x00"
+    body = struct.pack(">I", 0x00030000) + params
+    startup = struct.pack(">I", len(body) + 4) + body
+    try:
+        with socket.create_connection((svc.host, svc.port), timeout=_T) as s:
+            s.settimeout(_T)
+            s.sendall(startup)
+            resp = s.recv(32)
+    except (TimeoutError, OSError):
+        return None
+    # 'R' (Authentication) + len(8) + authtype; 0 == AuthenticationOk (trust, no pw)
+    if len(resp) >= 9 and resp[:1] == b"R" and struct.unpack(">I", resp[5:9])[0] == 0:
+        return _f(
+            svc,
+            "CWE-306",
+            "CRITICAL",
+            "postgres-trust-auth",
+            f"PostgreSQL acepta conexión SIN contraseña (auth 'trust') en {svc.host}:{svc.port}.",
+            "StartupMessage user=postgres → AuthenticationOk (sin password)",
+            "Cambiar pg_hba.conf de 'trust' a 'scram-sha-256'; bind interno.",
+        )
+    return None
+
+
+def _check_ntp_monlist(svc: DiscoveredService) -> Finding | None:
+    """NTP monlist (mode 7) enabled — DDoS amplification vector. UDP/123."""
+    monlist = b"\x17\x00\x03\x2a" + b"\x00" * 4
+    resp = _udp(svc.host, svc.port, monlist, 512)
+    if resp and len(resp) > 8:
+        return _f(
+            svc,
+            "CWE-406",
+            "MEDIUM",
+            "ntp-monlist",
+            f"NTP responde a monlist (mode 7) en {svc.host}:{svc.port} — vector de amplificación DDoS.",
+            f"Request monlist devolvió {len(resp)} bytes (factor de amplificación alto)",
+            "Deshabilitar 'monlist' (noquery) o actualizar ntpd >= 4.2.7p26.",
+        )
+    return None
+
+
+def _check_smtp(svc: DiscoveredService) -> list[Finding]:
+    """SMTP hygiene: AUTH over cleartext (no STARTTLS) + VRFY user enumeration."""
+    vrfy = ""
+    try:
+        with socket.create_connection((svc.host, svc.port), timeout=_T) as s:
+            s.settimeout(_T)
+            if not s.recv(256).startswith(b"220"):
+                return []
+            s.sendall(b"EHLO kryon.local\r\n")
+            caps = s.recv(512).decode("latin-1", "replace")
+            s.sendall(b"VRFY root\r\n")
+            vrfy = s.recv(256).decode("latin-1", "replace")
+    except (TimeoutError, OSError):
+        return []
+    out: list[Finding] = []
+    if "AUTH" in caps.upper() and "STARTTLS" not in caps.upper():
+        out.append(
+            _f(
+                svc,
+                "CWE-319",
+                "MEDIUM",
+                "smtp-cleartext-auth",
+                f"SMTP ofrece AUTH sin STARTTLS en {svc.host}:{svc.port} (credenciales en texto plano).",
+                "EHLO anunció AUTH pero no STARTTLS",
+                "Habilitar STARTTLS y rechazar AUTH sobre conexiones no cifradas.",
+            )
+        )
+    # 250/251 to VRFY = definitive existence answer (enumeration). 252 is non-committal; ignore.
+    if vrfy[:3] in ("250", "251"):
+        out.append(
+            _f(
+                svc,
+                "CWE-200",
+                "LOW",
+                "smtp-vrfy-enabled",
+                f"SMTP VRFY habilitado en {svc.host}:{svc.port} — enumeración de cuentas locales.",
+                f"VRFY root → {vrfy.strip()[:60]}",
+                "Deshabilitar VRFY/EXPN (Postfix: disable_vrfy_command=yes).",
+            )
+        )
+    return out
+
+
+def _check_ldap_anon(svc: DiscoveredService) -> Finding | None:
+    """LDAP anonymous bind allowed (bindRequest empty DN+pw → success resultCode 0)."""
+    # LDAPv3 anonymous bindRequest, messageID 1
+    bind = bytes.fromhex("300c020101600702010104008000")
+    resp = _tcp(svc.host, svc.port, bind, 32)
+    if resp is None or resp[:1] != b"\x30":
+        return None
+    # bindResponse (app 1 = 0x61) carrying enumerated resultCode 0x00 (success)
+    if b"\x61" in resp and b"\x0a\x01\x00" in resp:
+        return _f(
+            svc,
+            "CWE-287",
+            "MEDIUM",
+            "ldap-anonymous-bind",
+            f"LDAP permite bind anónimo en {svc.host}:{svc.port}.",
+            "bindRequest con DN/password vacíos → resultCode success (0)",
+            "Deshabilitar bind anónimo (dsHeuristics / -allow-anonymous-bind off).",
+        )
+    return None
+
+
+# A line that reads like a leaked credential: keyword:value, a user:pass pair, or a PEM key header.
+_NFS_CRED_RE = re.compile(
+    r"(?im)^(?:"
+    r".*(?:pass(?:word|wd)?|pwd|secret|api[_-]?key|token|cred)\s*[:=]\s*\S.*"  # keyword: value
+    r"|[a-z][\w.-]*:[^\s:/]{6,}"  # user:password
+    r"|-----BEGIN (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----"  # private key
+    r")$"
+)
+
+
+def _nfs_enum_exports(host: str) -> list[str]:
+    """Enumerate NFS exports via nmap's nfs-showmount (always shipped; no CAP_SYS_ADMIN). [] on failure."""
+    import shutil  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
+
+    if not shutil.which("nmap"):
+        return []
+    try:
+        out = subprocess.run(  # noqa: S603 — fixed argv, host is the scan target
+            ["nmap", "-Pn", "-p", "111", "--script", "nfs-showmount", host],  # noqa: S607
+            capture_output=True,
+            text=True,
+            timeout=60,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return re.findall(r"^\|[_ ]*\s+(/\S+)", out, re.M)  # "|_  /mnt/share *"
+
+
+def _nfs_loot_export(host: str, export: str) -> list[tuple[str, str]]:
+    """Read files from an NFS export WITHOUT a kernel mount (no CAP_SYS_ADMIN) via libnfs, brute-forcing
+    the client UID to defeat UID-mapping (a mode-0700 file owned by a service UID reads once you spoof
+    that UID). Returns [(filename, content)]. Empty if libnfs (nfs-ls/nfs-cat) is absent."""
+    import shutil  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
+
+    if not (shutil.which("nfs-ls") and shutil.which("nfs-cat")):
+        return []
+
+    def run(args: list[str]) -> subprocess.CompletedProcess[str] | None:
+        try:
+            return subprocess.run(args, capture_output=True, text=True, timeout=20)  # noqa: S603
+        except (OSError, subprocess.SubprocessError):
+            return None
+
+    listing_uid, names = None, []
+    for uid in (0, 1000, 1001, 1002, 1003, 1004, 1005, 1006, 33, 48):
+        r = run(["nfs-ls", f"nfs://{host}{export}?uid={uid}&gid={uid}"])
+        if r and r.returncode == 0 and r.stdout.strip() and "ACCES" not in (r.stderr or ""):
+            listing_uid = uid
+            names = [ln.split()[-1] for ln in r.stdout.splitlines() if ln.split() and not ln.lstrip().startswith("d")]
+            break
+    if listing_uid is None:
+        return []
+    loot = []
+    for name in names[:25]:
+        c = run(["nfs-cat", f"nfs://{host}{export}/{name}?uid={listing_uid}&gid={listing_uid}"])
+        if c and c.returncode == 0 and c.stdout:
+            loot.append((name, c.stdout[:4000]))
+    return loot
+
+
+def _nfs_loot_exports(svc: DiscoveredService) -> list[Finding]:
+    """Auto-exploit an exposed NFS server: enumerate exports, read accessible files (UID-spoof bypass for
+    UID-mapped exports), surface leaked creds/keys. The detect-only check stopped at the flag; THM Hijack's
+    /mnt/share leaked FTP creds in a 0700 file owned by UID 1003 that only a UID-spoof read reveals."""
+    out: list[Finding] = []
+    exports = _nfs_enum_exports(svc.host)
+    if not exports:
+        return out
+    out.append(
+        _f(
+            svc,
+            "CWE-552",
+            "MEDIUM",
+            "nfs-exports-listed",
+            f"Exports NFS enumerados en {svc.host}: {', '.join(exports[:8])}.",
+            f"nmap nfs-showmount listó {len(exports)} export(s)",
+            "Restringir exports a una allowlist de hosts; root_squash on; firewall a 2049/mountd.",
+        )
+    )
+    for export in exports[:5]:
+        for name, content in _nfs_loot_export(svc.host, export):
+            creds = "; ".join(dict.fromkeys(m.group(0).strip() for m in _NFS_CRED_RE.finditer(content)))[:240]
+            if creds:
+                out.append(
+                    _f(
+                        svc,
+                        "CWE-200",
+                        "HIGH",
+                        "nfs-readable-secret",
+                        f"Archivo NFS legible (UID-spoof) {export}/{name} filtra credenciales: {creds}",
+                        f"nfs-cat sobre {export}/{name} (UID-mapping bypasseado) → líneas tipo credencial",
+                        "No exponer archivos sensibles vía NFS; root_squash + all_squash; permisos estrictos.",
+                    )
+                )
+    return out
+
+
+def _check_nfs_rpcbind(svc: DiscoveredService) -> list[Finding]:
+    """rpcbind/portmapper (111) exposed; flags NFS/mountd registered = exported FS. When NFS is exposed,
+    AUTO-EXPLOIT: enumerate exports and read accessible files (UID-spoof bypass) to surface leaked creds —
+    the detect-only check left that pivot (THM Hijack: /mnt/share -> FTP creds) on the table.
+    portmap v2 DUMP (proc 4) over TCP — read-only, lists registered RPC programs."""
+    call = (
+        b"\x12\x34\x56\x78\x00\x00\x00\x00\x00\x00\x00\x02"  # XID, CALL, rpcvers 2
+        b"\x00\x01\x86\xa0\x00\x00\x00\x02\x00\x00\x00\x04"  # prog 100000, vers 2, proc 4 (DUMP)
+        b"\x00\x00\x00\x00\x00\x00\x00\x00"  # cred null
+        b"\x00\x00\x00\x00\x00\x00\x00\x00"  # verf null
+    )
+    framed = struct.pack(">I", 0x80000000 | len(call)) + call  # TCP RPC record marker
+    resp = _tcp(svc.host, svc.port, framed, 4096)
+    if resp is None or len(resp) < 24:
+        return []
+    # NFS = 100003 (0x000186a3), mountd = 100005 (0x000186a5)
+    if b"\x00\x01\x86\xa3" in resp or b"\x00\x01\x86\xa5" in resp:
+        out = [
+            _f(
+                svc,
+                "CWE-306",
+                "HIGH",
+                "nfs-exposed",
+                f"NFS/mountd registrado en rpcbind expuesto en {svc.host}:{svc.port}.",
+                "portmap DUMP listó el programa NFS (100003)/mountd (100005) — exports accesibles vía showmount",
+                "Restringir exports (no_root_squash off, allowlist de hosts) + firewall a 111/2049/mountd.",
+            )
+        ]
+        out.extend(_nfs_loot_exports(svc))
+        return out
+    return [
+        _f(
+            svc,
+            "CWE-200",
+            "LOW",
+            "rpcbind-exposed",
+            f"rpcbind/portmapper expuesto en {svc.host}:{svc.port} (enumeración de servicios RPC).",
+            f"portmap DUMP devolvió {len(resp)} bytes con programas registrados",
+            "Firewall a 111; deshabilitar rpcbind si no se usa NFS/NIS.",
+        )
+    ]
+
+
+def _check_mssql(svc: DiscoveredService) -> Finding | None:
+    """MSSQL exposed — TDS pre-login confirms the engine and leaks the version."""
+    payload = bytes.fromhex("0000001a0006010020000102002100010300220004ff")
+    version = b"\x00" * 6 + b"\x00"
+    body = payload + version
+    pkt = struct.pack(">BBH", 0x12, 0x01, len(body) + 8) + b"\x00\x00\x00\x00" + body
+    resp = _tcp(svc.host, svc.port, pkt, 256)
+    if resp is None or resp[:1] != b"\x04":  # TDS server response packet
+        return None
+    # The VERSION token payload (major.minor) sits just past the option table.
+    ver = f"{resp[10]}.{resp[11]}" if len(resp) > 11 else ""
+    return _f(
+        svc,
+        "CWE-200",
+        "LOW",
+        "mssql-exposed",
+        f"Microsoft SQL Server expuesto en {svc.host}:{svc.port} (TDS responde al pre-login).",
+        f"Pre-login TDS respondió{(' versión ~' + ver) if ver else ''} — superficie de brute-force/CVE",
+        "Restringir 1433 a red interna/VPN; forzar Force Encryption; deshabilitar sa o usar password fuerte.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Open data stores / infra services (HTTP + TCP), CWE-306 unauthenticated access
+# ---------------------------------------------------------------------------
+
+
+def _check_memcached(svc: DiscoveredService) -> Finding | None:
+    """Memcached reachable without auth (stats returns STAT lines). Also a UDP
+    amplification vector when 11211/udp answers."""
+    resp = _tcp(svc.host, svc.port, b"stats\r\n", 512)
+    if resp and resp.startswith(b"STAT "):
+        amp = _udp(svc.host, svc.port, b"\x00\x00\x00\x00\x00\x01\x00\x00stats\r\n", 1024)
+        extra = " + responde por UDP (amplificación DDoS)" if amp else ""
+        return _f(
+            svc,
+            "CWE-306",
+            "HIGH",
+            "memcached-noauth",
+            f"Memcached accesible SIN autenticación en {svc.host}:{svc.port}{extra}.",
+            f"stats → {resp[:40]!r} (lectura/escritura de cache sin auth; SASL off)",
+            "Habilitar SASL + bind interno; deshabilitar UDP (-U 0) para cortar la amplificación.",
+        )
+    return None
+
+
+def _check_zookeeper(svc: DiscoveredService) -> Finding | None:
+    """Zookeeper four-letter command 'stat' answers without auth (info leak)."""
+    resp = _tcp(svc.host, svc.port, b"stat", 512)
+    if resp and (b"Zookeeper version" in resp or b"Clients:" in resp):
+        return _f(
+            svc,
+            "CWE-306",
+            "MEDIUM",
+            "zookeeper-noauth",
+            f"Zookeeper responde a comandos 4lw sin auth en {svc.host}:{svc.port}.",
+            f"stat → {resp[:60]!r} (config de cluster, clientes conectados)",
+            "Restringir 4lw.commands.whitelist + ACLs + firewall a 2181.",
+        )
+    return None
+
+
+def _check_couchdb(svc: DiscoveredService) -> Finding | None:
+    r = _http_get(svc.host, svc.port, "/_all_dbs")
+    if r and r[0] == 200 and (r[1].startswith("[") or "_users" in r[1]):
+        return _f(
+            svc,
+            "CWE-306",
+            "CRITICAL",
+            "couchdb-open",
+            f"CouchDB expuesto SIN auth en {svc.host}:{svc.port}.",
+            f"GET /_all_dbs → 200 listó las bases: {r[1][:80]}",
+            "Setear admin (require_valid_user=true) + bind interno.",
+        )
+    return None
+
+
+def _check_etcd(svc: DiscoveredService) -> Finding | None:
+    r = _http_get(svc.host, svc.port, "/version")
+    if r and r[0] == 200 and "etcdserver" in r[1]:
+        return _f(
+            svc,
+            "CWE-306",
+            "CRITICAL",
+            "etcd-open",
+            f"etcd expuesto SIN auth en {svc.host}:{svc.port} (a menudo guarda secrets de Kubernetes).",
+            f"GET /version → {r[1][:80]}",
+            "Habilitar client cert auth (--client-cert-auth) + bind a 127.0.0.1/peers.",
+        )
+    return None
+
+
+def _check_consul(svc: DiscoveredService) -> Finding | None:
+    r = _http_get(svc.host, svc.port, "/v1/catalog/services")
+    if r and r[0] == 200 and r[1].lstrip().startswith("{"):
+        return _f(
+            svc,
+            "CWE-306",
+            "HIGH",
+            "consul-open",
+            f"Consul API/UI expuesto SIN ACL en {svc.host}:{svc.port}.",
+            f"GET /v1/catalog/services → 200 con el catálogo: {r[1][:80]}",
+            "Habilitar ACLs (default deny) + TLS + bind interno.",
+        )
+    return None
+
+
+def _check_solr(svc: DiscoveredService) -> Finding | None:
+    r = _http_get(svc.host, svc.port, "/solr/admin/info/system?wt=json")
+    if r and r[0] == 200 and ("lucene" in r[1] or "solr_home" in r[1]):
+        return _f(
+            svc,
+            "CWE-306",
+            "HIGH",
+            "solr-open",
+            f"Apache Solr admin expuesto SIN auth en {svc.host}:{svc.port}.",
+            "GET /solr/admin/info/system → 200 (Solr admin abierto — históricamente RCE vía VelocityResponseWriter/config)",
+            "Habilitar autenticación (BasicAuth plugin) + bind interno; deshabilitar config edits remotos.",
+        )
+    return None
+
+
+def _check_influxdb(svc: DiscoveredService) -> Finding | None:
+    r = _http_get(svc.host, svc.port, "/query?q=SHOW+DATABASES")
+    if r and r[0] == 200 and '"results"' in r[1]:
+        return _f(
+            svc,
+            "CWE-306",
+            "HIGH",
+            "influxdb-open",
+            f"InfluxDB expuesto SIN auth en {svc.host}:{svc.port}.",
+            f"GET /query?q=SHOW DATABASES → 200 con resultados: {r[1][:80]}",
+            "Setear auth-enabled=true + usuarios; bind interno.",
+        )
+    return None
+
+
+def _check_clickhouse(svc: DiscoveredService) -> Finding | None:
+    r = _http_get(svc.host, svc.port, "/?query=SELECT+1")
+    if r and r[0] == 200 and r[1].strip() == "1":
+        return _f(
+            svc,
+            "CWE-306",
+            "HIGH",
+            "clickhouse-open",
+            f"ClickHouse HTTP expuesto SIN auth en {svc.host}:{svc.port}.",
+            "GET /?query=SELECT 1 → 200 '1' (default user sin password)",
+            "Setear password al user default + bind interno + readonly donde aplique.",
+        )
+    return None
+
+
+def _check_rabbitmq_mgmt(svc: DiscoveredService) -> Finding | None:
+    r = _http_get(svc.host, svc.port, "/api/overview", auth="guest:guest")
+    if r and r[0] == 200 and "rabbitmq_version" in r[1]:
+        return _f(
+            svc,
+            "CWE-1392",
+            "HIGH",
+            "rabbitmq-default-creds",
+            f"RabbitMQ management con credenciales por defecto guest:guest en {svc.host}:{svc.port}.",
+            "GET /api/overview con guest:guest → 200",
+            "Borrar/cambiar el usuario guest; restringir el plugin de management a red interna.",
+        )
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Container / orchestration — CRITICAL: unauthenticated = host/cluster takeover
+# ---------------------------------------------------------------------------
+
+
+def _check_docker_api(svc: DiscoveredService) -> Finding | None:
+    for scheme in ("http", "https"):
+        r = _http_get(svc.host, svc.port, "/version", scheme=scheme)
+        if r and r[0] == 200 and '"ApiVersion"' in r[1] and ('"GoVersion"' in r[1] or '"Os"' in r[1]):
+            return _f(
+                svc,
+                "CWE-306",
+                "CRITICAL",
+                "docker-api-exposed",
+                f"Docker Engine API expuesta SIN auth en {svc.host}:{svc.port}.",
+                f"GET /version ({scheme}) → 200 con metadata de Docker — equivale a RCE root del host (run -v /:/host)",
+                "Nunca exponer 2375; usar el socket local o 2376 con TLS mutuo (--tlsverify).",
+            )
+    return None
+
+
+def _check_kubelet(svc: DiscoveredService) -> Finding | None:
+    r = _http_get(svc.host, svc.port, "/pods", scheme="https")
+    if r and r[0] == 200 and ('"PodList"' in r[1] or '"kind"' in r[1]):
+        return _f(
+            svc,
+            "CWE-306",
+            "CRITICAL",
+            "kubelet-anonymous",
+            f"Kubelet permite acceso anónimo a /pods en {svc.host}:{svc.port}.",
+            "GET https:///pods → 200 con PodList (acceso a /exec, /run → RCE en pods)",
+            "Setear --anonymous-auth=false + --authorization-mode=Webhook en el kubelet.",
+        )
+    return None
+
+
+def _check_k8s_api(svc: DiscoveredService) -> Finding | None:
+    r = _http_get(svc.host, svc.port, "/api/v1/namespaces", scheme="https")
+    if r and r[0] == 200 and '"NamespaceList"' in r[1]:
+        return _f(
+            svc,
+            "CWE-306",
+            "CRITICAL",
+            "k8s-api-anonymous",
+            f"Kubernetes API server permite acceso anónimo en {svc.host}:{svc.port}.",
+            "GET https:///api/v1/namespaces → 200 (anonymous tiene RBAC sobre recursos del cluster)",
+            "Quitar bindings de system:anonymous/system:unauthenticated; --anonymous-auth=false.",
+        )
+    ver = _http_get(svc.host, svc.port, "/version", scheme="https")
+    if ver and ver[0] == 200 and '"gitVersion"' in ver[1]:
+        return _f(
+            svc,
+            "CWE-200",
+            "LOW",
+            "k8s-api-exposed",
+            f"Kubernetes API server alcanzable en {svc.host}:{svc.port} (versión expuesta).",
+            f"GET /version → {ver[1][:80]}",
+            "Restringir el API server a red de management/VPN.",
+        )
+    return None
+
+
+# ---------------------------------------------------------------------------
+# UDP amplification vectors (DDoS — compliance + reputational risk)
+# ---------------------------------------------------------------------------
+
+
+def _check_ssdp(svc: DiscoveredService) -> Finding | None:
+    msearch = (
+        b'M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: "ssdp:discover"\r\nMX: 1\r\nST: ssdp:all\r\n\r\n'
+    )
+    resp = _udp(svc.host, svc.port, msearch, 1024)
+    if resp and (b"HTTP/1.1 200" in resp or b"ST:" in resp):
+        return _f(
+            svc,
+            "CWE-406",
+            "MEDIUM",
+            "ssdp-amplification",
+            f"SSDP/UPnP responde a M-SEARCH en {svc.host}:{svc.port} — vector de amplificación DDoS.",
+            f"M-SEARCH devolvió {len(resp)} bytes (factor de amplificación)",
+            "Bloquear UDP/1900 desde internet; deshabilitar UPnP en el perímetro.",
+        )
+    return None
+
+
+def _check_chargen(svc: DiscoveredService) -> Finding | None:
+    resp = _udp(svc.host, svc.port, b"\x01", 1024)
+    if resp and len(resp) > 50:
+        return _f(
+            svc,
+            "CWE-406",
+            "MEDIUM",
+            "chargen-amplification",
+            f"Servicio CharGen activo en {svc.host}:{svc.port} — amplificación DDoS clásica.",
+            f"Un byte UDP devolvió {len(resp)} bytes de caracteres",
+            "Deshabilitar chargen/echo/qotd (inetd) — son servicios legacy sin uso legítimo.",
+        )
+    return None
+
+
+# ---------------------------------------------------------------------------
+# TLS/SSL hygiene (read-only handshake): cert validity + weak protocol/cipher
+# ---------------------------------------------------------------------------
+
+
+def _check_tls(svc: DiscoveredService) -> list[Finding]:
+    """Expired/self-signed/soon-to-expire cert, legacy TLS 1.0/1.1 accepted, weak
+    negotiated cipher. Read-only TLS handshake; cert parse via cryptography (soft)."""
+    import ssl  # noqa: PLC0415
+
+    pc = peer_cert(svc.host, svc.port, _T)
+    if pc is None:
+        return []  # not TLS / unreachable
+    der, cipher = pc
+
+    out: list[Finding] = []
+    if der:
+        try:
+            from datetime import datetime, timezone  # noqa: PLC0415
+
+            from cryptography import x509  # noqa: PLC0415
+
+            cert = x509.load_der_x509_certificate(der)
+            try:
+                na, now = cert.not_valid_after_utc, datetime.now(timezone.utc)
+            except AttributeError:
+                na, now = cert.not_valid_after, datetime.utcnow()  # noqa: DTZ003
+            days = (na - now).days
+            if days < 0:
+                out.append(
+                    _f(
+                        svc,
+                        "CWE-298",
+                        "HIGH",
+                        "tls-cert-expired",
+                        f"Certificado TLS EXPIRADO en {svc.host}:{svc.port} (venció hace {-days} días).",
+                        f"notAfter={na.isoformat()}",
+                        "Renovar el certificado; automatizar con ACME/Let's Encrypt.",
+                    )
+                )
+            elif days < 30:
+                out.append(
+                    _f(
+                        svc,
+                        "CWE-298",
+                        "LOW",
+                        "tls-cert-expiring",
+                        f"Certificado TLS vence en {days} días en {svc.host}:{svc.port}.",
+                        f"notAfter={na.isoformat()}",
+                        "Renovar antes del vencimiento; automatizar la rotación.",
+                    )
+                )
+            if cert.issuer == cert.subject:
+                out.append(
+                    _f(
+                        svc,
+                        "CWE-295",
+                        "MEDIUM",
+                        "tls-cert-self-signed",
+                        f"Certificado TLS self-signed en {svc.host}:{svc.port}.",
+                        f"issuer == subject ({cert.subject.rfc4514_string()[:60]})",
+                        "Usar un cert emitido por una CA confiable; self-signed habilita MITM.",
+                    )
+                )
+            weak, key_size, is_ec = _tls_key_is_weak(cert.public_key())
+            if weak:
+                min_bits = 256 if is_ec else 2048
+                out.append(
+                    _f(
+                        svc,
+                        "CWE-326",
+                        "MEDIUM",
+                        "tls-weak-key",
+                        f"Clave del certificado TLS débil ({key_size} bits, {'EC' if is_ec else 'RSA/DSA'}) "
+                        f"en {svc.host}:{svc.port}.",
+                        f"public_key key_size={key_size}, ec={is_ec} (mínimo {min_bits})",
+                        "Reemitir el certificado con RSA ≥ 2048 bits o ECDSA P-256 o superior.",
+                    )
+                )
+            sig = getattr(cert.signature_hash_algorithm, "name", "") or ""
+            if sig.lower() in ("md5", "sha1"):
+                out.append(
+                    _f(
+                        svc,
+                        "CWE-327",
+                        "MEDIUM",
+                        "tls-weak-signature",
+                        f"Certificado TLS firmado con {sig.upper()} en {svc.host}:{svc.port} — algoritmo de firma roto.",
+                        f"signature_hash_algorithm={sig}",
+                        "Reemitir el certificado con SHA-256+; rechazar cadenas firmadas con MD5/SHA-1.",
+                    )
+                )
+            try:
+                nb = getattr(cert, "not_valid_before_utc", None) or cert.not_valid_before  # noqa: DTZ001
+                validity_days = (na - nb).days
+                if validity_days > 398:
+                    out.append(
+                        _f(
+                            svc,
+                            "CWE-295",
+                            "LOW",
+                            "tls-cert-long-validity",
+                            f"Certificado TLS con validez excesiva ({validity_days} días) en {svc.host}:{svc.port}.",
+                            f"notBefore→notAfter = {validity_days} días (> 398, límite CA/B Forum)",
+                            "Emitir certificados con vigencia ≤ 398 días; automatizar la rotación (ACME).",
+                        )
+                    )
+            except Exception:  # noqa: BLE001
+                pass
+        except Exception:  # noqa: BLE001 — cert parse best-effort
+            pass
+
+    if cipher and any(w in cipher.upper() for w in ("RC4", "3DES", "DES-CBC", "NULL", "EXPORT", "-MD5")):
+        out.append(
+            _f(
+                svc,
+                "CWE-327",
+                "MEDIUM",
+                "tls-weak-cipher",
+                f"Cipher TLS débil negociado en {svc.host}:{svc.port}: {cipher}.",
+                f"El server prefiere {cipher}",
+                "Deshabilitar RC4/3DES/DES/NULL/EXPORT; usar AEAD (AES-GCM/ChaCha20).",
+            )
+        )
+
+    for ver, label in ((ssl.TLSVersion.TLSv1, "TLS 1.0"), (ssl.TLSVersion.TLSv1_1, "TLS 1.1")):
+        if tls_handshake_ok(svc.host, svc.port, ver):
+            out.append(
+                _f(
+                    svc,
+                    "CWE-327",
+                    "MEDIUM",
+                    "tls-legacy-protocol",
+                    f"{label} aceptado en {svc.host}:{svc.port} (protocolo obsoleto/inseguro).",
+                    f"Handshake forzado con {label} tuvo éxito",
+                    f"Deshabilitar {label} y SSLv3; exigir TLS 1.2+ (idealmente 1.3).",
+                )
+            )
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Dispatch table consumed by engage / investigate: (matcher) -> detector
+# Matcher receives the DiscoveredService; True = run that detector.
+# ---------------------------------------------------------------------------
+
+PROBES: tuple[tuple[str, object, object], ...] = (
+    ("redis", lambda s: s.service == "redis" or s.port == 6379, _check_redis),
+    ("mongodb", lambda s: s.service == "mongodb" or s.port == 27017, _check_mongodb),
+    ("elasticsearch", lambda s: s.port in (9200, 9201), _check_elasticsearch),
+    ("ftp", lambda s: s.service == "ftp" or s.port == 21, _check_ftp_anon),
+    ("snmp", lambda s: s.service == "snmp" or s.port == 161, _check_snmp_public),
+    ("telnet", lambda s: s.service == "telnet" or s.port == 23, _check_telnet),
+    ("vnc", lambda s: s.service in ("vnc", "vnc-http") or 5900 <= s.port <= 5905, _check_vnc),
+    ("rsync", lambda s: s.service == "rsync" or s.port == 873, _check_rsync),
+    ("rdp", lambda s: s.service in ("ms-wbt-server", "rdp") or s.port == 3389, _check_rdp),
+    ("postgres", lambda s: s.service in ("postgresql", "postgres") or s.port == 5432, _check_postgres_trust),
+    ("ntp", lambda s: s.service == "ntp" or s.port == 123, _check_ntp_monlist),
+    ("smtp", lambda s: s.service in ("smtp", "submission") or s.port in (25, 587), _check_smtp),
+    ("ldap", lambda s: s.service in ("ldap", "ldaps") or s.port in (389, 636), _check_ldap_anon),
+    ("nfs", lambda s: s.service in ("rpcbind", "nfs", "portmapper") or s.port == 111, _check_nfs_rpcbind),
+    ("mssql", lambda s: s.service in ("ms-sql-s", "ms-sql") or s.port == 1433, _check_mssql),
+    # data stores
+    ("memcached", lambda s: s.service == "memcache" or s.port == 11211, _check_memcached),
+    ("zookeeper", lambda s: s.service == "zookeeper" or s.port == 2181, _check_zookeeper),
+    ("couchdb", lambda s: s.port == 5984, _check_couchdb),
+    ("etcd", lambda s: s.port in (2379, 2380), _check_etcd),
+    ("consul", lambda s: s.port == 8500, _check_consul),
+    ("solr", lambda s: s.port == 8983, _check_solr),
+    ("influxdb", lambda s: s.port == 8086, _check_influxdb),
+    ("clickhouse", lambda s: s.port == 8123, _check_clickhouse),
+    ("rabbitmq", lambda s: s.port == 15672, _check_rabbitmq_mgmt),
+    # container / orchestration
+    ("docker", lambda s: s.port in (2375, 2376), _check_docker_api),
+    ("kubelet", lambda s: s.port == 10250, _check_kubelet),
+    ("k8s-api", lambda s: s.port in (6443, 8443), _check_k8s_api),
+    # amplification
+    ("ssdp", lambda s: s.port == 1900, _check_ssdp),
+    ("chargen", lambda s: s.port == 19, _check_chargen),
+    # TLS hygiene (returns a list)
+    ("tls", lambda s: s.service in TLS_SERVICES or s.port in TLS_PORTS, _check_tls),
+)
+
+
+def run_service_probes(svc: DiscoveredService) -> list[Finding]:
+    """Run every matching probe against a discovered service. Never raises."""
+    return run_table(svc, PROBES)

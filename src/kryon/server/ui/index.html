@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kryon — Panel de Seguridad</title>
+  <link rel="stylesheet" href="/app/app.css" />
+</head>
+<body>
+  <!-- Pantalla de acceso -->
+  <div id="login" class="login-screen">
+    <form class="login-card" id="loginForm" autocomplete="off">
+      <div class="login-brand"><img src="/app/logo.webp" alt="Kryon" class="login-logo" /></div>
+      <div class="login-sub" style="text-align:center">Ciberseguridad autónoma con IA</div>
+      <label for="apiKey">Clave de acceso</label>
+      <input id="apiKey" type="password" placeholder="X-API-Key del equipo" autocomplete="off" />
+      <div class="login-err" id="loginErr"></div>
+      <button class="btn full" type="submit" style="margin-top:16px">Ingresar</button>
+    </form>
+  </div>
+
+  <!-- Aplicación -->
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="brand"><img src="/app/logo.webp" alt="Kryon" class="brand-logo" /></div>
+      <span class="health-pill" id="healthPill"><span class="dot" id="healthDot"></span><span id="healthText">Verificando…</span></span>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="themeBtn" title="Cambiar tema">◐</button>
+      <button class="icon-btn" id="logoutBtn" title="Salir">⏻</button>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab active" data-view="panel">Panel</button>
+      <button class="tab" data-view="drift">Cambios</button>
+      <button class="tab" data-view="findings">Hallazgos</button>
+      <button class="tab" data-view="schedule">Programación</button>
+      <button class="tab" data-view="compliance">Cumplimiento</button>
+    </nav>
+
+    <!-- Vista: Panel -->
+    <main class="view" id="view-panel">
+      <div class="kpi-grid" id="kpiGrid"></div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h2 class="view-title">Nuevo análisis</h2>
+          <div class="field">
+            <label for="targets">Objetivos</label>
+            <textarea id="targets" placeholder="192.168.100.0/24&#10;10.0.0.5&#10;servidor.interno.local"></textarea>
+            <div class="hint">Una IP, rango CIDR o hostname por línea. El appliance descubre y audita cada equipo.</div>
+          </div>
+          <div class="field">
+            <label for="framework">Marco de cumplimiento</label>
+            <select id="framework"><option value="">Ninguno (solo hallazgos técnicos)</option></select>
+          </div>
+          <div class="field">
+            <label for="profile">Perfil</label>
+            <select id="profile">
+              <option value="standard">Estándar</option>
+              <option value="stealth">Sigiloso (bajo impacto)</option>
+              <option value="thorough">Exhaustivo</option>
+            </select>
+            <div class="hint">Sigiloso = mínima carga sobre la red del cliente. Recomendado en horario laboral.</div>
+          </div>
+          <button class="btn full" id="scanBtn">Iniciar análisis</button>
+        </div>
+
+        <div class="card" id="progressCard">
+          <h2 class="view-title">Progreso</h2>
+          <div id="progressIdle" class="empty">
+            <div class="big">📡</div>
+            Sin análisis en curso. Cargá objetivos e iniciá uno.
+          </div>
+          <div id="progressLive" class="hidden">
+            <div class="progress-track"><div class="progress-fill" id="progFill"></div></div>
+            <div class="progress-meta">
+              <span>Fase <b id="mPhase">0%</b></span>
+              <span>Equipos <b id="mHosts">0/0</b></span>
+              <span>Hallazgos <b id="mFindings">0</b></span>
+              <span style="color:var(--sev-critical)">Críticos <b id="mCrit">0</b></span>
+              <span style="color:var(--sev-high)">Altos <b id="mHigh">0</b></span>
+              <span>Tiempo <b id="mElapsed">0s</b></span>
+            </div>
+            <div class="log" id="scanLog"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="metricsCard">
+        <h2 class="view-title">Métricas del programa</h2>
+        <div id="metricsBody"><div class="empty" style="padding:24px">Cargando…</div></div>
+      </div>
+    </main>
+
+    <!-- Vista: Cambios (drift) -->
+    <main class="view hidden" id="view-drift">
+      <h2 class="view-title">Cambios desde el último análisis</h2>
+      <div id="driftSummary" class="kpi-grid"></div>
+      <div id="driftBody"></div>
+    </main>
+
+    <!-- Vista: Hallazgos -->
+    <main class="view hidden" id="view-findings">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <h2 class="view-title" style="margin:0">Hallazgos de seguridad</h2>
+        <div class="spacer"></div>
+        <button class="btn ghost" id="exportBtn">⭳ Exportar reporte PDF</button>
+      </div>
+      <div class="filters" id="sevFilters">
+        <button class="chip active" data-sev="">Todos</button>
+        <button class="chip" data-sev="critical">Críticos</button>
+        <button class="chip" data-sev="high">Altos</button>
+        <button class="chip" data-sev="medium">Medios</button>
+        <button class="chip" data-sev="low">Bajos</button>
+        <button class="chip" data-sev="info">Informativos</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Severidad</th><th>Hallazgo</th><th>Activo afectado</th><th>CVSS</th><th>Origen</th></tr></thead>
+          <tbody id="findingsBody"></tbody>
+        </table>
+      </div>
+      <div id="findingsEmpty" class="empty hidden"><div class="big">✓</div>Sin hallazgos para este filtro.</div>
+    </main>
+
+    <!-- Vista: Programación -->
+    <main class="view hidden" id="view-schedule">
+      <div class="grid-2">
+        <div class="card">
+          <h2 class="view-title">Programar análisis automático</h2>
+          <div class="field">
+            <label for="schTargets">Objetivos</label>
+            <textarea id="schTargets" placeholder="192.168.100.0/24&#10;10.0.0.5"></textarea>
+            <div class="hint">Una IP, rango CIDR o hostname por línea.</div>
+          </div>
+          <div class="field">
+            <label for="schFramework">Marco de cumplimiento</label>
+            <select id="schFramework"><option value="">Ninguno</option></select>
+          </div>
+          <div class="field">
+            <label for="schCadence">Frecuencia</label>
+            <select id="schCadence">
+              <option value="86400">Diario</option>
+              <option value="604800">Semanal</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="schHour">Hora (ventana nocturna)</label>
+            <select id="schHour"></select>
+            <div class="hint">El análisis arranca a esta hora, cuando la red está tranquila.</div>
+          </div>
+          <button class="btn full" id="schCreateBtn">Programar</button>
+        </div>
+
+        <div class="card">
+          <h2 class="view-title">Análisis programados</h2>
+          <div id="scheduleList"></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Vista: Cumplimiento -->
+    <main class="view hidden" id="view-compliance">
+      <h2 class="view-title">Marcos de cumplimiento</h2>
+      <div class="fw-grid" id="fwGrid"></div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="/app/app.js"></script>
+</body>
+</html>

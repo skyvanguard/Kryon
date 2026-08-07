@@ -1,0 +1,59 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Testing
+tests/
+benchmarks/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Logs & data
+logs/
+*.log
+workspaces/
+.kryon_knowledge/
+.kryon_cache/
+nohup.out
+ci/
+tools/cut_the_rope/
+
+# Large model / dataset caches — NEVER needed in the image (GGUFs are volume-
+# mounted by the compose; the HF finetune cache is multi-GB). These bloated the
+# build context to GB and the image to ~24GB, and slowed every rebuild.
+models/
+data/finetune/
+data/**/hf-cache/
+*.gguf
+*.safetensors
+kryon-reports/
+reports/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Docker (exclude configs but keep nginx conf needed by the build)
+docker/
+!docker/nginx/
+!docker/entrypoint.sh
+
+# Docs & misc
+*.md
+!README.md
+LICENSE

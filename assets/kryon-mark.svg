@@ -1,0 +1,23 @@
+<svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kryon">
+  <title>Kryon</title>
+  <!-- Faceted crystalline monogram "K" — cold steel-blue facets with electric-cyan light seams.
+       Flat vector, transparent background, scales to a 16px favicon. -->
+  <!-- shadow facets (light comes from top-left) -->
+  <g fill="#12314d">
+    <polygon points="32.5,16 39,16 39,80 32.5,80"/>
+    <polygon points="39,48 72,16 76.9,21 43.9,53"/>
+    <polygon points="39,48 72,80 67.1,85 34.1,53"/>
+  </g>
+  <!-- lit facets -->
+  <g fill="#2f6ea6">
+    <polygon points="26,16 32.5,16 32.5,80 26,80"/>
+    <polygon points="34.1,43 67.1,11 72,16 39,48"/>
+    <polygon points="43.9,43 76.9,75 72,80 39,48"/>
+  </g>
+  <!-- electric-cyan light seams along the facet edges -->
+  <g stroke="#45e0ef" stroke-width="1.6" stroke-linecap="round" fill="none">
+    <line x1="32.5" y1="18" x2="32.5" y2="78"/>
+    <line x1="40" y1="47" x2="70.5" y2="17.5"/>
+    <line x1="40" y1="49" x2="70.5" y2="78.5"/>
+  </g>
+</svg>

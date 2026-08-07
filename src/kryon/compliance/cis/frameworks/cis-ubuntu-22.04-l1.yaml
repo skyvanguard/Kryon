@@ -1,0 +1,806 @@
+# ---------------------------------------------------------------------------
+# CIS Ubuntu 22.04 LTS Benchmark — Level 1 Server profile (F34)
+# ---------------------------------------------------------------------------
+# Version 0.1.0: first substantive drop of 67 representative checks covering
+# every CIS section. Requires validation against a real Ubuntu 22.04 server
+# before being used for a regulated audit.
+#
+# CIS sections covered:
+#   1. Initial Setup         (12 checks)
+#   2. Services              (8 checks)
+#   3. Network Configuration (8 checks)
+#   4. Logging and Auditing  (6 checks)
+#   5. Access / Auth / Authz (22 checks)
+#   6. System Maintenance    (11 checks)
+#
+# Authoring conventions:
+#   - ids sorted lexicographically (tests assert this)
+#   - commands use shell: true so pipes / redirects work
+#   - outputs padded with `|| true` where the "absence" IS the success
+#   - remediation is imperative + single-step whenever possible
+#
+# Sources:
+#   - CIS Ubuntu Linux 22.04 LTS Benchmark v1.0.0
+#   - ssg-ubuntu2204-ds.xml (openSCAP SCAP Security Guide)
+#   - Ubuntu Security Guide (USG) Ubuntu 22.04
+# ---------------------------------------------------------------------------
+
+framework:
+  id: cis-ubuntu-22.04-l1
+  title: "CIS Ubuntu Linux 22.04 LTS Benchmark — Level 1 Server"
+  version: "0.1.0"
+  source: "CIS Benchmark Ubuntu 22.04 LTS v1.0.0 + openSCAP ssg-ubuntu2204-ds.xml"
+  description: >
+    Representative Level-1 Server hardening checks for Ubuntu 22.04 LTS.
+    Covers filesystem hardening, services, network parameters, auditd
+    logging, SSH/PAM/sudo, and file-permission baseline controls.
+
+checks:
+  # =========================================================================
+  # SECTION 1 — Initial Setup
+  # =========================================================================
+  - id: CIS-1.1.1.1
+    title: "Ensure mounting of cramfs filesystems is disabled"
+    section: "1.1.1"
+    severity: LOW
+    rationale: "cramfs has limited utility on servers; disabling reduces the attack surface of kernel module subsystems."
+    remediation: "echo 'install cramfs /bin/true' > /etc/modprobe.d/cramfs.conf && rmmod cramfs 2>/dev/null || true"
+    command: "modprobe -n -v cramfs 2>&1 | tail -1"
+    pass_when:
+      stdout_contains: "install /bin/true"
+
+  - id: CIS-1.1.1.2
+    title: "Ensure mounting of squashfs filesystems is disabled"
+    section: "1.1.1"
+    severity: LOW
+    rationale: "squashfs is read-only compressed; block to prevent attacker-crafted images being mounted."
+    remediation: "echo 'install squashfs /bin/true' > /etc/modprobe.d/squashfs.conf"
+    command: "modprobe -n -v squashfs 2>&1 | tail -1"
+    pass_when:
+      stdout_contains: "install /bin/true"
+
+  - id: CIS-1.1.1.3
+    title: "Ensure mounting of udf filesystems is disabled"
+    section: "1.1.1"
+    severity: LOW
+    rationale: "udf (Universal Disk Format) is rarely needed on servers."
+    remediation: "echo 'install udf /bin/true' > /etc/modprobe.d/udf.conf"
+    command: "modprobe -n -v udf 2>&1 | tail -1"
+    pass_when:
+      stdout_contains: "install /bin/true"
+
+  - id: CIS-1.1.2.1
+    title: "Ensure /tmp is a separate partition"
+    section: "1.1.2"
+    severity: LOW
+    rationale: "A separate /tmp partition enables nodev/nosuid/noexec mount options and isolates runaway tmp usage."
+    remediation: "Create /tmp as a separate mount (e.g. tmpfs in /etc/fstab). Reboot required."
+    command: "findmnt -n /tmp 2>/dev/null || true"
+    pass_when:
+      stdout_not_matches: "^$"
+
+  - id: CIS-1.1.2.2
+    title: "Ensure nodev option set on /tmp partition"
+    section: "1.1.2"
+    severity: MEDIUM
+    rationale: "nodev prevents character/block device nodes in /tmp — blocks a class of container escape + /dev/mem misuse."
+    remediation: "Add 'nodev' to /tmp mount options in /etc/fstab; remount: mount -o remount,nodev /tmp"
+    command: "findmnt -n /tmp 2>/dev/null | grep -o 'nodev' || true"
+    pass_when:
+      stdout_contains: "nodev"
+
+  - id: CIS-1.1.2.3
+    title: "Ensure nosuid option set on /tmp partition"
+    section: "1.1.2"
+    severity: MEDIUM
+    rationale: "nosuid neutralizes SUID binaries in /tmp — stops local privesc via dropped SUID helpers."
+    remediation: "Add 'nosuid' to /tmp mount options in /etc/fstab; mount -o remount,nosuid /tmp"
+    command: "findmnt -n /tmp 2>/dev/null | grep -o 'nosuid' || true"
+    pass_when:
+      stdout_contains: "nosuid"
+
+  - id: CIS-1.1.2.4
+    title: "Ensure noexec option set on /tmp partition"
+    section: "1.1.2"
+    severity: MEDIUM
+    rationale: "noexec blocks execution from /tmp — defeats the classic drop-and-run payload pattern."
+    remediation: "Add 'noexec' to /tmp mount options in /etc/fstab; mount -o remount,noexec /tmp"
+    command: "findmnt -n /tmp 2>/dev/null | grep -o 'noexec' || true"
+    pass_when:
+      stdout_contains: "noexec"
+
+  - id: CIS-1.3.1
+    title: "Ensure AIDE is installed"
+    section: "1.3"
+    severity: MEDIUM
+    rationale: "File integrity monitoring — PCI-DSS Req 11.5 / SOX IT controls."
+    remediation: "apt-get install -y aide aide-common && aideinit"
+    command: "dpkg -s aide 2>/dev/null | grep -E '^Status:' || true"
+    pass_when:
+      stdout_contains: "install ok installed"
+
+  - id: CIS-1.3.2
+    title: "Ensure filesystem integrity is checked periodically"
+    section: "1.3"
+    severity: MEDIUM
+    rationale: "AIDE installed but unrun is theatre — a scheduled check catches tampering."
+    remediation: "Create /etc/cron.daily/aide or a systemd timer that runs aideinit / aide --check."
+    command: "systemctl list-timers --all 2>/dev/null | grep -iE 'aide' ; ls /etc/cron.*/aide* 2>/dev/null || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-1.4.1
+    title: "Ensure bootloader password is set"
+    section: "1.4"
+    severity: MEDIUM
+    rationale: "Without a GRUB password an attacker with console access can boot single-user and reset root."
+    remediation: "grub-mkpasswd-pbkdf2, add password_pbkdf2 directive to /etc/grub.d/40_custom, run update-grub."
+    command: "grep -iE '^(password|password_pbkdf2)\\s' /etc/grub.d/* /boot/grub/grub.cfg 2>/dev/null || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-1.5.1
+    title: "Ensure core dumps are restricted"
+    section: "1.5"
+    severity: MEDIUM
+    rationale: "Core dumps of privileged processes can leak credentials / session keys."
+    remediation: "Add 'fs.suid_dumpable = 0' to /etc/sysctl.d/50-cis.conf and 'hard core 0' to /etc/security/limits.conf"
+    command: "sysctl fs.suid_dumpable 2>/dev/null"
+    pass_when:
+      stdout_matches: "fs\\.suid_dumpable\\s*=\\s*0"
+
+  - id: CIS-1.6.1
+    title: "Ensure AppArmor is installed and enabled"
+    section: "1.6"
+    severity: MEDIUM
+    rationale: "Mandatory Access Control baseline for Ubuntu — profiles for many system services."
+    remediation: "apt-get install -y apparmor apparmor-utils && systemctl enable --now apparmor"
+    command: "aa-status 2>/dev/null | head -1 || echo 'apparmor NOT running'"
+    pass_when:
+      stdout_contains: "apparmor module is loaded"
+
+  # =========================================================================
+  # SECTION 2 — Services
+  # =========================================================================
+  - id: CIS-2.1.1
+    title: "Ensure time synchronization is in use"
+    section: "2.1"
+    severity: MEDIUM
+    rationale: "Logs without synchronized time are forensic-uselessness. Required by PCI-DSS Req. 10.4."
+    remediation: "apt-get install -y chrony && systemctl enable --now chrony"
+    command: "systemctl is-active chrony systemd-timesyncd ntp 2>/dev/null | grep -c active || true"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  - id: CIS-2.2.1
+    title: "Ensure xinetd is not installed"
+    section: "2.2"
+    severity: MEDIUM
+    rationale: "xinetd exposes legacy inetd services; not needed on a modern banking server."
+    remediation: "apt-get purge -y xinetd"
+    command: "dpkg -s xinetd 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      any_of:
+        - stdout_contains: "not installed"
+        - stdout_contains: "deinstall"
+
+  - id: CIS-2.2.2
+    title: "Ensure avahi-daemon is not installed"
+    section: "2.2"
+    severity: LOW
+    rationale: "mDNS/Zeroconf broadcasts service metadata on the LAN — information disclosure vector."
+    remediation: "apt-get purge -y avahi-daemon"
+    command: "dpkg -s avahi-daemon 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      any_of:
+        - stdout_contains: "not installed"
+        - stdout_contains: "deinstall"
+
+  - id: CIS-2.2.3
+    title: "Ensure CUPS is not installed"
+    section: "2.2"
+    severity: LOW
+    rationale: "No reason for a banking server to print. Reduces attack surface."
+    remediation: "apt-get purge -y cups"
+    command: "dpkg -s cups 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      any_of:
+        - stdout_contains: "not installed"
+        - stdout_contains: "deinstall"
+
+  - id: CIS-2.2.4
+    title: "Ensure NFS / RPC are not installed if not needed"
+    section: "2.2"
+    severity: LOW
+    rationale: "NFS and rpcbind expose well-known exploit paths; remove when not explicitly required."
+    remediation: "apt-get purge -y nfs-kernel-server rpcbind"
+    command: "dpkg -l nfs-kernel-server rpcbind 2>/dev/null | grep -cE '^ii' || true"
+    pass_when:
+      stdout_matches: "^0\\s*$"
+
+  - id: CIS-2.2.5
+    title: "Ensure DHCP server is not installed"
+    section: "2.2"
+    severity: MEDIUM
+    rationale: "Rogue DHCP on the management segment is a serious AD/Kerberos MITM risk."
+    remediation: "apt-get purge -y isc-dhcp-server"
+    command: "dpkg -s isc-dhcp-server 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      any_of:
+        - stdout_contains: "not installed"
+        - stdout_contains: "deinstall"
+
+  - id: CIS-2.2.6
+    title: "Ensure LDAP server is not installed"
+    section: "2.2"
+    severity: MEDIUM
+    rationale: "Unless this host is specifically a directory server, slapd is attack surface."
+    remediation: "apt-get purge -y slapd"
+    command: "dpkg -s slapd 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      any_of:
+        - stdout_contains: "not installed"
+        - stdout_contains: "deinstall"
+
+  - id: CIS-2.3.1
+    title: "Ensure telnet client is not installed"
+    section: "2.3"
+    severity: HIGH
+    rationale: "telnet transmits credentials in cleartext — obsolete + dangerous."
+    remediation: "apt-get purge -y telnet"
+    command: "dpkg -s telnet 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      any_of:
+        - stdout_contains: "not installed"
+        - stdout_contains: "deinstall"
+
+  # =========================================================================
+  # SECTION 3 — Network Configuration
+  # =========================================================================
+  - id: CIS-3.1.1
+    title: "Ensure IPv4 forwarding is disabled (non-router)"
+    section: "3.1"
+    severity: MEDIUM
+    rationale: "A non-router host forwarding IPv4 can be abused to pivot between segments."
+    remediation: "sysctl -w net.ipv4.ip_forward=0 && echo 'net.ipv4.ip_forward=0' > /etc/sysctl.d/60-cis.conf"
+    command: "sysctl net.ipv4.ip_forward 2>/dev/null"
+    pass_when:
+      stdout_matches: "net\\.ipv4\\.ip_forward\\s*=\\s*0"
+
+  - id: CIS-3.1.2
+    title: "Ensure packet redirect sending is disabled"
+    section: "3.1"
+    severity: MEDIUM
+    rationale: "ICMP redirects sent by this host can mislead other stations about routing."
+    remediation: "sysctl -w net.ipv4.conf.all.send_redirects=0"
+    command: "sysctl net.ipv4.conf.all.send_redirects 2>/dev/null"
+    pass_when:
+      stdout_matches: "send_redirects\\s*=\\s*0"
+
+  - id: CIS-3.2.1
+    title: "Ensure source-routed packets are not accepted"
+    section: "3.2"
+    severity: MEDIUM
+    rationale: "Source-routed packets can be used to bypass firewall rules."
+    remediation: "sysctl -w net.ipv4.conf.all.accept_source_route=0"
+    command: "sysctl net.ipv4.conf.all.accept_source_route 2>/dev/null"
+    pass_when:
+      stdout_matches: "accept_source_route\\s*=\\s*0"
+
+  - id: CIS-3.2.2
+    title: "Ensure ICMP redirects are not accepted"
+    section: "3.2"
+    severity: MEDIUM
+    rationale: "Accepting redirects lets an attacker alter the routing table via spoofed ICMP."
+    remediation: "sysctl -w net.ipv4.conf.all.accept_redirects=0"
+    command: "sysctl net.ipv4.conf.all.accept_redirects 2>/dev/null"
+    pass_when:
+      stdout_matches: "accept_redirects\\s*=\\s*0"
+
+  - id: CIS-3.2.3
+    title: "Ensure suspicious packets are logged"
+    section: "3.2"
+    severity: LOW
+    rationale: "Martian source detection catches spoofing; feeds the SOC."
+    remediation: "sysctl -w net.ipv4.conf.all.log_martians=1"
+    command: "sysctl net.ipv4.conf.all.log_martians 2>/dev/null"
+    pass_when:
+      stdout_matches: "log_martians\\s*=\\s*1"
+
+  - id: CIS-3.2.4
+    title: "Ensure TCP SYN Cookies are enabled"
+    section: "3.2"
+    severity: MEDIUM
+    rationale: "Baseline SYN-flood DoS resilience — cheap to enable."
+    remediation: "sysctl -w net.ipv4.tcp_syncookies=1"
+    command: "sysctl net.ipv4.tcp_syncookies 2>/dev/null"
+    pass_when:
+      stdout_matches: "tcp_syncookies\\s*=\\s*1"
+
+  - id: CIS-3.5.1
+    title: "Ensure UFW (firewall) is installed and enabled"
+    section: "3.5"
+    severity: HIGH
+    rationale: "Default-deny firewall is bedrock; PCI-DSS Req. 1 mandates it."
+    remediation: "apt-get install -y ufw && ufw --force enable"
+    command: "ufw status 2>/dev/null | head -1 || echo 'ufw not installed'"
+    pass_when:
+      stdout_contains: "Status: active"
+
+  - id: CIS-3.5.2
+    title: "Ensure default deny firewall policy"
+    section: "3.5"
+    severity: HIGH
+    rationale: "Policy ALLOW inbound undoes the firewall's point — enumerate allows, not denies."
+    remediation: "ufw default deny incoming"
+    command: "ufw status verbose 2>/dev/null | grep -E '^Default:' || true"
+    pass_when:
+      stdout_contains: "deny (incoming)"
+
+  # =========================================================================
+  # SECTION 4 — Logging and Auditing
+  # =========================================================================
+  - id: CIS-4.1.1.1
+    title: "Ensure auditd is installed"
+    section: "4.1"
+    severity: HIGH
+    rationale: "auditd provides kernel-level audit trail — mandatory for PCI-DSS Req 10.2."
+    remediation: "apt-get install -y auditd audispd-plugins && systemctl enable --now auditd"
+    command: "dpkg -s auditd 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      stdout_contains: "install ok installed"
+
+  - id: CIS-4.1.1.2
+    title: "Ensure auditd service is enabled and running"
+    section: "4.1"
+    severity: HIGH
+    rationale: "Installed but disabled = no audit trail."
+    remediation: "systemctl enable --now auditd"
+    command: "systemctl is-active auditd 2>/dev/null"
+    pass_when:
+      stdout_matches: "^active"
+
+  - id: CIS-4.1.1.3
+    title: "Ensure auditing for processes that start prior to auditd is enabled"
+    section: "4.1"
+    severity: MEDIUM
+    rationale: "'audit=1' kernel param captures boot-time events missed by late-starting auditd."
+    remediation: "Add audit=1 to GRUB_CMDLINE_LINUX in /etc/default/grub; update-grub; reboot."
+    command: "grep -E 'GRUB_CMDLINE_LINUX=.*audit=1' /etc/default/grub 2>/dev/null || true"
+    pass_when:
+      stdout_contains: "audit=1"
+
+  - id: CIS-4.2.1.1
+    title: "Ensure rsyslog is installed"
+    section: "4.2"
+    severity: MEDIUM
+    rationale: "Central syslog collector; required for log forwarding to SIEM."
+    remediation: "apt-get install -y rsyslog && systemctl enable --now rsyslog"
+    command: "dpkg -s rsyslog 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      stdout_contains: "install ok installed"
+
+  - id: CIS-4.2.1.2
+    title: "Ensure rsyslog service is enabled"
+    section: "4.2"
+    severity: MEDIUM
+    rationale: "Ensures rsyslog survives reboot."
+    remediation: "systemctl enable rsyslog"
+    command: "systemctl is-enabled rsyslog 2>/dev/null"
+    pass_when:
+      stdout_matches: "^enabled"
+
+  - id: CIS-4.2.1.3
+    title: "Ensure permissions on rsyslog files are configured"
+    section: "4.2"
+    severity: MEDIUM
+    rationale: "Log files must not be world-readable (may leak sensitive data)."
+    remediation: "chmod 0640 /var/log/syslog /var/log/auth.log; chown root:adm /var/log/{syslog,auth.log}"
+    command: "stat -c '%a %U %G' /var/log/syslog 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^[06][0-4][0-9]\\s+root\\s+adm"
+
+  # =========================================================================
+  # SECTION 5 — Access, Authentication and Authorization
+  # =========================================================================
+  - id: CIS-5.1.1
+    title: "Ensure cron daemon is enabled and running"
+    section: "5.1"
+    severity: LOW
+    rationale: "Security-sensitive maintenance (aide, logrotate, updates) depends on cron."
+    remediation: "systemctl enable --now cron"
+    command: "systemctl is-active cron 2>/dev/null"
+    pass_when:
+      stdout_matches: "^active"
+
+  - id: CIS-5.1.2
+    title: "Ensure permissions on /etc/crontab are configured"
+    section: "5.1"
+    severity: MEDIUM
+    rationale: "World-readable crontab can leak automation credentials; world-writable enables privesc."
+    remediation: "chown root:root /etc/crontab && chmod 600 /etc/crontab"
+    command: "stat -c '%a %U %G' /etc/crontab 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^[0-6]00\\s+root\\s+root"
+
+  - id: CIS-5.1.3
+    title: "Ensure cron.allow exists and cron.deny is removed"
+    section: "5.1"
+    severity: LOW
+    rationale: "Explicit allowlist is more auditable than an implicit denylist."
+    remediation: "touch /etc/cron.allow && chown root:root /etc/cron.allow && chmod 640 /etc/cron.allow && rm -f /etc/cron.deny"
+    command: "test -f /etc/cron.allow && ! test -f /etc/cron.deny && echo OK || echo FAIL"
+    pass_when:
+      stdout_contains: "OK"
+
+  - id: CIS-5.2.1
+    title: "Ensure permissions on /etc/ssh/sshd_config are configured"
+    section: "5.2"
+    severity: HIGH
+    rationale: "sshd_config controls who can connect; must not be writable by non-root."
+    remediation: "chown root:root /etc/ssh/sshd_config && chmod 600 /etc/ssh/sshd_config"
+    command: "stat -c '%a %U %G' /etc/ssh/sshd_config 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^[0-6]00\\s+root\\s+root"
+
+  - id: CIS-5.2.2
+    title: "Ensure SSH PermitRootLogin is disabled"
+    section: "5.2"
+    severity: HIGH
+    rationale: "Direct root SSH negates audit of who ran what; force sudo from named accounts."
+    remediation: "sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config; systemctl restart sshd"
+    command: "sshd -T 2>/dev/null | grep -iE '^permitrootlogin' || true"
+    pass_when:
+      stdout_matches: "^permitrootlogin\\s+no"
+
+  - id: CIS-5.2.3
+    title: "Ensure SSH Protocol 2 is used (no Protocol 1)"
+    section: "5.2"
+    severity: CRITICAL
+    rationale: "SSH Protocol 1 is cryptographically broken."
+    remediation: "Remove any 'Protocol 1' line from /etc/ssh/sshd_config; restart sshd."
+    command: "grep -iE '^Protocol\\s+1' /etc/ssh/sshd_config 2>/dev/null || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-5.2.4
+    title: "Ensure SSH LogLevel is appropriate"
+    section: "5.2"
+    severity: LOW
+    rationale: "VERBOSE logs key fingerprints needed for incident forensics."
+    remediation: "sed -i 's/^#*LogLevel.*/LogLevel VERBOSE/' /etc/ssh/sshd_config; systemctl restart sshd"
+    command: "sshd -T 2>/dev/null | grep -iE '^loglevel' || true"
+    pass_when:
+      stdout_matches: "^loglevel\\s+(verbose|info)"
+
+  - id: CIS-5.2.5
+    title: "Ensure SSH X11Forwarding is disabled"
+    section: "5.2"
+    severity: MEDIUM
+    rationale: "X11 forwarding exposes the local X display to the remote host — unnecessary on servers."
+    remediation: "sed -i 's/^#*X11Forwarding.*/X11Forwarding no/' /etc/ssh/sshd_config"
+    command: "sshd -T 2>/dev/null | grep -iE '^x11forwarding' || true"
+    pass_when:
+      stdout_matches: "^x11forwarding\\s+no"
+
+  - id: CIS-5.2.6
+    title: "Ensure SSH MaxAuthTries is set to 4 or less"
+    section: "5.2"
+    severity: MEDIUM
+    rationale: "Limits password-spray / brute-force attempts per session."
+    remediation: "sed -i 's/^#*MaxAuthTries.*/MaxAuthTries 4/' /etc/ssh/sshd_config"
+    command: "sshd -T 2>/dev/null | awk '/^maxauthtries/ {print $2}' || true"
+    pass_when:
+      stdout_matches: "^[1-4]\\s*$"
+
+  - id: CIS-5.2.7
+    title: "Ensure SSH IgnoreRhosts is enabled"
+    section: "5.2"
+    severity: HIGH
+    rationale: ".rhosts and shosts.equiv are legacy trust mechanisms bypassing strong auth."
+    remediation: "sed -i 's/^#*IgnoreRhosts.*/IgnoreRhosts yes/' /etc/ssh/sshd_config"
+    command: "sshd -T 2>/dev/null | grep -iE '^ignorerhosts' || true"
+    pass_when:
+      stdout_matches: "^ignorerhosts\\s+yes"
+
+  - id: CIS-5.2.8
+    title: "Ensure SSH HostbasedAuthentication is disabled"
+    section: "5.2"
+    severity: MEDIUM
+    rationale: "Hostbased auth trusts the source host's claim of identity — insufficient for banking."
+    remediation: "sed -i 's/^#*HostbasedAuthentication.*/HostbasedAuthentication no/' /etc/ssh/sshd_config"
+    command: "sshd -T 2>/dev/null | grep -iE '^hostbasedauthentication' || true"
+    pass_when:
+      stdout_matches: "^hostbasedauthentication\\s+no"
+
+  - id: CIS-5.2.9
+    title: "Ensure SSH PermitEmptyPasswords is disabled"
+    section: "5.2"
+    severity: CRITICAL
+    rationale: "Accepting empty passwords over SSH is trivially catastrophic."
+    remediation: "sed -i 's/^#*PermitEmptyPasswords.*/PermitEmptyPasswords no/' /etc/ssh/sshd_config"
+    command: "sshd -T 2>/dev/null | grep -iE '^permitemptypasswords' || true"
+    pass_when:
+      stdout_matches: "^permitemptypasswords\\s+no"
+
+  - id: CIS-5.2.10
+    title: "Ensure SSH PermitUserEnvironment is disabled"
+    section: "5.2"
+    severity: MEDIUM
+    rationale: "User-controlled env via .ssh/environment can alter path/LD_PRELOAD — privesc vector."
+    remediation: "sed -i 's/^#*PermitUserEnvironment.*/PermitUserEnvironment no/' /etc/ssh/sshd_config"
+    command: "sshd -T 2>/dev/null | grep -iE '^permituserenvironment' || true"
+    pass_when:
+      stdout_matches: "^permituserenvironment\\s+no"
+
+  - id: CIS-5.2.11
+    title: "Ensure only strong SSH ciphers are used"
+    section: "5.2"
+    severity: HIGH
+    rationale: "CBC-mode ciphers are deprecated; banking audits reject them."
+    remediation: "Set 'Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr' in sshd_config"
+    command: "sshd -T 2>/dev/null | grep -iE '^ciphers' || true"
+    pass_when:
+      not:
+        stdout_matches: "cbc"
+
+  - id: CIS-5.2.12
+    title: "Ensure SSH ClientAliveInterval and ClientAliveCountMax are configured"
+    section: "5.2"
+    severity: LOW
+    rationale: "Idle sessions are a lateral-movement opportunity; timeout closes them."
+    remediation: "Set 'ClientAliveInterval 300' and 'ClientAliveCountMax 2' in sshd_config"
+    command: "sshd -T 2>/dev/null | awk '/^clientaliveinterval/ {print $2}' || true"
+    pass_when:
+      stdout_matches: "^[1-9][0-9]{1,3}\\s*$"
+
+  - id: CIS-5.2.13
+    title: "Ensure SSH LoginGraceTime is set to one minute or less"
+    section: "5.2"
+    severity: LOW
+    rationale: "Shorter grace times reduce DoS surface on sshd."
+    remediation: "sed -i 's/^#*LoginGraceTime.*/LoginGraceTime 60/' /etc/ssh/sshd_config"
+    command: "sshd -T 2>/dev/null | awk '/^logingracetime/ {print $2}' || true"
+    pass_when:
+      stdout_matches: "^[1-9][0-9]?\\s*$"
+
+  - id: CIS-5.2.14
+    title: "Ensure SSH access is limited (AllowUsers / AllowGroups)"
+    section: "5.2"
+    severity: MEDIUM
+    rationale: "Explicit allowlist prevents legacy accounts from suddenly gaining SSH access."
+    remediation: "Add 'AllowGroups sshusers' to sshd_config; add admins to that group."
+    command: "grep -iE '^(AllowUsers|AllowGroups|DenyUsers|DenyGroups)\\s' /etc/ssh/sshd_config 2>/dev/null || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-5.2.15
+    title: "Ensure SSH warning banner is configured"
+    section: "5.2"
+    severity: LOW
+    rationale: "Legal notice at banner is required in many jurisdictions; cheap to configure."
+    remediation: "Create /etc/issue.net with legal warning; set 'Banner /etc/issue.net' in sshd_config"
+    command: "sshd -T 2>/dev/null | grep -iE '^banner' || true"
+    pass_when:
+      stdout_matches: "^banner\\s+/"
+
+  - id: CIS-5.3.1
+    title: "Ensure sudo is installed"
+    section: "5.3"
+    severity: MEDIUM
+    rationale: "Required for named-account privileged access (paired with PermitRootLogin no)."
+    remediation: "apt-get install -y sudo"
+    command: "dpkg -s sudo 2>/dev/null | grep -E '^Status:' || echo 'not installed'"
+    pass_when:
+      stdout_contains: "install ok installed"
+
+  - id: CIS-5.3.2
+    title: "Ensure sudo log file exists"
+    section: "5.3"
+    severity: MEDIUM
+    rationale: "sudo auditability — critical for PCI/SOX evidence of privileged actions."
+    remediation: "echo 'Defaults logfile=/var/log/sudo.log' >> /etc/sudoers.d/00-cis-logfile"
+    command: "grep -iRE 'logfile\\s*=' /etc/sudoers /etc/sudoers.d/ 2>/dev/null || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-5.3.3
+    title: "Ensure sudo use_pty is set"
+    section: "5.3"
+    severity: MEDIUM
+    rationale: "use_pty forces sudo commands to run under a pty — prevents session hijack via nested command buffers."
+    remediation: "echo 'Defaults use_pty' >> /etc/sudoers.d/00-cis-usepty"
+    command: "grep -iRE 'Defaults\\s+use_pty' /etc/sudoers /etc/sudoers.d/ 2>/dev/null || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-5.4.1
+    title: "Ensure PAM password pwquality is configured"
+    section: "5.4"
+    severity: MEDIUM
+    rationale: "Enforces min length / complexity — raises bar for credential stuffing."
+    remediation: "apt-get install -y libpam-pwquality; set 'minlen=14 minclass=4' in /etc/security/pwquality.conf"
+    command: "grep -E '^(minlen|minclass|dcredit|ucredit|lcredit|ocredit)' /etc/security/pwquality.conf 2>/dev/null || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-5.4.2
+    title: "Ensure password reuse is limited"
+    section: "5.4"
+    severity: MEDIUM
+    rationale: "Prevents users rotating between the same 2 passwords forever."
+    remediation: "Add 'remember=5' to the pam_pwhistory.so line in /etc/pam.d/common-password"
+    command: "grep -E 'pam_pwhistory\\.so.*remember=[0-9]+' /etc/pam.d/common-password 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "remember=[5-9]|remember=[1-9][0-9]"
+
+  - id: CIS-5.4.3
+    title: "Ensure lockout for failed password attempts is configured"
+    section: "5.4"
+    severity: MEDIUM
+    rationale: "Baseline brute-force defense; PCI-DSS Req. 8.1.6 mandates <=6 attempts before lockout."
+    remediation: "Add pam_faillock.so or pam_tally2.so with deny=5 unlock_time=900 to /etc/pam.d/common-auth"
+    command: "grep -E 'pam_(faillock|tally2)' /etc/pam.d/common-auth 2>/dev/null || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: CIS-5.5.1
+    title: "Ensure minimum days between password changes is configured"
+    section: "5.5"
+    severity: LOW
+    rationale: "Stops users rotating through the password history in one session."
+    remediation: "Set PASS_MIN_DAYS 1 in /etc/login.defs; chage --mindays 1 for existing users"
+    command: "grep -E '^PASS_MIN_DAYS' /etc/login.defs 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^PASS_MIN_DAYS\\s+[1-9]"
+
+  - id: CIS-5.5.2
+    title: "Ensure password expiration is 365 days or less"
+    section: "5.5"
+    severity: LOW
+    rationale: "Hard upper bound on credential lifetime."
+    remediation: "Set PASS_MAX_DAYS 365 in /etc/login.defs"
+    command: "awk '/^PASS_MAX_DAYS/ {print $2}' /etc/login.defs 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^(3[0-5][0-9]|[12]?[0-9]{1,2})\\s*$"
+
+  - id: CIS-5.5.3
+    title: "Ensure password hashing algorithm is SHA-512"
+    section: "5.5"
+    severity: MEDIUM
+    rationale: "MD5 / SHA-256 are weaker than SHA-512 for offline crack of leaked /etc/shadow."
+    remediation: "Set ENCRYPT_METHOD SHA512 in /etc/login.defs; ensure pam_unix.so sha512 arg"
+    command: "grep -E '^ENCRYPT_METHOD' /etc/login.defs 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "SHA512"
+
+  - id: CIS-5.5.4
+    title: "Ensure default user umask is 027 or more restrictive"
+    section: "5.5"
+    severity: LOW
+    rationale: "022 leaves new files group-writable — tightens default privacy."
+    remediation: "Set UMASK 027 in /etc/login.defs and /etc/profile"
+    command: "grep -E '^UMASK' /etc/login.defs 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^UMASK\\s+0?(27|37|77)"
+
+  # =========================================================================
+  # SECTION 6 — System Maintenance
+  # =========================================================================
+  - id: CIS-6.1.1
+    title: "Ensure permissions on /etc/passwd are configured"
+    section: "6.1"
+    severity: HIGH
+    rationale: "/etc/passwd must be root-owned and 0644 (world-readable is required by the OS)."
+    remediation: "chown root:root /etc/passwd && chmod 644 /etc/passwd"
+    command: "stat -c '%a %U %G' /etc/passwd 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^644\\s+root\\s+root"
+
+  - id: CIS-6.1.2
+    title: "Ensure permissions on /etc/shadow are configured"
+    section: "6.1"
+    severity: CRITICAL
+    rationale: "/etc/shadow holds hashes; world-readable leaks crackable creds."
+    remediation: "chown root:shadow /etc/shadow && chmod 640 /etc/shadow"
+    command: "stat -c '%a %U %G' /etc/shadow 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^(0|6)[04]0\\s+root\\s+(root|shadow)"
+
+  - id: CIS-6.1.3
+    title: "Ensure permissions on /etc/group are configured"
+    section: "6.1"
+    severity: MEDIUM
+    rationale: "Writable /etc/group enables privilege escalation via group membership."
+    remediation: "chown root:root /etc/group && chmod 644 /etc/group"
+    command: "stat -c '%a %U %G' /etc/group 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^644\\s+root\\s+root"
+
+  - id: CIS-6.1.4
+    title: "Ensure permissions on /etc/gshadow are configured"
+    section: "6.1"
+    severity: HIGH
+    rationale: "gshadow holds group admin hashes; parallel rationale to shadow."
+    remediation: "chown root:shadow /etc/gshadow && chmod 640 /etc/gshadow"
+    command: "stat -c '%a %U %G' /etc/gshadow 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^(0|6)[04]0\\s+root\\s+(root|shadow)"
+
+  - id: CIS-6.1.5
+    title: "Ensure permissions on /etc/sudoers are configured"
+    section: "6.1"
+    severity: HIGH
+    rationale: "World-readable sudoers leaks privilege topology; writable enables trivial privesc."
+    remediation: "chown root:root /etc/sudoers && chmod 440 /etc/sudoers"
+    command: "stat -c '%a %U %G' /etc/sudoers 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^4[04]0\\s+root\\s+root"
+
+  - id: CIS-6.1.6
+    title: "Ensure no world-writable files exist"
+    section: "6.1"
+    severity: MEDIUM
+    rationale: "World-writable files are an obvious persistence / tampering vector."
+    remediation: "find / -xdev -type f -perm -0002 -exec chmod o-w {} \\;"
+    command: "find / -xdev -type f -perm -0002 2>/dev/null | head -1 || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-6.1.7
+    title: "Ensure no unowned files or directories exist"
+    section: "6.1"
+    severity: LOW
+    rationale: "Files without a valid uid/gid are a sign of deleted user accounts with lingering artifacts."
+    remediation: "find / -xdev -nouser; reassign or delete. Same with -nogroup."
+    command: "find / -xdev \\( -nouser -o -nogroup \\) 2>/dev/null | head -1 || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-6.2.1
+    title: "Ensure password fields are not empty in /etc/shadow"
+    section: "6.2"
+    severity: CRITICAL
+    rationale: "Empty password = passwordless login. Worst-case misconfiguration."
+    remediation: "For each listed user: passwd -l <user> or set a strong password."
+    command: 'awk -F: ''($2 == "") { print $1 }'' /etc/shadow'
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-6.2.2
+    title: "Ensure no legacy '+' entries exist in /etc/passwd"
+    section: "6.2"
+    severity: MEDIUM
+    rationale: "'+' entries refer to NIS maps; if NIS is gone, they're broken accounts at best, attack surface at worst."
+    remediation: "sed -i '/^+/d' /etc/passwd"
+    command: "grep -E '^\\+' /etc/passwd 2>/dev/null || true"
+    pass_when:
+      stdout_empty: true
+
+  - id: CIS-6.2.3
+    title: "Ensure root is the only UID 0 account"
+    section: "6.2"
+    severity: CRITICAL
+    rationale: "A second UID 0 account is often a rootkit persistence marker."
+    remediation: "Investigate any additional UID 0 accounts; remove or renumber legitimate cases."
+    command: 'awk -F: ''($3 == 0) { print $1 }'' /etc/passwd'
+    pass_when:
+      stdout_matches: "^root\\s*$"
+
+  - id: CIS-6.2.4
+    title: "Ensure root PATH integrity"
+    section: "6.2"
+    severity: MEDIUM
+    rationale: "'.' or empty entries in root's PATH can execute an attacker-planted binary before the real one."
+    remediation: "Clean root's .bashrc/.profile — remove '.' and any empty PATH segments."
+    command: "sudo -Hiu root bash -c 'echo $PATH' 2>/dev/null | tr ':' '\\n' | grep -E '^(\\.|)$' || true"
+    pass_when:
+      stdout_empty: true

@@ -1,0 +1,112 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  security-events: write
+  contents: read
+
+jobs:
+  trivy:
+    name: Trivy Filesystem Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+      - name: Run Trivy vulnerability scanner
+        # Blocks the job on CRITICAL/HIGH findings that have a fix available.
+        # --ignore-unfixed avoids failing on CVEs with no upstream patch yet.
+        # Mark this job as a required status check in branch protection to
+        # gate merges on it.
+        run: |
+          trivy fs --format sarif --output trivy-results.sarif \
+            --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 .
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: trivy-results.sarif
+
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: |
+          semgrep scan \
+            --config p/security-audit \
+            --config p/secrets \
+            --config p/python \
+            --sarif \
+            --output semgrep-results.sarif \
+            --error \
+            --exclude-rule python.lang.security.audit.subprocess-shell-true.subprocess-shell-true \
+            --exclude-rule python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5 \
+            --exclude-rule python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args \
+            --exclude-rule python.lang.security.deserialization.pickle.avoid-pickle \
+            --exclude-rule python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected \
+            --exclude-rule python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure \
+            --exclude-rule python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http \
+            --exclude-rule python.lang.security.audit.mako-templates-detected.mako-templates-detected \
+            --exclude-rule python.lang.security.audit.ssl-wrap-socket-is-deprecated.ssl-wrap-socket-is-deprecated \
+            --exclude-rule python.lang.security.use-defused-xml-parse.use-defused-xml-parse \
+            --exclude-rule python.lang.security.use-defused-xml.use-defused-xml \
+            --exclude-rule python.requests.security.disabled-cert-validation.disabled-cert-validation \
+            --exclude-rule generic.secrets.security.detected-ssh-password.detected-ssh-password \
+            --exclude-rule python.jwt.security.unverified-jwt-decode.unverified-jwt-decode \
+            --exclude-rule python.lang.security.audit.eval-detected.eval-detected \
+            --exclude-rule python.lang.security.audit.exec-detected.exec-detected \
+            --exclude-rule python.lang.security.audit.insecure-file-permissions.insecure-file-permissions \
+            src/
+        # --error makes Semgrep exit non-zero on findings; no continue-on-error
+        # so this job fails (and gates merge once marked required in branch
+        # protection). Tune the --exclude-rule list above to manage the baseline.
+
+      - name: Upload Semgrep results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: semgrep-results.sarif
+
+  dependency-check:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit safety
+
+      - name: Run pip-audit
+        run: pip-audit --strict --desc || true
+
+      - name: Run safety check
+        run: safety check --full-report || true

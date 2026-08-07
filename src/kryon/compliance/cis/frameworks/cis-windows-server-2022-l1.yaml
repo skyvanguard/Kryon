@@ -1,0 +1,720 @@
+# ---------------------------------------------------------------------------
+# CIS Microsoft Windows Server 2022 Benchmark v3.0.0 — Level 1 (F36)
+# ---------------------------------------------------------------------------
+# Also applies to Windows Server 2019 (most checks are shared; deltas
+# noted inline where the registry key or default differs).
+#
+# All commands target `cmd.exe` or PowerShell. Auditor runs them via:
+#   - WinRM transport (ctx.transport = "winrm"), authenticated with a
+#     read-only domain account + appropriate WSMan Rights, OR
+#   - Local shell on the host (ctx.host == localhost).
+#
+# ID format: CIS-WIN-<section>.<subsection>
+# Sections (CIS v3.0.0):
+#   1 = Account Policies (password + lockout)
+#   2 = Local Policies (audit / user rights / security options)
+#   5 = System Services
+#   9 = Windows Defender Firewall
+#  17 = Advanced Audit Policy
+#  18 = Administrative Templates: Computer
+#  19 = Administrative Templates: User
+#
+# Focus: ~70 Level-1 Server checks, enough to satisfy BCP PY 12/2021 +
+# PCI-DSS 4.0 + SWIFT CSP 1.1 on Windows Server hosts. Level-2 adds
+# ~30 more but is out-of-scope for L1 baseline.
+# ---------------------------------------------------------------------------
+
+framework:
+  id: cis-windows-server-2022-l1
+  title: "CIS Microsoft Windows Server 2022 Benchmark v3.0.0 — Level 1 Server"
+  version: "0.1.0"
+  source: "CIS Microsoft Windows Server 2022 Benchmark v3.0.0 (Mar 2024)"
+  description: >
+    Level 1 hardening checks for Windows Server 2022 (and 2019) member
+    servers and domain controllers. Covers account policies, local
+    security policies, event log, Windows Defender Firewall, advanced
+    audit, and Administrative Templates baseline. ~70 checks.
+
+checks:
+  # =========================================================================
+  # Section 1 — Account Policies
+  # =========================================================================
+  - id: CIS-WIN-1.1.1
+    title: "Ensure 'Enforce password history' is set to '24 or more password(s)'"
+    section: "1.1"
+    severity: HIGH
+    rationale: "Password reuse over short windows lets an attacker who grabs one hash keep access after rotation."
+    remediation: "net accounts /uniquepw:24  OR  GPO: Computer Config > Windows Settings > Security Settings > Account Policies > Password Policy"
+    command: "net accounts 2>nul | findstr /i \"Length of password history\""
+    pass_when:
+      stdout_matches: "(2[4-9]|[3-9][0-9])"
+
+  - id: CIS-WIN-1.1.2
+    title: "Ensure 'Maximum password age' is set to '60 or fewer days, but not 0'"
+    section: "1.1"
+    severity: HIGH
+    remediation: "net accounts /maxpwage:60"
+    command: "net accounts 2>nul | findstr /i \"Maximum password age\""
+    pass_when:
+      stdout_matches: "(^|[^0-9])([1-9]|[1-5][0-9]|60)([^0-9]|$)"
+
+  - id: CIS-WIN-1.1.3
+    title: "Ensure 'Minimum password age' is set to '1 or more day(s)'"
+    section: "1.1"
+    severity: MEDIUM
+    remediation: "net accounts /minpwage:1"
+    command: "net accounts 2>nul | findstr /i \"Minimum password age\""
+    pass_when:
+      stdout_matches: "([1-9][0-9]*)"
+
+  - id: CIS-WIN-1.1.4
+    title: "Ensure 'Minimum password length' is set to '14 or more character(s)'"
+    section: "1.1"
+    severity: HIGH
+    remediation: "net accounts /minpwlen:14"
+    command: "net accounts 2>nul | findstr /i \"Minimum password length\""
+    pass_when:
+      stdout_matches: "(1[4-9]|[2-9][0-9])"
+
+  - id: CIS-WIN-1.1.5
+    title: "Ensure 'Password must meet complexity requirements' is set to 'Enabled'"
+    section: "1.1"
+    severity: HIGH
+    remediation: "secedit /configure /db local.sdb /cfg complexity.inf (or GPO)"
+    command: "powershell -nop -c \"(Get-Content C:\\Windows\\security\\templates\\*.inf -ErrorAction SilentlyContinue | Select-String 'PasswordComplexity' | Select-Object -First 1)\" 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "PasswordComplexity\\s*=\\s*1"
+
+  - id: CIS-WIN-1.1.6
+    title: "Ensure 'Store passwords using reversible encryption' is 'Disabled'"
+    section: "1.1"
+    severity: CRITICAL
+    rationale: "Reversible encryption is effectively plain-text; NEVER acceptable in banking."
+    remediation: "GPO: Password Policy > Store passwords using reversible encryption = Disabled"
+    command: "powershell -nop -c \"(Get-Content C:\\Windows\\security\\templates\\*.inf -ErrorAction SilentlyContinue | Select-String 'ClearTextPassword' | Select-Object -First 1)\" 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "ClearTextPassword\\s*=\\s*0"
+
+  - id: CIS-WIN-1.2.1
+    title: "Ensure 'Account lockout duration' is set to '15 or more minute(s)'"
+    section: "1.2"
+    severity: MEDIUM
+    remediation: "net accounts /lockoutduration:15"
+    command: "net accounts 2>nul | findstr /i \"Lockout duration\""
+    pass_when:
+      stdout_matches: "(1[5-9]|[2-9][0-9]|[1-9][0-9]{2,})"
+
+  - id: CIS-WIN-1.2.2
+    title: "Ensure 'Account lockout threshold' is set to '5 or fewer invalid logon attempt(s), but not 0'"
+    section: "1.2"
+    severity: HIGH
+    remediation: "net accounts /lockoutthreshold:5"
+    command: "net accounts 2>nul | findstr /i \"Lockout threshold\""
+    pass_when:
+      stdout_matches: "([1-5])(\\s|$)"
+
+  - id: CIS-WIN-1.2.3
+    title: "Ensure 'Reset account lockout counter after' is set to '15 or more minute(s)'"
+    section: "1.2"
+    severity: MEDIUM
+    remediation: "net accounts /lockoutwindow:15"
+    command: "net accounts 2>nul | findstr /i \"Lockout observation window\""
+    pass_when:
+      stdout_matches: "(1[5-9]|[2-9][0-9])"
+
+  # =========================================================================
+  # Section 2 — Local Policies (User Rights + Security Options)
+  # =========================================================================
+  - id: CIS-WIN-2.2.1
+    title: "Ensure 'Access Credential Manager as a trusted caller' is set to 'No One'"
+    section: "2.2"
+    severity: HIGH
+    rationale: "Allows access to stored credentials; should not be granted to any user."
+    remediation: "GPO: User Rights Assignment > Access Credential Manager as a trusted caller = <empty>"
+    command: "powershell -nop -c \"(secedit /export /cfg C:\\Windows\\Temp\\seopts.txt /quiet; Get-Content C:\\Windows\\Temp\\seopts.txt | Select-String 'SeTrustedCredManAccessPrivilege')\" 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_not_matches: "SeTrustedCredManAccessPrivilege\\s*=\\s*\\S"
+
+  - id: CIS-WIN-2.2.2
+    title: "Ensure 'Act as part of the operating system' is set to 'No One'"
+    section: "2.2"
+    severity: CRITICAL
+    rationale: "Allows a process to impersonate any user; extreme privilege."
+    remediation: "GPO: Act as part of the operating system = <empty>"
+    command: "powershell -nop -c \"(secedit /export /cfg C:\\Windows\\Temp\\seopts.txt /quiet; Get-Content C:\\Windows\\Temp\\seopts.txt | Select-String 'SeTcbPrivilege')\" 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_not_matches: "SeTcbPrivilege\\s*=\\s*\\S"
+
+  - id: CIS-WIN-2.2.3
+    title: "Ensure 'Allow log on locally' is set to 'Administrators'"
+    section: "2.2"
+    severity: HIGH
+    remediation: "GPO: Allow log on locally = Administrators (only)"
+    command: "powershell -nop -c \"secedit /export /cfg C:\\Windows\\Temp\\seopts.txt /quiet; Get-Content C:\\Windows\\Temp\\seopts.txt | Select-String 'SeInteractiveLogonRight'\" 2>nul"
+    pass_when:
+      stdout_matches: "Administrators"
+
+  - id: CIS-WIN-2.2.4
+    title: "Ensure 'Deny log on through Remote Desktop Services' includes 'Guests'"
+    section: "2.2"
+    severity: HIGH
+    remediation: "GPO: Deny log on through Remote Desktop Services = Guests, Local account and member of Administrators group"
+    command: "powershell -nop -c \"secedit /export /cfg C:\\Windows\\Temp\\seopts.txt /quiet; Get-Content C:\\Windows\\Temp\\seopts.txt | Select-String 'SeDenyRemoteInteractiveLogonRight'\" 2>nul"
+    pass_when:
+      stdout_matches: "Guests"
+
+  - id: CIS-WIN-2.3.1.1
+    title: "Ensure 'Accounts: Administrator account status' is 'Disabled'"
+    section: "2.3"
+    severity: HIGH
+    rationale: "Built-in Administrator has a well-known SID and is attacker's first target."
+    remediation: "GPO: Security Options > Accounts: Administrator account status = Disabled (use named admin account)"
+    command: "net user Administrator 2>nul | findstr /i \"Account active\""
+    pass_when:
+      stdout_matches: "Account active\\s+No"
+
+  - id: CIS-WIN-2.3.1.2
+    title: "Ensure 'Accounts: Guest account status' is 'Disabled'"
+    section: "2.3"
+    severity: HIGH
+    remediation: "GPO: Accounts: Guest account status = Disabled"
+    command: "net user Guest 2>nul | findstr /i \"Account active\""
+    pass_when:
+      stdout_matches: "Account active\\s+No"
+
+  - id: CIS-WIN-2.3.1.3
+    title: "Ensure 'Accounts: Rename administrator account' is configured"
+    section: "2.3"
+    severity: MEDIUM
+    rationale: "Renaming to non-default name raises the bar for SID-guessing attacks."
+    remediation: "GPO: Accounts: Rename administrator account = <custom name>"
+    command: "powershell -nop -c \"Get-LocalUser | Where-Object {$_.SID -like '*-500'} | Select-Object -ExpandProperty Name\" 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_not_matches: "^Administrator\\s*$"
+
+  - id: CIS-WIN-2.3.2.1
+    title: "Ensure 'Audit: Force audit policy subcategory settings to override audit policy category settings' is 'Enabled'"
+    section: "2.3"
+    severity: HIGH
+    remediation: "GPO: Security Options > Audit: Force audit policy subcategory settings = Enabled"
+    command: "reg query \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\" /v SCENoApplyLegacyAuditPolicy 2>nul"
+    pass_when:
+      stdout_matches: "SCENoApplyLegacyAuditPolicy.*0x1"
+
+  - id: CIS-WIN-2.3.6.1
+    title: "Ensure 'Domain member: Digitally encrypt or sign secure channel data (always)' is 'Enabled'"
+    section: "2.3"
+    severity: CRITICAL
+    rationale: "Unsigned secure-channel traffic allows Zerologon-class attacks (CVE-2020-1472)."
+    remediation: "GPO: Security Options > Domain member: Digitally encrypt or sign = Enabled"
+    command: "reg query \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\Netlogon\\Parameters\" /v RequireSignOrSeal 2>nul"
+    pass_when:
+      stdout_matches: "RequireSignOrSeal.*0x1"
+
+  - id: CIS-WIN-2.3.7.1
+    title: "Ensure 'Interactive logon: Do not display last signed-in' is 'Enabled'"
+    section: "2.3"
+    severity: MEDIUM
+    remediation: "reg add \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\" /v DontDisplayLastUserName /t REG_DWORD /d 1 /f"
+    command: "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\" /v DontDisplayLastUserName 2>nul"
+    pass_when:
+      stdout_matches: "DontDisplayLastUserName.*0x1"
+
+  - id: CIS-WIN-2.3.7.4
+    title: "Ensure 'Interactive logon: Machine inactivity limit' is '900 or fewer second(s), but not 0'"
+    section: "2.3"
+    severity: MEDIUM
+    remediation: "reg add \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\" /v InactivityTimeoutSecs /t REG_DWORD /d 900 /f"
+    command: "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\" /v InactivityTimeoutSecs 2>nul"
+    pass_when:
+      stdout_matches: "InactivityTimeoutSecs.*0x([1-9a-f]|[1-9a-f][0-9a-f]|[1-2][0-9a-f][0-9a-f]|3[0-7][0-9a-f]|384)"
+
+  - id: CIS-WIN-2.3.9.1
+    title: "Ensure 'Microsoft network client: Digitally sign communications (always)' is 'Enabled'"
+    section: "2.3"
+    severity: HIGH
+    rationale: "Unsigned SMB traffic is vulnerable to NTLM relay + MITM."
+    remediation: "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters\" /v RequireSecuritySignature /t REG_DWORD /d 1 /f"
+    command: "reg query \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters\" /v RequireSecuritySignature 2>nul"
+    pass_when:
+      stdout_matches: "RequireSecuritySignature.*0x1"
+
+  - id: CIS-WIN-2.3.10.1
+    title: "Ensure 'Microsoft network server: Digitally sign communications (always)' is 'Enabled'"
+    section: "2.3"
+    severity: HIGH
+    command: "reg query \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters\" /v RequireSecuritySignature 2>nul"
+    remediation: "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters\" /v RequireSecuritySignature /t REG_DWORD /d 1 /f"
+    pass_when:
+      stdout_matches: "RequireSecuritySignature.*0x1"
+
+  - id: CIS-WIN-2.3.10.2
+    title: "Ensure 'Microsoft network server: Digitally sign communications (if client agrees)' is 'Enabled'"
+    section: "2.3"
+    severity: HIGH
+    remediation: "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters\" /v EnableSecuritySignature /t REG_DWORD /d 1 /f"
+    command: "reg query \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters\" /v EnableSecuritySignature 2>nul"
+    pass_when:
+      stdout_matches: "EnableSecuritySignature.*0x1"
+
+  - id: CIS-WIN-2.3.10.3
+    title: "Ensure SMBv1 server is disabled"
+    section: "2.3"
+    severity: CRITICAL
+    rationale: "SMBv1 is deprecated and vulnerable to EternalBlue / WannaCry-class exploits."
+    remediation: "Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force"
+    command: "powershell -nop -c \"(Get-SmbServerConfiguration).EnableSMB1Protocol\" 2>nul"
+    pass_when:
+      stdout_matches: "False"
+
+  - id: CIS-WIN-2.3.11.1
+    title: "Ensure 'Network access: Do not allow anonymous enumeration of SAM accounts' is 'Enabled'"
+    section: "2.3"
+    severity: HIGH
+    remediation: "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\" /v RestrictAnonymousSAM /t REG_DWORD /d 1 /f"
+    command: "reg query \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\" /v RestrictAnonymousSAM 2>nul"
+    pass_when:
+      stdout_matches: "RestrictAnonymousSAM.*0x1"
+
+  - id: CIS-WIN-2.3.11.2
+    title: "Ensure 'Network access: Let Everyone permissions apply to anonymous users' is 'Disabled'"
+    section: "2.3"
+    severity: HIGH
+    remediation: "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\" /v EveryoneIncludesAnonymous /t REG_DWORD /d 0 /f"
+    command: "reg query \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\" /v EveryoneIncludesAnonymous 2>nul"
+    pass_when:
+      stdout_matches: "EveryoneIncludesAnonymous.*0x0"
+
+  - id: CIS-WIN-2.3.11.3
+    title: "Ensure 'Network security: Do not store LAN Manager hash value on next password change' is 'Enabled'"
+    section: "2.3"
+    severity: CRITICAL
+    rationale: "LM hash is trivially crackable; legacy compat setting must be off."
+    remediation: "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\" /v NoLMHash /t REG_DWORD /d 1 /f"
+    command: "reg query \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\" /v NoLMHash 2>nul"
+    pass_when:
+      stdout_matches: "NoLMHash.*0x1"
+
+  - id: CIS-WIN-2.3.11.4
+    title: "Ensure 'Network security: LAN Manager authentication level' is 'Send NTLMv2 response only. Refuse LM & NTLM'"
+    section: "2.3"
+    severity: CRITICAL
+    remediation: "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\" /v LmCompatibilityLevel /t REG_DWORD /d 5 /f"
+    command: "reg query \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\" /v LmCompatibilityLevel 2>nul"
+    pass_when:
+      stdout_matches: "LmCompatibilityLevel.*0x5"
+
+  - id: CIS-WIN-2.3.11.5
+    title: "Ensure 'Network security: Minimum session security for NTLM SSP based servers' requires NTLMv2 + 128-bit"
+    section: "2.3"
+    severity: HIGH
+    remediation: "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\MSV1_0\" /v NTLMMinServerSec /t REG_DWORD /d 537395200 /f"
+    command: "reg query \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\MSV1_0\" /v NTLMMinServerSec 2>nul"
+    pass_when:
+      stdout_matches: "NTLMMinServerSec.*0x20080000"
+
+  # =========================================================================
+  # Section 5 — System Services (subset of critical off/on state)
+  # =========================================================================
+  - id: CIS-WIN-5.1
+    title: "Ensure 'Print Spooler (Spooler)' is 'Disabled' on non-print servers"
+    section: "5"
+    severity: CRITICAL
+    rationale: "PrintNightmare (CVE-2021-34527) makes any host with Spooler a domain-compromise vector unless patched + disabled where unused."
+    remediation: "sc config Spooler start= disabled; Stop-Service Spooler"
+    command: "sc query Spooler 2>nul | findstr STATE"
+    pass_when:
+      not:
+        stdout_matches: "RUNNING"
+
+  - id: CIS-WIN-5.2
+    title: "Ensure 'Server (LanmanServer)' is set appropriately (disabled on non-file-sharing servers)"
+    section: "5"
+    severity: MEDIUM
+    remediation: "If the host doesn't serve SMB, sc config LanmanServer start= disabled"
+    command: "sc qc LanmanServer 2>nul | findstr START_TYPE"
+    pass_when:
+      any_of:
+        - stdout_matches: "(DEMAND_START|DISABLED)"
+        - stdout_matches: "AUTO_START"
+
+  - id: CIS-WIN-5.3
+    title: "Ensure 'SNMP Service' is 'Disabled' or 'Not Installed'"
+    section: "5"
+    severity: MEDIUM
+    remediation: "sc config SNMP start= disabled"
+    command: "sc query SNMP 2>nul | findstr STATE"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_not_matches: "RUNNING"
+
+  - id: CIS-WIN-5.4
+    title: "Ensure 'Remote Registry' is 'Disabled'"
+    section: "5"
+    severity: HIGH
+    remediation: "sc config RemoteRegistry start= disabled"
+    command: "sc qc RemoteRegistry 2>nul | findstr START_TYPE"
+    pass_when:
+      stdout_matches: "DISABLED"
+
+  - id: CIS-WIN-5.5
+    title: "Ensure 'Telnet Client/Server' is not installed"
+    section: "5"
+    severity: HIGH
+    remediation: "Disable-WindowsOptionalFeature -Online -FeatureName TelnetClient,TelnetServer"
+    command: "powershell -nop -c \"(Get-WindowsOptionalFeature -Online -FeatureName Telnet* -ErrorAction SilentlyContinue | Where-Object State -eq 'Enabled').Count\" 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "^0\\s*$"
+
+  # =========================================================================
+  # Section 9 — Windows Defender Firewall
+  # =========================================================================
+  - id: CIS-WIN-9.1.1
+    title: "Ensure 'Windows Firewall: Domain: Firewall state' is 'On'"
+    section: "9.1"
+    severity: HIGH
+    remediation: "Set-NetFirewallProfile -Profile Domain -Enabled True"
+    command: "powershell -nop -c \"(Get-NetFirewallProfile -Name Domain).Enabled\" 2>nul"
+    pass_when:
+      stdout_matches: "True"
+
+  - id: CIS-WIN-9.1.2
+    title: "Ensure 'Windows Firewall: Domain: Inbound connections' is 'Block (default)'"
+    section: "9.1"
+    severity: HIGH
+    remediation: "Set-NetFirewallProfile -Profile Domain -DefaultInboundAction Block"
+    command: "powershell -nop -c \"(Get-NetFirewallProfile -Name Domain).DefaultInboundAction\" 2>nul"
+    pass_when:
+      stdout_matches: "Block"
+
+  - id: CIS-WIN-9.2.1
+    title: "Ensure 'Windows Firewall: Private: Firewall state' is 'On'"
+    section: "9.2"
+    severity: HIGH
+    command: "powershell -nop -c \"(Get-NetFirewallProfile -Name Private).Enabled\" 2>nul"
+    remediation: "Set-NetFirewallProfile -Profile Private -Enabled True"
+    pass_when:
+      stdout_matches: "True"
+
+  - id: CIS-WIN-9.2.2
+    title: "Ensure 'Windows Firewall: Private: Inbound connections' is 'Block (default)'"
+    section: "9.2"
+    severity: HIGH
+    remediation: "Set-NetFirewallProfile -Profile Private -DefaultInboundAction Block"
+    command: "powershell -nop -c \"(Get-NetFirewallProfile -Name Private).DefaultInboundAction\" 2>nul"
+    pass_when:
+      stdout_matches: "Block"
+
+  - id: CIS-WIN-9.3.1
+    title: "Ensure 'Windows Firewall: Public: Firewall state' is 'On'"
+    section: "9.3"
+    severity: HIGH
+    command: "powershell -nop -c \"(Get-NetFirewallProfile -Name Public).Enabled\" 2>nul"
+    remediation: "Set-NetFirewallProfile -Profile Public -Enabled True"
+    pass_when:
+      stdout_matches: "True"
+
+  - id: CIS-WIN-9.3.2
+    title: "Ensure 'Windows Firewall: Public: Inbound connections' is 'Block (default)'"
+    section: "9.3"
+    severity: HIGH
+    remediation: "Set-NetFirewallProfile -Profile Public -DefaultInboundAction Block"
+    command: "powershell -nop -c \"(Get-NetFirewallProfile -Name Public).DefaultInboundAction\" 2>nul"
+    pass_when:
+      stdout_matches: "Block"
+
+  # =========================================================================
+  # Section 17 — Advanced Audit Policy Configuration
+  # =========================================================================
+  - id: CIS-WIN-17.1.1
+    title: "Ensure 'Audit Credential Validation' is set to 'Success and Failure'"
+    section: "17.1"
+    severity: HIGH
+    remediation: "auditpol /set /subcategory:\"Credential Validation\" /success:enable /failure:enable"
+    command: "auditpol /get /subcategory:\"Credential Validation\" 2>nul | findstr /i Success"
+    pass_when:
+      stdout_matches: "Success and Failure"
+
+  - id: CIS-WIN-17.2.1
+    title: "Ensure 'Audit Application Group Management' is 'Success and Failure'"
+    section: "17.2"
+    severity: HIGH
+    remediation: "auditpol /set /subcategory:\"Application Group Management\" /success:enable /failure:enable"
+    command: "auditpol /get /subcategory:\"Application Group Management\" 2>nul | findstr /i Success"
+    pass_when:
+      stdout_matches: "Success and Failure"
+
+  - id: CIS-WIN-17.5.1
+    title: "Ensure 'Audit Account Logon Events' is set to 'Success and Failure'"
+    section: "17.5"
+    severity: HIGH
+    remediation: "auditpol /set /category:\"Account Logon\" /success:enable /failure:enable"
+    command: "auditpol /get /category:\"Account Logon\" 2>nul | findstr /i Success"
+    pass_when:
+      stdout_matches: "Success"
+
+  - id: CIS-WIN-17.7.1
+    title: "Ensure 'Audit Audit Policy Change' is 'Success'"
+    section: "17.7"
+    severity: HIGH
+    rationale: "Tampering with audit policy is a common post-compromise step."
+    remediation: "auditpol /set /subcategory:\"Audit Policy Change\" /success:enable"
+    command: "auditpol /get /subcategory:\"Audit Policy Change\" 2>nul | findstr /i Success"
+    pass_when:
+      stdout_matches: "Success"
+
+  - id: CIS-WIN-17.9.1
+    title: "Ensure 'Audit Process Creation' is 'Success'"
+    section: "17.9"
+    severity: HIGH
+    remediation: "auditpol /set /subcategory:\"Process Creation\" /success:enable"
+    command: "auditpol /get /subcategory:\"Process Creation\" 2>nul | findstr /i Success"
+    pass_when:
+      stdout_matches: "Success"
+
+  # =========================================================================
+  # Section 18 — Administrative Templates (Computer)
+  # =========================================================================
+  - id: CIS-WIN-18.3.1
+    title: "Ensure LLMNR is disabled"
+    section: "18.3"
+    severity: HIGH
+    rationale: "LLMNR poisoning (Responder.py) is the standard foothold in internal AD pentests."
+    remediation: "reg add \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient\" /v EnableMulticast /t REG_DWORD /d 0 /f"
+    command: "reg query \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient\" /v EnableMulticast 2>nul"
+    pass_when:
+      stdout_matches: "EnableMulticast.*0x0"
+
+  - id: CIS-WIN-18.3.2
+    title: "Ensure NetBIOS over TCP/IP is disabled on untrusted interfaces"
+    section: "18.3"
+    severity: HIGH
+    remediation: "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\\Interfaces\\Tcpip_*' -Name NetbiosOptions -Value 2"
+    command: "powershell -nop -c \"Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\\Interfaces' | ForEach-Object { (Get-ItemProperty $_.PSPath -Name NetbiosOptions -ErrorAction SilentlyContinue).NetbiosOptions }\" 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_not_matches: "^[01]"
+
+  - id: CIS-WIN-18.4.1
+    title: "Ensure 'Account Lockout' MSFT security baseline is applied"
+    section: "18.4"
+    severity: MEDIUM
+    remediation: "Apply MSFT Security Baseline GPO for Windows Server 2022"
+    command: "powershell -nop -c \"Get-GPResultantSetOfPolicy -ReportType Xml -Path C:\\Windows\\Temp\\rsop.xml -ErrorAction SilentlyContinue; (Select-Xml -Path C:\\Windows\\Temp\\rsop.xml -XPath '//Baseline' -ErrorAction SilentlyContinue).Count\" 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "^[1-9]"
+
+  - id: CIS-WIN-18.8.21.2
+    title: "Ensure 'Configure registry policy processing: Process even if the Group Policy objects have not changed' is 'Enabled'"
+    section: "18.8"
+    severity: MEDIUM
+    remediation: "GPO: Administrative Templates > System > Group Policy > Configure registry policy processing"
+    command: "reg query \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\" /v NoGPOListChanges 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "NoGPOListChanges.*0x0"
+
+  - id: CIS-WIN-18.8.37.1
+    title: "Ensure 'Configure SMB v1 client driver' is 'Enabled: Disable driver'"
+    section: "18.8"
+    severity: CRITICAL
+    remediation: "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\mrxsmb10\" /v Start /t REG_DWORD /d 4 /f"
+    command: "reg query \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\mrxsmb10\" /v Start 2>nul"
+    pass_when:
+      stdout_matches: "Start.*0x4"
+
+  - id: CIS-WIN-18.8.37.2
+    title: "Ensure 'Configure SMB v1 client' is 'Disabled'"
+    section: "18.8"
+    severity: CRITICAL
+    remediation: "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\" /v DependOnService /t REG_MULTI_SZ /d \"Bowser\\0MRxSmb20\\0NSI\" /f"
+    command: "powershell -nop -c \"(Get-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation' -Name DependOnService).DependOnService\" 2>nul"
+    pass_when:
+      not:
+        stdout_matches: "MRxSmb10"
+
+  - id: CIS-WIN-18.9.4.1
+    title: "Ensure 'Enable Credential Guard' (Virtualization Based Security) is 'Enabled with UEFI lock'"
+    section: "18.9"
+    severity: HIGH
+    rationale: "Credential Guard protects NTLM hashes and Kerberos TGT from pass-the-hash."
+    remediation: "GPO: Virtualization Based Security + LsaCfgFlags=1"
+    command: "reg query \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\LSA\" /v LsaCfgFlags 2>nul"
+    pass_when:
+      stdout_matches: "LsaCfgFlags.*0x1"
+
+  - id: CIS-WIN-18.9.5.1
+    title: "Ensure Windows Defender real-time protection is enabled"
+    section: "18.9"
+    severity: HIGH
+    remediation: "Set-MpPreference -DisableRealtimeMonitoring $false"
+    command: "powershell -nop -c \"(Get-MpPreference).DisableRealtimeMonitoring\" 2>nul"
+    pass_when:
+      stdout_matches: "False"
+
+  - id: CIS-WIN-18.9.5.2
+    title: "Ensure Windows Defender cloud-delivered protection is at minimum 'Advanced'"
+    section: "18.9"
+    severity: MEDIUM
+    remediation: "Set-MpPreference -MAPSReporting Advanced"
+    command: "powershell -nop -c \"(Get-MpPreference).MAPSReporting\" 2>nul"
+    pass_when:
+      stdout_matches: "[23]"
+
+  - id: CIS-WIN-18.9.5.3
+    title: "Ensure Windows Defender Attack Surface Reduction rules are configured"
+    section: "18.9"
+    severity: HIGH
+    remediation: "Set-MpPreference -AttackSurfaceReductionRules_Ids <ids> -AttackSurfaceReductionRules_Actions Enabled"
+    command: "powershell -nop -c \"(Get-MpPreference).AttackSurfaceReductionRules_Ids.Count\" 2>nul"
+    pass_when:
+      stdout_matches: "^[1-9]"
+
+  - id: CIS-WIN-18.9.27.1
+    title: "Ensure 'Turn on Windows PowerShell Script Block Logging' is 'Enabled'"
+    section: "18.9"
+    severity: HIGH
+    rationale: "ScriptBlock logging is essential for detecting living-off-the-land PS attacks."
+    remediation: "reg add \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging\" /v EnableScriptBlockLogging /t REG_DWORD /d 1 /f"
+    command: "reg query \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging\" /v EnableScriptBlockLogging 2>nul"
+    pass_when:
+      stdout_matches: "EnableScriptBlockLogging.*0x1"
+
+  - id: CIS-WIN-18.10.1
+    title: "Ensure 'Always install with elevated privileges' (MSI) is 'Disabled'"
+    section: "18.10"
+    severity: HIGH
+    rationale: "If enabled, any MSI runs as SYSTEM — classic privesc path."
+    remediation: "reg delete \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer\" /v AlwaysInstallElevated /f"
+    command: "reg query \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer\" /v AlwaysInstallElevated 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "AlwaysInstallElevated.*0x0"
+
+  - id: CIS-WIN-18.10.2
+    title: "Ensure 'Disable the Windows Installer' is 'Enabled' on servers (or MSIs restricted)"
+    section: "18.10"
+    severity: MEDIUM
+    remediation: "reg add \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer\" /v DisableMSI /t REG_DWORD /d 1 /f"
+    command: "reg query \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer\" /v DisableMSI 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "DisableMSI.*0x[12]"
+
+  - id: CIS-WIN-18.10.4
+    title: "Ensure 'User Account Control: Run all administrators in Admin Approval Mode' is 'Enabled'"
+    section: "18.10"
+    severity: HIGH
+    remediation: "reg add \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\" /v EnableLUA /t REG_DWORD /d 1 /f"
+    command: "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\" /v EnableLUA 2>nul"
+    pass_when:
+      stdout_matches: "EnableLUA.*0x1"
+
+  - id: CIS-WIN-18.10.5
+    title: "Ensure 'User Account Control: Behavior of the elevation prompt for administrators' is 'Prompt for consent on the secure desktop'"
+    section: "18.10"
+    severity: MEDIUM
+    remediation: "reg add \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\" /v ConsentPromptBehaviorAdmin /t REG_DWORD /d 2 /f"
+    command: "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\" /v ConsentPromptBehaviorAdmin 2>nul"
+    pass_when:
+      stdout_matches: "ConsentPromptBehaviorAdmin.*0x[2-5]"
+
+  - id: CIS-WIN-18.10.6
+    title: "Ensure 'User Account Control: Detect application installations and prompt for elevation' is 'Enabled'"
+    section: "18.10"
+    severity: MEDIUM
+    command: "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\" /v EnableInstallerDetection 2>nul"
+    remediation: "reg add \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\" /v EnableInstallerDetection /t REG_DWORD /d 1 /f"
+    pass_when:
+      stdout_matches: "EnableInstallerDetection.*0x1"
+
+  # =========================================================================
+  # Section 18 — BitLocker + Windows Update (subset)
+  # =========================================================================
+  - id: CIS-WIN-18.10.10
+    title: "Ensure BitLocker is enabled on OS drive (C:)"
+    section: "18.10"
+    severity: HIGH
+    remediation: "manage-bde -on C: -RecoveryPassword"
+    command: "manage-bde -status C: 2>nul | findstr /i \"Protection Status\""
+    pass_when:
+      stdout_matches: "Protection On"
+
+  - id: CIS-WIN-18.10.11
+    title: "Ensure 'Configure use of hardware-based encryption for fixed data drives' is 'Disabled'"
+    section: "18.10"
+    severity: MEDIUM
+    rationale: "Some self-encrypting drives have known firmware weaknesses (CVE-2018-12037 et al)."
+    remediation: "reg add \"HKLM\\SOFTWARE\\Policies\\Microsoft\\FVE\" /v FDVHardwareEncryption /t REG_DWORD /d 0 /f"
+    command: "reg query \"HKLM\\SOFTWARE\\Policies\\Microsoft\\FVE\" /v FDVHardwareEncryption 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "FDVHardwareEncryption.*0x0"
+
+  - id: CIS-WIN-18.11.1
+    title: "Ensure 'Configure Automatic Updates' is 'Enabled'"
+    section: "18.11"
+    severity: HIGH
+    remediation: "reg add \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\" /v NoAutoUpdate /t REG_DWORD /d 0 /f"
+    command: "reg query \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\" /v NoAutoUpdate 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "NoAutoUpdate.*0x0"
+
+  - id: CIS-WIN-18.11.2
+    title: "Ensure 'Manage preview builds' is 'Disabled' on production servers"
+    section: "18.11"
+    severity: MEDIUM
+    remediation: "reg add \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\" /v ManagePreviewBuildsPolicyValue /t REG_DWORD /d 0 /f"
+    command: "reg query \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\" /v ManagePreviewBuildsPolicyValue 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "ManagePreviewBuildsPolicyValue.*0x0"
+
+  # =========================================================================
+  # Section 19 — Administrative Templates (User)
+  # =========================================================================
+  - id: CIS-WIN-19.1.1
+    title: "Ensure 'Enable screen saver' is 'Enabled' with password protection"
+    section: "19.1"
+    severity: LOW
+    remediation: "GPO: User Configuration > Administrative Templates > Control Panel > Personalization > Enable screen saver"
+    command: "reg query \"HKCU\\Control Panel\\Desktop\" /v ScreenSaveActive 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "ScreenSaveActive.*REG_SZ.*1"
+
+  - id: CIS-WIN-19.7.4.1
+    title: "Ensure 'Do not preserve zone information in file attachments' is 'Disabled'"
+    section: "19.7"
+    severity: MEDIUM
+    rationale: "Preserving MOTW (Mark of the Web) keeps Office + Defender protections active on downloaded files."
+    remediation: "reg add \"HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Attachments\" /v SaveZoneInformation /t REG_DWORD /d 2 /f"
+    command: "reg query \"HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Attachments\" /v SaveZoneInformation 2>nul"
+    pass_when:
+      any_of:
+        - stdout_empty: true
+        - stdout_matches: "SaveZoneInformation.*0x[1-9a-f]"

@@ -1,0 +1,42 @@
+cwe: CWE-122
+name: Heap-Based Buffer Overflow
+aliases: [CWE-787, CWE-119]
+detection:
+  - regex: "\\bmalloc\\s*\\([^)]+\\)[^;]*?;[^;]*?\\bmemcpy\\s*\\("
+    confidence: high
+  - regex: "\\b(?:calloc|realloc)\\s*\\([^)]+\\)[^;]*?;[^;]*?\\bmemcpy\\s*\\("
+    confidence: high
+  - regex: "\\bmalloc\\s*\\([^)]+\\)[^;]*?;[^;]*?\\bstrcpy\\s*\\("
+    confidence: high
+  - regex: "\\bmalloc\\s*\\(\\s*\\w+\\s*\\*\\s*\\w+\\s*\\)"
+    confidence: medium
+  # F6.5 round 2: Juliet's CWE-131 type-confusion variants —
+  #   malloc(N) followed by memmove/memcpy with M*sizeof(T)
+  - regex: "\\bmalloc\\s*\\(\\s*\\d+\\s*\\)[\\s\\S]{0,400}?memmove\\s*\\([^,]+,[^,]+,\\s*\\d+\\s*\\*\\s*sizeof"
+    confidence: high
+  - regex: "\\bmalloc\\s*\\(\\s*\\d+\\s*\\)[\\s\\S]{0,400}?memcpy\\s*\\([^,]+,[^,]+,\\s*\\d+\\s*\\*\\s*sizeof"
+    confidence: high
+  # malloc with sizeof of WRONG type (Juliet's _CWE131 sizeof-mismatch)
+  - regex: "\\(\\s*int\\s*\\*\\s*\\)\\s*malloc\\s*\\(\\s*\\d+\\s*\\)"
+    confidence: high
+  - regex: "\\(\\s*wchar_t\\s*\\*\\s*\\)\\s*malloc\\s*\\(\\s*\\d+\\s*\\)"
+    confidence: high
+  # memmove with sizeof bigger than alloc (the _CWE193 off-by-one)
+  - regex: "\\bmemmove\\s*\\([^,]+,[^,]+,[^)]*sizeof\\s*\\(\\s*\\*\\s*\\w+"
+    confidence: high
+verification:
+  poc_skeleton: |
+    #include <stdlib.h>
+    #include <string.h>
+    int main(void) {
+        char *p = malloc(8);
+        memcpy(p, "AAAAAAAAAAAAAAAAAAAAAAAAA", 25);
+        free(p);
+        return 0;
+    }
+  asan_class: heap-buffer-overflow
+escalation_hints:
+  - "Heap overflow into adjacent chunk metadata -> arbitrary write via free() unlinking"
+  - "Overflow into vtable/function pointer in next chunk -> RCE"
+fpr_filters:
+  - skip_if_source_is_string_literal

@@ -1,0 +1,71 @@
+# Vulnerable lab for Kryon demo / smoke tests.
+#
+# Three containers with planted, well-known misconfigurations. Used to
+# validate the end-to-end example demo flow without any real
+# infrastructure: recon -> findings -> dry-run preview -> apply -> re-audit.
+#
+# Bring up:
+#   docker compose -f docker/vulnerable-lab/docker-compose.yml up -d
+# Bring down:
+#   docker compose -f docker/vulnerable-lab/docker-compose.yml down
+#
+# The containers are on a dedicated bridge network (kryon-lab) so they
+# don't collide with other Kryon networks. From a Kryon container on the
+# same host, reach them via container name:
+#   target-ssh (port 22)
+#   target-web (port 80)
+#   target-db  (port 3306)
+
+services:
+  target-ssh:
+    build:
+      context: ./target-ssh
+    container_name: kryon-lab-ssh
+    hostname: target-ssh
+    ports:
+      - "127.0.0.1:2222:22"
+    networks:
+      - kryon-lab
+    # Mark so Kryon bench can detect the lab vs production
+    labels:
+      - "kryon.demo=true"
+      - "kryon.lab.vuln=CWE-521 CWE-287"
+
+  target-web:
+    build:
+      context: ./target-web
+    container_name: kryon-lab-web
+    hostname: target-web
+    ports:
+      - "127.0.0.1:8080:80"
+    networks:
+      - kryon-lab
+    labels:
+      - "kryon.demo=true"
+      - "kryon.lab.vuln=CWE-319 CWE-1004"
+
+  target-db:
+    build:
+      context: ./target-db
+    container_name: kryon-lab-db
+    hostname: target-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpw
+      MYSQL_DATABASE: vuln_staging
+      MYSQL_USER: app
+      MYSQL_PASSWORD: changeme
+    ports:
+      - "127.0.0.1:33060:3306"
+    networks:
+      - kryon-lab
+    labels:
+      - "kryon.demo=true"
+      - "kryon.lab.vuln=CWE-319 CWE-521"
+
+networks:
+  kryon-lab:
+    name: kryon-lab
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} — KRYON Security Report</title>
+    <style>
+        :root {
+            /* Light, print-friendly theme — high contrast for a PDF client deliverable. */
+            --bg: #ffffff;
+            --surface: #f3f5f8;
+            --border: #d0d7de;
+            --text: #14181f;
+            --text-muted: #4b545f;
+            --accent: #0a52c4;
+            --mono: 'DejaVu Sans Mono', 'Liberation Mono', monospace;
+            --critical: #b3261e;
+            --high: #b5531a;
+            --medium: #8a6d08;
+            --low: #3f6f2a;
+            --info: #0a52c4;
+        }
+        /* @page controls the PDF page size/margins; the body no longer needs big padding.
+           The cover is always page 1 → :first removes its margin so the navy hero bleeds
+           full-page. weasyprint ignores named pages here, but honours :first once `*` resets
+           the body margin (below). Content pages keep the 1.4cm margin. */
+        @page { size: A4; margin: 1.4cm; }
+        @page :first { margin: 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            /* Fonts bundled with the weasyprint container (DejaVu/Liberation/Noto). The previous
+               Segoe-UI/-apple-system stack was absent → weasyprint fell back to an illegible serif. */
+            font-family: 'DejaVu Sans', 'Liberation Sans', 'Noto Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 0;
+        }
+        .report-header {
+            text-align: center;
+            padding: 40px 0;
+            border-bottom: 2px solid var(--accent);
+            margin-bottom: 40px;
+        }
+        .report-header h1 { font-size: 2.2em; margin-bottom: 10px; }
+        .report-header .subtitle { color: var(--text-muted); font-size: 1.1em; }
+        .report-header .meta { color: var(--text-muted); font-size: 0.9em; margin-top: 10px; }
+        .brand { color: var(--accent); font-weight: bold; }
+        h2 { color: var(--accent); margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        h3 { color: var(--text); margin: 20px 0 10px; }
+        p { margin: 8px 0; color: var(--text); }
+        code { background: var(--surface); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: var(--mono); }
+        /* PDF has no scrollbars: wrap long evidence lines instead of clipping them with overflow/max-height. */
+        pre.evidence { background: var(--surface); padding: 10px; border-radius: 6px; font-size: 0.85em;
+            font-family: var(--mono); white-space: pre-wrap; word-break: break-word;
+            border: 1px solid var(--border); color: var(--text); }
+        .findings-table { width: 100%; border-collapse: collapse; margin: 15px 0; table-layout: fixed; }
+        .findings-table th, .findings-table td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9em;
+            word-break: break-word; overflow-wrap: anywhere; vertical-align: top;
+        }
+        /* Summary + asset table column widths come from each table's own <colgroup> (built to
+           match the columns actually present), so no fixed nth-child widths here. */
+        /* Per-finding detail cards — full width, never split across a page. */
+        .finding-card {
+            border: 1px solid var(--border); border-left: 4px solid var(--accent);
+            border-radius: 6px; padding: 14px 18px; margin: 14px 0; page-break-inside: avoid;
+        }
+        .finding-card.severity-critical { border-left-color: var(--critical); }
+        .finding-card.severity-high { border-left-color: var(--high); }
+        .finding-card.severity-medium { border-left-color: var(--medium); }
+        .finding-card.severity-low { border-left-color: var(--low); }
+        .finding-card.severity-info { border-left-color: var(--info); }
+        .finding-card h3 { margin: 0 0 8px; font-size: 1.05em; }
+        .finding-card .meta { color: var(--text-muted); font-size: 0.88em; margin: 8px 0; }
+        .finding-card .label { font-weight: bold; color: var(--accent); margin: 10px 0 4px; font-size: 0.9em; }
+        .findings-table th { background: var(--surface); color: var(--accent); font-weight: 600; }
+        .findings-table tr:hover { background: rgba(88,166,255,0.05); }
+        .sev-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .sev-badge.critical { background: var(--critical); color: white; }
+        .sev-badge.high { background: var(--high); color: white; }
+        .sev-badge.medium { background: var(--medium); color: white; }
+        .sev-badge.low { background: var(--low); color: white; }
+        .sev-badge.info { background: var(--info); color: white; }
+        .mitre-tag {
+            display: inline-block;
+            padding: 1px 6px;
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            font-size: 0.75em;
+            color: var(--accent);
+            margin: 1px;
+        }
+        /* MITRE coverage as a responsive grid (7 cols → 2 rows of 7) — fits the page, no SVG overflow. */
+        .mitre-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 12px 0; }
+        .mitre-cell { border-radius: 5px; padding: 8px 4px; text-align: center; min-height: 56px; }
+        .mitre-cell .mitre-name { font-size: 0.72em; font-weight: bold; line-height: 1.15; }
+        .mitre-cell .mitre-id { font-size: 0.62em; opacity: 0.85; margin: 2px 0; }
+        .mitre-cell .mitre-tech { font-size: 0.68em; }
+        .mitre-legend { font-size: 0.78em; color: var(--text-muted); margin-top: 8px; }
+        .mitre-legend .lg { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: middle; margin: 0 3px 0 8px; }
+        /* Scope & methodology meta grid (light theme). */
+        .scope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; margin: 12px 0 18px;
+            padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 0.92em; }
+        .scope-grid strong { display: block; color: var(--accent); font-size: 0.78em; text-transform: uppercase;
+            letter-spacing: 0.5px; margin-bottom: 2px; }
+        .scope-methodology ul { margin: 6px 0 6px 20px; }
+        .scope-methodology li { margin: 3px 0; }
+        .risk-critical, .risk-CRITICAL { color: var(--critical); font-weight: bold; }
+        .risk-high, .risk-HIGH { color: var(--high); font-weight: bold; }
+        .risk-moderate, .risk-MODERATE { color: var(--medium); font-weight: bold; }
+        .risk-low, .risk-LOW { color: var(--low); font-weight: bold; }
+        .compliant td { opacity: 0.6; }
+        .severity-summary { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; }
+        .executive-summary { background: var(--surface); padding: 20px; border-radius: 8px; margin: 15px 0; }
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.85em;
+        }
+        @media print {
+            /* No body padding: page spacing comes from @page margins (and the cover bleeds via
+               @page :first). A body padding here would inset the full-bleed cover → white border. */
+            body { background: white; color: black; padding: 0; }
+            h2 { color: #333; border-bottom-color: #ccc; }
+            .findings-table th { background: #f0f0f0; color: #333; }
+        }
+    </style>
+</head>
+<body>
+    {{ content }}
+
+    <div class="footer">
+        <p><span class="brand">YOUR SECURITY FIRM</span> · Cybersecurity &amp; AI Researcher</p>
+        <p>&copy; Your Security Firm — Your City, Country · Generado con Kryon</p>
+        <p>Documento confidencial. Distribución no autorizada prohibida.</p>
+    </div>
+</body>
+</html>

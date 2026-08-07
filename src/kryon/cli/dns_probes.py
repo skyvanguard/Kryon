@@ -1,0 +1,248 @@
+"""Deterministic DNS / email-security findings — SPF / DMARC / DKIM posture and
+subdomain-takeover candidates. Domain-keyed (run against the target domain),
+READ-ONLY DNS lookups, graceful. High value: missing/weak SPF+DMARC is the root of
+e-mail spoofing/phishing risk, and is a recurring compliance gap.
+"""
+
+from __future__ import annotations
+
+from kryon.cli.engage import Finding, make_finding
+
+# Known services whose dangling CNAME enables subdomain takeover (non-exhaustive).
+_TAKEOVER_FINGERPRINTS = (
+    "github.io", "herokudns.com", "herokuapp.com", "s3.amazonaws.com", "cloudfront.net",
+    "azurewebsites.net", "cloudapp.net", "trafficmanager.net", "fastly.net", "ghost.io",
+    "pantheonsite.io", "wpengine.com", "zendesk.com", "readthedocs.io", "surge.sh",
+    "bitbucket.io", "shopify.com", "myshopify.com", "unbouncepages.com", "helpscoutdocs.com",
+)
+
+_DKIM_SELECTORS = ("default", "google", "selector1", "selector2", "k1", "dkim", "mail", "smtp", "s1", "s2")
+
+# Two-label public suffixes where the registrable domain is the 3rd label from the
+# right (example.com.py, foo.co.uk). Not exhaustive — covers common LATAM/global
+# ccTLD second-level domains; anything else falls back to eTLD+1 (last two labels).
+# (A full Public Suffix List would need a dependency; this is the pragmatic subset.)
+_MULTI_LABEL_SUFFIXES = frozenset({
+    "com.py", "net.py", "org.py", "edu.py", "gov.py",
+    "com.ar", "com.br", "com.uy", "com.bo", "com.pe", "com.co", "com.mx", "com.ve", "com.ec", "com.cl",
+    "co.uk", "org.uk", "gov.uk", "ac.uk", "com.au", "net.au", "org.au", "co.nz", "co.jp", "co.za", "com.tr", "com.sg",
+})
+
+
+def _registrable_domain(host: str) -> str:
+    """Reduce a host to its registrable (apex) domain so email-posture checks hit
+    the ORGANIZATIONAL domain, not a subdomain — SPF/DMARC/DKIM live at the apex.
+    ``www.example.com.py`` → ``example.com.py``. Handles two-label public suffixes
+    (``com.py``, ``co.uk``); otherwise falls back to eTLD+1 (last two labels)."""
+    labels = host.strip(".").lower().split(".")
+    if len(labels) <= 2:
+        return ".".join(labels)
+    if ".".join(labels[-2:]) in _MULTI_LABEL_SUFFIXES:
+        return ".".join(labels[-3:])
+    return ".".join(labels[-2:])
+
+
+def _df(domain: str, cwe: str, sev: str, rule_id: str, msg: str, evidence: str, fix: str) -> Finding:
+    return make_finding(cwe, sev, domain, rule_id, msg, evidence=evidence, remediation=fix)
+
+
+def _txt(name: str) -> list[str]:
+    try:
+        import dns.resolver  # noqa: PLC0415
+
+        ans = dns.resolver.resolve(name, "TXT", lifetime=5)
+        return ["".join(s.decode() if isinstance(s, bytes) else str(s) for s in r.strings) for r in ans]
+    except Exception:  # noqa: BLE001 — NXDOMAIN / timeout / no dnspython → treat as "no record"
+        return []
+
+
+def _cname(name: str) -> str | None:
+    try:
+        import dns.resolver  # noqa: PLC0415
+
+        ans = dns.resolver.resolve(name, "CNAME", lifetime=5)
+        return str(ans[0].target).rstrip(".").lower()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _check_spf(domain: str) -> Finding | None:
+    spf = [t for t in _txt(domain) if t.lower().startswith("v=spf1")]
+    if not spf:
+        return _df(domain, "CWE-1390", "MEDIUM", "spf-missing",
+                   f"El dominio {domain} no tiene registro SPF — permite spoofing del remitente.",
+                   "Sin TXT 'v=spf1' en el apex",
+                   "Publicar un SPF restrictivo (v=spf1 include:... -all).")
+    record = spf[0].lower()
+    if "+all" in record or record.rstrip().endswith(" all"):
+        return _df(domain, "CWE-1390", "MEDIUM", "spf-permissive",
+                   f"SPF permisivo (+all) en {domain} — cualquier servidor puede mandar correo como el dominio.",
+                   f"SPF: {spf[0][:80]}",
+                   "Cambiar +all por -all (hard fail) o ~all (soft fail).")
+    return None
+
+
+def _check_dmarc(domain: str) -> Finding | None:
+    dmarc = [t for t in _txt(f"_dmarc.{domain}") if "v=dmarc1" in t.lower()]
+    if not dmarc:
+        return _df(domain, "CWE-1390", "MEDIUM", "dmarc-missing",
+                   f"El dominio {domain} no tiene registro DMARC — sin política anti-spoofing/visibilidad.",
+                   "Sin TXT 'v=DMARC1' en _dmarc",
+                   "Publicar DMARC (empezar con p=none + rua para monitorear, luego p=quarantine/reject).")
+    policy = ""
+    for part in dmarc[0].lower().split(";"):
+        part = part.strip()
+        if part.startswith("p="):
+            policy = part[2:].strip()
+    if policy in ("none", ""):
+        return _df(domain, "CWE-1390", "LOW", "dmarc-policy-none",
+                   f"DMARC en {domain} con política p=none — solo monitorea, no bloquea el spoofing.",
+                   f"DMARC: {dmarc[0][:80]}",
+                   "Endurecer a p=quarantine y luego p=reject una vez validado el flujo legítimo.")
+    return None
+
+
+def _check_dkim(domain: str) -> Finding | None:
+    for sel in _DKIM_SELECTORS:
+        for t in _txt(f"{sel}._domainkey.{domain}"):
+            if "v=dkim1" in t.lower() or "k=rsa" in t.lower() or "p=" in t.lower():
+                return None  # at least one common selector has DKIM → fine
+    return _df(domain, "CWE-1390", "LOW", "dkim-not-found",
+               f"No se encontró DKIM en {domain} (selectores comunes) — correo sin firma criptográfica.",
+               f"Sin TXT DKIM en {'/'.join(_DKIM_SELECTORS[:5])}._domainkey",
+               "Configurar DKIM (firmar el correo saliente) y alinearlo con SPF/DMARC.")
+
+
+def _caa(name: str) -> list[str]:
+    try:
+        import dns.resolver  # noqa: PLC0415
+
+        ans = dns.resolver.resolve(name, "CAA", lifetime=5)
+        return [str(r) for r in ans]
+    except Exception:  # noqa: BLE001 — no CAA / timeout
+        return []
+
+
+def _has_mx(domain: str) -> bool:
+    try:
+        import dns.resolver  # noqa: PLC0415
+
+        return len(dns.resolver.resolve(domain, "MX", lifetime=5)) > 0
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _check_caa(domain: str) -> Finding | None:
+    if _caa(domain):
+        return None
+    return _df(domain, "CWE-295", "LOW", "caa-missing",
+               f"El dominio {domain} no tiene registro CAA — cualquier CA puede emitir certificados.",
+               "Sin RR CAA en el apex",
+               "Publicar CAA restringiendo la emisión a la(s) CA(s) autorizada(s) (issue \"letsencrypt.org\").")
+
+
+def _check_mta_sts(domain: str) -> Finding | None:
+    if not _has_mx(domain):
+        return None  # no email → MTA-STS not applicable
+    if any("v=stsv1" in t.lower() for t in _txt(f"_mta-sts.{domain}")):
+        return None
+    return _df(domain, "CWE-319", "LOW", "mta-sts-missing",
+               f"El dominio {domain} recibe correo pero no tiene MTA-STS — el SMTP entrante puede degradarse a texto plano.",
+               "Sin TXT 'v=STSv1' en _mta-sts",
+               "Publicar el TXT _mta-sts + la policy HTTPS (mode: enforce) para forzar TLS en el correo entrante.")
+
+
+def _check_tls_rpt(domain: str) -> Finding | None:
+    if not _has_mx(domain):
+        return None
+    if any("v=tlsrptv1" in t.lower() for t in _txt(f"_smtp._tls.{domain}")):
+        return None
+    return _df(domain, "CWE-778", "LOW", "tls-rpt-missing",
+               f"El dominio {domain} recibe correo pero no tiene TLS-RPT — sin visibilidad de fallos de TLS en SMTP.",
+               "Sin TXT 'v=TLSRPTv1' en _smtp._tls",
+               "Publicar TLS-RPT (_smtp._tls TXT con rua=mailto:) para recibir reportes de fallos de entrega TLS.")
+
+
+def _check_axfr(domain: str) -> Finding | None:
+    """Zone transfer (AXFR) allowed from a public NS = full zone dump (every
+    hostname/record). Try each authoritative NS; report the first that answers."""
+    try:
+        import dns.query  # noqa: PLC0415
+        import dns.resolver  # noqa: PLC0415
+        import dns.zone  # noqa: PLC0415
+
+        ns_names = [str(r.target).rstrip(".") for r in dns.resolver.resolve(domain, "NS", lifetime=5)]
+    except Exception:  # noqa: BLE001 — no NS / no dnspython
+        return None
+    for ns in ns_names:
+        try:
+            ns_ip = str(dns.resolver.resolve(ns, "A", lifetime=5)[0])
+            zone = dns.zone.from_xfr(dns.query.xfr(ns_ip, domain, lifetime=8))
+            n = len(list(zone.nodes))
+            if n > 0:
+                return _df(domain, "CWE-200", "HIGH", "dns-zone-transfer",
+                           f"Transferencia de zona (AXFR) permitida en {domain} vía {ns} — dump completo de la zona.",
+                           f"AXFR a {ns} ({ns_ip}) devolvió {n} registros",
+                           "Restringir AXFR a los secundarios autorizados (allow-transfer { ... } / ACL en el NS).")
+        except Exception:  # noqa: BLE001 — refused / timeout on this NS → try next
+            continue
+    return None
+
+
+def _check_subdomain_takeover(domain: str) -> Finding | None:
+    target = _cname(domain)
+    if not target:
+        return None
+    hit = next((fp for fp in _TAKEOVER_FINGERPRINTS if fp in target), None)
+    if hit:
+        # The CNAME points at a takeover-able service. If the apex A-record no longer
+        # resolves (the service is unclaimed), this is a strong takeover candidate.
+        import socket  # noqa: PLC0415
+
+        try:
+            socket.getaddrinfo(domain, None)
+            unresolved = False
+        except OSError:
+            unresolved = True
+        sev = "HIGH" if unresolved else "LOW"
+        note = "el destino no resuelve (servicio sin reclamar = takeover probable)" if unresolved else "verificar si el recurso está reclamado"
+        return _df(domain, "CWE-350", sev, "subdomain-takeover-candidate",
+                   f"{domain} apunta (CNAME) a {hit} — candidato a subdomain takeover.",
+                   f"CNAME → {target}; {note}",
+                   f"Remover el CNAME colgante o reclamar el recurso en {hit}.")
+    return None
+
+
+def run_dns_probes(domain: str) -> list[Finding]:
+    """SPF/DMARC/DKIM posture + subdomain-takeover for a domain. Never raises.
+    Skips IP literals (no email/DNS posture to assess)."""
+    import ipaddress  # noqa: PLC0415
+
+    try:
+        ipaddress.ip_address(domain)
+        return []  # an IP, not a domain
+    except ValueError:
+        pass
+    if "." not in domain or domain.endswith(".local"):
+        return []
+    out: list[Finding] = []
+    # Email/DNS posture lives at the REGISTRABLE (apex) domain — SPF/DMARC/DKIM/CAA/
+    # MTA-STS/TLS-RPT/AXFR are org-domain concerns. Running them against a subdomain
+    # host (www./mail.) falsely reported "SPF/DMARC missing" when they exist at the
+    # apex. Derive the apex so the check hits the right name.
+    apex = _registrable_domain(domain)
+    for fn in (_check_spf, _check_dmarc, _check_dkim, _check_caa, _check_mta_sts, _check_tls_rpt, _check_axfr):
+        try:
+            f = fn(apex)
+            if f:
+                out.append(f)
+        except Exception:  # noqa: BLE001
+            continue
+    # Subdomain takeover is host-specific (a dangling CNAME on the given host).
+    try:
+        f = _check_subdomain_takeover(domain)
+        if f:
+            out.append(f)
+    except Exception:  # noqa: BLE001
+        pass
+    return out

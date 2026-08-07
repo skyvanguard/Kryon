@@ -1,0 +1,357 @@
+# =============================================================================
+# KRYON - Kali Linux Pentesting Stack
+# =============================================================================
+# Full offensive security environment with local LLM (llama.cpp + GPU).
+#
+# Usage:
+#   docker compose -f docker/docker-compose.kali.yml build
+#   docker compose -f docker/docker-compose.kali.yml up -d
+#   docker compose -f docker/docker-compose.kali.yml --profile proxy up -d
+#
+# Interactive:
+#   docker exec -it kryon python -m kryon          # REPL
+#   docker exec -it kryon bash                     # Kali shell
+#   docker exec -it -u root kryon bash             # Root shell (VPN, etc.)
+#   curl http://localhost:8081/v1/models           # llama-server (LLM principal)
+#
+# VPN for CTFs:
+#   docker exec -u root -d kryon openvpn --config /workspace/htb.ovpn
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Kryon — Kali Linux pentesting platform
+  # ---------------------------------------------------------------------------
+  kryon:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.kali
+    container_name: kryon
+    restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    env_file:
+      - .env.docker
+    environment:
+      # LLM principal — endpoint + modelo DEFAULT del deployment (server 2×3090):
+      # el container EXTERNO `llm-server` (adjunto a la red docker_kryon-mgmt)
+      # sirve Qwen3-Coder-Next-80B bajo el alias `qwen-unc`. Overridable por
+      # env / `.env` gracias al `${VAR:-default}`.
+      # Para volver al swap-test local (jan-nano/Devstral en el servicio
+      # `llama-server`, ahora opt-in vía `--profile swap-local-llama`): setear
+      #   OPENAI_BASE_URL=http://llama-server:8080/v1  y  KRYON_MODEL=kryon-local
+      # NOTA: este bloque environment PISA a env_file (.env.docker) para estas
+      # vars — los defaults de acá son la fuente de verdad efectiva.
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-llama}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://llm-server:8080/v1}
+      # Modo LLM local (parsers robustos + usage patch). Reemplaza al flag OLLAMA.
+      - KRYON_LOCAL_LLM=${KRYON_LOCAL_LLM:-true}
+      - KRYON_MODEL=${KRYON_MODEL:-qwen-unc}
+      # F151/F171 anti-alucinación: con el cache poblado (kryon update-cve-cache)
+      # descarta findings cuyo CVE ID no existe en NVD. Default false = inocuo.
+      - KRYON_CVE_CACHE_REQUIRED=${KRYON_CVE_CACHE_REQUIRED:-false}
+      # qwen-unc (80B) razona: preservar su reasoning en reasoning-only stops
+      # sin activar el régimen capable completo (latencia). Sin esto, su respuesta
+      # se pierde del reporte + de la historia de sesión persistida.
+      - KRYON_PRESERVE_REASONING=${KRYON_PRESERVE_REASONING:-true}
+      # Ventana de contexto del modelo ACTIVO. llm-server sirve qwen-unc con
+      # -c 262144 (256K); el 1000000 de .env.docker es de V4-Flash y aquí haría
+      # que el auto-compact (0.8×ventana) recién dispare a ~800K → llama.cpp
+      # trunca/rompe a 256K antes. Pisa a env_file. Al volver a V4-Flash: 1000000.
+      - KRYON_MODEL_MAX_TOKENS=${KRYON_MODEL_MAX_TOKENS:-262144}
+      # Capable regime (DEFAULT): 2, sin straitjacket. El 8 era el régimen 4B retirado.
+      - KRYON_FORCE_TOOL_TURNS=${KRYON_FORCE_TOOL_TURNS:-2}
+      - KRYON_DEBUG=${KRYON_DEBUG:-0}
+      - KRYON_GUARDRAILS=${KRYON_GUARDRAILS:-true}
+      - KRYON_MAX_TURNS=${KRYON_MAX_TURNS:-50}
+      - KRYON_STREAM=${KRYON_STREAM:-false}
+      # Sub-agent delegation (Phase 1): when true, the unified agent gets a
+      # focused SAST specialist it can delegate to via as_tool (isolated
+      # context). Off by default — banca-safe; off == prior behavior.
+      - KRYON_SUBAGENTS=${KRYON_SUBAGENTS:-false}
+      # Reasoning effort (F184: low|medium|high). gpt-oss reads it (Harmony
+      # "Reasoning:" directive). Empty = model default. medium+ without active
+      # pre_hooks can cause CoT loops — measure before defaulting it on.
+      - KRYON_REASONING_EFFORT=${KRYON_REASONING_EFFORT:-}
+      # RAG apagado — auto-updater desactivado (ya no se siembra el corpus).
+      - KRYON_AUTO_UPDATE=${KRYON_AUTO_UPDATE:-false}
+      # Claude Code CLI backend — configured in .env.docker
+      # KRYON_CLAUDE_CODE and KRYON_CLAUDE_MODEL come from env_file
+    volumes:
+      - kryon-workspace:/workspace
+      - kryon-logs:/logs
+      - kryon-config:/home/kryon/.kryon
+      - kryon-knowledge:/home/kryon/.config/chromadb
+      - kryon-cache:/home/kryon/.cache
+      - kryon-reports:/reports
+      # Mount host Claude auth for CLI backend
+      - ${HOME}/.claude:/home/kryon/.claude
+      - ${HOME}/.claude.json:/home/kryon/.claude.json
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 6G
+        reservations:
+          cpus: "2"
+          memory: 3G
+    ports:
+      - "127.0.0.1:8700:8700"
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+      # FASE 11.O.5 — py-spy needs ptrace to attach to running PIDs
+      # for live stack-trace dumps when the agent hangs in CPU loop.
+      # Diagnostic-only; banca-safe (no privilege escalation surface
+      # beyond what ptrace already provides; same process tree).
+      - SYS_PTRACE
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    networks:
+      - kryon-mgmt
+      - kryon-pentest
+    # Sin depends_on: el LLM default es el container EXTERNO `llm-server` (ya
+    # adjunto a docker_kryon-mgmt). El servicio `llama-server` del compose es un
+    # swap opt-in (profile swap-local-llama), así `compose up` no arranca un
+    # segundo llama.cpp que competiría por GPU con llm-server.
+    stdin_open: true
+    tty: true
+
+  # ---------------------------------------------------------------------------
+  # llama-server — LLM principal (llama.cpp) — reemplaza a Ollama para inferencia
+  # ---------------------------------------------------------------------------
+  # Sirve el MoE GLM-4.7-Flash (30B/A3B, UD-Q4_K_XL) con expertos en CPU/RAM
+  # (--n-cpu-moe 99) y attention en GPU (-ngl 99): ~2.9 GB VRAM. --jinja
+  # habilita tool-calling OpenAI-compat (validado en vivo 2026-07-14: tool_calls
+  # limpios, 30 tok/s). Requiere WSL2 >=22 GB RAM (.wslconfig memory=24GB).
+  #
+  # IMPORTANTE — VRAM 12 GB: solo UN llama-server a la vez. Si corrés el
+  # contenedor externo `hermes-llamacpp` (otro proyecto, mismo GGUF), pará
+  # uno de los dos o habrá OOM.
+  #
+  # El GGUF (21 GB) se reusa del volume externo `hermes-llamacpp-cache`
+  # (montado read-only) para no re-descargar.
+  llama-server:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: kryon-llama
+    # Opt-in — el LLM default es el container externo `llm-server`. Este servicio
+    # (swap-test local: jan-nano/Devstral/…) NO arranca con `compose up`; para
+    # usarlo: `docker compose --profile swap-local-llama up -d llama-server`
+    # + setear OPENAI_BASE_URL/KRYON_MODEL de kryon al alias local.
+    profiles: ["swap-local-llama"]
+    restart: unless-stopped
+    command:
+      - -m
+      # Devstral-Small-2-24B (Mistral, IQ3_XXS, 8.8 GB) — tool-use specialist.
+      # 24B dense does NOT fit in 12 GB with f16 KV at useful context, so the KV
+      # cache is quantized to q8_0 (below, practically lossless with -fa): that
+      # halves KV VRAM and lets -c reach 24576 (24K) at ~11.7/12 GB — enough for
+      # the unified agent's ~10K system prompt + multi-turn SAST (verified: it
+      # found JNDI/OGNL sinks live; emits native tool_calls; responds to the
+      # StuckDetector instead of looping). Served under the "kryon-local" alias
+      # so the rest of the stack is unchanged. To go back to the faster (but
+      # shallower) dense 8B, flip -m to /models/qwen3-8b-q4km.gguf, drop the
+      # --cache-type-k/v lines, set -c 32768 and re-add --reasoning-budget 0.
+      # SWAP TEST (Qwen3.5-9B Q8_0, salió 2026-03): 9B denso, full GPU, tool_calls.
+      # Revertir: comentar la línea Qwen + descomentar la Devstral.
+      # - /models/Devstral-Small-2-24B-IQ3_XXS.gguf
+      # SWAP TEST (Ornith-1.0-9B Q8_0, 2026-06-25): MISMA base Qwen3.5-9B pero RL agentic-coding
+      # (Terminal-Bench 2.1 = 43.1, SWE-Bench 69.4). Sampling recomendado por DeepReinforce:
+      # temp 0.6 / top_p 0.95 / top_k 20 (abajo). Rollback: comentar Ornith + descomentar Qwen.
+      # - /models/Qwen3.5-9B-Q8_0.gguf
+      # SWAP TEST (Jan-nano-128k Q8_0, 2026-06-27): base Qwen3-4B + RLVR para agentic tool-use/MCP
+      # (Menlo Research, Apache 2.0). DENSE 4B (4.3GB) -> full GPU, mucho más rápido que el 9B; non-
+      # thinking nativo (sin bug de empties); drop-in (parsers Qwen). 128k cabe con KV q8_0 (~6.4GB).
+      # Sampling oficial Jan: temp 0.7 / top_p 0.8 / top_k 20 (abajo). Rollback: comentar Jan + descomentar Ornith.
+      # - /models/ornith-1.0-9b-Q8_0.gguf
+      # - /models/jan-nano-128k-Q8_0.gguf
+      # NEMOTRON (2026-07-11): NVIDIA Nemotron-Nano-9B-v2 (hibrido Mamba-2 + Transformer, 9B real
+      # -> el alias kryon-local por fin es correcto). Su KV cache NO crece con el thinking (estado
+      # Mamba de tamaño fijo, solo 4 capas de atencion) -> ataca directo el prefill lento de ~8min
+      # que colgaba el REPL. nemotron_h soportado desde llama.cpp b6315 (tenemos b9487).
+      # --reasoning-budget 0 desactiva el thinking (tool-use confiable + esquiva el bug #20268
+      # "se queda en Reasoning y no responde"). Sampling NVIDIA: temp 0.6 / top_p 0.95. Rollback:
+      # descomentar jan-nano + esta linea, volver --chat-template-kwargs enable_thinking + temp 0.7/0.8.
+      # NEMOTRON swap-test (2026-07-11) — comentado; ver GLM abajo. Rollback: descomentar.
+      # - /models/nvidia_NVIDIA-Nemotron-Nano-9B-v2-Q6_K.gguf
+      # GLM-4.7-Flash (Z.ai, ene-2026): MoE 30B/A3B, UD-Q4_K_XL (17.5 GB). Reemplaza al
+      # Nemotron tras smoke-test en vivo (2026-07-14): emitió tool_calls limpios vía
+      # --jinja (nmap -sV -p-), razonó CWE-89, 30 tok/s sostenido, solo 2.9 GB VRAM.
+      # REQUISITO: WSL2 con >=22 GB RAM (los expertos van a RAM) — ver ~/.wslconfig
+      # (memory=24GB). Si se revierte esa RAM, el modelo NO carga (OOM). Rollback modelo:
+      # descomentar Nemotron + comentar esta línea y el bloque --n-cpu-moe de abajo.
+      - /models/GLM-4.7-Flash-UD-Q4_K_XL.gguf
+      - -ngl
+      - "99"
+      # GLM-4.7-Flash es MoE (47 capas: 1 densa + 46 MoE). --n-cpu-moe N = expertos de las
+      # primeras N capas a CPU/RAM; el resto quedan en GPU (-ngl 99). A 99 = todas en CPU
+      # (~2.9 GB VRAM, prefill ~334 tok/s medido 2026-07-14). Bajado a 32: ~15 capas de
+      # expertos van a la GPU aprovechando la VRAM libre -> prefill más rápido, a costa de
+      # VRAM. Subir hacia 99 si hay OOM; bajar más (agresivo) si sobra VRAM.
+      # A 36 (con -c 131072): el KV MLA a 128K (~3.75 GB) deja mas VRAM que a 202K, asi que
+      # ~11 de las 46 capas MoE caben en GPU -> prefill mas agil que a 202K. Con -c 65536 se
+      # puede bajar a 28-30 (mas rapido); con -c 202752 hay que subir a ~40 (menos margen).
+      - --n-cpu-moe
+      - "36"
+      - -fa
+      - "on"
+      # KV cache q8_0 — ~50% menos VRAM del KV (practically lossless con -fa).
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - q8_0
+      # 16K context — the SWEET SPOT, not 24K. Measured on the RTX 5070 Ti Laptop
+      # (12 GB): at -c 24576 the KV cache fills VRAM (11.5/12 GB) and llama.cpp
+      # falls back to a slow path → ~3 tok/s (engagements crawl). At -c 16384 the
+      # model sits at 11.35/12 GB (just under that threshold) and still does ~40
+      # tok/s — same IQ3 quality (no requant). NB: 16K was 60 tokens short — the
+      # ~10K system prompt + injected deterministic findings reach ~16.4K BEFORE
+      # the agent acts (micro_compact F-CTXMGMT trims history, not the prompt). 20K
+      # covers prompt+findings + trimmed history; more headroom → shrink the prompt.
+      - -c
+      # Qwen3.5-9B Q8 (9.1GB) KV cache ~16 MiB/1K tokens (atención eficiente). 131072 (128K)
+      # mide ~11.2GB/12GB (~1GB margen). Techo VRAM ~160K; nativo 262K. 20480 para Devstral.
+      # JAN-NANO-4B (2026-06-27): el modelo soporta 128K, pero a 131072 medía 11.5/12GB -> slow-path
+      # (~18 tok/s, MÁS lento que el 9B). 65536 (64K) deja headroom -> velocidad real del 4B denso, y
+      # sigue cubriendo de sobra el prompt ~20K + findings + history trimmed. Subir a 131072 si necesitás
+      # contexto extremo (a costa de ~18 tok/s). Revertir al 9B: poner 131072.
+      # GLM-4.7-Flash usa MLA (kv_lora_rank=512) -> KV comprimido y barato. Servido a 128K
+      # (131072): KV ~3.75 GB (vs ~5.8 GB a 202K y ~60 GB si fuera GQA). 128K cubre de sobra
+      # source-review de archivos/codebases grandes, y el KV menor deja mas VRAM para meter
+      # expertos en GPU (prefill mas agil). Tope teorico del modelo: 202752 (subir si hace falta
+      # contexto extremo, a costa de prefill mas lento). 65536 si preferis maxima velocidad.
+      - "131072"
+      # Generation cap — bounds a verbose CoT turn + stops history snowballing.
+      - -n
+      - "2000"
+      # Qwen3.5 NON-THINKING sampling (temp 0.7 / top_p 0.8 / top_k 20). ROOT-CAUSE FIX: the
+      # thinking output (a <think> block parsed into reasoning_content with EMPTY content) reads
+      # as a reasoning-only dud in our llama.cpp+SDK harness, which killed every live run this
+      # session (Qwen scores 79.1% on TAU2-Bench under its OWN vLLM parser, but ours mishandles
+      # the thinking format). The temp-1.0 thinking sampling made it WORSE (more/longer reasoning
+      # → more duds). Disabling thinking (--chat-template-kwargs enable_thinking=false) makes it
+      # emit content/tool_calls directly — the deterministic chain-planner compensates for the
+      # slightly weaker per-step reasoning. Revert to temp 0.15 for banking-safe compliance runs.
+      # Ornith-1.0 está RL-entrenado CON reasoning (reasoning_content), pero nuestro harness
+      # mishandlea el formato <think> de Qwen (empties que mataban runs — ver memoria). Primer A/B
+      # con enable_thinking=false para aislar calidad-de-modelo del bug del harness; si el smoke-test
+      # muestra que Ornith maneja bien el reasoning, se puede quitar y testear con thinking on.
+      # Nemotron: thinking OFF via --reasoning-budget 0 (NO el enable_thinking de Qwen).
+      # Tool-use confiable + evita el modo "se queda en Reasoning" del bug #20268.
+      # THINKING ON (2026-07-14, experimental): -1 activa el bloque <think> de GLM para razonar
+      # antes de responder/tool_call. RIESGO conocido: el harness historicamente mishandlea <think>
+      # (empties que mataban runs) + latencia (el <think> engorda cada turno -> prefill snowball).
+      # A validar en vivo; revertir a "0" si rompe tool-calling o dispara empties.
+      # THINKING OFF (revertido 2026-07-14): con thinking ON el GLM razona tan verboso
+      # (>500 tok de <think>) que en uso agentic real (CAI/Kryon, budgets acotados) el
+      # content sale VACÍO (finish_reason=length dentro del <think>). Confirma la lección:
+      # thinking off para agentes. Probado con CAI+litellm. Volver a -1 solo para razonamiento
+      # aislado con budget enorme (source-review batch).
+      - --reasoning-budget
+      - "0"
+      # Sampling recomendado por DeepReinforce para Ornith-1.0: temp 0.6 / top_p 0.95 / top_k 20
+      # (temp 1.0 solo para reproducir benchmarks). Qwen3.5-9B usaba 0.7 / 0.8 / 20.
+      # GLM-4.7-Flash: sampling recomendado por Z.ai para TOOL-CALLING = temp 0.7 / top_p 1.0
+      # (sin top_k — GLM no lo usa; y hay reportes de que remover sampling params de más mejora
+      # los tool_calls en GGUF). Uso general seria temp 1.0. Banca-safe: bajar temp a ~0.3 por
+      # env para reproducibilidad. (Antes: 0.6/0.95/top_k20, heredado de Ornith/Qwen.)
+      - --temp
+      - "0.7"
+      - --top-p
+      - "1.0"
+      - --top-k
+      - "0"
+      - --parallel
+      - "1"
+      # -t 8: usar SOLO los 8 P-cores del Core Ultra 9 275HX (hibrido 8P+16E).
+      # Sin esto llama.cpp usa los 24 threads (incluidos E-cores) y la generacion
+      # con --n-cpu-moe (modelos MoE: gpt-oss-20b, qwen36-35b) cae ~10x
+      # (~38 -> ~3.5 tok/s). Verificado 2026-06-10 con el coder-30B. Inocuo para
+      # el 8B denso (GPU-bound), critico al flipear a un MoE.
+      - -t
+      - "8"
+      - --jinja
+      - -a
+      - kryon-local
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+    volumes:
+      - hermes-llamacpp-cache:/models:ro
+    # Puerto host 8081 para CLI/debug (hermes-llamacpp ocupa 8080 en el host).
+    # Kryon lo alcanza por red interna: http://llama-server:8080/v1
+    ports:
+      - "127.0.0.1:${LLAMA_HOST_PORT:-8081}:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 12G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - kryon-mgmt
+
+  # ---------------------------------------------------------------------------
+  # Nginx — Reverse proxy with TLS (optional, enable with --profile proxy)
+  # ---------------------------------------------------------------------------
+  nginx:
+    build:
+      context: nginx
+      dockerfile: Dockerfile
+    container_name: kryon-nginx
+    profiles:
+      - proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - kryon
+    networks:
+      - kryon-mgmt
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  kryon-workspace:
+    driver: local
+  kryon-logs:
+    driver: local
+  kryon-config:
+    driver: local
+  kryon-knowledge:
+    driver: local
+  kryon-reports:
+    driver: local
+  kryon-cache:
+    driver: local
+  # GGUF del MoE (21 GB) — creado por el contenedor externo hermes-llamacpp
+  # (docker run). Se reusa read-only para no re-descargar.
+  hermes-llamacpp-cache:
+    external: true
+
+# =============================================================================
+# Networks
+# =============================================================================
+# mgmt:    Kryon <-> llama-server (internal comms)
+# pentest: Kryon <-> targets (isolated, no LLM access)
+# =============================================================================
+networks:
+  kryon-mgmt:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  kryon-pentest:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24

@@ -1,0 +1,9 @@
+# Secretos del appliance — nunca commitear
+.env.appliance
+
+# Reportes generados en el cliente: ignorar el contenido, mantener el dir.
+reports/*
+!reports/.gitkeep
+
+# El root .gitignore ignora .env.* — re-incluir el template (no tiene secretos).
+!.env.appliance.example

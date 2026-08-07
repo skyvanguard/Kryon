@@ -1,0 +1,29 @@
+{
+  "slug": "portswigger-csrf-1",
+  "title": "PortSwigger Web Security Academy — CSRF vulnerability with no defenses",
+  "source": {
+    "type": "url",
+    "ref": "https://portswigger.net/web-security/csrf/lab-no-defenses",
+    "ready_url": "https://portswigger.net/web-security/csrf/lab-no-defenses"
+  },
+  "category": "csrf",
+  "difficulty": "easy",
+  "owasp_top10_2021": "A01",
+  "expected_chain": [
+    {"tool": "run_command", "rationale": "GET /my-account to inspect form structure",     "required": false},
+    {"tool": "run_command", "rationale": "craft cross-origin HTML POST con sample credential", "required": true},
+    {"tool": "run_command", "rationale": "deliver exploit + confirm victim email changed",     "required": true}
+  ],
+  "flag_pattern": [
+    "Congratulations,?\\s+you\\s+solved\\s+the\\s+lab",
+    "email\\s+changed",
+    "victim\\s+account"
+  ],
+  "wall_budget_seconds": 600,
+  "preconditions": {
+    "docker_required": false,
+    "internet_required": true,
+    "min_kryon_tools": ["run_command"]
+  },
+  "notes": "PortSwigger Academy lab — public, URL-based. CSRF lab sin token ni SameSite. Triggers active skill `web-pentest-csrf-active` con keyword 'active csrf pentest'."
+}

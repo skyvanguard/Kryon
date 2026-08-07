@@ -1,0 +1,513 @@
+# ---------------------------------------------------------------------------
+# PCI-DSS 4.0 — Technical deterministic checks (F39)
+# ---------------------------------------------------------------------------
+# Expands the existing 6 hand-written PCI checks (2.2.2, 2.2.7, 6.3.3,
+# 6.4.1, 8.3.6, 10.2.1) with 30 more controls that can be verified
+# deterministically over SSH. Organizational / policy-only requirements
+# (retention policies, training records, signed agreements) are outside
+# scope — those are manual audit-artifact reviews.
+#
+# Framework version 0.1.0: covers the technical subset of Req 1, 2, 3, 8,
+# 10, 11. Policy-only controls deliberately omitted.
+#
+# Source: PCI-DSS v4.0.1 (Nov 2024) + PCI SSC Guidance Document for
+# Level 1 Service Providers.
+#
+# Naming convention: ids match the PCI-DSS document verbatim (e.g.
+# "1.4.3") so a PCI auditor can trace findings directly to the standard.
+# ---------------------------------------------------------------------------
+
+framework:
+  id: pci-dss-4.0
+  title: "PCI-DSS v4.0.1 — Technical Deterministic Controls"
+  version: "0.1.0"
+  source: "PCI-DSS v4.0.1 Requirements and Testing Procedures (Nov 2024)"
+  description: >
+    Deterministic technical checks mapped to PCI-DSS v4.0 requirements.
+    Excludes organizational controls and the 6 hand-written controls in
+    kryon.compliance.checks.section_* (2.2.2, 2.2.7, 6.3.3, 6.4.1,
+    8.3.6, 10.2.1) that are part of F15.1 baseline.
+
+checks:
+  # =========================================================================
+  # Requirement 1 — Install and maintain network security controls
+  # =========================================================================
+  - id: "1.2.5"
+    title: "Only necessary services, protocols, and ports are enabled"
+    section: "1"
+    severity: HIGH
+    rationale: >
+      Every open port is attack surface. PCI-DSS 4.0 Req 1.2.5 requires
+      explicit documentation and approval for each.
+    remediation: "Review 'ss -tlnp' output; disable or firewall services not documented in the NSC standard."
+    command: "ss -tlnp 2>/dev/null | grep -cE '^(tcp|LISTEN)' || true"
+    pass_when:
+      stdout_matches: "^([0-9]|1[0-5])\\s*$"
+
+  - id: "1.3.1"
+    title: "NSC between trusted and untrusted networks (firewall active)"
+    section: "1"
+    severity: CRITICAL
+    rationale: "A firewall between cardholder data environment and outside networks is foundational to PCI-DSS."
+    remediation: "ufw enable OR install firewalld / iptables-persistent with default-deny."
+    command: "ufw status 2>/dev/null | head -1 || iptables -L INPUT -n 2>/dev/null | head -1"
+    pass_when:
+      any_of:
+        - stdout_contains: "Status: active"
+        - stdout_contains: "Chain INPUT"
+
+  - id: "1.4.3"
+    title: "Anti-spoofing (reverse path filtering) enabled"
+    section: "1"
+    severity: HIGH
+    rationale: "rp_filter blocks packets with source addresses that couldn't legitimately arrive on that interface."
+    remediation: "sysctl -w net.ipv4.conf.all.rp_filter=1 && echo 'net.ipv4.conf.all.rp_filter=1' >> /etc/sysctl.d/99-pci.conf"
+    command: "sysctl net.ipv4.conf.all.rp_filter 2>/dev/null"
+    pass_when:
+      stdout_matches: "rp_filter\\s*=\\s*[12]"
+
+  - id: "1.4.4"
+    title: "Direct public access to CDE systems is restricted"
+    section: "1"
+    severity: HIGH
+    rationale: "Systems storing cardholder data must not be directly reachable from untrusted networks."
+    remediation: "Firewall rules must allow only proxy/app tier to reach DB tier; verify no 0.0.0.0 exposure."
+    command: "ss -tlnp 2>/dev/null | awk '$4 ~ /0\\.0\\.0\\.0/ && $4 ~ /:(3306|5432|1433|1521|27017|6379|11211)$/' | head -1"
+    pass_when:
+      stdout_empty: true
+
+  # =========================================================================
+  # Requirement 2 — Apply secure configurations
+  # =========================================================================
+  - id: "2.2.1"
+    title: "System configuration standards — NTP/time sync active"
+    section: "2"
+    severity: MEDIUM
+    rationale: "PCI-DSS 4.0 Req 10.6 requires synchronized time; time sync is a Req 2 config baseline."
+    remediation: "systemctl enable --now chrony OR systemd-timesyncd"
+    command: "timedatectl show 2>/dev/null | grep NTPSynchronized || true"
+    pass_when:
+      stdout_contains: "yes"
+
+  - id: "2.2.4"
+    title: "Only necessary services / daemons enabled (non-essential stopped)"
+    section: "2"
+    severity: HIGH
+    rationale: "Req 2.2.4: disable/remove functions not needed for business purpose."
+    remediation: "Systematically stop + mask each: systemctl disable --now <svc>"
+    command: "systemctl list-unit-files --state=enabled 2>/dev/null | grep -cE 'telnet|rexec|rsh|tftpd|xinetd' || true"
+    pass_when:
+      stdout_matches: "^0\\s*$"
+
+  - id: "2.2.5"
+    title: "Insecure services (telnet/rsh/rlogin) not installed"
+    section: "2"
+    severity: CRITICAL
+    rationale: "Cleartext protocols transmit credentials over the wire — not acceptable in any CDE-adjacent system."
+    remediation: "apt-get purge -y telnet rsh-client rsh-server rlogin"
+    command: "dpkg -l 2>/dev/null | grep -cE '^ii\\s+(telnetd|rsh-server|rsh-client|rlogin)' || true"
+    pass_when:
+      stdout_matches: "^0\\s*$"
+
+  - id: "2.2.6"
+    title: "Kernel hardening: tcp_syncookies, accept_source_route disabled"
+    section: "2"
+    severity: HIGH
+    rationale: "Req 2.2.6: security parameters must be configured to prevent misuse."
+    remediation: "Apply kernel hardening sysctls (see CIS 3.2 checks)."
+    command: "sysctl net.ipv4.tcp_syncookies net.ipv4.conf.all.accept_source_route 2>/dev/null"
+    pass_when:
+      all_of:
+        - stdout_matches: "tcp_syncookies\\s*=\\s*1"
+        - stdout_matches: "accept_source_route\\s*=\\s*0"
+
+  - id: "2.3.1"
+    title: "Wireless: vendor defaults changed (or wireless disabled)"
+    section: "2"
+    severity: MEDIUM
+    rationale: "Default WPA-PSK keys + default SSIDs are instant CDE breach vectors."
+    remediation: "On server: rfkill block all; remove wireless firmware packages."
+    command: "iw dev 2>/dev/null | grep -c 'Interface' || echo 0"
+    pass_when:
+      stdout_matches: "^0\\s*$"
+
+  # =========================================================================
+  # Requirement 3 — Protect stored cardholder data
+  # =========================================================================
+  - id: "3.5.1"
+    title: "Disk encryption enabled (LUKS) for partitions holding CHD"
+    section: "3"
+    severity: HIGH
+    rationale: "Req 3.5.1: PAN stored must be rendered unreadable. Full-disk or partition encryption is the baseline."
+    remediation: "cryptsetup luksFormat + cryptsetup luksOpen; add to /etc/crypttab."
+    command: "lsblk -o NAME,TYPE 2>/dev/null | grep -c crypt || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  - id: "3.5.2"
+    title: "Swap is encrypted or disabled"
+    section: "3"
+    severity: MEDIUM
+    rationale: "Unencrypted swap may page PAN to disk in cleartext."
+    remediation: "Swap via LUKS (random key on boot) or disable swap entirely with 'swapoff -a'."
+    command: "swapon --show=NAME,TYPE 2>/dev/null | awk 'NR>1 && $2 != \"crypt\" {print $1}' | head -1"
+    pass_when:
+      stdout_empty: true
+
+  # =========================================================================
+  # Requirement 4 — Protect cardholder data with strong cryptography
+  # =========================================================================
+  - id: "4.2.1"
+    title: "TLS 1.2 or higher enforced on cardholder-data ports"
+    section: "4"
+    severity: CRITICAL
+    rationale: >
+      Req 4.2.1: cardholder data transmitted over public networks must use
+      strong cryptography. TLS 1.0/1.1 and SSLv2/v3 are explicitly
+      forbidden in PCI-DSS 4.0.
+    remediation: >
+      In nginx: `ssl_protocols TLSv1.2 TLSv1.3;`. In Apache:
+      `SSLProtocol -all +TLSv1.2 +TLSv1.3`. Disable any 'SSLv2', 'SSLv3',
+      'TLSv1', 'TLSv1.1' lines. Reload the service.
+    command: >
+      grep -rhE 'ssl_protocols|SSLProtocol' /etc/nginx/ /etc/apache2/ /etc/httpd/ 2>/dev/null
+      | grep -vE '^\\s*#' | tr -s ' '
+    pass_when:
+      all_of:
+        - not:
+            stdout_matches: "(?i)\\b(ssl|tls)v?\\s*(2|3|1\\.0|1\\.1)\\b"
+        - any_of:
+            - stdout_matches: "(?i)tlsv?1\\.2"
+            - stdout_matches: "(?i)tlsv?1\\.3"
+
+  # =========================================================================
+  # Requirement 5 — Protect systems and networks from malicious software
+  # =========================================================================
+  - id: "5.2.1"
+    title: "Anti-malware solution deployed on commonly-affected systems"
+    section: "5"
+    severity: HIGH
+    rationale: >
+      Req 5.2.1: an anti-malware solution must be deployed on every system
+      component commonly affected by malware. On Linux servers handling
+      cardholder data this typically means clamav, sophos-av, eset, or
+      crowdstrike-falcon.
+    remediation: >
+      `apt-get install -y clamav clamav-daemon` and ensure freshclam runs
+      daily, OR deploy the bank's chosen EDR (CrowdStrike, SentinelOne,
+      Defender for Endpoint) and confirm the agent is running.
+    command: >
+      (dpkg -l 2>/dev/null | grep -ciE '^ii\s+(clamav|sophos|esets|sentinelone|crowdstrike|cylance)';
+       systemctl is-active falcon-sensor 2>/dev/null;
+       systemctl is-active clamav-daemon 2>/dev/null) | head -3
+    pass_when:
+      any_of:
+        - stdout_matches: "(?m)^\\s*[1-9]"
+        - stdout_matches: "(?im)^active"
+
+  # =========================================================================
+  # Requirement 6 — Develop and maintain secure systems and software
+  # =========================================================================
+  - id: "6.4.3"
+    title: "Payment page scripts authorized + integrity-verified (SRI + CSP)"
+    section: "6"
+    severity: CRITICAL
+    rationale: >
+      Req 6.4.3 (mandatorio desde 2025-03-31, PCI-DSS v4.0.1): cada script
+      cargado en el flujo de pago debe estar autorizado, inventariado y
+      con integridad verificada (SRI). Mitiga skimmers tipo Magecart
+      inyectados via TPSP comprometido (caso Bancard 2023 — referencia
+      interna del equipo de compliance). En LATAM, regulado adicionalmente
+      por BCP Resolución 6/2018 sobre integridad de canales digitales.
+    remediation: >
+      En nginx: `add_header Content-Security-Policy "script-src 'self'
+      https://js.bancard.com.py 'sha256-...'"`. En cada <script> del
+      checkout: `integrity="sha384-..."` + `crossorigin="anonymous"`.
+      Documentar inventario de scripts terceros en el SAQ.
+    command: >
+      grep -rhE 'Content-Security-Policy|integrity\s*=' /etc/nginx/sites-enabled/
+      /etc/apache2/sites-enabled/ /etc/httpd/conf.d/ 2>/dev/null
+      | grep -vE '^\s*#' | head -5
+    pass_when:
+      all_of:
+        - stdout_matches: "(?i)content-security-policy.*script-src"
+        - stdout_matches: "integrity\\s*=\\s*['\"]sha"
+
+  # =========================================================================
+  # Requirement 8 — Identify users and authenticate access
+  # =========================================================================
+  - id: "8.2.1"
+    title: "No shared / generic user accounts in active use"
+    section: "8"
+    severity: HIGH
+    rationale: "Shared accounts (admin, oracle, web) break audit accountability."
+    remediation: "awk -F: '$3>=1000 && $7!~/nologin|false/ {print $1}' /etc/passwd — review generic names."
+    command: "awk -F: '$3>=1000 && $7!~/nologin|false/ {print $1}' /etc/passwd | grep -iE '^(admin|oracle|ftp|dba|test|user|guest|shared|generic)$' | head -1"
+    pass_when:
+      stdout_empty: true
+
+  - id: "8.3.1"
+    title: "Strong authentication: key-based SSH only (password auth disabled)"
+    section: "8"
+    severity: CRITICAL
+    rationale: "Req 8.3.1: authentication factors must not be susceptible to brute-force online attack."
+    remediation: "sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config; systemctl restart sshd"
+    command: "sshd -T 2>/dev/null | grep -iE '^passwordauthentication' || true"
+    pass_when:
+      stdout_matches: "^passwordauthentication\\s+no"
+
+  - id: "8.3.4"
+    title: "Password minimum length >= 12 characters"
+    section: "8"
+    severity: HIGH
+    rationale: "PCI-DSS 4.0 Req 8.3.6: passwords/passphrases must be a minimum of 12 characters."
+    remediation: "Set minlen=12 in /etc/security/pwquality.conf"
+    command: "grep -E '^minlen' /etc/security/pwquality.conf 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^minlen\\s*=\\s*(1[2-9]|[2-9][0-9])"
+
+  - id: "8.3.5"
+    title: "Account lockout after invalid attempts (<=10)"
+    section: "8"
+    severity: HIGH
+    rationale: "Req 8.3.4: lock account after not more than 10 invalid attempts; 4.0 tightened to 10."
+    remediation: "Add pam_faillock.so with deny=10 to /etc/pam.d/common-auth"
+    command: "grep -E 'pam_(faillock|tally2)\\.so.*deny=' /etc/pam.d/common-auth 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "deny=([1-9]|10)\\b"
+
+  - id: "8.3.7"
+    title: "Password history: last 4 not reusable"
+    section: "8"
+    severity: MEDIUM
+    rationale: "Req 8.3.7: individuals cannot submit a new password/passphrase same as any of the last 4."
+    remediation: "Add pam_pwhistory.so remember=4 to /etc/pam.d/common-password"
+    command: "grep -E 'pam_pwhistory\\.so.*remember=[0-9]+' /etc/pam.d/common-password 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "remember=([4-9]|[1-9][0-9])"
+
+  - id: "8.3.9"
+    title: "Password change every 90 days OR dynamic analysis of risk (MFA)"
+    section: "8"
+    severity: MEDIUM
+    rationale: "Req 8.3.9: if password is the sole factor, must rotate <=90 days; alternate is MFA."
+    remediation: "Set PASS_MAX_DAYS 90 OR deploy MFA (pam_google_authenticator / pam_duo)."
+    command: "awk '/^PASS_MAX_DAYS/ {print $2}' /etc/login.defs 2>/dev/null || true"
+    pass_when:
+      any_of:
+        - stdout_matches: "^(9[0-9]?|[1-8][0-9])\\s*$"
+        - stdout_matches: "^[1-9]\\s*$"
+
+  - id: "8.4.1"
+    title: "MFA for non-console administrative access"
+    section: "8"
+    severity: CRITICAL
+    rationale: "Req 8.4.1: MFA required for all non-console access into the CDE."
+    remediation: "Install pam_google_authenticator OR pam_duo; add to /etc/pam.d/sshd; set AuthenticationMethods publickey,keyboard-interactive in sshd_config."
+    command: "grep -E 'pam_(google_authenticator|duo|yubico)\\.so' /etc/pam.d/sshd 2>/dev/null; sshd -T 2>/dev/null | grep -iE '^authenticationmethods'"
+    pass_when:
+      any_of:
+        - stdout_contains: "pam_google_authenticator"
+        - stdout_contains: "pam_duo"
+        - stdout_contains: "pam_yubico"
+        - stdout_matches: "authenticationmethods.*keyboard-interactive"
+
+  - id: "8.4.2"
+    title: "MFA enforced for all non-console access into the CDE (broader than 8.4.1)"
+    section: "8"
+    severity: CRITICAL
+    rationale: >
+      Req 8.4.2: every administrator, user, or service account accessing
+      the CDE remotely (SSH, VPN, web admin, RDP) must complete MFA in
+      addition to the password. PAM google-authenticator / U2F /
+      enterprise SSO with MFA all qualify. 8.4.1 is admin-only;
+      8.4.2 extends to ALL non-console access (regular users included).
+    remediation: >
+      Configure pam_google_authenticator or pam_u2f in /etc/pam.d/sshd
+      and set `ChallengeResponseAuthentication yes` +
+      `AuthenticationMethods publickey,keyboard-interactive` in
+      /etc/ssh/sshd_config. Enterprise SSO (Okta/AzureAD with MFA
+      claim) is also acceptable; document the SSO provider on the
+      audit artifact.
+    command: >
+      grep -rhE 'pam_(google_authenticator|u2f|oath|yubico|duo)' /etc/pam.d/ 2>/dev/null
+      | grep -vE '^\\s*#' | head -3
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: "8.4.3"
+    title: "Phishing-resistant MFA (FIDO2/WebAuthn/PKI) on CDE entry points"
+    section: "8"
+    severity: CRITICAL
+    rationale: >
+      Req 8.4.3 (mandatorio desde 2025-03-31, PCI-DSS v4.0.1): los factores
+      MFA deben ser resistentes a phishing. SMS-OTP y TOTP/Google Authenticator
+      ya NO califican como segundo factor para acceso al CDE. Solo FIDO2/
+      WebAuthn, smart cards (PIV/CAC), o certificados cliente cumplen. SSO
+      empresarial califica únicamente si el IdP retorna claim AMR
+      "hwk"/"phr"/"phrh" (RFC 8176).
+    remediation: >
+      Configurar pam_u2f (Yubico) o webauthn-proxy frente a SSH/web-admin.
+      Para SSO: validar que el access token contenga `amr=["hwk"]` o
+      `amr=["phr"]`. Documentar excepciones aceptadas (smart card PKI con
+      Datacard/HID) en el SAQ adjunto.
+    command: >
+      (grep -rhE 'pam_(u2f|yubico)|webauthn' /etc/pam.d/ /etc/ssh/sshd_config 2>/dev/null;
+       systemctl is-active webauthn-proxy 2>/dev/null;
+       systemctl is-active oauth2-proxy 2>/dev/null) | grep -vE '^\\s*#' | head -5
+    pass_when:
+      any_of:
+        - stdout_matches: "pam_u2f"
+        - stdout_matches: "pam_yubico"
+        - stdout_matches: "(?i)webauthn"
+        - stdout_matches: "(?im)^active"
+
+  - id: "8.6.1"
+    title: "Interactive login for system/service accounts disabled"
+    section: "8"
+    severity: HIGH
+    rationale: "Req 8.6.1: interactive use of system accounts is prevented."
+    remediation: "For each system account: usermod -s /usr/sbin/nologin <svc>"
+    command: "awk -F: '$3<1000 && $7!~/nologin|false|sync/ {print $1}' /etc/passwd | grep -v root | head -1"
+    pass_when:
+      stdout_empty: true
+
+  # =========================================================================
+  # Requirement 10 — Log and monitor all access to system components
+  # =========================================================================
+  - id: "10.2.1.1"
+    title: "All user access to CHD logged"
+    section: "10"
+    severity: HIGH
+    rationale: "Req 10.2.1.1: all individual access to CHD must be logged."
+    remediation: "Ensure auditd rules watch CHD directories: auditctl -w /data/chd -p rwxa -k chd_access"
+    command: "auditctl -l 2>/dev/null | grep -iE 'chd|cardholder|pan' | head -1 || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: "10.2.1.2"
+    title: "All privileged actions logged (sudo, su)"
+    section: "10"
+    severity: HIGH
+    rationale: "Req 10.2.1.2: privileged user actions auditable."
+    remediation: "Add audit rules: auditctl -w /usr/bin/sudo -p x -k priv_esc"
+    command: "auditctl -l 2>/dev/null | grep -cE '/usr/bin/(sudo|su)' || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  - id: "10.2.1.3"
+    title: "All access to audit trails logged"
+    section: "10"
+    severity: MEDIUM
+    rationale: "Req 10.2.1.3: access to audit logs themselves must be auditable — catches log tampering."
+    remediation: "auditctl -w /var/log/audit -p rwxa -k audit_access"
+    command: "auditctl -l 2>/dev/null | grep -cE '/var/log/(audit|auth)' || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  - id: "10.2.1.4"
+    title: "All failed login attempts logged"
+    section: "10"
+    severity: MEDIUM
+    rationale: "Req 10.2.1.4: invalid logical access attempts."
+    remediation: "pam_faillog / auth.log; most distros log via pam_unix by default."
+    command: "test -s /var/log/auth.log && grep -cE 'Failed password' /var/log/auth.log 2>/dev/null || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^$"
+
+  - id: "10.3.1"
+    title: "Audit log files protected from unauthorized modification"
+    section: "10"
+    severity: HIGH
+    rationale: "Req 10.3.1: limit viewing/modifying of audit trails to job-related need."
+    remediation: "chmod 0600 /var/log/audit/audit.log; chown root:adm /var/log/audit/audit.log"
+    command: "stat -c '%a %U' /var/log/audit/audit.log 2>/dev/null || true"
+    pass_when:
+      stdout_matches: "^[06][0-4][0-9]\\s+root"
+
+  - id: "10.4.1.1"
+    title: "Log reviews scheduled (daily cron / systemd-timer)"
+    section: "10"
+    severity: LOW
+    rationale: "Req 10.4.1.1: daily review evidence via scheduled log forwarding / analysis."
+    remediation: "Install rsyslog forwarding to SIEM; or schedule logwatch/swatch via systemd-timer."
+    command: "systemctl list-timers --all 2>/dev/null | grep -iE 'logwatch|rsyslog|audispd|swatch' | head -1 || ls /etc/cron.daily/*log* 2>/dev/null || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: "10.5.1"
+    title: "Audit log retention configured for >=12 months"
+    section: "10"
+    severity: MEDIUM
+    rationale: "Req 10.5.1: history retained minimum 12 months; 3 months immediately available."
+    remediation: "Edit /etc/audit/auditd.conf: max_log_file=50, num_logs=12, space_left_action=KEEP_LOGS"
+    command: "grep -E '^(max_log_file|num_logs|max_log_file_action)' /etc/audit/auditd.conf 2>/dev/null || true"
+    pass_when:
+      not:
+        stdout_empty: true
+
+  - id: "10.6.1"
+    title: "Time synchronization technology in use"
+    section: "10"
+    severity: MEDIUM
+    rationale: "Req 10.6.1: time sync authoritative to pinpoint events in forensics."
+    remediation: "systemctl enable --now chrony"
+    command: "systemctl is-active chrony systemd-timesyncd ntp 2>/dev/null | grep -c '^active' || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  - id: "10.6.2"
+    title: "Time sync configured to authoritative source (internal or approved NTP)"
+    section: "10"
+    severity: MEDIUM
+    rationale: "Req 10.6.2: systems receive time from industry-accepted sources."
+    remediation: "Edit /etc/chrony/chrony.conf — server <ntp.bank.internal> iburst prefer"
+    command: "(chronyc sources 2>/dev/null || timedatectl timesync-status 2>/dev/null) | grep -cE '^\\^\\*|^Server' || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  # =========================================================================
+  # Requirement 11 — Test security of systems and networks regularly
+  # =========================================================================
+  - id: "11.5.1"
+    title: "Intrusion detection / prevention system deployed"
+    section: "11"
+    severity: HIGH
+    rationale: "Req 11.5.1: techniques to detect and alert on intrusions or suspected compromise."
+    remediation: "Install fail2ban / suricata / wazuh-agent; subscribe to SOC."
+    command: "dpkg -l 2>/dev/null | grep -cE '^ii\\s+(fail2ban|suricata|snort|osquery|wazuh|auditbeat|ossec)' || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  - id: "11.5.2"
+    title: "File integrity monitoring deployed (AIDE / Tripwire)"
+    section: "11"
+    severity: MEDIUM
+    rationale: "Req 11.5.2: change-detection mechanism for critical files."
+    remediation: "apt-get install -y aide && aideinit; schedule /etc/cron.daily/aide"
+    command: "dpkg -l 2>/dev/null | grep -cE '^ii\\s+(aide|tripwire|samhain|osquery)' || echo 0"
+    pass_when:
+      not:
+        stdout_matches: "^0\\s*$"
+
+  - id: "11.6.1"
+    title: "Web page tampering detection (Content Security Policy / SRI for payment pages)"
+    section: "11"
+    severity: MEDIUM
+    rationale: "Req 11.6.1 NEW in 4.0: change/tamper detection for payment page HTML delivered to the consumer browser."
+    remediation: "Configure CSP with report-uri; use Subresource Integrity (SRI) hashes on script tags."
+    command: "grep -ri 'Content-Security-Policy' /etc/nginx/ /etc/apache2/ /etc/httpd/ 2>/dev/null | head -1 || true"
+    pass_when:
+      not:
+        stdout_empty: true
+

@@ -1,0 +1,42 @@
+cwe: CWE-476
+name: NULL Pointer Dereference
+aliases: [CWE-690]
+detection:
+  # Explicit NULL assignment then dereference (Juliet hits this)
+  - regex: "\\b(\\w+)\\s*=\\s*NULL\\s*;[\\s\\S]{0,200}?\\1\\s*->"
+    confidence: high
+  - regex: "\\b(\\w+)\\s*=\\s*NULL\\s*;[\\s\\S]{0,200}?\\*\\1"
+    confidence: high
+  - regex: "\\b(\\w+)\\s*=\\s*0\\s*;[\\s\\S]{0,200}?\\1\\s*->"
+    confidence: medium
+  # F6.5 round 2: Juliet's CWE-476 templates use array indexing on null
+  #   data = NULL; printHexCharLine(data[0]);
+  - regex: "\\b(\\w+)\\s*=\\s*NULL\\s*;[\\s\\S]{0,200}?\\1\\s*\\["
+    confidence: high
+  # NULL through helper print
+  - regex: "\\b(\\w+)\\s*=\\s*NULL\\s*;[\\s\\S]{0,200}?\\bprint\\w*\\s*\\([^)]*\\1\\s*\\["
+    confidence: high
+  # malloc result used without NULL check
+  - regex: "\\b(\\w+)\\s*=\\s*(?:malloc|calloc|realloc|strdup)\\s*\\([^)]*\\)\\s*;[\\s\\S]{0,200}?\\1\\s*->(?![^;]*if\\s*\\(\\s*\\1)"
+    confidence: medium
+  # fopen/fgets without check
+  - regex: "\\b(\\w+)\\s*=\\s*fopen\\s*\\([^)]*\\)\\s*;[\\s\\S]{0,200}?\\1\\s*->"
+    confidence: high
+  - regex: "\\b(\\w+)\\s*=\\s*getenv\\s*\\([^)]*\\)\\s*;[\\s\\S]{0,300}?\\bstr\\w+\\s*\\(\\s*\\1"
+    confidence: medium
+verification:
+  poc_skeleton: |
+    #include <stdio.h>
+    #include <stdlib.h>
+    int main(void) {
+        char *p = NULL;
+        return *p;
+    }
+  asan_class: SEGV
+escalation_hints:
+  - "Null deref on Linux is typically a controlled crash (DoS only)"
+  - "On older systems with low userland mappings, may be exploitable for RCE"
+  - "If null deref on a struct pointer with controlled offset -> arbitrary read/write"
+fpr_filters:
+  - skip_if_check_present_within_lines: 5
+  - skip_if_inside_assert

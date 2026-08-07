@@ -1,0 +1,51 @@
+# F174 — Vulnerable web app targets for the bench harness.
+#
+# These are deliberately vulnerable training apps. They MUST stay on the
+# default Kryon docker network so the kryon container can reach them by
+# DNS name (e.g. http://dvwa:80). NEVER expose these ports to a public
+# interface — they're literally CVE laboratories.
+#
+# Usage:
+#   docker compose -f docker/docker-compose.bench.yml up -d
+#
+# After they're up:
+#   bash scripts/bench_target.sh kryon-gpt-oss juice_shop 3
+#   bash scripts/bench_target.sh kryon-gpt-oss dvwa 3
+#   bash scripts/bench_target.sh kryon-gpt-oss webgoat 3
+
+services:
+  juice_shop:
+    image: bkimminich/juice-shop:latest
+    container_name: juice_shop
+    restart: unless-stopped
+    # No published port — kryon reaches it via docker DNS.
+    networks:
+      - default
+
+  dvwa:
+    image: vulnerables/web-dvwa:latest
+    container_name: dvwa
+    restart: unless-stopped
+    networks:
+      - default
+
+  bwapp:
+    image: raesene/bwapp:latest
+    container_name: bwapp
+    restart: unless-stopped
+    networks:
+      - default
+
+  webgoat:
+    image: webgoat/webgoat:latest
+    container_name: webgoat
+    restart: unless-stopped
+    networks:
+      - default
+    environment:
+      - WEBGOAT_PORT=8080
+
+networks:
+  default:
+    name: kryon_default
+    external: true

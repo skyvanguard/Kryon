@@ -1,0 +1,101 @@
+# F89.3 — Reusable Kryon CI template for GitLab pipelines.
+#
+# Sibling to the GitHub composite Action (.github/actions/kryon-audit).
+# Both wrap the same `scripts.ci.kryon_audit` entrypoint: convert
+# Kryon findings JSON to SARIF 2.1.0, publish as a job artifact, and
+# apply a configurable severity gate.
+#
+# Usage in a downstream .gitlab-ci.yml:
+#
+#   include:
+#     - project: 'kryon/kryon'
+#       ref: main
+#       file: '/.gitlab/ci/kryon-audit.gitlab-ci.yml'
+#
+#   kryon-security-audit:
+#     extends: .kryon-audit
+#     variables:
+#       KRYON_FINDINGS: "build/findings.json"
+#       KRYON_FAIL_ON: "high"
+#
+# Requirements (NOT installed by this template):
+#   - A self-managed GitLab runner with Kryon available. The
+#     kryon-kali image is 8-12 GB and doesn't fit
+#     in GitLab.com SaaS runners' constraints. Tag the runner
+#     `kryon` and reference it from the job (the template
+#     pre-populates `tags: [kryon]`).
+#   - A prior step that produced the findings JSON (typically
+#     `kryon engage --emit-findings`). This template consumes the
+#     file — it does NOT orchestrate the engagement itself.
+#
+# SARIF ingestion notes:
+#   - GitLab 16.8+ Premium / Ultimate: artifact `reports:sast` with
+#     a .sarif extension is recognized natively. Findings show on
+#     the Security Dashboard + MR widget.
+#   - GitLab Free / older: artifact is downloadable from the job's
+#     "Artifacts" panel; teams ingest into a separate dashboard.
+#
+# CI variables (override per job via `extends` + `variables:`):
+#   KRYON_FINDINGS          path to findings JSON (default findings.json)
+#   KRYON_SARIF_OUT         where to write SARIF (default kryon.sarif)
+#   KRYON_FAIL_ON           severity gate (info|low|medium|high|critical|never; default high)
+#   KRYON_INCLUDE_EVIDENCE  "true" to surface evidence in SARIF (banca-safety: default false)
+#   KRYON_TOOL_VERSION      SARIF tool driver version (default 2.1.0)
+#   KRYON_ENGAGEMENT_ID     optional engagement id stamped into SARIF run.properties
+#   KRYON_CLIENT            optional client name stamped into SARIF run.properties
+
+variables:
+  KRYON_FINDINGS: "findings.json"
+  KRYON_SARIF_OUT: "kryon.sarif"
+  KRYON_FAIL_ON: "high"
+  KRYON_INCLUDE_EVIDENCE: "false"
+  KRYON_TOOL_VERSION: "2.1.0"
+  KRYON_ENGAGEMENT_ID: ""
+  KRYON_CLIENT: ""
+
+.kryon-audit:
+  stage: test
+  # The runner must already have Kryon on PATH (pip install kryon
+  # OR exec into the kryon-kali container). The job ONLY runs the
+  # F89.2 CI entrypoint — it does NOT install Kryon.
+  tags:
+    - kryon
+  script:
+    - |
+      EVIDENCE_FLAG=""
+      if [ "${KRYON_INCLUDE_EVIDENCE}" = "true" ]; then
+        EVIDENCE_FLAG="--include-evidence"
+      fi
+      python -m scripts.ci.kryon_audit \
+        --findings "${KRYON_FINDINGS}" \
+        --sarif-out "${KRYON_SARIF_OUT}" \
+        --fail-on "${KRYON_FAIL_ON}" \
+        --tool-version "${KRYON_TOOL_VERSION}" \
+        --engagement-id "${KRYON_ENGAGEMENT_ID}" \
+        --client "${KRYON_CLIENT}" \
+        $EVIDENCE_FLAG
+  # `when: always` so the SARIF artifact uploads even when the gate
+  # fails the job — the auditor still wants the report on a failing
+  # MR. `allow_failure: false` keeps the pipeline red on a gate
+  # breach (override per job if a soft-fail is appropriate during
+  # rollout).
+  allow_failure: false
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - $KRYON_SARIF_OUT
+    reports:
+      # GitLab 16.8+ Premium/Ultimate: a file with the .sarif
+      # extension under `reports:sast` is ingested natively into
+      # the Security Dashboard. On older / Free tier the artifact
+      # is still downloadable from the job page.
+      sast: $KRYON_SARIF_OUT
+  # Cache the venv across runs to keep audit jobs under a minute.
+  # The path is opportunistic — users without uv won't have it and
+  # the cache miss is harmless.
+  cache:
+    key: kryon-audit-$CI_COMMIT_REF_SLUG
+    paths:
+      - .venv/
+    policy: pull

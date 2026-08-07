@@ -1,0 +1,168 @@
+rules:
+  - id: kryon.cwe-134.printf-non-literal
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      printf() with non-literal format string — format string vulnerability.
+      Allows arbitrary read (%s) or write (%n). CWE-134.
+    metadata:
+      cwe: "CWE-134: Externally-Controlled Format String"
+      cwe-id: 134
+      confidence: HIGH
+    patterns:
+      - pattern: printf($X)
+      - pattern-not: printf("...")
+      - pattern-not: printf("...", ...)
+
+  - id: kryon.cwe-134.fprintf-non-literal
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      fprintf() with non-literal format string. CWE-134.
+    metadata:
+      cwe: "CWE-134"
+      cwe-id: 134
+      confidence: HIGH
+    patterns:
+      - pattern: fprintf($F, $X)
+      - pattern-not: fprintf($F, "...")
+      - pattern-not: fprintf($F, "...", ...)
+
+  - id: kryon.cwe-134.snprintf-non-literal
+    languages: [c, cpp]
+    severity: WARNING
+    message: |
+      snprintf() with non-literal format string. CWE-134.
+    metadata:
+      cwe: "CWE-134"
+      cwe-id: 134
+      confidence: MEDIUM
+    patterns:
+      - pattern: snprintf($BUF, $N, $FMT)
+      - pattern-not: snprintf($BUF, $N, "...")
+      - pattern-not: snprintf($BUF, $N, "...", ...)
+
+  - id: kryon.cwe-134.syslog-non-literal
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      syslog() with non-literal format string. CWE-134.
+    metadata:
+      cwe: "CWE-134"
+      cwe-id: 134
+      confidence: HIGH
+    patterns:
+      - pattern: syslog($PRI, $X)
+      - pattern-not: syslog($PRI, "...")
+      - pattern-not: syslog($PRI, "...", ...)
+
+  - id: kryon.cwe-134.sprintf-non-literal
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      sprintf() with non-literal format string. CWE-134.
+    metadata:
+      cwe: "CWE-134"
+      cwe-id: 134
+      confidence: HIGH
+    patterns:
+      - pattern: sprintf($BUF, $FMT)
+      - pattern-not: sprintf($BUF, "...")
+      - pattern-not: sprintf($BUF, "...", ...)
+
+  # va_list family — format string propagates through the va_list wrapper.
+  - id: kryon.cwe-134.vprintf-non-literal
+    languages: [c, cpp]
+    severity: ERROR
+    message: vprintf/vfprintf/vsprintf with non-literal format. CWE-134.
+    metadata:
+      cwe: "CWE-134"
+      cwe-id: 134
+      confidence: MEDIUM
+    pattern-either:
+      - patterns:
+          - pattern: vprintf($X, $AP)
+          - pattern-not: vprintf("...", $AP)
+      - patterns:
+          - pattern: vfprintf($F, $X, $AP)
+          - pattern-not: vfprintf($F, "...", $AP)
+      - patterns:
+          - pattern: vsprintf($B, $X, $AP)
+          - pattern-not: vsprintf($B, "...", $AP)
+      - patterns:
+          - pattern: vsnprintf($B, $N, $X, $AP)
+          - pattern-not: vsnprintf($B, $N, "...", $AP)
+      - patterns:
+          - pattern: vsyslog($P, $X, $AP)
+          - pattern-not: vsyslog($P, "...", $AP)
+
+  # GNU / BSD heap-allocating printf variants.
+  - id: kryon.cwe-134.asprintf-non-literal
+    languages: [c, cpp]
+    severity: ERROR
+    message: asprintf/dprintf with non-literal format string. CWE-134.
+    metadata:
+      cwe: "CWE-134"
+      cwe-id: 134
+      confidence: HIGH
+    pattern-either:
+      - patterns:
+          - pattern: asprintf(&$P, $FMT)
+          - pattern-not: asprintf(&$P, "...")
+          - pattern-not: asprintf(&$P, "...", ...)
+      - patterns:
+          - pattern: vasprintf(&$P, $FMT, $AP)
+          - pattern-not: vasprintf(&$P, "...", $AP)
+      - patterns:
+          - pattern: dprintf($FD, $FMT)
+          - pattern-not: dprintf($FD, "...")
+          - pattern-not: dprintf($FD, "...", ...)
+      - patterns:
+          - pattern: vdprintf($FD, $FMT, $AP)
+          - pattern-not: vdprintf($FD, "...", $AP)
+
+  # err.h family (warn/warnx/err/errx and v-variants). BSD + glibc.
+  - id: kryon.cwe-134.errh-non-literal
+    languages: [c, cpp]
+    severity: ERROR
+    message: err.h family (warn/warnx/err/errx) with non-literal format. CWE-134.
+    metadata:
+      cwe: "CWE-134"
+      cwe-id: 134
+      confidence: HIGH
+    pattern-either:
+      - patterns:
+          - pattern: warn($FMT)
+          - pattern-not: warn("...")
+          - pattern-not: warn("...", ...)
+      - patterns:
+          - pattern: warnx($FMT)
+          - pattern-not: warnx("...")
+          - pattern-not: warnx("...", ...)
+      - patterns:
+          - pattern: err($EVAL, $FMT)
+          - pattern-not: err($EVAL, "...")
+          - pattern-not: err($EVAL, "...", ...)
+      - patterns:
+          - pattern: errx($EVAL, $FMT)
+          - pattern-not: errx($EVAL, "...")
+          - pattern-not: errx($EVAL, "...", ...)
+
+  # GNU error() / error_at_line().
+  - id: kryon.cwe-134.gnu-error-non-literal
+    languages: [c, cpp]
+    severity: ERROR
+    message: GNU error()/error_at_line() with non-literal format. CWE-134.
+    metadata:
+      cwe: "CWE-134"
+      cwe-id: 134
+      confidence: HIGH
+    pattern-either:
+      - patterns:
+          - pattern: error($STATUS, $ERRNO, $FMT)
+          - pattern-not: error($STATUS, $ERRNO, "...")
+          - pattern-not: error($STATUS, $ERRNO, "...", ...)
+      - patterns:
+          - pattern: error_at_line($S, $E, $F, $L, $FMT)
+          - pattern-not: error_at_line($S, $E, $F, $L, "...")
+          - pattern-not: error_at_line($S, $E, $F, $L, "...", ...)

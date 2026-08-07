@@ -1,0 +1,19 @@
+{
+  "slug": "struts2-ognl",
+  "cve_id": "CVE-2017-5638",
+  "expected_cwe": "CWE-20",
+  "expected_file": "core/src/main/java/org/apache/struts2/dispatcher/multipart/JakartaMultiPartRequest.java",
+  "expected_line": 78,
+  "project": "struts2",
+  "repo_url": "https://github.com/apache/struts",
+  "vuln_commit": "352306493971e7d5a756d61780d57a76eb1f519a",
+  "patch_commit": "6b8272ce47160036ed120a48345d9aa884477228",
+  "category": "injection",
+  "status": "ready",
+  "wall_budget_seconds": 600,
+  "source": {
+    "type": "git",
+    "ref": "https://github.com/apache/struts"
+  },
+  "notes": "Struts2 multipart parser passes the Content-Type header through OGNL evaluation when constructing the exception message after a malformed upload, enabling unauthenticated RCE."
+}

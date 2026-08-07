@@ -1,0 +1,349 @@
+"""Integration tests — pre_hook_integration glues spec/runner to the agent.
+
+These are unit tests with synthetic agents (no real Runner.run / model calls).
+They validate the bits the REPL relies on:
+  - Tool extraction from agent.tools (uses `_raw_fn`)
+  - Turn ctx construction from env + user input
+  - Findings block formatting
+  - End-to-end maybe_run_pre_hooks() with mock agent
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+from typing import Any
+
+import pytest
+
+from kryon.skills.pre_hook_integration import (
+    build_tool_callables_from_agent,
+    build_turn_ctx,
+    collect_active_pre_hooks,
+    format_findings_block,
+    maybe_run_pre_hooks,
+)
+from kryon.skills.pre_hook_spec import parse_pre_hooks
+
+# ---------- Stubs ----------
+
+
+class _FakeTool:
+    """Minimal shape of a function_tool: has .name and ._raw_fn."""
+
+    def __init__(self, name: str, fn: Any) -> None:
+        self.name = name
+        self._raw_fn = fn
+
+
+class _FakeSkill:
+    def __init__(self, name: str, pre_hooks: tuple = ()) -> None:
+        self.name = name
+        self.pre_hooks = pre_hooks
+
+
+class _FakeAgent:
+    def __init__(self, tools: list[Any], skills: list[Any]) -> None:
+        self.tools = tools
+        self._active_skills = skills
+
+
+class _FakeHook:
+    def __init__(self, tool: str) -> None:
+        self.tool = tool
+        self.python = None
+
+
+def test_collect_skips_compliance_pre_hooks_under_red_team(monkeypatch) -> None:
+    """Offensive (KRYON_RED_TEAM) runs must NOT run run_compliance_audit pre_hooks — a compliance
+    skill matching by tech (windows-server-audit) flooded an AttacktiveDirectory turn with WIN-x.x
+    findings and the model regurgitated them into a malformed 500 that killed the run."""
+    skill = _FakeSkill("windows-server-audit", (_FakeHook("run_compliance_audit"), _FakeHook("nmap")))
+    agent = _FakeAgent(tools=[], skills=[skill])
+
+    monkeypatch.setenv("KRYON_RED_TEAM", "true")
+    tools = [h.tool for h in collect_active_pre_hooks(agent)]
+    assert "run_compliance_audit" not in tools and "nmap" in tools
+
+    monkeypatch.setenv("KRYON_RED_TEAM", "false")
+    tools2 = [h.tool for h in collect_active_pre_hooks(agent)]
+    assert "run_compliance_audit" in tools2  # compliance engagements still run it
+
+
+# ---------- build_tool_callables_from_agent ----------
+
+
+def test_extracts_callables_via_raw_fn() -> None:
+    def fn_a() -> str:
+        return "a"
+
+    def fn_b() -> str:
+        return "b"
+
+    agent = _FakeAgent(
+        tools=[_FakeTool("alpha", fn_a), _FakeTool("beta", fn_b)],
+        skills=[],
+    )
+    callables = build_tool_callables_from_agent(agent)
+    assert set(callables.keys()) == {"alpha", "beta"}
+    assert callables["alpha"]() == "a"
+
+
+def test_skips_tools_without_raw_fn() -> None:
+    """MCP-bridged tools have no _raw_fn — must be skipped silently."""
+
+    class _MCPLike:
+        name = "mcp_tool"
+        # no _raw_fn
+
+    agent = _FakeAgent(tools=[_MCPLike()], skills=[])
+    assert build_tool_callables_from_agent(agent) == {}
+
+
+def test_handles_agent_without_tools_attr() -> None:
+    class _Bare:
+        pass
+
+    assert build_tool_callables_from_agent(_Bare()) == {}
+
+
+# ---------- build_turn_ctx ----------
+
+
+def test_ctx_from_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KRYON_TARGET_HOST", "fw.empresa.local")
+    monkeypatch.setenv("KRYON_SSH_USER", "auditor")
+    monkeypatch.setenv("KRYON_SSH_KEY", "/keys/id_ed25519")
+    monkeypatch.setenv("KRYON_SSH_PORT", "2222")
+    monkeypatch.setenv("KRYON_CLIENT_NAME", "example-corp")
+
+    ctx = build_turn_ctx(user_input="auditá esto")
+    assert ctx["host"] == "fw.empresa.local"
+    assert ctx["ssh_user"] == "auditor"
+    assert ctx["ssh_key_path"] == "/keys/id_ed25519"
+    assert ctx["ssh_port"] == "2222"
+    assert ctx["client_name"] == "example-corp"
+
+
+def test_ctx_detects_ipv4_in_user_input(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("KRYON_TARGET_HOST", raising=False)
+    ctx = build_turn_ctx(user_input="auditá el fortigate 192.168.1.1 ya")
+    assert ctx["host"] == "192.168.1.1"
+    assert ctx["target"] == "192.168.1.1"
+
+
+def test_ctx_detects_hostname(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("KRYON_TARGET_HOST", raising=False)
+    ctx = build_turn_ctx(user_input="scan unifi.empresa.com please")
+    assert ctx["host"] == "unifi.empresa.com"
+
+
+def test_ctx_env_takes_precedence_over_detection(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KRYON_TARGET_HOST", "10.0.0.1")
+    ctx = build_turn_ctx(user_input="probar 192.168.1.1")
+    assert ctx["host"] == "10.0.0.1"
+
+
+def test_ctx_dirty_env_host_falls_back_no_split_brain(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A dirty/URL-shaped KRYON_TARGET_HOST sanitized to "" must NOT zero out host
+    # while target still resolves — host and target must agree and fall back to the
+    # clean detected host.
+    monkeypatch.setenv("KRYON_TARGET_HOST", "https://10.0.0.1/admin?x=1")
+    ctx = build_turn_ctx(user_input="audita 10.0.0.5 por favor")
+    assert ctx["host"] == ctx["target"], "host/target split-brain"
+    assert ctx["host"] == "10.0.0.5"
+
+
+def test_ctx_session_target_fallback_on_continuation_turn(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A continuation turn ("segui con eso") has no host and no env → the sticky
+    # session_target must fill host/target so the pre_hook probes the real host.
+    monkeypatch.delenv("KRYON_TARGET_HOST", raising=False)
+    ctx = build_turn_ctx(user_input="segui con eso", session_target="target.com")
+    assert ctx["host"] == "target.com"
+    assert ctx["target"] == "target.com"
+
+
+def test_ctx_session_target_is_only_a_last_resort(monkeypatch: pytest.MonkeyPatch) -> None:
+    # This turn's own host and the env var both outrank the sticky session_target.
+    monkeypatch.delenv("KRYON_TARGET_HOST", raising=False)
+    ctx = build_turn_ctx(user_input="scan 192.168.1.1", session_target="old.host")
+    assert ctx["host"] == "192.168.1.1"
+    monkeypatch.setenv("KRYON_TARGET_HOST", "10.0.0.1")
+    ctx = build_turn_ctx(user_input="segui", session_target="old.host")
+    assert ctx["host"] == "10.0.0.1"
+
+
+def test_ctx_empty_when_nothing_to_detect(monkeypatch: pytest.MonkeyPatch) -> None:
+    for k in (
+        "KRYON_TARGET_HOST",
+        "KRYON_SSH_USER",
+        "KRYON_SSH_KEY",
+        "KRYON_SSH_PORT",
+        "KRYON_CLIENT_NAME",
+        "KRYON_SESSION_ID",
+    ):
+        monkeypatch.delenv(k, raising=False)
+    ctx = build_turn_ctx(user_input="hola")
+    assert ctx["host"] == ""
+    assert ctx["ssh_user"] == ""
+
+
+# ---------- collect_active_pre_hooks ----------
+
+
+def test_collect_flattens_hooks_from_active_skills() -> None:
+    h1 = parse_pre_hooks([{"tool": "a"}])
+    h2 = parse_pre_hooks([{"tool": "b"}, {"tool": "c"}])
+    agent = _FakeAgent(
+        tools=[],
+        skills=[_FakeSkill("s1", h1), _FakeSkill("s2", h2)],
+    )
+    flat = collect_active_pre_hooks(agent)
+    assert [h.tool for h in flat] == ["a", "b", "c"]
+
+
+def test_collect_returns_empty_when_no_skills() -> None:
+    assert collect_active_pre_hooks(_FakeAgent(tools=[], skills=[])) == []
+
+
+# ---------- format_findings_block ----------
+
+
+def test_format_empty_findings_returns_empty_string() -> None:
+    assert format_findings_block({}) == ""
+
+
+def test_format_pretty_prints_json_payload(monkeypatch) -> None:
+    monkeypatch.delenv("KRYON_CAPABLE_MODEL", raising=False)
+    findings = {"compliance": json.dumps({"verdicts": {"PASS": 5, "FAIL": 3}})}
+    block = format_findings_block(findings)
+    assert "## Pre-hook deterministic context" in block
+    assert "### compliance" in block
+    assert '"PASS": 5' in block  # pretty-printed JSON
+    assert "do NOT re-run" in block  # authoritative warning to LLM (4B)
+
+
+def test_format_capable_model_header_allows_rerun(monkeypatch) -> None:
+    # Regression (G3): a capable model must not be told "do NOT re-run"; the engine
+    # is a seed, not a ceiling.
+    monkeypatch.setenv("KRYON_CAPABLE_MODEL", "true")
+    findings = {"compliance": json.dumps({"verdicts": {"PASS": 5}})}
+    block = format_findings_block(findings)
+    assert "do NOT re-run" not in block
+    assert "seed" in block.lower() and "re-run any tool" in block.lower()
+
+
+def test_format_falls_back_for_non_json() -> None:
+    findings = {"raw": "not json at all"}
+    block = format_findings_block(findings)
+    assert "not json at all" in block
+
+
+# ---------- maybe_run_pre_hooks (end-to-end) ----------
+
+
+@pytest.mark.asyncio
+async def test_maybe_run_returns_empty_when_no_hooks() -> None:
+    agent = _FakeAgent(tools=[], skills=[_FakeSkill("noop", ())])
+    out = await maybe_run_pre_hooks(agent, user_input="hi", console=None)
+    assert out == ""
+
+
+@pytest.mark.asyncio
+async def test_maybe_run_invokes_hook_and_returns_block(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The suite defaults KRYON_RED_TEAM=true (conftest); run_compliance_audit pre_hooks are now
+    # skipped under red-team, so exercise the compliance-runs path with the offensive gate off.
+    monkeypatch.setenv("KRYON_RED_TEAM", "false")
+    monkeypatch.setenv("KRYON_TARGET_HOST", "192.168.1.1")
+    monkeypatch.setenv("KRYON_SSH_USER", "auditor")
+
+    captured_kwargs: dict[str, Any] = {}
+
+    def compliance_audit(**kwargs: Any) -> str:
+        captured_kwargs.update(kwargs)
+        return json.dumps({"verdicts": {"PASS": 3, "FAIL": 18}, "hash": "abc"})
+
+    hooks = parse_pre_hooks(
+        [
+            {
+                "tool": "run_compliance_audit",
+                "args": {"framework": "fortigate", "host": "{ctx.host}", "ssh_user": "{ctx.ssh_user}"},
+                "inject_as": "compliance",
+            }
+        ]
+    )
+    agent = _FakeAgent(
+        tools=[_FakeTool("run_compliance_audit", compliance_audit)],
+        skills=[_FakeSkill("fortigate-audit", hooks)],
+    )
+
+    out = await maybe_run_pre_hooks(agent, user_input="auditá esto", console=None)
+
+    # Tool received substituted args
+    assert captured_kwargs == {
+        "framework": "fortigate",
+        "host": "192.168.1.1",
+        "ssh_user": "auditor",
+    }
+    # Output is a markdown block with the findings
+    assert "### compliance" in out
+    assert '"PASS": 3' in out
+    assert '"FAIL": 18' in out
+
+
+@pytest.mark.asyncio
+async def test_maybe_run_required_failure_returns_error_block(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When a required hook can't find its tool, return a clear error
+    block instead of crashing the turn — the LLM will tell the user."""
+
+    hooks = parse_pre_hooks(
+        [
+            {
+                "tool": "missing_tool",  # not in callable registry
+                "required": True,
+                "inject_as": "x",
+            }
+        ]
+    )
+    agent = _FakeAgent(tools=[], skills=[_FakeSkill("s", hooks)])
+
+    out = await maybe_run_pre_hooks(agent, user_input="x", console=None)
+    assert "_pre_hook_error" in out
+    assert "Required pre-hook failed" in out
+
+
+@pytest.mark.asyncio
+async def test_maybe_run_with_console_does_not_crash() -> None:
+    """Smoke: console.print path with a real Rich Console."""
+    from rich.console import Console
+
+    def t() -> str:
+        return json.dumps({"ok": True})
+
+    hooks = parse_pre_hooks([{"tool": "t", "inject_as": "result"}])
+    agent = _FakeAgent(tools=[_FakeTool("t", t)], skills=[_FakeSkill("s", hooks)])
+
+    # If console.print throws, the call is wrapped in try/except → no crash.
+    out = await maybe_run_pre_hooks(agent, user_input="x", console=Console())
+    assert "### result" in out
+
+
+def test_clean_hook_name_strips_path_and_suffix():
+    """The clean (default) pre-hook label shows a friendly name, not a path."""
+    from types import SimpleNamespace
+
+    from kryon.skills.pre_hook_integration import _clean_hook_name
+
+    # Python hook → basename without dir/.py/_hook/:func
+    assert _clean_hook_name(SimpleNamespace(tool=None, python="./pre_hooks/web_common_paths_hook.py:run")) == (
+        "web_common_paths"
+    )
+    # A tool name is used verbatim.
+    assert _clean_hook_name(SimpleNamespace(tool="nuclei_scan", python="")) == "nuclei_scan"
+    # Empty → a neutral label, never blank.
+    assert _clean_hook_name(SimpleNamespace(tool=None, python="")) == "análisis"

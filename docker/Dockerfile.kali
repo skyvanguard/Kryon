@@ -1,0 +1,345 @@
+# =============================================================================
+# KRYON - Kali Linux Pentesting Dockerfile (Multi-stage build)
+# =============================================================================
+# Full offensive security toolkit based on Kali Linux with all pentesting
+# tools pre-installed. Use docker-compose.kali.yml to orchestrate.
+#
+# Build:  docker compose -f docker/docker-compose.kali.yml build
+# Size:   ~8-12 GB (metasploit, seclists, wordlists, etc.)
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: base — Kali Linux with security tools
+# ---------------------------------------------------------------------------
+FROM kalilinux/kali-rolling AS base
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ---------------------------------------------------------------------------
+# Repo bootstrap (fix build error "apt-get ... exit code 100")
+# ---------------------------------------------------------------------------
+# La imagen base kali-rolling dejó de traer `ca-certificates`, y el mirror por
+# CDN de Cloudflare (kali.download / http.kali.org → 104.17.x) responde
+# 403 Forbidden desde varias redes (incl. la corporativa de ejemplo). Con HTTP
+# da 403 y con HTTPS da "certificate verify failed" (sin CA bundle) → `apt-get
+# update` falla y aborta TODA la capa de tools de abajo.
+# Fix: apuntar a un mirror community estable (elmirror.cl, cercano a PY) e
+# instalar ca-certificates con verificación TLS temporalmente off — la firma
+# GPG del repo (Signed-By) se sigue validando —, luego re-activar TLS. Override
+# del mirror en build-time con `--build-arg KRYON_KALI_MIRROR=...` si éste cae.
+ARG KRYON_KALI_MIRROR=https://elmirror.cl/kali
+RUN printf 'Types: deb\nURIs: %s\nSuites: kali-rolling\nComponents: main contrib non-free non-free-firmware\nSigned-By: /usr/share/keyrings/kali-archive-keyring.gpg\n' "$KRYON_KALI_MIRROR" > /etc/apt/sources.list.d/kali.sources \
+    && echo 'Acquire::https::Verify-Peer "false";' > /etc/apt/apt.conf.d/99kali-bootstrap \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm /etc/apt/apt.conf.d/99kali-bootstrap \
+    && apt-get update
+
+# Core pentesting meta-package + extras not in kali-tools-top10
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Meta-package: nmap, metasploit, sqlmap, john, hydra, aircrack-ng,
+    # burpsuite (headless), wireshark-common, responder, nikto
+    kali-tools-top10 \
+    # Recon & enumeration
+    gobuster \
+    ffuf \
+    masscan \
+    enum4linux \
+    dnsrecon \
+    fierce \
+    amass \
+    whatweb \
+    wafw00f \
+    sublist3r \
+    # Web exploitation
+    wpscan \
+    dirb \
+    # ExploitDB — searchsploit drives the version->known-exploit chain-planner rule
+    # (_rule_searchsploit_known_exploits): fingerprinted CMS/product -> 45k+ public PoCs.
+    exploitdb \
+    # Lynis (CISOfy, GPL-3.0) — host audit engine Kryon orchestrates over SSH
+    # (src/kryon/integrations/lynis/). Invoked arm's-length (subprocess), never
+    # modified → appliance distribution just points at the public source. For a
+    # REMOTE audit, lynis must also be on the TARGET (this install covers the
+    # local / operator-on-Kali case).
+    lynis \
+    # NOTE: OpenVAS integration talks GMP *directly* over gvmd's socket
+    # (src/kryon/integrations/openvas/client.py gmp_socket_runner) — ZERO Greenbone
+    # code in this image, so nothing GPL/AGPL is bundled or distributed. The
+    # `gvm-cli` fallback (KRYON_OPENVAS_TRANSPORT=cli) needs gvm-tools installed
+    # separately; it is intentionally NOT baked here.
+    # Password attacks
+    hashcat \
+    seclists \
+    wordlists \
+    # SMB/AD
+    crackmapexec \
+    smbclient \
+    evil-winrm \
+    ldap-utils \
+    libldap2-dev \
+    libsasl2-dev \
+    # Network
+    proxychains4 \
+    openvpn \
+    netcat-traditional \
+    socat \
+    tcpdump \
+    sshpass \
+    openssh-client \
+    # NFS auto-exploit (_check_nfs_rpcbind -> _nfs_loot_export): libnfs gives userspace nfs-ls/nfs-cat
+    # (read exports + UID-spoof without CAP_SYS_ADMIN); nfs-common ships showmount/mount.nfs as fallback.
+    libnfs-utils \
+    nfs-common \
+    radare2 \
+    gdb \
+    # Utilities
+    python3 \
+    python3-pip \
+    python3-venv \
+    python3-dev \
+    build-essential \
+    libffi-dev \
+    libssl-dev \
+    git \
+    curl \
+    wget \
+    jq \
+    dnsutils \
+    tini \
+    # WeasyPrint system libs — without these, kryon[reporting] PDF generation
+    # fails at runtime even though the Python package is installed (cffi cannot
+    # locate the native libs). Manifested as: "pdf_error → install the
+    # 'reporting' extra" in engagement reports.
+    libpango-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
+    libpangoft2-1.0-0 \
+    # Cross-compile toolchain for beacon/payload generation (F85.G)
+    golang-go \
+    mingw-w64 \
+    # WiFi PMKID capture (evil_twin.py — not provided by kali-tools-top10)
+    hcxdumptool \
+    # F165 — nikto is part of kali-tools-top10 most editions but not all base
+    # images. Pin it explicitly so the kryon container always has it.
+    nikto \
+    # Node.js for Claude Code CLI
+    nodejs \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install kerbrute (ropnop) — the entry of the deterministic AD chain (_rule_ad_enum_domain_users does
+# `kerbrute userenum` to validate domain users via Kerberos pre-auth). Not in apt; pull the release binary.
+# Without it the whole AD chain (AS-REP roast → secretsdump → WinRM) stalls at user enumeration.
+RUN curl -sSfL https://github.com/ropnop/kerbrute/releases/download/v1.0.3/kerbrute_linux_amd64 \
+        -o /usr/local/bin/kerbrute \
+    && chmod +x /usr/local/bin/kerbrute \
+    && /usr/local/bin/kerbrute version 2>&1 | head -1 \
+    || echo "kerbrute install skipped (network) — install at runtime for AD engagements"
+
+# targetedKerberoast — DACL-abuse targeted Kerberoasting (GenericWrite over a user -> temp SPN -> roast).
+# The modern-AD edge the active-directory-roast hook needs for ACL attack paths (THM Operation Endgame).
+RUN curl -sSfL https://raw.githubusercontent.com/ShutdownRepo/targetedKerberoast/main/targetedKerberoast.py \
+        -o /usr/local/bin/targetedKerberoast.py \
+    && chmod +x /usr/local/bin/targetedKerberoast.py \
+    && head -1 /usr/local/bin/targetedKerberoast.py \
+    || echo "targetedKerberoast install skipped (network) — install at runtime for AD ACL engagements"
+
+# xfreerdp + Xvfb + xauth + xclip — headless RDP file-read (#4 cred hunting for RDP-only foothold users:
+# read C:\Scripts etc. when the user has Remote Desktop but no WinRM/SMB-exec). freerdp3-x11 ships xfreerdp.
+RUN apt-get install -y --no-install-recommends freerdp3-x11 xvfb xauth xclip 2>/dev/null \
+    && command -v xfreerdp \
+    || echo "freerdp/xvfb install skipped — RDP cred-read best-effort, install at runtime"
+
+# Cinc Auditor (FOSS InSpec, Apache-2.0) — compliance-as-code engine that Kryon
+# orchestrates (src/kryon/integrations/cinc/). Apache-2.0 → bundleable, zero
+# copyleft. Use cinc-auditor, NOT `inspec` (InSpec 5+ moved to a commercial
+# EULA). Best-effort: if omnitruck is unreachable the Cinc integration stays
+# inert (run_profile raises CincError "not found" and the phase skips).
+RUN (curl -L https://omnitruck.cinc.sh/install.sh | bash -s -- -P cinc-auditor \
+        && cinc-auditor version | head -1) \
+    || echo "WARN: cinc-auditor install failed — Cinc integration inert until installed"
+
+# Install nuclei (latest from ProjectDiscovery, pinned fallback)
+# F163 — the previous "skip silently" path lost nuclei on intermittent
+# GitHub API failures (rate limit + transient network), and the failure
+# only showed up at engagement time when the scan tool blew up. Pin a
+# known-good version as fallback so the build is reproducible and the
+# binary is always present.
+# Proxy robustness — the Docker Desktop daemon injects http.docker.internal:3128
+# as a build proxy that doesn't resolve inside the BuildKit sandbox, breaking
+# these curls with exit 5 ("couldn't resolve proxy"). --noproxy '*' alone was
+# not enough (curl still tried to resolve the proxy across versions), so we ALSO
+# `unset` every proxy env var at the top of the RUN. Belt and suspenders.
+# F203 — the whole block is now NON-FATAL (mirrors the cinc-auditor pattern
+# above): a proxy/network hiccup during build must not abort the image. If
+# nuclei can't be fetched at build time, the operator populates it at runtime
+# with `kryon update --only nuclei` (determinismo actualizable), so the image
+# still builds and stays usable.
+RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY 2>/dev/null || true; \
+    ( set -e; \
+      NUCLEI_PINNED_VERSION=3.8.0; \
+      NUCLEI_URL=$(curl --noproxy '*' -sL https://api.github.com/repos/projectdiscovery/nuclei/releases/latest \
+          | jq -r '.assets[] | select(.name | test("linux_amd64.zip$")) | .browser_download_url' 2>/dev/null); \
+      if [ -z "$NUCLEI_URL" ] || [ "$NUCLEI_URL" = "null" ]; then \
+          echo "GitHub API unreachable, falling back to pinned nuclei v${NUCLEI_PINNED_VERSION}"; \
+          NUCLEI_URL="https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_PINNED_VERSION}/nuclei_${NUCLEI_PINNED_VERSION}_linux_amd64.zip"; \
+      fi; \
+      curl --noproxy '*' -sSfL "$NUCLEI_URL" -o /tmp/nuclei.zip \
+      && unzip -o /tmp/nuclei.zip -d /usr/local/bin/ nuclei \
+      && chmod +x /usr/local/bin/nuclei \
+      && rm /tmp/nuclei.zip \
+      && /usr/local/bin/nuclei -version | head -1 \
+      && /usr/local/bin/nuclei -update-templates -silent 2>&1 | tail -3 || true ) \
+    || echo "WARN: nuclei install failed during build — run 'kryon update --only nuclei' at runtime to populate it"
+
+# ---------------------------------------------------------------------------
+# Stage 2: builder — Python dependencies via uv
+# ---------------------------------------------------------------------------
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+
+# Install uv for fast dependency resolution
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Install build deps for compiled packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ libffi-dev libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Layer-caching split: install the heavy dependency set against a BUILD STUB
+# of the package, so the ~2GB torch/nvidia/transformers download layer is keyed
+# on pyproject.toml only — NOT on application source. A code-only change then
+# invalidates just the source COPY + fast package reinstall below, instead of
+# re-downloading every dependency (~11min → seconds of network). `version` is
+# static in pyproject.toml (hatchling embeds it), so a bare __init__.py builds.
+COPY pyproject.toml README.md ./
+RUN mkdir -p src/kryon && echo '"""kryon — build stub; real source copied below."""' > src/kryon/__init__.py
+
+# Create venv and install all dependencies + extras (cached unless
+# pyproject.toml changes).
+RUN uv venv /opt/venv && \
+    . /opt/venv/bin/activate && \
+    uv pip install --no-cache ".[rag,server,tracing,viz,tui,reporting,orchestration]" && \
+    uv pip install --no-cache impacket bloodhound playwright && \
+    # Mobile-banking-audit playbook tools (Frida-based instrumentation +
+    # objection for runtime mobile testing). Optional but pre-installed so the
+    # skill's deterministic hooks work out of the box when invoked.
+    uv pip install --no-cache frida-tools objection && \
+    # F15.2 fix: align all opentelemetry packages to >=1.41 line so chromadb
+    # (which pulls exporter 1.41+) and semgrep (which pins ~=1.37) don't
+    # collide at runtime via missing ReadableLogRecord/LogData symbols.
+    uv pip install --no-cache \
+        "opentelemetry-sdk>=1.41" \
+        "opentelemetry-api>=1.41" \
+        "opentelemetry-exporter-otlp-proto-grpc>=1.41" \
+        "opentelemetry-exporter-otlp-proto-http>=1.41" \
+        "opentelemetry-exporter-otlp-proto-common>=1.41" \
+        "opentelemetry-instrumentation>=0.62b0" \
+        "opentelemetry-instrumentation-requests>=0.62b0" \
+        "opentelemetry-semantic-conventions>=0.62b0"
+
+# Copy the REAL source (overwrites the stub) and reinstall ONLY the kryon
+# package — deps are already satisfied, so `--no-deps` skips any download and
+# `--reinstall-package` forces the rebuild despite the unchanged version.
+COPY src/ ./src/
+RUN . /opt/venv/bin/activate && \
+    uv pip install --no-cache --no-deps --reinstall-package kryon .
+
+# ---------------------------------------------------------------------------
+# Stage 3: runtime — Kali tools + Python venv + Claude Code CLI
+# ---------------------------------------------------------------------------
+FROM base AS runtime
+
+LABEL maintainer="kryon-security"
+LABEL description="KRYON Pentesting Platform on Kali Linux"
+
+# Copy Python 3.11 runtime from builder (Kali ships Python 3.13, venv needs 3.11)
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /usr/local/bin/python3.11 /usr/local/bin/python3.11
+COPY --from=builder /usr/local/lib/python3.11 /usr/local/lib/python3.11
+COPY --from=builder /usr/local/lib/libpython3.11.so* /usr/local/lib/
+RUN ln -sf /usr/local/bin/python3.11 /usr/local/bin/python3 && ldconfig
+
+# Verify critical AD + reporting + payload-build binaries are available
+RUN /opt/venv/bin/python3.11 -c "import impacket; print('impacket OK')" && \
+    /opt/venv/bin/python3.11 -c "import bloodhound; print('bloodhound OK')" && \
+    /opt/venv/bin/python3.11 -c "import weasyprint; print('weasyprint OK')" && \
+    test -f /opt/venv/bin/secretsdump.py && echo "secretsdump.py OK" && \
+    test -f /opt/venv/bin/GetUserSPNs.py && echo "GetUserSPNs.py OK" && \
+    test -f /opt/venv/bin/bloodhound-python && echo "bloodhound-python OK" && \
+    which evil-winrm && echo "evil-winrm OK" && \
+    which go && echo "golang OK" && \
+    which x86_64-w64-mingw32-gcc && echo "mingw OK" && \
+    which hcxdumptool && echo "hcxdumptool OK"
+
+# Create non-root user for default operation
+RUN groupadd -r kryon && useradd -r -g kryon -m -s /bin/bash kryon
+
+# Let kryon seed /etc/hosts with a target's discovered vhost (e.g. internal.thm → IP) so the agent's
+# own tools resolve it. /etc/hosts is root-owned and Docker regenerates it at every container start,
+# so a build-time chmod won't stick; instead grant a narrow passwordless sudo for the exact `tee`
+# invocation `_add_vhost_to_hosts` uses (append a single "<ip> <host>" line). Pentest container.
+RUN printf 'kryon ALL=(root) NOPASSWD: /usr/bin/tee -a /etc/hosts\n' > /etc/sudoers.d/kryon-etchosts \
+    && chmod 0440 /etc/sudoers.d/kryon-etchosts
+
+# Create required directories
+RUN mkdir -p /workspace /logs /reports /home/kryon/.kryon /home/kryon/.config/chromadb && \
+    chown -R kryon:kryon /workspace /logs /reports /home/kryon
+
+# Playwright browsers live outside /home/kryon so docker-compose volumes that
+# mount ~/.cache don't shadow the installed chromium binary.
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
+
+# System libs chromium needs (libnss3, libatk, libx11 family, fonts, …).
+# `playwright install-deps` is a batteries-included apt wrapper maintained
+# by Microsoft; it fetches the exact list for the current playwright
+# version and passes --no-install-recommends itself.
+RUN /opt/venv/bin/playwright install-deps chromium \
+    && mkdir -p "$PLAYWRIGHT_BROWSERS_PATH" \
+    && chown -R kryon:kryon "$PLAYWRIGHT_BROWSERS_PATH" \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Claude Code CLI (Node.js already available from base stage apt)
+RUN npm install -g @anthropic-ai/claude-code \
+    && claude --version \
+    && echo "Claude Code CLI installed OK" \
+    || echo "WARNING: Claude Code CLI install failed — claude --claude-code mode will not work"
+
+# Set environment
+# NOTE: LLM endpoint vars (OPENAI_API_KEY, OPENAI_BASE_URL, OLLAMA, KRYON_MODEL)
+# are intentionally NOT baked here. Configure them via docker/.env.docker or
+# `docker run --env`. Baked ENVs win over compose-level overrides on rebuilds.
+ENV PATH="/opt/venv/bin:/home/kryon/.local/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUTF8=1 \
+    KRYON_DEBUG=0 \
+    KRYON_TRACING=false \
+    KRYON_TELEMETRY=false \
+    KRYON_WORKSPACE_DIR=/workspace
+
+# Copy application source (only kryon package, preserve installed dependencies)
+COPY --chown=kryon:kryon src/kryon/ /opt/venv/lib/python3.11/site-packages/kryon/
+
+# Copy entrypoint (fixes Windows→Linux paths in bind-mounted Claude config)
+COPY --chown=kryon:kryon docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+WORKDIR /workspace
+
+USER kryon
+
+# Install Chromium as the kryon user so the browser cache is owned by kryon.
+# PLAYWRIGHT_BROWSERS_PATH (set above) steers it to /opt/playwright-browsers
+# which is already chown'd kryon:kryon.
+RUN /opt/venv/bin/playwright install chromium \
+    && echo "Playwright chromium OK"
+
+# Health check against the API server
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -sf http://localhost:8700/api/v1/health || exit 1
+
+ENTRYPOINT ["tini", "--", "entrypoint.sh"]
+CMD ["kryon", "serve", "--host", "0.0.0.0", "--port", "8700"]

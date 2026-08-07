@@ -1,0 +1,27 @@
+cwe: CWE-22
+name: Path Traversal
+aliases: [CWE-23, CWE-36]
+detection:
+  - regex: "\\bfopen\\s*\\(\\s*[a-zA-Z_]\\w*\\s*[,)]"
+    confidence: medium
+  - regex: "\\bopen\\s*\\(\\s*[a-zA-Z_]\\w*\\s*,"
+    confidence: medium
+  - regex: "\\bsprintf\\s*\\([^,]+,\\s*[\"'][^\"']*%s[^\"']*[\"'],[^,)]*?(?:argv|getenv|gets|recv)"
+    confidence: high
+  - regex: "\\bstrcat\\s*\\([^,]+,\\s*(?:argv|getenv|gets|recv|fgets)"
+    confidence: high
+  - regex: "\\b\\.\\./"
+    confidence: low
+verification:
+  poc_skeleton: |
+    /* Path traversal not ASAN-detectable; this PoC exits cleanly.
+       Pattern detection still valuable for surfacing the call site. */
+    #include <stdio.h>
+    int main(void) { return 0; }
+  asan_class: ""
+escalation_hints:
+  - "../../../etc/passwd or /proc/self/cmdline -> info disclosure"
+  - "Write traversal: ../../../bin/sh + executable target -> persistence"
+fpr_filters:
+  - skip_if_path_is_string_literal
+  - skip_if_path_validated_with_realpath_or_strstr

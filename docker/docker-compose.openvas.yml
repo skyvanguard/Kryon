@@ -1,0 +1,157 @@
+# ─────────────────────────────────────────────────────────────────────────
+# OpenVAS / Greenbone Community Edition — overlay for Kryon (Fase 2 + mejora 1)
+#
+# Usage:
+#   docker compose -f docker/docker-compose.kali.yml \
+#                  -f docker/docker-compose.openvas.yml up -d
+#
+# Design:
+#   * Greenbone runs as its OWN stock, UNMODIFIED containers (GPL-2.0/AGPL-3.0).
+#     Kryon talks to gvmd over the GMP socket — raw GMP (default, zero Greenbone
+#     code) or gvm-cli. No fork, no in-process python-gvm → clean license boundary.
+#   * The gvmd socket is shared into the kryon container via `gvmd_socket_vol`.
+#   * The web UI (gsa/gsad) is intentionally OMITTED: Kryon drives GMP directly.
+#
+# Image refs VERIFIED via `docker manifest inspect` (2026-07-08):
+#   registry.community.greenbone.net/community/<svc>:stable   (services)
+#   registry.community.greenbone.net/community/<feed>:community (feed data)
+#   (`greenbone/*:stable` on Docker Hub does NOT exist — that was wrong before.)
+#   notus-scanner is folded into ospd-openvas in the current edition (its repo
+#   404s), so notus-data is mounted there.
+#
+# ⚠ Reconcile the INTER-SERVICE WIRING (entrypoints / healthchecks / exact
+#   socket paths) with the current upstream compose before production — the
+#   image refs are verified, but the full stack was not live-run here.
+#   Upstream: https://greenbone.github.io/docs/latest/ (Community Containers)
+# ─────────────────────────────────────────────────────────────────────────
+
+services:
+  # Kryon override: mount the gvmd socket + supply GMP connection env.
+  kryon:
+    volumes:
+      - gvmd_socket_vol:/run/gvmd:ro
+    environment:
+      # Double-gated: active scanning stays OFF until KRYON_OPENVAS_FIRE=true.
+      - KRYON_OPENVAS_FIRE=${KRYON_OPENVAS_FIRE:-}
+      # Default transport = raw GMP (no gvm-cli / no Greenbone code in this image).
+      - KRYON_OPENVAS_TRANSPORT=${KRYON_OPENVAS_TRANSPORT:-gmp}
+      - KRYON_OPENVAS_SOCKET=${KRYON_OPENVAS_SOCKET:-/run/gvmd/gvmd.sock}
+      - KRYON_OPENVAS_USER=${KRYON_OPENVAS_USER:-admin}
+      - KRYON_OPENVAS_PASSWORD=${KRYON_OPENVAS_PASSWORD:-}
+
+  # --- Feed data (one-shot containers that populate the shared feed volumes) --
+  vulnerability-tests:
+    image: registry.community.greenbone.net/community/vulnerability-tests:community
+    volumes:
+      - vt_vol:/mnt
+
+  notus-data:
+    image: registry.community.greenbone.net/community/notus-data:community
+    volumes:
+      - notus_vol:/mnt
+
+  scap-data:
+    image: registry.community.greenbone.net/community/scap-data:community
+    volumes:
+      - scap_vol:/mnt
+
+  cert-bund-data:
+    image: registry.community.greenbone.net/community/cert-bund-data:community
+    volumes:
+      - cert_vol:/mnt
+
+  dfn-cert-data:
+    image: registry.community.greenbone.net/community/dfn-cert-data:community
+    volumes:
+      - cert_vol:/mnt
+    depends_on:
+      - cert-bund-data
+
+  data-objects:
+    image: registry.community.greenbone.net/community/data-objects:community
+    volumes:
+      - data_objects_vol:/mnt
+
+  report-formats:
+    image: registry.community.greenbone.net/community/report-formats:community
+    volumes:
+      - data_objects_vol:/mnt
+    depends_on:
+      - data-objects
+
+  # --- Infra: DB + KB store + MQTT --------------------------------------------
+  pg-gvm:
+    image: registry.community.greenbone.net/community/pg-gvm:stable
+    restart: unless-stopped
+    volumes:
+      - psql_data_vol:/var/lib/postgresql
+      - psql_socket_vol:/var/run/postgresql
+
+  redis-server:
+    image: registry.community.greenbone.net/community/redis-server:stable
+    restart: unless-stopped
+    volumes:
+      - redis_socket_vol:/run/redis/
+
+  mqtt-broker:
+    image: registry.community.greenbone.net/community/mqtt-broker:stable
+    restart: unless-stopped
+
+  # --- Scanner side (ospd-openvas now includes the notus functionality) -------
+  openvas-scanner:
+    image: registry.community.greenbone.net/community/openvas-scanner:stable
+    restart: unless-stopped
+    volumes:
+      - vt_vol:/var/lib/openvas
+      - openvas_run_vol:/run/openvas
+      - redis_socket_vol:/run/redis/
+    depends_on:
+      - redis-server
+      - vulnerability-tests
+
+  ospd-openvas:
+    image: registry.community.greenbone.net/community/ospd-openvas:stable
+    restart: unless-stopped
+    volumes:
+      - vt_vol:/var/lib/openvas
+      - notus_vol:/var/lib/notus       # notus-scanner folded in here
+      - ospd_socket_vol:/run/ospd
+      - openvas_run_vol:/run/openvas
+      - redis_socket_vol:/run/redis/
+    depends_on:
+      - redis-server
+      - mqtt-broker
+      - openvas-scanner
+      - notus-data
+
+  # --- Manager (exposes the GMP socket Kryon consumes) ------------------------
+  gvmd:
+    image: registry.community.greenbone.net/community/gvmd:stable
+    restart: unless-stopped
+    volumes:
+      - gvmd_data_vol:/var/lib/gvm
+      - scap_vol:/var/lib/gvm/scap-data/
+      - cert_vol:/var/lib/gvm/cert-data
+      - data_objects_vol:/var/lib/gvm/data-objects/gvmd
+      - vt_vol:/var/lib/openvas/plugins
+      - psql_data_vol:/var/lib/postgresql
+      - gvmd_socket_vol:/run/gvmd        # <- shared to Kryon (read-only there)
+      - ospd_socket_vol:/run/ospd
+      - psql_socket_vol:/var/run/postgresql
+    depends_on:
+      - pg-gvm
+      - ospd-openvas
+
+volumes:
+  gvmd_socket_vol:
+  ospd_socket_vol:
+  psql_socket_vol:
+  redis_socket_vol:
+  openvas_run_vol:
+  gvmd_data_vol:
+  psql_data_vol:
+  vt_vol:
+  notus_vol:
+  scap_vol:
+  cert_vol:
+  data_objects_vol:

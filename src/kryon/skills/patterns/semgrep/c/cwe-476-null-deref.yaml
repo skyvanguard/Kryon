@@ -1,0 +1,96 @@
+rules:
+  - id: kryon.cwe-476.null-assign-deref
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      Pointer explicitly assigned NULL then dereferenced. CWE-476.
+    metadata:
+      cwe: "CWE-476: NULL Pointer Dereference"
+      cwe-id: 476
+      kryon_alias: [CWE-690]
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $P = NULL;
+              ...
+              $P->$M;
+          - pattern: |
+              $P = NULL;
+              ...
+              *$P;
+          # F6.5 round 2: Juliet's array-indexing variant
+          - pattern: |
+              $P = NULL;
+              ...
+              $P[$I];
+          - pattern: |
+              $P = NULL;
+              ...
+              strcpy($P, ...);
+          - pattern: |
+              $P = NULL;
+              ...
+              memcpy(..., $P, ...);
+          - pattern: |
+              $P = NULL;
+              ...
+              printLine($P);
+          # Juliet helpers
+          - pattern: |
+              $P = NULL;
+              ...
+              printIntLine($P[$I]);
+          - pattern: |
+              $P = NULL;
+              ...
+              printHexCharLine($P[$I]);
+          - pattern: |
+              $P = NULL;
+              ...
+              printWLine($P);
+
+  - id: kryon.cwe-476.malloc-no-check
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      malloc() result used immediately without NULL check. CWE-476.
+    metadata:
+      cwe: "CWE-476"
+      cwe-id: 476
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $P = malloc(...);
+              $P->$M;
+          - pattern: |
+              $P = malloc(...);
+              strcpy($P, ...);
+          - pattern: |
+              $P = calloc(..., ...);
+              $P->$M;
+          - pattern: |
+              $P = strdup(...);
+              strcpy(..., $P);
+
+  - id: kryon.cwe-476.fopen-no-check
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      fopen() result used without NULL check. CWE-476.
+    metadata:
+      cwe: "CWE-476"
+      cwe-id: 476
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $F = fopen(...);
+              fread(..., ..., ..., $F);
+          - pattern: |
+              $F = fopen(...);
+              fwrite(..., ..., ..., $F);
+          - pattern: |
+              $F = fopen(...);
+              fprintf($F, ...);

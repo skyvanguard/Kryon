@@ -1,0 +1,94 @@
+# =============================================================================
+# KRYON — Override para el SERVER de inferencia dedicado
+# =============================================================================
+# Server: Supermicro, 2× Xeon E5-2673 v4 (80 threads), 251 GB RAM DDR4-1866,
+#         2× RTX 3090 (48 GB VRAM total), Ubuntu 24.04. Modelos en ~/models.
+#
+# Difiere de docker-compose.kali.yml (que está tuneado para la workstation:
+# RTX 5070 Ti 12 GB + WSL2 + volumen hermes externo + 1 GPU):
+#   - Modelo: DeepSeek-V4-Flash Q4 (155 GB) en vez de GLM-4.7-Flash
+#   - Las 2 RTX 3090 (count: all) en vez de 1
+#   - Modelos por bind-mount de ~/models (no el volumen hermes de la workstation)
+#   - RAM alta para el offload de expertos (V4-Flash ~155 GB en RAM)
+#   - -t 40 (cores físicos del Xeon) en vez de -t 8 (P-cores del laptop)
+#
+# Uso (desde ~/Kryon):
+#   docker compose -f docker/docker-compose.kali.yml \
+#                  -f docker/docker-compose.server.yml up -d llama-server
+#   curl http://localhost:8081/v1/models      # verificar que sirve
+#
+# El override SOLO redefine llama-server (la pieza que cambia). El servicio
+# kryon del base se reusa tal cual (ya apunta a http://llama-server:8080/v1).
+# =============================================================================
+
+services:
+  llama-server:
+    # Imagen con soporte DeepSeek-V4 (arch mergeada en PR #24162, 29-jun-2026 +
+    # fix KV-cache #25202). El tag server-cuda (latest) debe ser reciente; si una
+    # build vieja no reconoce la arch "deepseek-v4", pinear un tag por fecha.
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    command:
+      - -m
+      # llama.cpp carga los 5 splits automáticamente desde el 00001.
+      - /models/V4-Flash/UD-Q4_K_XL/DeepSeek-V4-Flash-UD-Q4_K_XL-00001-of-00005.gguf
+      - -ngl
+      - "99"
+      # V4-Flash = MoE 284B/13B. --n-cpu-moe = capas de expertos que van a CPU/RAM.
+      # A 99 = TODOS los expertos en RAM (garantiza que cargue en 48 GB de VRAM);
+      # attention + capas densas quedan en las 2 GPUs. OPTIMIZACIÓN post-arranque:
+      # bajar este número mete capas de expertos en la VRAM libre → prefill más
+      # rápido. Empezar en 99 (seguro) y bajar mirando `nvidia-smi` hasta rozar
+      # los 48 GB. Con 13B activos el offload a RAM es liviano (mejor caso MoE).
+      - --n-cpu-moe
+      - "99"
+      - -fa
+      - "on"
+      # KV-cache q8_0 (~50% menos VRAM, practically lossless con -fa). El fix
+      # #25202 corrigió corrupción de KV q8_0 multi-turno en V4 — usar master reciente.
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - q8_0
+      # V4-Flash soporta 1M de contexto; 65536 (64K) cubre de sobra source-review
+      # y deja VRAM. Subir si hace falta contexto extremo (a costa de VRAM/prefill).
+      - -c
+      - "65536"
+      - -n
+      - "2000"
+      # Sampling DeepSeek para coding/agentic: temp baja = determinista. Banca-safe.
+      # Subir a 0.6 para tareas más creativas; bajar a 0.1 para máxima reproducibilidad.
+      - --temp
+      - "0.3"
+      - --top-p
+      - "0.95"
+      # -t 40 = los 40 cores FÍSICOS de los 2 Xeon (sin HyperThreading). Para MoE
+      # con offload a RAM, pasar de los cores físicos degrada la generación. NUMA:
+      # 2 sockets — si la generación es lenta, probar `numactl --interleave=all`
+      # o -t 20 pineado a un socket. Empezar en 40 y medir.
+      - -t
+      - "40"
+      - --parallel
+      - "1"
+      - --jinja
+      - -a
+      - kryon-local
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+    # !override reemplaza TODA la lista de volumes del base (descarta el mount del
+    # volumen `hermes-llamacpp-cache` externo de la workstation, que no existe acá).
+    volumes: !override
+      - /home/user/models:/models:ro
+    deploy:
+      resources:
+        limits:
+          # V4-Flash: ~155 GB de expertos en RAM + KV + overhead. El server tiene 251 GB.
+          memory: 220G
+        reservations:
+          # !override reemplaza el device del base (count: 1) — sin esto se AGREGA
+          # y quedan dos entradas (count 1 + count all). Con esto: solo las 2 GPUs.
+          devices: !override
+            - driver: nvidia
+              count: all          # las 2 RTX 3090 (48 GB VRAM)
+              capabilities: [gpu]

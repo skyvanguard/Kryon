@@ -1,0 +1,7 @@
+# Built binaries — rebuilt from source with `go build`.
+kryon-tui
+kryon-tui*
+*.exe
+
+# Go workspace cruft
+/vendor/

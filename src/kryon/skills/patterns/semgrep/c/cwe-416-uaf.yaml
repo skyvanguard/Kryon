@@ -1,0 +1,114 @@
+rules:
+  - id: kryon.cwe-416.use-after-free-deref
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      Pointer dereferenced after free(). Heap corruption / info leak. CWE-416.
+    metadata:
+      cwe: "CWE-416: Use After Free"
+      cwe-id: 416
+      kryon_alias: [CWE-672]
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: |
+              free($P);
+              ...
+              $P->$M;
+          - pattern: |
+              free($P);
+              ...
+              *$P;
+          - pattern: |
+              free($P);
+              ...
+              $P[$I];
+
+  - id: kryon.cwe-416.use-after-free-string
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      String operation on freed pointer. CWE-416.
+    metadata:
+      cwe: "CWE-416"
+      cwe-id: 416
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: |
+              free($P);
+              ...
+              strcpy($P, ...);
+          - pattern: |
+              free($P);
+              ...
+              strcat($P, ...);
+          - pattern: |
+              free($P);
+              ...
+              memcpy($P, ..., ...);
+          - pattern: |
+              free($P);
+              ...
+              printLine($P);
+          - pattern: |
+              free($P);
+              ...
+              printf("%s", $P);
+
+  - id: kryon.cwe-416.fclose-then-use
+    languages: [c, cpp]
+    severity: WARNING
+    message: |
+      File operations after fclose() — analogous to use-after-free. CWE-416.
+    metadata:
+      cwe: "CWE-416"
+      cwe-id: 416
+      confidence: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: |
+              fclose($F);
+              ...
+              fread(..., ..., ..., $F);
+          - pattern: |
+              fclose($F);
+              ...
+              fwrite(..., ..., ..., $F);
+          - pattern: |
+              fclose($F);
+              ...
+              fprintf($F, ...);
+
+  # F6.5 round 2 — Juliet helpers commonly used as the use-after-free sink
+  - id: kryon.cwe-416.juliet-helper-after-free
+    languages: [c, cpp]
+    severity: ERROR
+    message: |
+      Pointer used in helper print function after free. CWE-416.
+    metadata:
+      cwe: "CWE-416"
+      cwe-id: 416
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: |
+              free($P);
+              ...
+              printLine($P);
+          - pattern: |
+              free($P);
+              ...
+              printIntLine($P[$I]);
+          - pattern: |
+              free($P);
+              ...
+              printHexCharLine($P[$I]);
+          - pattern: |
+              free($P);
+              ...
+              printWLine($P);
+          - pattern: |
+              free($P);
+              ...
+              printIntLine($P->$M);

@@ -1,0 +1,71 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kryon">
+  <title>Kryon</title>
+  <!-- Animated crystalline sentinel core: faceted hexagon + scan sweep + radar pulse.
+       Pure SMIL (no JS) so it animates in a GitHub README <img>. -->
+  <defs>
+    <clipPath id="k-hex">
+      <polygon points="50,12 82.9,31 82.9,69 50,88 17.1,69 17.1,31"/>
+    </clipPath>
+    <linearGradient id="k-scan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#45e0ef" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#8af4ff" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#45e0ef" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="k-core" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#bff6ff"/>
+      <stop offset="0.55" stop-color="#45e0ef"/>
+      <stop offset="1" stop-color="#45e0ef" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- faceted gem body (6 alternating facets) -->
+  <g>
+    <polygon points="50,50 50,12 82.9,31" fill="#2f6ea6"/>
+    <polygon points="50,50 82.9,31 82.9,69" fill="#12314d"/>
+    <polygon points="50,50 82.9,69 50,88" fill="#1e4d78"/>
+    <polygon points="50,50 50,88 17.1,69" fill="#2f6ea6"/>
+    <polygon points="50,50 17.1,69 17.1,31" fill="#12314d"/>
+    <polygon points="50,50 17.1,31 50,12" fill="#1e4d78"/>
+  </g>
+
+  <!-- facet seams -->
+  <g stroke="#0d2338" stroke-width="0.8" opacity="0.6">
+    <line x1="50" y1="50" x2="50" y2="12"/>
+    <line x1="50" y1="50" x2="82.9" y2="31"/>
+    <line x1="50" y1="50" x2="82.9" y2="69"/>
+    <line x1="50" y1="50" x2="50" y2="88"/>
+    <line x1="50" y1="50" x2="17.1" y2="69"/>
+    <line x1="50" y1="50" x2="17.1" y2="31"/>
+  </g>
+
+  <!-- scan sweep (clipped to the gem) -->
+  <g clip-path="url(#k-hex)">
+    <rect x="6" y="10" width="11" height="80" fill="url(#k-scan)">
+      <animate attributeName="x" values="4;83;4" dur="3.6s"
+               calcMode="spline" keyTimes="0;0.5;1"
+               keySplines="0.45 0 0.55 1;0.45 0 0.55 1" repeatCount="indefinite"/>
+    </rect>
+  </g>
+
+  <!-- glowing outer edge -->
+  <polygon points="50,12 82.9,31 82.9,69 50,88 17.1,69 17.1,31"
+           fill="none" stroke="#45e0ef" stroke-width="2" stroke-linejoin="round">
+    <animate attributeName="stroke-opacity" values="0.55;1;0.55" dur="2.6s" repeatCount="indefinite"/>
+  </polygon>
+
+  <!-- radar pulse ping -->
+  <g transform="translate(50,50)">
+    <polygon points="0,-13 11.3,-6.5 11.3,6.5 0,13 -11.3,6.5 -11.3,-6.5"
+             fill="none" stroke="#8af4ff" stroke-width="1.6">
+      <animateTransform attributeName="transform" type="scale" values="0.5;2.6" dur="2.8s" repeatCount="indefinite"/>
+      <animate attributeName="stroke-opacity" values="0.9;0" dur="2.8s" repeatCount="indefinite"/>
+    </polygon>
+  </g>
+
+  <!-- pulsing core -->
+  <circle cx="50" cy="50" r="9" fill="url(#k-core)">
+    <animate attributeName="r" values="7;10;7" dur="2.2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.85;1;0.85" dur="2.2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="50" cy="50" r="2.6" fill="#eaffff"/>
+</svg>

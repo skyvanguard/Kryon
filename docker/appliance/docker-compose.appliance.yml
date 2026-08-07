@@ -1,0 +1,62 @@
+# =============================================================================
+# KRYON — Appliance del cliente (mini PC)
+# =============================================================================
+# Corre SOLO el servicio kryon: server FastAPI + dashboard + scheduler + tools
+# de escaneo. El "cerebro" (LLM) vive en TU server (cerebro central) — el
+# appliance lo consume por HTTP vía OPENAI_BASE_URL. NO hay GPU ni llama-server
+# local, por eso una mini PC N100/N150 de 12-16GB alcanza.
+#
+# Uso en la mini PC (Linux):
+#   cd docker/appliance
+#   ./setup.sh                      # genera claves + .env.appliance (interactivo)
+#   docker compose -f docker-compose.appliance.yml up -d
+#   # el cliente abre  http://<mini-pc>:8700/  e ingresa la API key que imprimió setup.sh
+#
+# El contenedor queda arriba (restart: unless-stopped) para que el scheduler
+# dispare los análisis en la ventana nocturna. En idle consume poco; el trabajo
+# pesado corre solo a la hora programada. Si la mini PC se apaga de día, ver el
+# README (alternativa con cron del host).
+# =============================================================================
+
+services:
+  kryon:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+    image: kryon-appliance:latest
+    container_name: kryon-appliance
+    restart: unless-stopped
+    # Arranca el server (dashboard + API + scheduler). La API key la lee de
+    # KRYON_API_KEY (env_file); sin key, el server exige auth y no queda abierto.
+    command: ["kryon", "serve", "--host", "0.0.0.0", "--port", "8700"]
+    env_file:
+      - .env.appliance
+    environment:
+      # Cerebro central — TU server de inferencia. Overridable por .env.appliance.
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://llm-server:8080/v1}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-llama}
+      - KRYON_MODEL=${KRYON_MODEL:-qwen-unc}
+      - KRYON_LOCAL_LLM=${KRYON_LOCAL_LLM:-true}
+      - KRYON_UNIFIED=${KRYON_UNIFIED:-true}
+      - KRYON_AGENT_TYPE=${KRYON_AGENT_TYPE:-kryon}
+      # El server exige auth cuando hay API key (la pone setup.sh en el .env).
+      - KRYON_API_KEY=${KRYON_API_KEY:?Falta KRYON_API_KEY — corré ./setup.sh primero}
+    ports:
+      - "${KRYON_PORT:-8700}:8700"
+    volumes:
+      # Persiste la DB (histórico de scans → drift), reportes y config del
+      # cliente entre reinicios/updates del contenedor.
+      - kryon_data:/root/.kryon
+      - ./reports:/root/.kryon/reports
+    # DNS explícito: el appliance necesita resolver hosts internos + externos
+    # para el escaneo y para llegar al cerebro central.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    # El appliance escanea la LAN del cliente. host networking le da acceso
+    # directo al segmento (recomendado); comentar si preferís bridge + rutas.
+    # network_mode: host
+
+volumes:
+  kryon_data:
+    driver: local
