@@ -18,6 +18,12 @@
 
 [Installation](#installation) · [Execution Modes](#three-execution-modes) · [Skill System](#skill-system) · [Architecture](#architecture) · [Playbook Status](#playbook-status) · [POC Reality](#what-runs-today-poc-reality)
 
+<br/>
+
+<img src="assets/kryon-demo.gif" alt="Kryon auditing OWASP Juice Shop: 22 findings detected deterministically before the agent loop, then the LLM chains toward impact" width="880" />
+
+<sub><i>Real run against OWASP Juice Shop — deterministic detectors surface 22 findings <b>before</b> the LLM, then the agent chains toward impact.</i></sub>
+
 </div>
 
 ---
