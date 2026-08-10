@@ -36,9 +36,9 @@ It runs **fully on your own hardware** — a local, OpenAI-compatible LLM served
 
 > **What makes it different:** the critical detectors run as **deterministic pre-hooks** *before* the model — the LLM narrates evidence, it can't skip the scanner. And coverage grows via `kryon update` (nuclei/CVE/ExploitDB feeds), not a bigger model.
 
-> **Direction (v2.x):** Kryon is a *general* offensive/compliance agent for **any organization**. Its compliance coverage spans many sectors — fintech (PCI-DSS, PSD2/FAPI), healthcare (HIPAA), data protection (GDPR), critical infrastructure (NIS2, OT/ICS), SaaS (SOC 2), defense (CMMC), and general baselines (ISO 27001, CIS, NIST CSF, Zero Trust) — plus edge/infra playbooks (FortiGate, Unifi, Windows, Tomcat, Proxmox, VoIP). **Financial services (LATAM/Paraguay) is one strong vertical** — a real moat (BCP Res. 12/2021 deterministic checks, local-first, guaraní pricing) — **not the whole product**. Some sector playbooks are methodology *templates*, not turnkey scanners; see [Playbook Status](#playbook-status) for what runs end-to-end vs. what's a starter frame.
+> **Scope:** Kryon is a *general* offensive/compliance agent for **any organization**. Its compliance coverage spans many sectors — fintech (PCI-DSS, PSD2/FAPI), healthcare (HIPAA), data protection (GDPR), critical infrastructure (NIS2, OT/ICS), SaaS (SOC 2), defense (CMMC), and general baselines (ISO 27001, CIS, NIST CSF, Zero Trust) — plus edge/infra playbooks (FortiGate, Unifi, Windows, Tomcat, Proxmox, VoIP). Some sector playbooks are methodology *templates*, not turnkey scanners; see [Playbook Status](#playbook-status) for what runs end-to-end vs. what's a starter frame.
 
-Architecture is **skill-based**: instead of 33 static Python agents, there is one unified "Kryon" agent that dynamically loads **~110 markdown playbooks** based on target profile and operator intent. Critical detection paths run as **deterministic pre-hooks** (nuclei, nikto, sqlmap, fail2ban check, PCI-DSS validators, …) before the LLM ever gets control — the model **narrates evidence, it cannot skip the detector**.
+Architecture is **skill-based**: one unified "Kryon" agent dynamically loads **~110 markdown playbooks** based on target profile and operator intent. Critical detection paths run as **deterministic pre-hooks** (nuclei, nikto, sqlmap, fail2ban check, PCI-DSS validators, …) before the LLM ever gets control — the model **narrates evidence, it cannot skip the detector**.
 
 ### One prompt — full engagement
 
@@ -85,7 +85,7 @@ Kryon matches skills to the target, runs its deterministic detectors, then the a
 | Component | Count |
 |-----------|:-----:|
 | Skill playbooks (`.md`) | **110** (46 core + 40 imported + 11 CWE + 5 OT + 4 banking + 4 zero-day) |
-| `@function_tool` implementations | **362** — banca-safe by default; offensive branches under `KRYON_RED_TEAM` (credential dumping, lateral movement, AD, cloud, DFIR) |
+| `@function_tool` implementations | **362** — safe/passive by default; offensive branches under `KRYON_RED_TEAM` (credential dumping, lateral movement, AD, cloud, DFIR) |
 | CLI entry points | 27 subcommands |
 | API endpoints (FastAPI) | 140 |
 | Compliance framework modules | 12 (PCI-DSS, CIS, NIST CSF, SOC2, ISO 27001, CMMC, DORA, NIS2, Zero Trust, HIPAA, GDPR, PSD2/FAPI) — OWASP/MITRE map via skills |
@@ -101,7 +101,7 @@ Kryon matches skills to the target, runs its deterministic detectors, then the a
 - **Hallucination guards** — CVE + finding applicability gates drop results that don't match the target's stack (e.g. a JSP CVE on a Node.js host).
 - **Deterministic finding validators** — confirmed, not guessed: XSS/SSRF/IDOR replayed headlessly with a single canary GET (no external tool), sqlmap/dalfox/commix for the heavy classes, and an ASAN/canary oracle for SAST findings. Live probes double-gated (`KRYON_REPLAY_FIRE`).
 - **Full offensive arsenal** — credential dumping, lateral movement, AD attacks (kerberoast / DCSync / BloodHound), privesc, plus cloud / DFIR / container branches — intrusive tools gated behind `KRYON_RED_TEAM`.
-- **Banca-safe by default** — passive recon, throttled nmap, no live probes unless double-gated (`KRYON_*_FIRE=true` + `fire=True`). Safe-modification protocol: diagnose → propose → backup → apply → verify → rollback.
+- **Safe by default** — passive recon, throttled nmap, no live probes unless double-gated (`KRYON_*_FIRE=true` + `fire=True`). Safe-modification protocol: diagnose → propose → backup → apply → verify → rollback.
 - **Local & private** — runs on your own hardware, zero API cost, no data leaves the host. OpenAI-compatible → swap to a cloud model with one env var.
 
 ---
@@ -132,7 +132,7 @@ Phase plan loaded from `pyproject.toml` profiles; each phase re-matches skills a
 For exploratory work: "audita esta URL", "qué CVEs aplican a nginx 1.18", SAST sobre código local. ReAct stack: Observation → Reflection → Decision → Action → Verification, with stuck-pattern detection that breaks loops before wall-budget exhaustion.
 
 ```bash
-# Banca-safe (passive: web_fetch_smart + RAG + 11 hybrid detectors)
+# Safe / passive by default (web_fetch_smart + RAG + 11 hybrid detectors)
 kryon investigate "audita https://target.com"
 kryon investigate --url https://target.com
 kryon investigate ./local/path/             # SAST on local source
@@ -154,7 +154,7 @@ KRYON_RED_TEAM=true kryon investigate "active rce pentest contra http://lab" --a
 
 ### 3) `kryon discover --queue-add` + `kryon queue process` — multi-target POC
 
-For segment-wide POCs (CIDR not supported on `engage` directly). Discovers live hosts, queues them, then drains the queue invoking `engage` per item — banca-safe serial by default.
+For segment-wide POCs (CIDR not supported on `engage` directly). Discovers live hosts, queues them, then drains the queue invoking `engage` per item — safe serial by default.
 
 ```bash
 # 1. Discover + enqueue (throttled nmap)
@@ -171,7 +171,7 @@ kryon queue process \
   --out ./poc-reports
 ```
 
-`--limit N` cuts after N items. Failed items stay in `status=failed` for triage — no silent retries (avoids duplicate destructive actions on banking hosts).
+`--limit N` cuts after N items. Failed items stay in `status=failed` for triage — no silent retries (avoids duplicate destructive actions on production hosts).
 
 ### 4) `kryon schedule` — continuous monitoring (appliance)
 
@@ -211,7 +211,7 @@ src/kryon/skills/playbooks/
 │                            atm-security, payment-gateway-testing, fraud-detection
 │                            are *methodology templates* (not shipped .md playbooks).
 │                            swift-network-security + open-banking-api now ship a
-│                            deterministic runner/validator — see Banking Status.
+│                            deterministic runner/validator — see Playbook Status.
 ├── cwe-detection/ (11)     CWE-22, CWE-78, CWE-79, CWE-89, CWE-125, CWE-20,
 │                            CWE-287, CWE-352, CWE-502, CWE-639, CWE-918
 ├── ot/ (5 skills)          modbus, dnp3, iec104, s7, mqtt-industrial
@@ -311,7 +311,7 @@ every auto-generated draft now gets a sidecar `.eval.json` with `guide_score` (r
                                             │
                                             ▼
                   ┌─────────────────────────────────────────────────┐
-                  │   skills/  (PRIMARY interface in v2.x)          │
+                  │   skills/  (PRIMARY interface)                 │
                   │   ┌────────────────────────────────────────┐    │
                   │   │ loader.py — match by tech/ports/kw     │    │
                   │   │ tool_budget.py — cap @ 15 tools        │    │
@@ -426,7 +426,7 @@ docker exec -it kryon kryon tui
 <details>
 <summary><b>⚙️ Configuration profiles — engagement env vars (click to expand)</b></summary>
 
-#### Banca-safe (compliance audits — default)
+#### Safe by default (compliance audits)
 
 ```bash
 # docker/.env.docker
@@ -438,7 +438,7 @@ KRYON_FORCE_TOOL_TURNS=8               # local LLM tool-calling reliability
 KRYON_MEMORY=true
 KRYON_STREAM=false                     # Stable REPL
 
-# Throttled scanning (banking-friendly during business hours)
+# Throttled scanning (gentle on production during business hours)
 KRYON_NMAP_TIMING=T2
 KRYON_NMAP_MIN_RATE=50
 KRYON_NMAP_MAX_PARALLELISM=10
@@ -455,7 +455,7 @@ KRYON_FINDING_APPLICABILITY=true       # default
 #### Active pentest (authorized targets only)
 
 ```bash
-# Add to banca-safe block
+# Add to the safe-by-default block
 KRYON_REASONING_EFFORT=medium          # — only when pre-hooks active
 KRYON_PHASE_TURNS=10                   # — bump from auto-8
 KRYON_RED_TEAM=true                    # Unlock 21 red-team tools
@@ -542,7 +542,7 @@ Not every playbook is turnkey today. Kryon spans infra/edge (FortiGate, Unifi, W
 | `core-banking-assessment.md` | 📝 template | T24/Flexcube/Finacle/Bantotal — methodology + checklist only. Needs vendor sandbox per engagement. |
 | `swift-network-security.md` | 🟡 runner + template | **CSCF v2026** (25 mandatory + 7 advisory): 17 deterministic host checks (`swift-csp-2026.yaml`, SWIFT-1.1..7.2) wired to `run_compliance_audit(framework="swift-csp")`, covering principles 1·2·4·5·6·7. SWIFT-component controls (Alliance Access/Connect, HSM) + the now-mandatory 2.4M back-office data flow need partner attestation. NOT a KY3P replacement. |
 | `atm-security.md` | 📝 template | Requires physical access + NCR/Diebold lab + PCI-PTS certified team. |
-| `open-banking-api.md` | 🟡 validator + template | FAPI 1.0 Advanced **discovery-doc validator** (10 read-only checks: PAR, PS256/ES256, mTLS/DPoP, PKCE S256, no-implicit, JARM, SCA ACR/AMR) wired to the **PSD2 RTS** compliance mapper. Banca-safe (read-only, live fetch double-gated). Full authenticated flow (per-bank mTLS certs + client_id) is still per-engagement. |
+| `open-banking-api.md` | 🟡 validator + template | FAPI 1.0 Advanced **discovery-doc validator** (10 read-only checks: PAR, PS256/ES256, mTLS/DPoP, PKCE S256, no-implicit, JARM, SCA ACR/AMR) wired to the **PSD2 RTS** compliance mapper. Safe (read-only, live fetch double-gated). Full authenticated flow (per-bank mTLS certs + client_id) is still per-engagement. |
 | `payment-gateway-testing.md` | 📝 template | Bancard/Infonet/Stripe/MercadoPago. Checklist only. |
 | `fraud-detection.md` | 📝 template | Interview + rule-review guide, not a technical scan. |
 | `mobile-banking-audit.md` | 📝 template | Frida/objection/jailbroken device outside the container. |
@@ -627,12 +627,12 @@ kryon queue process --concurrency 1 --framework pci_dss --orchestrated --auto-ap
 | Provider | Recommended | Config | Notes |
 |----------|-------------|--------|-------|
 | **llama.cpp (local)** | **any OpenAI-compatible GGUF** | `KRYON_MODEL=kryon-local` | **DEFAULT (local-first).** Serve any tool-calling GGUF sized to your hardware via `llama-server`, native tool-calling via `--jinja`. `KRYON_MODEL` (`kryon-local`) is just the compose alias — swap the model by flipping `-m` in the compose. A small model reliably runs the harness; a bigger one raises recall. |
-| DeepSeek | `deepseek-chat` (V3), `deepseek-reasoner` (R1) | `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `KRYON_LOCAL_LLM=false` | Cloud, OpenAI-compatible — recommended when raw capability beats locality (banking data leaves perimeter). `deepseek-chat` uses the native path; `deepseek-reasoner` auto-routes to litellm for `reasoning_content`. |
-| OpenAI | GPT-4o, o3 | `OPENAI_API_KEY` | Cloud — banking data leaves perimeter. |
+| DeepSeek | `deepseek-chat` (V3), `deepseek-reasoner` (R1) | `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `KRYON_LOCAL_LLM=false` | Cloud, OpenAI-compatible — recommended when raw capability beats locality (data leaves the engagement perimeter). `deepseek-chat` uses the native path; `deepseek-reasoner` auto-routes to litellm for `reasoning_content`. |
+| OpenAI | GPT-4o, o3 | `OPENAI_API_KEY` | Cloud — data leaves the engagement perimeter. |
 | Anthropic | Claude Sonnet 4.6 | `ANTHROPIC_API_KEY` | Cloud. |
 | OpenRouter | 200+ models | `OPENROUTER_API_KEY` | Cloud. |
 
-**Recommended (local)**: any tool-calling GGUF you can run — local, zero API cost, native tool-calling via llama.cpp's `--jinja`. A small local model reliably *runs* the harness (tools, deterministic pre-hooks, intel pipeline) — by design the offensive knowledge lives in the **deterministic layer, not the model's weights**, and coverage grows via `kryon update`, not a bigger brain. A small model will **not** discover novel/zero-day issues and has limited recall on open-ended exploration; for higher recall or research work, swap to a cloud model (one env var). Banca-safe sampling defaults are baked into the `llama-server` command in the compose file.
+**Recommended (local)**: any tool-calling GGUF you can run — local, zero API cost, native tool-calling via llama.cpp's `--jinja`. A small local model reliably *runs* the harness (tools, deterministic pre-hooks, intel pipeline) — by design the offensive knowledge lives in the **deterministic layer, not the model's weights**, and coverage grows via `kryon update`, not a bigger brain. A small model will **not** discover novel/zero-day issues and has limited recall on open-ended exploration; for higher recall or research work, swap to a cloud model (one env var). Safe sampling defaults are baked into the `llama-server` command in the compose file.
 
 ---
 
@@ -716,7 +716,7 @@ Test layout mirrors the package (`tests/<subsystem>/...`). `asyncio_mode = "auto
 
 ### Custom skills
 
-Drop a `.md` in `src/kryon/skills/playbooks/` with YAML frontmatter and `pre_hooks:` if applicable. Kryon picks it up via `/skill reload`. **In v2.x, prefer a skill over a new Python agent.** Generic-value skills can be contributed upstream to [mukul975/Anthropic-Cybersecurity-Skills](https://github.com/mukul975/Anthropic-Cybersecurity-Skills) under Apache 2.0.
+Drop a `.md` in `src/kryon/skills/playbooks/` with YAML frontmatter and `pre_hooks:` if applicable. Kryon picks it up via `/skill reload`. **Prefer a skill over a new Python agent.** Generic-value skills can be contributed upstream to [mukul975/Anthropic-Cybersecurity-Skills](https://github.com/mukul975/Anthropic-Cybersecurity-Skills) under Apache 2.0.
 
 ### Code
 
@@ -724,22 +724,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Conventional commits: `feat:`, `fix:`, `
 
 ---
 
-## Working with banking clients
-
-- **Written authorization is mandatory** before testing any institution-owned system.
-- **Paraguay regulatory context**: BCP Resoluciones (SIB) and Superintendencia de Bancos for infrastructure/security audits. SEPRELAD (AML/KYC) is named here only as regulatory context — **Kryon does not implement AML/KYC or transaction-monitoring controls** (those are not infrastructure controls a scanner validates). Do not pitch SEPRELAD coverage.
-- **Never commit or log real PAN numbers**. Use test cards only (Stripe: 4242…, Bancard: 4005 5500 0000 0001).
-- **NDA first**, data retention policy, secure destruction after engagement.
-- For PCI-DSS audits, confirm SAQ level (A, A-EP, B, B-IP, C, C-VT, D) before scoping.
-- For SWIFT CSP audits, the attestation is annual — coordinate with the bank's SWIFT CISO.
-
----
-
 ## Disclaimer
 
 > **KRYON is designed exclusively for authorized security testing, research, and education.**
 >
-> You must have **explicit written authorization** before testing any system you do not own. For financial / banking clients, compliance with local regulations (BCP Paraguay, SIB, Superintendencia de Bancos, equivalent bodies in your jurisdiction) is mandatory. Unauthorized access to computer systems is illegal. See [DISCLAIMER](DISCLAIMER).
+> You must have **explicit written authorization** before testing any system you do not own. Comply with all laws and regulations applicable in your jurisdiction. Unauthorized access to computer systems is illegal. See [DISCLAIMER](DISCLAIMER).
 
 ---
 
