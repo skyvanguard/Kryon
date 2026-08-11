@@ -64,7 +64,9 @@ class _C643Check:
     control_id = "6.4.3"
     control_title = "Payment page script management (SRI + CSP)"
     section = "6"
-    severity = "HIGH"
+    # CRITICAL: 4.0.1 mandatorio guarding payment-page tampering (Magecart via
+    # compromised TPSP) — high-impact CDE attack surface.
+    severity = "CRITICAL"
     remediation_static = (
         'Add Subresource Integrity to every external <script> (integrity="sha384-..." '
         'crossorigin="anonymous") and set a Content-Security-Policy with an explicit '

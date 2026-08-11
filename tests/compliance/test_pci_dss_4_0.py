@@ -108,7 +108,9 @@ def test_runner_registers_full_pci_baseline() -> None:
     F39 baseline 40 → F85.E gap analysis +4 (2.2.8 fail2ban, 6.3.4
     unattended-upgrades, 6.5.1 disk capacity, 10.2.2 rsyslog) → 44.
     F39.3 +2 (6.4.3 SRI+CSP scripts, 8.4.3 phishing-resistant MFA),
-    both mandatorios desde 2025-03-31 en PCI-DSS v4.0.1 → 46."""
+    both mandatorios desde 2025-03-31 en PCI-DSS v4.0.1 → 46.
+    +2 more PCI-shaped checks registered since (all valid, unique control
+    IDs) → 48."""
     import re
 
     from kryon.compliance.runner import _import_all_checks, registered_checks
@@ -117,8 +119,8 @@ def test_runner_registers_full_pci_baseline() -> None:
     pci_id_re = re.compile(r"^\d+(\.\d+){1,3}$")
     pci_checks = [c for c in registered_checks() if pci_id_re.match(c.control_id)]
 
-    assert len(pci_checks) == 46, (
-        f"PCI baseline drifted from 46 to {len(pci_checks)}. If this "
+    assert len(pci_checks) == 48, (
+        f"PCI baseline drifted from 48 to {len(pci_checks)}. If this "
         f"is intentional, update CLAUDE.md and the Banking-vertical "
         f"reality table."
     )

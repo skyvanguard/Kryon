@@ -30,7 +30,9 @@ class _C843Check:
     control_id = "8.4.3"
     control_title = "MFA for remote network access to the CDE"
     section = "8"
-    severity = "HIGH"
+    # CRITICAL: 4.0.1 mandatorio — phishing-resistant MFA on CDE remote access;
+    # weak/absent MFA is a top breach vector.
+    severity = "CRITICAL"
     remediation_static = (
         "Enforce MFA on SSH: in /etc/ssh/sshd_config set "
         "`AuthenticationMethods publickey,keyboard-interactive` and configure a PAM MFA "
