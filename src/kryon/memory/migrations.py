@@ -266,6 +266,16 @@ MIGRATIONS: dict[int, list[str]] = {
         )""",
         "CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_status ON scheduled_jobs(status)",
     ],
+    17: [
+        # scheduled_jobs gained these columns in the CREATE TABLE (store.py _SCHEMA)
+        # after v16 shipped, but no migration was added — so DBs created at v16
+        # lacked them and save_scheduled_job() failed with "no column named
+        # targets_json". Backfill them for existing installs (duplicate-column
+        # errors are skipped by run_migrations, so this is a no-op on fresh DBs).
+        "ALTER TABLE scheduled_jobs ADD COLUMN targets_json TEXT DEFAULT '[]'",
+        "ALTER TABLE scheduled_jobs ADD COLUMN frameworks_json TEXT DEFAULT '[]'",
+        "ALTER TABLE scheduled_jobs ADD COLUMN start_hour INTEGER",
+    ],
 }
 
 
