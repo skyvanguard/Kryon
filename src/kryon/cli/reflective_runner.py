@@ -1409,6 +1409,28 @@ class ItemCaptureHooks:
                         collapsed=_lines > 8,
                     )
                 )
+                # A validate_* tool that just CONFIRMED an exploit is a live
+                # finding — stream it so a front-end COUNTS + shows the model's
+                # loop confirmations, not only the deterministic phase's findings
+                # (which previously were the sole source of `finding` events). Same
+                # gate as the proven graph edge above, so counter and graph agree.
+                try:
+                    from kryon.intelligence.attack_path import confirmed_validation_finding
+                    from kryon.services.agent_events import finding
+
+                    _vf = confirmed_validation_finding(tool_name, _out)
+                    if _vf is not None:
+                        self._emit(
+                            finding(
+                                str(_vf["severity"]),
+                                str(_vf["detail"]),
+                                cwe=str(_vf["cwe"]),
+                                location=str(_vf["location"]),
+                                verified=bool(_vf["verified"]),
+                            )
+                        )
+                except Exception:  # noqa: BLE001 — finding emission must never break the run
+                    pass
 
     def to_chain(self) -> list[dict[str, Any]]:
         """Return captured items in chain schema (compatible with

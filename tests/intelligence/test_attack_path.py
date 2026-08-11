@@ -10,11 +10,57 @@ from kryon.intelligence.attack_graph import AttackGraph, Capability
 from kryon.intelligence.attack_path import (
     add_confirmed_validation,
     build_attack_graph,
+    confirmed_validation_finding,
     format_attack_paths,
     is_proven,
     plan_path_pursuit,
     populate_attack_graph,
 )
+
+
+class TestConfirmedValidationFinding:
+    """confirmed_validation_finding — the live finding descriptor a validate_*
+    confirmation streams to a front-end. Shares add_confirmed_validation's gate."""
+
+    def test_confirmed_sqli_is_critical_impact(self):
+        vf = confirmed_validation_finding("validate_sqli", _vres("confirmed"), host="10.0.0.1")
+        assert vf == {
+            "severity": "CRITICAL",  # sqli → db_takeover reaches impact
+            "detail": "sqli-dump confirmado (validate_sqli)",
+            "cwe": "CWE-89",
+            "location": "10.0.0.1",
+            "verified": True,
+        }
+
+    def test_confirmed_xss_is_high_not_impact(self):
+        vf = confirmed_validation_finding("validate_xss", _vres("confirmed"))
+        assert vf is not None
+        assert vf["severity"] == "HIGH"  # session_risk is not an IMPACT kind
+        assert vf["cwe"] == "CWE-79"
+
+    def test_confirmed_rce_and_auth_bypass_are_critical(self):
+        assert confirmed_validation_finding("validate_rce", _vres("confirmed"))["severity"] == "CRITICAL"
+        assert confirmed_validation_finding("validate_auth_bypass", _vres("confirmed"))["severity"] == "CRITICAL"
+
+    def test_unconfirmed_verdict_is_none(self):
+        assert confirmed_validation_finding("validate_sqli", _vres("not_confirmed")) is None
+        assert confirmed_validation_finding("validate_sqli", _vres("")) is None
+
+    def test_non_validation_tool_is_none(self):
+        assert confirmed_validation_finding("nmap", _vres("confirmed")) is None
+        assert confirmed_validation_finding("", _vres("confirmed")) is None
+        assert confirmed_validation_finding(None, _vres("confirmed")) is None
+
+    def test_unparseable_output_is_none(self):
+        assert confirmed_validation_finding("validate_sqli", "garbage not json") is None
+
+    def test_stays_in_lockstep_with_graph_edge(self):
+        # Whenever the finding fires, the graph edge is added too (same gate).
+        for tool in ("validate_sqli", "validate_rce", "validate_xss", "validate_auth_bypass"):
+            vf = confirmed_validation_finding(tool, _vres("confirmed"))
+            g = AttackGraph()
+            added = add_confirmed_validation(g, tool, _vres("confirmed"))
+            assert (vf is not None) == added
 
 
 def _vres(status: str) -> str:
@@ -36,6 +82,7 @@ def _facts(**kw):
 
 # ── validate-each-link gate ──────────────────────────────────────────────────
 
+
 def test_is_proven_only_confirmed():
     assert is_proven(_f("CWE-89", level="confirmed")) is True
     assert is_proven(_f("CWE-89", level="judge-confirmed")) is True
@@ -50,6 +97,7 @@ def test_inferred_finding_creates_no_edge():
 
 
 # ── single-hop proven impact ─────────────────────────────────────────────────
+
 
 def test_confirmed_sqli_reaches_db_takeover():
     g = build_attack_graph(_facts(hosts=("t",)), [_f("CWE-89")])
@@ -66,6 +114,7 @@ def test_confirmed_rce_variants():
 
 
 # ── the low+low→critical chain ───────────────────────────────────────────────
+
 
 def test_info_leak_plus_idor_chains_to_account_takeover():
     # CWE-200 (info, low) + CWE-639 (IDOR) → access→info→account_takeover
@@ -86,6 +135,7 @@ def test_idor_alone_is_single_hop_not_chained():
 
 # ── facts-level chains (AD / privesc / hints) ────────────────────────────────
 
+
 def test_creds_plus_domain_chains_to_admin():
     g = build_attack_graph(_facts(hosts=("dc",), creds=(("svc", "pw"),), domains=("corp.local",)), [])
     assert g.has_capability("admin")
@@ -105,6 +155,7 @@ def test_sqli_confirmed_hint_reaches_db():
 
 # ── robustness ───────────────────────────────────────────────────────────────
 
+
 def test_empty_is_safe():
     g = build_attack_graph(None, [])
     assert g.impact_reached() is False
@@ -122,6 +173,7 @@ def test_unmapped_cwe_ignored():
 
 
 # ── v2 live confirm-then-add-edge ────────────────────────────────────────────
+
 
 class TestLiveConfirmation:
     def test_confirmed_sqli_adds_impact_edge_live(self):
@@ -189,6 +241,7 @@ class TestIdempotency:
 
 # ── v3 goal-directed path-pursuit ────────────────────────────────────────────
 
+
 class TestPathPursuit:
     def _access(self):
         g = AttackGraph()
@@ -232,6 +285,7 @@ class TestPathPursuit:
 
 
 # ── v4: XSS impact edge + operator-selectable target ─────────────────────────
+
 
 class TestV4:
     def test_confirmed_xss_is_session_risk_not_impact(self):

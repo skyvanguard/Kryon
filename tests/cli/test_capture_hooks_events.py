@@ -78,6 +78,64 @@ async def test_no_sink_is_noop_and_still_captures_chain():
     assert chain and chain[0]["tool"] == "nmap"
 
 
+async def test_confirmed_validate_emits_a_finding_after_tool_output():
+    # A validate_* tool that CONFIRMED an exploit streams a `finding` right after
+    # its tool_output — so a front-end counts the model's loop confirmations, not
+    # only the deterministic phase's findings.
+    sink = CollectingSink()
+    hooks = ItemCaptureHooks(event_sink=sink)
+    tool = _tool("validate_sqli")
+    await hooks.on_tool_start(None, None, tool)
+    await hooks.on_tool_end(None, None, tool, '{"validation_status": "confirmed", "url": "http://x/rest"}')
+    assert sink.kinds() == ["tool_started", "tool_output", "finding"]
+    fnd = sink.events[-1]
+    assert fnd.payload["severity"] == "CRITICAL"  # sqli → db_takeover reaches impact
+    assert fnd.payload["cwe"] == "CWE-89"
+    assert fnd.payload["verified"] is True
+    assert "validate_sqli" in fnd.payload["detail"]
+
+
+async def test_confirmed_xss_is_high_not_critical():
+    # XSS confirmation is validado-but-not-impact (session_risk) → HIGH, mirroring
+    # the funnel's honest distinction.
+    sink = CollectingSink()
+    hooks = ItemCaptureHooks(event_sink=sink)
+    tool = _tool("validate_xss")
+    await hooks.on_tool_start(None, None, tool)
+    await hooks.on_tool_end(None, None, tool, '{"validation_status": "confirmed"}')
+    fnd = sink.events[-1]
+    assert fnd.kind == "finding"
+    assert fnd.payload["severity"] == "HIGH"
+    assert fnd.payload["cwe"] == "CWE-79"
+
+
+async def test_unconfirmed_validate_emits_no_finding():
+    sink = CollectingSink()
+    hooks = ItemCaptureHooks(event_sink=sink)
+    tool = _tool("validate_sqli")
+    await hooks.on_tool_start(None, None, tool)
+    await hooks.on_tool_end(None, None, tool, '{"validation_status": "not_confirmed"}')
+    assert sink.kinds() == ["tool_started", "tool_output"]  # no finding
+
+
+async def test_non_validation_tool_emits_no_finding():
+    sink = CollectingSink()
+    hooks = ItemCaptureHooks(event_sink=sink)
+    tool = _tool("nmap")
+    await hooks.on_tool_start(None, None, tool)
+    await hooks.on_tool_end(None, None, tool, '{"validation_status": "confirmed"}')  # not a validate_* tool
+    assert "finding" not in sink.kinds()
+
+
+async def test_no_sink_confirmed_validate_is_noop():
+    hooks = ItemCaptureHooks()  # no sink
+    tool = _tool("validate_rce")
+    await hooks.on_tool_start(None, None, tool)
+    # Must not raise and must still capture the chain.
+    await hooks.on_tool_end(None, None, tool, '{"validation_status": "confirmed"}')
+    assert hooks.to_chain()[0]["tool"] == "validate_rce"
+
+
 async def test_bad_sink_never_breaks_the_run():
     class _BoomSink:
         def emit(self, event):

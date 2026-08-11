@@ -235,6 +235,39 @@ def add_confirmed_validation(graph: AttackGraph, tool_name: object, output: obje
     return graph.add_edge(src, dst, f"CWE-{root}:{label} (live-validated)", evidence=str(output)[:200])
 
 
+def confirmed_validation_finding(tool_name: object, output: object, *, host: str = "") -> dict[str, object] | None:
+    """When a ``validate_*`` tool CONFIRMED an exploit, return a finding
+    descriptor (``severity``/``detail``/``cwe``/``location``/``verified``) for a
+    front-end to render + COUNT the exploit LIVE — closing the gap where only the
+    deterministic phase streamed ``finding`` events and the model's loop
+    confirmations merely bumped a counter. Returns ``None`` for a non-validation
+    tool, a non-confirmed verdict, or an unmapped CWE.
+
+    Pure: does NOT mutate the graph (``add_confirmed_validation`` owns that) and
+    shares its exact gate, so the streamed finding and the proven graph edge stay
+    in lock-step. Severity follows the funnel: a CWE that reaches an IMPACT
+    capability is CRITICAL; a confirmed-but-intermediate exploit (e.g. XSS →
+    session_risk, validated yet not itself account takeover) is HIGH.
+    """
+    root = _VALIDATE_TOOL_CWE.get(str(tool_name or "").strip())
+    if not root:
+        return None
+    if _parse_validation_status(output) != "confirmed":
+        return None
+    spec = _CWE_EDGE.get(root)
+    if not spec:
+        return None
+    _needs, _gains, label = spec
+    cwe = f"CWE-{root}"
+    return {
+        "severity": "CRITICAL" if cwe_reaches_impact(cwe) else "HIGH",
+        "detail": f"{label} confirmado ({tool_name})",
+        "cwe": cwe,
+        "location": host,
+        "verified": True,
+    }
+
+
 def _render_chain(chain: list[Edge]) -> tuple[str, bool]:
     """Render 'access →[exploit] kind →[exploit] kind' and whether it is a
     multi-step (low+low→critical) chain (≥2 non-recon exploit edges)."""
