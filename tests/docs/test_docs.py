@@ -9,6 +9,11 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 
+# The enterprise doc set (admin-guide, api-guide, architecture, deployment
+# guides + docs/index.md) is not shipped in the public repo. Remove these skips
+# if/when those docs are added.
+_ENTERPRISE_DOCS_SKIP = "enterprise docs not shipped in the public repo"
+
 
 class TestDocumentation:
     def test_contributing_exists(self):
@@ -20,20 +25,25 @@ class TestDocumentation:
     def test_changelog_exists(self):
         assert (ROOT / "CHANGELOG.md").exists()
 
+    @pytest.mark.skip(reason=_ENTERPRISE_DOCS_SKIP)
     def test_admin_guide_exists(self):
         assert (ROOT / "docs" / "admin-guide" / "index.md").exists()
 
+    @pytest.mark.skip(reason=_ENTERPRISE_DOCS_SKIP)
     def test_api_guide_exists(self):
         assert (ROOT / "docs" / "api-guide" / "index.md").exists()
 
+    @pytest.mark.skip(reason=_ENTERPRISE_DOCS_SKIP)
     def test_architecture_exists(self):
         assert (ROOT / "docs" / "architecture" / "overview.md").exists()
 
+    @pytest.mark.skip(reason=_ENTERPRISE_DOCS_SKIP)
     def test_deployment_exists(self):
         assert (ROOT / "docs" / "deployment" / "docker.md").exists()
 
 
 class TestDocLinks:
+    @pytest.mark.skip(reason=_ENTERPRISE_DOCS_SKIP)
     def test_docs_index_has_enterprise_links(self):
         text = (ROOT / "docs" / "index.md").read_text(encoding="utf-8")
         assert "admin-guide" in text

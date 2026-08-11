@@ -40,11 +40,12 @@ def test_get_metrics(client):
     assert isinstance(resp.json(), dict)
 
 
-def test_get_history_empty(client):
+def test_get_history_nonexistent_finding_404(client):
+    # A finding that doesn't exist → 404, consistent with the sibling remediation
+    # endpoints (assign/note/retest) and required before the resource-access auth
+    # check. (Returning 200 + [] would skip auth and leak a uniform response.)
     resp = client.get("/api/v1/remediation/findings/nonexistent/history")
-    assert resp.status_code == 200
-    assert isinstance(resp.json(), list)
-    assert len(resp.json()) == 0
+    assert resp.status_code == 404
 
 
 def test_assign_validation(client):

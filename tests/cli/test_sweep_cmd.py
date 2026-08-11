@@ -30,7 +30,7 @@ def _args(**kw):
 def _fake_engage_writer(out_root: Path):
     """Return a fake _run_one that writes a findings.json like real engage."""
 
-    def _run_one(argv, item_id):
+    def _run_one(argv, item_id, timeout=None):
         # argv carries ["--out", "<out_root>/<item_id>"] and ["--engagement-id", item_id]
         out_dir = Path(argv[argv.index("--out") + 1])
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -98,7 +98,7 @@ def test_sweep_respects_limit(tmp_path, monkeypatch):
     )
     calls = []
 
-    def _counting(argv, item_id):
+    def _counting(argv, item_id, timeout=None):
         calls.append(item_id)
         return _fake_engage_writer(out_root)(argv, item_id)
 

@@ -29,25 +29,28 @@ def test_native_is_default_litellm_is_escape_hatch(monkeypatch):
     assert base.chat_model_cls() is OpenAIChatCompletionsModel
 
 
-def test_deepseek_reasoning_autoroutes_to_litellm(monkeypatch):
-    """P4: DeepSeek thinking models need litellm's reasoning_content round-trip
-    (native 400s mid-run), so they auto-route to the litellm backend even without
-    KRYON_USE_LITELLM. deepseek-chat + local models stay on the native default."""
+def test_deepseek_reasoning_stays_native_by_default(monkeypatch):
+    """P4: routing depends ONLY on KRYON_USE_LITELLM, not on the model. The old
+    behaviour auto-routed DeepSeek thinking models to litellm; that was removed
+    because the native path already round-trips ``reasoning_content`` (see
+    ``base.chat_model_cls`` docstring). So reasoner/thinking models now stay on
+    the native default; only KRYON_USE_LITELLM=true selects litellm."""
     import kryon.agents.base as base
     from kryon.sdk.agents import OpenAIChatCompletionsModel
     from kryon.sdk.agents.models.openai_native import OpenAINativeModel
 
     monkeypatch.delenv("KRYON_USE_LITELLM", raising=False)
 
-    # DeepSeek reasoning/thinking models → litellm.
-    for m in ("deepseek-reasoner", "deepseek-v4-pro"):
-        monkeypatch.setenv("KRYON_MODEL", m)
-        assert base.chat_model_cls() is OpenAIChatCompletionsModel, m
-
-    # Non-reasoning DeepSeek (V3 chat) + local/other models → native default.
-    for m in ("deepseek-chat", "kryon-devstral-24b", "gpt-4o-mini"):
+    # Default: every model — including DeepSeek reasoning/thinking — → native.
+    for m in ("deepseek-reasoner", "deepseek-v4-pro", "deepseek-chat", "kryon-devstral-24b", "gpt-4o-mini"):
         monkeypatch.setenv("KRYON_MODEL", m)
         assert base.chat_model_cls() is OpenAINativeModel, m
+
+    # Escape hatch: KRYON_USE_LITELLM=true restores the litellm-backed model.
+    monkeypatch.setenv("KRYON_USE_LITELLM", "true")
+    for m in ("deepseek-reasoner", "deepseek-chat", "gpt-4o-mini"):
+        monkeypatch.setenv("KRYON_MODEL", m)
+        assert base.chat_model_cls() is OpenAIChatCompletionsModel, m
 
 
 def test_merge_history_and_converter_dedups():

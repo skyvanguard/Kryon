@@ -26,6 +26,12 @@ from kryon.compliance.runner import (
     run_all,
 )
 
+# Guaranteed-NXDOMAIN host (RFC 6761 reserved `.invalid` TLD). Used for the
+# reproducibility smoke tests so run_all()'s real network probes fail-fast on
+# DNS instead of hanging when a dev-box service happens to listen on a probed
+# localhost port.
+OFFLINE_HOST = "kryon-offline.invalid"
+
 
 @pytest.fixture(scope="module", autouse=True)
 def _ensure_checks_loaded() -> None:
@@ -117,6 +123,7 @@ def test_check_metadata_complete() -> None:
 # ---------- reproducibility ----------
 
 
+@pytest.mark.slow  # runs the full multi-framework battery twice (~20s)
 def test_reproducibility_hash_stable_localhost() -> None:
     """Running twice against the same (offline) target must yield byte-identical
     hashes for the FGT/UNF scope this smoke covers. The runner harness contract
@@ -127,7 +134,13 @@ def test_reproducibility_hash_stable_localhost() -> None:
     focused on this file's scope. Other frameworks (PCI YAML, Proxmox, AD)
     have their own reproducibility tests; mixing all of them in here makes
     every check_module's stderr hygiene a dependency of THIS test."""
-    ctx = CheckContext(host="localhost")
+    # Guaranteed-NXDOMAIN host (RFC 6761 `.invalid`) instead of "localhost":
+    # run_all() fires the full multi-framework battery of REAL network probes
+    # (SSH/HTTP/mongo). Against "localhost" on a dev box where something happens
+    # to listen on a probed port (e.g. 8080), a probe accepts the connection and
+    # stalls, hanging the whole run. An unresolvable host makes every check
+    # fail-fast on DNS → deterministic ERROR, byte-stable hash, no real I/O.
+    ctx = CheckContext(host=OFFLINE_HOST)
     fgt_unf = lambda results: [r for r in results if r.control_id.startswith(("FGT-", "UNF-"))]
     h1 = reproducibility_hash(fgt_unf(run_all(ctx)))
     h2 = reproducibility_hash(fgt_unf(run_all(ctx)))
@@ -257,6 +270,7 @@ def test_unf_1_3_admin_2fa_passes_when_all_admins_have_mfa(monkeypatch: pytest.M
 # ---------- agent tool wrapper ----------
 
 
+@pytest.mark.slow  # runs the full multi-framework battery (~10s)
 def test_run_compliance_audit_with_fortigate_framework_returns_only_fgt() -> None:
     """The @function_tool wrapper, when called with framework='fortigate',
     must return exactly 28 findings, all FGT-*."""
@@ -276,7 +290,9 @@ def test_run_compliance_audit_with_fortigate_framework_returns_only_fgt() -> Non
         from kryon.compliance.runner import _import_all_checks, reproducibility_hash, run_all
 
         _import_all_checks()
-        all_results = run_all(_Ctx(host="localhost"))
+        # Unresolvable host — same rationale as OFFLINE_HOST above: avoid real
+        # network probes hanging on a dev box with services on localhost ports.
+        all_results = run_all(_Ctx(host=OFFLINE_HOST))
         fgt = [r for r in all_results if r.control_id.startswith("FGT-")]
         assert len(fgt) == 28
         return

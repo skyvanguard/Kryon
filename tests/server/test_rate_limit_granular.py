@@ -8,7 +8,7 @@ from starlette.testclient import TestClient
 from kryon.server.middleware.rate_limit import (
     _ENDPOINT_LIMITS,
     RateLimitMiddleware,
-    _extract_user_id,
+    _extract_identity,
     _get_bucket,
 )
 
@@ -31,12 +31,12 @@ def test_get_bucket_scans():
     assert limit == 15
 
 
-def test_extract_user_id_no_header():
+def test_extract_identity_no_header():
     from starlette.requests import Request
 
     scope = {"type": "http", "headers": [], "method": "GET", "path": "/"}
     req = Request(scope)
-    assert _extract_user_id(req) is None
+    assert _extract_identity(req) is None
 
 
 def test_rate_limit_applies_endpoint_specific(tmp_path, monkeypatch):

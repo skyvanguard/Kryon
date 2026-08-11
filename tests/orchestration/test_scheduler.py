@@ -48,13 +48,15 @@ async def test_scan_callback():
     scheduler = ScanScheduler()
     executed = []
 
-    async def mock_callback(**kwargs):
-        executed.append(kwargs)
+    # The scan callback contract is `callback(job: ScheduledJob)` — a single
+    # positional job object (see ScanScheduler.run_scan_job), not **kwargs.
+    async def mock_callback(job):
+        executed.append(job)
 
     scheduler.set_scan_callback(mock_callback)
     job_id = await scheduler.schedule_scan(client_id="c1", agent_key="a1", interval_seconds=0)
     # Wait for one-shot to complete
     await asyncio.sleep(0.2)
     assert len(executed) == 1
-    assert executed[0]["client_id"] == "c1"
+    assert executed[0].client_id == "c1"
     await scheduler.shutdown()

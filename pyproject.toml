@@ -301,6 +301,11 @@ exclude_also = [
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
+# Safety net: a hung test becomes a reportable failure instead of blocking the
+# whole run. Method is left to pytest-timeout's per-platform default (signal on
+# Unix — fails the test and CONTINUES; thread on Windows, which can only os._exit
+# on the first timeout). Per-test override via @pytest.mark.timeout(n).
+addopts = "--timeout=120"
 filterwarnings = [
     # This is a warning that is expected to happen: we have an async filter that raises an exception
     "ignore:coroutine 'test_async_input_filter_fails.<locals>.invalid_input_filter' was never awaited:RuntimeWarning",
