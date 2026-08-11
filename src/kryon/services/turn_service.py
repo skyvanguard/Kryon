@@ -156,7 +156,11 @@ async def run_turn(
         final_output = str(getattr(result, "final_output", "") or "")
         if final_output.strip():
             sink.emit(ev.assistant(final_output))
-        sink.emit(ev.done(final_output, findings_count))
+        # `done` is the turn's terminal signal + findings tally — NOT a second copy
+        # of the report. The narrative already rode the `assistant` event (with the
+        # ◇ Kryon sello); repeating it in `report_markdown` made every front-end that
+        # renders both (Charm TUI + REPL ConsoleSink) print the final report TWICE.
+        sink.emit(ev.done("", findings_count))
     except Exception as e:  # noqa: BLE001 — the stream must always end cleanly
         sink.emit(ev.error(f"{type(e).__name__}: {e}"))
     finally:

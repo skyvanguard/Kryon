@@ -38,6 +38,15 @@ async def test_free_run_skips_determinism_and_streams_turn(monkeypatch):
     assert "engine_phase" not in kinds  # determinism skipped in free-run
     assert out["findings_count"] == 0
 
+    # The final report must ride the `assistant` event exactly ONCE — `done` is a
+    # pure terminal + tally signal, NOT a second copy (a duplicate report_markdown
+    # made the Charm TUI + ConsoleSink render the report twice).
+    assistant = next(e for e in sink.events if e.kind == "assistant")
+    assert assistant.payload["markdown"] == "# Report\nSin vulns"
+    done = next(e for e in sink.events if e.kind == "done")
+    assert done.payload["report_markdown"] == ""  # no duplication
+    assert done.payload["findings_count"] == 0
+
 
 async def test_determinism_emits_engine_phase_and_findings(monkeypatch):
     finding = types.SimpleNamespace(

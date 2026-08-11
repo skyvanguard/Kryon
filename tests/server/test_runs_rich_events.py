@@ -97,6 +97,13 @@ def test_rich_events_streams_thinking_and_reflection(client, monkeypatch):
     assert reflection["kind"] == "reflection"
     assert reflection["note"].startswith("loop detectado (nuclei)")
 
+    # The final report rides `assistant` once; `done` carries an EMPTY
+    # report_markdown, so a front-end rendering both never prints it twice.
+    assistant = next(p for k, p in frames if k == "assistant")
+    assert assistant["markdown"].startswith("# Informe")
+    done = next(p for k, p in frames if k == "done")
+    assert done.get("report_markdown", "") == ""
+
 
 def test_rich_events_thinking_via_real_bridge(client, monkeypatch):
     """The ContextVar sink bridge works through the REAL run_with_reflection:
