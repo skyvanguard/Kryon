@@ -71,6 +71,10 @@ from kryon.intelligence.planner_runtime import (
 from kryon.intelligence.tool_templates import (
     format_templates_for_recent_tools,
 )
+from kryon.services.event_sink_runtime import (
+    clear_event_sink as _clear_event_sink,
+    set_event_sink as _set_event_sink,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -740,16 +744,48 @@ def _render_graph_state(attack_graph: Any, accumulated_facts: Any, findings: lis
             graph.summary_for_prompt(),
         ]
         if paths:
-            block.append(
-                f"\nDemonstrated attack paths:\n{paths}\n"
-                "Extend the SHORTEST residual path toward impact."
-            )
+            block.append(f"\nDemonstrated attack paths:\n{paths}\nExtend the SHORTEST residual path toward impact.")
         if pursuit:
             block.append(f"\n{pursuit}")
         return "\n".join(block) + "\n"
     except Exception as exc:  # noqa: BLE001 — graph rendering must never break the run
         logger.debug("attack-graph state render skipped: %s", exc)
         return ""
+
+
+def _reflection_note(
+    *,
+    turns_used: int,
+    total_turns_cap: int,
+    stuck_record: Any,
+    degen_pattern: str | None,
+    stall_detected: bool,
+    premature_summary_detected: bool,
+    next_action: Any,
+) -> str:
+    """Concise, human-readable label for a ``reflection`` AgentEvent — WHY the
+    reflective loop injected a turn — so a front-end (SSE / Charm TUI) renders a
+    one-line notice instead of the full imperative reflection block. Pure: no
+    I/O, no state; the injected prompt itself is unchanged.
+
+    Precedence mirrors how ``_build_reflection_prompt`` escalates: a hard loop /
+    degeneracy is the most important signal, then premature-exit, then stall,
+    then a concrete suggested action, falling back to plain cadence.
+    """
+    turn_tag = f"turno {turns_used}/{total_turns_cap}"
+    if stuck_record is not None:
+        tool = getattr(stuck_record, "tool_name", "") or "?"
+        return f"loop detectado ({tool}) — replanteando · {turn_tag}"
+    if degen_pattern:
+        return f"repetición intra-turno — corte · {turn_tag}"
+    if premature_summary_detected:
+        return f"resumen prematuro — exigiendo hipótesis + próximo probe · {turn_tag}"
+    if stall_detected:
+        return f"sin progreso — replanteando la cadena · {turn_tag}"
+    na_tool = getattr(next_action, "tool", "") if next_action is not None else ""
+    if na_tool:
+        return f"próxima acción sugerida: {na_tool} · {turn_tag}"
+    return f"reflexión de cadencia · {turn_tag}"
 
 
 def _build_reflection_prompt(
@@ -1527,13 +1563,13 @@ async def _reasoning_next_action(
             graph = populate_attack_graph(attack_graph, accumulated_facts, findings or [])
         else:
             graph = build_attack_graph(accumulated_facts, findings or [])
-        facts_summary = (
-            accumulated_facts.render_for_prompt() if hasattr(accumulated_facts, "render_for_prompt") else ""
-        )
+        facts_summary = accumulated_facts.render_for_prompt() if hasattr(accumulated_facts, "render_for_prompt") else ""
         _paths = format_attack_paths(graph)
         _graph_summary = graph.summary_for_prompt()
         if _paths:
-            _graph_summary += f"\nDemonstrated attack paths:\n{_paths}\nExtend the SHORTEST residual path toward impact."
+            _graph_summary += (
+                f"\nDemonstrated attack paths:\n{_paths}\nExtend the SHORTEST residual path toward impact."
+            )
         # v3 goal-directed path-pursuit: name the nearest impact + the exact next
         # link to prove, so the model chases a concrete objective instead of
         # picking a generic next-best-action. Empty once impact is reached.
@@ -1542,14 +1578,14 @@ async def _reasoning_next_action(
         _pursuit = plan_path_pursuit(graph, target=os.getenv("KRYON_ATTACK_TARGET") or None)
         if _pursuit:
             _graph_summary += f"\n{_pursuit}"
-        prompt = _build_prompt(
-            _graph_summary, facts_summary, prior_args, summarize_findings(findings or [])
-        )
+        prompt = _build_prompt(_graph_summary, facts_summary, prior_args, summarize_findings(findings or []))
         # Direct one-shot to the configured endpoint. Crucially we read
         # reasoning_content too: a thinking model (Laguna) returns the JSON
         # action there, not in content — the Runner.run path missed it, so #5
         # never fired live even though the model produces a valid proposal.
-        client = AsyncOpenAI(base_url=os.getenv("OPENAI_BASE_URL") or None, api_key=os.getenv("OPENAI_API_KEY") or "llama")
+        client = AsyncOpenAI(
+            base_url=os.getenv("OPENAI_BASE_URL") or None, api_key=os.getenv("OPENAI_API_KEY") or "llama"
+        )
         resp = await client.chat.completions.create(
             model=os.getenv("KRYON_MODEL", "qwen-unc"),
             messages=[{"role": "user", "content": prompt}],
@@ -1640,6 +1676,11 @@ async def run_with_reflection(
 
     attack_graph = _AttackGraph()
     capture_hooks = ItemCaptureHooks(event_sink=event_sink, attack_graph=attack_graph)
+    # Bind the sink to this task so the model layer can emit `thinking` events
+    # (the reasoning channel is captured in openai_native, far below the SDK
+    # call stack that has no reference to `event_sink`). No-op when None; cleared
+    # on every exit path next to the planner-state clear.
+    _set_event_sink(event_sink)
     # FASE 1 (G1+G2) — cross-chunk structured intel accumulator. The
     # model "forgets" what tools previously revealed when reflection
     # turns get long; injecting this block into every reflection keeps
@@ -2401,6 +2442,10 @@ async def run_with_reflection(
             except Exception:  # noqa: BLE001
                 pass
             try:
+                _clear_event_sink()
+            except Exception:  # noqa: BLE001
+                pass
+            try:
                 _adherence.flush()
             except Exception:  # noqa: BLE001
                 pass
@@ -2749,6 +2794,30 @@ async def run_with_reflection(
 
         current_input = base_history + [{"role": "user", "content": reflection_msg}]
 
+        # Surface the injected reflection as a `reflection` AgentEvent for any
+        # front-end (SSE / Charm TUI) — a concise one-line notice of WHY the loop
+        # reflected, not the full imperative block. Best-effort + no-op when no
+        # sink subscribed (REPL / investigate render inline).
+        if event_sink is not None:
+            try:
+                from kryon.services.agent_events import reflection as _reflection_ev
+
+                event_sink.emit(
+                    _reflection_ev(
+                        _reflection_note(
+                            turns_used=turns_used,
+                            total_turns_cap=max_total_turns,
+                            stuck_record=stuck,
+                            degen_pattern=degen_pattern,
+                            stall_detected=stall_detected,
+                            premature_summary_detected=premature_summary_detected,
+                            next_action=next_action,
+                        )
+                    )
+                )
+            except Exception:  # noqa: BLE001 — emission must never break the loop
+                pass
+
     # If NO chunk ever returned a clean result (run ended on the wall budget, or
     # every chunk hit MaxTurns mid-flight), last_result is None — but the agent
     # may well have run tools (captured by the hooks). Build a minimal carrier so
@@ -2809,6 +2878,10 @@ async def run_with_reflection(
     except Exception:  # noqa: BLE001
         pass
     try:
+        _clear_event_sink()
+    except Exception:  # noqa: BLE001
+        pass
+    try:
         _adherence.flush()
     except Exception:  # noqa: BLE001
         pass
@@ -2818,6 +2891,7 @@ async def run_with_reflection(
 __all__ = [
     "run_with_reflection",
     "_build_reflection_prompt",
+    "_reflection_note",
     "_extract_tool_calls",
     "_is_stuck",
     "_hash_args",

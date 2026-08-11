@@ -361,4 +361,26 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
                     _f.write(_json.dumps(_rec, ensure_ascii=False) + "\n")
             except Exception as _e:  # noqa: BLE001 — debug must never break the call
                 logger.debug("response debug skipped: %s", _e)
+        # Surface the model's reasoning as a `thinking` AgentEvent for any
+        # front-end (SSE stream / Charm TUI) that subscribed via the per-task
+        # sink. The reasoning channel (`reasoning_content`/`reasoning`) never
+        # reaches `raw_responses` — the chat→output converter drops it — so this
+        # is the one place it can be captured. No-op when no sink is set (REPL /
+        # engage / investigate render inline) and best-effort (never breaks the
+        # call). Independent of the model-name reasoning gates: reads the raw
+        # response so a served-but-unrecognised alias (qwen-unc) still streams.
+        try:
+            from kryon.services.event_sink_runtime import emit_thinking
+
+            _rc_msg = getattr((_resp.choices or [None])[0], "message", None)
+            if _rc_msg is not None:
+                _rc = (
+                    getattr(_rc_msg, "reasoning_content", None)
+                    or getattr(_rc_msg, "reasoning", None)
+                    or getattr(_rc_msg, "thinking", None)
+                )
+                if _rc:
+                    emit_thinking(str(_rc))
+        except Exception as _e:  # noqa: BLE001 — event emission must never break the call
+            logger.debug("thinking emit skipped: %s", _e)
         return _resp
