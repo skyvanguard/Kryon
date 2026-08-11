@@ -739,6 +739,14 @@ class Runner:
                         await streamed_result._input_guardrails_task
                         for _gr in streamed_result.input_guardrail_results:
                             if _gr.output.tripwire_triggered:
+                                # Enqueue the completion sentinel BEFORE raising.
+                                # This raise sits outside the inner try/except
+                                # (743-842) that normally drains the queue, so
+                                # without this the background task dies with the
+                                # exception while stream_events() stays blocked on
+                                # `_event_queue.get()` forever (deadlock).
+                                streamed_result.is_complete = True
+                                streamed_result._event_queue.put_nowait(QueueCompleteSentinel())
                                 raise InputGuardrailTripwireTriggered(_gr)
                 try:
                     turn_result = await cls._run_single_turn_streamed(
