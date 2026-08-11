@@ -26,6 +26,25 @@ def test_auto_updater_stats():
     assert stats["total_updates"] == 0
 
 
+def test_stop_terminates_thread_promptly():
+    """stop() must wake the scheduler loop out of its inter-poll wait so the
+    worker thread actually exits (join succeeds) rather than being abandoned to
+    the 5s join timeout — which used to add ~5s to every server test teardown
+    and to production shutdown."""
+    import time as _time
+
+    updater = AutoUpdater()
+    updater.start(schedule_type="daily", sources=["nvd"])
+    assert updater.thread is not None and updater.thread.is_alive()
+
+    t0 = _time.monotonic()
+    updater.stop()
+    elapsed = _time.monotonic() - t0
+
+    assert not updater.thread.is_alive(), "thread should have exited on stop()"
+    assert elapsed < 3.0, f"stop() took {elapsed:.2f}s — blocked on the join timeout"
+
+
 @patch("kryon.knowledge.auto_updater.AutoUpdater._update_from_source")
 def test_run_once(mock_update):
     """run_once() should call _update_from_source for each source."""

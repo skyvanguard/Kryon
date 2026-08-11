@@ -36,6 +36,11 @@ class AutoUpdater:
         """Initialize auto-updater."""
         self.running = False
         self.thread = None
+        # Set by stop() to interrupt the scheduler loop's inter-poll wait so
+        # shutdown is immediate instead of blocking up to a full poll interval
+        # (the old time.sleep(60) made stop()'s join wait its 5s timeout every
+        # time, adding ~5s to every server test teardown and to prod shutdown).
+        self._stop_event = threading.Event()
         self.last_update: dict[str, float] = {}
         self.update_stats: deque[dict[str, Any]] = deque(maxlen=100)
 
@@ -73,6 +78,7 @@ class AutoUpdater:
             raise ValueError(f"Invalid schedule type: {schedule_type}")
 
         self.running = True
+        self._stop_event.clear()
         self.thread = threading.Thread(target=self._run_scheduler, daemon=True)
         self.thread.start()
 
@@ -86,6 +92,7 @@ class AutoUpdater:
     def stop(self):
         """Stop automatic updates."""
         self.running = False
+        self._stop_event.set()  # wake the scheduler loop out of its wait now
         if self.thread:
             self.thread.join(timeout=5)
         _get_schedule().clear()
@@ -112,7 +119,9 @@ class AutoUpdater:
         """Run scheduler loop."""
         while self.running:
             _get_schedule().run_pending()
-            time.sleep(60)
+            # Interruptible wait: returns immediately when stop() sets the event.
+            if self._stop_event.wait(60):
+                break
 
     def _update_knowledge(self, sources: list[str]) -> dict[str, Any]:
         """
