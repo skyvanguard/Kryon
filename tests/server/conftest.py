@@ -33,14 +33,21 @@ def _auto_isolate_vector_db(isolate_vector_db):
 
 @pytest.fixture(autouse=True)
 def _skip_kb_seed(monkeypatch):
-    """The app lifespan seeds the knowledge base on startup. On a fresh/isolated
-    vector store that means embedding ~500 items through ChromaDB, which loads
-    (and may download) a sentence-transformers model and HANGS the TestClient
-    lifespan (`with TestClient(app)` blocks in `wait_startup`). Server tests do
-    not exercise the KB, so no-op the seed. App code imports the name from
-    ``kryon.knowledge`` at lifespan time, so patch it there."""
+    """Neutralize the knowledge-base work the app lifespan does on startup.
+
+    On a fresh/isolated vector store the lifespan (a) calls get_knowledge_stats()
+    — which spins up ChromaDB (~0.2-0.6s per test) — and (b) seeds ~500 items via
+    real embeddings, loading (and maybe downloading) a sentence-transformers model
+    that HANGS `with TestClient(app)` in wait_startup. Server tests don't exercise
+    the KB, so stub both: report a non-empty store (skips seeding + the ChromaDB
+    init) and no-op the seed as a belt-and-suspenders. App code imports these names
+    from ``kryon.knowledge`` at lifespan time, so patch them there. Tests that DO
+    hit /knowledge/* still init ChromaDB lazily on the first request."""
     import kryon.knowledge as knowledge
 
+    monkeypatch.setattr(
+        knowledge, "get_knowledge_stats", lambda *a, **k: {"total_knowledge_items": 1}, raising=False
+    )
     monkeypatch.setattr(knowledge, "seed_knowledge_base", lambda *a, **k: {"added": 0}, raising=False)
 
 
