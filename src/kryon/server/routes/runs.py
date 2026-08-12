@@ -48,6 +48,26 @@ def _get_sm() -> SessionManager:
     return _session_manager
 
 
+def _run_wall_cap_s() -> float | None:
+    """Hard server-side wall-clock ceiling for a streamed run's background task
+    (env ``KRYON_RUN_MAX_WALL_S``, default 3600s; ``0`` disables).
+
+    A streamed run is fire-and-forget: it keeps executing after its stream client
+    disconnects (so a dropped connection never loses the turn). The flip side is that
+    an abandoned or stuck run — e.g. wedged in a model-call retry loop — would hold the
+    (often single-slot) model backend forever. The reflective loop has its own budget;
+    this is the backstop for the cases where it doesn't fire. Returns None when disabled.
+    """
+    import os
+
+    raw = os.environ.get("KRYON_RUN_MAX_WALL_S", "3600").strip()
+    try:
+        cap = float(raw)
+    except ValueError:
+        return 3600.0
+    return cap if cap > 0 else None
+
+
 @router.post("/runs", response_model=RunResponse)
 async def create_run(req: RunRequest, user: User | None = Depends(get_current_user)):
     """Execute an agent run (sync or start streaming)."""
@@ -101,9 +121,15 @@ async def create_run(req: RunRequest, user: User | None = Depends(get_current_us
             async def _run_turn_streamed():
                 from kryon.sdk.agents.run_config_factory import get_run_config
 
+                cap = _run_wall_cap_s()
                 try:
                     async with sm.semaphore:
-                        turn_result = await run_turn(
+                        # #2 observability: flip from "pending_stream" (created / queued
+                        # behind the semaphore) to "running" the moment execution starts,
+                        # so GET /runs/{id} distinguishes the two. Non-terminal, so the
+                        # stream keeps polling and DELETE still cancels.
+                        run_state.status = "running"
+                        _turn = run_turn(
                             agent,
                             req.input,
                             sink=rich_sink,
@@ -111,6 +137,9 @@ async def create_run(req: RunRequest, user: User | None = Depends(get_current_us
                             run_config=get_run_config(),
                             free_run=req.free_run,
                         )
+                        # #3 backstop: cap the background task's wall-clock so an
+                        # abandoned / stuck run can't hold the model backend forever.
+                        turn_result = await (asyncio.wait_for(_turn, timeout=cap) if cap else _turn)
                         # The report + findings ride the `done`/`finding` events;
                         # run_state.output stays empty (the stream carries everything).
                         run_state.output = ""
@@ -136,6 +165,10 @@ async def create_run(req: RunRequest, user: User | None = Depends(get_current_us
                                     cleaned, turn_result.get("final_output", "")
                                 )
                                 sm.persist_session(session)
+                except asyncio.TimeoutError:  # #3 wall-cap fired
+                    logger.warning("Rich turn exceeded wall cap (%ss): run=%s", cap, run_state.run_id)
+                    run_state.status = "incomplete"
+                    run_state.output = "Run exceeded the server wall-clock cap"
                 except asyncio.CancelledError:
                     run_state.status = "cancelled"
                 except Exception as exc:  # run_turn itself never raises; guards the plumbing
@@ -150,21 +183,32 @@ async def create_run(req: RunRequest, user: User | None = Depends(get_current_us
             from kryon.sdk.agents import Runner
             from kryon.sdk.agents.run_config_factory import get_run_config
 
+            cap = _run_wall_cap_s()
+
+            async def _drive():
+                result = Runner.run_streamed(
+                    agent, input=input_items, max_turns=req.max_turns, run_config=get_run_config()
+                )
+                async for event in result.stream_events():
+                    sse = stream_event_to_sse(event)
+                    if sse:
+                        run_state.append_event(sse)
+                run_state.output = result.final_output or ""
+                run_state.agent_name = result.last_agent.name if result.last_agent else ""
+                # Update session history
+                if session is not None:
+                    session.input_history = sanitize_history_for_persist(result.to_input_list())
+
             try:
                 async with sm.semaphore:
-                    result = Runner.run_streamed(
-                        agent, input=input_items, max_turns=req.max_turns, run_config=get_run_config()
-                    )
-                    async for event in result.stream_events():
-                        sse = stream_event_to_sse(event)
-                        if sse:
-                            run_state.append_event(sse)
-                    run_state.output = result.final_output or ""
-                    run_state.agent_name = result.last_agent.name if result.last_agent else ""
+                    run_state.status = "running"  # #2: queued (pending_stream) → executing
+                    # #3 backstop: bound the fire-and-forget task's wall-clock.
+                    await (asyncio.wait_for(_drive(), timeout=cap) if cap else _drive())
                     run_state.status = "completed"
-                    # Update session history
-                    if session is not None:
-                        session.input_history = sanitize_history_for_persist(result.to_input_list())
+            except asyncio.TimeoutError:  # #3 wall-cap fired
+                logger.warning("Stream run exceeded wall cap (%ss): run=%s", cap, run_state.run_id)
+                run_state.status = "incomplete"
+                run_state.output = run_state.output or "Run exceeded the server wall-clock cap"
             except asyncio.CancelledError:
                 run_state.status = "cancelled"
             except Exception as exc:
