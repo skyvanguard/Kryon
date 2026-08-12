@@ -60,8 +60,10 @@ services:
       # que el auto-compact (0.8×ventana) recién dispare a ~800K → llama.cpp
       # trunca/rompe a 256K antes. Pisa a env_file. Al volver a V4-Flash: 1000000.
       - KRYON_MODEL_MAX_TOKENS=${KRYON_MODEL_MAX_TOKENS:-262144}
-      # Capable regime (DEFAULT): 2, sin straitjacket. El 8 era el régimen 4B retirado.
-      - KRYON_FORCE_TOOL_TURNS=${KRYON_FORCE_TOOL_TURNS:-2}
+      # Sin default: pasa el valor del host si está seteado, si no queda vacío y aplica
+      # el default capable-aware del código → 0 para capable (el modelo conduce solo;
+      # forzar disparaba tools espurias en requests triviales) y 8 para el 4B-local.
+      - KRYON_FORCE_TOOL_TURNS=${KRYON_FORCE_TOOL_TURNS:-}
       - KRYON_DEBUG=${KRYON_DEBUG:-0}
       - KRYON_GUARDRAILS=${KRYON_GUARDRAILS:-true}
       - KRYON_MAX_TURNS=${KRYON_MAX_TURNS:-50}
