@@ -1673,11 +1673,18 @@ def _is_targetless_opening(initial_input: Any) -> bool:
     return _looks_targetless(text)
 
 
+# Output cap for a targetless conversational reply. A verbose reasoning model
+# (qwen-unc, ~15K chars/turn) otherwise takes many minutes just to say "hola" —
+# there is nothing to investigate here, so bound the turn tight.
+_TARGETLESS_MAX_TOKENS = 512
+
+
 async def _answer_targetless(agent: Any, initial_input: Any, run_config: Any) -> Any:
     """Run ONE toolless turn for a targetless opening: the model answers in text and
     physically cannot call a tool. Mirrors ``_force_final_synthesis``'s toolless-clone
-    + ``tool_choice="none"`` pattern. Returns the ``RunResult`` (same type callers get
-    from the normal path)."""
+    + ``tool_choice="none"`` pattern, plus a tight ``max_tokens`` so a trivial reply is
+    bounded (not a multi-minute reasoning dump). Returns the ``RunResult`` (same type
+    callers get from the normal path)."""
     import dataclasses
 
     from kryon.sdk.agents import ModelSettings
@@ -1685,8 +1692,9 @@ async def _answer_targetless(agent: Any, initial_input: Any, run_config: Any) ->
 
     toolless = agent.clone(tools=[])
     base_ms = getattr(run_config, "model_settings", None)
+    _overrides = {"tool_choice": "none", "max_tokens": _TARGETLESS_MAX_TOKENS}
     try:
-        ms = dataclasses.replace(base_ms, tool_choice="none") if base_ms else ModelSettings(tool_choice="none")
+        ms = dataclasses.replace(base_ms, **_overrides) if base_ms else ModelSettings(**_overrides)
         cfg = dataclasses.replace(run_config, model_settings=ms) if run_config else RunConfig(model_settings=ms)
     except Exception:  # noqa: BLE001 — settings copy is optional; fall back to the original cfg
         cfg = run_config

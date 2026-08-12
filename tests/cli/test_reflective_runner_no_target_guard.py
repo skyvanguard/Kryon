@@ -122,6 +122,7 @@ async def test_answer_targetless_runs_one_toolless_turn(monkeypatch):
         calls["max_turns"] = max_turns
         ms = getattr(run_config, "model_settings", None)
         calls["tool_choice"] = getattr(ms, "tool_choice", None)
+        calls["max_tokens"] = getattr(ms, "max_tokens", None)
         return types.SimpleNamespace(final_output="hola")
 
     monkeypatch.setattr("kryon.sdk.agents.run.Runner.run", _fake_run)
@@ -132,6 +133,7 @@ async def test_answer_targetless_runs_one_toolless_turn(monkeypatch):
     assert calls["clone_kw"] == {"tools": []}  # cloned WITHOUT tools
     assert calls["max_turns"] == 1  # a single turn, no chaining
     assert calls["tool_choice"] == "none"  # belt-and-suspenders over the toolless clone
+    assert calls["max_tokens"] == 512  # bounded — no multi-minute reasoning dump for a greeting
 
 
 async def test_run_with_reflection_short_circuits_on_targetless(monkeypatch):
