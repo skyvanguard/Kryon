@@ -1625,6 +1625,74 @@ async def _reasoning_next_action(
         return None
 
 
+def _fresh_user_text(initial_input: Any) -> str | None:
+    """The user text IF ``initial_input`` is a FRESH opening — a bare string, or a
+    message list whose only entry is a single user turn. Returns None when there is
+    prior history (not a fresh opening) so the no-target guard never fires
+    mid-engagement, where the target lives in earlier turns."""
+    if isinstance(initial_input, str):
+        return initial_input.strip() or None
+    if isinstance(initial_input, list):
+        msgs = [m for m in initial_input if isinstance(m, dict)]
+        if len(msgs) == 1 and msgs[0].get("role") == "user":
+            content = msgs[0].get("content", "")
+            return content.strip() if isinstance(content, str) and content.strip() else None
+    return None
+
+
+# Any address-like token: a URL scheme, an IPv4 (also the base of a CIDR), a
+# dotted domain, or a host:port. Used to decide a message names a target. NOT
+# resolve_target — that misses dotless docker hostnames (``juice_shop:3000``), which
+# would mis-flag a real engagement as targetless. This errs toward "has a target".
+_TARGETISH_RE = re.compile(
+    r"://"  # any URL scheme (http://, https://, ftp://, …)
+    r"|\b\d{1,3}(?:\.\d{1,3}){3}\b"  # IPv4 / CIDR base
+    r"|\b[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\b"  # dotted domain (label.label)
+    r"|\b[a-zA-Z0-9][a-zA-Z0-9_-]*:\d{2,5}\b"  # host:port (incl. dotless hostnames)
+)
+
+
+def _looks_targetless(text: str) -> bool:
+    """True only when ``text`` contains NO address-like token. Conservative by design:
+    it errs toward "has a target" so a real engagement is never mis-classified as
+    targetless (which would wrongly run it toolless)."""
+    return not _TARGETISH_RE.search(text)
+
+
+def _is_targetless_opening(initial_input: Any) -> bool:
+    """True when ``initial_input`` is a fresh opening that names NO target — a greeting,
+    a general question, an explicit no-tools ask. The deterministic half of the
+    trivial-tool-call fix: the base offensive prompt pushes even a capable model to act
+    on such input (it ran a command just to say "hola"), and prompt-level guards were
+    dominated by it. Gated by ``KRYON_NO_TARGET_GUARD`` (default on)."""
+    if os.environ.get("KRYON_NO_TARGET_GUARD", "true").strip().lower() == "false":
+        return False
+    text = _fresh_user_text(initial_input)
+    if not text:
+        return False
+    return _looks_targetless(text)
+
+
+async def _answer_targetless(agent: Any, initial_input: Any, run_config: Any) -> Any:
+    """Run ONE toolless turn for a targetless opening: the model answers in text and
+    physically cannot call a tool. Mirrors ``_force_final_synthesis``'s toolless-clone
+    + ``tool_choice="none"`` pattern. Returns the ``RunResult`` (same type callers get
+    from the normal path)."""
+    import dataclasses
+
+    from kryon.sdk.agents import ModelSettings
+    from kryon.sdk.agents.run import RunConfig, Runner
+
+    toolless = agent.clone(tools=[])
+    base_ms = getattr(run_config, "model_settings", None)
+    try:
+        ms = dataclasses.replace(base_ms, tool_choice="none") if base_ms else ModelSettings(tool_choice="none")
+        cfg = dataclasses.replace(run_config, model_settings=ms) if run_config else RunConfig(model_settings=ms)
+    except Exception:  # noqa: BLE001 — settings copy is optional; fall back to the original cfg
+        cfg = run_config
+    return await Runner.run(toolless, input=initial_input, max_turns=1, run_config=cfg)
+
+
 async def run_with_reflection(
     agent: Any,
     initial_input: str | list[Any],
@@ -1653,6 +1721,14 @@ async def run_with_reflection(
         The last RunResult from the final chunk.
     """
     from kryon.sdk.agents.run import Runner
+
+    # No-target guard (deterministic): a fresh message naming no target must NOT drive
+    # tools. The base offensive prompt otherwise pushes the model to act even on a
+    # greeting (it ran a command just to say "hola"), and prompt-level guards were
+    # dominated by it. Run ONE toolless turn so it answers in text — it physically
+    # can't call a tool. Fires only on a fresh single message with no target in play.
+    if _is_targetless_opening(initial_input):
+        return await _answer_targetless(agent, initial_input, run_config)
 
     if reflect_every <= 0:
         # Passthrough — no reflection injection.
