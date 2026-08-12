@@ -89,10 +89,16 @@ def preserve_reasoning() -> bool:
 def force_tool_turns() -> int:
     """How many of the first LLM calls per turn are forced to tool_choice="required".
 
-    8 for the 4B-local (which won't reliably call tools on its own); 2 for a capable
-    model (KRYON_CAPABLE_MODEL) so it can reason/conclude/ask instead of being forced
-    into a premature tool_call. ``KRYON_FORCE_TOOL_TURNS`` overrides either default."""
-    default = 2 if is_capable_model() else 8
+    8 for the 4B-local (which won't reliably call tools on its own); **0 for a capable
+    model** (KRYON_CAPABLE_MODEL) — it has agency and drives tools when there IS
+    something to act on, so forcing even one tool_call per turn is the "IMPOSE" the
+    capable regime rejects (it made trivial or no-target requests fire spurious tools
+    and ignore an explicit "no tools"). A capable model that stalls is caught by the
+    reasoning-only-stop recovery, and real engagements get their tool work from the
+    deterministic pre_hooks — neither needs this blind head-start. Set
+    ``KRYON_FORCE_TOOL_TURNS`` to re-impose a nudge (e.g. 1) when a specific run wants
+    it; the override wins over either default."""
+    default = 0 if is_capable_model() else 8
     return env_int("KRYON_FORCE_TOOL_TURNS", default)
 
 

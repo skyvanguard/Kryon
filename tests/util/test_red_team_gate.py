@@ -26,7 +26,7 @@ def test_force_tool_turns_capability_gated(monkeypatch):
     monkeypatch.delenv("KRYON_CAPABLE_MODEL", raising=False)
     assert force_tool_turns() == 8  # 4B-local won't call tools on its own
     monkeypatch.setenv("KRYON_CAPABLE_MODEL", "true")
-    assert force_tool_turns() == 2  # capable model may reason/conclude
+    assert force_tool_turns() == 0  # capable model drives itself — no blind forcing
     monkeypatch.setenv("KRYON_FORCE_TOOL_TURNS", "5")
     assert force_tool_turns() == 5  # explicit override wins
 

@@ -202,9 +202,12 @@ class OpenAINativeModel(OpenAIChatCompletionsModel):
         # get_response and reset per-turn by add_to_message_history, so it's valid
         # here too.
         if converted_tools:
-            # A capable model decides when to act vs reason/conclude — forcing tool
-            # calls the first 8 turns is a straitjacket (cuts thinking, forces
-            # premature/spurious tool_calls). force_tool_turns() = 2 for capable.
+            # A capable model decides when to act vs reason/conclude — blindly forcing
+            # tool_calls is a straitjacket (cuts thinking, fires spurious tools on
+            # trivial / no-target requests, ignores an explicit "no tools").
+            # force_tool_turns() = 0 for capable (never forces; _turn_llm_calls is
+            # already >= 1 here so `<= 0` is always False) and 8 for the 4B-local. A
+            # high-confidence planner directive still forces via the elif below.
             from kryon.util.env import force_tool_turns  # noqa: PLC0415
 
             _force_tool_turns = force_tool_turns()
