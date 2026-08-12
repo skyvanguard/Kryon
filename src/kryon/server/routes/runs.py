@@ -96,7 +96,7 @@ async def create_run(req: RunRequest, user: User | None = Depends(get_current_us
             from kryon.services.agent_events import CallbackSink
             from kryon.services.turn_service import run_turn
 
-            rich_sink = CallbackSink(lambda e: run_state.events.append({"sse": e.to_sse()}))
+            rich_sink = CallbackSink(lambda e: run_state.append_event(e.to_sse()))
 
             async def _run_turn_streamed():
                 from kryon.sdk.agents.run_config_factory import get_run_config
@@ -158,7 +158,7 @@ async def create_run(req: RunRequest, user: User | None = Depends(get_current_us
                     async for event in result.stream_events():
                         sse = stream_event_to_sse(event)
                         if sse:
-                            run_state.events.append({"sse": sse})
+                            run_state.append_event(sse)
                     run_state.output = result.final_output or ""
                     run_state.agent_name = result.last_agent.name if result.last_agent else ""
                     run_state.status = "completed"
@@ -255,12 +255,15 @@ async def stream_run(run_id: str):
         raise not_found("Run", run_id)
 
     async def _event_generator():
-        idx = 0
+        served = 0
         while True:
-            # Yield any buffered events
-            while idx < len(run.events):
-                yield run.events[idx]["sse"]
-                idx += 1
+            # Serve every frame this reader hasn't seen yet. `events_since` maps the
+            # `served` cursor onto the ring buffer's live window, so a long run that
+            # overflows the buffer degrades gracefully instead of mis-indexing or
+            # looping forever (both of which the old positional `run.events[idx]` did).
+            new, served = run.events_since(served)
+            for sse in new:
+                yield sse
 
             # "stuck" / "incomplete" / "budget_exceeded" are graceful partial
             # stops — terminal, but delivered as a normal done-event carrying

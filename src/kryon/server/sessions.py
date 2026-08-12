@@ -44,6 +44,15 @@ class ServerSession:
         }
 
 
+# Live runs stream their AgentEvents to any number of SSE readers via `events`.
+# It's a bounded ring buffer: a pathological run can emit thousands of frames and
+# memory must not grow without limit (× up to max_concurrent_runs). Because the
+# buffer drops its oldest entries under overflow, readers must NOT index it
+# positionally — they track how many frames they've consumed and ask `events_since`,
+# which maps that cursor onto the live window and accounts for evicted frames.
+_EVENT_BUFFER_MAXLEN = 5_000
+
+
 @dataclass
 class RunState:
     """Tracks state of an in-progress agent run."""
@@ -55,8 +64,35 @@ class RunState:
     output: str = ""
     agent_name: str = ""
     usage: dict[str, Any] = field(default_factory=dict)
-    events: deque = field(default_factory=lambda: deque(maxlen=5_000))
+    events: deque = field(default_factory=lambda: deque(maxlen=_EVENT_BUFFER_MAXLEN))
+    # Monotonic count of frames EVER appended (survives ring-buffer eviction). `events`
+    # holds only the last `_EVENT_BUFFER_MAXLEN`; this counts all of them, so a reader
+    # can tell how many were dropped before it caught up.
+    total_events: int = 0
     task: asyncio.Task | None = field(default=None, repr=False)
+
+    def append_event(self, sse: str) -> None:
+        """Buffer one SSE frame for the run's stream readers."""
+        self.events.append({"sse": sse})
+        self.total_events += 1
+
+    def events_since(self, served: int) -> tuple[list[str], int]:
+        """Frames a reader that already consumed ``served`` events hasn't seen yet,
+        plus its updated consumed-count.
+
+        The buffer is a bounded ring holding the last ``maxlen`` frames — the absolute
+        range ``[total_events - len(events), total_events)``. We map the reader's absolute
+        ``served`` cursor onto that live window instead of indexing positionally (the old
+        `events[idx]` mis-served the moment eviction shifted the deque, and its `idx`
+        could run past a `len` capped at ``maxlen``, hanging the tail forever). If the
+        reader fell so far behind that its next frame was already evicted, those frames
+        are gone (a bounded buffer cannot replay them) and it resumes from the oldest
+        live frame — graceful degradation, never a mis-served or skipped-forever frame.
+        """
+        dropped = self.total_events - len(self.events)
+        start = max(served - dropped, 0)
+        out = [self.events[i]["sse"] for i in range(start, len(self.events))]
+        return out, self.total_events
 
 
 _MAX_RUNS = 10_000
