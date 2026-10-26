@@ -1,0 +1,21 @@
+# Overview — README.md (L1)
+
+Project: Kryon — autonomous cybersecurity agent, AGPL-3.0, v2.1.0. 110 playbooks + 362 function tools (per badges). Local-first; skill-based; three execution modes.
+
+## Section map (line numbers)
+- 31 What is KRYON — pitch + capabilities (compliance audit, pentest, DFIR/incident response).
+- 68 Quickstart — install + first run.
+- 109 Execution modes — the three modes.
+- 194 Skill System — playbook/skill architecture (110 playbooks), how skills load.
+- 278 Workflow — end-to-end flow.
+- 303 Architecture — components (362 function tools), the stack.
+- 388 Installation — detailed, long (multiple platforms/stacks).
+- 625 Supported AI Models — model backends.
+- 639 Compliance Coverage — standards mapped (CIS etc.).
+- 672 Docker Stack — containers (kryon Kali box et al.).
+- 697 Testing · 715 Contributing · 727 Disclaimer · 735 License (AGPL-3.0).
+
+## Quick facts
+- Entry point to the repo: read "What is KRYON" + "Skill System" first.
+- The Docker Stack section documents the kryon Kali container that hosts the offensive toolset.
+- Compliance section references CIS controls (related importer scripts live in scripts/).

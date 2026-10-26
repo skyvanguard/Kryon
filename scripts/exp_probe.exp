@@ -1,0 +1,35 @@
+#!/usr/bin/expect -f
+# exp_probe.exp — expect skeleton for interactive CLIs (password prompts,
+# menu-driven tools, services that speak line protocols).
+#
+# Usage: exp_probe.exp <timeout_s> <log_file> <spawn_cmd...>
+# Example: exp_probe.exp 30 /tmp/exp.log /usr/bin/some-interactive-tool
+#
+# The skeleton: spawn with logging, then wait for EOF or timeout. Replace
+# the body with explicit steps for scripted interactions:
+#   expect "Password:"
+#   send "secretpw\r"
+#   expect "# "
+#   send "id\r"
+#   expect eof
+# Always: capture the session with log_file into the campaign evidence dir,
+# and always set a global timeout — never expect forever.
+if {[llength $argv] < 3} {
+    puts "Usage: [info script] <timeout_s> <log_file> <spawn_cmd...>"
+    exit 2
+}
+set timeout [lindex $argv 0]
+set logfile [lindex $argv 1]
+set cmd [lrange $argv 2 end]
+
+log_file -noappend $logfile
+spawn {*}$cmd
+
+expect {
+    eof { puts "EOF reached" }
+    timeout {
+        puts stderr "TIMEOUT after $timeout s — killing child"
+        catch {exec kill -9 $spawn_id}
+        exit 3
+    }
+}

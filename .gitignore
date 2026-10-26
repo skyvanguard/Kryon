@@ -262,6 +262,9 @@ scripts/f18/juiceshop_sources/
 _hunt/
 data/finetune/
 
+# Evidencia de campañas/research (local, no se versiona)
+evidence/
+
 # Scripts de POC / engagement privados (solo local, nunca público).
 # El vulnerable-lab local (sintético) SÍ se versiona.
 scripts/poc_*
